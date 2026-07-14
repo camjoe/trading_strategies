@@ -11,10 +11,20 @@ batch operations implement SQLite's required copy-and-rebuild workflow for struc
 
 ## Implementation Changes
 
-- Add pinned Alembic and SQLAlchemy runtime dependencies and a repository-owned Alembic
-  environment configured from the existing `TRADING_DB_PATH`/DB config resolution.
+- Add pinned Alembic and SQLAlchemy as dev/ops-only dependencies (decided — Option B) used by
+  the schema-setup and migration commands, plus a repository-owned Alembic environment
+  configured from the existing `TRADING_DB_PATH`/DB config resolution. The application never
+  imports Alembic: `ensure_db()` reads `alembic_version` with plain SQL and compares it to a
+  checked-in expected-head constant, and CI fails when that constant does not match the
+  migration directory's head. Switching to runtime dependencies (Option A) later only replaces
+  the constant with a script-directory lookup.
 - Create immutable, numeric, single-head revisions:
   - `0001_current_schema` creates the complete current schema.
+  - Rationale — the initial revision owns the full schema instead of a separate init-schema
+    artifact so the revision chain is the *only* schema source: fresh setup is replay from
+    base, `verify` can build any revision from scratch, and there is no second DDL artifact
+    that must be hand-synced with every revision (the dual-source drift burden `SCHEMA_SQL`
+    plus probe migrations carry today).
   - Its downgrade drops that schema in reverse dependency order.
   - The still-pending `strategy_param_sets` removal remains unimplemented and becomes a later
     revision, likely `0002`.
@@ -27,6 +37,41 @@ batch operations implement SQLite's required copy-and-rebuild workflow for struc
 
 Remove `SCHEMA_SQL`, `ColumnMigration`, table-rebuild dispatch, and schema mutation from
 `ensure_db()`. Migration history becomes the sole schema source of truth.
+
+## Transition Preconditions
+
+- A database must reach the probe system's end state before it can be baselined: opened at least
+  once by the current release so the FK cascade rebuilds (`docs/pending-deploy-steps.md` Step 0)
+  and all additive column migrations have applied.
+- Status 2026-07-14: all known deployed databases have been opened with current code and are
+  aligned through the FK cascade rebuilds. Only the `strategy_param_sets` removal remains
+  outstanding, and revision `0001` deliberately still includes that table, so aligned databases
+  match `0001`.
+- `docs/pending-deploy-steps.md` folds into this plan: Step 3 (drop `strategy_param_sets`)
+  becomes revision `0002`, and the tracker is retired or rewritten in terms of migration
+  revisions when this plan lands.
+- Freeze other schema churn until `0001` and the baseline transition land. Follow-on rework
+  (e.g. the accounts-table reduction) proceeds afterward as ordinary numbered revisions.
+
+## Schema Comparison Semantics
+
+`baseline` and `verify` share one normalized schema comparator; "matches the `0001` schema"
+always means equality under these rules, never byte-identical DDL:
+
+- Compare tables, columns, indexes, foreign keys, unique constraints, and check constraints as
+  sets — physical column order is ignored, because databases built additively via
+  `ALTER TABLE ADD COLUMN` order columns differently than a fresh `CREATE TABLE`.
+- Normalize whitespace, identifier quoting, keyword case, and literal formatting in default and
+  check expressions before comparing.
+- Ignore SQLite internals: `sqlite_sequence`, auto-generated `sqlite_autoindex_*` indexes, and
+  the `alembic_version` table itself.
+- Known drift accommodation — `accounts.rotation_overlay_watchlist`: its `DEFAULT` literal is a
+  JSON ticker-list blob frozen per database at the moment the column migration ran, so deployed
+  databases can legitimately disagree with each other and with `0001`. The comparator requires
+  the column and the presence of a default but does not compare that default's value. Revision
+  `0001` freezes one literal snapshot for fresh databases.
+- Baseline mismatch output names the differing table, column, index, FK, or check so the
+  operator can diagnose without diffing dumps by hand.
 
 ## Operator Interfaces
 
@@ -55,10 +100,10 @@ Commands:
 - `upgrade [revision]`: default to `head`; create a timestamped backup before changing a nonempty
   database.
 - `downgrade <revision|-1>`: require an explicit target and create a backup first.
-- `baseline`: validate an unversioned database against the semantic `0001` schema, then stamp it
-  without replaying DDL.
-- `verify`: compare revision state and normalized tables, columns, indexes, foreign keys, and checks
-  against a temporary database built at the same revision.
+- `baseline`: validate an unversioned database against the `0001` schema using the shared
+  comparator (see Schema Comparison Semantics), then stamp it without replaying DDL.
+- `verify`: compare revision state and schema against a temporary database built at the same
+  revision, using the same comparator as `baseline`.
 - `history`: display the ordered revision chain.
 
 ### Data seeding
@@ -74,7 +119,8 @@ It must require a database already migrated to `head`.
 ## Runtime and Deployment Safety
 
 - `ensure_db()` opens the SQLite connection and verifies that its Alembic revision equals the
-  single repository head.
+  single repository head (via the checked-in expected-head constant — see Implementation
+  Changes).
 - Missing, unversioned, outdated, newer, branched, or structurally invalid databases fail before
   application queries or jobs run, with the exact remediation command.
 - Runtime startup never applies or downgrades migrations.
@@ -85,9 +131,26 @@ It must require a database already migrated to `head`.
 - CI enforces numeric ordering, one linear head, immutable ancestry, and nonempty upgrade/downgrade
   functions.
 - Update architecture guidance, the DB migration reference, deployment runbook, maps, schema
-  inspection tooling, and the repository `db-migration` skill to use the new workflow.
+  inspection tooling, `docs/pending-deploy-steps.md`, and the repository `db-migration` skill to
+  use the new workflow.
 
 ## Test Plan
+
+### Test fixture migration
+
+This is the largest code-churn item in the plan. Today every fixture gets its schema implicitly
+because `ensure_db()` creates it; once `ensure_db()` only verifies, that stops working for
+`tests/conftest.py` and roughly thirty other files that call `ensure_db()`/`init_schema()`.
+
+- Provide a shared test-support helper (e.g. `build_db_at_head()`) that runs the Alembic chain
+  against the injected backend's database and stamps it at `head`.
+- Keep per-test cost flat as revisions accumulate: build the head schema once per session into a
+  template database file and copy it per test, extending the existing seed-then-copy pattern in
+  `tests/conftest.py`, rather than replaying the migration chain for every test.
+- Migrate existing fixtures to the helper; direct `init_schema()` calls are removed with the
+  probe system.
+
+### Behavior coverage
 
 - Fresh setup reaches `head`, produces the expected current schema, and leaves application data
   unseeded.
@@ -107,9 +170,29 @@ It must require a database already migrated to `head`.
 - Existing database, repository, web, CLI, and runtime suites run against databases created through
   Alembic rather than `init_schema()`.
 
+## Open Decisions
+
+### Alembic environment location and wiring
+
+- Proposed home: `src/infrastructure/database/alembic/` (`env.py`, `versions/`). Confirm how
+  `scripts.checks.repo.layer_check` should treat migration files, which are exempt from the
+  no-imports-from-application-code rule by design (they are self-contained).
+- The migration runner and test helper hand Alembic a live connection from the active
+  `DatabaseBackend` (Alembic's `connectable`/`connection` mode) rather than a URL, so
+  `set_backend()` injection and in-memory databases keep working.
+
+### Smaller decisions
+
+- Pre-`upgrade`/`downgrade` backups should reuse `backup_database()` from
+  `trading.interfaces.runtime.data_ops.admin` rather than duplicating backup logic.
+- `scripts.data_ops.describe_db_schema --source code` and the `db_schema_check` docs drift check
+  currently read `SCHEMA_SQL`; re-point them at a temporary database built at `head`.
+
 ## Assumptions
 
-- All known deployed databases currently match the schema represented by revision `0001`.
+- All known deployed databases have been opened with current code, so they carry the FK cascade
+  rebuilds and all additive column migrations and match revision `0001` under the shared
+  comparator (see Transition Preconditions).
 - Migration revisions are manually authored and reviewed; ORM autogeneration is not introduced
   because the application has no SQLAlchemy model metadata.
 - Downgrades guarantee schema reversal only. Backups remain the recovery mechanism for deleted rows
