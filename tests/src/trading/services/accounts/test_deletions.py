@@ -4,13 +4,15 @@ import sqlite3
 
 import pytest
 
-from trading.services import admin as admin_service
+from trading.services import accounts as accounts_service
 
 
 class TestDeleteAccounts:
-    def test_delete_accounts_dry_run_reports_counts_without_deleting(self, seeded_conn: sqlite3.Connection) -> None:
-        counts = admin_service.delete_accounts(
-            seeded_conn,
+    def test_delete_accounts_dry_run_reports_counts_without_deleting(
+        self, deletion_seeded_conn: sqlite3.Connection
+    ) -> None:
+        counts = accounts_service.delete_accounts(
+            deletion_seeded_conn,
             account_names=["acct_a"],
             delete_all=False,
             dry_run=True,
@@ -33,13 +35,15 @@ class TestDeleteAccounts:
             "risk_decisions": 1,
         }
 
-        remaining = seeded_conn.execute("SELECT COUNT(*) AS n FROM accounts").fetchone()
+        remaining = deletion_seeded_conn.execute("SELECT COUNT(*) AS n FROM accounts").fetchone()
         assert remaining is not None
         assert int(remaining["n"]) == 2
 
-    def test_delete_accounts_removes_target_and_related_records_only(self, seeded_conn: sqlite3.Connection) -> None:
-        counts = admin_service.delete_accounts(
-            seeded_conn,
+    def test_delete_accounts_removes_target_and_related_records_only(
+        self, deletion_seeded_conn: sqlite3.Connection
+    ) -> None:
+        counts = accounts_service.delete_accounts(
+            deletion_seeded_conn,
             account_names=["acct_a"],
             delete_all=False,
             dry_run=False,
@@ -52,7 +56,7 @@ class TestDeleteAccounts:
         assert counts["risk_snapshots"] == 1
         assert counts["risk_decisions"] == 1
 
-        remaining_accounts = seeded_conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
+        remaining_accounts = deletion_seeded_conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
         assert [str(row["name"]) for row in remaining_accounts] == ["acct_b"]
 
         removed = {
@@ -68,28 +72,28 @@ class TestDeleteAccounts:
             "risk_decisions": "SELECT COUNT(*) AS n FROM risk_decisions WHERE account_id = 1",
         }
         for label, query in removed.items():
-            row = seeded_conn.execute(query).fetchone()
+            row = deletion_seeded_conn.execute(query).fetchone()
             assert row is not None
             assert int(row["n"]) == 0, f"{label} rows for acct_a should be cascade-deleted"
 
-    def test_delete_accounts_cascades_match_dry_run_counts(self, seeded_conn: sqlite3.Connection) -> None:
+    def test_delete_accounts_cascades_match_dry_run_counts(self, deletion_seeded_conn: sqlite3.Connection) -> None:
         """Cascade-backed deletion removes exactly the rows dry-run reported."""
-        dry_counts = admin_service.delete_accounts(
-            seeded_conn,
+        dry_counts = accounts_service.delete_accounts(
+            deletion_seeded_conn,
             account_names=["acct_a"],
             delete_all=False,
             dry_run=True,
         )
 
-        counts = admin_service.delete_accounts(
-            seeded_conn,
+        counts = accounts_service.delete_accounts(
+            deletion_seeded_conn,
             account_names=["acct_a"],
             delete_all=False,
             dry_run=False,
         )
 
         assert counts == dry_counts
-        assert seeded_conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert deletion_seeded_conn.execute("PRAGMA foreign_key_check").fetchall() == []
 
         # The untouched account keeps its child rows across every cascaded table.
         surviving = {
@@ -103,22 +107,24 @@ class TestDeleteAccounts:
             "risk_decisions": "SELECT COUNT(*) AS n FROM risk_decisions WHERE account_id = 2",
         }
         for label, query in surviving.items():
-            row = seeded_conn.execute(query).fetchone()
+            row = deletion_seeded_conn.execute(query).fetchone()
             assert row is not None
             assert int(row["n"]) == 1, f"{label} for acct_b should survive acct_a deletion"
 
-    def test_delete_accounts_raises_for_missing_named_account(self, seeded_conn: sqlite3.Connection) -> None:
+    def test_delete_accounts_raises_for_missing_named_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:
         with pytest.raises(ValueError, match="Accounts not found: missing"):
-            admin_service.delete_accounts(
-                seeded_conn,
+            accounts_service.delete_accounts(
+                deletion_seeded_conn,
                 account_names=["missing"],
                 delete_all=False,
                 dry_run=True,
             )
 
-    def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(self, empty_conn: sqlite3.Connection) -> None:
-        counts = admin_service.delete_accounts(
-            empty_conn,
+    def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(
+        self, deletion_empty_conn: sqlite3.Connection
+    ) -> None:
+        counts = accounts_service.delete_accounts(
+            deletion_empty_conn,
             account_names=[],
             delete_all=True,
             dry_run=False,

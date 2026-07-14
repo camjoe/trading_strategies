@@ -5,8 +5,8 @@ import sqlite3
 from trading.services.accounts import (
     AccountAlreadyExistsError,
     create_account,
+    delete_accounts,
 )
-from trading.services.admin import delete_accounts
 from trading.services.profiles import apply_book_rotation_settings
 
 from ..account_contract import AdminCreateAccountCommand
@@ -15,10 +15,18 @@ from .db import db_conn
 _MANAGED_ACCOUNT_DELETE_COUNT_KEYS = {
     "accounts": "accounts",
     "trades": "trades",
+    "orders": "orders",
+    "order_fills": "orderFills",
     "equity_snapshots": "equitySnapshots",
     "backtest_runs": "backtestRuns",
     "backtest_trades": "backtestTrades",
     "backtest_equity_snapshots": "backtestEquitySnapshots",
+    "walk_forward_groups": "walkForwardGroups",
+    "walk_forward_group_runs": "walkForwardGroupRuns",
+    "promotion_reviews": "promotionReviews",
+    "promotion_review_events": "promotionReviewEvents",
+    "risk_snapshots": "riskSnapshots",
+    "risk_decisions": "riskDecisions",
 }
 
 

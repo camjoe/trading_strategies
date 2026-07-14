@@ -4,6 +4,9 @@ import pytest
 
 from trading.models import AccountInsert
 from trading.repositories.accounts import AccountRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
+from tests.support.repositories import insert_repository_account
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 def _make_account_insert(**overrides: object) -> AccountInsert:
@@ -183,3 +186,116 @@ class TestFetchAllAccountNames:
 
     def test_empty_table_returns_empty(self, conn) -> None:
         assert AccountRepository(conn).fetch_names() == []
+
+
+def _account_id(conn, name: str = "count_acct") -> int:
+    return insert_repository_account(conn, name=name)
+
+
+def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend") -> int:
+    cursor = conn.execute(
+        "INSERT INTO backtest_runs (account_id, strategy_id, start_date, end_date, created_at) VALUES (?,?,?,?,?)",
+        (
+            account_id,
+            ensure_strategy_id_for_label(conn, strategy_name),
+            "2026-01-01",
+            "2026-06-01",
+            "2026-01-01T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def _insert_equity_snapshot(conn, *, account_id: int) -> None:
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time="2026-01-01T00:00:00Z",
+        cash=1000.0,
+        market_value=0.0,
+        equity=1000.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
+
+
+def _insert_trade(conn, *, account_id: int) -> None:
+    conn.execute(
+        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?,?,?,?,?,?,?)",
+        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-01T10:00:00Z"),
+    )
+    conn.commit()
+
+
+class TestFetchOwnedRowCount:
+    def test_returns_zero_for_empty_table(self, conn) -> None:
+        acct_id = _account_id(conn)
+        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_id,)) == 0
+
+    def test_counts_matching_rows(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert_trade(conn, account_id=acct_id)
+        _insert_trade(conn, account_id=acct_id)
+        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_id,)) == 2
+
+    def test_only_counts_matching_rows(self, conn) -> None:
+        acct_a = _account_id(conn, "count_a")
+        acct_b = _account_id(conn, "count_b")
+        _insert_trade(conn, account_id=acct_a)
+        _insert_trade(conn, account_id=acct_b)
+        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_a,)) == 1
+
+
+class TestFetchChildRowCount:
+    def test_returns_zero_without_child_rows(self, conn) -> None:
+        acct_id = _account_id(conn)
+        assert AccountRepository(conn).fetch_child_row_count("backtest_trades", (acct_id,)) == 0
+
+    def test_counts_rows_through_owning_parent(self, conn) -> None:
+        acct_id = _account_id(conn)
+        run_id = _insert_backtest_run(conn, account_id=acct_id)
+        conn.execute(
+            "INSERT INTO backtest_trades (run_id, trade_time, ticker, side, qty, price) VALUES (?,?,?,?,?,?)",
+            (run_id, "2026-01-01T10:00:00Z", "AAPL", "buy", 1.0, 100.0),
+        )
+        conn.commit()
+        assert AccountRepository(conn).fetch_child_row_count("backtest_trades", (acct_id,)) == 1
+
+    def test_counts_book_keyed_snapshots(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert_equity_snapshot(conn, account_id=acct_id)
+        assert AccountRepository(conn).fetch_child_row_count("equity_snapshots", (acct_id,)) == 1
+
+    def test_does_not_count_other_accounts(self, conn) -> None:
+        acct_a = _account_id(conn, "count_a")
+        acct_b = _account_id(conn, "count_b")
+        _insert_equity_snapshot(conn, account_id=acct_b)
+        assert AccountRepository(conn).fetch_child_row_count("equity_snapshots", (acct_a,)) == 0
+
+
+class TestDeleteByIds:
+    def test_removes_account_and_cascades_owned_rows(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert_trade(conn, account_id=acct_id)
+        run_id = _insert_backtest_run(conn, account_id=acct_id)
+
+        repo = AccountRepository(conn)
+        repo.delete_by_ids((acct_id,))
+
+        assert conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone() is None
+        assert repo.fetch_owned_row_count("trades", (acct_id,)) == 0
+        assert conn.execute("SELECT id FROM backtest_runs WHERE id = ?", (run_id,)).fetchone() is None
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+    def test_does_not_remove_other_accounts(self, conn) -> None:
+        acct_a = _account_id(conn, "del_a")
+        acct_b = _account_id(conn, "del_b")
+        AccountRepository(conn).delete_by_ids((acct_a,))
+        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_b,)).fetchone()
+        assert row is not None
+
+    def test_empty_ids_is_a_noop(self, conn) -> None:
+        acct_id = _account_id(conn)
+        AccountRepository(conn).delete_by_ids(())
+        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone()
+        assert row is not None

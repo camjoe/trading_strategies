@@ -6,10 +6,6 @@ import sqlite3
 from common.coercion import coerce_int
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.admin_deletions import (
-    count_child_rows_for_account_ids,
-    fetch_row_count,
-)
 
 
 DELETE_COUNT_KEYS = (
@@ -40,7 +36,7 @@ _ACCOUNT_KEYED_COUNT_TABLES = (
     "risk_decisions",
 )
 
-# Child tables counted through their owning parent (see admin_deletions).
+# Child tables counted through their owning parent (see AccountRepository).
 _CHILD_COUNT_TABLES = (
     "order_fills",
     "equity_snapshots",
@@ -102,18 +98,19 @@ def delete_accounts(
         return _empty_delete_counts()
 
     account_ids = _collect_required_ids(targets, key="id", label="account")
+    repo = AccountRepository(conn)
 
     counts = _empty_delete_counts()
     counts["accounts"] = len(targets)
     for table in _ACCOUNT_KEYED_COUNT_TABLES:
-        counts[table] = fetch_row_count(conn, table, "account_id", account_ids)
+        counts[table] = repo.fetch_owned_row_count(table, account_ids)
     for table in _CHILD_COUNT_TABLES:
-        counts[table] = count_child_rows_for_account_ids(conn, table, account_ids)
+        counts[table] = repo.fetch_child_row_count(table, account_ids)
 
     if dry_run:
         return counts
 
     # One atomic statement: ON DELETE CASCADE removes every account-owned row
     # (books, orders, fills, snapshots, research, governance, risk).
-    AccountRepository(conn).delete_by_ids(account_ids)
+    repo.delete_by_ids(account_ids)
     return counts

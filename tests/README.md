@@ -82,7 +82,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services` | `tests/src/trading/services/` |
 | `src/trading/services/accounting` | `tests/src/trading/services/accounting/` |
 | `src/trading/services/accounts` | `tests/src/trading/services/accounts/` |
-| `src/trading/services/admin` | `tests/src/trading/services/admin/` |
 | `src/trading/services/analysis` | `tests/src/trading/services/analysis/` |
 | `src/trading/services/auto_trading` | `tests/src/trading/services/auto_trading/` |
 | `src/trading/services/evaluation` | `tests/src/trading/services/evaluation/` |
@@ -148,7 +147,7 @@ python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
   - `tests/src/trading/services/analysis/conftest.py` — `analysis_account`
   - `tests/src/trading/services/evaluation/conftest.py` — `eval_account`
   - `tests/src/trading/services/promotion/conftest.py` — `promotion_account`
-  - `tests/src/trading/services/admin/conftest.py` — `configured_backend`
+  - `tests/src/trading/services/accounts/conftest.py` — `configured_backend`
   - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
   - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/src/trading/services/market_data/conftest.py` — provider reset per test
@@ -252,6 +251,6 @@ Helpers that are exclusively used by a single suite live co-located with that su
 
 - `tests/src/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders and `run_module_as_main` (see [Interfaces Layer: `__main__` Entrypoint Tests](#interfaces-layer-__main__-entrypoint-tests))
 - `tests/src/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
-- `tests/src/trading/services/admin/seed.py` — admin dataset seeding
+- `tests/src/trading/services/accounts/seed.py` — admin dataset seeding
 
 **Convention:** if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.

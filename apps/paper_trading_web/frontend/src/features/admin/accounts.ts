@@ -111,12 +111,14 @@ export function createAdminAccountsController(
         accountName,
         confirm: true,
       });
+      const riskRecords = result.deleted.riskSnapshots + result.deleted.riskDecisions;
       setOutput(
         output,
         "success",
         `Deleted ${result.deleted.accounts} account.<br>` +
-        `Removed ${result.deleted.trades} trades, ${result.deleted.equitySnapshots} snapshots, ` +
-        `${result.deleted.backtestRuns} backtest runs.`,
+        `Removed ${result.deleted.trades} trades, ${result.deleted.orders} orders, ` +
+        `${result.deleted.equitySnapshots} snapshots, ${result.deleted.backtestRuns} backtest runs, ` +
+        `${riskRecords} risk records.`,
         true,
       );
       await loadDeleteAccounts();

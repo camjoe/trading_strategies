@@ -7,6 +7,11 @@ import surface unless a tightly scoped internal import is clearer.
 
 from __future__ import annotations
 
+from trading.services.accounts.deletions import (
+    DELETE_COUNT_KEYS,
+    delete_accounts,
+    iter_delete_count_items,
+)
 from trading.services.accounts.listing import (
     GOAL_NOT_SET_TEXT,
     HEURISTIC_EXPLORATION_LABEL,
@@ -52,6 +57,9 @@ __all__ = [
     "AccountAlreadyExistsError",
     "DEFAULT_MAX_POSITION_PCT",
     "DEFAULT_TRADE_SIZE_PCT",
+    "DELETE_COUNT_KEYS",
+    "delete_accounts",
+    "iter_delete_count_items",
     "find_account",
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",

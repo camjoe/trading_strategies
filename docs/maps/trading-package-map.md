@@ -133,8 +133,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
+| `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
-| `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/performance.py` | Book performance window queries (reads daily metrics) |
@@ -204,8 +204,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 
 | Module | Responsibility |
 |---|---|
-| `accounts.py` | Equity snapshot and account snapshot persistence |
-| `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
+| `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |

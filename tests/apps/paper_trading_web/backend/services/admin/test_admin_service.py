@@ -8,21 +8,33 @@ from paper_trading_web.backend.services.admin import create_account_with_rotatio
 from trading.domain import AccountAlreadyExistsError
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.admin import DELETE_COUNT_KEYS
+from trading.services.accounts import DELETE_COUNT_KEYS
 
 
 def test_managed_account_delete_count_mapping_uses_known_service_keys() -> None:
     assert set(services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS) <= set(DELETE_COUNT_KEYS)
 
 
-def test_managed_account_delete_count_mapping_exposes_stable_web_subset() -> None:
+def test_managed_account_delete_count_mapping_covers_every_service_key() -> None:
+    assert set(services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS) == set(DELETE_COUNT_KEYS)
+
+
+def test_managed_account_delete_count_mapping_exposes_stable_web_keys() -> None:
     assert services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS == {
         "accounts": "accounts",
         "trades": "trades",
+        "orders": "orders",
+        "order_fills": "orderFills",
         "equity_snapshots": "equitySnapshots",
         "backtest_runs": "backtestRuns",
         "backtest_trades": "backtestTrades",
         "backtest_equity_snapshots": "backtestEquitySnapshots",
+        "walk_forward_groups": "walkForwardGroups",
+        "walk_forward_group_runs": "walkForwardGroupRuns",
+        "promotion_reviews": "promotionReviews",
+        "promotion_review_events": "promotionReviewEvents",
+        "risk_snapshots": "riskSnapshots",
+        "risk_decisions": "riskDecisions",
     }
 
 
@@ -130,10 +142,18 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     assert counts == {
         "accounts": 1,
         "trades": 1,
+        "orders": 0,
+        "orderFills": 0,
         "equitySnapshots": 1,
         "backtestRuns": 1,
         "backtestTrades": 1,
         "backtestEquitySnapshots": 1,
+        "walkForwardGroups": 1,
+        "walkForwardGroupRuns": 1,
+        "promotionReviews": 0,
+        "promotionReviewEvents": 0,
+        "riskSnapshots": 0,
+        "riskDecisions": 0,
     }
 
     assert conn.execute("SELECT COUNT(*) AS n FROM accounts WHERE id = ?", (account_id,)).fetchone()["n"] == 0

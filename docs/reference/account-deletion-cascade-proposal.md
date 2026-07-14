@@ -13,13 +13,13 @@ Use this note to decide which foreign-key relationships should become database-e
 
 ## Current Direction
 
-`trading.services.admin.delete_accounts()` remains the account-deletion orchestration boundary, but
-the schema now owns all row cleanup: the real deletion is one atomic
+`trading.services.accounts.delete_accounts()` remains the account-deletion orchestration boundary,
+but the schema now owns all row cleanup: the real deletion is one atomic
 `DELETE FROM accounts` (`AccountRepository.delete_by_ids`) and `ON DELETE CASCADE` removes every
 account-owned row. The service still owns:
 
 - target account resolution and missing-account behavior
-- dry-run count reporting (count queries live in `trading.repositories.admin_deletions`)
+- dry-run count reporting (count queries live on `AccountRepository` in `trading.repositories.accounts`)
 - backup-before-delete integration through the runtime data-ops CLI
 - stable count keys consumed by the UI and CLI — extended with `orders`, `order_fills`,
   `risk_snapshots`, and `risk_decisions` now that those rows are deleted too

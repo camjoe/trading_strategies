@@ -43,6 +43,18 @@ _ACCOUNT_INSERT_SQL = (
     f"VALUES ({', '.join('?' for _ in _ACCOUNT_INSERT_COLUMNS)})"
 )
 
+# Child tables reachable only through an owning parent keyed to accounts. Used
+# by deletion-count reporting; the rows themselves are removed by the
+# ON DELETE CASCADE chain when the account row is deleted.
+_CHILD_COUNT_PREDICATES = {
+    "order_fills": "order_id IN (SELECT id FROM orders WHERE account_id IN ({placeholders}))",
+    "equity_snapshots": "book_id IN (SELECT id FROM books WHERE account_id IN ({placeholders}))",
+    "backtest_trades": "run_id IN (SELECT id FROM backtest_runs WHERE account_id IN ({placeholders}))",
+    "backtest_equity_snapshots": "run_id IN (SELECT id FROM backtest_runs WHERE account_id IN ({placeholders}))",
+    "walk_forward_group_runs": "group_id IN (SELECT id FROM walk_forward_groups WHERE account_id IN ({placeholders}))",
+    "promotion_review_events": "review_id IN (SELECT id FROM promotion_reviews WHERE account_id IN ({placeholders}))",
+}
+
 
 class AccountRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -103,3 +115,24 @@ class AccountRepository:
         placeholders = ", ".join("?" for _ in account_ids)
         self._conn.execute(f"DELETE FROM accounts WHERE id IN ({placeholders})", account_ids)
         self._conn.commit()
+
+    def fetch_owned_row_count(self, table: str, account_ids: tuple[int, ...]) -> int:
+        """Count rows in a table keyed directly to accounts.id via account_id."""
+        placeholders = ", ".join("?" for _ in account_ids)
+        row = self._conn.execute(
+            f"SELECT COUNT(*) AS n FROM {table} WHERE account_id IN ({placeholders})",
+            account_ids,
+        ).fetchone()
+        if row is None:
+            return 0
+        n = row["n"]
+        if not isinstance(n, int):
+            raise ValueError(f"Unexpected non-integer count from table '{table}'.")
+        return n
+
+    def fetch_child_row_count(self, table: str, account_ids: tuple[int, ...]) -> int:
+        """Count rows in a child table reachable only through an owning parent."""
+        placeholders = ", ".join("?" for _ in account_ids)
+        predicate = _CHILD_COUNT_PREDICATES[table].format(placeholders=placeholders)
+        row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table} WHERE {predicate}", account_ids).fetchone()
+        return int(row["n"]) if row is not None else 0

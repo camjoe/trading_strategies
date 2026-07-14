@@ -9,8 +9,8 @@ from typing import Callable, cast
 from common.paths.project_paths import DB_BACKUPS_DIR
 from infrastructure.database.init import db_session
 from infrastructure.database.backend import SQLiteBackend, get_backend
+from trading.services.accounts import delete_accounts, iter_delete_count_items
 from trading.services.accounts.listing import list_accounts
-from trading.services.admin import delete_accounts, iter_delete_count_items
 
 
 def _sqlite_db_path() -> Path:
