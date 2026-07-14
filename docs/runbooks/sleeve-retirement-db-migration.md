@@ -50,7 +50,7 @@ mid-run** (any time outside the daily run window is fine).
 ### 1. Back up
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.data_ops.admin backup   # or copy local/paper_trading.db
+.venv/bin/python -m trading.interfaces.runtime.data_ops.admin backup-db   # or copy local/paper_trading.db
 ls local/db_backups/   # confirm a fresh snapshot exists
 ```
 

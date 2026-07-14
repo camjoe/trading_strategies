@@ -44,7 +44,7 @@ These relationships are child-owned implementation detail. The child row has no 
 
 Decision (2026-07-13): account deletion removes the account's operational, research, governance, and
 risk history. There is no separate archive path; the pre-deletion backup
-(`data_ops.admin backup`) is the retention mechanism.
+(`data_ops.admin backup-db`) is the retention mechanism.
 
 | Relationship | Action | Notes |
 |---|---|---|

@@ -87,6 +87,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
+| `docs/reference/database-cleanup-roadmap.md` | Future cleanup ideas for narrowing `accounts` and retiring legacy account-level columns | Account/settings ownership or cleanup sequencing decisions change |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
@@ -96,7 +97,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
-| `docs/pending-deploy-steps.md` | Consolidated tracker for the one-time DB steps (two to run, one to build); full procedures link to the runbooks | A one-time DB step is added, run everywhere, or built |
+| `docs/pending-deploy-steps.md` | Ordered checklist for pending one-time DB steps on existing databases; full procedures link to the runbooks | A one-time DB step is added, run everywhere, or built |
 
 ### ADRs
 

@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-12
+Last Reviewed: 2026-07-13
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. The entry point and
 the itemized tracker for what remains.
@@ -131,9 +131,9 @@ The strategic order here is the north star (the "why/what") and the authoritativ
 for what is left. Today's delivered capabilities are in "What it can do today" above; durable
 decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
-The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
-and the book-rotation cutover — operator runbooks) plus one not-yet-built schema cleanup, all tracked
-in [pending-deploy-steps.md](pending-deploy-steps.md).
+The remaining committed deployment work is one automatic FK table-rebuild step plus two one-time
+operator data-ops for existing databases. One not-yet-built schema cleanup remains deferred. All are
+tracked in [pending-deploy-steps.md](pending-deploy-steps.md).
 
 ## Guiding constraints
 
