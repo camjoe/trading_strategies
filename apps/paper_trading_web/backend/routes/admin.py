@@ -46,6 +46,7 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
 
 @router.get("/api/admin/accounts/delete-preview")
 def api_admin_delete_account_preview(accountName: str = Query(..., min_length=1)) -> dict[str, object]:  # noqa: N803
+    """Return account identity details for confirmation before deletion."""
     return {"status": "ok", "preview": build_account_deletion_preview(accountName)}
 
 
