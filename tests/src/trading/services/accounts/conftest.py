@@ -10,6 +10,7 @@ from infrastructure.database.backend import SQLiteBackend, get_backend, set_back
 from infrastructure.database.init import ensure_db
 from trading.services.accounts import create_account
 from tests.src.trading.services.accounts.seed import seed_admin_db
+from tests.support.db_schema import build_db_at_head
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def configured_backend(tmp_path: Path) -> Iterator[SQLiteBackend]:
     and restores the original on teardown.
     """
     original = get_backend()
-    backend = SQLiteBackend(tmp_path / "paper_trading.db")
+    backend = SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db"))
     set_backend(backend)
     try:
         yield backend

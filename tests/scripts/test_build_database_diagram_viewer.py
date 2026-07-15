@@ -2,16 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from infrastructure.database.init import init_schema
 from scripts.data_ops import build_database_diagram_viewer
+from tests.support.db_schema import memory_db_at_head
 
 
 def _fresh_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    init_schema(conn)
-    return conn
+    return memory_db_at_head()
 
 
 def _table(payload: dict[str, object], table_name: str) -> dict[str, object]:

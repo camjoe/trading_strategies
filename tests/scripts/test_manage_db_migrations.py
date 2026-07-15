@@ -12,8 +12,8 @@ import pytest
 import trading.interfaces.runtime.data_ops.admin as admin
 from infrastructure.database import migration_runner
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
+from tests.support.db_schema import build_db_at_head
 from scripts.data_ops.manage_db_migrations import (
     _cmd_baseline,
     _cmd_downgrade,
@@ -58,14 +58,18 @@ def _revisions(db_path: Path) -> tuple[str, ...]:
 
 
 def _build_probe_database(db_path: Path) -> None:
-    """Build a database through the legacy probe system (ensure_db)."""
-    original = get_backend()
-    set_backend(SQLiteBackend(db_path))
+    """Simulate a pre-Alembic database: current schema, no revision stamp.
+
+    The probe system that originally built such databases is retired; its end
+    state is exactly the head schema without an ``alembic_version`` table.
+    """
+    build_db_at_head(db_path)
+    conn = sqlite3.connect(db_path)
     try:
-        conn = ensure_db()
-        conn.close()
+        conn.execute("DROP TABLE alembic_version")
+        conn.commit()
     finally:
-        set_backend(original)
+        conn.close()
 
 
 def _backups(tmp_path: Path) -> list[Path]:

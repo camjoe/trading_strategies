@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 from typing import Any
 
 import pytest
 
 from infrastructure.database import migration_runner
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
 from infrastructure.database.schema_compare import compare_schemas
 
 
@@ -25,23 +22,14 @@ def memory_pair() -> Any:
         actual.close()
 
 
-def test_alembic_and_probe_built_schemas_match(tmp_path: Path) -> None:
-    migrated = sqlite3.connect(tmp_path / "via_alembic.db")
-    migration_runner.upgrade("head", connection=migrated)
-
-    original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "via_init.db"))
+def test_two_reference_builds_match(tmp_path: Any) -> None:
+    first = migration_runner.build_reference_connection()
+    second = migration_runner.build_reference_connection()
     try:
-        probe_built = ensure_db()
+        assert compare_schemas(first, second).matches
     finally:
-        set_backend(original)
-
-    try:
-        comparison = compare_schemas(migrated, probe_built)
-        assert comparison.matches, comparison.differences
-    finally:
-        migrated.close()
-        probe_built.close()
+        first.close()
+        second.close()
 
 
 def test_identical_databases_match(memory_pair: Any) -> None:

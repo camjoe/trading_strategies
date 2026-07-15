@@ -9,6 +9,7 @@ import sqlite3
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.init import ensure_db
+from tests.support.db_schema import build_db_at_head
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository, BookAccountMismatchError
@@ -29,7 +30,7 @@ NOW = "2026-07-03T12:00:00Z"
 @pytest.fixture
 def conn(tmp_path: Path):
     original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
+    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
     connection = ensure_db()
     try:
         yield connection

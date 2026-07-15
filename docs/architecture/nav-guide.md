@@ -28,7 +28,7 @@ The maps and this guide serve different questions:
 | Task | Where |
 |---|---|
 | Add or modify a SQL query | `src/trading/repositories/<area>.py` |
-| Change the DB schema | `src/infrastructure/database/schema.py` + add a migration in `src/infrastructure/database/migrations.py` |
+| Change the DB schema | New numbered revision in `src/infrastructure/database/alembic/versions/` + bump `schema_version.EXPECTED_HEAD_REVISION` (use the `db-migration` skill) |
 | Inspect the current schema at runtime | `python -m scripts.data_ops.describe_db_schema` |
 | Change DB connection/path config | `src/infrastructure/database/config.py` and `src/infrastructure/database/backend.py` |
 

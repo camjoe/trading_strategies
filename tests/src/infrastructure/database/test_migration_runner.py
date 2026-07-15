@@ -1,10 +1,4 @@
-"""Tests for the Alembic migration runner and revision 0001.
-
-Revision 0001 must reproduce the probe system's fresh-database end state
-exactly (docs/numbered-database-migration-plan.md), so the core test builds
-one database through Alembic and one through ``init_schema()`` and compares
-their normalized structure.
-"""
+"""Tests for the Alembic migration runner and revision 0001."""
 
 from __future__ import annotations
 
@@ -16,7 +10,6 @@ import pytest
 
 from infrastructure.database import migration_runner
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
 
 _APPLICATION_TABLES_QUERY = (
@@ -62,17 +55,13 @@ def test_upgrade_records_head_revision(migrated_conn: Any) -> None:
     assert read_database_revisions(migrated_conn) == (EXPECTED_HEAD_REVISION,)
 
 
-def test_migrated_schema_matches_init_schema(migrated_conn: Any, tmp_path: Path) -> None:
-    original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "via_init.db"))
+def test_build_reference_connection_materializes_head(tmp_path: Path) -> None:
+    reference = migration_runner.build_reference_connection()
     try:
-        init_conn = ensure_db()
+        assert read_database_revisions(reference) == (EXPECTED_HEAD_REVISION,)
+        assert "accounts" in _table_names(reference)
     finally:
-        set_backend(original)
-    try:
-        assert _structure(migrated_conn) == _structure(init_conn)
-    finally:
-        init_conn.close()
+        reference.close()
 
 
 def test_upgrade_at_head_is_a_noop(migrated_conn: Any) -> None:
@@ -118,6 +107,38 @@ def test_read_database_revisions_empty_for_unversioned(tmp_path: Path) -> None:
         assert read_database_revisions(conn) == ()
     finally:
         conn.close()
+
+
+def _fk_delete_action(conn: Any, table: str, column: str, references: str) -> str | None:
+    for row in conn.execute(f"PRAGMA foreign_key_list({table})").fetchall():
+        if str(row[3]) == column and str(row[2]) == references:
+            return str(row[6]).upper()
+    return None
+
+
+def test_child_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
+    assert _fk_delete_action(migrated_conn, "order_fills", "order_id", "orders") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "backtest_trades", "run_id", "backtest_runs") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "backtest_equity_snapshots", "run_id", "backtest_runs") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "promotion_review_events", "review_id", "promotion_reviews") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "walk_forward_group_runs", "group_id", "walk_forward_groups") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "walk_forward_group_runs", "run_id", "backtest_runs") == "NO ACTION"
+
+
+def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
+    for table in (
+        "trades",
+        "orders",
+        "backtest_runs",
+        "walk_forward_groups",
+        "promotion_reviews",
+        "risk_snapshots",
+        "risk_decisions",
+        "books",
+    ):
+        assert _fk_delete_action(migrated_conn, table, "account_id", "accounts") == "CASCADE", table
+    # Standalone book deletion keeps account-level decision history.
+    assert _fk_delete_action(migrated_conn, "risk_decisions", "book_id", "books") == "SET NULL"
 
 
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:

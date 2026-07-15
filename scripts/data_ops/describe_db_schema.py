@@ -6,14 +6,14 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from infrastructure.database import migration_runner
 from infrastructure.database.config import get_db_path
-from infrastructure.database.init import init_schema
 
 
 def _connect_fresh_schema() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    init_schema(conn)
+    conn = migration_runner.build_reference_connection()
+    # Code-defined application schema only — Alembic bookkeeping is not part of it.
+    conn.execute("DROP TABLE alembic_version")
     return conn
 
 

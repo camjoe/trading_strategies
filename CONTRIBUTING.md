@@ -39,8 +39,8 @@ The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not
 
 ## Database changes
 
-- Schema lives in `src/infrastructure/database/schema.py`; migrations in `src/infrastructure/database/migrations.py`.
-- Migrations are **append-only `ColumnMigration` entries** — never drop or rename a column, never edit an applied migration. `NOT NULL` additions must supply a `DEFAULT`.
+- The schema is owned by the numbered Alembic revision chain in `src/infrastructure/database/alembic/versions/`.
+- Revisions are **immutable, numeric, and single-head** — never edit an applied revision; every revision implements `upgrade()` and `downgrade()`; bump `schema_version.EXPECTED_HEAD_REVISION` in the same commit. `NOT NULL` additions must supply a `DEFAULT`.
 - See **[docs/reference/db-migration-system.md](docs/reference/db-migration-system.md)** and the `db-migration` skill.
 
 ## Pull requests

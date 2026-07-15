@@ -53,13 +53,6 @@ def _application_table_count(conn: Any) -> int:
     return int(row[0])
 
 
-def _reference_connection(revision: str) -> sqlite3.Connection:
-    """Build an in-memory database migrated to *revision* for comparison."""
-    conn = sqlite3.connect(":memory:")
-    migration_runner.upgrade(revision, connection=conn)
-    return conn
-
-
 def _classify(conn: Any, head: str) -> tuple[str, tuple[str, ...]]:
     """Return (state, revisions): one of unversioned-empty, unversioned-populated,
     branched, behind, at-head, or unknown-revision."""
@@ -184,7 +177,7 @@ def _cmd_baseline(_args: argparse.Namespace) -> int:
             print(f"{_PREFIX} Refusing baseline: database state is '{state}'. {_REMEDIATION.get(state, '')}")
             return 1
 
-        reference = _reference_connection(_BASELINE_REVISION)
+        reference = migration_runner.build_reference_connection(_BASELINE_REVISION)
         try:
             comparison = compare_schemas(reference, conn)
         finally:
@@ -220,7 +213,7 @@ def _cmd_verify(_args: argparse.Namespace) -> int:
             print(f"{_PREFIX} Refusing verify: database state is '{state}'. {_REMEDIATION.get(state, '')}")
             return 1
 
-        reference = _reference_connection(revisions[0])
+        reference = migration_runner.build_reference_connection(revisions[0])
         try:
             comparison = compare_schemas(reference, conn)
         finally:

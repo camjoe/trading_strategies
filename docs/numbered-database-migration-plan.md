@@ -1,5 +1,11 @@
 # Numbered Alembic Migration System
 
+Type: notes
+Status: Active
+Created: 2026-07-13
+Last Reviewed: 2026-07-14
+Purpose: Implementation plan for replacing probe-based schema initialization with a linear numbered Alembic revision history.
+
 ## Summary
 
 Replace the current probe-based schema initialization with a linear Alembic revision history.

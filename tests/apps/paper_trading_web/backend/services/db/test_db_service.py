@@ -11,12 +11,14 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import get_latest_account_snapshot
 
 
-def test_db_conn_context_yields_and_closes_connection() -> None:
-    with services_db.db_conn() as conn:
-        assert conn.execute("SELECT 1 AS value").fetchone()["value"] == 1
+def test_db_conn_context_yields_and_closes_connection(conn) -> None:  # noqa: ARG001
+    # `conn` pins an isolated at-head backend; db_conn() must never run
+    # against the developer's real configured database.
+    with services_db.db_conn() as managed_conn:
+        assert managed_conn.execute("SELECT 1 AS value").fetchone()["value"] == 1
 
     with pytest.raises(Exception):
-        conn.execute("SELECT 1")
+        managed_conn.execute("SELECT 1")
 
 
 def test_require_account_row_found_and_missing(conn, create_account_row) -> None:

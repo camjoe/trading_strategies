@@ -19,7 +19,7 @@ description: Estimates the blast radius and risk of a proposed schema migration 
    - Check `src/trading/backtesting/` for references to the affected table.
    - Check `apps/paper_trading_web/backend/` for report payloads that query this table.
 
-6. **Rollback complexity** — SQLite has limited ALTER TABLE support. Dropping a column requires table recreation. Note this before applying.
+6. **Rollback complexity** — every revision has a `downgrade()`, but lossy downgrades recover shape only; data comes back from the automatic pre-upgrade backup. Note which applies before the revision runs.
 
 ## Output
 
@@ -38,6 +38,6 @@ Proceed recommendation: <one sentence>
 
 ## Repo references
 
-- `src/infrastructure/database/schema.py`
+- `src/infrastructure/database/alembic/versions/`
 - `src/trading/backtesting/`
 - `apps/paper_trading_web/backend/`

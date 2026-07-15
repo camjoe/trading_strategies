@@ -86,7 +86,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/account-deletion-cascade-proposal.md` | Proposed account-deletion cascades, potential cascades, and decision dependencies | Account-deletion FK policy or retention decisions change |
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
-| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
+| `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
 | `docs/reference/database-cleanup-roadmap.md` | Future cleanup ideas for narrowing `accounts` and retiring legacy account-level columns | Account/settings ownership or cleanup sequencing decisions change |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |

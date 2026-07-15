@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from common.paths.project_paths import REPO_ROOT
-from infrastructure.database.init import init_schema
+from infrastructure.database import migration_runner
 from scripts.database_diagrams.html_viewer import render_html
 from scripts.database_diagrams.sqlite_introspection import (
     columns,
@@ -185,10 +185,9 @@ SECTION_BY_ID = {str(section["id"]): section for section in SECTION_DEFINITIONS}
 
 
 def _connect_fresh_schema() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    init_schema(conn)
+    conn = migration_runner.build_reference_connection()
+    # Code-defined application schema only — Alembic bookkeeping is not part of it.
+    conn.execute("DROP TABLE alembic_version")
     return conn
 
 

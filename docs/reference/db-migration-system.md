@@ -3,15 +3,26 @@
 Type: notes
 Status: Active
 Created: 2026-03-31
-Last Reviewed: 2026-07-13
-Purpose: Reference for the hand-rolled SQLite migration system — key files, conventions, and schema snapshot commands.
-Related: [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Last Reviewed: 2026-07-14
+Purpose: Reference for the numbered Alembic migration system — key files, operator commands, revision-authoring rules, and runtime verification.
+Related: [Numbered Migration Plan](../numbered-database-migration-plan.md), [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 ---
 
 ## Overview
 
-This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `src/infrastructure/database/` via additive `ColumnMigration` entries plus narrowly scoped SQLite table-rebuild migrations for constraint/FK changes. Migrations are applied automatically at startup.
+Schema evolution is managed by a **linear, numbered Alembic revision history** under
+`src/infrastructure/database/alembic/versions/`. The migration history is the sole schema source
+of truth: fresh databases are created by replaying revisions base → head, and existing databases
+move between revisions with the operator commands below.
+
+Runtime never migrates. `ensure_db()` opens the connection and verifies (with plain SQL) that the
+database's `alembic_version` equals the expected head; any other state raises
+`SchemaVersionError` with the exact remediation command. Alembic and SQLAlchemy are **ops-only
+dependencies** (`requirements-dev.txt`) — application code never imports them.
+
+The previous probe-based system (`SCHEMA_SQL` + `ColumnMigration` + table rebuilds, applied
+automatically at startup) is retired; revision `0001` reproduces its final schema exactly.
 
 ---
 
@@ -19,16 +30,118 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `src/infrastructure/database/init.py` | `ensure_db()`, `init_schema()`, column-guard helpers, and table-rebuild dispatch |
-| `src/infrastructure/database/schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
-| `src/infrastructure/database/migrations.py` | `ColumnMigration` dataclass, migration tuples, table-rebuild migrations, and seeded overlay-watchlist defaults |
+| `src/infrastructure/database/alembic/versions/` | Immutable numbered revisions (`0001_current_schema.py`, …) |
+| `src/infrastructure/database/alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
+| `src/infrastructure/database/migration_runner.py` | Programmatic runner: `upgrade`/`downgrade`/`stamp`, `repository_head()`, `revision_chain()`, `build_reference_connection()` — ops-only |
+| `src/infrastructure/database/schema_version.py` | `EXPECTED_HEAD_REVISION` constant + plain-SQL `read_database_revisions()` (runtime-safe) |
+| `src/infrastructure/database/schema_compare.py` | Normalized schema comparator shared by `baseline` and `verify` |
+| `src/infrastructure/database/init.py` | `ensure_db()` (verify-only) and `db_session()` |
 | `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
-| `src/infrastructure/database/sql_helpers.py` | SQL helper functions such as `in_placeholders()` |
-| `src/trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
-| `src/trading/interfaces/runtime/data_ops/csv_export.py` | CSV export for accounts and trades |
+| `scripts/data_ops/setup_db_schema.py` | Fresh-setup command (missing/empty DB → head) |
+| `scripts/data_ops/manage_db_migrations.py` | Lifecycle command: status/upgrade/downgrade/baseline/verify/history |
+| `scripts/checks/repo/migration_check.py` | CI gate: linear numeric chain, nonempty upgrade/downgrade, self-contained revisions, head constant in sync |
+| `src/trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, reused for pre-upgrade/downgrade backups |
 
-For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` for the code-defined schema or `python -m scripts.data_ops.describe_db_schema --source live` for the configured SQLite database. Do not maintain a hand-written full schema mirror.
+For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` (builds the
+code-defined schema from the migration chain) or `--source live` for the configured database.
+
+---
+
+## Operator Commands
+
+### Fresh schema setup
+
+```text
+python -m scripts.data_ops.setup_db_schema
+```
+
+Creates a missing or empty configured database at head. Refuses populated or already-versioned
+databases. Never seeds application data (seeding stays a separate command:
+`python -m trading.interfaces.runtime.data_ops.seed_clean_schema`).
+
+### Migration lifecycle
+
+```text
+python -m scripts.data_ops.manage_db_migrations <command>
+```
+
+| Command | Behavior |
+|---|---|
+| `status` | Database revision, repository head, pending revisions, state classification + remediation. Exit 0 only at head. |
+| `upgrade [revision]` | Apply revisions (default `head`). Creates a timestamped backup first; no-op without backup when already at target. |
+| `downgrade <revision\|-1>` | Revert to an explicit target. Backs up first. Restores schema *shape* only — restore the backup to recover data. |
+| `baseline` | One-time adoption of a pre-Alembic database: validates it against the `0001` schema with the shared comparator, then stamps `0001` without running DDL. Mismatches name the differing object and nothing is stamped. |
+| `verify` | Compares the database against a temporary reference built at the database's own revision — catches manual drift even when `alembic_version` claims current. |
+| `history` | Ordered revision chain with the current revision marked. |
+
+### Runtime verification
+
+`ensure_db()` fails fast (before any application query) for missing, unversioned, behind, ahead,
+or branched databases, with the remediation command in the `SchemaVersionError` message. The
+expected head comes from `schema_version.EXPECTED_HEAD_REVISION`; the `migration_check` repo check
+fails CI when that constant does not match the migration directory.
+
+---
+
+## Schema Comparison Semantics
+
+`baseline` and `verify` share one normalized comparator (`schema_compare.py`). "Matches revision
+X" means equality under these rules, never byte-identical DDL:
+
+- Tables, columns, FKs (with actions), unique/PK constraints, CHECK clauses, and named indexes
+  compared as **sets** — physical column order is ignored (ALTER-built legacy databases order
+  columns differently than fresh CREATEs).
+- Whitespace and `IF NOT EXISTS` normalized out of compared SQL.
+- SQLite internals (`sqlite_*`) and `alembic_version` itself are ignored.
+- `accounts.rotation_overlay_watchlist`: the DEFAULT literal was frozen per database when the
+  legacy probe migration ran, so its **value** is not compared — only its presence.
+
+---
+
+## Authoring a New Revision
+
+1. Create the file with an explicit numeric id (next in sequence), named `000N_<slug>.py` in
+   `alembic/versions/`. Copy the previous revision's header shape (`revision`, `down_revision`,
+   `upgrade()`, `downgrade()`); there is no repo `alembic.ini`, so plain `alembic revision` CLI
+   calls are not wired up — hand-authoring from the template is the expected path.
+2. Revisions are **immutable and self-contained**:
+   - No imports from application code (enforced by `migration_check`) — only
+     `alembic`/`sqlalchemy`/stdlib.
+   - Values required by DDL are literals frozen at authoring time.
+   - Both `upgrade()` and `downgrade()` implemented and nonempty (enforced).
+   - Destructive downgrades restore the prior schema *shape*, not deleted data.
+3. SQLite structural changes (FK actions, constraint changes, column drops) use Alembic
+   **batch operations** (`op.batch_alter_table`) — Alembic implements SQLite's
+   copy-and-rebuild workflow. See <https://alembic.sqlalchemy.org/en/latest/batch.html>.
+4. Update `schema_version.EXPECTED_HEAD_REVISION` **in the same commit** — CI fails otherwise.
+5. Never edit or reorder an applied revision; follow-up fixes are new revisions.
+6. Safety rules that carry over from the previous system:
+   - `NOT NULL` columns on populated tables require a `DEFAULT`.
+   - Data-mutating statements (`UPDATE`/`DELETE`) in a revision require explicit human review.
+   - Never set `live_trading_enabled = 1` or point broker columns at live endpoints
+     (Live Trading Safety Guard, enforced by `live_safety_check`).
+7. Run `python -m scripts.checks.repo.migration_check` and the database test suites.
+
+For task-oriented guidance (risk estimation, validation, rollback planning) use the
+`db-migration` skill (`.ai/skills/db-migration/`).
+
+---
+
+## Tests
+
+- Runtime states (missing/empty, unversioned, behind, at-head, ahead, branched):
+  `tests/src/infrastructure/database/test_db.py`
+- Runner + revision integrity (round-trips, FK actions, no-op at head):
+  `tests/src/infrastructure/database/test_migration_runner.py`
+- Comparator semantics: `tests/src/infrastructure/database/test_schema_compare.py`
+- Operator commands: `tests/scripts/test_manage_db_migrations.py`, `tests/scripts/test_setup_db_schema.py`
+- Chain integrity check: `tests/scripts/test_migration_check.py`
+
+Test databases come from `tests/support/db_schema.py`: `build_db_at_head(path)` /
+`memory_db_at_head()`. The migration chain is replayed once per process into a template; every
+test database is a file copy, so per-test cost stays flat as revisions accumulate. Do not create
+schemas by hand in fixtures.
 
 ---
 
@@ -40,195 +153,26 @@ For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_sche
 2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
 3. Default: `local/paper_trading.db`
 
-If `db_path` in the config file is relative, it is resolved from the repository
-root rather than from the config file's directory. All paths use `pathlib` —
-never hardcode slash direction.
-
----
-
-## Schema Initialization: `init_schema()`
-
-Called from `ensure_db()` on every connection in `src/infrastructure/database/init.py`:
-
-```python
-def init_schema(conn: DBConnection) -> None:
-    get_backend().run_script(conn, SCHEMA_SQL)           # 1. Create all tables
-    for migration in ACCOUNT_MIGRATIONS:                  # 2. Apply account column migrations
-        _ensure_column(conn, "accounts", migration)
-    for migration in BACKTEST_RUN_MIGRATIONS:             # 3. Apply backtest_runs migrations
-        _ensure_column(conn, "backtest_runs", migration)
-    for migration in GLOBAL_SETTINGS_MIGRATIONS:          # 4. Apply singleton global-settings migrations
-        _ensure_column(conn, "global_settings", migration)
-    for table_name, migrations in TABLE_MIGRATIONS_BY_TABLE.items():
-        for migration in migrations:
-            _ensure_column(conn, table_name, migration)
-    for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
-        for migration in migrations:
-            _ensure_column(conn, table_name, migration)
-    ensure_table_rebuild_migrations(conn)                 # 5. Apply FK/constraint rebuilds
-    conn.commit()
-```
-
-**Safe to call on both fresh and migrated databases.** All DDL uses `IF NOT EXISTS` guards.
-
----
-
-## Migration Mechanism: `ColumnMigration`
-
-```python
-@dataclass(frozen=True)
-class ColumnMigration:
-    column_name: str          # name of column being added (used as idempotency guard)
-    ddl: str                  # ALTER TABLE ... ADD COLUMN ... statement
-    post_sql: tuple[str, ...] = ()  # optional follow-up SQL (UPDATE, index creation, etc.)
-```
-
-`_ensure_column()` checks `PRAGMA table_info(<table>)` before executing the DDL:
-
-```python
-def _ensure_column(conn, table_name, migration):
-    if migration.column_name in _column_names(conn, table_name):
-        return  # already exists — skip silently (idempotent)
-    conn.execute(migration.ddl)
-    for stmt in migration.post_sql:
-        conn.execute(stmt)
-    conn.commit()
-```
-
-**The `column_name` field is the idempotency key** — it must exactly match the column name in `ddl`.
-
----
-
-## Migration Tuples
-
-```
-ACCOUNT_MIGRATIONS          → applied to the `accounts` table
-ACCOUNT_BROKER_MIGRATIONS   → applied to the `accounts` table
-BACKTEST_RUN_MIGRATIONS     → applied to the `backtest_runs` table
-GLOBAL_SETTINGS_MIGRATIONS  → applied to the `global_settings` table
-TABLE_MIGRATIONS_BY_TABLE   → table-name keyed additive migrations
-BOOK_MIGRATIONS_BY_TABLE    → table-name keyed additive migrations for book-owned tables
-```
-
-These collections are processed by `init_schema()`. Any new table requiring additive migrations must also be registered in `init_schema()`.
-
-## SQLite Table-Rebuild Migrations
-
-SQLite cannot alter foreign-key actions, constraints, or primary keys in place. Those changes use
-idempotent table-rebuild helpers in `migrations.py`, dispatched by `ensure_table_rebuild_migrations()`
-after `SCHEMA_SQL` and additive column migrations have run.
-
-The rebuild pattern is:
-
-1. Skip when `PRAGMA foreign_key_list(<table>)` already shows the target action.
-2. Disable FK enforcement for the rebuild window.
-3. Create `<table>_new` with the target schema.
-4. Copy rows using an explicit column list.
-5. Drop the old table and rename the replacement.
-6. Recreate indexes/unique constraints.
-7. Re-enable FK enforcement and run `PRAGMA foreign_key_check`.
-
-Use this path only when an additive `ALTER TABLE ... ADD COLUMN` migration cannot express the change.
-
----
-
-## Rules for Adding a New Column Migration
-
-1. **Append only** — add new `ColumnMigration` entries at the end of the relevant tuple. Never insert in the middle (order is not critical for column guards, but middle-inserts cause confusion in code review).
-
-2. **`column_name` must match `ddl`** — the string in `column_name` is compared against `PRAGMA table_info` column names. A mismatch causes silent skip or double-application.
-
-3. **`NOT NULL` columns require a `DEFAULT`** — SQLite's `ALTER TABLE ADD COLUMN` rejects `NOT NULL` without a default value when rows already exist.
-   ```python
-   # ✅ Correct
-   ColumnMigration("risk_policy", "ALTER TABLE accounts ADD COLUMN risk_policy TEXT NOT NULL DEFAULT 'none'")
-   # 🔴 Wrong — will fail on non-empty table
-   ColumnMigration("risk_policy", "ALTER TABLE accounts ADD COLUMN risk_policy TEXT NOT NULL")
-   ```
-
-4. **`post_sql` UPDATE statements** must be deliberate:
-   - Targeted `UPDATE … WHERE …` is fine.
-   - Full-table `UPDATE` (no WHERE) is acceptable but should be flagged in code review for confirmation.
-   - `DELETE` in `post_sql` requires an explicit pre-backup before deployment.
-
-5. **No destructive DDL** — `DROP COLUMN`, `DROP TABLE`, `RENAME COLUMN`, `TRUNCATE` are not permitted without an explicit human decision and a verified backup.
-
-6. **Check `SCHEMA_SQL` first** — if the column is already in `CREATE TABLE IF NOT EXISTS`, adding a migration for it is dead code (the column guard will always skip it on fresh databases).
-
----
-
-## Tables in `SCHEMA_SQL`
-
-Do not maintain a table list here — it drifts. For the full current inventory (all tables, purposes,
-FK relationships) see [db-schema.md](db-schema.md) (drift-checked by
-`python -m scripts.checks.docs.db_schema_check`), or run
-`python -m scripts.data_ops.describe_db_schema` for a live snapshot.
+If `db_path` in the config file is relative, it is resolved from the repository root. All paths
+use `pathlib` — never hardcode slash direction.
 
 ---
 
 ## Backup System
 
-Backup logic lives in `src/trading/interfaces/runtime/data_ops/admin.py`:
-
-```python
-backup_database(destination=None) -> Path
-```
-
-- Default destination: `local/db_backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`
-- Custom destination: pass a directory path (file name auto-generated) or a full `.db` path.
-- Uses `shutil.copy2` — preserves metadata.
-
-**Backup-before-delete pattern** (implemented in `_cmd_delete_account`):
-```bash
-python -m trading.interfaces.runtime.data_ops.admin delete-account ACCOUNT_NAME --backup-before
-```
-
-The `--backup-before` flag calls `backup_database()` before `delete_account()`. Any future destructive data-ops flow should follow this same pattern.
-
----
-
-## DatabaseBackend Abstraction
-
-`src/infrastructure/database/backend.py` defines a `DatabaseBackend` ABC with three required methods:
-
-| Method | Purpose |
-|--------|---------|
-| `open_connection()` | Return an open, configured DB connection |
-| `run_script(conn, script)` | Execute a multi-statement SQL script (like `executescript`) |
-| `get_table_columns(conn, table)` | Return the set of column names present in a table |
-
-`SQLiteBackend` is the default. Swap it via `set_backend(custom_backend)` — used in tests to inject in-memory or fixture backends.
-
----
-
-## Adding a New Table (not just a column)
-
-If a new table is needed:
-
-1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `schema.py`.
-2. Add it to `SCHEMA_SQL`.
-3. If it will need future column migrations, create a new migration tuple (e.g. `NEW_TABLE_MIGRATIONS`) and register it in `init_schema()`.
-4. Add any performance indexes as `CREATE INDEX IF NOT EXISTS` in a companion `*_INDEXES_SQL` string.
-5. Update this document.
-
----
-
-## Testing Migrations
-
-Key test patterns:
-- Test `init_schema()` on a fresh in-memory SQLite backend: verify all tables and columns exist.
-- Test `init_schema()` is idempotent: calling it twice on the same connection produces no errors.
-- Test `_ensure_column()` with a pre-existing column: verify no duplicate-column error.
-- Test `_ensure_column()` on a fresh table: verify column is added and `post_sql` runs.
-
-Inject a custom backend via `set_backend(SQLiteBackend(db_path=Path(":memory:")))` for isolation.
+Backup logic lives in `src/trading/interfaces/runtime/data_ops/admin.py`
+(`backup_database(destination=None) -> Path`, default destination
+`local/db_backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`). `manage_db_migrations upgrade`/`downgrade`
+call it automatically before changing a database. Backups remain the recovery mechanism for data
+discarded by lossy downgrades.
 
 ---
 
 ## Relevant Architecture Conventions
 
-- Schema init and migration logic → `src/infrastructure/database/` only.
+- Schema and migration logic → `src/infrastructure/database/` only.
 - Operator data-ops (backup, export, delete) → `src/trading/interfaces/runtime/data_ops/`.
-- Do not call `init_schema()` from domain modules.
+- Migration revisions are exempt from normal layering by design — they import nothing from the
+  application.
 - SQL stays in repositories, not in services or interfaces.
 - See `docs/architecture/architecture-conventions.md` for the full dependency-direction rules.
