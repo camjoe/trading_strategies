@@ -1,5 +1,7 @@
 # Database Infrastructure
 
+## Purpose
+
 DB connection, configuration, and the schema-migration machinery. Imported only by
 `src/trading/repositories/` (and the documented `runtime_loader.py` exception) — see
 `docs/maps/infrastructure-map.md`.
@@ -30,6 +32,12 @@ DB connection, configuration, and the schema-migration machinery. Imported only 
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 | `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
 | `alembic/versions/` | Immutable numbered revisions (`0001_current_schema.py`, …) |
+
+## Commands
+
+- Manage schema migrations: `python -m scripts.data_ops.manage_db_migrations`
+- Inspect the configured database schema: `python -m scripts.data_ops.describe_db_schema`
+- Inspect the live database schema: `python -m scripts.data_ops.describe_db_schema --source live`
 
 ## Where to go next
 
