@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-31
 Last Reviewed: 2026-07-14
 Purpose: Reference for the numbered Alembic migration system — key files, operator commands, revision-authoring rules, and runtime verification.
-Related: [Numbered Migration Plan](../numbered-database-migration-plan.md), [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Related: [ADR 015 Numbered Alembic Migrations](../adr/015-numbered-alembic-migrations.md), [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 ---
 

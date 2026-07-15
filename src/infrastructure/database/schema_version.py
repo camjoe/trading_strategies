@@ -1,7 +1,7 @@
 """Expected Alembic head revision, readable without importing Alembic.
 
 Alembic and SQLAlchemy are deliberately ops-only dependencies
-(docs/numbered-database-migration-plan.md): runtime code learns the expected
+(docs/adr/015-numbered-alembic-migrations.md): runtime code learns the expected
 head from this constant and reads the database's recorded revision with plain
 SQL, so the application import graph never touches the migration tooling. A
 repository check enforces that the constant matches the migration directory's

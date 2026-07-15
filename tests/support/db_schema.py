@@ -3,7 +3,7 @@
 The migration chain is replayed once per process into a template file; every
 subsequent test database is a file copy (or SQLite backup, for in-memory
 connections) of that template. This keeps per-test cost flat as revisions
-accumulate (docs/numbered-database-migration-plan.md, test fixture migration).
+accumulate (see docs/reference/db-migration-system.md, Tests).
 """
 
 from __future__ import annotations

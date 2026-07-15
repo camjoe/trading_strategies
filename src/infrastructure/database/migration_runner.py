@@ -1,7 +1,7 @@
 """Programmatic runner for the repository-owned Alembic environment.
 
 Ops-only module: it imports Alembic and SQLAlchemy, which are dev/ops
-dependencies (docs/numbered-database-migration-plan.md). Application runtime
+dependencies (docs/adr/015-numbered-alembic-migrations.md). Application runtime
 must not import this module — ``ensure_db()`` checks the database revision
 with plain SQL against ``schema_version.EXPECTED_HEAD_REVISION``.
 

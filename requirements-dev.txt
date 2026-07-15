@@ -13,7 +13,7 @@ playwright>=1.50.0
 
 # Schema migration tooling (ops-only by design — the application runtime never
 # imports Alembic; ensure_db() checks alembic_version with plain SQL against a
-# checked-in expected-head constant). See docs/numbered-database-migration-plan.md.
+# checked-in expected-head constant). See docs/adr/015-numbered-alembic-migrations.md.
 alembic==1.18.5
 sqlalchemy==2.0.51
 

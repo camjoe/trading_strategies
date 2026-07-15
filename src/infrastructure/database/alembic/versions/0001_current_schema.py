@@ -3,7 +3,7 @@
 Revision ID: 0001
 Revises: None (base)
 
-Immutable and self-contained by convention (docs/numbered-database-migration-plan.md):
+Immutable and self-contained by convention (docs/reference/db-migration-system.md):
 no imports from application code, and every value required by the DDL is a
 literal frozen at authoring time. This revision defines the current clean
 schema — the retired probe-based schema (`SCHEMA_SQL` plus additive column and

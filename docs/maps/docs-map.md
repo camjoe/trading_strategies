@@ -113,6 +113,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/011-strategy-catalog-and-parameter-ownership.md` | Strategy knobs live on strategy rows; execution settings live on typed book settings | Consolidating these settings into a different ownership model |
 | `docs/adr/012-runtime-alert-email-configuration.md` | Runtime SMTP alerts use environment variables | Moving SMTP settings into database or operator UI configuration |
 | `docs/adr/014-execution-mode-collapse.md` | One book-keyed runtime path; rotation scheduling is book-owned, continuous eval under cooldown | Reintroducing an account-mode path or account-owned rotation config |
+| `docs/adr/015-numbered-alembic-migrations.md` | Numbered Alembic revisions are the sole schema source; runtime verifies the head revision only, never migrates | Changing the migration approach, dependency scope, or runtime schema handling |
 
 ### Templates and Standards
 
