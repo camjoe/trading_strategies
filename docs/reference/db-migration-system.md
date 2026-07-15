@@ -32,13 +32,12 @@ automatically at startup) is retired; revision `0001` reproduces its final schem
 |------|------|
 | `src/infrastructure/database/alembic/versions/` | Immutable numbered revisions (`0001_current_schema.py`, …) |
 | `src/infrastructure/database/alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
-| `src/infrastructure/database/migration_runner.py` | Programmatic runner: `upgrade`/`downgrade`/`stamp`, `repository_head()`, `revision_chain()`, `build_reference_connection()` — ops-only |
+| `src/infrastructure/database/migration_runner.py` | Programmatic runner: `upgrade`/`downgrade`, `repository_head()`, `revision_chain()`, `build_reference_connection()` — ops-only |
 | `src/infrastructure/database/schema_version.py` | `EXPECTED_HEAD_REVISION` constant + plain-SQL `read_database_revisions()` (runtime-safe) |
-| `src/infrastructure/database/schema_compare.py` | Normalized schema comparator shared by `baseline` and `verify` |
 | `src/infrastructure/database/init.py` | `ensure_db()` (verify-only) and `db_session()` |
 | `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
-| `scripts/data_ops/manage_db_migrations.py` | Lifecycle command: status/upgrade/downgrade/baseline/verify/history |
+| `scripts/data_ops/manage_db_migrations.py` | Lifecycle command: status/upgrade/downgrade/history |
 | `scripts/checks/repo/migration_check.py` | CI gate: `EXPECTED_HEAD_REVISION` matches the migration directory head |
 | `src/trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, reused for pre-upgrade/downgrade backups |
 
@@ -58,9 +57,11 @@ python -m scripts.data_ops.manage_db_migrations <command>
 | `status` | Database revision, repository head, pending revisions, state classification + remediation. Exit 0 only at head. |
 | `upgrade [revision]` | Apply revisions (default `head`). Creates a missing/empty database at head (fresh setup); backs up an existing database first; no-op without backup when already at target. Never seeds data — seeding stays `python -m trading.interfaces.runtime.data_ops.seed_clean_schema`. |
 | `downgrade <revision\|-1>` | Revert to an explicit target. Backs up first. Restores schema *shape* only — restore the backup to recover data. |
-| `baseline` | One-time adoption of a pre-Alembic database: validates it against the `0001` schema with the shared comparator, then stamps `0001` without running DDL. Mismatches name the differing object and nothing is stamped. |
-| `verify` | Compares the database against a temporary reference built at the database's own revision — catches manual drift even when `alembic_version` claims current. |
 | `history` | Ordered revision chain with the current revision marked. |
+
+> The one-time `baseline`/`verify` commands, the `reconcile_to_0001` script, and the
+> `schema_compare` comparator were removed after the Alembic transition completed (all deployed
+> databases baselined). See git history if adopting another pre-Alembic database.
 
 ### Runtime verification
 
@@ -69,21 +70,6 @@ is not exactly the expected head — missing, unversioned, behind, ahead, and br
 raise the same `SchemaVersionError` pointing at `manage_db_migrations status`, which owns the
 diagnosis. The expected head comes from `schema_version.EXPECTED_HEAD_REVISION`; the
 `migration_check` repo check fails CI when that constant does not match the migration directory.
-
----
-
-## Schema Comparison Semantics
-
-`baseline` and `verify` share one normalized comparator (`schema_compare.py`). "Matches revision
-X" means equality under these rules, never byte-identical DDL:
-
-- Tables, columns, FKs (with actions), unique/PK constraints, CHECK clauses, and named indexes
-  compared as **sets** — physical column order is ignored (ALTER-built legacy databases order
-  columns differently than fresh CREATEs).
-- Whitespace and `IF NOT EXISTS` normalized out of compared SQL.
-- SQLite internals (`sqlite_*`) and `alembic_version` itself are ignored.
-- `accounts.rotation_overlay_watchlist`: the DEFAULT literal was frozen per database when the
-  legacy probe migration ran, so its **value** is not compared — only its presence.
 
 ---
 
@@ -122,7 +108,6 @@ For task-oriented guidance (risk estimation, validation, rollback planning) use 
   `tests/src/infrastructure/database/test_db.py`
 - Runner + revision integrity (round-trips, FK actions, no-op at head):
   `tests/src/infrastructure/database/test_migration_runner.py`
-- Comparator semantics: `tests/src/infrastructure/database/test_schema_compare.py`
 - Operator commands: `tests/scripts/test_manage_db_migrations.py`
 - Head-constant check: `tests/scripts/test_migration_check.py`
 

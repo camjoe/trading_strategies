@@ -46,8 +46,8 @@ are the reference DDL shapes.
 - Every index and unique constraint from the old table is recreated (partial `WHERE` clauses
   included).
 - `PRAGMA foreign_key_check` runs before the revision is considered complete.
-- Operators run `manage_db_migrations verify` after upgrading — the comparator will surface any
-  index/constraint lost in the rebuild.
+- The upgrade/downgrade/upgrade round-trip test proves no index or constraint is lost in the
+  rebuild.
 - Any column/table drop is called out in review with the backup requirement.
 
 ## Validation Commands

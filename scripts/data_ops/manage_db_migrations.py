@@ -1,16 +1,11 @@
 """Operate the Alembic schema-migration lifecycle for the configured database.
 
-Operator command (docs/numbered-database-migration-plan.md). Subcommands:
+Subcommands:
 
 - ``status``    — database revision, repository head, and pending revisions.
 - ``upgrade``   — apply revisions (default ``head``); creates a missing or
   empty database, and backs up an existing one first.
 - ``downgrade`` — revert to an explicit target revision (or ``-1``); backs up first.
-- ``baseline``  — validate an unversioned database against the ``0001`` schema
-  with the shared comparator, then stamp it without replaying DDL.
-- ``verify``    — compare the database against a temporary reference built at
-  the same revision; detects manual drift even when ``alembic_version`` says
-  the database is current.
 - ``history``   — display the ordered revision chain.
 
 Run::
@@ -28,15 +23,10 @@ from typing import Any, cast
 
 from infrastructure.database import migration_runner
 from infrastructure.database.backend import SQLiteBackend, get_backend
-from infrastructure.database.schema_compare import compare_schemas
 from infrastructure.database.schema_version import read_database_revisions
 from trading.interfaces.runtime.data_ops.admin import backup_database
 
 _PREFIX = "[manage-db-migrations]"
-
-# The one-time transition target for pre-Alembic databases: they were built by
-# the probe system, whose end state revision 0001 reproduces.
-_BASELINE_REVISION = "0001"
 
 
 def _db_path() -> Path:
@@ -71,7 +61,7 @@ def _classify(conn: Any, head: str) -> tuple[str, tuple[str, ...]]:
 
 _REMEDIATION = {
     "unversioned-empty": "Run 'python -m scripts.data_ops.manage_db_migrations upgrade' to create the schema.",
-    "unversioned-populated": "Run 'python -m scripts.data_ops.manage_db_migrations baseline' to adopt it.",
+    "unversioned-populated": "Database is populated but unversioned (predates the Alembic transition); restore from a baselined backup.",
     "branched": "The revision history is branched; restore from backup and investigate before migrating.",
     "unknown-revision": (
         "The database revision is not in this repository's chain - it was likely written by newer "
@@ -170,74 +160,6 @@ def _cmd_downgrade(args: argparse.Namespace) -> int:
         conn.close()
 
 
-def _cmd_baseline(_args: argparse.Namespace) -> int:
-    path = _db_path()
-    if not path.exists():
-        print(f"{_PREFIX} Refusing baseline: database is missing. {_REMEDIATION['unversioned-empty']}")
-        return 1
-    head = migration_runner.repository_head()
-    conn = sqlite3.connect(path)
-    try:
-        state, _revisions = _classify(conn, head)
-        if state != "unversioned-populated":
-            print(f"{_PREFIX} Refusing baseline: database state is '{state}'. {_REMEDIATION.get(state, '')}")
-            return 1
-
-        reference = migration_runner.build_reference_connection(_BASELINE_REVISION)
-        try:
-            comparison = compare_schemas(reference, conn)
-        finally:
-            reference.close()
-        if not comparison.matches:
-            print(
-                f"{_PREFIX} Baseline validation FAILED - the database does not match the "
-                f"revision {_BASELINE_REVISION} schema. No revision was stamped."
-            )
-            for difference in comparison.differences:
-                print(f"{_PREFIX}   {difference}")
-            return 1
-
-        migration_runner.stamp(_BASELINE_REVISION, connection=conn)
-        print(f"{_PREFIX} Database matches revision {_BASELINE_REVISION}; stamped without replaying DDL.")
-        if _BASELINE_REVISION != head:
-            print(f"{_PREFIX} Repository head is {head}. {_REMEDIATION['behind']}")
-        return 0
-    finally:
-        conn.close()
-
-
-def _cmd_verify(_args: argparse.Namespace) -> int:
-    path = _db_path()
-    if not path.exists():
-        print(f"{_PREFIX} Refusing verify: database is missing.")
-        return 1
-    head = migration_runner.repository_head()
-    conn = sqlite3.connect(path)
-    try:
-        state, revisions = _classify(conn, head)
-        if state not in ("at-head", "behind"):
-            print(f"{_PREFIX} Refusing verify: database state is '{state}'. {_REMEDIATION.get(state, '')}")
-            return 1
-
-        reference = migration_runner.build_reference_connection(revisions[0])
-        try:
-            comparison = compare_schemas(reference, conn)
-        finally:
-            reference.close()
-        if not comparison.matches:
-            print(f"{_PREFIX} Verify FAILED - schema drift against revision {revisions[0]}:")
-            for difference in comparison.differences:
-                print(f"{_PREFIX}   {difference}")
-            return 1
-
-        print(f"{_PREFIX} Schema matches revision {revisions[0]}.")
-        if state == "behind":
-            print(f"{_PREFIX} Note: database is behind head ({head}). {_REMEDIATION['behind']}")
-        return 0
-    finally:
-        conn.close()
-
-
 def _cmd_history(_args: argparse.Namespace) -> int:
     path = _db_path()
     current: tuple[str, ...] = ()
@@ -270,15 +192,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_downgrade = sub.add_parser("downgrade", help="Revert to an explicit target revision. Backs up first.")
     p_downgrade.add_argument("revision", help="Target revision, or -1 for one step down.")
     p_downgrade.set_defaults(handler=_cmd_downgrade)
-
-    p_baseline = sub.add_parser(
-        "baseline",
-        help="Validate an unversioned database against the 0001 schema, then stamp it without running DDL.",
-    )
-    p_baseline.set_defaults(handler=_cmd_baseline)
-
-    p_verify = sub.add_parser("verify", help="Compare the database schema against a reference at its revision.")
-    p_verify.set_defaults(handler=_cmd_verify)
 
     p_history = sub.add_parser("history", help="Display the ordered revision chain.")
     p_history.set_defaults(handler=_cmd_history)

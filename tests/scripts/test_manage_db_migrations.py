@@ -13,15 +13,13 @@ import trading.interfaces.runtime.data_ops.admin as admin
 from infrastructure.database import migration_runner
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
-from tests.support.db_schema import build_db_at_head
 from scripts.data_ops.manage_db_migrations import (
-    _cmd_baseline,
     _cmd_downgrade,
     _cmd_history,
     _cmd_status,
     _cmd_upgrade,
-    _cmd_verify,
 )
+from tests.support.db_schema import build_db_at_head
 
 
 @pytest.fixture
@@ -57,12 +55,8 @@ def _revisions(db_path: Path) -> tuple[str, ...]:
         conn.close()
 
 
-def _build_probe_database(db_path: Path) -> None:
-    """Simulate a pre-Alembic database: current schema, no revision stamp.
-
-    The probe system that originally built such databases is retired; its end
-    state is exactly the head schema without an ``alembic_version`` table.
-    """
+def _unversioned_populated_db(db_path: Path) -> None:
+    """A populated database with no revision stamp (the pre-transition shape)."""
     build_db_at_head(db_path)
     conn = sqlite3.connect(db_path)
     try:
@@ -95,7 +89,7 @@ def test_status_at_head(injected_db: Path) -> None:
 
 
 def test_status_unversioned_populated(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
+    _unversioned_populated_db(injected_db)
     assert _cmd_status(_args()) == 1
 
 
@@ -121,7 +115,7 @@ def test_upgrade_at_head_is_noop_without_backup(injected_db: Path, tmp_path: Pat
 
 
 def test_upgrade_refuses_unversioned_populated(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
+    _unversioned_populated_db(injected_db)
     assert _cmd_upgrade(_args(revision="head")) == 1
     assert _revisions(injected_db) == ()
 
@@ -138,83 +132,6 @@ def test_downgrade_to_base_backs_up_first(injected_db: Path, tmp_path: Path) -> 
 
 def test_downgrade_missing_database_refused(injected_db: Path) -> None:
     assert _cmd_downgrade(_args(revision="base")) == 1
-
-
-# --- baseline --------------------------------------------------------------
-
-
-def test_baseline_adopts_probe_built_database(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
-    assert _cmd_baseline(_args()) == 0
-    assert _revisions(injected_db) == (EXPECTED_HEAD_REVISION,)
-    # A baselined database then verifies clean.
-    assert _cmd_verify(_args()) == 0
-
-
-def test_baseline_preserves_user_data(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
-    conn = sqlite3.connect(injected_db)
-    conn.execute(
-        "INSERT INTO accounts (name, strategy, initial_cash, created_at, descriptive_name) "
-        "VALUES ('acct', 'demo', 1000.0, '2026-07-14T00:00:00', 'acct')"
-    )
-    conn.commit()
-    conn.close()
-
-    assert _cmd_baseline(_args()) == 0
-    conn = sqlite3.connect(injected_db)
-    try:
-        count = conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]
-        assert count == 1
-    finally:
-        conn.close()
-
-
-def test_baseline_mismatch_reports_and_does_not_stamp(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
-    conn = sqlite3.connect(injected_db)
-    conn.execute("DROP INDEX idx_trades_trade_time")
-    conn.execute("CREATE TABLE rogue_table (id INTEGER PRIMARY KEY)")
-    conn.commit()
-    conn.close()
-
-    assert _cmd_baseline(_args()) == 1
-    assert _revisions(injected_db) == ()
-
-
-def test_baseline_refuses_empty_database(injected_db: Path) -> None:
-    sqlite3.connect(injected_db).close()
-    assert _cmd_baseline(_args()) == 1
-    assert _revisions(injected_db) == ()
-
-
-def test_baseline_refuses_already_versioned_database(injected_db: Path) -> None:
-    _migrate_to_head(injected_db)
-    assert _cmd_baseline(_args()) == 1
-
-
-# --- verify ----------------------------------------------------------------
-
-
-def test_verify_clean_at_head(injected_db: Path) -> None:
-    _migrate_to_head(injected_db)
-    assert _cmd_verify(_args()) == 0
-
-
-def test_verify_detects_manual_drift(injected_db: Path) -> None:
-    _migrate_to_head(injected_db)
-    conn = sqlite3.connect(injected_db)
-    conn.execute("DROP INDEX idx_trades_trade_time")
-    conn.commit()
-    conn.close()
-    # alembic_version still says head, but the schema has drifted.
-    assert _revisions(injected_db) == (EXPECTED_HEAD_REVISION,)
-    assert _cmd_verify(_args()) == 1
-
-
-def test_verify_refuses_unversioned_database(injected_db: Path) -> None:
-    _build_probe_database(injected_db)
-    assert _cmd_verify(_args()) == 1
 
 
 # --- history ---------------------------------------------------------------

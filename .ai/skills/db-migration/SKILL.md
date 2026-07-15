@@ -45,7 +45,6 @@ with `scripts.data_ops.manage_db_migrations`.
 - `src/infrastructure/database/alembic/versions/` (revision chain)
 - `src/infrastructure/database/migration_runner.py`
 - `src/infrastructure/database/schema_version.py`
-- `src/infrastructure/database/schema_compare.py`
 - `scripts/data_ops/manage_db_migrations.py`
 - `scripts/checks/repo/migration_check.py`
 - `docs/reference/db-migration-system.md`

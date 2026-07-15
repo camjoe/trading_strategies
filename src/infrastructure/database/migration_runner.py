@@ -112,12 +112,6 @@ def downgrade(revision: str, *, connection: sqlite3.Connection | None = None) ->
         command.downgrade(config, revision)
 
 
-def stamp(revision: str, *, connection: sqlite3.Connection | None = None) -> None:
-    """Record *revision* in ``alembic_version`` without running any DDL."""
-    with _connected_config(connection) as config:
-        command.stamp(config, revision)
-
-
 def build_reference_connection(revision: str = "head") -> sqlite3.Connection:
     """Return an in-memory database migrated to *revision*.
 

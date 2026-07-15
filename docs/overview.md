@@ -131,10 +131,10 @@ The strategic order here is the north star (the "why/what") and the authoritativ
 for what is left. Today's delivered capabilities are in "What it can do today" above; durable
 decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
-The completed sleeve-retirement and book-rotation cutovers have been retired. The remaining
-committed deployment work is the one-time Alembic baseline transition (with a schema
-reconciliation that sheds probe-era leftover tables and the retired `strategy_param_sets` store),
-tracked in [pending-deploy-steps.md](pending-deploy-steps.md).
+The completed sleeve-retirement, book-rotation, and Alembic baseline-transition cutovers have all
+been retired. Schema changes now ship as numbered Alembic revisions — see
+[db-migration-system.md](reference/db-migration-system.md). No one-time deployment steps are
+currently pending.
 
 ## Guiding constraints
 

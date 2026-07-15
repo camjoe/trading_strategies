@@ -43,8 +43,8 @@ Provide:
 1. Which case applies and the chosen mechanism (downgrade vs backup restore).
 2. The exact commands (`manage_db_migrations downgrade <target>` or the backup-restore steps).
 3. The application code changes required.
-4. Verification: `manage_db_migrations status` shows the target revision and
-   `manage_db_migrations verify` reports a clean schema.
+4. Verification: `manage_db_migrations status` shows the target revision, and
+   `describe_db_schema --source live` reflects the expected shape.
 
 ## Repo references
 

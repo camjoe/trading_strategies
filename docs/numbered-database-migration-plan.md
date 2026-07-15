@@ -3,8 +3,15 @@
 Type: notes
 Status: Active
 Created: 2026-07-13
-Last Reviewed: 2026-07-14
-Purpose: Implementation plan for replacing probe-based schema initialization with a linear numbered Alembic revision history.
+Last Reviewed: 2026-07-15
+Purpose: Historical implementation plan (now delivered) for replacing probe-based schema initialization with a linear numbered Alembic revision history.
+
+> **Historical.** This plan is fully implemented. The current system is documented in
+> [db-migration-system.md](reference/db-migration-system.md); this page is kept for the design
+> rationale. Note that the one-time transition tooling described below — the `baseline`/`verify`
+> commands, the schema comparator, and the `reconcile_to_0001` script — was **removed after the
+> transition completed** (all deployed databases reconciled and baselined, 2026-07-15). The
+> `strategy_param_sets` removal was folded into revision `0001` rather than a later `0002`.
 
 ## Summary
 

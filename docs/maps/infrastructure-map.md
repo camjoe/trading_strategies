@@ -31,8 +31,7 @@ DB infrastructure. Imported only by `src/trading/repositories/` and the document
 | `init.py` | Runtime connection gate: `ensure_db()` verifies the Alembic revision (never migrates); `db_session()` |
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 | `schema_version.py` | Expected Alembic head constant + plain-SQL revision reader (runtime-safe, no Alembic import) |
-| `schema_compare.py` | Normalized schema comparator shared by baseline/verify (order-insensitive, plain sqlite3) |
-| `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade/stamp, reference builds) over the active backend — ops-only |
+| `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade, reference builds) over the active backend — ops-only |
 | `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
 | `alembic/versions/` | Immutable numeric migration revisions (`0001_current_schema`, …) — the schema source of truth |
 
