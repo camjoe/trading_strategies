@@ -18,6 +18,8 @@ GROUP_ORDER = [
 ]
 
 GROUP_BY_PACKAGE = {
+    "alembic": "Developer Tooling",
+    "sqlalchemy": "Developer Tooling",
     "fastapi": "Backend & Validation",
     "ib_async": "Data & Market Access",
     "httpx": "Developer Tooling",
@@ -44,6 +46,11 @@ GROUP_BY_PACKAGE = {
 }
 
 PURPOSE_BY_PACKAGE = {
+    "alembic": (
+        "Database schema migration tool. Ops-only — the numbered SQLite migration commands use it "
+        "to create, apply, and revert revisions; the application runtime never imports it."
+    ),
+    "sqlalchemy": "SQL toolkit that backs Alembic's migration engine; used only by the ops-only migration tooling.",
     "httpx2": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests.",
     "ib_async": (
         "Async Interactive Brokers client used for broker connectivity, live account queries, "
