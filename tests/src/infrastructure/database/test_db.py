@@ -1,9 +1,8 @@
 """Runtime connection gate: ensure_db() verifies the Alembic revision.
 
-Covers the runtime states required by docs/numbered-database-migration-plan.md:
-missing/empty, unversioned-populated, behind, at-head, ahead, and branched.
-Runtime never applies or downgrades migrations — every bad state must fail
-before application queries run, with the remediation command in the message.
+Any state other than exactly the expected head — missing/empty, unversioned,
+behind, ahead, or branched — is rejected with the same error pointing at the
+operator status command. Runtime never applies or downgrades migrations.
 """
 
 from __future__ import annotations
@@ -50,40 +49,27 @@ def test_at_head_database_connects(db_path: Path) -> None:
         conn.close()
 
 
-def test_missing_or_empty_database_is_rejected_with_setup_command(db_path: Path) -> None:
-    with pytest.raises(SchemaVersionError, match="setup_db_schema"):
+def test_missing_database_is_rejected(db_path: Path) -> None:
+    with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
         ensure_db()
 
 
-def test_populated_unversioned_database_is_rejected_with_baseline_command(db_path: Path) -> None:
+def test_unversioned_populated_database_is_rejected(db_path: Path) -> None:
     build_db_at_head(db_path)
     conn = sqlite3.connect(db_path)
     conn.execute("DROP TABLE alembic_version")
     conn.commit()
     conn.close()
 
-    with pytest.raises(SchemaVersionError, match="baseline"):
+    with pytest.raises(SchemaVersionError, match="'none'"):
         ensure_db()
 
 
-def test_behind_database_is_rejected(db_path: Path) -> None:
+@pytest.mark.parametrize("versions", [("0000",), ("9999",), ("0001", "0002")])
+def test_wrong_revision_is_rejected(db_path: Path, versions: tuple[str, ...]) -> None:
     build_db_at_head(db_path)
-    _set_version(db_path, "0000")
-    with pytest.raises(SchemaVersionError, match="does not match the expected head"):
-        ensure_db()
-
-
-def test_ahead_database_is_rejected(db_path: Path) -> None:
-    build_db_at_head(db_path)
-    _set_version(db_path, "9999")
-    with pytest.raises(SchemaVersionError, match="does not match the expected head"):
-        ensure_db()
-
-
-def test_branched_database_is_rejected(db_path: Path) -> None:
-    build_db_at_head(db_path)
-    _set_version(db_path, "0001", "0002")
-    with pytest.raises(SchemaVersionError, match="branched"):
+    _set_version(db_path, *versions)
+    with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
         ensure_db()
 
 

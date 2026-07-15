@@ -52,7 +52,8 @@ backend will open it.
    mismatches are reported object-by-object and nothing is stamped.
 4. Restart jobs and confirm a health check passes.
 
-Fresh databases instead run `python -m scripts.data_ops.setup_db_schema` (no baseline needed).
+Fresh databases instead run `python -m scripts.data_ops.manage_db_migrations upgrade`, which
+creates a missing or empty database at head (no baseline needed).
 
 **Rollback:** `baseline` only writes the `alembic_version` table; restoring the pre-transition
 backup (or dropping that table) returns the database to its previous state.

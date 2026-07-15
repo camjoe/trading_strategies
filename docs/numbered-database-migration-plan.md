@@ -81,18 +81,8 @@ always means equality under these rules, never byte-identical DDL:
 
 ## Operator Interfaces
 
-Provide three distinct workflows.
-
-### Fresh schema setup
-
-```text
-python -m scripts.data_ops.setup_db_schema
-```
-
-- Creates a missing or empty configured database.
-- Applies revisions from base through `head`.
-- Refuses a populated, unversioned database and directs the operator to baseline it.
-- Does not seed application data.
+Provide two distinct workflows (revised during review: fresh setup folded into `upgrade`
+instead of a separate command).
 
 ### Schema migrations
 
@@ -103,8 +93,9 @@ python -m scripts.data_ops.manage_db_migrations <command>
 Commands:
 
 - `status`: show database revision, repository head, and pending revisions.
-- `upgrade [revision]`: default to `head`; create a timestamped backup before changing a nonempty
-  database.
+- `upgrade [revision]`: default to `head`. Creates a missing or empty configured database at the
+  target (fresh setup, no seeding); creates a timestamped backup before changing a nonempty one;
+  refuses a populated, unversioned database and directs the operator to baseline it.
 - `downgrade <revision|-1>`: require an explicit target and create a backup first.
 - `baseline`: validate an unversioned database against the `0001` schema using the shared
   comparator (see Schema Comparison Semantics), then stamp it without replaying DDL.
@@ -127,15 +118,17 @@ It must require a database already migrated to `head`.
 - `ensure_db()` opens the SQLite connection and verifies that its Alembic revision equals the
   single repository head (via the checked-in expected-head constant — see Implementation
   Changes).
-- Missing, unversioned, outdated, newer, branched, or structurally invalid databases fail before
-  application queries or jobs run, with the exact remediation command.
+- Missing, unversioned, outdated, newer, or branched databases fail before application queries
+  or jobs run, with one error pointing at the `status` command, which owns the diagnosis
+  (revised during review: runtime does not classify states itself).
 - Runtime startup never applies or downgrades migrations.
 - Production deployment becomes: stop jobs, back up, install dependencies, run migration `status`,
   run `upgrade`, run `verify`, then restart and perform health checks.
 - Existing environments transition once with `baseline`; schema mismatches refuse stamping without
   changing the database.
-- CI enforces numeric ordering, one linear head, immutable ancestry, and nonempty upgrade/downgrade
-  functions.
+- CI enforces one thing: `EXPECTED_HEAD_REVISION` matches the migration directory head (revised
+  during review — numeric ordering, linearity, immutable ancestry, and nonempty
+  upgrade/downgrade are developer review discipline; Alembic itself refuses branched histories).
 - Update architecture guidance, the DB migration reference, deployment runbook, maps, schema
   inspection tooling, `docs/pending-deploy-steps.md`, and the repository `db-migration` skill to
   use the new workflow.
@@ -158,10 +151,9 @@ because `ensure_db()` creates it; once `ensure_db()` only verifies, that stops w
 
 ### Behavior coverage
 
-- Fresh setup reaches `head`, produces the expected current schema, and leaves application data
-  unseeded.
-- Setup is idempotently rejected for populated/existing databases rather than silently stamping
-  them.
+- `upgrade` on a missing/empty database reaches `head`, produces the expected current schema,
+  and leaves application data unseeded.
+- `upgrade` refuses populated, unversioned databases rather than silently stamping them.
 - Baseline succeeds only for the exact current semantic schema and leaves user data unchanged.
 - Baseline mismatch reports the differing table/column/index/FK and does not create
   `alembic_version`.

@@ -10,8 +10,9 @@ description: Validates a proposed Alembic revision for correctness, safety, and 
 Run through each item in order. Any ❌ is a blocker — stop and report before proceeding.
 
 ### 1. Chain integrity
-`python -m scripts.checks.repo.migration_check` passes: 4-digit numeric id, single linear head,
-`down_revision` points at the previous head, `EXPECTED_HEAD_REVISION` bumped in the same change.
+Review the file directly: 4-digit numeric id, `down_revision` points at the previous head, one
+linear chain. `python -m scripts.checks.repo.migration_check` passes — it verifies the one part
+review can miss, that `EXPECTED_HEAD_REVISION` was bumped in the same change.
 
 ### 2. Self-contained
 No application imports; every value the DDL needs is a literal in the file.

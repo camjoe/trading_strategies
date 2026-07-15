@@ -38,9 +38,8 @@ automatically at startup) is retired; revision `0001` reproduces its final schem
 | `src/infrastructure/database/init.py` | `ensure_db()` (verify-only) and `db_session()` |
 | `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
-| `scripts/data_ops/setup_db_schema.py` | Fresh-setup command (missing/empty DB → head) |
 | `scripts/data_ops/manage_db_migrations.py` | Lifecycle command: status/upgrade/downgrade/baseline/verify/history |
-| `scripts/checks/repo/migration_check.py` | CI gate: linear numeric chain, nonempty upgrade/downgrade, self-contained revisions, head constant in sync |
+| `scripts/checks/repo/migration_check.py` | CI gate: `EXPECTED_HEAD_REVISION` matches the migration directory head |
 | `src/trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, reused for pre-upgrade/downgrade backups |
 
 For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` (builds the
@@ -50,18 +49,6 @@ code-defined schema from the migration chain) or `--source live` for the configu
 
 ## Operator Commands
 
-### Fresh schema setup
-
-```text
-python -m scripts.data_ops.setup_db_schema
-```
-
-Creates a missing or empty configured database at head. Refuses populated or already-versioned
-databases. Never seeds application data (seeding stays a separate command:
-`python -m trading.interfaces.runtime.data_ops.seed_clean_schema`).
-
-### Migration lifecycle
-
 ```text
 python -m scripts.data_ops.manage_db_migrations <command>
 ```
@@ -69,7 +56,7 @@ python -m scripts.data_ops.manage_db_migrations <command>
 | Command | Behavior |
 |---|---|
 | `status` | Database revision, repository head, pending revisions, state classification + remediation. Exit 0 only at head. |
-| `upgrade [revision]` | Apply revisions (default `head`). Creates a timestamped backup first; no-op without backup when already at target. |
+| `upgrade [revision]` | Apply revisions (default `head`). Creates a missing/empty database at head (fresh setup); backs up an existing database first; no-op without backup when already at target. Never seeds data — seeding stays `python -m trading.interfaces.runtime.data_ops.seed_clean_schema`. |
 | `downgrade <revision\|-1>` | Revert to an explicit target. Backs up first. Restores schema *shape* only — restore the backup to recover data. |
 | `baseline` | One-time adoption of a pre-Alembic database: validates it against the `0001` schema with the shared comparator, then stamps `0001` without running DDL. Mismatches name the differing object and nothing is stamped. |
 | `verify` | Compares the database against a temporary reference built at the database's own revision — catches manual drift even when `alembic_version` claims current. |
@@ -77,10 +64,11 @@ python -m scripts.data_ops.manage_db_migrations <command>
 
 ### Runtime verification
 
-`ensure_db()` fails fast (before any application query) for missing, unversioned, behind, ahead,
-or branched databases, with the remediation command in the `SchemaVersionError` message. The
-expected head comes from `schema_version.EXPECTED_HEAD_REVISION`; the `migration_check` repo check
-fails CI when that constant does not match the migration directory.
+`ensure_db()` fails fast (before any application query) whenever the database's recorded revision
+is not exactly the expected head — missing, unversioned, behind, ahead, and branched databases all
+raise the same `SchemaVersionError` pointing at `manage_db_migrations status`, which owns the
+diagnosis. The expected head comes from `schema_version.EXPECTED_HEAD_REVISION`; the
+`migration_check` repo check fails CI when that constant does not match the migration directory.
 
 ---
 
@@ -105,11 +93,11 @@ X" means equality under these rules, never byte-identical DDL:
    `alembic/versions/`. Copy the previous revision's header shape (`revision`, `down_revision`,
    `upgrade()`, `downgrade()`); there is no repo `alembic.ini`, so plain `alembic revision` CLI
    calls are not wired up — hand-authoring from the template is the expected path.
-2. Revisions are **immutable and self-contained**:
-   - No imports from application code (enforced by `migration_check`) — only
-     `alembic`/`sqlalchemy`/stdlib.
+2. Revisions are **immutable and self-contained** (PR-review discipline — CI only enforces the
+   head constant):
+   - No imports from application code — only `alembic`/`sqlalchemy`/stdlib.
    - Values required by DDL are literals frozen at authoring time.
-   - Both `upgrade()` and `downgrade()` implemented and nonempty (enforced).
+   - Both `upgrade()` and `downgrade()` implemented and nonempty.
    - Destructive downgrades restore the prior schema *shape*, not deleted data.
 3. SQLite structural changes (FK actions, constraint changes, column drops) use Alembic
    **batch operations** (`op.batch_alter_table`) — Alembic implements SQLite's
@@ -135,8 +123,8 @@ For task-oriented guidance (risk estimation, validation, rollback planning) use 
 - Runner + revision integrity (round-trips, FK actions, no-op at head):
   `tests/src/infrastructure/database/test_migration_runner.py`
 - Comparator semantics: `tests/src/infrastructure/database/test_schema_compare.py`
-- Operator commands: `tests/scripts/test_manage_db_migrations.py`, `tests/scripts/test_setup_db_schema.py`
-- Chain integrity check: `tests/scripts/test_migration_check.py`
+- Operator commands: `tests/scripts/test_manage_db_migrations.py`
+- Head-constant check: `tests/scripts/test_migration_check.py`
 
 Test databases come from `tests/support/db_schema.py`: `build_db_at_head(path)` /
 `memory_db_at_head()`. The migration chain is replayed once per process into a template; every

@@ -102,8 +102,16 @@ def test_status_unversioned_populated(injected_db: Path) -> None:
 # --- upgrade ---------------------------------------------------------------
 
 
-def test_upgrade_missing_database_refused(injected_db: Path) -> None:
-    assert _cmd_upgrade(_args(revision="head")) == 1
+def test_upgrade_creates_missing_database_at_head(injected_db: Path, tmp_path: Path) -> None:
+    assert _cmd_upgrade(_args(revision="head")) == 0
+    assert _revisions(injected_db) == (EXPECTED_HEAD_REVISION,)
+    # Fresh setup: no backup taken and no application data seeded.
+    assert _backups(tmp_path) == []
+    conn = sqlite3.connect(injected_db)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
+    finally:
+        conn.close()
 
 
 def test_upgrade_at_head_is_noop_without_backup(injected_db: Path, tmp_path: Path) -> None:

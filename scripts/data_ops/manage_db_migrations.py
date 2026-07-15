@@ -3,7 +3,8 @@
 Operator command (docs/numbered-database-migration-plan.md). Subcommands:
 
 - ``status``    — database revision, repository head, and pending revisions.
-- ``upgrade``   — apply revisions (default ``head``); backs up first.
+- ``upgrade``   — apply revisions (default ``head``); creates a missing or
+  empty database, and backs up an existing one first.
 - ``downgrade`` — revert to an explicit target revision (or ``-1``); backs up first.
 - ``baseline``  — validate an unversioned database against the ``0001`` schema
   with the shared comparator, then stamp it without replaying DDL.
@@ -69,7 +70,7 @@ def _classify(conn: Any, head: str) -> tuple[str, tuple[str, ...]]:
 
 
 _REMEDIATION = {
-    "unversioned-empty": "Run 'python -m scripts.data_ops.setup_db_schema' to create the schema.",
+    "unversioned-empty": "Run 'python -m scripts.data_ops.manage_db_migrations upgrade' to create the schema.",
     "unversioned-populated": "Run 'python -m scripts.data_ops.manage_db_migrations baseline' to adopt it.",
     "branched": "The revision history is branched; restore from backup and investigate before migrating.",
     "unknown-revision": (
@@ -118,15 +119,20 @@ def _require_migratable(conn: Any, head: str, command: str) -> tuple[str, ...] |
 
 def _cmd_upgrade(args: argparse.Namespace) -> int:
     path = _db_path()
-    if not path.exists():
-        print(f"{_PREFIX} Refusing upgrade: database is missing. {_REMEDIATION['unversioned-empty']}")
-        return 1
+    print(f"{_PREFIX} Database: {path}")
     head = migration_runner.repository_head()
     target = str(args.revision)
     conn = sqlite3.connect(path)
     try:
-        revisions = _require_migratable(conn, head, "upgrade")
-        if revisions is None:
+        state, revisions = _classify(conn, head)
+        if state == "unversioned-empty":
+            # Fresh setup: create the schema in place. No backup — there is
+            # nothing to lose, and no application data is seeded.
+            migration_runner.upgrade(target, connection=conn)
+            print(f"{_PREFIX} Created schema at revision {', '.join(read_database_revisions(conn))}.")
+            return 0
+        if state not in ("at-head", "behind"):
+            print(f"{_PREFIX} Refusing upgrade: database state is '{state}'. {_REMEDIATION[state]}")
             return 1
         resolved_target = head if target == "head" else target
         if revisions == (resolved_target,):
