@@ -7,8 +7,7 @@ Last Reviewed: 2026-07-13
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. The entry point and
 the itemized tracker for what remains.
-Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md),
-[Pending One-Time DB Steps](pending-deploy-steps.md)
+Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline for **why/what** and the tracker for what's left. When
 > priorities or capabilities change, update this file first.

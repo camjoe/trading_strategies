@@ -9,8 +9,6 @@ literal frozen at authoring time. This revision defines the current clean
 schema — the retired probe-based schema (`SCHEMA_SQL` plus additive column and
 table-rebuild migrations) minus the legacy `strategy_param_sets` store and the
 `book_strategy_assignments.param_set_id` column/FK, which no live code uses.
-Existing databases shed those (and other probe-era leftovers) via the one-time
-reconciliation in docs/pending-deploy-steps.md before baselining to `0001`.
 """
 
 from __future__ import annotations

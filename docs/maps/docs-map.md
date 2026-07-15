@@ -97,7 +97,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
-| `docs/pending-deploy-steps.md` | Ordered checklist for pending one-time DB steps on existing databases; full procedures link to the runbooks | A one-time DB step is added, run everywhere, or built |
 
 ### ADRs
 
