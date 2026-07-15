@@ -35,8 +35,9 @@ than mutating an evidence-backed definition.
   operators edit via `create-strategy-variant` / `configure-strategy` / `freeze-strategy`.
 - The separate parameter-set model is retired: its readers were removed and
   `StrategyParamSetRepository` deleted. The `strategy_param_sets` table and the
-  `book_strategy_assignments.param_set_id` column persist (unused, left NULL) until a data-op drops
-  them.
+  `book_strategy_assignments.param_set_id` column were dropped from the schema in migration
+  revision `0001` (existing databases shed them via the one-time reconciliation in
+  `docs/pending-deploy-steps.md`).
 - Validation and operator editing follow the owning concern: primitive knob schema for
   strategy rows (`validate_params_against_primitive`), typed columns for book settings, and global
   commands for operational settings.

@@ -132,9 +132,9 @@ for what is left. Today's delivered capabilities are in "What it can do today" a
 decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
 The completed sleeve-retirement and book-rotation cutovers have been retired. The remaining
-committed deployment work is one automatic FK table-rebuild step, while the not-yet-built
-`strategy_param_sets` schema cleanup remains deferred. Both are tracked in
-[pending-deploy-steps.md](pending-deploy-steps.md).
+committed deployment work is the one-time Alembic baseline transition (with a schema
+reconciliation that sheds probe-era leftover tables and the retired `strategy_param_sets` store),
+tracked in [pending-deploy-steps.md](pending-deploy-steps.md).
 
 ## Guiding constraints
 

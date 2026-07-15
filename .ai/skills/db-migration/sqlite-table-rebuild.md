@@ -35,8 +35,9 @@ def upgrade() -> None:
 For complex rebuilds (unnamed constraints in legacy tables, partial indexes), `op.execute` with
 explicit literal DDL following the classic pattern is acceptable — create `<table>_new`, copy an
 **explicit column list**, drop, rename, recreate every index, then `PRAGMA foreign_key_check`.
-Revision `0001` and the retired probe rebuilds (git history of
-`src/infrastructure/database/migrations.py`) are the reference DDL shapes.
+Revision `0001` (`src/infrastructure/database/alembic/versions/0001_current_schema.py`), and the
+retired probe rebuilds in the git history of the deleted `infrastructure/database/migrations.py`,
+are the reference DDL shapes.
 
 ## Safety Checklist
 

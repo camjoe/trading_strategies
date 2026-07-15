@@ -32,8 +32,9 @@ batch operations implement SQLite's required copy-and-rebuild workflow for struc
     that must be hand-synced with every revision (the dual-source drift burden `SCHEMA_SQL`
     plus probe migrations carry today).
   - Its downgrade drops that schema in reverse dependency order.
-  - The still-pending `strategy_param_sets` removal remains unimplemented and becomes a later
-    revision, likely `0002`.
+  - `0001` is the clean current schema: it omits the retired `strategy_param_sets` store and the
+    unused `book_strategy_assignments.param_set_id` column/FK (folded in during review rather
+    than deferred to a `0002` — see Transition Preconditions).
 - Make migration files self-contained:
   - No imports from changing application constants or configuration.
   - Seed/default values required by DDL are literal revision data.
@@ -46,16 +47,19 @@ Remove `SCHEMA_SQL`, `ColumnMigration`, table-rebuild dispatch, and schema mutat
 
 ## Transition Preconditions
 
-- A database must reach the probe system's end state before it can be baselined: opened at least
-  once by the current release so the FK cascade rebuilds (`docs/pending-deploy-steps.md` Step 0)
-  and all additive column migrations have applied.
-- Status 2026-07-14: all known deployed databases have been opened with current code and are
-  aligned through the FK cascade rebuilds. Only the `strategy_param_sets` removal remains
-  outstanding, and revision `0001` deliberately still includes that table, so aligned databases
-  match `0001`.
-- `docs/pending-deploy-steps.md` folds into this plan: Step 3 (drop `strategy_param_sets`)
-  becomes revision `0002`, and the tracker is retired or rewritten in terms of migration
-  revisions when this plan lands.
+- Reality check (2026-07-15): the first baseline dry-run against the real dev database showed it
+  does **not** match a fresh `0001` — the retired probe system never dropped tables/columns from
+  existing databases, so it still carried `broker_orders` (219 rows), the empty
+  `sleeve_*`/`rotation_episodes` tables, the `strategy_param_sets` store, and the unused
+  `param_set_id` column. The comparator caught this before any stamp, which is exactly why
+  `baseline` validation was kept.
+- Decision (Package B): `0001` is the genuinely clean schema (no `strategy_param_sets`, no
+  `param_set_id`), and each existing database is brought to it by the one-time reconciliation in
+  `docs/pending-deploy-steps.md` Step 1 (drop the leftovers) before Step 2 baselines it. This
+  absorbs what would have been a deferred `0002`; the accounts-table shrink becomes the next
+  revision instead.
+- Every real database that will be baselined must be dry-run first (reconcile → baseline →
+  verify on a copy) so `0001` is confirmed to match it before merge freezes `0001`.
 - Freeze other schema churn until `0001` and the baseline transition land. Follow-on rework
   (e.g. the accounts-table reduction) proceeds afterward as ordinary numbered revisions.
 

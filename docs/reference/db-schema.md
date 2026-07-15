@@ -20,11 +20,12 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+26 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
-`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`) were dropped as the submission/accounting spine
-moved onto the book tables. One row per table — use this for orientation and context. For column
-details, run `python -m scripts.data_ops.describe_db_schema`.
+`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
+`strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
+moved onto the book/strategy tables. One row per table — use this for orientation and context. For
+column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
@@ -38,7 +39,6 @@ details, run `python -m scripts.data_ops.describe_db_schema`.
 | `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
 | `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
 | `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
-| `strategy_param_sets` | Versioned strategy parameter sets; one `is_active` per `strategy_name` | — |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |

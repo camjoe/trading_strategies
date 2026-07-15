@@ -5,10 +5,12 @@ Revises: None (base)
 
 Immutable and self-contained by convention (docs/numbered-database-migration-plan.md):
 no imports from application code, and every value required by the DDL is a
-literal frozen at authoring time. This revision reproduces the final state of
-the retired probe-based schema (`SCHEMA_SQL` plus all additive column and
-table-rebuild migrations) as of 2026-07-14, including the still-pending
-`strategy_param_sets` store, whose removal is a later revision.
+literal frozen at authoring time. This revision defines the current clean
+schema — the retired probe-based schema (`SCHEMA_SQL` plus additive column and
+table-rebuild migrations) minus the legacy `strategy_param_sets` store and the
+`book_strategy_assignments.param_set_id` column/FK, which no live code uses.
+Existing databases shed those (and other probe-era leftovers) via the one-time
+reconciliation in docs/pending-deploy-steps.md before baselining to `0001`.
 """
 
 from __future__ import annotations
@@ -248,25 +250,6 @@ _TABLES: tuple[tuple[str, str], ...] = (
             fill_time TEXT NOT NULL,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
             UNIQUE (order_id, exec_id)
-        )
-        """,
-    ),
-    (
-        "strategy_param_sets",
-        """
-        CREATE TABLE strategy_param_sets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            strategy_name TEXT NOT NULL,
-            version TEXT NOT NULL,
-            params_json TEXT NOT NULL,
-            config_version TEXT,
-            is_active INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            activated_at TEXT,
-            deactivated_at TEXT,
-            notes TEXT,
-            UNIQUE(strategy_name, version)
         )
         """,
     ),
@@ -553,15 +536,13 @@ _TABLES: tuple[tuple[str, str], ...] = (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             book_id INTEGER NOT NULL,
             strategy_id INTEGER NOT NULL,
-            param_set_id INTEGER,
             effective_from TEXT NOT NULL,
             effective_to TEXT,
             is_incumbent INTEGER NOT NULL DEFAULT 1 CHECK (is_incumbent IN (0, 1)),
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
-            FOREIGN KEY (strategy_id) REFERENCES strategies(id),
-            FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
+            FOREIGN KEY (strategy_id) REFERENCES strategies(id)
         )
         """,
     ),
@@ -685,7 +666,6 @@ _INDEXES: tuple[str, ...] = (
     "CREATE INDEX idx_rotation_decisions_book_time ON rotation_decisions(book_id, decision_time DESC)",
     "CREATE INDEX idx_rotation_decisions_action_time_book ON rotation_decisions(rotation_action, decision_time DESC)",
     "CREATE INDEX idx_daily_metrics_book_date ON daily_metrics(book_id, metric_date DESC)",
-    "CREATE INDEX idx_strategy_param_sets_strategy_active ON strategy_param_sets(strategy_name, is_active)",
     (
         "CREATE INDEX idx_walk_forward_groups_account_strategy_created "
         "ON walk_forward_groups(account_id, strategy_id, created_at DESC)"
@@ -752,7 +732,6 @@ _DROP_ORDER: tuple[str, ...] = (
     "backtest_runs",
     "walk_forward_groups",
     "promotion_reviews",
-    "strategy_param_sets",
     "books",
     "strategies",
     "feature_providers",

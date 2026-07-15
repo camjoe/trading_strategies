@@ -44,9 +44,9 @@ class BookAssignmentRepository:
     ) -> int:
         """Close the book's open assignment (if any) and open a new incumbent.
 
-        The legacy ``param_set_id`` column is left NULL — a strategy row is its
-        own parameterization now; the column persists only until a data-op
-        drops it.
+        A strategy row is its own parameterization; there is no separate
+        param-set store. (The legacy ``param_set_id`` column was dropped from
+        the schema in revision ``0001``.)
         """
         try:
             self._conn.execute(

@@ -266,7 +266,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-14T03:54:19+00:00. Tables: 27.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-15T18:13:22+00:00. Tables: 26.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -321,7 +321,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-14T03:54:19+00:00",
+  "generatedAt": "2026-07-15T18:13:22+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -401,7 +401,6 @@
       "label": "Catalogs and settings",
       "tables": [
         "strategies",
-        "strategy_param_sets",
         "feature_providers",
         "global_settings"
       ]
@@ -1945,18 +1944,6 @@
         },
         {
           "default": null,
-          "name": "param_set_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
           "name": "effective_from",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -1997,13 +1984,6 @@
         }
       ],
       "foreignKeys": [
-        {
-          "column": "param_set_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategy_param_sets"
-        },
         {
           "column": "strategy_id",
           "onDelete": "NO ACTION",
@@ -4234,125 +4214,6 @@
         },
         {
           "default": null,
-          "name": "strategy_name",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "version",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "params_json",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "config_version",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": "0",
-          "name": "is_active",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "created_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "updated_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "activated_at",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "deactivated_at",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "notes",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [],
-      "indexes": [
-        {
-          "columns": [
-            "strategy_name",
-            "is_active"
-          ],
-          "name": "idx_strategy_param_sets_strategy_active",
-          "origin": "c",
-          "unique": false
-        },
-        {
-          "columns": [
-            "strategy_name",
-            "version"
-          ],
-          "name": "sqlite_autoindex_strategy_param_sets_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "strategy_param_sets",
-      "section": {
-        "color": "#64748b",
-        "id": "catalogs",
-        "label": "Catalogs and settings"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
           "name": "account_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4769,7 +4630,6 @@
         "risk_snapshots",
         "rotation_decisions",
         "strategies",
-        "strategy_param_sets",
         "trades",
         "walk_forward_group_runs",
         "walk_forward_groups"
@@ -4811,7 +4671,6 @@
         "book_rotation_settings",
         "book_strategy_assignments",
         "strategies",
-        "strategy_param_sets",
         "orders",
         "order_fills",
         "positions",
@@ -4854,7 +4713,6 @@
       "label": "Shared catalogs",
       "tables": [
         "strategies",
-        "strategy_param_sets",
         "feature_providers",
         "global_settings",
         "book_rotation_settings",

@@ -100,6 +100,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `export_db_csv.py` | Export all DB tables to individual CSV files |
 | `export_db_csv_zip.py` | Export all DB tables to a single zipped CSV archive |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, baseline, verify, history |
+| `reconcile_to_0001.py` | One-time (transitional): back up + shed probe-era leftovers so a pre-Alembic DB matches revision `0001` before baselining |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
 

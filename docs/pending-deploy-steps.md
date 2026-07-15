@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-12
-Last Reviewed: 2026-07-14
+Last Reviewed: 2026-07-15
 Purpose: Single tracker for the pending one-time database steps, their required order, and the operator actions still needed for existing databases.
 Related: [Overview](overview.md), [DB Migration System](reference/db-migration-system.md), [Database Cleanup Roadmap](reference/database-cleanup-roadmap.md)
 
@@ -24,10 +24,43 @@ the target FK actions).
 
 | Order | Step | Status | How it runs | Required before deploy? |
 |---|---|---|---|---|
-| 1 | Alembic baseline transition | Built — action required | One-time operator command per database | Yes — the app refuses unversioned databases |
-| 2 | Drop legacy `strategy_param_sets` store | Not built | Future revision `0002` + normal `upgrade` | Not needed for current deploy |
+| 1 | Reconcile schema to `0001` | Built — action required | One-time SQL per database | Yes — precedes baseline |
+| 2 | Alembic baseline transition | Built — action required | One-time operator command per database | Yes — the app refuses unversioned databases |
 
-## Step 1 — Alembic Baseline Transition
+Both steps are one-time per database and become dead once every database has crossed over.
+
+## Step 1 — Reconcile Schema to `0001`
+
+**Why:** the retired probe system never dropped tables or columns from existing databases, so live
+databases still carry probe-era leftovers that revision `0001` (the current clean schema) does not
+have: the superseded `broker_orders` and sleeve/rotation-episode tables, plus the retired
+`strategy_param_sets` store and the unused `book_strategy_assignments.param_set_id` column. A
+database that still has these cannot baseline (or pass `verify`) against `0001`, so shed them
+first.
+
+**Per existing database:**
+
+1. Stop scheduler jobs.
+2. Reconcile (backs up first, drops the leftovers, rebuilds `book_strategy_assignments` to the
+   clean shape, and runs a foreign-key check):
+   ```bash
+   .venv/bin/python -m scripts.data_ops.reconcile_to_0001
+   ```
+   The script drops whichever leftovers a given database happens to carry, so the same command
+   converges dev, prod, and staging alike. `broker_orders` holds historical order data superseded
+   by the `orders` table — it is dropped and preserved only in the backup. The rebuild (rather
+   than `DROP COLUMN param_set_id`) is needed because a plain drop fails when the legacy foreign
+   key is present, which some databases carry and some do not. Requires SQLite ≥ 3.35 (Python 3.14
+   bundles 3.50+).
+
+Then proceed to Step 2. Validate the whole sequence on a **copy** of each database first
+(reconcile → `baseline` → `verify` go green) before running against the live file — confirmed
+against dev, prod, and staging copies.
+
+**Cleanup:** `scripts/data_ops/reconcile_to_0001.py` (and its test) are transitional — delete them
+once every database has crossed over.
+
+## Step 2 — Alembic Baseline Transition
 
 **What changed:** schema initialization moved from the automatic probe system to numbered Alembic
 revisions (`docs/reference/db-migration-system.md`). Runtime no longer creates or migrates
@@ -35,14 +68,13 @@ schema: `ensure_db()` refuses any database that is not stamped at the expected h
 existing database needs a one-time `baseline` stamp before the app, scheduler, CLI, or web
 backend will open it.
 
-**Per existing database:**
+**Per existing database (after Step 1):**
 
-1. Stop scheduler jobs.
-2. Install dependencies (Alembic ships in `requirements-dev.txt`):
+1. Install dependencies (Alembic ships in `requirements-dev.txt`):
    ```bash
    .venv/bin/pip install -r requirements-dev.txt
    ```
-3. Inspect, adopt, and verify:
+2. Adopt and verify:
    ```bash
    .venv/bin/python -m scripts.data_ops.manage_db_migrations status
    .venv/bin/python -m scripts.data_ops.manage_db_migrations baseline
@@ -50,22 +82,11 @@ backend will open it.
    ```
    `baseline` validates the schema against revision `0001` and stamps it without running DDL;
    mismatches are reported object-by-object and nothing is stamped.
-4. Restart jobs and confirm a health check passes.
+3. Restart jobs and confirm a health check passes.
 
-Fresh databases instead run `python -m scripts.data_ops.manage_db_migrations upgrade`, which
-creates a missing or empty database at head (no baseline needed).
+Fresh databases skip both steps and run `python -m scripts.data_ops.manage_db_migrations upgrade`,
+which creates a missing or empty database at head.
 
 **Rollback:** `baseline` only writes the `alembic_version` table; restoring the pre-transition
-backup (or dropping that table) returns the database to its previous state.
-
-## Step 2 — Drop the Legacy `strategy_param_sets` Store
-
-**Status:** not built; do not run as part of the current deploy.
-
-The strategy-catalog work retired the param-set thread in code, but the physical schema still
-contains `strategy_param_sets`, its index, `book_strategy_assignments.param_set_id`, and that
-FK. The cleanup is authored as migration revision `0002` on a follow-up branch and applied with
-the standard workflow (`status` → `upgrade` → `verify`), which backs up automatically. Afterward,
-regenerate the DB diagram viewer and update `docs/reference/db-schema.md`.
-
-This is tracked as future cleanup, not current deployment work.
+backup (or dropping that table) returns the database to its previous state. The Step 1 drops are
+recovered only from the backup.
