@@ -65,7 +65,9 @@ def _cmd_delete_account(args: argparse.Namespace) -> int:
     if not account_name:
         raise ValueError("Provide an account name.")
 
-    if args.backup_before and not args.dry_run:
+    # Deletion cascades everything the account owns; the pre-delete backup is
+    # the only retention path, so it is on by default.
+    if not args.no_backup and not args.dry_run:
         backup_path = backup_database(args.backup_destination)
         print(f"Backup created before delete: {backup_path}")
 
@@ -110,14 +112,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_delete.add_argument("--dry-run", action="store_true", help="Show what would be deleted without changes.")
     p_delete.add_argument(
-        "--backup-before",
+        "--no-backup",
         action="store_true",
-        help="Create a DB backup before deleting accounts.",
+        help="Skip the automatic pre-delete database backup (deletion is unrecoverable without it).",
     )
     p_delete.add_argument(
         "--backup-destination",
         default=None,
-        help="Optional backup destination path when using --backup-before.",
+        help="Optional destination path for the automatic pre-delete backup.",
     )
     p_delete.set_defaults(handler=_cmd_delete_account)
 
