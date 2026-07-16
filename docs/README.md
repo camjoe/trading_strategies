@@ -51,7 +51,6 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 Full listing: [`reference/`](reference/). Key entries:
 
-- [`reference/account-deletion-cascade-proposal.md`](reference/account-deletion-cascade-proposal.md) — proposed FK cascades and retention decisions for account deletion
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist

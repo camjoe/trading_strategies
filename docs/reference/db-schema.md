@@ -8,7 +8,7 @@ Purpose: Schema orientation for agents and developers — quick-reference table 
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
-- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the full current DDL)
+- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the base DDL; later revisions amend it)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
@@ -79,6 +79,16 @@ Domain-specific meaning that the schema alone does not convey.
 | `auto-daily;strategy=<name>` | System-generated daily trade |
 | `manual-import;source=<name>` | Manually imported trade |
 | `manual-import;...;instrument=option;type=call;action=bought\|sold\|expired` | Options trade |
+
+### Deletion semantics
+
+- Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
+  account-owned row (books, orders, trades, research, governance, and risk history). The
+  pre-deletion database backup is the only retention path — there is no archive model.
+- `walk_forward_group_runs.run_id -> backtest_runs` is deliberately `NO ACTION`: a grouped run
+  must not silently vanish from its group's composition. Account deletion still succeeds because
+  SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
+  "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
 
 ---
 
