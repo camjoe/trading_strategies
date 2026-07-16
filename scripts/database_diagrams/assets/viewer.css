@@ -5,6 +5,7 @@
       --muted: #667085;
       --line: #d0d5dd;
       --cascade: #0f8b5f;
+      --set-null: #1d4ed8;
       --no-action: #667085;
       --restrict: #b54708;
       --accent: #1d4ed8;
@@ -215,10 +216,13 @@
     }
     summary { cursor: pointer; color: var(--muted); }
     .index-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    /* Line color comes from the inline stroke (section color, or delete-action
+       color when that mode is on); the action classes carry the dash pattern. */
     .rel-line { fill: none; stroke-width: 2.3; stroke: #475467; }
-    .rel-line.CASCADE { stroke: var(--cascade); }
-    .rel-line.NO_ACTION { stroke: var(--no-action); stroke-dasharray: 5 5; }
-    .rel-line.RESTRICT { stroke: var(--restrict); stroke-dasharray: 2 4; }
+    .rel-line.NO_ACTION { stroke-dasharray: 5 5; }
+    .rel-line.RESTRICT { stroke-dasharray: 2 4; }
+    .rel-line.SET_NULL { stroke-dasharray: 11 4; }
+    .rel-line.MIXED { stroke-dasharray: 11 4 2 4; }
     .rel-label-bg { fill: rgba(255, 255, 255, 0.96); stroke: var(--line); }
     .rel-label {
       font-size: 12px;
@@ -251,5 +255,6 @@
     .swatch { width: 24px; height: 3px; display: inline-block; vertical-align: middle; margin-right: 4px; }
     .swatch.fk { background: #475467; }
     .swatch.cascade { background: var(--cascade); }
+    .swatch.set-null { background: repeating-linear-gradient(90deg, var(--set-null) 0 11px, transparent 11px 15px); }
     .swatch.no-action { background: repeating-linear-gradient(90deg, var(--no-action) 0 5px, transparent 5px 9px); }
     .swatch.restrict { background: repeating-linear-gradient(90deg, var(--restrict) 0 2px, transparent 2px 6px); }

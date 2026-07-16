@@ -97,6 +97,8 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "orders",
             "order_fills",
             "equity_snapshots",
+            "daily_metrics",
+            "rotation_decisions",
             "positions",
             "ledger",
             "backtest_runs",
