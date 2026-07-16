@@ -139,6 +139,44 @@ def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
         assert _fk_delete_action(migrated_conn, table, "account_id", "accounts") == "CASCADE", table
     # Standalone book deletion keeps account-level decision history.
     assert _fk_delete_action(migrated_conn, "risk_decisions", "book_id", "books") == "SET NULL"
+    # Book-owned history rides the accounts -> books cascade (revision 0002);
+    # RESTRICT here blocked account deletion for accounts with rotation history.
+    assert _fk_delete_action(migrated_conn, "rotation_decisions", "book_id", "books") == "CASCADE"
+
+
+def test_revision_0002_rebuild_preserves_rotation_rows(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "rebuild.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0001", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at)
+            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                created_at, updated_at
+            )
+            VALUES (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO rotation_decisions (
+                book_id, decision_time, rotation_action, score_components_json,
+                gate_results_json, decision_reason, created_at
+            )
+            VALUES (1, '2026-01-02T00:00:00Z', 'hold', '{}', '{}', 'seeded', '2026-01-02T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("head", connection=conn)
+        row = conn.execute("SELECT book_id, rotation_action, decision_reason FROM rotation_decisions").fetchone()
+        assert (row["book_id"], row["rotation_action"], row["decision_reason"]) == (1, "hold", "seeded")
+        assert _fk_delete_action(conn, "rotation_decisions", "book_id", "books") == "CASCADE"
+
+        migration_runner.downgrade("0001", connection=conn)
+        assert conn.execute("SELECT COUNT(*) FROM rotation_decisions").fetchone()[0] == 1
+        assert _fk_delete_action(conn, "rotation_decisions", "book_id", "books") == "RESTRICT"
+    finally:
+        conn.close()
 
 
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
