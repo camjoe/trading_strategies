@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-13
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-15
 Purpose: Future cleanup ideas for narrowing the database schema after the current deploy steps are complete.
 Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md)
 
@@ -44,6 +44,14 @@ verified.
 
 ### Account-Level Execution Columns
 
+**Status: blocked — live readers remain.** The book trade-intent path still reads
+`account.risk_policy`, `stop_loss_pct`, `take_profit_pct`, and `instrument_mode`
+(`src/trading/services/books/execution.py`), and trade sizing still reads
+`trade_size_pct` / `max_position_pct` (`src/trading/services/auto_trading/execution.py`).
+`book_execution_settings` exists but is not yet consumed by the execution path (only the
+parameters view and catalog seeding touch it), so this group needs a reader cutover to book
+settings before any column removal.
+
 Likely cleanup candidates after book-owned execution is fully deployed:
 
 - `learning_enabled`
@@ -59,6 +67,12 @@ Likely cleanup candidates after book-owned execution is fully deployed:
 Expected target: `book_execution_settings`.
 
 ### Account-Level Option Columns
+
+**Status: blocked — live readers remain.** Option/leaps selection still reads these columns
+from the account (`src/trading/domain/auto_trading_policy.py`,
+`src/trading/services/auto_trading/execution.py`, `src/trading/services/reporting/presentation.py`,
+and the validation in `src/trading/services/accounts/config.py`). `book_option_settings` exists
+but the runtime readers have not moved to it.
 
 Likely cleanup candidates after option/leaps readers are confirmed book-owned:
 
@@ -78,7 +92,14 @@ Expected target: `book_option_settings`.
 
 ### Account-Level Rotation Columns
 
-Cleanup candidates now that the book-rotation cutover has run everywhere:
+**Status: ready — no remaining readers.** `AccountRecord` no longer materializes any
+`rotation_*` field (ADR 014), and no code reads them from `accounts`; rotation scheduling is
+book-owned and rotation state lives in `book_strategy_assignments` and `rotation_decisions`.
+This is the least risky group and the right first removal: a single numbered Alembic
+migration rebuilding `accounts` without these columns, following the migration `0002`
+rebuild pattern.
+
+Columns to remove:
 
 - `rotation_enabled`
 - `rotation_mode`
@@ -127,13 +148,21 @@ reasonable. If they vary by execution unit, keep moving them to `books`.
 
 ## Suggested Order
 
-1. Deploy and verify the FK cascade table rebuilds.
-2. Run the pending sleeve-retirement and book-rotation cutover steps everywhere.
+1. ~~Deploy and verify the FK cascade table rebuilds.~~ **Done at code level**
+   (`features/database-accounts-split`): migration `0002` rebuilds `rotation_decisions` to
+   full CASCADE, account-deletion cascade is covered by tests, and admin deletions back up
+   the database by default. Remaining: run `alembic upgrade` against the live database —
+   `ensure_db()` refuses to start on a stale revision, so this cannot silently drift.
+2. ~~Run the pending sleeve-retirement and book-rotation cutover steps everywhere.~~ **Done**:
+   no sleeve code remains in `src/`, and the book-rotation cutover has run everywhere.
 3. Confirm no runtime, CLI, UI backend, or reporting path reads legacy account-level execution
-   columns as source of truth.
-4. Build a cleanup branch for one ownership group at a time, starting with the least risky group.
-5. For physical column removal, use explicit one-time data-ops or SQLite table rebuilds with backup
-   requirements, not silent startup migrations unless the deploy plan calls that out.
+   columns as source of truth. (Per-group status is noted on each cleanup group above —
+   rotation is clear; execution and option groups still have live readers.)
+4. Build a cleanup branch for one ownership group at a time, starting with the least risky group
+   (currently the rotation columns).
+5. For physical column removal, add a numbered Alembic migration per ownership group following
+   the `0002` rebuild pattern: self-contained literal DDL, explicit column copy list, table
+   rebuild, `PRAGMA foreign_key_check`, and a reversible downgrade (ADR 015).
 6. Regenerate `docs/reference/database-diagram-viewer.html` and update `docs/reference/db-schema.md`
    after each schema cleanup.
 
