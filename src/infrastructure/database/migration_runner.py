@@ -116,7 +116,8 @@ def build_reference_connection(revision: str = "head") -> sqlite3.Connection:
     """Return an in-memory database migrated to *revision*.
 
     The canonical way to materialize "the schema as of revision X" for
-    comparison and inspection (baseline/verify, schema tooling).
+    inspection tooling: the schema docs check, ``describe_db_schema``,
+    the diagram viewer, and the FK audit.
     """
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
