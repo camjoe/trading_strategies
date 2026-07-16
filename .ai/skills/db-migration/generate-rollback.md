@@ -1,64 +1,53 @@
 ---
 name: generate-rollback
-description: Generates a rollback strategy for a SQLite schema migration, accounting for SQLite's limited ALTER TABLE support.
+description: Generates a rollback strategy for an Alembic revision — downgrade path, backup recovery, and the application-code changes required alongside it.
 ---
 
 # Generate Rollback
 
-## SQLite constraints
+## The two rollback mechanisms
 
-SQLite does not support `DROP COLUMN` in versions before 3.35.0. Most deployments should be assumed to have an older SQLite unless confirmed otherwise. Rolling back a column addition therefore depends on the version and on whether data was written to the new column.
+1. **`downgrade()`** — restores the previous schema *shape*. Every revision must implement it,
+   and `manage_db_migrations downgrade <revision|-1>` applies it (after an automatic backup).
+2. **Backup restore** — the only mechanism that recovers *data* discarded by a lossy revision
+   (dropped columns/tables, destructive `UPDATE`s). `manage_db_migrations upgrade` creates a
+   timestamped backup in `local/db_backups/` before every schema change.
 
-## Rollback strategies by case
+## Strategy by case
 
-### Case 1: Column added, no data written yet
-If the migration was applied but the column is empty (no `post_sql` backfill, no production writes):
+### Case 1: Additive revision, no data written to the new column yet
+Run `python -m scripts.data_ops.manage_db_migrations downgrade -1`. Nothing is lost; the
+downgrade drops the empty column via a batch rebuild.
 
-**Strategy:** Stop using the column in application code, then recreate the table without it at next opportunity. Immediate rollback is not required.
+### Case 2: Additive revision with backfill, or data already written
+Downgrade drops the column *and its data*. Decide first whether the data matters:
+- Data disposable → downgrade is sufficient.
+- Data matters → restore the pre-upgrade backup instead, accepting the loss of rows written
+  since the upgrade, or export the column before downgrading.
 
-```sql
--- No immediate SQL needed. Stop reading/writing the column in code.
--- Mark it deprecated; clean up at next scheduled maintenance.
-```
+### Case 3: Destructive revision (column/table dropped by `upgrade()`)
+`downgrade()` recreates the shape but the values are gone. Recovery is the pre-upgrade backup.
+State this explicitly in the rollback plan.
 
-### Case 2: Column added with backfill (`post_sql` ran)
-Data has been written to the new column. Rolling back means table recreation.
+## Before generating a rollback plan
 
-**Strategy:** Create a new table with the old schema, copy data excluding the new column, drop the original, rename the new table.
-
-```sql
--- WARNING: Run inside a transaction. Take a backup first.
-BEGIN TRANSACTION;
-CREATE TABLE <table>_old AS SELECT <original_columns> FROM <table>;
-DROP TABLE <table>;
-ALTER TABLE <table>_old RENAME TO <table>;
-COMMIT;
-```
-
-**Backup required** before executing any table recreation rollback.
-
-### Case 3: SQLite >= 3.35.0 available
-```sql
-ALTER TABLE <table> DROP COLUMN <column>;
-```
-Verify SQLite version first: `python -c "import sqlite3; print(sqlite3.sqlite_version)"`
-
-## Before generating a rollback script
-
-1. Confirm whether any production data has been written to the new column.
-2. Confirm the SQLite version in the target environment.
-3. Confirm a backup exists and is verified.
-4. Identify all code paths that read or write the column — they must be reverted before or alongside the schema rollback.
+1. Run `python -m scripts.data_ops.manage_db_migrations status` — confirm the database revision.
+2. Confirm the pre-upgrade backup exists in `local/db_backups/` and note its timestamp.
+3. Identify code paths that read/write the affected columns — application code must be reverted
+   to the matching revision's expectations before or alongside the schema rollback.
+4. Stop scheduler jobs for the rollback window.
 
 ## Output
 
 Provide:
-1. The rollback strategy (which case applies)
-2. The rollback SQL (with transaction and backup warning if table recreation is needed)
-3. The application code changes required (column references to remove)
-4. The verification command to confirm the rollback succeeded
+1. Which case applies and the chosen mechanism (downgrade vs backup restore).
+2. The exact commands (`manage_db_migrations downgrade <target>` or the backup-restore steps).
+3. The application code changes required.
+4. Verification: `manage_db_migrations status` shows the target revision, and
+   `describe_db_schema --source live` reflects the expected shape.
 
 ## Repo references
 
-- `src/infrastructure/database/schema.py`
-- `src/trading/interfaces/runtime/data_ops/` (backup tooling)
+- `scripts/data_ops/manage_db_migrations.py`
+- `src/trading/interfaces/runtime/data_ops/admin.py` (backup tooling)
+- `docs/reference/db-migration-system.md`

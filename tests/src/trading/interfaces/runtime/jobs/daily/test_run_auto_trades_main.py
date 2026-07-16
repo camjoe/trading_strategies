@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import infrastructure.database.init as init_module
+import infrastructure.database.connection as init_module
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     make_run_auto_trades_args,

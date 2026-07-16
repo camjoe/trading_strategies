@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-07-13
 Last Reviewed: 2026-07-13
 Purpose: Future cleanup ideas for narrowing the database schema after the current deploy steps are complete.
-Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [Account Deletion Cascade Proposal](account-deletion-cascade-proposal.md), [Pending One-Time DB Steps](../pending-deploy-steps.md)
+Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [Account Deletion Cascade Proposal](account-deletion-cascade-proposal.md)
 
 ## Purpose
 
@@ -152,4 +152,3 @@ reasonable. If they vary by execution unit, keep moving them to `books`.
 - [Database Schema Reference](db-schema.md)
 - [DB Migration System](db-migration-system.md)
 - [Account Deletion Cascade Proposal](account-deletion-cascade-proposal.md)
-- [Pending One-Time DB Steps](../pending-deploy-steps.md)

@@ -87,7 +87,7 @@ Data operation scripts (`scripts/data_ops/`):
 - `audit_foreign_keys.py`: read-only FK action audit for account-deletion-related tables or the full schema.
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
 - `build_database_diagram_viewer.py`: Trading Strategies adapter that builds the checked-in interactive HTML database diagram viewer in `docs/reference/database-diagram-viewer.html` for table and FK relationship review.
-- `describe_db_schema.py`: prints the current database schema from either an in-memory database initialized from `schema.py` + migrations or the configured live SQLite database.
+- `describe_db_schema.py`: prints the current database schema from either an in-memory database built from the Alembic migration chain or the configured live SQLite database.
 - `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
 - `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 

@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 
-import infrastructure.database.init as db_init
+import infrastructure.database.connection as db_init
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
+from tests.support.db_schema import build_db_at_head
 from trading.interfaces.runtime.data_ops import admin
 
 
@@ -60,7 +60,7 @@ class TestBackupDatabase:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
         monkeypatch.setattr(admin, "DB_BACKUPS_DIR", tmp_path / "db_backups")
 
@@ -73,7 +73,7 @@ class TestBackupDatabase:
     def test_backup_database_accepts_explicit_file_destination(
         self, configured_backend: SQLiteBackend, tmp_path: Path
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         destination = tmp_path / "custom" / "manual_backup.db"
 
         backup = admin.backup_database(str(destination))
@@ -87,7 +87,7 @@ class TestBackupDatabase:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
 
         backup = admin.backup_database(str(tmp_path / "manual_backups"))

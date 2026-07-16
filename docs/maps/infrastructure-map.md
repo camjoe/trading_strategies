@@ -28,10 +28,12 @@ DB infrastructure. Imported only by `src/trading/repositories/` and the document
 |---|---|
 | `backend.py` | DB connection/backend factory and backend selection |
 | `config.py` | DB path and environment config (`get_db_path`) |
-| `init.py` | DB initialization (`ensure_db`) — applies schema + migrations |
-| `migrations.py` | Hand-rolled schema migration runner (`ColumnMigration`, column guards) |
-| `schema.py` | Table DDL definitions (source of truth for the schema) |
+| `connection.py` | Runtime connection gate: `ensure_db()` verifies the Alembic revision (never migrates); `db_session()` |
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
+| `schema_version.py` | Expected Alembic head constant + plain-SQL revision reader (runtime-safe, no Alembic import) |
+| `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade, reference builds) over the active backend — ops-only |
+| `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
+| `alembic/versions/` | Immutable numeric migration revisions (`0001_current_schema`, …) — the schema source of truth |
 
 ### `src/infrastructure/brokers/`
 

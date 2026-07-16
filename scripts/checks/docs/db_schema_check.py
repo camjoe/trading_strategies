@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import argparse
 import re
-import sqlite3
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from infrastructure.database.init import init_schema
+from infrastructure.database import migration_runner
 
 DB_SCHEMA_DOC_REL = "docs/reference/db-schema.md"
 
@@ -16,11 +15,11 @@ QR_TABLE_RE = re.compile(r"^\|\s+`(\w+)`\s+\|")
 
 
 def _schema_table_names() -> set[str]:
-    conn = sqlite3.connect(":memory:")
-    init_schema(conn)
+    conn = migration_runner.build_reference_connection()
     try:
         rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' "
+            "AND name != 'alembic_version'"
         ).fetchall()
         return {row[0] for row in rows}
     finally:

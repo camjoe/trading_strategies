@@ -7,8 +7,7 @@ Last Reviewed: 2026-07-13
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. The entry point and
 the itemized tracker for what remains.
-Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md),
-[Pending One-Time DB Steps](pending-deploy-steps.md)
+Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline for **why/what** and the tracker for what's left. When
 > priorities or capabilities change, update this file first.
@@ -131,10 +130,10 @@ The strategic order here is the north star (the "why/what") and the authoritativ
 for what is left. Today's delivered capabilities are in "What it can do today" above; durable
 decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
-The completed sleeve-retirement and book-rotation cutovers have been retired. The remaining
-committed deployment work is one automatic FK table-rebuild step, while the not-yet-built
-`strategy_param_sets` schema cleanup remains deferred. Both are tracked in
-[pending-deploy-steps.md](pending-deploy-steps.md).
+The completed sleeve-retirement, book-rotation, and Alembic baseline-transition cutovers have all
+been retired. Schema changes now ship as numbered Alembic revisions — see
+[db-migration-system.md](reference/db-migration-system.md). No one-time deployment steps are
+currently pending.
 
 ## Guiding constraints
 

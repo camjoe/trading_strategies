@@ -75,7 +75,11 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "docs/maps/infrastructure-map.md",
         "src/infrastructure",
-        (),
+        (
+            # Migration revisions are directory-summarized (`alembic/versions/` row);
+            # each numbered revision must not need its own map entry.
+            "src/infrastructure/database/alembic/versions",
+        ),
     ),
     (
         "docs/maps/common-map.md",

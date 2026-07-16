@@ -71,7 +71,6 @@ These relationships currently look intentionally restrictive or reference shared
 |---|---|---|
 | `rotation_decisions.book_id` -> `books.id` | `ON DELETE RESTRICT` | Rotation decisions are audit history; restriction prevents silent book deletion while decisions exist. |
 | `*_strategy_id` -> `strategies.id` | `NO ACTION` | Strategies are shared catalog records. Deleting a strategy should be blocked while historical rows reference it, unless a retirement/archive model replaces deletion. |
-| `book_strategy_assignments.param_set_id` -> `strategy_param_sets.id` | `NO ACTION` | Param sets are shared/versioned configuration evidence. |
 
 ## Migration Shape
 
@@ -91,7 +90,7 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 - [x] Decide whether research/evaluation rows should survive account deletion. (No — account-owned; backup is the retention path.)
 - [x] Decide whether promotion and risk history are audit records. (No — account-owned; risk `book_id` uses `SET NULL` so book deletion alone keeps history.)
 - [x] Add table-rebuild migration support under `src/infrastructure/database/`.
-- [x] Update fresh DDL in `src/infrastructure/database/schema.py`.
+- [x] Update fresh DDL (now in `src/infrastructure/database/alembic/versions/0001_current_schema.py`).
 - [x] Add migration tests for a legacy table shape upgraded to the target FK action.
 - [x] Add service tests proving account deletion still reports counts and leaves no FK violations.
 - [x] Simplify `delete_account()` to rely on the implemented child-owned cascades.

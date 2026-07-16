@@ -6,7 +6,7 @@ from pathlib import Path
 from collections.abc import Callable
 
 from common.files import sorted_by_mtime_desc
-from infrastructure.database.init import ensure_db
+from infrastructure.database.connection import ensure_db
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account
 from trading.services.books.daily_report import account_daily_report_as_dict, build_account_daily_report

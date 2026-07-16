@@ -8,6 +8,7 @@ from common.paths.repo_paths import get_repo_root
 from scripts.checks._runner import CheckStep, run_check_steps
 from scripts.checks.repo.layer_check import run_layer_check
 from scripts.checks.repo.live_safety_check import run_live_safety_check
+from scripts.checks.repo.migration_check import run_migration_check
 from scripts.checks.repo.path_safety_check import run_path_safety_check
 from scripts.checks.repo.review_scope_check import run_review_scope_check
 from scripts.checks.repo.secret_hygiene_check import run_secret_hygiene_check
@@ -26,6 +27,10 @@ def run_repo_check(repo_root: Path, *, enforce: bool = True, quiet: bool = True)
             CheckStep(
                 "Live-trading safety",
                 lambda: run_live_safety_check(repo_root=repo_root, quiet=quiet, enforce=enforce),
+            ),
+            CheckStep(
+                "Migration chain",
+                lambda: run_migration_check(repo_root=repo_root, quiet=quiet, enforce=enforce),
             ),
             CheckStep(
                 "Path safety",

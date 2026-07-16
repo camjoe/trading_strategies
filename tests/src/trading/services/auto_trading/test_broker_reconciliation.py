@@ -1,21 +1,17 @@
-import sqlite3
 from unittest.mock import Mock
 
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
-from infrastructure.database.init import init_schema
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 import trading.services.auto_trading.runtime as runtime_service
 from tests.support.brokers import make_broker_account
+from tests.support.db_schema import memory_db_at_head
 
 
 def _make_db():
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    init_schema(conn)
-    return conn
+    return memory_db_at_head()
 
 
 def _insert_account_row(conn, account_id: int = 1, name: str = "acct-sample") -> None:

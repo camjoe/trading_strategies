@@ -4,16 +4,15 @@ Type: notes
 Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-07-13
-Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/schema.py directly.
+Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
-- `src/infrastructure/database/schema.py` — CREATE TABLE statements (organized by table as named constants)
-- `src/infrastructure/database/migrations.py` — ColumnMigration additions (append-only column history)
+- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the full current DDL)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
-New columns are added via the `ColumnMigration` append-only migration system — never drop or rename columns.
+Schema changes are authored as new immutable revisions — never edit an applied revision.
 
 For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or `--source live` for the live DB).
 
@@ -21,11 +20,12 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+26 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
-`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`) were dropped as the submission/accounting spine
-moved onto the book tables. One row per table — use this for orientation and context. For column
-details, read `schema.py` directly.
+`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
+`strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
+moved onto the book/strategy tables. One row per table — use this for orientation and context. For
+column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
@@ -39,7 +39,6 @@ details, read `schema.py` directly.
 | `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
 | `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
 | `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
-| `strategy_param_sets` | Versioned strategy parameter sets; one `is_active` per `strategy_name` | — |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
@@ -85,11 +84,11 @@ Domain-specific meaning that the schema alone does not convey.
 
 ## Migration System
 
-New columns are added via `ColumnMigration` dataclasses defined in `migrations.py`. Rules:
+Schema changes are numbered Alembic revisions in `src/infrastructure/database/alembic/versions/`. Rules:
 
-- **Append-only** — never drop or rename a column
+- Revisions are **immutable** — a fix is a new revision, never an edit
+- Every revision implements `upgrade()` and `downgrade()`
 - `NOT NULL` additions must supply a `DEFAULT` value
-- `post_sql` can carry `UPDATE` statements to backfill existing rows
-- `init_schema()` checks `PRAGMA table_info` before applying each migration (idempotent)
+- Operators apply revisions with `python -m scripts.data_ops.manage_db_migrations`; runtime only verifies
 
 See `docs/reference/db-migration-system.md` for full details.

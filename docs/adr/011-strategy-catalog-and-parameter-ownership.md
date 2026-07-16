@@ -3,9 +3,9 @@
 Type: adr
 Status: Accepted
 Created: 2026-07-09
-Last Reviewed: 2026-07-12
+Last Reviewed: 2026-07-15
 Purpose: Record where strategy knobs and execution settings belong after the clean schema rewrite.
-Related: [Strategies Reference](../reference/strategies.md)
+Related: [Strategies Reference](../reference/strategies.md), [ADR 015 Numbered Alembic Migrations](015-numbered-alembic-migrations.md)
 
 ## Context
 
@@ -33,10 +33,10 @@ than mutating an evidence-backed definition.
 - New strategy variants are data changes: runtime resolution reads the catalog row
   (`resolve_catalog_strategy` — primitive plus `params_json` over the primitive defaults), and
   operators edit via `create-strategy-variant` / `configure-strategy` / `freeze-strategy`.
-- The separate parameter-set model is retired: its readers were removed and
-  `StrategyParamSetRepository` deleted. The `strategy_param_sets` table and the
-  `book_strategy_assignments.param_set_id` column persist (unused, left NULL) until a data-op drops
-  them.
+- The separate parameter-set model is fully retired: its readers were removed and
+  `StrategyParamSetRepository` deleted, and the physical schema no longer carries the
+  `strategy_param_sets` table or the `book_strategy_assignments.param_set_id` column (removed in
+  migration revision `0001` — see [ADR 015](015-numbered-alembic-migrations.md)).
 - Validation and operator editing follow the owning concern: primitive knob schema for
   strategy rows (`validate_params_against_primitive`), typed columns for book settings, and global
   commands for operational settings.

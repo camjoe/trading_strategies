@@ -225,7 +225,7 @@ def stub_runtime_job_basics(
       - conn: the stubbed DB connection
       - books: the stubbed (book, assignment) pairs (if patched)
     """
-    import infrastructure.database.init as db_init
+    import infrastructure.database.connection as db_init
     import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
     resolved_accounts = list(runtime_accounts or ["acct1"])
@@ -233,7 +233,7 @@ def stub_runtime_job_basics(
     lookup = account_lookup or (lambda name: SimpleNamespace(id=1, name=name))
 
     # Migrated jobs (ADR 006) open the DB via the shared `db_session`
-    # (infrastructure.database.init.ensure_db); legacy jobs call `ensure_db` on
+    # (infrastructure.database.connection.ensure_db); legacy jobs call `ensure_db` on
     # their own module. Patch whichever targets define it so both styles work.
     for target in (module, job_runner, db_init):
         if hasattr(target, "ensure_db"):
