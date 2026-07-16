@@ -28,7 +28,7 @@ DB infrastructure. Imported only by `src/trading/repositories/` and the document
 |---|---|
 | `backend.py` | DB connection/backend factory and backend selection |
 | `config.py` | DB path and environment config (`get_db_path`) |
-| `init.py` | Runtime connection gate: `ensure_db()` verifies the Alembic revision (never migrates); `db_session()` |
+| `connection.py` | Runtime connection gate: `ensure_db()` verifies the Alembic revision (never migrates); `db_session()` |
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 | `schema_version.py` | Expected Alembic head constant + plain-SQL revision reader (runtime-safe, no Alembic import) |
 | `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade, reference builds) over the active backend — ops-only |

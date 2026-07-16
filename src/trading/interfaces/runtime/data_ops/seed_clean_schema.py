@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 
-from infrastructure.database.init import db_session
+from infrastructure.database.connection import db_session
 from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
 
 

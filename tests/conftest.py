@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
+from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
 from tests.support.seed.db import seed_session_db
 

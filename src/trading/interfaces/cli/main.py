@@ -10,7 +10,7 @@ from trading.backtesting.backtest import (
     walk_forward_report,
     run_walk_forward_backtest,
 )
-from infrastructure.database.init import db_session
+from infrastructure.database.connection import db_session
 from infrastructure.database.config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command

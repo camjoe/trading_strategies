@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import SchemaVersionError, db_session, ensure_db
+from infrastructure.database.connection import SchemaVersionError, db_session, ensure_db
 from tests.support.db_schema import build_db_at_head
 
 

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 
-import infrastructure.database.init as db_init
+import infrastructure.database.connection as db_init
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from tests.support.db_schema import build_db_at_head
 from trading.interfaces.runtime.data_ops import admin

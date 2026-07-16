@@ -34,7 +34,7 @@ automatically at startup) is retired; revision `0001` reproduces its final schem
 | `src/infrastructure/database/alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
 | `src/infrastructure/database/migration_runner.py` | Programmatic runner: `upgrade`/`downgrade`, `repository_head()`, `revision_chain()`, `build_reference_connection()` — ops-only |
 | `src/infrastructure/database/schema_version.py` | `EXPECTED_HEAD_REVISION` constant + plain-SQL `read_database_revisions()` (runtime-safe) |
-| `src/infrastructure/database/init.py` | `ensure_db()` (verify-only) and `db_session()` |
+| `src/infrastructure/database/connection.py` | `ensure_db()` (verify-only) and `db_session()` |
 | `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
 | `scripts/data_ops/manage_db_migrations.py` | Lifecycle command: status/upgrade/downgrade/history |

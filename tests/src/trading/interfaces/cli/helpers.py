@@ -57,7 +57,7 @@ def configure_account_args(**overrides):
 
 
 def install_main_harness(monkeypatch, cli_main_module, args, conn: FakeConn | None = None) -> FakeConn:
-    import infrastructure.database.init as db_init
+    import infrastructure.database.connection as db_init
 
     fake_conn = conn or FakeConn()
     monkeypatch.setattr(cli_main_module, "build_parser", lambda: FakeParser(args))

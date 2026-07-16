@@ -11,7 +11,7 @@ import pytest
 import sqlite3
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
+from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
 
 NEW_TABLES = {

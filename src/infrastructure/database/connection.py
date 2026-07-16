@@ -50,7 +50,7 @@ def db_session() -> Iterator[DBConnection]:
 
     The shared resource-lifecycle wrapper for the `conn = ensure_db(); try: ...
     finally: conn.close()` pattern. Tests stub the connection by patching
-    `infrastructure.database.init.ensure_db`.
+    `infrastructure.database.connection.ensure_db`.
     """
     conn = ensure_db()
     try:

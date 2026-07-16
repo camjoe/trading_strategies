@@ -157,7 +157,7 @@ def test_main_list_accounts_dispatches(monkeypatch) -> None:
 
 def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
     import infrastructure.database.config as config_module
-    import infrastructure.database.init as init_module
+    import infrastructure.database.connection as init_module
     import trading.interfaces.cli.commands as commands_module
     import trading.interfaces.cli.handlers.router as router_module
 

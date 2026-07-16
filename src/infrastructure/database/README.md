@@ -12,7 +12,7 @@ DB connection, configuration, and the schema-migration machinery. Imported only 
   source of truth for the schema — there is no `SCHEMA_SQL` mirror. Revision `0001` holds the full
   current schema; later revisions are deltas. Change the schema only by adding a new immutable
   revision (use the `db-migration` skill).
-- **Runtime never migrates.** `ensure_db()` (in `init.py`) opens a connection and *verifies* that
+- **Runtime never migrates.** `ensure_db()` (in `connection.py`) opens a connection and *verifies* that
   the database's recorded revision equals `schema_version.EXPECTED_HEAD_REVISION`, raising
   `SchemaVersionError` otherwise. It never creates or alters schema. Operators apply migrations
   with `python -m scripts.data_ops.manage_db_migrations`.
@@ -24,7 +24,7 @@ DB connection, configuration, and the schema-migration machinery. Imported only 
 
 | Module | Role |
 |---|---|
-| `init.py` | `ensure_db()` (verify-only connection gate) and `db_session()` |
+| `connection.py` | `ensure_db()` (verify-only connection gate) and `db_session()` |
 | `backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `config.py` | DB path resolution: `TRADING_DB_PATH` → config file → `local/paper_trading.db` |
 | `schema_version.py` | `EXPECTED_HEAD_REVISION` constant + plain-SQL revision reader (runtime-safe) |
