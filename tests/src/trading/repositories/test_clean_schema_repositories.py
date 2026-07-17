@@ -19,7 +19,6 @@ from trading.repositories.strategies import StrategyImmutableError, StrategyRepo
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_settings import (
-    BookExecutionSettingsRepository,
     BookOptionSettingsRepository,
     BookRotationSettingsRepository,
 )
@@ -151,12 +150,15 @@ def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
 def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     _, book_id = _insert_book(conn)
 
-    execution_repo = BookExecutionSettingsRepository(conn)
-    execution_repo.upsert(book_id=book_id, risk_policy="fixed_stop", stop_loss_pct=5.0, created_at=NOW, updated_at=NOW)
-    execution_repo.upsert(
-        book_id=book_id, risk_policy="stop_and_target", stop_loss_pct=4.0, created_at=NOW, updated_at=NOW
+    # Execution settings are book columns since revision 0004.
+    book_repo = BookRepository(conn)
+    book_repo.update_execution_settings(
+        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["fixed_stop", 5.0]
     )
-    execution = execution_repo.fetch(book_id=book_id)
+    book_repo.update_execution_settings(
+        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["stop_and_target", 4.0]
+    )
+    execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
@@ -174,9 +176,12 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert rotation is not None and rotation.rotation_enabled == 1
     assert rotation.rotation_lookback_days == 45
 
-    # Missing row → None (callers fall back to code defaults).
+    # A fresh book carries the execution DDL defaults.
     _, other_book = _insert_book(conn, name="other")
-    assert execution_repo.fetch(book_id=other_book) is None
+    fresh = book_repo.fetch_by_id(book_id=other_book)
+    assert fresh is not None
+    assert fresh.risk_policy == "none"
+    assert fresh.stop_loss_pct is None
 
 
 def test_book_rotation_policy_upsert_preserves_scheduling_columns(conn) -> None:

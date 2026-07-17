@@ -18,6 +18,8 @@ def test_prepare_buy_trade_equity() -> None:
             iv_rank_proxy={},
             state=state,
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert result == ("AAPL", 2, 100.0, None, None)
     choose_buy_qty.assert_called_once()
@@ -51,6 +53,8 @@ def test_prepare_buy_trade_leaps() -> None:
             iv_rank_proxy={"AAPL": 30.0},
             state=state,
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert result == ("AAPL", 2, 120.0, 0.4, 30.0)
 
@@ -80,6 +84,8 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
             iv_rank_proxy={"AAPL": 25.0, "MSFT": 25.0},
             state=state,
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert result is not None
     assert result[0] == "MSFT"
@@ -109,6 +115,8 @@ def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
         iv_rank_proxy={},
         state=SimpleNamespace(cash=1000.0),
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert result is None
 
@@ -160,6 +168,8 @@ def test_prepare_buy_trade_returns_none_when_equity_price_missing() -> None:
         iv_rank_proxy={},
         state=SimpleNamespace(cash=1000.0),
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert result is None
 
@@ -247,6 +257,8 @@ def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> No
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert result is None
 
@@ -270,6 +282,8 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
         limited_qty_result = trade_execution_service.prepare_buy_trade(
             account=make_auto_trading_account(),
@@ -279,6 +293,8 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert invalid_price_result is None
     assert limited_qty_result is None
@@ -339,6 +355,8 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
             iv_rank_proxy={},
             instrument_mode="equity",
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
 
     assert selection == ("sell", "AAPL", 1, 95.0, None, None)
@@ -360,6 +378,8 @@ def test_prepare_trade_selection_returns_none_when_nothing_signals() -> None:
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert selection is None
 
@@ -378,6 +398,8 @@ def test_prepare_trade_selection_buys_on_buy_signal() -> None:
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert selection is not None
     side, ticker, qty, trade_price, _delta, _iv = selection
@@ -400,6 +422,8 @@ def test_prepare_trade_selection_sells_on_sell_signal_for_held_ticker(monkeypatc
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert selection == ("sell", "AAPL", 2, 90.0, None, None)
 
@@ -418,6 +442,8 @@ def test_prepare_trade_selection_unknown_strategy_holds() -> None:
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        trade_size_pct=None,
+        max_position_pct=None,
     )
     assert selection is None
 
@@ -447,6 +473,8 @@ def test_prepare_trade_selection_returns_buy_selection_with_estimates() -> None:
             iv_rank_proxy={},
             instrument_mode="equity",
             fee=0.0,
+            trade_size_pct=None,
+            max_position_pct=None,
         )
     assert selection == ("buy", "AAPL", 2, 100.0, 0.35, 22.0)
 

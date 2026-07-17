@@ -10,7 +10,7 @@ from trading.services.accounts import (
     DEFAULT_TRADE_SIZE_PCT,
     get_latest_account_snapshot,
 )
-from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.books.rotation import resolve_default_book_rotation_schedule
 from trading.services.reporting import (
     build_account_stats,
@@ -75,10 +75,12 @@ def _build_summary_from_stats(
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = get_latest_account_snapshot(conn, row.id)
-    # Rotation scheduling is book-owned (ADR 014): read the default book's
-    # resolved settings and the assignment-derived active strategy.
+    # Rotation scheduling is book-owned (ADR 014) and execution settings are
+    # book columns (revision 0004): both read from the default book, alongside
+    # the assignment-derived active strategy.
     rotation = resolve_default_book_rotation_schedule(conn, account_id=row.id)
     active_strategy = active_strategy_for_account(conn, row.id, fallback=row.strategy)
+    book = get_default_book(conn, account_id=row.id)
 
     effective_initial = row.initial_cash if row.initial_cash else total_deposited
     delta = equity - effective_initial
@@ -93,10 +95,10 @@ def _build_summary_from_stats(
         "name": row.name,
         "displayName": row.descriptive_name,
         "strategy": row.strategy,
-        "instrumentMode": row.instrument_mode,
+        "instrumentMode": book.instrument_mode if book is not None else "equity",
         "accountKind": row.account_kind,
         "brokerType": row.broker_type or "paper",
-        "riskPolicy": row.risk_policy,
+        "riskPolicy": book.risk_policy if book is not None else "none",
         "benchmark": row.benchmark_ticker,
         "initialCash": row.initial_cash,
         "equity": equity,
@@ -105,14 +107,20 @@ def _build_summary_from_stats(
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
         "latestSnapshotTime": latest_snapshot.snapshot_time if latest_snapshot else None,
-        "stopLossPct": row.stop_loss_pct,
-        "takeProfitPct": row.take_profit_pct,
-        "tradeSizePct": (row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT),
-        "maxPositionPct": (row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT),
+        "stopLossPct": book.stop_loss_pct if book is not None else None,
+        "takeProfitPct": book.take_profit_pct if book is not None else None,
+        "tradeSizePct": (
+            book.trade_size_pct if book is not None and book.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
+        ),
+        "maxPositionPct": (
+            book.max_position_pct
+            if book is not None and book.max_position_pct is not None
+            else DEFAULT_MAX_POSITION_PCT
+        ),
         "goalMinReturnPct": row.goal_min_return_pct,
         "goalMaxReturnPct": row.goal_max_return_pct,
         "goalPeriod": row.goal_period,
-        "learningEnabled": bool(row.learning_enabled),
+        "learningEnabled": bool(book.learning_enabled) if book is not None else False,
         "optionStrikeOffsetPct": row.option_strike_offset_pct,
         "optionMinDte": row.option_min_dte,
         "optionMaxDte": row.option_max_dte,
@@ -124,8 +132,8 @@ def _build_summary_from_stats(
         "ivRankMin": row.iv_rank_min,
         "ivRankMax": row.iv_rank_max,
         "rollDteThreshold": row.roll_dte_threshold,
-        "profitTakePct": row.profit_take_pct,
-        "maxLossPct": row.max_loss_pct,
+        "profitTakePct": book.profit_take_pct if book is not None else None,
+        "maxLossPct": book.max_loss_pct if book is not None else None,
         "activeStrategy": active_strategy,
         "rotation": {
             "enabled": rotation.rotation_enabled,

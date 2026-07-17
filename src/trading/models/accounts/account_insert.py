@@ -17,13 +17,6 @@ class AccountInsert:
     goal_min_return_pct: float | None
     goal_max_return_pct: float | None
     goal_period: str
-    learning_enabled: int
-    risk_policy: str
-    stop_loss_pct: float | None
-    take_profit_pct: float | None
-    trade_size_pct: float | None
-    max_position_pct: float | None
-    instrument_mode: str
     option_strike_offset_pct: float | None
     option_min_dte: int | None
     option_max_dte: int | None
@@ -35,6 +28,4 @@ class AccountInsert:
     iv_rank_min: float | None
     iv_rank_max: float | None
     roll_dte_threshold: int | None
-    profit_take_pct: float | None
-    max_loss_pct: float | None
     trade_universes: str | None = None

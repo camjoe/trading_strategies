@@ -12,6 +12,8 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 from common.time import utc_now_iso
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
+from trading.repositories.books import BookRepository
 from trading.services.market_data import MarketDataProvider
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import (
@@ -34,7 +36,7 @@ from trading.services.pricing import benchmark_stats
 from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
 
 
-def _print_leaps_params(account: AccountRecord) -> None:
+def _print_leaps_params(account: AccountRecord, book: BookRecord | None) -> None:
     print(
         "LEAPs Parameters: "
         f"strike_offset_pct={account['option_strike_offset_pct']} "
@@ -46,13 +48,14 @@ def _print_leaps_params(account: AccountRecord) -> None:
         f"delta={account['target_delta_min']}-{account['target_delta_max']} "
         f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
     )
+    # profit_take/max_loss are execution knobs — book columns since 0004.
     print(
         "LEAPs/Options Risk Limits: "
         f"max_premium={account['max_premium_per_trade']} "
         f"max_contracts={account['max_contracts_per_trade']} "
         f"roll_dte={account['roll_dte_threshold']} "
-        f"leaps_profit_take_pct={account['profit_take_pct']} "
-        f"leaps_max_loss_pct={account['max_loss_pct']}"
+        f"leaps_profit_take_pct={book.profit_take_pct if book is not None else None} "
+        f"leaps_max_loss_pct={book.max_loss_pct if book is not None else None}"
     )
 
 
@@ -60,14 +63,15 @@ def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> N
     active_strategy = active_strategy_for_account(
         conn, row_expect_int(account, "id"), fallback=row_expect_str(account, "strategy")
     )
+    default_book = BookRepository(conn).fetch_default_for_account(account_id=row_expect_int(account, "id"))
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
-    print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy)}")
+    print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")
     goal_text = format_goal_text(account)
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
-    if account["instrument_mode"] == "leaps":
-        _print_leaps_params(account)
+    if default_book is not None and default_book.instrument_mode == "leaps":
+        _print_leaps_params(account, default_book)
 
 
 def _print_performance_lines(

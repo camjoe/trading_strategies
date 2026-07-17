@@ -18,7 +18,6 @@ NEW_TABLES = {
     "books",
     "strategies",
     "feature_providers",
-    "book_execution_settings",
     "book_option_settings",
     "book_rotation_settings",
     "book_strategy_assignments",
@@ -130,9 +129,11 @@ def test_foreign_keys_are_enforced(conn) -> None:
 def test_deleting_account_cascades_to_books_and_settings(conn) -> None:
     account_id = _insert_account(conn)
     book_id = _insert_book(conn, account_id)
+    # Option settings remain a 1:1 table until roadmap item A3; execution
+    # settings live on books since revision 0004.
     conn.execute(
         """
-        INSERT INTO book_execution_settings (book_id, created_at, updated_at)
+        INSERT INTO book_option_settings (book_id, created_at, updated_at)
         VALUES (?, '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (book_id,),
@@ -141,7 +142,7 @@ def test_deleting_account_cascades_to_books_and_settings(conn) -> None:
     conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
 
     assert conn.execute("SELECT COUNT(*) FROM books").fetchone()[0] == 0
-    assert conn.execute("SELECT COUNT(*) FROM book_execution_settings").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM book_option_settings").fetchone()[0] == 0
 
 
 def test_strategies_status_vocabulary_enforced(conn) -> None:

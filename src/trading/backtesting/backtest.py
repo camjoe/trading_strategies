@@ -3,7 +3,8 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
+from trading.repositories.books import BookRepository
 from trading.domain.auto_trading_policy import choose_buy_qty
 from infrastructure.market_data.factory import build_provider
 from trading.services.market_data import build_feature_provider
@@ -48,8 +49,14 @@ def build_walk_forward_windows(
     return build_walk_forward_windows_impl(start_date, end_date, test_months, step_months)
 
 
-def _warnings_for_config(account: AccountRecord, allow_approximate_leaps: bool) -> list[str]:
-    return build_backtest_warnings(account, allow_approximate_leaps=allow_approximate_leaps)
+def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
+    # Execution settings are book-owned (revision 0004); the account's default
+    # book carries the settings a backtest simulates under.
+    return build_backtest_warnings(
+        risk_policy=book.risk_policy if book is not None else None,
+        instrument_mode=book.instrument_mode if book is not None else None,
+        allow_approximate_leaps=allow_approximate_leaps,
+    )
 
 
 def _resolve_universe(
@@ -75,8 +82,9 @@ def _resolve_universe(
 
 def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
     account = get_account(conn, cfg.account_name)
+    default_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
+    warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
 
     _default_tickers, _month_to_tickers, _all_tickers, universe_warnings = _resolve_universe(
         cfg,

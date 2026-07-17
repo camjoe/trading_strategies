@@ -2,6 +2,7 @@ import pytest
 
 from trading.models import AccountConfig
 from trading.services.accounts import configure_account, create_account, get_account, set_account_strategy
+from trading.services.books.book_assignments import get_default_book
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
 
@@ -159,7 +160,9 @@ class TestConfigureAccountIntegration:
 
         account = get_account(conn, base_account)
         assert account["goal_period"] == "weekly"
-        assert int(account["learning_enabled"]) == 1
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.learning_enabled == 1
 
     def test_validates_position_sizing_against_existing_values(self, conn) -> None:
         create_account(
@@ -210,10 +213,14 @@ class TestConfigureAccountOptionFields:
         )
 
         account = get_account(conn, base_account)
-        assert account["risk_policy"] == "stop_and_target"
-        assert float(account["stop_loss_pct"]) == pytest.approx(5.0)
-        assert float(account["take_profit_pct"]) == pytest.approx(10.0)
-        assert account["instrument_mode"] == "leaps"
+        # Execution knobs live on the default book (revision 0004); option
+        # columns stay on the account until roadmap item A3.
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "stop_and_target"
+        assert book.stop_loss_pct == pytest.approx(5.0)
+        assert book.take_profit_pct == pytest.approx(10.0)
+        assert book.instrument_mode == "leaps"
         assert float(account["option_strike_offset_pct"]) == pytest.approx(4.0)
         assert int(account["option_min_dte"]) == 150
         assert int(account["option_max_dte"]) == 365
@@ -226,8 +233,10 @@ class TestConfigureAccountOptionFields:
         )
 
         account = get_account(conn, base_account)
-        assert float(account["trade_size_pct"]) == pytest.approx(12.0)
-        assert float(account["max_position_pct"]) == pytest.approx(24.0)
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.trade_size_pct == pytest.approx(12.0)
+        assert book.max_position_pct == pytest.approx(24.0)
 
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):

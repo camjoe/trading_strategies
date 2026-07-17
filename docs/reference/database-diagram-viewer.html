@@ -271,7 +271,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T01:08:48+00:00. Tables: 26.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T02:14:39+00:00. Tables: 25.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -331,7 +331,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T01:08:48+00:00",
+  "generatedAt": "2026-07-17T02:14:39+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -541,90 +541,6 @@
           "type": "TEXT"
         },
         {
-          "default": "0",
-          "name": "learning_enabled",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": "'none'",
-          "name": "risk_policy",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "stop_loss_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "take_profit_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "trade_size_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "max_position_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": "'equity'",
-          "name": "instrument_mode",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "TEXT"
-        },
-        {
           "default": null,
           "name": "option_strike_offset_pct",
           "notNull": false,
@@ -735,26 +651,6 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "profit_take_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "max_loss_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
         },
         {
           "default": null,
@@ -1191,134 +1087,6 @@
         "color": "#7c3aed",
         "id": "research",
         "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "book_id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": "0",
-          "name": "learning_enabled",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": "'none'",
-          "name": "risk_policy",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "stop_loss_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "take_profit_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "profit_take_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "max_loss_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "trade_size_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "max_position_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "max_trades_per_run",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": "'equity'",
-          "name": "instrument_mode",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "created_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "updated_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "book_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "books"
-        }
-      ],
-      "indexes": [],
-      "name": "book_execution_settings",
-      "section": {
-        "color": "#0f8b5f",
-        "id": "books",
-        "label": "Books"
       }
     },
     {
@@ -1953,6 +1721,86 @@
         {
           "default": null,
           "name": "updated_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "0",
+          "name": "learning_enabled",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": "'none'",
+          "name": "risk_policy",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "stop_loss_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "take_profit_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "profit_take_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "max_loss_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "trade_size_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "max_position_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "max_trades_per_run",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": "'equity'",
+          "name": "instrument_mode",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -4417,7 +4265,6 @@
         "backtest_equity_snapshots",
         "backtest_runs",
         "backtest_trades",
-        "book_execution_settings",
         "book_option_settings",
         "book_rotation_settings",
         "book_strategy_assignments",
@@ -4474,7 +4321,6 @@
       "tables": [
         "accounts",
         "books",
-        "book_execution_settings",
         "book_option_settings",
         "book_rotation_settings",
         "book_strategy_assignments",

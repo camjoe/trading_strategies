@@ -3,6 +3,7 @@ import pytest
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.services.accounts import get_account
+from trading.services.books.book_assignments import get_default_book
 from trading.services.profiles import apply_account_profiles
 
 
@@ -52,9 +53,12 @@ class TestApplyAccountProfiles:
 
         account = get_account(conn, "prof_a")
         assert account["descriptive_name"] == "Profile A"
-        assert account["risk_policy"] == "fixed_stop"
-        assert account["instrument_mode"] == "leaps"
-        assert int(account["learning_enabled"]) == 1
+        # Execution settings are book columns (revision 0004).
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "fixed_stop"
+        assert book.instrument_mode == "leaps"
+        assert book.learning_enabled == 1
         assert account["option_type"] == "call"
         assert float(account["target_delta_min"]) == 0.25
         assert float(account["target_delta_max"]) == 0.55
@@ -72,9 +76,11 @@ class TestApplyAccountProfiles:
         assert created == 1
         account = get_account(conn, "minimal")
         assert account["goal_period"] == "monthly"
-        assert account["risk_policy"] == "none"
-        assert account["instrument_mode"] == "equity"
-        assert int(account["learning_enabled"]) == 0
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "none"
+        assert book.instrument_mode == "equity"
+        assert book.learning_enabled == 0
 
     def test_update_benchmark(self, conn):
         apply_account_profiles(
@@ -111,8 +117,10 @@ class TestApplyAccountProfiles:
         )
         assert updated == 1
         account = get_account(conn, "cfg")
-        assert account["risk_policy"] == "fixed_stop"
-        assert float(account["stop_loss_pct"]) == 5.0
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "fixed_stop"
+        assert book.stop_loss_pct == 5.0
 
     def test_no_op_skipped(self, conn):
         apply_account_profiles(

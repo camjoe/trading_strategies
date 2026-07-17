@@ -66,10 +66,6 @@ def generate_book_trade_intents(
     # Intents come only from strategy signals — no forced minimum; a run with no
     # signals produces no trades.
     account_id = account.id
-    risk_policy = str(account.risk_policy).strip().lower()
-    stop_loss_pct = account.stop_loss_pct
-    take_profit_pct = account.take_profit_pct
-    instrument_mode = str(account.instrument_mode).strip().lower()
 
     # Book-native enumeration: active, non-default, openly assigned books.
     # Unassigned or non-active books do not trade — no account fallback.
@@ -107,6 +103,9 @@ def generate_book_trade_intents(
                 effective_universe = universe
         else:
             effective_universe = universe
+        # Execution/risk knobs are book-owned (revision 0004).
+        risk_policy = book.risk_policy.strip().lower()
+        instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
@@ -114,8 +113,8 @@ def generate_book_trade_intents(
             prices,
             state,
             risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
+            book.stop_loss_pct,
+            book.take_profit_pct,
         )
         selection = _prepare_trade_selection(
             account,
@@ -129,6 +128,8 @@ def generate_book_trade_intents(
             iv_rank_proxy,
             instrument_mode,
             fee,
+            trade_size_pct=book.trade_size_pct,
+            max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
         )
         if selection is None:

@@ -21,7 +21,6 @@ from trading.models.parameters.parameter_group import ParameterGroup
 from trading.models.parameters.parameter_source_view import ParameterSourceView
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_settings import (
-    BookExecutionSettingsRepository,
     BookOptionSettingsRepository,
     BookRotationSettingsRepository,
 )
@@ -107,6 +106,30 @@ def _mandate_group(scope_prefix: str, book: BookRecord) -> ParameterGroup:
     return ParameterGroup(scope=f"{scope_prefix} / mandate", entries=entries)
 
 
+# Execution settings are books columns since revision 0004; a book row always
+# exists, so every entry is db-sourced.
+_EXECUTION_FIELDS = (
+    "learning_enabled",
+    "risk_policy",
+    "stop_loss_pct",
+    "take_profit_pct",
+    "profit_take_pct",
+    "max_loss_pct",
+    "trade_size_pct",
+    "max_position_pct",
+    "max_trades_per_run",
+    "instrument_mode",
+)
+
+
+def _execution_group(scope: str, book: BookRecord) -> ParameterGroup:
+    entries = tuple(
+        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB)
+        for name in _EXECUTION_FIELDS
+    )
+    return ParameterGroup(scope=scope, entries=entries)
+
+
 def _settings_group(scope: str, record: Any) -> ParameterGroup:
     if record is None:
         return ParameterGroup(scope=scope, entries=(), note=NO_SETTINGS_ROW_NOTE)
@@ -157,7 +180,7 @@ def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) 
     prefix = f"account {account_name} / book {book.name}"
     return [
         _mandate_group(prefix, book),
-        _settings_group(f"{prefix} / execution", BookExecutionSettingsRepository(conn).fetch(book_id=book.id)),
+        _execution_group(f"{prefix} / execution", book),
         _settings_group(f"{prefix} / options", BookOptionSettingsRepository(conn).fetch(book_id=book.id)),
         _rotation_group(f"{prefix} / rotation", BookRotationSettingsRepository(conn).fetch(book_id=book.id)),
     ]

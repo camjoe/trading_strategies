@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.time import utc_now_iso
 from trading.models.books.book_record import BookRecord
 
 
@@ -33,6 +34,16 @@ class BookRepository:
         goal_min_return_pct: float | None = None,
         goal_max_return_pct: float | None = None,
         goal_period: str | None = None,
+        learning_enabled: int = 0,
+        risk_policy: str = "none",
+        stop_loss_pct: float | None = None,
+        take_profit_pct: float | None = None,
+        profit_take_pct: float | None = None,
+        max_loss_pct: float | None = None,
+        trade_size_pct: float | None = None,
+        max_position_pct: float | None = None,
+        max_trades_per_run: int | None = None,
+        instrument_mode: str = "equity",
         created_at: str,
         updated_at: str,
     ) -> int:
@@ -41,9 +52,12 @@ class BookRepository:
             INSERT INTO books (
                 account_id, name, status, is_default, start_equity, current_cash,
                 current_equity, trade_universes, goal_min_return_pct,
-                goal_max_return_pct, goal_period, created_at, updated_at
+                goal_max_return_pct, goal_period, learning_enabled, risk_policy,
+                stop_loss_pct, take_profit_pct, profit_take_pct, max_loss_pct,
+                trade_size_pct, max_position_pct, max_trades_per_run,
+                instrument_mode, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(account_id),
@@ -57,12 +71,30 @@ class BookRepository:
                 goal_min_return_pct,
                 goal_max_return_pct,
                 goal_period,
+                int(learning_enabled),
+                risk_policy,
+                stop_loss_pct,
+                take_profit_pct,
+                profit_take_pct,
+                max_loss_pct,
+                trade_size_pct,
+                max_position_pct,
+                max_trades_per_run,
+                instrument_mode,
                 created_at,
                 updated_at,
             ),
         )
         self._conn.commit()
         return int(cursor.lastrowid or 0)
+
+    def update_execution_settings(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
+        """Apply pre-built ``column = ?`` update fragments to one book."""
+        self._conn.execute(
+            f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
+            (*params, utc_now_iso(), int(book_id)),
+        )
+        self._conn.commit()
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(

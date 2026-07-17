@@ -36,7 +36,7 @@ from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.books.rotation import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
@@ -95,6 +95,9 @@ def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord,
 def build_basic_scope(
     conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str
 ) -> EvaluationBasicScope:
+    # instrument_mode is a book column (revision 0004): the default book
+    # carries the mode the evaluated account trades under.
+    default_book = get_default_book(conn, account_id=row_expect_int(account, "id"))
     return EvaluationBasicScope(
         account_id=row_expect_int(account, "id"),
         account_name=row_expect_str(account, "name"),
@@ -103,7 +106,7 @@ def build_basic_scope(
         base_strategy=row_expect_str(account, "strategy"),
         active_strategy=_active_strategy(conn, account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
-        instrument_mode=row_str(account, "instrument_mode"),
+        instrument_mode=default_book.instrument_mode if default_book is not None else None,
         rotation_enabled=_default_book_rotation_enabled(conn, row_expect_int(account, "id")),
         live_trading_enabled=bool(row_int(account, "live_trading_enabled")),
     )

@@ -10,6 +10,7 @@ from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
+from trading.repositories.books import BookRepository
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
@@ -40,6 +41,23 @@ def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
 
 def _serialize_trade_universes(names: list[str]) -> str:
     return json.dumps(names, separators=(",", ":"))
+
+
+def _apply_execution_settings_to_default_book(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    values: dict[str, object | None],
+) -> None:
+    """Write execution settings (book columns since revision 0004) to the
+    account's default book; None values are skipped (keep current/DDL value)."""
+    book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
+    if book is None:
+        raise NotFoundError(f"Default book missing for account id {account_id}.")
+    updates = [f"{column} = ?" for column, value in values.items() if value is not None]
+    params = [value for value in values.values() if value is not None]
+    if updates:
+        BookRepository(conn).update_execution_settings(book_id=book.id, updates=updates, params=params)
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -114,13 +132,6 @@ def create_account(
                 goal_min_return_pct=cfg.goal_min_return_pct,
                 goal_max_return_pct=cfg.goal_max_return_pct,
                 goal_period=normalize_lower(cfg.goal_period or "monthly"),
-                learning_enabled=int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
-                risk_policy=risk,
-                stop_loss_pct=cfg.stop_loss_pct,
-                take_profit_pct=cfg.take_profit_pct,
-                trade_size_pct=trade_size_pct,
-                max_position_pct=max_position_pct,
-                instrument_mode=mode,
                 option_strike_offset_pct=cfg.option_strike_offset_pct,
                 option_min_dte=cfg.option_min_dte,
                 option_max_dte=cfg.option_max_dte,
@@ -132,8 +143,6 @@ def create_account(
                 iv_rank_min=cfg.iv_rank_min,
                 iv_rank_max=cfg.iv_rank_max,
                 roll_dte_threshold=cfg.roll_dte_threshold,
-                profit_take_pct=cfg.profit_take_pct,
-                max_loss_pct=cfg.max_loss_pct,
                 trade_universes=(
                     _serialize_trade_universes(cfg.trade_universes) if cfg.trade_universes is not None else None
                 ),
@@ -150,6 +159,23 @@ def create_account(
         account_id=account.id,
         strategy_name=strategy,
         now_iso=utc_now_iso(),
+    )
+    # Execution settings are book columns (revision 0004): apply the validated
+    # create-time values to the default book the bootstrap just ensured.
+    _apply_execution_settings_to_default_book(
+        conn,
+        account_id=account.id,
+        values={
+            "learning_enabled": int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
+            "risk_policy": risk,
+            "stop_loss_pct": cfg.stop_loss_pct,
+            "take_profit_pct": cfg.take_profit_pct,
+            "trade_size_pct": trade_size_pct,
+            "max_position_pct": max_position_pct,
+            "instrument_mode": mode,
+            "profit_take_pct": cfg.profit_take_pct,
+            "max_loss_pct": cfg.max_loss_pct,
+        },
     )
 
 
@@ -184,22 +210,11 @@ def configure_account(
     append_update(updates, params, "goal_period", cfg.goal_period, normalize_lower_obj)
     append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, expect_float)
     append_update(updates, params, "goal_max_return_pct", cfg.goal_max_return_pct, expect_float)
-    append_update(updates, params, "learning_enabled", cfg.learning_enabled, expect_int)
-
-    if cfg.risk_policy is not None:
-        append_update(updates, params, "risk_policy", normalize_risk_policy(cfg.risk_policy))
-
-    if cfg.instrument_mode is not None:
-        append_update(updates, params, "instrument_mode", normalize_instrument_mode(cfg.instrument_mode))
 
     if cfg.option_type is not None:
         append_update(updates, params, "option_type", normalize_option_type(cfg.option_type))
 
     numeric_fields: list[tuple[str, object | None, Callable[[object], object]]] = [
-        ("stop_loss_pct", cfg.stop_loss_pct, expect_float),
-        ("take_profit_pct", cfg.take_profit_pct, expect_float),
-        ("trade_size_pct", cfg.trade_size_pct, expect_float),
-        ("max_position_pct", cfg.max_position_pct, expect_float),
         ("option_strike_offset_pct", cfg.option_strike_offset_pct, expect_float),
         ("option_min_dte", cfg.option_min_dte, expect_int),
         ("option_max_dte", cfg.option_max_dte, expect_int),
@@ -210,16 +225,23 @@ def configure_account(
         ("iv_rank_min", cfg.iv_rank_min, expect_float),
         ("iv_rank_max", cfg.iv_rank_max, expect_float),
         ("roll_dte_threshold", cfg.roll_dte_threshold, expect_int),
-        ("profit_take_pct", cfg.profit_take_pct, expect_float),
-        ("max_loss_pct", cfg.max_loss_pct, expect_float),
     ]
     append_numeric_updates(updates, params, numeric_fields)
 
     if cfg.trade_universes is not None:
         updates.append("trade_universes = ?")
         params.append(_serialize_trade_universes(cfg.trade_universes))
+
+    # Execution knobs are book columns (revision 0004): validate merged over
+    # the default book's current values, then write to the book.
+    default_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
     validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
-    validate_position_sizing_from_inputs(account, cfg.trade_size_pct, cfg.max_position_pct)
+    validate_position_sizing_from_inputs(
+        default_book.trade_size_pct if default_book is not None else None,
+        default_book.max_position_pct if default_book is not None else None,
+        cfg.trade_size_pct,
+        cfg.max_position_pct,
+    )
     validate_option_settings_from_inputs(
         account,
         cfg.option_type,
@@ -229,6 +251,24 @@ def configure_account(
         cfg.option_max_dte,
         cfg.iv_rank_min,
         cfg.iv_rank_max,
+    )
+
+    _apply_execution_settings_to_default_book(
+        conn,
+        account_id=account.id,
+        values={
+            "learning_enabled": expect_int(cfg.learning_enabled) if cfg.learning_enabled is not None else None,
+            "risk_policy": normalize_risk_policy(cfg.risk_policy) if cfg.risk_policy is not None else None,
+            "instrument_mode": (
+                normalize_instrument_mode(cfg.instrument_mode) if cfg.instrument_mode is not None else None
+            ),
+            "stop_loss_pct": expect_float(cfg.stop_loss_pct) if cfg.stop_loss_pct is not None else None,
+            "take_profit_pct": expect_float(cfg.take_profit_pct) if cfg.take_profit_pct is not None else None,
+            "trade_size_pct": expect_float(cfg.trade_size_pct) if cfg.trade_size_pct is not None else None,
+            "max_position_pct": expect_float(cfg.max_position_pct) if cfg.max_position_pct is not None else None,
+            "profit_take_pct": expect_float(cfg.profit_take_pct) if cfg.profit_take_pct is not None else None,
+            "max_loss_pct": expect_float(cfg.max_loss_pct) if cfg.max_loss_pct is not None else None,
+        },
     )
 
     if not updates:

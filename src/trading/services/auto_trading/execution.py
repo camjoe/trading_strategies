@@ -34,10 +34,6 @@ class TradePreparationStateLike(AccountStateLike, Protocol):
     cash: float
 
 
-def _account_value(account: AccountRecord, key: str) -> object | None:
-    return account.get(key)
-
-
 def _position_mark_price(
     ticker: str,
     *,
@@ -183,14 +179,18 @@ def prepare_trade_selection(
     instrument_mode: str,
     fee: float,
     *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
     """Select the next trade from the active strategy's signals.
 
     ``params`` are the strategy's effective knobs, resolved by the caller from
-    the catalog. Sells take priority (the forced risk-stop first, then
-    signaled sells) so cash is freed before buys. Returns None when nothing
-    signals — callers must not manufacture a trade in that case.
+    the catalog. Sizing knobs (``trade_size_pct``, ``max_position_pct``) are
+    book-owned (revision 0004); ``account`` still supplies the option/leaps
+    settings until roadmap item A3. Sells take priority (the forced risk-stop
+    first, then signaled sells) so cash is freed before buys. Returns None
+    when nothing signals — callers must not manufacture a trade in that case.
     """
     buy_candidates: list[str] = []
     sell_candidates: list[str] = []
@@ -227,6 +227,8 @@ def prepare_trade_selection(
         iv_rank_proxy,
         state,
         fee,
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
     )
     if prepared_buy is None:
         return None
@@ -242,6 +244,9 @@ def _size_buy_for_ticker(
     iv_rank_proxy: dict[str, float],
     state: TradePreparationStateLike,
     fee: float,
+    *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
 ) -> tuple[str, int, float, float | None, float | None] | None:
     """Size a buy for one signaled ticker; None when it cannot be sized (or leaps-blocked)."""
     price = float(prices[ticker])
@@ -270,8 +275,8 @@ def _size_buy_for_ticker(
         state.cash,
         trade_price,
         fee,
-        trade_size_pct=_account_value(account, "trade_size_pct"),
-        max_position_pct=_account_value(account, "max_position_pct"),
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
         current_position_value=_current_position_value(
             state,
             ticker,
@@ -306,6 +311,9 @@ def prepare_buy_trade(
     iv_rank_proxy: dict[str, float],
     state: TradePreparationStateLike,
     fee: float,
+    *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
 ) -> tuple[str, int, float, float | None, float | None] | None:
     """Prepare the first sizable buy among the signal-selected candidates, in order."""
     for ticker in buy_candidates:
@@ -320,6 +328,8 @@ def prepare_buy_trade(
             iv_rank_proxy,
             state,
             fee,
+            trade_size_pct=trade_size_pct,
+            max_position_pct=max_position_pct,
         )
         if prepared is not None:
             return prepared

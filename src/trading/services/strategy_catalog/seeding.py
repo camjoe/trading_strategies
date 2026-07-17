@@ -15,14 +15,13 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_float, row_expect_int, row_float, row_int, row_str
 from common.time import utc_now_iso
 from trading.domain.strategy_signals import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_settings import (
-    BookExecutionSettingsRepository,
     BookOptionSettingsRepository,
     BookRotationSettingsRepository,
 )
@@ -60,23 +59,18 @@ def _copy_book_settings_from_account(
     book_id: int,
     now: str,
 ) -> None:
+    # Execution settings became books columns in revision 0004, so a
+    # bootstrapped default book starts on DDL defaults; account creation and
+    # the book settings editors set real values. Option settings stay a 1:1
+    # table until roadmap item A3 — copy them when the account carries any.
     row = dict(account)
-    BookExecutionSettingsRepository(conn).upsert(
-        book_id=book_id,
-        learning_enabled=row_expect_int(row, "learning_enabled"),
-        risk_policy=row_expect_str(row, "risk_policy"),
-        stop_loss_pct=row_float(row, "stop_loss_pct"),
-        take_profit_pct=row_float(row, "take_profit_pct"),
-        profit_take_pct=row_float(row, "profit_take_pct"),
-        max_loss_pct=row_float(row, "max_loss_pct"),
-        trade_size_pct=row_float(row, "trade_size_pct"),
-        max_position_pct=row_float(row, "max_position_pct"),
-        max_trades_per_run=None,
-        instrument_mode=row_expect_str(row, "instrument_mode"),
-        created_at=now,
-        updated_at=now,
+    option_values = (
+        row_float(row, "option_strike_offset_pct"),
+        row_int(row, "option_min_dte"),
+        row_int(row, "option_max_dte"),
+        row_str(row, "option_type"),
     )
-    if row_expect_str(row, "instrument_mode") == "leaps":
+    if any(value is not None for value in option_values):
         BookOptionSettingsRepository(conn).upsert(
             book_id=book_id,
             option_strike_offset_pct=row_float(row, "option_strike_offset_pct"),

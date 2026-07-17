@@ -172,21 +172,21 @@ def validate_position_sizing(
 
 
 def validate_position_sizing_from_inputs(
-    account: AccountRecord,
+    current_trade_size_pct: float | None,
+    current_max_position_pct: float | None,
     trade_size_pct: float | None,
     max_position_pct: float | None,
 ) -> tuple[float, float]:
-    resolved_trade_size_pct = resolve_sizing_value(
-        trade_size_pct,
-        account,
-        "trade_size_pct",
-        DEFAULT_TRADE_SIZE_PCT,
+    """Validate sizing inputs merged over the current (book-owned) values."""
+    resolved_trade_size_pct = (
+        trade_size_pct
+        if trade_size_pct is not None
+        else (current_trade_size_pct if current_trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT)
     )
-    resolved_max_position_pct = resolve_sizing_value(
-        max_position_pct,
-        account,
-        "max_position_pct",
-        DEFAULT_MAX_POSITION_PCT,
+    resolved_max_position_pct = (
+        max_position_pct
+        if max_position_pct is not None
+        else (current_max_position_pct if current_max_position_pct is not None else DEFAULT_MAX_POSITION_PCT)
     )
     validate_position_sizing(resolved_trade_size_pct, resolved_max_position_pct)
     return resolved_trade_size_pct, resolved_max_position_pct

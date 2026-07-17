@@ -205,7 +205,7 @@ def test_revision_0003_drops_rotation_columns_and_preserves_accounts(tmp_path: P
         )
         conn.commit()
 
-        migration_runner.upgrade("head", connection=conn)
+        migration_runner.upgrade("0003", connection=conn)
         columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(accounts)")}
         assert not {name for name in columns if name.startswith("rotation_")}
         row = conn.execute(
@@ -222,6 +222,62 @@ def test_revision_0003_drops_rotation_columns_and_preserves_accounts(tmp_path: P
         # Downgrade restores shape only: rotation values come back as defaults.
         row = conn.execute("SELECT rotation_enabled, rotation_schedule, stop_loss_pct FROM accounts").fetchone()
         assert (row["rotation_enabled"], row["rotation_schedule"], row["stop_loss_pct"]) == (0, None, 4.5)
+    finally:
+        conn.close()
+
+
+def test_revision_0004_folds_execution_settings_into_books(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "execution_fold.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0003", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at, risk_policy, stop_loss_pct)
+            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 'fixed_stop', 7.5);
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO book_execution_settings (
+                book_id, risk_policy, stop_loss_pct, max_trades_per_run, created_at, updated_at
+            )
+            VALUES (1, 'stop_and_target', 4.0, 3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0004", connection=conn)
+        # Book 1 keeps its own settings row values; book 2 inherits the account's.
+        rows = {
+            int(r["id"]): r
+            for r in conn.execute("SELECT id, risk_policy, stop_loss_pct, max_trades_per_run FROM books")
+        }
+        assert (rows[1]["risk_policy"], rows[1]["stop_loss_pct"], rows[1]["max_trades_per_run"]) == (
+            "stop_and_target",
+            4.0,
+            3,
+        )
+        assert (rows[2]["risk_policy"], rows[2]["stop_loss_pct"], rows[2]["max_trades_per_run"]) == (
+            "fixed_stop",
+            7.5,
+            None,
+        )
+        account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert "risk_policy" not in account_columns and "stop_loss_pct" not in account_columns
+        tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "book_execution_settings" not in tables
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0003", connection=conn)
+        restored = conn.execute(
+            "SELECT risk_policy, stop_loss_pct FROM book_execution_settings WHERE book_id = 1"
+        ).fetchone()
+        assert (restored["risk_policy"], restored["stop_loss_pct"]) == ("stop_and_target", 4.0)
+        book_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(books)")}
+        assert "risk_policy" not in book_columns
     finally:
         conn.close()
 

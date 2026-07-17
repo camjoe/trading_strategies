@@ -142,24 +142,23 @@ now seeds rotation-disabled literals. Diagram viewer and `db-schema.md` regenera
 
 #### A2 — Execution settings cutover (readers → `books` columns, backfill, drop)
 
-**Status: unblocked (OD1 decided: fold into `books`); readers remain.** Live execution still
-reads account columns:
+**DONE 2026-07-16 — revision `0004_fold_execution_settings_into_books`.** The ten execution
+columns (incl. `max_trades_per_run`) are `books` columns; backfill preferred each book's
+`book_execution_settings` row, else the parent account's values, so every book's effective
+settings were unchanged. `book_execution_settings` and the nine account columns are dropped;
+`AccountRecord`/`AccountInsert` shed the fields. Implementation notes:
 
-- `src/trading/services/books/execution.py` — `risk_policy`, `stop_loss_pct`,
-  `take_profit_pct`, `instrument_mode`
-- `src/trading/services/auto_trading/execution.py` — `trade_size_pct`, `max_position_pct`
-- `book_execution_settings` exists but is not consumed by the execution path (only the parameters
-  view and catalog seeding touch it).
-
-One atomic branch: add the execution columns to `books` (including `max_trades_per_run`),
-backfill from `book_execution_settings` rows where present and account values otherwise, move
-the readers to `books`, drop the `book_execution_settings` table and the account columns
-(`learning_enabled`, `risk_policy`, `stop_loss_pct`, `take_profit_pct`, `profit_take_pct`,
-`max_loss_pct`, `trade_size_pct`, `max_position_pct`, `instrument_mode`), and remove the fields
-from `AccountRecord` plus account settings validation/UI surfaces.
-
-- Validation: auto-trading + books execution suites; a paper-trading run producing intents from
-  book settings only.
+- Runtime reads per book: `books/execution.py` (risk/instrument), sizing threaded explicitly
+  through `prepare_trade_selection` → `prepare_buy_trade` (`auto_trading/execution.py`).
+- Additional readers found and cut over during implementation: backtest warnings + sizing
+  (`backtesting/domain/risk_warnings.py`, `services/execution_service.py`), evaluation scope
+  (`evaluation/evidence.py`), reporting/listing displays, web account summaries.
+- Account-level settings surfaces (CLI/web/profile `AccountConfig`) keep their shape but
+  **write execution fields to the default book** — the rotation-editor idiom; per-named-book
+  editors can come later. Validation merges over the default book's current values.
+- New service accessor `get_default_book` (`services/books/book_assignments.py`) for interface
+  layers, which must not import repositories directly.
+- Pending: `alembic upgrade` on the live databases.
 
 #### A3 — Option settings cutover (readers → `books` columns, backfill, drop)
 
