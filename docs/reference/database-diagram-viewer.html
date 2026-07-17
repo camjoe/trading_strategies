@@ -271,7 +271,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T06:36:43+00:00. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T07:05:29+00:00. Tables: 23.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -331,7 +331,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T06:36:43+00:00",
+  "generatedAt": "2026-07-17T07:05:29+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -3708,111 +3708,6 @@
         },
         {
           "default": null,
-          "name": "account_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#2563eb",
-            "id": "accounts",
-            "label": "Accounts"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "ticker",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "side",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "qty",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "price",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "fee",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "trade_time",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "note",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "account_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "accounts"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "trade_time"
-          ],
-          "name": "idx_trades_trade_time",
-          "origin": "c",
-          "unique": false
-        }
-      ],
-      "name": "trades",
-      "section": {
-        "color": "#2563eb",
-        "id": "accounts",
-        "label": "Accounts"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
           "name": "group_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4122,7 +4017,6 @@
         "risk_snapshots",
         "rotation_decisions",
         "strategies",
-        "trades",
         "walk_forward_group_runs",
         "walk_forward_groups"
       ]
@@ -4133,7 +4027,6 @@
       "label": "Account deletion",
       "tables": [
         "accounts",
-        "trades",
         "books",
         "orders",
         "order_fills",

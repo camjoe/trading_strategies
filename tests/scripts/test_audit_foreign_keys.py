@@ -37,7 +37,7 @@ def test_account_deletion_scope_reports_known_cascade_and_no_action() -> None:
     assert payload["foreign_key_violations"] == []
 
     books = _table(payload, "books")
-    trades = _table(payload, "trades")
+    order_fills = _table(payload, "order_fills")
     assert books["foreign_keys"] == [
         {
             "column": "account_id",
@@ -47,10 +47,10 @@ def test_account_deletion_scope_reports_known_cascade_and_no_action() -> None:
             "on_delete": "CASCADE",
         }
     ]
-    assert trades["foreign_keys"] == [
+    assert order_fills["foreign_keys"] == [
         {
-            "column": "account_id",
-            "references_table": "accounts",
+            "column": "order_id",
+            "references_table": "orders",
             "references_column": "id",
             "on_update": "NO ACTION",
             "on_delete": "CASCADE",

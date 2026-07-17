@@ -40,7 +40,8 @@ def test_quick_reference_tables_parses_qr_rows_only() -> None:
 
 def test_schema_table_names_returns_live_tables() -> None:
     tables = _schema_table_names()
-    assert {"accounts", "trades"} <= tables
+    assert {"accounts", "orders", "order_fills"} <= tables
+    assert "trades" not in tables
     assert len(tables) > 10
 
 

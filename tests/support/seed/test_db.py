@@ -46,10 +46,17 @@ class TestSeededAccounts:
 
 class TestSeededTrades:
     def test_trend_account_has_three_trades(self, seeded_conn) -> None:
+        # Fills are the execution history (revision 0006).
         acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
-        count = seeded_conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (acct_id,)).fetchone()[
-            "n"
-        ]
+        count = seeded_conn.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM order_fills f
+            JOIN orders o ON o.id = f.order_id
+            WHERE o.account_id = ?
+            """,
+            (acct_id,),
+        ).fetchone()["n"]
         assert count == 3
 
 

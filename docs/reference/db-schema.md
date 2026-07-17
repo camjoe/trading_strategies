@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-16
+Last Reviewed: 2026-07-17
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-24 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+23 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
 `strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
@@ -30,7 +30,6 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | Table | Purpose | Key relationships |
 |---|---|---|
 | `accounts` | Account identity, custody, goals, and broker connection (rotation columns dropped in `0003`; execution/option columns moved to `books` in `0004`/`0005`) | — |
-| `trades` | Individual paper trades (equities and options) | → `accounts` |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
@@ -66,22 +65,20 @@ Domain-specific meaning that the schema alone does not convey.
 
 | Column | Note |
 |--------|------|
-| `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected via `CASH`-ticker buy trades in the `trades` table. Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
 
-### `trades`
+### Account trade history
 
-**Note conventions used in `note` field:**
-
-| Prefix | Meaning |
-|--------|---------|
-| `auto-daily;strategy=<name>` | System-generated daily trade |
-| `manual-import;source=<name>` | Manually imported trade |
-| `manual-import;...;instrument=option;type=call;action=bought\|sold\|expired` | Options trade |
+The account-level `trades` table was dropped in revision `0006`. Execution history is
+`orders`/`order_fills` (book-keyed); deposits/withdrawals are `ledger` entries. Account state
+(`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
+account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
+were not carried over — pre-`0006` notes live only in database backups.
 
 ### Deletion semantics
 
 - Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
-  account-owned row (books, orders, trades, research, governance, and risk history). The
+  account-owned row (books, orders and fills, research, governance, and risk history). The
   pre-deletion database backup is the only retention path — there is no archive model.
 - `walk_forward_group_runs.run_id -> backtest_runs` is deliberately `NO ACTION`: a grouped run
   must not silently vanish from its group's composition. Account deletion still succeeds because

@@ -122,6 +122,34 @@ class OrderRepository:
         ).fetchall()
         return {str(row[0]) for row in rows}
 
+    def fetch_fill_events_for_account(self, *, account_id: int) -> list[sqlite3.Row]:
+        """Fill executions for the account's orders as trade-shaped rows, oldest first.
+
+        Feeds the account-state replay (``trading.services.accounting``): the
+        keys mirror the retired ``trades`` rows so the pure replay math is
+        unchanged.
+        """
+        return self._conn.execute(
+            """
+            SELECT o.symbol AS ticker, o.side AS side, f.filled_qty AS qty,
+                   f.fill_price AS price, f.commission AS fee,
+                   f.fill_time AS trade_time, f.order_id AS order_id
+            FROM order_fills f
+            JOIN orders o ON o.id = f.order_id
+            WHERE o.account_id = ?
+            ORDER BY f.fill_time ASC, f.id ASC
+            """,
+            (int(account_id),),
+        ).fetchall()
+
+    def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
+        """Global fill count in a time window (runtime trade throttles)."""
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM order_fills WHERE fill_time >= ? AND fill_time <= ?",
+            (start_iso, end_iso),
+        ).fetchone()
+        return 0 if row is None else int(row[0])
+
     def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
         row = self._conn.execute(
             "SELECT * FROM orders WHERE id = ?",

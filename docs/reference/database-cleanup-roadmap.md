@@ -221,21 +221,24 @@ One atomic branch implementing OD6:
 
 #### B1 — Retire the fill→trades bridge (OD5 decided: retire `trades`)
 
-Move the four reader surfaces listed in OD5 to
-`orders`/`order_fills` (+ `ledger` for cash effects), delete `_bridge_to_account_ledger` and the
-`on_fill` seam, convert CLI manual trade entry to create an order + fill (or a ledger adjustment),
-then drop `trades` in a numbered migration. This removes the last account-keyed execution history
-and makes book-level and account-level P&L derive from one source.
+**DONE 2026-07-17 — revision `0006_drop_trades_table`.** The scope turned out deeper than the
+four reader surfaces: `trades` was the account-level accounting *source of truth* — account
+state (cash/positions/realized P&L/`total_deposited`) was replayed from it. Implementation:
 
-- Validation: accounting, auto-trading runtime, operational-settings (throttle), and web backend
-  accounts-route suites; reconciliation run against a live-shaped DB copy.
-
-#### B2 — Interim `trades` fixes (only if B1 is deferred)
-
-If `trades` must live longer: add `book_id` (nullable, FK to books) so book attribution isn't
-parsed out of the `note` field, and add the missing `trades(account_id)` index (SQLite does not
-auto-index FK columns; account cascade deletes and per-account queries currently scan). Skip
-entirely if B1 lands first.
+- `load_account_state`/`list_account_trades` now replay **order fills + ledger cash events**
+  through the unchanged pure `compute_account_state` — identical semantics (realized P&L,
+  deposit-model `total_deposited`, avg cost), sourced from the book-keyed tables.
+- `record_trade` is book-native: `CASH`-ticker entries become ledger deposits/withdrawals (+
+  book balance update); other tickers become a filled order + fill applied via
+  `apply_book_fill`, with oversell/insufficient-cash validation against the default book.
+- The `_bridge_to_account_ledger`/`on_fill` seam and reconciliation's trade mirror are deleted;
+  trade throttles count `order_fills`; CSV export lists `orders`/`order_fills`.
+- Fill-row completeness hardening in submission: the per-trade fee rides the first fill of a
+  synchronously filled order (fill commissions sum to the book's transaction cost), and a
+  FILLED order with no broker fill items gets a synthesized fill row.
+- **Known simplification:** free-text trade notes are not persisted (orders/fills carry no note
+  column); pre-`0006` notes live only in backups. B2 is moot.
+- Pending: `alembic upgrade` on the live databases.
 
 ### Group C — Referential integrity
 

@@ -16,13 +16,12 @@ from common.time import utc_now_iso
 from collections.abc import Callable, Mapping
 
 from trading.models import AccountRecord
-from trading.models.orders.broker_order import BrokerOrder, OrderFill
+from trading.models.orders.broker_order import OrderFill
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.services.accounts import get_account
-from trading.services.accounting import record_trade
 from trading.services.operational_settings import enforce_runtime_trade_throttles
 from trading.services.universe import resolve_named_universes
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
@@ -333,31 +332,6 @@ def _run_books_for_account(
                 )
                 break
 
-            def _bridge_to_account_ledger(
-                intent: BookTradeIntent,
-                _order_id: int,
-                placed: BrokerOrder,
-                _candidate: BookTradeCandidate = candidate,
-            ) -> None:
-                fill_price = (
-                    float(placed.avg_fill_price)
-                    if placed.avg_fill_price is not None
-                    else float(intent.requested_price or 0.0)
-                )
-                fill_qty = float(placed.filled_qty) if placed.filled_qty > 0 else float(intent.qty)
-                fill_time = placed.updated_at or utc_now_iso()
-                record_trade(
-                    conn,
-                    account_name=account_name,
-                    side=intent.side,
-                    ticker=intent.symbol,
-                    qty=fill_qty,
-                    price=fill_price,
-                    fee=float(fee),
-                    trade_time=fill_time,
-                    note=f"book_fill book_id={_candidate.book_id} strategy={_candidate.strategy_name}",
-                )
-
             result = submit_book_intents(
                 conn,
                 book_id=book_id,
@@ -366,7 +340,6 @@ def _run_books_for_account(
                 broker=broker,
                 gate=AllowAllGate(),  # gating already ran once above for the whole batch
                 fee=fee,
-                on_fill=_bridge_to_account_ledger,
             )
             submitted_count += result.submitted_count
             if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
@@ -447,20 +420,19 @@ def reconcile_open_broker_orders(
       - Inserts any new ``order_fills`` rows and applies them to the book
         (positions/ledger/balances via the shared ``apply_book_fill``)
       - Updates the ``orders`` row status/fill state
-      - Mirrors a completed fill into the legacy account ledger (``trades``)
 
     Returns the number of orders that were newly FILLED in this call.
+    ``account_name``/``fee`` are retained for call-site compatibility; fills
+    carry their own costs and account history derives from the fill rows.
 
     Called periodically for accounts with broker-managed open orders. It is a no-op
     for paper accounts, which fill synchronously and report no open trades.
     """
+    del account_name, fee
     return reconcile_open_orders_impl(
         conn,
-        account_name,
         account,
-        fee,
         get_broker_for_account_fn=broker_factory,
-        record_trade_fn=record_trade,
     )
 
 

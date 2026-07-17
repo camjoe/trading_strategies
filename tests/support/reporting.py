@@ -20,12 +20,18 @@ def insert_trade(
     price: float,
     trade_time: str = "2026-01-01T00:00:00Z",
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, ticker, "buy", qty, price, 0.0, trade_time, "entry"),
+    # Fills are the execution history (revision 0006); the replayed account
+    # state sees this exactly like the retired trades row.
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker=ticker,
+        side="buy",
+        qty=qty,
+        price=price,
+        trade_time=trade_time,
     )
 
 

@@ -127,7 +127,6 @@ def test_child_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
 
 def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     for table in (
-        "trades",
         "orders",
         "backtest_runs",
         "walk_forward_groups",
@@ -335,6 +334,26 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
         book_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(books)")}
         assert "option_min_dte" not in book_columns
         assert "risk_policy" in book_columns  # 0004 execution columns survive the rebuild
+    finally:
+        conn.close()
+
+
+def test_revision_0006_drops_trades_table(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "trades_drop.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0005", connection=conn)
+        assert conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0] == 0
+
+        migration_runner.upgrade("0006", connection=conn)
+        tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "trades" not in tables
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0005", connection=conn)
+        assert conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0] == 0
+        indexes = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        assert "idx_trades_trade_time" in indexes
     finally:
         conn.close()
 

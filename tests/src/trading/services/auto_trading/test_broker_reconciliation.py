@@ -99,9 +99,6 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        recorded: list[dict[str, object]] = []
-        monkeypatch.setattr(runtime_service, "record_trade", lambda _conn, **kw: recorded.append(kw))
-
         count = runtime_service.reconcile_open_broker_orders(
             conn, "acct-sample", account, fee=1.0, broker_factory=Mock(return_value=_FakeBroker())
         )
@@ -116,10 +113,6 @@ class TestReconcileOpenBrokerOrders:
         position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
         assert position is not None
         assert position.qty == 10.0
-        # The completed fill is mirrored into the legacy account ledger.
-        assert len(recorded) == 1
-        assert recorded[0]["ticker"] == "AAPL"
-        assert recorded[0]["price"] == 151.0
 
     def test_duplicate_fill_is_idempotent(self, monkeypatch) -> None:
         conn = _make_db()
@@ -173,8 +166,6 @@ class TestReconcileOpenBrokerOrders:
         position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
         assert position is not None
         assert position.qty == 5.0
-        trade_count = conn.execute("SELECT COUNT(*) FROM trades WHERE account_id = 1").fetchone()[0]
-        assert trade_count == 0
 
     def test_disconnect_called_even_when_no_open_orders(self) -> None:
         conn = _make_db()
@@ -239,6 +230,3 @@ class TestReconcileOpenBrokerOrders:
         rejected = repo.fetch_by_id(order_id=reject_id)
         assert cancelled is not None and cancelled.status == "cancelled"
         assert rejected is not None and rejected.status == "rejected"
-
-        trade_count = conn.execute("SELECT COUNT(*) FROM trades WHERE account_id = 1").fetchone()[0]
-        assert trade_count == 0

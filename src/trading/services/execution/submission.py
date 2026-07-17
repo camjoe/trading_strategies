@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
@@ -24,10 +24,6 @@ from trading.services.execution.gate import PreSubmitGate
 LEDGER_ENTRY_TYPE_TRADE = "trade"
 LEDGER_ENTRY_TYPE_FEE = "fee"
 LEDGER_REFERENCE_TYPE_ORDER = "order"
-
-# Callback invoked after a book fill is persisted — the seam the routing phases use
-# to bridge to record_trade during the cutover, before 2c unifies accounting.
-OnFill = Callable[[BookTradeIntent, int, BrokerOrder], None]
 
 # Broker statuses collapse onto the clean orders CHECK vocabulary
 # ('submitted', 'partially_filled', 'filled', 'rejected', 'cancelled').
@@ -152,9 +148,8 @@ def submit_book_intents(
     broker: BrokerConnection,
     gate: PreSubmitGate,
     fee: float,
-    on_fill: OnFill | None = None,
 ) -> SubmissionResult:
-    """Submit one book's intents: gate → place → persist clean tables → on-fill.
+    """Submit one book's intents: gate → place → persist clean tables.
 
     The single submission path shared by every book. For each approved intent:
     place the order via the injected ``broker``, persist to the clean ``orders`` /
@@ -217,18 +212,24 @@ def submit_book_intents(
         )
         order_ids.append(order_id)
 
-        for fill in placed.fills:
+        # Fill rows are the only execution history (the trades table was retired
+        # in revision 0006), so their commissions must sum to the transaction
+        # cost applied to the book: the configured per-trade fee rides on the
+        # first fill of a synchronously filled order.
+        is_filled = placed.status == OrderStatus.FILLED
+        for fill_index, fill in enumerate(placed.fills):
+            fee_share = float(fee) if is_filled and fill_index == 0 else 0.0
             order_repo.insert_fill(
                 order_id=order_id,
                 filled_qty=float(fill.filled_qty),
                 fill_price=float(fill.fill_price),
                 fill_time=fill.fill_time,
-                commission=float(fill.commission),
+                commission=float(fill.commission) + fee_share,
                 broker_fill_id=placed.broker_order_id,
                 exec_id=fill.exec_id,
             )
 
-        if placed.status == OrderStatus.FILLED:
+        if is_filled:
             fill_price = (
                 float(placed.avg_fill_price)
                 if placed.avg_fill_price is not None
@@ -236,6 +237,18 @@ def submit_book_intents(
             )
             fill_qty = float(placed.filled_qty) if placed.filled_qty > 0 else float(intent.qty)
             fill_time = placed.updated_at or updated_at
+            if not placed.fills:
+                # A FILLED order must leave a fill row — synthesize one from the
+                # aggregate so derived account history stays complete.
+                order_repo.insert_fill(
+                    order_id=order_id,
+                    filled_qty=fill_qty,
+                    fill_price=fill_price,
+                    fill_time=fill_time,
+                    commission=float(placed.commission) + float(fee),
+                    broker_fill_id=placed.broker_order_id,
+                    exec_id=None,
+                )
             apply_book_fill(
                 conn,
                 book_id=book_id,
@@ -248,8 +261,6 @@ def submit_book_intents(
                 fill_time=fill_time,
             )
             filled_count += 1
-            if on_fill is not None:
-                on_fill(intent, order_id, placed)
 
     return SubmissionResult(
         order_ids=order_ids,

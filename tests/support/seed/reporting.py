@@ -22,18 +22,24 @@ SNAPSHOT_T3 = "2026-01-03T00:00:00"
 
 
 def seed_trades(conn: sqlite3.Connection) -> None:
+    # Fills are the execution history (revision 0006).
+    from tests.support.fills import seed_fill_event
+
     acct_id = seed_account_id(conn, ACCT_TREND)
-    conn.executemany(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        [
-            (acct_id, TRADE_BUY_AAPL, "buy", 10.0, 150.0, 0.0, "2026-01-02T10:00:00", "entry"),
-            (acct_id, TRADE_BUY_MSFT, "buy", 5.0, 300.0, 0.0, "2026-01-03T10:00:00", "entry"),
-            (acct_id, TRADE_SELL_AAPL, "sell", 10.0, 160.0, 0.0, "2026-01-10T10:00:00", "exit"),
-        ],
-    )
+    for ticker, side, qty, price, trade_time in [
+        (TRADE_BUY_AAPL, "buy", 10.0, 150.0, "2026-01-02T10:00:00"),
+        (TRADE_BUY_MSFT, "buy", 5.0, 300.0, "2026-01-03T10:00:00"),
+        (TRADE_SELL_AAPL, "sell", 10.0, 160.0, "2026-01-10T10:00:00"),
+    ]:
+        seed_fill_event(
+            conn,
+            account_id=acct_id,
+            ticker=ticker,
+            side=side,
+            qty=qty,
+            price=price,
+            trade_time=trade_time,
+        )
 
 
 def seed_snapshots(conn: sqlite3.Connection) -> None:

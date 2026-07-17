@@ -53,6 +53,20 @@ class LedgerRepository:
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def fetch_cash_events_for_account(self, *, account_id: int) -> list[LedgerEntryRecord]:
+        """Deposit/withdrawal entries across all of the account's books, oldest first."""
+        rows = self._conn.execute(
+            """
+            SELECT l.*
+            FROM ledger l
+            JOIN books b ON b.id = l.book_id
+            WHERE b.account_id = ? AND l.entry_type IN ('deposit', 'withdrawal')
+            ORDER BY l.entry_time ASC, l.id ASC
+            """,
+            (int(account_id),),
+        ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def fetch_by_reference(self, *, reference_type: str, reference_id: str) -> list[LedgerEntryRecord]:
         rows = self._conn.execute(
             "SELECT * FROM ledger WHERE reference_type = ? AND reference_id = ? ORDER BY id ASC",

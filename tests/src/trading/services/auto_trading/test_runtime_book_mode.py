@@ -222,12 +222,16 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
     assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is not None
     assert LedgerRepository(conn).fetch_for_book(book_id=book_id) != []
 
-    trade_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM trades WHERE account_id = ?",
+    fill_count = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM order_fills f
+        JOIN orders o ON o.id = f.order_id
+        WHERE o.account_id = ?
+        """,
         (account_id,),
     ).fetchone()
-    assert trade_count is not None
-    assert int(trade_count["n"]) == 1
+    assert fill_count is not None
+    assert int(fill_count["n"]) == 1
 
     # Book balances (not the frozen book balances) reflect the fill: 1000 - 100 = 900 cash.
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
@@ -278,14 +282,17 @@ def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkey
         runtime_max_trades_per_minute=None,
         updated_at=DEFAULT_RUNTIME_NOW_ISO,
     )
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, DEFAULT_RUNTIME_NOW_ISO, "existing"),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time=DEFAULT_RUNTIME_NOW_ISO,
     )
-    conn.commit()
 
     _patch_runtime_book_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)

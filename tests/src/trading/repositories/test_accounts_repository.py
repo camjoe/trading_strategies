@@ -163,11 +163,17 @@ def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend")
 
 
 def _insert_trade(conn, *, account_id: int) -> None:
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?,?,?,?,?,?,?)",
-        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-01T10:00:00Z"),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time="2026-01-01T10:00:00Z",
     )
-    conn.commit()
 
 
 class TestDeleteByName:

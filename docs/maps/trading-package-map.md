@@ -214,7 +214,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `rotation_decisions.py` | Rotation decision records |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs) |
-| `trades.py` | Trade execution records |
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |

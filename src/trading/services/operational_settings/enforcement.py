@@ -9,7 +9,7 @@ from typing import Callable
 from common.time import as_utc_iso
 from common.time import parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.repositories.trades import TradeRepository
+from trading.repositories.orders import OrderRepository
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 from trading.services.operational_settings.queries import fetch_runtime_throttle_settings
 
@@ -33,7 +33,9 @@ def enforce_runtime_trade_throttles(
     if settings.max_trades_per_day is None and settings.max_trades_per_minute is None:
         return
 
-    count_fn = count_trades_between_fn or TradeRepository(conn).fetch_count_between
+    # Fill rows are the execution history (the trades table was retired in
+    # revision 0006), so throttles count order fills.
+    count_fn = count_trades_between_fn or OrderRepository(conn).fetch_fill_count_between
     trade_time = parse_utc_iso(trade_time_iso)
     trade_time_utc = as_utc_iso(trade_time)
 

@@ -6,9 +6,9 @@ import sqlite3
 def seed_admin_db(conn: sqlite3.Connection) -> None:
     """Populate *conn* with the canonical admin test dataset.
 
-    Inserts two accounts with associated trades, orders and fills, equity
-    snapshots, daily metrics, rotation decisions, backtest runs, walk-forward
-    groups, promotion reviews and events, and risk telemetry.  Used by the
+    Inserts two accounts with associated orders and fills, equity snapshots,
+    daily metrics, rotation decisions, backtest runs, walk-forward groups,
+    promotion reviews and events, and risk telemetry.  Used by the
     ``seeded_conn`` fixture in ``conftest.py`` so that individual tests do not
     repeat this setup inline.
     """
@@ -18,11 +18,6 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
         VALUES
             (1, 'acct_a', 'Trend', 1000, '2026-01-01T00:00:00Z'),
             (2, 'acct_b', 'Trend', 1500, '2026-01-01T00:00:00Z');
-
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES
-            (1, 'SPY', 'buy', 1, 100, 0, '2026-01-02T00:00:00Z', ''),
-            (2, 'QQQ', 'buy', 2, 200, 0, '2026-01-02T00:00:00Z', '');
 
         INSERT INTO books (
             id, account_id, name, status, is_default, start_equity, current_cash,
