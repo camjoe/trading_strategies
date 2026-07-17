@@ -1,14 +1,9 @@
----
-name: sqlite-table-rebuild
-description: Shows the Alembic batch-operation pattern required when SQLite schema changes need table rebuilds, such as changing foreign-key ON DELETE actions or dropping columns.
----
-
 # SQLite Table Rebuild (Alembic Batch Operations)
 
 Use this reference when a schema change cannot be expressed as `ALTER TABLE ... ADD COLUMN`.
-SQLite cannot alter FK actions, constraints, or primary keys in place; Alembic's **batch mode**
-implements the required copy-and-rebuild workflow (create new table → copy rows → drop old →
-rename), so revisions should not hand-roll it.
+SQLite cannot alter FK actions, constraints, or primary keys in place. Use Alembic batch mode when
+the complete table contract can be represented explicitly; use literal create/copy/drop/rename DDL
+when SQLite reflection cannot preserve unnamed constraints, partial indexes, or legacy shapes.
 
 ## When This Applies
 
@@ -18,26 +13,14 @@ rename), so revisions should not hand-roll it.
 
 ## Required Shape
 
-Inside the revision's `upgrade()` (and mirrored in `downgrade()`):
+Both `upgrade()` and `downgrade()` must reproduce the full intended table contract. For explicit
+DDL, create `<table>_new`, copy an **explicit column list**, drop the old table, rename the new one,
+recreate every index, and run `PRAGMA foreign_key_check`. For batch mode, provide enough explicit
+table metadata (`copy_from` when needed) that Alembic does not guess at SQLite's unnamed objects.
 
-```python
-def upgrade() -> None:
-    # copy_from lets batch mode rebuild without reflecting server defaults it
-    # cannot infer; recreate="always" forces the rebuild even when SQLite could
-    # theoretically ALTER in place.
-    with op.batch_alter_table("order_fills", recreate="always") as batch:
-        batch.drop_constraint("fk_order_fills_order_id", type_="foreignkey")
-        batch.create_foreign_key(
-            "fk_order_fills_order_id", "orders", ["order_id"], ["id"], ondelete="CASCADE"
-        )
-```
-
-For complex rebuilds (unnamed constraints in legacy tables, partial indexes), `op.execute` with
-explicit literal DDL following the classic pattern is acceptable — create `<table>_new`, copy an
-**explicit column list**, drop, rename, recreate every index, then `PRAGMA foreign_key_check`.
-Revision `0001` (`src/infrastructure/database/alembic/versions/0001_current_schema.py`), and the
-retired probe rebuilds in the git history of the deleted `infrastructure/database/migrations.py`,
-are the reference DDL shapes.
+Use revision `0002_rotation_decisions_account_cascade.py` as the focused FK-action rebuild example.
+Revisions `0004`, `0005`, and `0008` demonstrate larger explicit rebuilds that preserve data while
+changing settings ownership or constraints.
 
 ## Safety Checklist
 

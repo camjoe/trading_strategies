@@ -61,6 +61,13 @@ def discover_suites(tests_root: Path) -> list[str]:
     return suites
 
 
+def _format_suite_listing(suites: list[str]) -> str:
+    """Return an ASCII-safe suite listing for Windows and POSIX consoles."""
+    lines = [f"Available suites ({len(suites)} total):", "", "  all  ->  tests/  (entire test suite)", ""]
+    lines.extend(f"  {suite}" for suite in suites)
+    return "\n".join(lines)
+
+
 def _git_changed_files(repo_root: Path, base_ref: str | None) -> list[str]:
     """Return a list of repo-relative changed file paths from git."""
     if base_ref:
@@ -357,10 +364,7 @@ def main() -> int:
 
     if args.list:
         suites = discover_suites(tests_root)
-        print(f"Available suites ({len(suites)} total):\n")
-        print("  all  →  tests/  (entire test suite)\n")
-        for suite in suites:
-            print(f"  {suite}")
+        print(_format_suite_listing(suites))
         return 0
 
     # Separate suite names from pytest pass-through args.

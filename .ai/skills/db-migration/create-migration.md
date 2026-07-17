@@ -1,8 +1,3 @@
----
-name: create-migration
-description: Authors a new numbered Alembic revision for the trading SQLite database.
----
-
 # Create Migration
 
 ## What to produce
@@ -13,8 +8,9 @@ A new revision file in `src/infrastructure/database/alembic/versions/`, named
 
 ## Workflow
 
-1. **Find the current head** — `python -m scripts.data_ops.manage_db_migrations history`, or read
-   `EXPECTED_HEAD_REVISION`. The new revision is head + 1.
+1. **Find and reconcile the current head** — run
+   `.venv/Scripts/python.exe -m scripts.data_ops.manage_db_migrations history`, inspect the revision
+   directory, and confirm `EXPECTED_HEAD_REVISION` agrees. The new revision is the next numeric id.
 2. **Write the revision file** (copy the previous revision's header shape):
    ```python
    """<what this revision changes>.
@@ -45,19 +41,23 @@ A new revision file in `src/infrastructure/database/alembic/versions/`, named
 3. **Keep it self-contained** — no application imports; any value the DDL needs is a literal
    frozen in the file.
 4. **Bump `EXPECTED_HEAD_REVISION`** to `"000N"` in the same commit.
-5. **Validate** — `python -m scripts.checks.repo.migration_check`, then the database suites
-   (`python -m scripts.checks.run_suite src/infrastructure/database --no-cov`).
+5. **Synchronize schema documentation** — update `docs/reference/db-schema.md` and regenerate
+   `docs/reference/database-diagram-viewer.html` when schema shape or relationships change.
+6. **Validate** — run `.venv/Scripts/python.exe -m scripts.checks.repo.migration_check`, then
+   `.venv/Scripts/python.exe -m scripts.checks.run_suite src/infrastructure/database --no-cov`.
 
 ## Rules
 
 - `NOT NULL` without `DEFAULT` is a blocker on populated tables — SQLite rejects the ALTER.
-- Structural changes (FK actions, constraints, drops) go through batch operations — see
+- Structural changes (FK actions, constraints, drops) use batch operations or a proven explicit
+  copy-and-rebuild — see
   [sqlite-table-rebuild.md](sqlite-table-rebuild.md).
 - `UPDATE`/`DELETE` of existing rows inside a revision requires human review before applying.
 - Never edit an applied revision; a follow-up fix is a new revision.
 
 ## Repo references
 
-- `src/infrastructure/database/alembic/versions/0001_current_schema.py` (canonical example)
+- The current head revision for header structure, plus the closest prior revision matching the
+  operation type
 - `src/infrastructure/database/schema_version.py`
 - `docs/reference/db-migration-system.md`
