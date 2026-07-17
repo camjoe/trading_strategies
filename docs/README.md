@@ -63,7 +63,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
 - [`adr/011-strategy-catalog-and-parameter-ownership.md`](adr/011-strategy-catalog-and-parameter-ownership.md) — strategy knobs, book settings, and operational settings ownership
 - [`adr/010-book-keyed-execution-model.md`](adr/010-book-keyed-execution-model.md) — books are the execution primitive after sleeve retirement
-- [`adr/009-regime-overlay-rotation-retired.md`](adr/009-regime-overlay-rotation-retired.md) — regime/overlay rotation was retired; design preserved for revival
 - [`adr/008-production-runtime-hosting-and-deployment.md`](adr/008-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
