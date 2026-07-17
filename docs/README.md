@@ -61,7 +61,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`adr/015-numbered-alembic-migrations.md`](adr/015-numbered-alembic-migrations.md) — numbered Alembic revisions replace probe-based schema init; runtime is verify-only
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
 - [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
-- [`adr/011-strategy-catalog-and-parameter-ownership.md`](adr/011-strategy-catalog-and-parameter-ownership.md) — strategy knobs, book settings, and operational settings ownership
 - [`adr/010-book-keyed-execution-model.md`](adr/010-book-keyed-execution-model.md) — books are the execution primitive after sleeve retirement
 - [`adr/008-production-runtime-hosting-and-deployment.md`](adr/008-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns

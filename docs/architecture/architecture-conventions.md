@@ -135,14 +135,14 @@ Rules:
    new account-row rotation configuration.
 4. Strategy primitives and parameter schemas stay in code. Strategy-specific
    knob values live on strategy rows as `params_json`.
-5. Execution, risk, option, and rotation settings live in typed book settings
-   tables keyed to `books`.
+5. Execution, risk, option, goal, and universe settings live as typed columns on `books`.
+   Rotation settings remain in `book_rotation_settings` because they form a large, coherent,
+   comparatively sparse group.
 6. Global operational settings remain separate from per-book settings.
 7. `src/trading/services/parameters/` is a read/edit surface over those owning
    stores, not a new consolidated persistence model.
 
-Rationale and delivered cleanup: `docs/adr/010-book-keyed-execution-model.md`,
-`docs/adr/011-strategy-catalog-and-parameter-ownership.md`, and
+Rationale and delivered cleanup: `docs/adr/010-book-keyed-execution-model.md` and
 `docs/adr/014-execution-mode-collapse.md`.
 
 ## Database Modeling

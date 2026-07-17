@@ -81,6 +81,18 @@ The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime th
 evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
 split only if a fourth domain lands here.
 
+When the row is absent, services resolve code defaults; the first global-setting edit upserts it.
+Seeded environments may already contain the row populated by schema defaults. Once present, its
+`NOT NULL` values become authoritative and no longer track later code-default changes. This is
+intentional because the columns carry schema defaults and `CHECK` constraints.
+
+### `book_rotation_settings`
+
+Rotation scheduling and policy columns are nullable so each field can independently fall back to
+its code default. Passing `none` through the rotation-policy editing surface clears a stored policy
+value and resumes default tracking for that field. This differs intentionally from persisted global
+settings.
+
 ### Money as REAL
 
 Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,

@@ -3,9 +3,9 @@
 Type: adr
 Status: Accepted
 Created: 2026-07-15
-Last Reviewed: 2026-07-15
+Last Reviewed: 2026-07-17
 Purpose: Records why schema management moved to a linear numbered Alembic revision history with verify-only runtime, and the key design choices within it.
-Related: [DB Migration System](../reference/db-migration-system.md), [ADR 011 Strategy Catalog](011-strategy-catalog-and-parameter-ownership.md)
+Related: [DB Migration System](../reference/db-migration-system.md)
 
 ## Context
 
