@@ -358,6 +358,52 @@ def test_revision_0006_drops_trades_table(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_revision_0007_backfills_promotion_strategy_fk(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "promotion_fk.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0006", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at)
+            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z');
+            INSERT INTO strategies (
+                id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+            )
+            VALUES (7, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO promotion_reviews (
+                account_id, account_name_snapshot, strategy_name, review_state,
+                assessment_stage, assessment_status, promotion_assessment_version,
+                evaluation_artifact_version, frozen_assessment_payload,
+                frozen_evaluation_payload, created_at, updated_at
+            )
+            VALUES
+                (1, 'acct', 'Trend', 'requested', 'candidate', 'blocked', 'v1', 'v1', '{}', '{}',
+                 '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z'),
+                (1, 'acct', 'Ghost Strategy', 'closed', 'candidate', 'blocked', 'v1', 'v1', '{}', '{}',
+                 '2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0007", connection=conn)
+        rows = conn.execute(
+            "SELECT strategy_name, strategy_id FROM promotion_reviews ORDER BY created_at ASC"
+        ).fetchall()
+        # Resolvable names get the FK (normalized match); unresolvable keep NULL.
+        assert (rows[0]["strategy_name"], rows[0]["strategy_id"]) == ("Trend", 7)
+        assert (rows[1]["strategy_name"], rows[1]["strategy_id"]) == ("Ghost Strategy", None)
+
+        migration_runner.downgrade("0006", connection=conn)
+        columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(promotion_reviews)")}
+        assert "strategy_id" not in columns
+        assert conn.execute("SELECT COUNT(*) FROM promotion_reviews").fetchone()[0] == 2
+        indexes = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        assert "idx_promotion_reviews_open_requested" in indexes
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

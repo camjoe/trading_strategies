@@ -59,6 +59,7 @@ class PromotionReviewRepository:
             id=int(row["id"]),
             account_id=int(row["account_id"]),
             account_name_snapshot=str(row["account_name_snapshot"]),
+            strategy_id=int(row["strategy_id"]) if row["strategy_id"] is not None else None,
             strategy_name=str(row["strategy_name"]),
             review_state=PromotionReviewState(str(row["review_state"])),
             assessment_stage=PromotionStage(str(row["assessment_stage"])),
@@ -130,6 +131,7 @@ class PromotionReviewRepository:
             INSERT INTO promotion_reviews (
                 account_id,
                 account_name_snapshot,
+                strategy_id,
                 strategy_name,
                 review_state,
                 assessment_stage,
@@ -147,11 +149,15 @@ class PromotionReviewRepository:
                 created_at,
                 updated_at,
                 closed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, (SELECT id FROM strategies WHERE strategy_key = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 evaluation.basic.account_id,
                 evaluation.basic.account_name,
+                # Real FK resolved from the catalog key; the name column stays
+                # as the display snapshot (revision 0007). Unresolvable names
+                # keep a NULL id.
+                evaluation.basic.requested_strategy.strip().lower(),
                 evaluation.basic.requested_strategy,
                 PromotionReviewState.REQUESTED,
                 assessment.stage,

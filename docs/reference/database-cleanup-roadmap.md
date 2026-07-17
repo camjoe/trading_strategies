@@ -244,13 +244,13 @@ state (cash/positions/realized P&L/`total_deposited`) was replayed from it. Impl
 
 #### C1 — `promotion_reviews.strategy_name` → FK + snapshot
 
-`promotion_reviews` stores only a strategy name string; renaming a strategy key detaches history.
-Apply the same pattern the table already uses for accounts (`account_id` + `account_name_snapshot`):
-add `strategy_id INTEGER REFERENCES strategies(id)` populated by matching `strategy_key`, keep
-the existing name column as the snapshot. Rows whose names no longer resolve keep a NULL id.
-
-- Migration: `ALTER TABLE ADD COLUMN` + backfill UPDATE (no rebuild needed).
-- Validation: promotion suites; promotion review UI list/detail.
+**DONE 2026-07-17 — revision `0007_promotion_reviews_strategy_fk`.** `strategy_id INTEGER
+REFERENCES strategies(id)` added via `ALTER TABLE ADD COLUMN`; backfill matched
+`LOWER(TRIM(strategy_name))` against `strategies.strategy_key` (unresolvable names keep NULL).
+`insert_review` resolves the FK at write time via the same normalized-key subquery, and
+`PromotionReviewRecord` carries `strategy_id`; `strategy_name` remains the display snapshot,
+mirroring the `account_id` + `account_name_snapshot` pattern. Downgrade is a table rebuild
+(SQLite cannot drop an FK-bearing column). Pending: `alembic upgrade` on the live databases.
 
 #### C2 — FK index audit
 
