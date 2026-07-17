@@ -211,8 +211,9 @@ class TestApplyBookRotationSettings:
             )
 
     def test_account_columns_stay_untouched(self, conn):
-        # Rotation is book-owned (ADR 014): applying rotation config must not
-        # write the retained account rotation columns.
+        # Rotation is book-owned (ADR 014): applying rotation config writes
+        # book settings only. The account rotation columns were removed
+        # outright in revision 0003, so writing them is structurally impossible.
         apply_account_profiles(
             conn,
             [
@@ -226,11 +227,8 @@ class TestApplyBookRotationSettings:
             create_missing=True,
         )
 
-        row = conn.execute(
-            "SELECT rotation_enabled, rotation_schedule FROM accounts WHERE name = 'rot_cols'"
-        ).fetchone()
-        assert not row["rotation_enabled"]
-        assert row["rotation_schedule"] is None
+        account_columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(accounts)")}
+        assert not {name for name in account_columns if name.startswith("rotation_")}
 
     def test_trade_universes_stored_on_create(self, conn) -> None:
         import json

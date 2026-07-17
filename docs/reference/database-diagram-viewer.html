@@ -271,7 +271,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-16T03:12:46+00:00. Tables: 26.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T01:08:48+00:00. Tables: 26.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -331,7 +331,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-16T03:12:46+00:00",
+  "generatedAt": "2026-07-17T01:08:48+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -755,210 +755,6 @@
             "label": "Books"
           },
           "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "rotation_enabled",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": "'time'",
-          "name": "rotation_mode",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": "'previous_period_best'",
-          "name": "rotation_optimality_mode",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_days",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_minutes",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_lookback_days",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_schedule",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_regime_strategy_risk_on",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_regime_strategy_neutral",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_regime_strategy_risk_off",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": "'none'",
-          "name": "rotation_overlay_mode",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_overlay_min_tickers",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_overlay_confidence_threshold",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": "'[\"AAPL\",\"MSFT\",\"NVDA\",\"AMZN\",\"GOOGL\",\"META\",\"TSLA\",\"JPM\",\"JNJ\",\"UNH\",\"XOM\",\"WMT\"]'",
-          "name": "rotation_overlay_watchlist",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": "0",
-          "name": "rotation_active_index",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_last_at",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_active_strategy",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#d97706",
-            "id": "rotations",
-            "label": "Rotations"
-          },
-          "type": "TEXT"
         },
         {
           "default": null,

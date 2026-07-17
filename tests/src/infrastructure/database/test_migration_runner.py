@@ -179,6 +179,53 @@ def test_revision_0002_rebuild_preserves_rotation_rows(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_revision_0003_drops_rotation_columns_and_preserves_accounts(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "rotation_drop.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0002", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (
+                id, name, strategy, initial_cash, created_at,
+                rotation_enabled, rotation_schedule, rotation_active_strategy,
+                stop_loss_pct, trade_universes, broker_type
+            )
+            VALUES (
+                1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z',
+                1, '["trend","breakout"]', 'breakout',
+                4.5, '["large_cap"]', 'paper'
+            );
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                created_at, updated_at
+            )
+            VALUES (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("head", connection=conn)
+        columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(accounts)")}
+        assert not {name for name in columns if name.startswith("rotation_")}
+        row = conn.execute(
+            "SELECT name, strategy, initial_cash, stop_loss_pct, trade_universes, broker_type FROM accounts"
+        ).fetchone()
+        assert (row["name"], row["strategy"], row["initial_cash"]) == ("acct", "Trend", 1000)
+        assert (row["stop_loss_pct"], row["trade_universes"], row["broker_type"]) == (4.5, '["large_cap"]', "paper")
+        # The child FK survives the parent rebuild.
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0002", connection=conn)
+        restored = {str(r[1]): r for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert "rotation_enabled" in restored and "rotation_active_strategy" in restored
+        # Downgrade restores shape only: rotation values come back as defaults.
+        row = conn.execute("SELECT rotation_enabled, rotation_schedule, stop_loss_pct FROM accounts").fetchone()
+        assert (row["rotation_enabled"], row["rotation_schedule"], row["stop_loss_pct"]) == (0, None, 4.5)
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

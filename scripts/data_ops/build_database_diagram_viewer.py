@@ -74,7 +74,6 @@ ACCOUNT_COLUMN_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "books",
         ("goal_", "learning_", "risk_policy", "stop_", "take_", "trade_size_", "max_", "instrument_", "option_"),
     ),
-    ("rotations", ("rotation_",)),
     ("orders", ("broker_", "live_trading_")),
     ("snapshots", ("benchmark_",)),
 )

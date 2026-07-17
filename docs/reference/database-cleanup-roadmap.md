@@ -122,9 +122,14 @@ The `trades` readers to move:
 
 #### A1 — Drop account rotation columns
 
-**Status: ready — no remaining readers.** `AccountRecord` no longer materializes any `rotation_*`
-field (ADR 014) and no code reads them from `accounts`; rotation scheduling is book-owned and
-rotation state lives in `book_strategy_assignments` and `rotation_decisions`.
+**DONE 2026-07-16 — revision `0003_drop_account_rotation_columns`.** Rebuilds `accounts`
+without the 17 columns (explicit 39-column copy list, full `PRAGMA foreign_key_check`,
+reversible downgrade restoring the 0001 shape with DDL defaults). One missed reader surfaced
+during implementation and was fixed in the same change: the legacy bootstrap
+`_copy_book_settings_from_account` (`src/trading/services/strategy_catalog/seeding.py`) copied
+account rotation values into new default books — post-cutover those were always defaults, so it
+now seeds rotation-disabled literals. Diagram viewer and `db-schema.md` regenerated. Pending:
+`alembic upgrade` on the live databases.
 
 - Columns: `rotation_enabled`, `rotation_mode`, `rotation_optimality_mode`,
   `rotation_interval_days`, `rotation_interval_minutes`, `rotation_lookback_days`,

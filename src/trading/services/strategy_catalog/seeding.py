@@ -94,13 +94,14 @@ def _copy_book_settings_from_account(
             updated_at=now,
         )
 
-    # The interval-cadence columns are dead (ADR 014): only the book-owned
-    # scheduling inputs are copied.
+    # The account rotation columns were dropped in revision 0003 (rotation is
+    # book-owned per ADR 014), so a bootstrapped book starts with rotation
+    # disabled; profiles/settings enable it per book afterwards.
     BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
-        rotation_enabled=row_expect_int(row, "rotation_enabled"),
-        rotation_lookback_days=row_int(row, "rotation_lookback_days"),
-        rotation_schedule=row_str(row, "rotation_schedule"),
+        rotation_enabled=0,
+        rotation_lookback_days=None,
+        rotation_schedule=None,
         created_at=now,
         updated_at=now,
     )

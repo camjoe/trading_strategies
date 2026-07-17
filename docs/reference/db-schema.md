@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-16
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -29,7 +29,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Paper/live trading account config — strategy, risk policy, instrument mode, broker, rotation settings | — |
+| `accounts` | Paper/live trading account config — strategy, risk policy, instrument mode, broker (rotation columns dropped in revision `0003`; rotation is book-owned) | — |
 | `trades` | Individual paper trades (equities and options) | → `accounts` |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |

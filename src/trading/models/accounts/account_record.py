@@ -10,10 +10,9 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 class AccountRecord(Mapping[str, object]):
     """Persisted account row materialized from the database.
 
-    The retired account rotation columns (rotation_*) are retained on the
-    table (append-only) but no longer materialized here — rotation scheduling
-    is book-owned and rotation state lives in book_strategy_assignments and
-    rotation_decisions (ADR 014).
+    The retired account rotation columns (rotation_*) were dropped in
+    revision 0003 — rotation scheduling is book-owned and rotation state
+    lives in book_strategy_assignments and rotation_decisions (ADR 014).
     """
 
     id: int

@@ -65,7 +65,6 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
         """
         UPDATE accounts
         SET risk_policy = 'stop_and_target', stop_loss_pct = 4.0, learning_enabled = 1,
-            rotation_enabled = 1,
             goal_min_return_pct = 2.0, trade_universes = '["core"]'
         WHERE name = 'acct_seed'
         """
@@ -92,7 +91,9 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
 
     rotation = BookRotationSettingsRepository(conn).fetch(book_id=book.id)
     assert rotation is not None
-    assert rotation.rotation_enabled == 1
+    # Account rotation columns are gone (revision 0003): bootstrapped books
+    # start with rotation disabled until profiles/settings enable it.
+    assert rotation.rotation_enabled == 0
     trend_id = StrategyRepository(conn).fetch_by_key(strategy_key="trend")
     assert trend_id is not None
 
