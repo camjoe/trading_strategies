@@ -162,22 +162,19 @@ settings were unchanged. `book_execution_settings` and the nine account columns 
 
 #### A3 — Option settings cutover (readers → `books` columns, backfill, drop)
 
-**Status: unblocked (OD1 decided: fold into `books`); readers remain.** Option/leaps selection
-still reads account columns:
+**DONE 2026-07-16 — revision `0005_fold_option_settings_into_books`.** The eleven option
+columns are `books` columns; backfill preferred each book's `book_option_settings` row, else
+the parent account's values. `book_option_settings` and the account option columns are
+dropped; `AccountRecord`/`AccountInsert` shed the fields. Implementation notes:
 
-- `src/trading/domain/auto_trading_policy.py` — strike offset, premium cap, DTE note fields
-- `src/trading/services/auto_trading/execution.py` — `option_min_dte`
-- `src/trading/services/reporting/presentation.py` — option settings display
-- `src/trading/services/accounts/config.py` — option range validation
-
-Same atomic shape as A2 for: `option_strike_offset_pct`, `option_min_dte`, `option_max_dte`,
-`option_type`, `target_delta_min`, `target_delta_max`, `max_premium_per_trade`,
-`max_contracts_per_trade`, `iv_rank_min`, `iv_rank_max`, `roll_dte_threshold`. Target home is
-columns on `books` (OD1); `book_option_settings` is dropped after its values fold in. Account
-profile JSON configs (`src/infrastructure/config/account_profiles/`) must move their option
-blocks to the book layer in the same branch.
-
-- Validation: auto-trading suites incl. leaps paths; reporting output for an options book.
+- `BookRecord` gained the same Mapping interface `AccountRecord` has, so the domain policy
+  functions (`option_candidate_allowed`, `apply_leaps_buy_qty_limits`, `build_trade_note`)
+  take the book unchanged; the trade-selection chain's `account` parameter became
+  `option_settings` (the book).
+- Account profile JSONs stay unchanged — they feed `AccountConfig`, whose execution/option
+  fields write through to the default book (`_apply_book_settings_to_default_book`).
+- Option-range validation merges over the default book's current values (Mapping-based).
+- Pending: `alembic upgrade` on the live databases.
 
 #### A4 — Goal columns (OD2 decided: drop)
 

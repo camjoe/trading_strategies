@@ -20,17 +20,6 @@ def _make_account_insert(**overrides: object) -> AccountInsert:
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": "monthly",
-        "option_strike_offset_pct": None,
-        "option_min_dte": None,
-        "option_max_dte": None,
-        "option_type": None,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "max_premium_per_trade": None,
-        "max_contracts_per_trade": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "roll_dte_threshold": None,
     }
     values.update(overrides)
     return AccountInsert(**values)
@@ -65,17 +54,6 @@ class TestInsertAccount:
                 goal_min_return_pct=1.5,
                 goal_max_return_pct=3.0,
                 goal_period="weekly",
-                option_strike_offset_pct=2.0,
-                option_min_dte=90,
-                option_max_dte=180,
-                option_type="call",
-                target_delta_min=0.25,
-                target_delta_max=0.45,
-                max_premium_per_trade=300.0,
-                max_contracts_per_trade=2,
-                iv_rank_min=20.0,
-                iv_rank_max=70.0,
-                roll_dte_threshold=30,
             ),
         )
         row = AccountRepository(conn).fetch_by_name("full_acct")
@@ -85,8 +63,7 @@ class TestInsertAccount:
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
         assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
-        assert int(row["option_min_dte"]) == 90
-        assert row["option_type"] == "call"
+        assert row["goal_period"] == "weekly"
 
 
 class TestUpdateAccountBenchmark:

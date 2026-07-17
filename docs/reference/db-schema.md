@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-25 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+24 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
 `strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
@@ -29,7 +29,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Account identity, custody, goals, option config, and broker connection (rotation columns dropped in `0003`; execution columns moved to `books` in `0004`) | — |
+| `accounts` | Account identity, custody, goals, and broker connection (rotation columns dropped in `0003`; execution/option columns moved to `books` in `0004`/`0005`) | — |
 | `trades` | Individual paper trades (equities and options) | → `accounts` |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
@@ -43,10 +43,9 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Strategy-execution primitive incl. execution/risk settings columns (revision `0004`); one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive incl. execution/risk and option settings columns (revisions `0004`/`0005`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `book_option_settings` | Per-unit option/leaps config (strike offset, DTE, delta/IV bounds, caps) | → `books` |
 | `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
 | `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |

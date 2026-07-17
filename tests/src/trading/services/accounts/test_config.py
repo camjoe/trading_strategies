@@ -82,7 +82,9 @@ class TestCreateAccountIntegration:
         assert account["benchmark_ticker"] == "QQQ"
         assert account["descriptive_name"] == "Growth Focus"
         assert account["goal_period"] == "weekly"
-        assert account["option_type"] == "call"
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.option_type == "call"
 
     def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
         create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
@@ -213,17 +215,16 @@ class TestConfigureAccountOptionFields:
         )
 
         account = get_account(conn, base_account)
-        # Execution knobs live on the default book (revision 0004); option
-        # columns stay on the account until roadmap item A3.
+        # Execution and option knobs live on the default book (0004/0005).
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
         assert book.risk_policy == "stop_and_target"
         assert book.stop_loss_pct == pytest.approx(5.0)
         assert book.take_profit_pct == pytest.approx(10.0)
         assert book.instrument_mode == "leaps"
-        assert float(account["option_strike_offset_pct"]) == pytest.approx(4.0)
-        assert int(account["option_min_dte"]) == 150
-        assert int(account["option_max_dte"]) == 365
+        assert book.option_strike_offset_pct == pytest.approx(4.0)
+        assert book.option_min_dte == 150
+        assert book.option_max_dte == 365
 
     def test_configure_account_updates_position_sizing_fields(self, conn, base_account) -> None:
         configure_account(

@@ -44,6 +44,17 @@ class BookRepository:
         max_position_pct: float | None = None,
         max_trades_per_run: int | None = None,
         instrument_mode: str = "equity",
+        option_strike_offset_pct: float | None = None,
+        option_min_dte: int | None = None,
+        option_max_dte: int | None = None,
+        option_type: str | None = None,
+        target_delta_min: float | None = None,
+        target_delta_max: float | None = None,
+        max_premium_per_trade: float | None = None,
+        max_contracts_per_trade: int | None = None,
+        iv_rank_min: float | None = None,
+        iv_rank_max: float | None = None,
+        roll_dte_threshold: int | None = None,
         created_at: str,
         updated_at: str,
     ) -> int:
@@ -55,9 +66,12 @@ class BookRepository:
                 goal_max_return_pct, goal_period, learning_enabled, risk_policy,
                 stop_loss_pct, take_profit_pct, profit_take_pct, max_loss_pct,
                 trade_size_pct, max_position_pct, max_trades_per_run,
-                instrument_mode, created_at, updated_at
+                instrument_mode, option_strike_offset_pct, option_min_dte,
+                option_max_dte, option_type, target_delta_min, target_delta_max,
+                max_premium_per_trade, max_contracts_per_trade, iv_rank_min,
+                iv_rank_max, roll_dte_threshold, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(account_id),
@@ -81,6 +95,17 @@ class BookRepository:
                 max_position_pct,
                 max_trades_per_run,
                 instrument_mode,
+                option_strike_offset_pct,
+                option_min_dte,
+                option_max_dte,
+                option_type,
+                target_delta_min,
+                target_delta_max,
+                max_premium_per_trade,
+                max_contracts_per_trade,
+                iv_rank_min,
+                iv_rank_max,
+                roll_dte_threshold,
                 created_at,
                 updated_at,
             ),
@@ -88,7 +113,7 @@ class BookRepository:
         self._conn.commit()
         return int(cursor.lastrowid or 0)
 
-    def update_execution_settings(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
+    def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
         """Apply pre-built ``column = ?`` update fragments to one book."""
         self._conn.execute(
             f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",

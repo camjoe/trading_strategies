@@ -16,17 +16,6 @@ _ACCOUNT_INSERT_COLUMNS = (
     "goal_min_return_pct",
     "goal_max_return_pct",
     "goal_period",
-    "option_strike_offset_pct",
-    "option_min_dte",
-    "option_max_dte",
-    "option_type",
-    "target_delta_min",
-    "target_delta_max",
-    "max_premium_per_trade",
-    "max_contracts_per_trade",
-    "iv_rank_min",
-    "iv_rank_max",
-    "roll_dte_threshold",
     "trade_universes",
 )
 _ACCOUNT_INSERT_SQL = (

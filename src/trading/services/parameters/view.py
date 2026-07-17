@@ -20,10 +20,7 @@ from trading.models.parameters.parameter_entry import ParameterEntry
 from trading.models.parameters.parameter_group import ParameterGroup
 from trading.models.parameters.parameter_source_view import ParameterSourceView
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_settings import (
-    BookOptionSettingsRepository,
-    BookRotationSettingsRepository,
-)
+from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
@@ -106,8 +103,8 @@ def _mandate_group(scope_prefix: str, book: BookRecord) -> ParameterGroup:
     return ParameterGroup(scope=f"{scope_prefix} / mandate", entries=entries)
 
 
-# Execution settings are books columns since revision 0004; a book row always
-# exists, so every entry is db-sourced.
+# Execution and option settings are books columns since revisions 0004/0005;
+# a book row always exists, so every entry is db-sourced.
 _EXECUTION_FIELDS = (
     "learning_enabled",
     "risk_policy",
@@ -121,11 +118,24 @@ _EXECUTION_FIELDS = (
     "instrument_mode",
 )
 
+_OPTION_FIELDS = (
+    "option_strike_offset_pct",
+    "option_min_dte",
+    "option_max_dte",
+    "option_type",
+    "target_delta_min",
+    "target_delta_max",
+    "max_premium_per_trade",
+    "max_contracts_per_trade",
+    "iv_rank_min",
+    "iv_rank_max",
+    "roll_dte_threshold",
+)
 
-def _execution_group(scope: str, book: BookRecord) -> ParameterGroup:
+
+def _book_columns_group(scope: str, book: BookRecord, fields: tuple[str, ...]) -> ParameterGroup:
     entries = tuple(
-        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB)
-        for name in _EXECUTION_FIELDS
+        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB) for name in fields
     )
     return ParameterGroup(scope=scope, entries=entries)
 
@@ -180,8 +190,8 @@ def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) 
     prefix = f"account {account_name} / book {book.name}"
     return [
         _mandate_group(prefix, book),
-        _execution_group(f"{prefix} / execution", book),
-        _settings_group(f"{prefix} / options", BookOptionSettingsRepository(conn).fetch(book_id=book.id)),
+        _book_columns_group(f"{prefix} / execution", book, _EXECUTION_FIELDS),
+        _book_columns_group(f"{prefix} / options", book, _OPTION_FIELDS),
         _rotation_group(f"{prefix} / rotation", BookRotationSettingsRepository(conn).fetch(book_id=book.id)),
     ]
 

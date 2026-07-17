@@ -53,17 +53,17 @@ class TestApplyAccountProfiles:
 
         account = get_account(conn, "prof_a")
         assert account["descriptive_name"] == "Profile A"
-        # Execution settings are book columns (revision 0004).
+        # Execution and option settings are book columns (revisions 0004/0005).
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
         assert book.risk_policy == "fixed_stop"
         assert book.instrument_mode == "leaps"
         assert book.learning_enabled == 1
-        assert account["option_type"] == "call"
-        assert float(account["target_delta_min"]) == 0.25
-        assert float(account["target_delta_max"]) == 0.55
-        assert float(account["iv_rank_min"]) == 20.0
-        assert float(account["iv_rank_max"]) == 80.0
+        assert book.option_type == "call"
+        assert book.target_delta_min == 0.25
+        assert book.target_delta_max == 0.55
+        assert book.iv_rank_min == 20.0
+        assert book.iv_rank_max == 80.0
 
     def test_create_missing_false_skips(self, conn):
         profiles = [{"name": "no_create", "initial_cash": 1000}]

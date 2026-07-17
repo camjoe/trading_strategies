@@ -26,17 +26,6 @@ class AccountRecord(Mapping[str, object]):
     goal_min_return_pct: float | None
     goal_max_return_pct: float | None
     goal_period: str
-    option_strike_offset_pct: float | None
-    option_min_dte: int | None
-    option_max_dte: int | None
-    option_type: str | None
-    target_delta_min: float | None
-    target_delta_max: float | None
-    max_premium_per_trade: float | None
-    max_contracts_per_trade: int | None
-    iv_rank_min: float | None
-    iv_rank_max: float | None
-    roll_dte_threshold: int | None
     broker_type: str | None = None
     broker_host: str | None = None
     broker_port: int | None = None
@@ -58,17 +47,6 @@ class AccountRecord(Mapping[str, object]):
             goal_min_return_pct=row_float(values, "goal_min_return_pct"),
             goal_max_return_pct=row_float(values, "goal_max_return_pct"),
             goal_period=row_expect_str(values, "goal_period"),
-            option_strike_offset_pct=row_float(values, "option_strike_offset_pct"),
-            option_min_dte=row_int(values, "option_min_dte"),
-            option_max_dte=row_int(values, "option_max_dte"),
-            option_type=row_str(values, "option_type"),
-            target_delta_min=row_float(values, "target_delta_min"),
-            target_delta_max=row_float(values, "target_delta_max"),
-            max_premium_per_trade=row_float(values, "max_premium_per_trade"),
-            max_contracts_per_trade=row_int(values, "max_contracts_per_trade"),
-            iv_rank_min=row_float(values, "iv_rank_min"),
-            iv_rank_max=row_float(values, "iv_rank_max"),
-            roll_dte_threshold=row_int(values, "roll_dte_threshold"),
             broker_type=row_str(values, "broker_type"),
             broker_host=row_str(values, "broker_host"),
             broker_port=row_int(values, "broker_port"),

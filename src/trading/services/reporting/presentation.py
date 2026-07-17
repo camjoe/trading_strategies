@@ -36,26 +36,26 @@ from trading.services.pricing import benchmark_stats
 from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
 
 
-def _print_leaps_params(account: AccountRecord, book: BookRecord | None) -> None:
+def _print_leaps_params(book: BookRecord) -> None:
+    # Execution and option knobs are book columns (revisions 0004/0005).
     print(
         "LEAPs Parameters: "
-        f"strike_offset_pct={account['option_strike_offset_pct']} "
-        f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
+        f"strike_offset_pct={book.option_strike_offset_pct} "
+        f"min_dte={book.option_min_dte} max_dte={book.option_max_dte}"
     )
     print(
         "LEAPs Options Filters: "
-        f"type={account['option_type']} "
-        f"delta={account['target_delta_min']}-{account['target_delta_max']} "
-        f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
+        f"type={book.option_type} "
+        f"delta={book.target_delta_min}-{book.target_delta_max} "
+        f"iv_rank={book.iv_rank_min}-{book.iv_rank_max}"
     )
-    # profit_take/max_loss are execution knobs — book columns since 0004.
     print(
         "LEAPs/Options Risk Limits: "
-        f"max_premium={account['max_premium_per_trade']} "
-        f"max_contracts={account['max_contracts_per_trade']} "
-        f"roll_dte={account['roll_dte_threshold']} "
-        f"leaps_profit_take_pct={book.profit_take_pct if book is not None else None} "
-        f"leaps_max_loss_pct={book.max_loss_pct if book is not None else None}"
+        f"max_premium={book.max_premium_per_trade} "
+        f"max_contracts={book.max_contracts_per_trade} "
+        f"roll_dte={book.roll_dte_threshold} "
+        f"leaps_profit_take_pct={book.profit_take_pct} "
+        f"leaps_max_loss_pct={book.max_loss_pct}"
     )
 
 
@@ -71,7 +71,7 @@ def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> N
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
     if default_book is not None and default_book.instrument_mode == "leaps":
-        _print_leaps_params(account, default_book)
+        _print_leaps_params(default_book)
 
 
 def _print_performance_lines(

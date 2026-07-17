@@ -15,16 +15,13 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_float, row_int, row_str
+from common.coercion import row_expect_float, row_expect_int, row_float, row_str
 from common.time import utc_now_iso
 from trading.domain.strategy_signals import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import (
-    BookOptionSettingsRepository,
-    BookRotationSettingsRepository,
-)
+from trading.repositories.book_settings import BookRotationSettingsRepository
 
 
 def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
@@ -52,45 +49,11 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
     return inserted
 
 
-def _copy_book_settings_from_account(
-    conn: sqlite3.Connection,
-    *,
-    account: sqlite3.Row,
-    book_id: int,
-    now: str,
-) -> None:
-    # Execution settings became books columns in revision 0004, so a
-    # bootstrapped default book starts on DDL defaults; account creation and
-    # the book settings editors set real values. Option settings stay a 1:1
-    # table until roadmap item A3 — copy them when the account carries any.
-    row = dict(account)
-    option_values = (
-        row_float(row, "option_strike_offset_pct"),
-        row_int(row, "option_min_dte"),
-        row_int(row, "option_max_dte"),
-        row_str(row, "option_type"),
-    )
-    if any(value is not None for value in option_values):
-        BookOptionSettingsRepository(conn).upsert(
-            book_id=book_id,
-            option_strike_offset_pct=row_float(row, "option_strike_offset_pct"),
-            option_min_dte=row_int(row, "option_min_dte"),
-            option_max_dte=row_int(row, "option_max_dte"),
-            option_type=row_str(row, "option_type"),
-            target_delta_min=row_float(row, "target_delta_min"),
-            target_delta_max=row_float(row, "target_delta_max"),
-            max_premium_per_trade=row_float(row, "max_premium_per_trade"),
-            max_contracts_per_trade=row_int(row, "max_contracts_per_trade"),
-            iv_rank_min=row_float(row, "iv_rank_min"),
-            iv_rank_max=row_float(row, "iv_rank_max"),
-            roll_dte_threshold=row_int(row, "roll_dte_threshold"),
-            created_at=now,
-            updated_at=now,
-        )
-
-    # The account rotation columns were dropped in revision 0003 (rotation is
-    # book-owned per ADR 014), so a bootstrapped book starts with rotation
-    # disabled; profiles/settings enable it per book afterwards.
+def _seed_book_settings(conn: sqlite3.Connection, *, book_id: int, now: str) -> None:
+    # Execution and option settings are books columns (revisions 0004/0005),
+    # so a bootstrapped default book starts on DDL defaults; account creation
+    # and the book settings editors set real values. Rotation starts disabled
+    # (account rotation columns were dropped in 0003; book-owned per ADR 014).
     BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
         rotation_enabled=0,
@@ -133,7 +96,7 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
             created_at=now,
             updated_at=now,
         )
-        _copy_book_settings_from_account(conn, account=account, book_id=book_id, now=now)
+        _seed_book_settings(conn, book_id=book_id, now=now)
 
         legacy_strategy = row_str(dict(account), "strategy")
         if legacy_strategy:

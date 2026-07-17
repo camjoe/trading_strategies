@@ -282,6 +282,63 @@ def test_revision_0004_folds_execution_settings_into_books(tmp_path: Path) -> No
         conn.close()
 
 
+def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "option_fold.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0004", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at, option_min_dte, option_type)
+            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 90, 'call');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO book_option_settings (
+                book_id, option_min_dte, option_type, max_premium_per_trade, created_at, updated_at
+            )
+            VALUES (1, 180, 'put', 700.0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0005", connection=conn)
+        # Book 1 keeps its own settings row values; book 2 inherits the account's.
+        rows = {
+            int(r["id"]): r
+            for r in conn.execute("SELECT id, option_min_dte, option_type, max_premium_per_trade FROM books")
+        }
+        assert (rows[1]["option_min_dte"], rows[1]["option_type"], rows[1]["max_premium_per_trade"]) == (
+            180,
+            "put",
+            700.0,
+        )
+        assert (rows[2]["option_min_dte"], rows[2]["option_type"], rows[2]["max_premium_per_trade"]) == (
+            90,
+            "call",
+            None,
+        )
+        account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert "option_min_dte" not in account_columns and "option_type" not in account_columns
+        tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "book_option_settings" not in tables
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0004", connection=conn)
+        restored = conn.execute(
+            "SELECT option_min_dte, option_type FROM book_option_settings WHERE book_id = 1"
+        ).fetchone()
+        assert (restored["option_min_dte"], restored["option_type"]) == (180, "put")
+        book_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(books)")}
+        assert "option_min_dte" not in book_columns
+        assert "risk_policy" in book_columns  # 0004 execution columns survive the rebuild
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

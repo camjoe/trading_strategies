@@ -2,84 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_option_settings_record import BookOptionSettingsRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 
-# Per-concern typed settings tables, 1:1 with books. A missing row means
-# "use code defaults"; a per-row change-audit stays deferred until edit volume
-# justifies it. (Execution settings are columns on books since revision 0004.)
-
-
-class BookOptionSettingsRepository:
-    def __init__(self, conn: sqlite3.Connection) -> None:
-        self._conn = conn
-
-    def fetch(self, *, book_id: int) -> BookOptionSettingsRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM book_option_settings WHERE book_id = ?",
-            (int(book_id),),
-        ).fetchone()
-        return BookOptionSettingsRecord.from_mapping(dict(row)) if row is not None else None
-
-    def upsert(
-        self,
-        *,
-        book_id: int,
-        option_strike_offset_pct: float | None = None,
-        option_min_dte: int | None = None,
-        option_max_dte: int | None = None,
-        option_type: str | None = None,
-        target_delta_min: float | None = None,
-        target_delta_max: float | None = None,
-        max_premium_per_trade: float | None = None,
-        max_contracts_per_trade: int | None = None,
-        iv_rank_min: float | None = None,
-        iv_rank_max: float | None = None,
-        roll_dte_threshold: int | None = None,
-        created_at: str,
-        updated_at: str,
-    ) -> None:
-        self._conn.execute(
-            """
-            INSERT INTO book_option_settings (
-                book_id, option_strike_offset_pct, option_min_dte, option_max_dte,
-                option_type, target_delta_min, target_delta_max, max_premium_per_trade,
-                max_contracts_per_trade, iv_rank_min, iv_rank_max, roll_dte_threshold,
-                created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(book_id) DO UPDATE SET
-                option_strike_offset_pct = excluded.option_strike_offset_pct,
-                option_min_dte = excluded.option_min_dte,
-                option_max_dte = excluded.option_max_dte,
-                option_type = excluded.option_type,
-                target_delta_min = excluded.target_delta_min,
-                target_delta_max = excluded.target_delta_max,
-                max_premium_per_trade = excluded.max_premium_per_trade,
-                max_contracts_per_trade = excluded.max_contracts_per_trade,
-                iv_rank_min = excluded.iv_rank_min,
-                iv_rank_max = excluded.iv_rank_max,
-                roll_dte_threshold = excluded.roll_dte_threshold,
-                updated_at = excluded.updated_at
-            """,
-            (
-                int(book_id),
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                option_type,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
-                created_at,
-                updated_at,
-            ),
-        )
-        self._conn.commit()
+# Rotation is the one remaining 1:1 settings table (large, coherent, sparse).
+# A missing row means "use code defaults"; a per-row change-audit stays
+# deferred until edit volume justifies it. Execution and option settings are
+# columns on books since revisions 0004/0005.
 
 
 class BookRotationSettingsRepository:

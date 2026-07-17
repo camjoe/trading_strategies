@@ -116,8 +116,10 @@ def generate_book_trade_intents(
             book.stop_loss_pct,
             book.take_profit_pct,
         )
+        # The book is the settings mapping: option/leaps knobs are book
+        # columns since revision 0005.
         selection = _prepare_trade_selection(
-            account,
+            book,
             signal_primitive,
             strategy_params,
             state,

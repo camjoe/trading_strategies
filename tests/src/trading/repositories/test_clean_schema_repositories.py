@@ -18,10 +18,7 @@ from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotReposi
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import (
-    BookOptionSettingsRepository,
-    BookRotationSettingsRepository,
-)
+from trading.repositories.book_settings import BookRotationSettingsRepository
 
 NOW = "2026-07-03T12:00:00Z"
 
@@ -152,10 +149,10 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_execution_settings(
+    book_repo.update_settings_columns(
         book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["fixed_stop", 5.0]
     )
-    book_repo.update_execution_settings(
+    book_repo.update_settings_columns(
         book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["stop_and_target", 4.0]
     )
     execution = book_repo.fetch_by_id(book_id=book_id)
@@ -163,10 +160,13 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
-    option_repo = BookOptionSettingsRepository(conn)
-    option_repo.upsert(book_id=book_id, option_type="call", option_min_dte=120, created_at=NOW, updated_at=NOW)
-    option = option_repo.fetch(book_id=book_id)
+    # Option settings are book columns since revision 0005.
+    book_repo.update_settings_columns(
+        book_id=book_id, updates=["option_type = ?", "option_min_dte = ?"], params=["call", 120]
+    )
+    option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
+    assert option.option_min_dte == 120
 
     rotation_repo = BookRotationSettingsRepository(conn)
     rotation_repo.upsert_rotation_scheduling(

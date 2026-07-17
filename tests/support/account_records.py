@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
 
 
 def make_account_record(**overrides: object) -> AccountRecord:
     """Build an ``AccountRecord`` test fixture with sensible defaults.
 
     Tests can override only the fields they care about while keeping a complete,
-    production-shaped account row.
+    production-shaped account row. Execution and option settings are book
+    columns (revisions 0004/0005) — see ``make_book_record``.
     """
 
     values: dict[str, object] = {
@@ -22,19 +24,6 @@ def make_account_record(**overrides: object) -> AccountRecord:
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": "monthly",
-        # Execution settings are book columns since revision 0004 — they are
-        # no longer part of the account row.
-        "option_strike_offset_pct": None,
-        "option_min_dte": None,
-        "option_max_dte": None,
-        "option_type": None,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "max_premium_per_trade": None,
-        "max_contracts_per_trade": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "roll_dte_threshold": None,
         "broker_type": "paper",
         "broker_host": None,
         "broker_port": None,
@@ -47,4 +36,52 @@ def make_account_record(**overrides: object) -> AccountRecord:
     return AccountRecord.from_mapping(values)
 
 
-__all__ = ["make_account_record"]
+def make_book_record(**overrides: object) -> BookRecord:
+    """Build a ``BookRecord`` test fixture with sensible defaults.
+
+    Books carry the execution and option settings columns (revisions
+    0004/0005); tests override only the knobs they exercise.
+    """
+
+    values: dict[str, object] = {
+        "id": 1,
+        "account_id": 1,
+        "name": "default",
+        "status": "active",
+        "is_default": 1,
+        "start_equity": 1000.0,
+        "current_cash": 1000.0,
+        "current_equity": 1000.0,
+        "trade_universes": None,
+        "goal_min_return_pct": None,
+        "goal_max_return_pct": None,
+        "goal_period": None,
+        "learning_enabled": 0,
+        "risk_policy": "none",
+        "stop_loss_pct": None,
+        "take_profit_pct": None,
+        "profit_take_pct": None,
+        "max_loss_pct": None,
+        "trade_size_pct": None,
+        "max_position_pct": None,
+        "max_trades_per_run": None,
+        "instrument_mode": "equity",
+        "option_strike_offset_pct": None,
+        "option_min_dte": None,
+        "option_max_dte": None,
+        "option_type": None,
+        "target_delta_min": None,
+        "target_delta_max": None,
+        "max_premium_per_trade": None,
+        "max_contracts_per_trade": None,
+        "iv_rank_min": None,
+        "iv_rank_max": None,
+        "roll_dte_threshold": None,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    values.update(overrides)
+    return BookRecord.from_mapping(values)
+
+
+__all__ = ["make_account_record", "make_book_record"]

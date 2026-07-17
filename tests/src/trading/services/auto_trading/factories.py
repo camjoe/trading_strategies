@@ -6,7 +6,7 @@ from unittest.mock import Mock
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.accounts.account_state import AccountState
 from trading.models.orders.broker_order import OrderStatus
-from tests.support.account_records import make_account_record
+from tests.support.account_records import make_account_record, make_book_record
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
 MARKET_CLOSED_TIME_ISO = "2026-03-15T15:00:00Z"
@@ -14,16 +14,24 @@ MARKET_CLOSED_TIME_ISO = "2026-03-15T15:00:00Z"
 
 def make_auto_trading_account(**overrides: object):
     values: dict[str, object] = {
-        "option_strike_offset_pct": 5.0,
-        "option_min_dte": 120,
-        "option_max_dte": 365,
-        "option_type": "call",
         "initial_cash": 5000.0,
         "id": 1,
         "strategy": "trend",
     }
     values.update(overrides)
     return make_account_record(**values)
+
+
+def make_option_settings(**overrides: object):
+    """A book carrying the option/leaps knobs (book columns since 0005)."""
+    values: dict[str, object] = {
+        "option_strike_offset_pct": 5.0,
+        "option_min_dte": 120,
+        "option_max_dte": 365,
+        "option_type": "call",
+    }
+    values.update(overrides)
+    return make_book_record(**values)
 
 
 def make_feature_bundle(*, available: bool = True, **features: float) -> ExternalFeatureBundle:
@@ -91,6 +99,7 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "make_account_state",
     "make_auto_trading_account",
+    "make_option_settings",
     "make_feature_bundle",
     "make_feature_fetcher",
     "make_feature_fetchers",

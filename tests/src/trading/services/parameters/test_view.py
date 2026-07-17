@@ -66,16 +66,17 @@ class TestBookGroups:
 
         mandate = _group(view, "account view_acct / book book_a / mandate")
         assert _entry(mandate, "goal_period").source == PARAMETER_SOURCE_DB
-        # Execution settings are book columns (revision 0004): a book row
-        # always exists, so the group is always populated and db-sourced.
+        # Execution and option settings are book columns (revisions
+        # 0004/0005): a book row always exists, so both groups are always
+        # populated and db-sourced.
         execution = _group(view, "account view_acct / book book_a / execution")
         assert execution.note is None
         assert _entry(execution, "risk_policy").value == "none"
         assert _entry(execution, "risk_policy").source == PARAMETER_SOURCE_DB
-        # Options remain a 1:1 table until roadmap item A3.
         options = _group(view, "account view_acct / book book_a / options")
-        assert options.entries == ()
-        assert options.note is not None
+        assert options.note is None
+        assert _entry(options, "option_type").value == "none"
+        assert _entry(options, "option_type").source == PARAMETER_SOURCE_DB
         # The rotation group always shows the effective policy: a missing row
         # means every policy field is the code default.
         rotation = _group(view, "account view_acct / book book_a / rotation")
