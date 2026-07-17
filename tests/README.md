@@ -82,7 +82,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services` | `tests/src/trading/services/` |
 | `src/trading/services/accounting` | `tests/src/trading/services/accounting/` |
 | `src/trading/services/accounts` | `tests/src/trading/services/accounts/` |
-| `src/trading/services/admin` | `tests/src/trading/services/admin/` |
 | `src/trading/services/analysis` | `tests/src/trading/services/analysis/` |
 | `src/trading/services/auto_trading` | `tests/src/trading/services/auto_trading/` |
 | `src/trading/services/evaluation` | `tests/src/trading/services/evaluation/` |
@@ -93,7 +92,7 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/profiles` | `tests/src/trading/services/profiles/` |
 | `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
 | `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
-| `src/trading/services/sleeves` | `tests/src/trading/services/sleeves/` |
+| `src/trading/services/books` | `tests/src/trading/services/books/` |
 | `src/trading/services/universe` | `tests/src/trading/services/universe/` |
 
 ### Targeted runs in GitHub Actions
@@ -148,7 +147,7 @@ python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
   - `tests/src/trading/services/analysis/conftest.py` — `analysis_account`
   - `tests/src/trading/services/evaluation/conftest.py` — `eval_account`
   - `tests/src/trading/services/promotion/conftest.py` — `promotion_account`
-  - `tests/src/trading/services/admin/conftest.py` — `configured_backend`
+  - `tests/src/trading/services/accounts/conftest.py` — `configured_backend`
   - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
   - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/src/trading/services/market_data/conftest.py` — provider reset per test
@@ -158,9 +157,9 @@ python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
 
 **Use `conn`** when the test needs to write data (inserts, updates, deletes). It is function-scoped: each test gets a fresh, empty SQLite DB.
 
-**Use `seeded_conn`** when the test only reads. It is session-scoped and opens the pre-seeded DB read-only (`?mode=ro`). This is faster and does not risk corrupting shared state. The seed covers accounts, trades, snapshots, a sleeve, strategy assignments, daily metrics, backtest runs, and promotion reviews.
+**Use `seeded_conn`** when the test only reads. It is session-scoped and opens the pre-seeded DB read-only (`?mode=ro`). This is faster and does not risk corrupting shared state. The seed covers accounts, trades, snapshots, a book, strategy assignments, daily metrics, backtest runs, and promotion reviews.
 
-Named constants from `tests/support/seed/db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENTUM`, `SLEEVE_TREND`, `SNAPSHOT_T1`) are the shared vocabulary for referencing seeded entities. Always import and use these constants rather than hard-coding string literals.
+Named constants from `tests/support/seed/db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENTUM`, `BOOK_TREND`, `SNAPSHOT_T1`) are the shared vocabulary for referencing seeded entities. Always import and use these constants rather than hard-coding string literals.
 
 ## State Isolation
 
@@ -221,7 +220,7 @@ Historical caveat: a past regression sweep hit hangs in the **synchronous FastAP
 ## Audit Notes
 
 - Full repository validation remains `python -m pytest` from repo root.
-- Cross-stack smoke validation is `python -m scripts.run_checks --profile ci`.
+- Cross-stack smoke validation is `python -m scripts.run_checks ci`.
 - For parser/default-path changes, include focused checks for CLI parser/handler coverage under `tests/src/trading/interfaces/cli/` and runtime-job coverage under `tests/src/trading/interfaces/runtime/jobs/`.
 
 ## Test Support Layout
@@ -233,7 +232,7 @@ tests/support/
   seed/                    # DB population helpers (session-scoped shared DB)
     db.py                  # orchestrator — called by tests/conftest.py
     accounts.py, backtesting.py, promotion_review.py,
-    reporting.py, sleeve_data.py
+    reporting.py, book_data.py
   cli/                     # CLI test infrastructure
     backtesting.py, main.py
   account_records.py       # make_account_record() — used everywhere
@@ -245,13 +244,13 @@ tests/support/
   promotion.py             # make_ready_evaluation(), make_observing_assessment()
   reporting.py             # insert_trade(), insert_snapshot(), make_evaluation_artifact()
   repositories.py          # insert_repository_account()
-  sleeves.py               # insert_test_sleeve(), build_sleeve_env()
+  books.py               # insert_test_book(), build_book_env()
 ```
 
 Helpers that are exclusively used by a single suite live co-located with that suite rather than in `tests/support/`:
 
 - `tests/src/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders and `run_module_as_main` (see [Interfaces Layer: `__main__` Entrypoint Tests](#interfaces-layer-__main__-entrypoint-tests))
 - `tests/src/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
-- `tests/src/trading/services/admin/seed.py` — admin dataset seeding
+- `tests/src/trading/services/accounts/seed.py` — admin dataset seeding
 
 **Convention:** if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.

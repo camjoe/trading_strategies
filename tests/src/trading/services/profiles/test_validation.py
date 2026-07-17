@@ -4,7 +4,7 @@ import pytest
 
 from trading.models.accounts.account_config import AccountConfig
 import trading.services.profiles.application as profiles_application
-from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
+from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
 
 
 def test_apply_account_profiles_rejects_unknown_strategy_name(
@@ -30,11 +30,11 @@ def test_apply_account_profiles_rejects_unknown_strategy_name(
 def test_rotation_config_rejects_unknown_schedule_strategy_name() -> None:
     with pytest.raises(
         ValueError,
-        match="rotation_schedule\\[0\\]: Unknown strategy 'mystery_strategy'",
+        match="rotation.schedule\\[0\\]: Unknown strategy 'mystery_strategy'",
     ):
-        parse_rotation_config_from_profile(
+        parse_book_rotation_config_from_profile(
             {
-                "rotation_schedule": ["mystery_strategy", "trend"],
+                "rotation": {"schedule": ["mystery_strategy", "trend"]},
             }
         )
 

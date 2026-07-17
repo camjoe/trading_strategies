@@ -1,7 +1,6 @@
 ---
 name: update-documentation
 description: Rewrites and freshens README files, architecture notes, and operational documentation when prose or responsibilities have drifted from reality. Use when docs are stale, misleading, or incomplete — not just out-of-date by timestamp.
-invoker: any
 ---
 
 # Update Documentation
@@ -32,3 +31,9 @@ Use the `reference-doc/` skill instead — it handles new reference documents an
 - `docs/architecture/nav-guide.md` — start here to locate which files a task touches
 - `docs/maps/docs-map.md` — maps code surfaces to owning documentation files
 - `README.md` files across the repo
+
+## Expected output
+
+1. Impacted docs
+2. Exact updates made
+3. Remaining drift or follow-up items

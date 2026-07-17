@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
+from infrastructure.database.connection import ensure_db
+from tests.support.db_schema import build_db_at_head
 from tests.support.seed.db import seed_session_db
 
 
@@ -57,7 +58,8 @@ def _guard_sqlite_uri_readonly() -> None:
 @pytest.fixture
 def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
     original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
+    db_path = build_db_at_head(tmp_path / "paper_trading.db")
+    set_backend(SQLiteBackend(db_path))
     connection = ensure_db()
     try:
         yield connection
@@ -93,6 +95,7 @@ def seeded_conn(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sqlite3.Co
 
     # Phase 1: seed via the standard backend so schema + seed data are written.
     original = get_backend()
+    build_db_at_head(db_path)
     set_backend(SQLiteBackend(db_path))
     write_conn = ensure_db()
     seed_session_db(write_conn)

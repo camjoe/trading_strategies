@@ -5,6 +5,7 @@ from datetime import date
 
 from common.time import utc_now_iso
 from trading.backtesting.models import BacktestConfig
+from trading.repositories.book_bridge import strategy_id_for_label
 
 
 def insert_backtest_run(
@@ -17,11 +18,16 @@ def insert_backtest_run(
     cfg: BacktestConfig,
     warnings: list[str],
 ) -> int:
+    # The backtested strategy is a strategies FK. The caller
+    # passes the canonical strategy key (resolved via resolve_strategy in the
+    # service); the catalog row is seeded, so this is a lookup, not a create.
+    created_at = utc_now_iso()
+    strategy_id = strategy_id_for_label(conn, strategy_name, now_iso=created_at)
     cursor = conn.execute(
         """
         INSERT INTO backtest_runs (
             account_id,
-            strategy_name,
+            strategy_id,
             run_name,
             start_date,
             end_date,
@@ -36,11 +42,11 @@ def insert_backtest_run(
         """,
         (
             account_id,
-            strategy_name,
+            strategy_id,
             cfg.run_name,
             start_date.isoformat(),
             end_date.isoformat(),
-            utc_now_iso(),
+            created_at,
             float(cfg.slippage_bps),
             float(cfg.fee_per_trade),
             cfg.tickers_file,

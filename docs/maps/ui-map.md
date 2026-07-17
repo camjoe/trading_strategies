@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-24
+Last Reviewed: 2026-07-13
 Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
 Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/screenshot-ui.md)
 
@@ -36,6 +36,7 @@ FastAPI routers. One file per logical domain. Routes call backend services; they
 | `health.py` | Health check (`GET /health`) |
 | `ibkr_paper_monitor.py` | IBKR paper monitor status and artifacts |
 | `logs.py` | Log file access |
+| `portfolio.py` | Cross-account portfolio rollup (`GET /api/portfolio/rollup`) |
 
 ### Schemas (`schemas/`)
 
@@ -58,10 +59,12 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `accounts/` | Account data assembly (summaries, snapshots, detail) |
 | `admin.py` | Admin operation service |
 | `backtests.py` | Backtesting service (delegates to `src/trading/backtesting/`) |
+| `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
 | `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
 | `ibkr_paper_monitor.py` | IBKR monitor artifact assembly |
 | `operations/` | Runtime operation services (job triggers, etc.) |
+| `portfolio.py` | Portfolio rollup payload shaping (delegates to `trading.services.analysis`) |
 | `promotion.py` | Promotion data service |
 
 ### Account Contract (`account_contract/`)
@@ -97,6 +100,7 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `backtesting/` | Backtest run submission, result display, constants, payloads, types |
 | `alt-strategies.ts` | Alternative strategies feature |
 | `compare.ts` | Account comparison feature |
+| `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
 | `docs/` | In-app documentation viewer: accordion, menu, helpers, constants |
 | `logs.ts` | Log viewer feature |
 
@@ -141,6 +145,7 @@ TypeScript type definitions for API response shapes. One file per backend domain
 | `backtesting.ts` | Backtest run and result shapes |
 | `compare.ts` | Account comparison shapes |
 | `ibkr-paper-monitor.ts` | IBKR monitor response shapes |
+| `portfolio.ts` | Portfolio rollup response shapes |
 | `signals.ts` | Feature/signal response shapes |
 
 ### Views (`views/`)
@@ -159,6 +164,7 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `alt-strategies.html` | Alternative strategies page |
 | `backtesting.html` | Backtesting page |
 | `compare.html` | Account comparison page |
+| `portfolio.html` | Cross-account portfolio rollup page |
 | `ibkr-paper-monitor.html` | IBKR paper monitor page |
 | `trades.html` | Trades view |
 | `app-layout.html` | Shared app layout shell |
@@ -179,6 +185,7 @@ Per-feature CSS files and design tokens. Import order controlled via `styles.css
 | `alt-strategies.css` | Alternative strategies |
 | `analysis.css` | Analysis view |
 | `compare.css` | Comparison view |
+| `portfolio.css` | Portfolio rollup view |
 | `docs.css` | In-app docs |
 | `ibkr-paper-monitor.css` | IBKR monitor view |
 | `runtime.css` | Runtime status views |
@@ -190,7 +197,7 @@ Static JSON assets consumed by the in-app docs renderer.
 | File | Content |
 |---|---|
 | `api.json` | API reference documentation content |
-| `finance.json` | Finance/strategy documentation content |
+| `finance.json` | Generated finance/strategy documentation content from `docs/reference/financial-market-knowledge.md` |
 | `software.json` | Software architecture documentation content |
 
 ---

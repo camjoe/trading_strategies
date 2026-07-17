@@ -58,7 +58,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -73,18 +73,21 @@ class TestArtifactStructure:
         assert "accounts" in payload
         assert isinstance(payload["accounts"], list)
         assert payload["accounts"][0]["account_name"] == "acct1"
-        assert payload["accounts"][0]["sleeves"] == []
+        assert payload["accounts"][0]["books"] == []
 
-    def test_sleeve_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
+    def test_book_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
 
-        sleeve_row = {"id": 10, "name": "sleeve_a"}
-        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_follow", param_set_id=None)
+        book_row = {"id": 10, "name": "book_a"}
+        stub_runtime_job_basics(
+            monkeypatch,
+            module,
+            books_for_account=[(_NS(**book_row), _NS(strategy_name="trend_follow"))],
+        )
         monkeypatch.setattr(
             module,
-            "fetch_sleeve_performance_window",
-            lambda conn, *, sleeve_id, start_date, end_date: [
+            "fetch_book_performance_window",
+            lambda conn, *, book_id, start_date, end_date: [
                 _NS(return_pct=1.5, risk_adjusted_score=0.8, drawdown_pct=-2.0, trade_count=5)
             ],
         )
@@ -96,11 +99,11 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "weekly_governance_w1_leaderboard_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
-        assert sleeve["rank"] == 1
-        assert sleeve["sleeve_name"] == "sleeve_a"
-        assert sleeve["strategy_name"] == "trend_follow"
-        assert sleeve["data_points"] == 1
+        book = payload["accounts"][0]["books"][0]
+        assert book["rank"] == 1
+        assert book["book_name"] == "book_a"
+        assert book["strategy_name"] == "trend_follow"
+        assert book["data_points"] == 1
 
     def test_window_days_uses_inclusive_day_count(self, monkeypatch, tmp_path: Path) -> None:
         fixed_now = dt.datetime(2026, 1, 15, 9, 30, 0)
@@ -111,18 +114,18 @@ class TestArtifactStructure:
                 return fixed_now
 
         captured: dict[str, str] = {}
-        sleeve_row = {"id": 10, "name": "sleeve_a"}
+        book_row = {"id": 10, "name": "book_a"}
         # `now` is computed in the shared runner, so patch its datetime seam.
         monkeypatch.setattr(job_runner.dt, "datetime", _FixedDateTime)
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        # fetch_active_assignment returns None by default from stub
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[book_row])
+        # unassigned book: the stubbed pair carries assignment=None
 
-        def _capture_metrics(conn, *, sleeve_id, start_date, end_date):
+        def _capture_metrics(conn, *, book_id, start_date, end_date):
             captured["start_date"] = start_date
             captured["end_date"] = end_date
             return []
 
-        monkeypatch.setattr(module, "fetch_sleeve_performance_window", _capture_metrics)
+        monkeypatch.setattr(module, "fetch_book_performance_window", _capture_metrics)
 
         result = _run_job(
             monkeypatch,
@@ -157,12 +160,12 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_main_returns_1_when_repository_lookup_raises(monkeypatch, tmp_path: Path) -> None:
-    from unittest.mock import MagicMock
-
     stub_runtime_job_basics(monkeypatch, module)
-    boom_repo = MagicMock()
-    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
-    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
+
+    def _boom(conn, *, account_id):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "list_report_books", _boom)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

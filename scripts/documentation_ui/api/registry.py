@@ -23,6 +23,7 @@ GROUP_BY_MODULE = {
     "accounts": "Accounts & Snapshots Endpoints",
     "actions": "Accounts & Snapshots Endpoints",
     "analysis": "Analysis Endpoints",
+    "portfolio": "Analysis Endpoints",
     "features": "Trading & Signals Endpoints",
     "health": "Accounts & Snapshots Endpoints",
     "trades": "Trading & Signals Endpoints",

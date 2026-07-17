@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__VIEWER_TITLE__</title>
+  <style>
+__VIEWER_CSS__  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>__VIEWER_TITLE__</h1>
+      <div class="meta">Source: __SOURCE_TEXT__. Generated: __GENERATED_AT__. Tables: __TABLE_COUNT__.</div>
+    </div>
+    <div class="toolbar" aria-label="Diagram controls">
+      <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
+      <button id="zoomOut" type="button">-</button>
+      <button id="zoomReset" type="button">Reset</button>
+      <button id="zoomIn" type="button">+</button>
+      <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
+      <button id="toggleLabels" type="button" aria-pressed="false">Labels</button>
+      <button id="toggleConstraints" type="button" aria-pressed="false">Constraints</button>
+      <button id="toggleDeleteActions" type="button" aria-pressed="false">Delete actions</button>
+      <button id="resetLayout" type="button">Reset layout</button>
+    </div>
+  </header>
+  <nav id="tabs" class="tabs" aria-label="Diagram views"></nav>
+  <main>
+    <details class="info-panel" open>
+      <summary>Diagram info</summary>
+      <div class="info-panel-body">
+        <section class="panel-section" aria-live="polite">
+          <h2 id="viewTitle"></h2>
+          <p id="viewDescription"></p>
+        </section>
+        <section class="panel-section" aria-label="Relationship legend">
+          <h3>Relationship key</h3>
+          <span class="legend-row">
+            <i class="swatch fk"></i>Arrow: child/FK table points to referenced parent table. With "Delete
+            actions" on, color and dash show the ON DELETE action, and the arrow flips to point at the child
+            table affected when the referenced table's rows are deleted.
+          </span>
+          <span class="legend-row">
+            <i class="swatch cascade"></i>CASCADE deletes child rows automatically.
+          </span>
+          <span class="legend-row">
+            <i class="swatch set-null"></i>SET NULL keeps child rows but clears the FK column.
+          </span>
+          <span class="legend-row">
+            <i class="swatch no-action"></i>NO ACTION blocks parent deletion until children are handled.
+          </span>
+          <span class="legend-row">
+            <i class="swatch restrict"></i>RESTRICT intentionally blocks deletion, even mid-cascade.
+          </span>
+          <span class="legend-row">Drag table cards or section headers to rearrange a view. Drag either end of a
+            line vertically to re-order where it meets the card.</span>
+        </section>
+        <section class="panel-section">
+          <h3>Color key</h3>
+          <div id="colorKey" class="color-key"></div>
+        </section>
+      </div>
+    </details>
+    <section id="canvas" class="canvas" aria-label="Database diagram canvas">
+      <div id="stage" class="stage">
+        <svg id="lines" class="lines" aria-hidden="true"></svg>
+        <div id="sections"></div>
+        <div id="cards"></div>
+      </div>
+    </section>
+  </main>
+  <script id="schema-payload" type="application/json">__SCHEMA_PAYLOAD__</script>
+  <script>
+__VIEWER_JS__  </script>
+</body>
+</html>

@@ -3,9 +3,9 @@
 Type: convention
 Status: Active
 Created: 2026-04-24
-Last Reviewed: 2026-04-25
+Last Reviewed: 2026-07-13
 Purpose: Define consistent README section layouts so contributors can write new README files with a predictable structure.
-Related: [Doc Header Standard](doc-header.md), [Reference Doc Standard](reference-doc.md)
+Related: [Documentation Authoring Standard](docs-authoring.md)
 
 ## Purpose
 
@@ -39,7 +39,7 @@ Optional sections:
 
 Notes:
 
-- `scripts.checks.readme_check` already validates the required root sections.
+- `scripts.checks.docs.readme_check` already validates the required root sections.
 
 ### 2. Module or Package README
 
@@ -69,7 +69,6 @@ Recommended section order:
 Examples in this repo:
 
 - `tests/support/README.md`
-- `.ai/skills/README.md`
 
 ## Section Naming Conventions
 
@@ -85,6 +84,5 @@ Before finalizing a README:
 1. Confirm at least one context section (`Purpose` or `Overview`).
 2. Confirm at least one operational section (`Quick Start`, `Commands`, `Usage`, or `Workflows`).
 3. Run:
-   - `python -m scripts.checks.readme_check --max-age-days 90`
+   - `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`
 4. If behavior changed, update linked docs in the same change set.
-

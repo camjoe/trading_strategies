@@ -20,6 +20,18 @@ class NotFoundError(ValueError):
     """
 
 
+class ValidationError(ValueError):
+    """Raised by the service layer when caller-supplied input fails validation.
+
+    Subclasses ``ValueError`` deliberately, for the same reason as
+    ``NotFoundError``: existing ``except ValueError`` handlers (CLI dispatch, UI
+    validation catches, tests) keep working unchanged, while the UI can match
+    this type to map bad input to HTTP 400/422. A bare ``ValueError`` still
+    signals an unexpected error (HTTP 500), not a validation failure. See
+    ``docs/adr/007-ui-error-mapping.md``.
+    """
+
+
 class AccountAlreadyExistsError(Exception):
     """Raised by ``create_account`` when the account name is already taken."""
 

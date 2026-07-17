@@ -1,34 +1,42 @@
 ---
 name: reference-doc
 description: Captures reusable patterns, reference documents, and architectural decisions as persistent knowledge artifacts. Use when asked to create a reference doc, ADR, or any structured knowledge artifact for this repository.
-invoker: any
 ---
 
 # Reference Doc
 
-## Choose a task
-
-| Task | Use when | Reference |
-|---|---|---|
-| Reference doc or ADR | Documenting an architectural decision, reference material, or team convention | [reference-doc.md](reference-doc.md) |
+Create a new reference document in `docs/reference/` or an ADR in `docs/adr/`, or update an
+existing one to meet the standard. The authoritative header format, section layouts, and
+authoring checklist live in `docs/conventions/docs-authoring.md` — follow that file; this skill
+is the workflow around it.
 
 ## Workflow
 
-1. Determine the artifact type: `notes` (living reference) or `adr` (decision record).
-2. Follow the standard in [reference-doc.md](reference-doc.md) for header format, section layout, and file naming.
-3. Place the new file in `docs/reference/`.
-4. Link it from `docs/README.md`.
-5. Cross-link from any affected architecture doc if this is an ADR.
+1. **Determine type** — `notes` (living reference material, `docs/reference/<kebab-topic>.md`)
+   or `adr` (decision record, `docs/adr/NNN-<kebab-topic>.md`, next unused number).
+2. **Start from the template** — use the inline reference-note template in
+   `docs/conventions/docs-authoring.md` or copy `docs/adr/TEMPLATE.adr.md` — and fill every header field.
+3. **Draft sections** — follow the section layout for the doc type in docs-authoring.md.
+4. **Link the new doc** — add an entry to `docs/README.md` (and `docs/maps/docs-map.md`).
+5. **Cross-link** — for an ADR, add a reference from the affected architecture doc
+   (e.g. `docs/architecture/architecture-conventions.md`).
 
 ## Constraints
 
 - Do not invent content — only document what is already true or decided.
-- Use the exact header format from `docs/conventions/reference-doc.md`.
-- For ADRs: once accepted, do not change the decision body. Create a superseding ADR instead.
+- Do not leave placeholder header values (`YYYY-MM-DD`) unfilled; `Last Reviewed` is the date the
+  content was verified accurate, not merely touched.
+- For ADRs: once `Status: Accepted`, do not change the decision body — supersede with a new ADR.
 
 ## Repo references
 
-- `docs/conventions/reference-doc.md`
-- `docs/reference/TEMPLATE.notes.md`
-- `docs/adr/TEMPLATE.adr.md`
-- `docs/README.md`
+- `docs/conventions/docs-authoring.md` — authoritative header standard, layouts, inline reference-note template, and checklist
+- `docs/adr/TEMPLATE.adr.md` — ADR template
+- `docs/README.md` — reference section to update after creating a new doc
+
+## Expected output
+
+1. New or updated file in `docs/reference/` or `docs/adr/`
+2. Updated `docs/README.md` (and docs-map) entries
+3. Cross-link added to any affected architecture doc (ADRs only)
+4. All required header fields present and valid

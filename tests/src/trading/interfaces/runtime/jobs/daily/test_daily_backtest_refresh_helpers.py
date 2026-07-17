@@ -11,9 +11,10 @@ def test_retry_delay_seconds_doubles_each_attempt() -> None:
     assert retry_delay_seconds(2.0, 3) == 8.0
 
 
-def test_build_backtest_command_includes_optional_settings() -> None:
+def test_build_backtest_command_includes_strategy_and_optional_settings() -> None:
     command = module.build_backtest_command(
         account="acct1",
+        strategy="macd",
         args=make_daily_backtest_refresh_args(
             tickers_file="local/tickers.txt",
             universe_history_dir="local/history",
@@ -27,6 +28,8 @@ def test_build_backtest_command_includes_optional_settings() -> None:
     )
 
     assert command[:5] == ["-m", "trading.interfaces.cli.main", "backtest", "--account", "acct1"]
+    # The targeted refresh always pins the specific strategy.
+    assert command[command.index("--strategy") + 1] == "macd"
     assert "--universe-history-dir" in command
     assert "--start" in command
     assert "--end" in command

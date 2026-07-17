@@ -4,8 +4,8 @@ from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
-class WeeklyLeaderboardSleevePayload:
-    sleeve_name: str
+class WeeklyLeaderboardBookPayload:
+    book_name: str
     strategy_name: str | None
     avg_return_pct: float | None
     avg_risk_adjusted_score: float | None
@@ -18,7 +18,7 @@ class WeeklyLeaderboardSleevePayload:
 @dataclass(frozen=True)
 class WeeklyLeaderboardAccountPayload:
     account_name: str
-    sleeves: list[WeeklyLeaderboardSleevePayload]
+    books: list[WeeklyLeaderboardBookPayload]
 
 
 @dataclass(frozen=True)
@@ -33,10 +33,10 @@ class WeeklyLeaderboardArtifactPayload:
 
 
 @dataclass(frozen=True)
-class WeeklyPromotionSleevePayload:
-    sleeve_name: str
+class WeeklyPromotionBookPayload:
+    book_name: str
     strategy_name: str | None
-    sleeve_status: str
+    book_status: str
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class WeeklyPromotionAccountPayload:
     account_name: str
     ready_for_live: bool
     blockers: list[str]
-    sleeves: list[WeeklyPromotionSleevePayload]
+    books: list[WeeklyPromotionBookPayload]
 
 
 @dataclass(frozen=True)
@@ -58,8 +58,8 @@ class WeeklyPromotionArtifactPayload:
 
 
 @dataclass(frozen=True)
-class WeeklyAllocationSleevePayload:
-    sleeve_name: str
+class WeeklyAllocationBookPayload:
+    book_name: str
     current_nav: float
     current_pct: float
     target_pct: float
@@ -71,7 +71,7 @@ class WeeklyAllocationSleevePayload:
 class WeeklyAllocationAccountPayload:
     account_name: str
     total_nav: float
-    sleeves: list[WeeklyAllocationSleevePayload]
+    books: list[WeeklyAllocationBookPayload]
 
 
 @dataclass(frozen=True)

@@ -11,9 +11,9 @@ export interface IbkrPaperAccountOverview {
     total_cash: number;
     positions_market_value: number;
     return_pct: number;
-    sleeve_count: number;
+    book_count: number;
   };
-  sleeves: IbkrPaperSleeve[];
+  books: IbkrPaperBook[];
   daily_workflow: IbkrDailyWorkflow | null;
   governance_checks: Record<string, GovernanceCheckStatus>;
   burn_in_status: BurnInStatus;
@@ -21,10 +21,10 @@ export interface IbkrPaperAccountOverview {
   risk_summary: RiskSummary;
 }
 
-export interface IbkrPaperSleeve {
-  sleeve_id: number;
+export interface IbkrPaperBook {
+  book_id: number;
   name: string;
-  status: "active" | "paused" | "retired";
+  status: "active" | "paused" | "closed";
   strategy: string;
   start_equity: number;
   current_equity: number;
@@ -80,8 +80,8 @@ export interface BurnInStatus {
 
 export interface RotationDecision {
   rotation_id: number;
-  sleeve_id: number;
-  sleeve_name: string;
+  book_id: number;
+  book_name: string;
   decision_time: string;
   incumbent: string;
   challenger: string;
@@ -96,8 +96,8 @@ export interface RiskSummary {
 
 export interface RiskViolation {
   decision_time: string;
-  sleeve_id: number;
-  sleeve_name: string;
+  book_id: number;
+  book_name: string;
   reason: string;
   action: "block" | "rescale" | "allow";
 }
@@ -110,5 +110,5 @@ export interface IbkrPaperAccountListItem {
   total_cash: number;
   positions_market_value: number;
   return_pct: number;
-  sleeve_count: number;
+  book_count: number;
 }

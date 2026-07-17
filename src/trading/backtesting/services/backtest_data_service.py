@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from trading.domain.exceptions import ValidationError
 from trading.services.market_data import MarketDataProvider, require_provider
 from common.tickers import load_tickers_from_file
 
@@ -15,7 +16,7 @@ def _parse_date(value: str, label: str) -> date:
     try:
         return datetime.strptime(value, DATE_FMT).date()
     except ValueError as exc:
-        raise ValueError(f"Invalid {label} date: {value}. Expected format is {DATE_FMT}.") from exc
+        raise ValidationError(f"Invalid {label} date: {value}. Expected format is {DATE_FMT}.") from exc
 
 
 def resolve_backtest_dates(
@@ -25,14 +26,14 @@ def resolve_backtest_dates(
     as_of: date | None = None,
 ) -> tuple[date, date]:
     if start and lookback_months is not None:
-        raise ValueError("Use either --start or --lookback-months, not both.")
+        raise ValidationError("Use either --start or --lookback-months, not both.")
 
     now = as_of or datetime.now(UTC).date()
     end_date = _parse_date(end, "end") if end else now
 
     if lookback_months is not None:
         if lookback_months <= 0:
-            raise ValueError("lookback_months must be > 0")
+            raise ValidationError("lookback_months must be > 0")
         start_date = end_date - timedelta(days=int(lookback_months * 30.5))
     elif start:
         start_date = _parse_date(start, "start")
@@ -40,7 +41,7 @@ def resolve_backtest_dates(
         start_date = end_date - timedelta(days=31)
 
     if start_date >= end_date:
-        raise ValueError("start date must be before end date")
+        raise ValidationError("start date must be before end date")
 
     return start_date, end_date
 
@@ -53,7 +54,7 @@ def fetch_close_history(
     provider: MarketDataProvider | None = None,
 ) -> pd.DataFrame:
     if not tickers:
-        raise ValueError("At least one ticker is required for backtesting.")
+        raise ValidationError("At least one ticker is required for backtesting.")
     provider = require_provider(provider)
     return provider.fetch_close_history(tickers, start_date, end_date)
 
@@ -68,7 +69,7 @@ def fetch_benchmark_close(
     close = fetch_close_history([benchmark_ticker], start_date, end_date, provider=provider)
     series = close[benchmark_ticker].dropna()
     if series.empty:
-        raise ValueError(f"No benchmark history for {benchmark_ticker}")
+        raise ValidationError(f"No benchmark history for {benchmark_ticker}")
     return series
 
 
@@ -93,7 +94,7 @@ def build_monthly_universe(
     universe_history_dir: str | None,
 ) -> tuple[dict[str, list[str]], list[str], list[str]]:
     if not default_tickers:
-        raise ValueError("Default ticker universe is empty.")
+        raise ValidationError("Default ticker universe is empty.")
 
     month_keys = _iter_month_keys(start_date, end_date)
     month_to_tickers: dict[str, list[str]] = {}
@@ -106,7 +107,7 @@ def build_monthly_universe(
 
     history_dir = Path(universe_history_dir)
     if not history_dir.exists() or not history_dir.is_dir():
-        raise ValueError(f"Universe history directory not found: {universe_history_dir}")
+        raise ValidationError(f"Universe history directory not found: {universe_history_dir}")
 
     all_tickers: set[str] = set(default_tickers)
     for month_key in month_keys:

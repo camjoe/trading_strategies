@@ -1,7 +1,6 @@
 ---
 name: expand-tests
 description: Increases test coverage depth, edge-case coverage, and regression protection without adding low-value tests. Use when asked to add tests, improve coverage, write regression tests, or when test gaps are identified in a review.
-invoker: any
 ---
 
 # Expand Tests

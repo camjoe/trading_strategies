@@ -30,14 +30,14 @@ def sqlite_db_file(tmp_path: Path) -> Path:
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL
             );
-            CREATE TABLE trades (
+            CREATE TABLE orders (
                 id INTEGER PRIMARY KEY,
                 account_id INTEGER NOT NULL,
                 ticker TEXT NOT NULL
             );
             INSERT INTO accounts (id, name) VALUES (2, 'second');
             INSERT INTO accounts (id, name) VALUES (1, 'first');
-            INSERT INTO trades (id, account_id, ticker) VALUES (10, 1, 'SPY');
+            INSERT INTO orders (id, account_id, ticker) VALUES (10, 1, 'SPY');
             """
         )
         conn.commit()
@@ -96,7 +96,7 @@ class TestBatchExport:
         monkeypatch.setattr(csv_export, "datetime", FixedDateTime)
 
         result = csv_export.export_tables_to_csv(
-            tables=["accounts", "trades"],
+            tables=["accounts", "orders"],
             output_base_dir=tmp_path,
             db_path=sqlite_db_file,
         )
@@ -104,12 +104,12 @@ class TestBatchExport:
         assert result.db_path == sqlite_db_file.resolve()
         assert result.output_dir.name == "db_csv_20260327_123456"
         assert result.started_at_utc == "2026-03-27T12:34:56Z"
-        assert [item.table for item in result.tables] == ["accounts", "trades"]
+        assert [item.table for item in result.tables] == ["accounts", "orders"]
 
         account_rows = _read_csv_rows(result.output_dir / "accounts.csv")
-        trade_rows = _read_csv_rows(result.output_dir / "trades.csv")
+        order_rows = _read_csv_rows(result.output_dir / "orders.csv")
         assert account_rows[1] == ["1", "first"]
-        assert trade_rows[1] == ["10", "1", "SPY"]
+        assert order_rows[1] == ["10", "1", "SPY"]
 
     def test_export_tables_to_csv_uses_active_backend_when_db_path_omitted(
         self, sqlite_db_file: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -189,7 +189,7 @@ def test_print_export_summary_lists_all_tables(capsys, tmp_path: Path) -> None:
         started_at_utc="2026-03-27T12:34:56Z",
         tables=(
             csv_export.TableExportResult(table="accounts", output_path=tmp_path / "accounts.csv", row_count=2),
-            csv_export.TableExportResult(table="trades", output_path=tmp_path / "trades.csv", row_count=1),
+            csv_export.TableExportResult(table="orders", output_path=tmp_path / "orders.csv", row_count=1),
         ),
     )
 
@@ -198,4 +198,4 @@ def test_print_export_summary_lists_all_tables(capsys, tmp_path: Path) -> None:
     out = capsys.readouterr().out
     assert "[export] Database:" in out
     assert "accounts: 2 row(s)" in out
-    assert "trades: 1 row(s)" in out
+    assert "orders: 1 row(s)" in out

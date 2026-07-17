@@ -3,22 +3,17 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+
+import pandas as pd
 
 from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
-from trading.services.auto_trading.market import build_iv_rank_proxy
+from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_close_histories
 from trading.services.market_data import MarketDataProvider
 from trading.services.pricing import fetch_latest_prices
-
-EXECUTION_MODE_ACCOUNT = "account"
-EXECUTION_MODE_SLEEVE = "sleeve"
-SUPPORTED_EXECUTION_MODES = {
-    EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_SLEEVE,
-}
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
@@ -35,19 +30,11 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
     return accounts
 
 
-def validate_execution_mode(execution_mode: str) -> str:
-    normalized_mode = execution_mode.strip().lower()
-    if normalized_mode not in SUPPORTED_EXECUTION_MODES:
-        options = ", ".join(sorted(SUPPORTED_EXECUTION_MODES))
-        raise ValueError(f"execution_mode must be one of: {options}")
-    return normalized_mode
-
-
 def resolve_market_inputs(
     tickers_file: str,
     *,
     provider: MarketDataProvider | None = None,
-) -> tuple[list[str], dict[str, float], dict[str, float]]:
+) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, pd.Series]]:
     universe = load_tickers_from_file(tickers_file)
     if not universe:
         raise ValueError("Ticker universe is empty.")
@@ -56,8 +43,10 @@ def resolve_market_inputs(
     if not prices:
         raise ValueError("Could not fetch any prices for ticker universe.")
 
-    iv_rank_proxy = build_iv_rank_proxy(universe, provider=provider)
-    return universe, prices, iv_rank_proxy
+    # One fetch pass feeds both signal evaluation and the IV-rank proxy (cached per run).
+    histories = fetch_close_histories(universe, provider=provider)
+    iv_rank_proxy = build_iv_rank_proxy(universe, histories=histories)
+    return universe, prices, iv_rank_proxy, histories
 
 
 def _run_account_trade_loop(
@@ -84,15 +73,13 @@ def run_accounts(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
-    execution_mode: str = EXECUTION_MODE_ACCOUNT,
+    histories: Mapping[str, pd.Series] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
 ) -> list[tuple[str, int]]:
-    resolved_execution_mode = validate_execution_mode(execution_mode)
     results: list[tuple[str, int]] = []
     for account_name in account_names:
         executed = _run_account_trade_loop(
@@ -104,10 +91,9 @@ def run_accounts(
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,
-            min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
-            execution_mode=resolved_execution_mode,
+            histories=histories,
         )
         results.append((account_name, executed))
     return results

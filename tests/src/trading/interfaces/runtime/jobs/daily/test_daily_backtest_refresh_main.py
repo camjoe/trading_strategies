@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -31,19 +33,33 @@ def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
     monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
 
 
-def _success(account: str, run_id: int = 88) -> dict[str, object]:
-    return {"account": account, "status": "success", "attempts": 1, "run_id": run_id, "last_exit_code": 0}
+def _stub_db(monkeypatch) -> None:
+    # The targeted job opens the DB in-process (open_db=True) to enumerate targets.
+    @contextlib.contextmanager
+    def _fake_session():
+        yield object()
+
+    monkeypatch.setattr(job_runner, "db_session", _fake_session)
 
 
-def _failed(account: str) -> dict[str, object]:
-    return {
-        "account": account,
-        "status": "failed",
-        "attempts": 2,
-        "run_id": None,
-        "last_exit_code": 1,
-        "transient": False,
-    }
+def _stub_one_target_per_account(monkeypatch, *, strategy: str = "macd") -> None:
+    monkeypatch.setattr(
+        module,
+        "find_stale_backtests",
+        lambda _conn, *, account_name, threshold_days: [
+            types.SimpleNamespace(
+                account_name=account_name, account_id=1, strategy_name=strategy, age_days=None, reason="missing"
+            )
+        ],
+    )
+
+
+def _target_success(run_id: int = 88) -> dict[str, object]:
+    return {"account": "acct1", "status": "success", "attempts": 1, "run_id": run_id, "strategy": "macd"}
+
+
+def _target_failed() -> dict[str, object]:
+    return {"account": "acct1", "status": "failed", "attempts": 2, "run_id": None, "strategy": "macd"}
 
 
 class TestValidation:
@@ -65,7 +81,9 @@ class TestEnableGate:
     def test_enabled_via_env(self, monkeypatch, tmp_path: Path) -> None:
         monkeypatch.setenv(module.BACKTEST_REFRESH_ENABLED_ENV, "true")
         _stub_accounts(monkeypatch, ["acct1"])
-        monkeypatch.setattr(module, "run_backtest_refresh_with_retry", lambda **_kwargs: _success("acct1"))
+        _stub_db(monkeypatch)
+        _stub_one_target_per_account(monkeypatch)
+        monkeypatch.setattr(module, "run_target_backtest_with_retry", lambda **_kwargs: _target_success())
         assert _run(monkeypatch, tmp_path, ("--force-run",)) == 0
 
 
@@ -97,32 +115,60 @@ class TestDedupGuard:
 
 
 class TestAccountLoop:
-    def test_success_writes_artifact_with_run_id(self, monkeypatch, tmp_path: Path) -> None:
+    def test_success_writes_artifact_with_per_target_run_id(self, monkeypatch, tmp_path: Path) -> None:
         _stub_accounts(monkeypatch, ["acct1"])
-        monkeypatch.setattr(module, "run_backtest_refresh_with_retry", lambda **_kwargs: _success("acct1", run_id=88))
+        _stub_db(monkeypatch)
+        _stub_one_target_per_account(monkeypatch)
+        monkeypatch.setattr(module, "run_target_backtest_with_retry", lambda **_kwargs: _target_success(run_id=88))
 
         assert _run(monkeypatch, tmp_path, ENABLE_FORCE_ARGS) == 0
 
         payload = load_single_artifact_json(tmp_path.joinpath(*EXPORTS_DIR_PARTS), ARTIFACT_GLOB)
         assert Path(payload["log_path"]).parts[0] == "local"
-        assert payload["results"][0]["run_id"] == 88
+        account_result = payload["results"][0]
+        assert account_result["account"] == "acct1"
+        assert account_result["targets"] == 1
+        assert account_result["results"][0]["run_id"] == 88
+        assert account_result["results"][0]["strategy"] == "macd"
+
+    def test_no_stale_targets_is_a_clean_success(self, monkeypatch, tmp_path: Path) -> None:
+        _stub_accounts(monkeypatch, ["acct1"])
+        _stub_db(monkeypatch)
+        monkeypatch.setattr(module, "find_stale_backtests", lambda _conn, **_kw: [])
+        monkeypatch.setattr(
+            module,
+            "run_target_backtest_with_retry",
+            lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not run when nothing is stale")),
+        )
+
+        assert _run(monkeypatch, tmp_path, ENABLE_FORCE_ARGS) == 0
+        payload = load_single_artifact_json(tmp_path.joinpath(*EXPORTS_DIR_PARTS), ARTIFACT_GLOB)
+        assert payload["results"][0]["targets"] == 0
 
     def test_stops_on_first_failed_refresh(self, monkeypatch, tmp_path: Path) -> None:
-        calls: list[str] = []
+        accounts_seen: list[str] = []
         _stub_accounts(monkeypatch, ["acct1", "acct2"])
+        _stub_db(monkeypatch)
 
-        def fake_run(**kwargs):
-            calls.append(kwargs["account"])
-            return _failed(kwargs["account"])
+        def _find(_conn, *, account_name, threshold_days):
+            accounts_seen.append(account_name)
+            return [
+                types.SimpleNamespace(
+                    account_name=account_name, account_id=1, strategy_name="macd", age_days=None, reason="missing"
+                )
+            ]
 
-        monkeypatch.setattr(module, "run_backtest_refresh_with_retry", fake_run)
+        monkeypatch.setattr(module, "find_stale_backtests", _find)
+        monkeypatch.setattr(module, "run_target_backtest_with_retry", lambda **_kwargs: _target_failed())
 
         assert _run(monkeypatch, tmp_path, ENABLE_FORCE_ARGS) == 1
-        assert calls == ["acct1"]
+        assert accounts_seen == ["acct1"]  # stopped after the first account failed
 
     def test_run_meta_reflects_passed_args(self, monkeypatch, tmp_path: Path) -> None:
         _stub_accounts(monkeypatch, ["acct1"])
-        monkeypatch.setattr(module, "run_backtest_refresh_with_retry", lambda **_kwargs: _success("acct1"))
+        _stub_db(monkeypatch)
+        _stub_one_target_per_account(monkeypatch)
+        monkeypatch.setattr(module, "run_target_backtest_with_retry", lambda **_kwargs: _target_success())
 
         assert (
             _run(
@@ -136,6 +182,7 @@ class TestAccountLoop:
         payload = load_single_artifact_json(tmp_path.joinpath(*EXPORTS_DIR_PARTS), ARTIFACT_GLOB)
         assert payload["tickers_file"] == "tickers.txt"
         assert payload["allow_approximate_leaps"] is True
+        assert payload["stale_threshold_days"] == 3
 
 
 def test_backtest_refresh_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:

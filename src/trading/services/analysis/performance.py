@@ -1,6 +1,6 @@
-"""Sleeve performance query flows for analysis consumers.
+"""Book performance query flows for analysis consumers.
 
-Owns read-only sleeve performance-window reads beneath the stable
+Owns read-only book performance-window reads beneath the stable
 ``trading.services.analysis`` package surface.
 """
 
@@ -11,17 +11,17 @@ import sqlite3
 from trading.repositories.daily_metrics import DailyMetricsRepository
 
 
-def fetch_sleeve_performance_window(
+def fetch_book_performance_window(
     conn: sqlite3.Connection,
     *,
-    sleeve_id: int,
+    book_id: int,
     start_date: str,
     end_date: str,
 ) -> list[sqlite3.Row]:
-    if sleeve_id <= 0:
-        raise ValueError("sleeve_id must be positive.")
-    return DailyMetricsRepository(conn).fetch_for_sleeve_window(
-        sleeve_id=sleeve_id,
+    if book_id <= 0:
+        raise ValueError("book_id must be positive.")
+    return DailyMetricsRepository(conn).fetch_for_book_window(
+        book_id=book_id,
         start_date=start_date,
         end_date=end_date,
     )

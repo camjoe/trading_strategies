@@ -12,7 +12,7 @@ import type {
 // Import the actual render functions from the component
 import {
   renderAccountOverview,
-  renderSleevesPanel,
+  renderBooksPanel,
   renderDailyWorkflowPanel,
   renderGovernancePanel,
   renderBurnInPanel,
@@ -31,7 +31,7 @@ describe("IBKR Paper Monitor render functions", () => {
         positions_market_value: 40000,
         initial_cash: 45000,
         return_pct: 0.11,
-        sleeve_count: 3,
+        book_count: 3,
       };
 
       const html = renderAccountOverview(account as any);
@@ -49,7 +49,7 @@ describe("IBKR Paper Monitor render functions", () => {
         positions_market_value: 29000,
         initial_cash: 45000,
         return_pct: -0.022,
-        sleeve_count: 2,
+        book_count: 2,
       };
 
       const html = renderAccountOverview(account as any);
@@ -66,7 +66,7 @@ describe("IBKR Paper Monitor render functions", () => {
         positions_market_value: 0,
         initial_cash: 0,
         return_pct: 0,
-        sleeve_count: 0,
+        book_count: 0,
       };
 
       const html = renderAccountOverview(account as any);
@@ -82,7 +82,7 @@ describe("IBKR Paper Monitor render functions", () => {
         positions_market_value: 499999999.99,
         initial_cash: 1000000,
         return_pct: 99.99,
-        sleeve_count: 1000,
+        book_count: 1000,
       };
 
       const html = renderAccountOverview(account as any);
@@ -90,16 +90,16 @@ describe("IBKR Paper Monitor render functions", () => {
     });
   });
 
-  describe("renderSleevesPanel", () => {
-    it("renders empty state when no sleeves", () => {
-      const html = renderSleevesPanel([]);
-      expect(html).toContain("No sleeves configured");
+  describe("renderBooksPanel", () => {
+    it("renders empty state when no books", () => {
+      const html = renderBooksPanel([]);
+      expect(html).toContain("No books configured");
     });
 
-    it("renders sleeves table with active sleeve", () => {
-      const sleeves = [
+    it("renders books table with active book", () => {
+      const books = [
         {
-          sleeve_id: 1,
+          book_id: 1,
           name: "Momentum",
           strategy: "Trend Following",
           current_equity: 20000,
@@ -114,15 +114,15 @@ describe("IBKR Paper Monitor render functions", () => {
         },
       ] as any;
 
-      const html = renderSleevesPanel(sleeves);
+      const html = renderBooksPanel(books);
       expect(html).toContain("Momentum");
       expect(html).toContain("status-active");
     });
 
-    it("renders paused sleeve", () => {
-      const sleeves = [
+    it("renders paused book", () => {
+      const books = [
         {
-          sleeve_id: 2,
+          book_id: 2,
           name: "MeanRev",
           strategy: "StatArb",
           current_equity: 18000,
@@ -137,20 +137,20 @@ describe("IBKR Paper Monitor render functions", () => {
         },
       ] as any;
 
-      const html = renderSleevesPanel(sleeves);
+      const html = renderBooksPanel(books);
       expect(html).toContain("status-paused");
     });
 
-    it("renders retired sleeve", () => {
-      const sleeves = [
+    it("renders closed book", () => {
+      const books = [
         {
-          sleeve_id: 3,
+          book_id: 3,
           name: "Old",
           strategy: "OldStrat",
           current_equity: 100,
           current_cash: 50,
           return_pct: 0,
-          status: "retired",
+          status: "closed",
           start_equity: 100,
           positions_market_value: 50,
           latest_metrics: { return_pct: 0, drawdown_pct: 0, hit_rate: 0, trade_count: 0, metric_date: null },
@@ -159,8 +159,8 @@ describe("IBKR Paper Monitor render functions", () => {
         },
       ] as any;
 
-      const html = renderSleevesPanel(sleeves);
-      expect(html).toContain("status-retired");
+      const html = renderBooksPanel(books);
+      expect(html).toContain("status-closed");
     });
   });
 
@@ -292,8 +292,8 @@ describe("IBKR Paper Monitor render functions", () => {
       const rotations: RotationDecision[] = [
         {
           rotation_id: 1,
-          sleeve_id: 1,
-          sleeve_name: "Momentum",
+          book_id: 1,
+          book_name: "Momentum",
           incumbent: "Trend1",
           challenger: "Trend2",
           reason: "Performance",
@@ -326,8 +326,8 @@ describe("IBKR Paper Monitor render functions", () => {
         recent_violations: [
           {
             decision_time: "2026-05-10T14:30:00Z",
-            sleeve_id: 1,
-            sleeve_name: "Test",
+            book_id: 1,
+            book_name: "Test",
             reason: "Max loss",
             action: "block",
           },

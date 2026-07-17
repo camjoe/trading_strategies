@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_str, row_float
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from common.time import utc_now_iso
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
+from trading.repositories.books import BookRepository
 from trading.services.market_data import MarketDataProvider
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import (
@@ -22,6 +24,7 @@ from trading.services.accounts import (
     list_account_records,
     list_account_snapshots,
 )
+from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.reporting.math import (
     alpha_pct,
@@ -33,37 +36,40 @@ from trading.services.pricing import benchmark_stats
 from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
 
 
-def _print_leaps_params(account: AccountRecord) -> None:
+def _print_leaps_params(book: BookRecord) -> None:
+    # Execution and option knobs are book columns (revisions 0004/0005).
     print(
         "LEAPs Parameters: "
-        f"strike_offset_pct={account['option_strike_offset_pct']} "
-        f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
+        f"strike_offset_pct={book.option_strike_offset_pct} "
+        f"min_dte={book.option_min_dte} max_dte={book.option_max_dte}"
     )
     print(
         "LEAPs Options Filters: "
-        f"type={account['option_type']} "
-        f"delta={account['target_delta_min']}-{account['target_delta_max']} "
-        f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
+        f"type={book.option_type} "
+        f"delta={book.target_delta_min}-{book.target_delta_max} "
+        f"iv_rank={book.iv_rank_min}-{book.iv_rank_max}"
     )
     print(
         "LEAPs/Options Risk Limits: "
-        f"max_premium={account['max_premium_per_trade']} "
-        f"max_contracts={account['max_contracts_per_trade']} "
-        f"roll_dte={account['roll_dte_threshold']} "
-        f"leaps_profit_take_pct={account['profit_take_pct']} "
-        f"leaps_max_loss_pct={account['max_loss_pct']}"
+        f"max_premium={book.max_premium_per_trade} "
+        f"max_contracts={book.max_contracts_per_trade} "
+        f"roll_dte={book.roll_dte_threshold} "
+        f"leaps_profit_take_pct={book.profit_take_pct} "
+        f"leaps_max_loss_pct={book.max_loss_pct}"
     )
 
 
-def _print_account_header(account: AccountRecord) -> None:
+def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> None:
+    active_strategy = active_strategy_for_account(conn, row_expect_int(account, "id"))
+    default_book = BookRepository(conn).fetch_default_for_account(account_id=row_expect_int(account, "id"))
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
-    print(f"Account Policy: {format_account_policy_text(account)}")
-    goal_text = format_goal_text(account)
+    print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")
+    goal_text = format_goal_text(default_book)
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
-    if account["instrument_mode"] == "leaps":
-        _print_leaps_params(account)
+    if default_book is not None and default_book.instrument_mode == "leaps":
+        _print_leaps_params(default_book)
 
 
 def _print_performance_lines(
@@ -120,8 +126,8 @@ def _compare_account_header(account: AccountRecord) -> str:
     return f"- {account['name']} | display_name={account['descriptive_name']}"
 
 
-def _compare_goal_metadata_line(account: AccountRecord) -> str | None:
-    goal_text = format_goal_text(account)
+def _compare_goal_metadata_line(book: BookRecord | None) -> str | None:
+    goal_text = format_goal_text(book)
     if goal_text == GOAL_NOT_SET_TEXT:
         return None
     return f"  goal_metadata={goal_text}"
@@ -166,6 +172,14 @@ def _format_paper_live_evidence_summary(evaluation: StrategyEvaluationArtifact) 
     )
 
 
+def _format_backtest_freshness_summary(evaluation: StrategyEvaluationArtifact) -> str:
+    freshness = evaluation.diagnostics.backtest_freshness
+    if freshness is None or not freshness.available or freshness.age_days is None:
+        return "backtest_age=N/A"
+    label = "stale" if freshness.is_stale else "fresh"
+    return f"backtest_age={freshness.age_days:.1f}d ({label})"
+
+
 def _evaluation_summary_line(
     evaluation: StrategyEvaluationArtifact,
     *,
@@ -174,6 +188,7 @@ def _evaluation_summary_line(
     return (
         f"{prefix}{_format_backtest_evidence_summary(evaluation)} | "
         f"{_format_paper_live_evidence_summary(evaluation)} | "
+        f"{_format_backtest_freshness_summary(evaluation)} | "
         f"blended_score={_format_percentage_or_na(evaluation.confidence.blended_score)} | "
         f"confidence={evaluation.confidence.overall_confidence:.2f}"
     )
@@ -197,7 +212,7 @@ def account_report(
     )
     strategy_return_pct_value = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
 
-    _print_account_header(account)
+    _print_account_header(conn, account)
     _print_performance_lines(
         account,
         state.cash,
@@ -256,8 +271,13 @@ def compare_strategies(
         position_count, positions_text = positions_summary_text(state.positions)
 
         print(_compare_account_header(account))
-        print(f"  account_policy={format_account_policy_text(account)}")
-        goal_metadata_line = _compare_goal_metadata_line(account)
+        active_strategy = active_strategy_for_account(conn, account.id)
+        compare_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+        print(
+            "  account_policy="
+            f"{format_account_policy_text(account, active_strategy=active_strategy, book=compare_book)}"
+        )
+        goal_metadata_line = _compare_goal_metadata_line(compare_book)
         if goal_metadata_line is not None:
             print(goal_metadata_line)
         print(

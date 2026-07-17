@@ -34,7 +34,36 @@ def _make_state(
     )
 
 
+def _patch_book_reads(
+    monkeypatch,
+    *,
+    rotation=None,
+    active_strategy: str = "trend",
+) -> None:
+    """Stub the book-owned rotation/assignment reads (ADR 014) for conn=None tests."""
+    from trading.services.books.rotation import BookRotationScheduleConfig
+
+    monkeypatch.setattr(
+        account_summaries,
+        "resolve_default_book_rotation_schedule",
+        lambda _conn, *, account_id: rotation or BookRotationScheduleConfig(),
+    )
+    monkeypatch.setattr(
+        account_summaries,
+        "active_strategy_for_account",
+        lambda _conn, _account_id: active_strategy,
+    )
+    # Execution settings are book columns (revision 0004); conn=None tests
+    # stub the default-book read (None -> code defaults in the summary).
+    monkeypatch.setattr(
+        account_summaries,
+        "get_default_book",
+        lambda _conn, *, account_id: None,
+    )
+
+
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
+    _patch_book_reads(monkeypatch)
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
@@ -46,6 +75,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
         lambda _conn, _account_id: EquitySnapshotRecord(
             id=1,
             account_id=1,
+            book_id=None,
             snapshot_time="2026-01-02T00:00:00Z",
             cash=0.0,
             market_value=1100.0,
@@ -105,10 +135,18 @@ def test_build_comparison_account_payload_includes_live_overlay_summary() -> Non
             "liveAlphaPct": 3.0,
         },
         None,
+        {
+            "blendedScore": 4.5,
+            "overallConfidence": 0.8,
+            "backtestConfidence": 1.0,
+            "paperLiveConfidence": 0.6,
+            "dataGaps": ["missing_walk_forward_evidence"],
+        },
     )
 
     assert payload["liveBenchmarkReturnPct"] == pytest.approx(7.0)
     assert payload["liveAlphaPct"] == pytest.approx(3.0)
+    assert payload["evaluation"]["blendedScore"] == pytest.approx(4.5)
 
 
 class TestBuildPositionsFromStats:
@@ -165,6 +203,7 @@ class TestBuildPositionsFromStats:
 
 class TestBuildAccountSummaryShape:
     def test_required_keys_present(self, monkeypatch) -> None:
+        _patch_book_reads(monkeypatch)
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
@@ -192,6 +231,8 @@ class TestBuildAccountSummaryShape:
             assert key in summary, f"Missing key: {key}"
 
     def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
+        from trading.services.books.rotation import BookRotationScheduleConfig
+
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
@@ -202,48 +243,30 @@ class TestBuildAccountSummaryShape:
             "get_latest_account_snapshot",
             lambda _conn, _account_id: None,
         )
+        _patch_book_reads(
+            monkeypatch,
+            rotation=BookRotationScheduleConfig(
+                rotation_enabled=True,
+                schedule=("trend", "ma_crossover", "mean_reversion"),
+                lookback_days=30,
+            ),
+            active_strategy="ma_crossover",
+        )
         row = _account_record(
             name="acct_rotation",
             descriptive_name="Rotation Account",
-            rotation_enabled=1,
-            rotation_mode="optimal",
-            rotation_optimality_mode="average_return",
-            rotation_interval_days=7,
-            rotation_interval_minutes=240,
-            rotation_lookback_days=30,
-            rotation_schedule='["trend","ma_crossover","mean_reversion"]',
-            rotation_regime_strategy_risk_on="trend",
-            rotation_regime_strategy_neutral="ma_crossover",
-            rotation_regime_strategy_risk_off="mean_reversion",
-            rotation_overlay_mode="news_social",
-            rotation_overlay_min_tickers=3,
-            rotation_overlay_confidence_threshold=0.65,
-            rotation_overlay_watchlist='["AAPL","MSFT","NVDA"]',
-            rotation_active_index=1,
-            rotation_active_strategy="ma_crossover",
-            rotation_last_at="2026-03-20T00:00:00Z",
         )
 
         summary = account_summaries.build_account_summary(conn=None, row=row)
-        assert summary["rotationEnabled"] is True
-        assert summary["rotationMode"] == "optimal"
-        assert summary["rotationOptimalityMode"] == "average_return"
-        assert summary["rotationIntervalDays"] == 7
-        assert summary["rotationIntervalMinutes"] == 240
-        assert summary["rotationLookbackDays"] == 30
-        assert summary["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert summary["rotationRegimeStrategyRiskOn"] == "trend"
-        assert summary["rotationRegimeStrategyNeutral"] == "ma_crossover"
-        assert summary["rotationRegimeStrategyRiskOff"] == "mean_reversion"
-        assert summary["rotationOverlayMode"] == "news_social"
-        assert summary["rotationOverlayMinTickers"] == 3
-        assert summary["rotationOverlayConfidenceThreshold"] == pytest.approx(0.65)
-        assert summary["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
-        assert summary["rotationActiveIndex"] == 1
-        assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
-        assert summary["rotationActiveStrategy"] == "ma_crossover"
+        assert summary["activeStrategy"] == "ma_crossover"
+        assert summary["rotation"] == {
+            "enabled": True,
+            "schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "lookbackDays": 30,
+        }
 
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
+        _patch_book_reads(monkeypatch)
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",

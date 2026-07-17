@@ -4,7 +4,7 @@ Named universes are .txt files stored under ``TRADE_UNIVERSES_DIR``.  A name
 maps 1-to-1 to a filename: ``"large_cap"`` → ``large_cap.txt``.
 
 Resolution precedence at runtime:
-    sleeve-level trade_universes > account-level trade_universes > global CLI default
+    book-level trade_universes (NOT NULL since revision 0008) > global CLI default
 """
 
 from __future__ import annotations

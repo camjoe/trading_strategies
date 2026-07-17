@@ -18,7 +18,11 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     ts,
     write_artifact,
 )
-from trading.interfaces.runtime.job_status import BURN_IN_STATUS_COMPLETE_SENTINEL
+from trading.interfaces.runtime.job_status import (
+    BURN_IN_STATUS_COMPLETE_SENTINEL,
+    DAILY_RUN_STATUS_FAILED,
+    DAILY_RUN_STATUS_SUCCESS,
+)
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -106,7 +110,7 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
         except OSError, json.JSONDecodeError:
             data = {}
 
-        status = data.get("status", "failed")
+        status = data.get("status", DAILY_RUN_STATUS_FAILED)
         entry: dict[str, object] = {
             "date": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}",
             "status": status,
@@ -126,13 +130,13 @@ def evaluate_readiness(
 ) -> dict[str, object]:
     """Compute readiness metrics from sorted *entries*."""
     total_runs = len(entries)
-    failed_runs = sum(1 for e in entries if e.get("status") != "ok")
+    failed_runs = sum(1 for e in entries if e.get("status") != DAILY_RUN_STATUS_SUCCESS)
     failure_rate_pct = (failed_runs / total_runs * 100) if total_runs > 0 else 0.0
 
-    # Count trailing consecutive "ok" entries.
+    # Count trailing consecutive successful entries.
     consecutive_successes = 0
     for entry in reversed(entries):
-        if entry.get("status") == "ok":
+        if entry.get("status") == DAILY_RUN_STATUS_SUCCESS:
             consecutive_successes += 1
         else:
             break

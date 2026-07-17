@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 
-import infrastructure.database.init as db_init
+import infrastructure.database.connection as db_init
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import ensure_db
+from tests.support.db_schema import build_db_at_head
 from trading.interfaces.runtime.data_ops import admin
 
 
@@ -49,13 +49,6 @@ class TestSqliteDbPath:
             admin._sqlite_db_path()
 
 
-class TestParseAccountNames:
-    def test_parse_account_names_splits_deduplicates_and_strips(self) -> None:
-        names = admin._parse_account_names(["acct_a, acct_b", "acct_b", " acct_c ", ""])
-
-        assert names == ["acct_a", "acct_b", "acct_c"]
-
-
 class TestBackupDatabase:
     def test_backup_database_raises_when_source_missing(self, configured_backend: SQLiteBackend) -> None:
         with pytest.raises(FileNotFoundError, match="Database file not found"):
@@ -67,7 +60,7 @@ class TestBackupDatabase:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
         monkeypatch.setattr(admin, "DB_BACKUPS_DIR", tmp_path / "db_backups")
 
@@ -80,7 +73,7 @@ class TestBackupDatabase:
     def test_backup_database_accepts_explicit_file_destination(
         self, configured_backend: SQLiteBackend, tmp_path: Path
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         destination = tmp_path / "custom" / "manual_backup.db"
 
         backup = admin.backup_database(str(destination))
@@ -94,7 +87,7 @@ class TestBackupDatabase:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        ensure_db().close()
+        build_db_at_head(configured_backend.db_path)
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
 
         backup = admin.backup_database(str(tmp_path / "manual_backups"))
@@ -105,16 +98,6 @@ class TestBackupDatabase:
 
 
 class TestHelpersAndCommands:
-    def test_print_delete_summary_outputs_sorted_counts(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
-        monkeypatch.setattr(admin, "iter_delete_count_items", lambda counts: [("accounts", 1), ("orders", 2)])
-
-        admin._print_delete_summary("Delete", {"orders": 2, "accounts": 1})
-
-        output = capsys.readouterr().out
-        assert "Delete summary" in output
-        assert "accounts: 1" in output
-        assert "orders: 2" in output
-
     def test_cmd_backup_db_prints_target(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         target = Path("backup.db")
         monkeypatch.setattr(admin, "backup_database", lambda destination: target)
@@ -142,69 +125,72 @@ class TestHelpersAndCommands:
         assert "[1] acct1" in out
         assert "[2] acct2" in out
 
-    def test_cmd_delete_accounts_runs_backup_and_delete(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    def test_cmd_delete_account_runs_preview(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+        captured: dict[str, object] = {}
+        conn = SimpleNamespace(close=lambda: captured.__setitem__("closed", True))
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
+        preview = SimpleNamespace(account_name="acct_a", descriptive_name="Account A", strategy="trend")
+        monkeypatch.setattr(admin, "preview_account_deletion", lambda conn_obj, name: preview)
+
+        args = Namespace(
+            account="acct_a",
+            no_backup=False,
+            backup_destination=None,
+            dry_run=True,
+        )
+
+        assert admin._cmd_delete_account(args) == 0
+        assert captured == {"closed": True}
+        output = capsys.readouterr().out
+        assert "would remove all related data" in output
+
+    def test_cmd_delete_account_backs_up_by_default(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         captured: dict[str, object] = {}
         conn = SimpleNamespace(close=lambda: captured.__setitem__("closed", True))
         monkeypatch.setattr(admin, "backup_database", lambda destination: Path("backup-before.db"))
         monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
-
-        def fake_delete_accounts(conn_obj, *, account_names, delete_all, dry_run):
-            captured["conn"] = conn_obj
-            captured["account_names"] = account_names
-            captured["delete_all"] = delete_all
-            captured["dry_run"] = dry_run
-            return {"accounts": 2}
-
-        monkeypatch.setattr(admin, "delete_accounts", fake_delete_accounts)
-
+        monkeypatch.setattr(
+            admin,
+            "delete_account",
+            lambda conn_obj, name: SimpleNamespace(name=name),
+        )
         args = Namespace(
-            accounts=["acct_a, acct_b", "acct_b"],
-            all=False,
-            yes=False,
-            backup_before=True,
+            account="acct_a",
+            no_backup=False,
             backup_destination="backups",
-            dry_run=True,
+            dry_run=False,
         )
 
-        assert admin._cmd_delete_accounts(args) == 0
-        assert captured == {
-            "closed": True,
-            "conn": conn,
-            "account_names": ["acct_a", "acct_b"],
-            "delete_all": False,
-            "dry_run": True,
-        }
+        assert admin._cmd_delete_account(args) == 0
+        assert captured == {"closed": True}
         output = capsys.readouterr().out
         assert "Backup created before delete: backup-before.db" in output
-        assert "Dry-run delete summary" in output
+        assert "Deleted account 'acct_a'" in output
 
-
-class TestCommandValidation:
-    def test_cmd_delete_accounts_requires_yes_with_all(self) -> None:
+    def test_cmd_delete_account_skips_backup_when_opted_out(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+        conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(
+            admin,
+            "backup_database",
+            lambda destination: pytest.fail("backup_database must not run with --no-backup"),
+        )
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
+        monkeypatch.setattr(
+            admin,
+            "delete_account",
+            lambda conn_obj, name: SimpleNamespace(name=name),
+        )
         args = Namespace(
-            accounts=[],
-            all=True,
-            yes=False,
-            backup_before=False,
+            account="acct_a",
+            no_backup=True,
             backup_destination=None,
-            dry_run=True,
+            dry_run=False,
         )
 
-        with pytest.raises(ValueError, match="--all requires --yes"):
-            admin._cmd_delete_accounts(args)
-
-    def test_cmd_delete_accounts_requires_names_when_not_all(self) -> None:
-        args = Namespace(
-            accounts=[],
-            all=False,
-            yes=False,
-            backup_before=False,
-            backup_destination=None,
-            dry_run=True,
-        )
-
-        with pytest.raises(ValueError, match="Provide at least one account name"):
-            admin._cmd_delete_accounts(args)
+        assert admin._cmd_delete_account(args) == 0
+        output = capsys.readouterr().out
+        assert "Backup created" not in output
+        assert "Deleted account 'acct_a'" in output
 
 
 class TestParserAndMain:
@@ -212,11 +198,12 @@ class TestParserAndMain:
         parser = admin.build_parser()
 
         backup_args = parser.parse_args(["backup-db"])
-        delete_args = parser.parse_args(["delete-accounts", "acct1"])
+        delete_args = parser.parse_args(["delete-account", "acct1"])
         list_args = parser.parse_args(["list-accounts"])
 
         assert backup_args.handler is admin._cmd_backup_db
-        assert delete_args.handler is admin._cmd_delete_accounts
+        assert delete_args.handler is admin._cmd_delete_account
+        assert delete_args.no_backup is False  # backup is on unless opted out
         assert list_args.handler is admin._cmd_list_accounts
 
     def test_main_dispatches_handler(self, monkeypatch: pytest.MonkeyPatch) -> None:

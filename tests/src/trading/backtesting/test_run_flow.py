@@ -35,8 +35,9 @@ class TestBacktestRunFlow:
         ).fetchone()
         assert snapshots is not None and int(snapshots["n"]) >= 2
 
-        paper_trades = conn.execute("SELECT COUNT(*) AS n FROM trades").fetchone()
-        assert paper_trades is not None and int(paper_trades["n"]) == 0
+        # Backtests must not touch live execution history (fills, revision 0006).
+        live_fills = conn.execute("SELECT COUNT(*) AS n FROM order_fills").fetchone()
+        assert live_fills is not None and int(live_fills["n"]) == 0
 
     def test_run_backtest_leaps_adds_financial_risk_warnings(self, conn, bt_market_data) -> None:
         create_backtest_account(
@@ -157,13 +158,18 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_strategy_snapshot", slippage_bps=1.0, run_name="strategy-snapshot"),
         )
 
-        conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
-        conn.commit()
+        from trading.services.accounts import set_account_strategy
 
+        set_account_strategy(conn, "acct_strategy_snapshot", "mean_reversion")
+
+        # The report reflects the run's own strategy (a strategies FK snapshot),
+        # not the account's later strategy. The catalog stores the canonical key,
+        # so the alias "trend_v1" surfaces as "trend" — still independent of the
+        # account now being "mean_reversion".
         summary = backtest_module.backtest_report(conn, result.run_id)
-        assert summary["strategy"] == "trend_v1"
+        assert summary["strategy"] == "trend"
 
-        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend_v1")
+        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend")
         assert any(row["run_id"] == result.run_id for row in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(

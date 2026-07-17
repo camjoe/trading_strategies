@@ -1,7 +1,6 @@
 ---
 name: create-runtime-job
 description: Scaffolds a new runtime job under src/trading/interfaces/runtime/jobs using the shared job_runner — picks the right decorator (daily_account_job, governance_job, or maintenance_job), then generates the module, its harness test, the completion sentinel, optional schedule wiring, and the inventory row. Use when adding a new scheduled runtime job, daily account job, governance review job, or maintenance job.
-invoker: any
 ---
 
 # Create Runtime Job
@@ -55,14 +54,15 @@ In `manage_job_schedules.py`: add `<NAME>_MODULE`, a `DEFAULT_..._TASK_NAME`, a
 
 ## 6. Add the inventory row
 
-Add a row to `docs/reference/runtime-jobs-inventory.md` in the Scheduled / Manual /
+Add a row to `docs/reference/runtime-jobs.md` in the Scheduled / Manual /
 Governance table that matches the job.
 
 ## 7. Validate
 
 ```
 python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/<area> --no-cov
-python -m scripts.checks.pr_ready --skip-tests        # layer + lint
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --suite src/trading/interfaces/runtime/jobs/<area> --no-cov
 ```
 
 ## Constraints
@@ -83,4 +83,4 @@ python -m scripts.checks.pr_ready --skip-tests        # layer + lint
 - `src/trading/interfaces/runtime/jobs/daily/snapshot.py` — daily example
 - `src/trading/interfaces/runtime/jobs/governance/weekly/w1_leaderboard.py` — governance example
 - `src/trading/interfaces/runtime/jobs/maintenance/weekly_db_backup.py` — maintenance example
-- `docs/reference/runtime-jobs-inventory.md` — operator-facing inventory
+- `docs/reference/runtime-jobs.md` — operator-facing inventory

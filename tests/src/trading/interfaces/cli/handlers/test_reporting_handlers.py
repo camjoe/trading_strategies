@@ -4,6 +4,9 @@ import types
 
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_parameters,
+    handle_portfolio_concentration,
+    handle_portfolio_exposure,
     handle_promotion_request_review,
     handle_promotion_review_action,
     handle_promotion_review_history,
@@ -31,8 +34,6 @@ def test_handle_report_calls_account_report_dep() -> None:
         types.SimpleNamespace(account="alice"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == ["alice"]
@@ -47,8 +48,6 @@ def test_handle_snapshot_calls_snapshot_account_dep() -> None:
         types.SimpleNamespace(account="alice", time="2026-03-01T00:00:00"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "2026-03-01T00:00:00")]
@@ -63,8 +62,6 @@ def test_handle_promotion_status_calls_show_promotion_status_dep() -> None:
         types.SimpleNamespace(account="alice", strategy="trend_v1"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "trend_v1")]
@@ -93,8 +90,6 @@ def test_handle_promotion_request_review_calls_request_dep() -> None:
         ),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [
@@ -120,8 +115,6 @@ def test_handle_promotion_review_history_calls_history_dep() -> None:
         types.SimpleNamespace(account="alice", strategy="trend_v1", limit=5),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "trend_v1", 5)]
@@ -140,8 +133,6 @@ def test_handle_promotion_review_action_calls_action_dep() -> None:
         types.SimpleNamespace(review_id=7, action="approve", actor="cam", note="ship it"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [{"review_id": 7, "action": "approve", "actor_name": "cam", "note": "ship it"}]
@@ -156,11 +147,54 @@ def test_handle_snapshot_history_calls_show_snapshots_dep() -> None:
         types.SimpleNamespace(account="alice", limit=10),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", 10)]
+
+
+def test_handle_portfolio_exposure_calls_show_dep() -> None:
+    calls: list = []
+    conn = object()
+    deps = {"show_portfolio_exposure": lambda passed_conn: calls.append(passed_conn)}
+
+    handle_portfolio_exposure(
+        conn,
+        types.SimpleNamespace(),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == [conn]
+
+
+def test_handle_portfolio_concentration_calls_show_dep() -> None:
+    calls: list = []
+    conn = object()
+    deps = {"show_portfolio_concentration": lambda passed_conn: calls.append(passed_conn)}
+
+    handle_portfolio_concentration(
+        conn,
+        types.SimpleNamespace(),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == [conn]
+
+
+def test_handle_parameters_calls_show_dep_with_account_filter() -> None:
+    calls: list = []
+    conn = object()
+    deps = {"show_parameters": lambda passed_conn, account: calls.append((passed_conn, account))}
+
+    handle_parameters(
+        conn,
+        types.SimpleNamespace(account="alice"),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == [(conn, "alice")]
 
 
 def test_handle_compare_strategies_calls_compare_dep() -> None:
@@ -172,8 +206,6 @@ def test_handle_compare_strategies_calls_compare_dep() -> None:
         types.SimpleNamespace(lookback=30),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [30]

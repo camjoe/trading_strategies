@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-13
 Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
 Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -24,7 +24,8 @@ Directory of all documentation files across the repository. Use this to audit fo
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
 | `src/common/` | Shared utilities available to all packages (used sparingly) |
 | `apps/trends/` | Trend/signal data assets |
-| `.github/` | Bot instructions, architecture conventions, style guide, and skill definitions |
+| `.ai/` | Skill definitions (`skills/`) — the repo's reusable task surface |
+| `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`) and CI workflows |
 
 ---
 
@@ -66,8 +67,10 @@ Structural reference — one file per major package. Go stale when module files 
 | `docs/maps/trading-package-map.md` | Full `src/trading/` module directory; layering rules and placement decisions | Any `src/trading/` module added, removed, or its layer boundary changes |
 | `docs/maps/ui-map.md` | `apps/paper_trading_web/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
+| `docs/maps/infrastructure-map.md` | `src/infrastructure/` adapters, boundary rules, and config assets | Any `src/infrastructure/` module added, removed, or its boundary changes |
+| `docs/maps/common-map.md` | `src/common/` shared-kernel utilities | Any `src/common/` module added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
-| `docs/architecture/service-cookbook.md` | Which function to call for common tasks | Service API signatures or function names change |
+| `docs/architecture/service-cookbook.md` | Capability → service-package pointers + the stable import pattern | A service package is added/removed or a capability moves packages |
 | `docs/architecture/service-repository-boundary.md` | Contract rules between service and repository layers | Layer boundary rules or exceptions change |
 
 ---
@@ -82,31 +85,36 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
-| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
-| `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
+| `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
+| `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
+| `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
+| `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |
+| `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
-| `docs/roadmap.md` | Outstanding product improvements backlog (partials + Now/Next/Later) | A roadmap item ships or product priorities change |
+| `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
 
 ### ADRs
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/adr/007-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
-| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `src/trading/backtesting/` out of its current bounded-context shape |
-| `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
-| `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
+| `docs/adr/004-runtime-naming-and-operational-settings.md` | "runtime" naming disambiguation; `operational_settings` package | Renaming the scheduler layer or the settings package |
+| `docs/adr/005-models-as-lowest-data-layer.md` | `models/` holds all passive data contracts as the lowest layer | Restructuring the models layer or layering direction |
+| `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |
+| `docs/adr/007-ui-error-mapping.md` | Centralized UI domain-exception → HTTP mapping | Changing the backend error-mapping approach |
+| `docs/adr/008-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
+| `docs/adr/010-book-keyed-execution-model.md` | Books are the execution primitive after sleeve retirement | Introducing another execution primitive or abandoning book-keyed flow |
+| `docs/adr/012-runtime-alert-email-configuration.md` | Runtime SMTP alerts use environment variables | Moving SMTP settings into database or operator UI configuration |
+| `docs/adr/014-execution-mode-collapse.md` | One book-keyed runtime path; rotation scheduling is book-owned, continuous eval under cooldown | Reintroducing an account-mode path or account-owned rotation config |
+| `docs/adr/015-numbered-alembic-migrations.md` | Numbered Alembic revisions are the sole schema source; runtime verifies the head revision only, never migrates | Changing the migration approach, dependency scope, or runtime schema handling |
 
 ### Templates and Standards
 
 | File | What it covers |
 |---|---|
 | `docs/adr/TEMPLATE.adr.md` | Template for new ADR files |
-| `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
-| `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
 
 ---
 
@@ -134,15 +142,14 @@ Rules and standards this project follows — coding style, doc structure, naming
 | `docs/conventions/frontend-style.md` | TypeScript/Vite frontend style | Frontend conventions change |
 | `docs/conventions/naming.md` | File/folder naming convention | Naming rules change |
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
-| `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
-| `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/docs-authoring.md` | Required metadata header, doc types, templates, and reference/ADR layouts for docs/ files | Header fields, type vocabulary, template, or section-layout rules change |
 | `docs/conventions/branching.md` | Branch model, naming rules, and commit restrictions | Branching strategy or naming conventions change |
 
 ---
 
-## `.github` — Bot Instructions and Conventions
+## Agent Guidance — `AGENTS.md`, `.ai/`, and Conventions
 
-Canonical rules loaded by Claude and other agents. These are the most authoritative docs in the repo — architecture maps and READMEs should agree with them, not the other way around.
+Canonical rules loaded by Claude and other agents (`AGENTS.md` is the source of truth; `CLAUDE.md` imports it and `.github/copilot-instructions.md` redirects to it). These are the most authoritative docs in the repo — architecture maps and READMEs should agree with them, not the other way around.
 
 ### Conventions
 
@@ -150,30 +157,23 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 |---|---|---|
 | `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
 
-### Agents
-
-| File | Agent scope | Goes stale when |
-|---|---|---|
-| `.ai/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `.ai/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `.ai/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `.ai/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
-
 ### Skills
 
 Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
 
 | Skill folder | What it covers |
 |---|---|
-| `check-pr-readiness/` | Pre-merge readiness checklist |
-| `code-review/` | Code review at multiple thoroughness levels; sub-docs cover architecture, quality, style, UI/API contract |
-| `reference-doc/` | Reference-doc creation workflow |
-| `create-skill/` | Skill authoring workflow |
+| `check-pr-readiness/` | Pre-merge readiness workflow (validation, AI review, docs advisory, report) |
+| `code-review/` | Code review at multiple thoroughness levels, including architecture, quality, style, cleanup, and UI/API contract review |
+| `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
+| `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |
 | `expand-tests/` | Test expansion workflow |
 | `finance-strategy/` | Finance and strategy domain knowledge |
-| `update-documentation/` | Documentation update workflow; sub-docs cover docs-check and docs-sync |
-| `update-skill/` | Skill update workflow |
-| `validate-code/` | Code validation (lint, type-check, tests, layer-check) |
+| `help/` | Interactive skill discovery |
+| `manage-skill/` | Skill authoring and update workflow |
+| `reference-doc/` | Reference-doc creation workflow |
+| `update-documentation/` | Documentation update workflow (staleness detection lives in CI) |
+| `validate-code/` | Deterministic validation (repo checks + Python lint/type/test checks) |
 
 ---
 
@@ -189,4 +189,3 @@ Use this when auditing documentation health:
 - [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.
-

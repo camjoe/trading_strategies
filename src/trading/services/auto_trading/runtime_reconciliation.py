@@ -1,4 +1,12 @@
-"""Broker order reconciliation helpers for runtime auto-trading."""
+"""Open-order reconciliation for runtime auto-trading (clean book schema).
+
+Polls the broker for fills on the account's open clean ``orders`` and applies any
+new executions to the book (``order_fills`` + position/ledger/balances via the
+shared ``apply_book_fill``). Account-level history derives from those fill rows
+(the trades table was retired in revision 0006). Paper brokers fill synchronously
+and report no open trades, so this is a no-op for them; it matters for async live
+brokers.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +18,8 @@ from common.coercion import row_expect_int
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.orders.broker_order import OrderFill, OrderStatus
-from trading.services.sleeves.accounting import apply_sleeve_fill
+from trading.repositories.orders import OrderRepository
+from trading.services.execution.submission import apply_book_fill, clean_order_status
 
 
 def resolve_reconciliation_exec_id(
@@ -24,91 +33,74 @@ def resolve_reconciliation_exec_id(
     return f"{broker_order_id}:{fill.fill_time}:{fill.filled_qty}:{fill.fill_price}:{fill_index}"
 
 
-def reconcile_open_broker_orders_impl(
+def reconcile_open_orders_impl(
     conn: sqlite3.Connection,
-    account_name: str,
     account: AccountRecord,
-    fee: float,
     *,
     get_broker_for_account_fn: Callable[..., Any],
-    fetch_open_broker_orders_fn: Callable[..., list[Any]],
-    fetch_sleeve_order_by_broker_order_id_fn: Callable[..., Any],
-    insert_order_fill_fn: Callable[..., object],
-    update_broker_order_status_fn: Callable[..., object],
-    update_sleeve_order_status_fn: Callable[..., object],
-    record_trade_fn: Callable[..., object],
 ) -> int:
     broker = get_broker_for_account_fn(account)
+    account_id = row_expect_int(account, "id")
+    order_repo = OrderRepository(conn)
 
-    open_rows = fetch_open_broker_orders_fn(account_id=row_expect_int(account, "id"))
-    if not open_rows:
+    open_orders = order_repo.fetch_open_for_account(account_id=account_id)
+    open_by_broker_id = {order.broker_order_id: order for order in open_orders if order.broker_order_id}
+    if not open_by_broker_id:
         broker.disconnect()
         return 0
 
-    open_ids = {row.broker_order_id: row for row in open_rows}
-    account_id = row_expect_int(account, "id")
     try:
         live_orders = broker.get_open_trades()
         now = utc_now_iso()
         newly_filled = 0
 
         for live in live_orders:
-            if live.broker_order_id not in open_ids:
+            persisted = open_by_broker_id.get(live.broker_order_id)
+            if persisted is None:
                 continue
-            persisted = open_ids[live.broker_order_id]
-            sleeve_order_row = fetch_sleeve_order_by_broker_order_id_fn(
-                conn,
-                account_id=account_id,
-                broker_order_id=live.broker_order_id,
-            )
 
+            # Apply only executions we have not already recorded (exec_id dedup), so a
+            # repeated poll of the same partial fill does not double-post to the book.
+            seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
             for fill_index, fill in enumerate(live.fills):
-                insert_order_fill_fn(live.broker_order_id, fill)
-                if sleeve_order_row is not None:
-                    apply_sleeve_fill(
-                        conn,
-                        sleeve_order_id=sleeve_order_row.id,
-                        broker_fill_id=live.broker_order_id,
-                        exec_id=resolve_reconciliation_exec_id(
-                            broker_order_id=live.broker_order_id,
-                            fill=fill,
-                            fill_index=fill_index,
-                        ),
-                        filled_qty=fill.filled_qty,
-                        fill_price=fill.fill_price,
-                        commission=fill.commission,
-                        fill_time=fill.fill_time,
-                        updated_at=now,
-                    )
+                exec_id = resolve_reconciliation_exec_id(
+                    broker_order_id=live.broker_order_id,
+                    fill=fill,
+                    fill_index=fill_index,
+                )
+                if exec_id in seen_exec_ids:
+                    continue
+                order_repo.insert_fill(
+                    order_id=persisted.id,
+                    filled_qty=fill.filled_qty,
+                    fill_price=fill.fill_price,
+                    fill_time=fill.fill_time,
+                    commission=fill.commission,
+                    broker_fill_id=live.broker_order_id,
+                    exec_id=exec_id,
+                )
+                apply_book_fill(
+                    conn,
+                    book_id=persisted.book_id,
+                    order_id=persisted.id,
+                    side=persisted.side,
+                    symbol=persisted.symbol,
+                    fill_qty=fill.filled_qty,
+                    fill_price=fill.fill_price,
+                    transaction_cost=fill.commission,
+                    fill_time=fill.fill_time,
+                )
+                seen_exec_ids.add(exec_id)
 
-            update_broker_order_status_fn(
-                broker_order_id=live.broker_order_id,
-                status=live.status,
+            order_repo.update_status(
+                order_id=persisted.id,
+                status=clean_order_status(live.status),
                 filled_qty=live.filled_qty,
                 avg_fill_price=live.avg_fill_price,
-                commission=live.commission,
                 updated_at=now,
             )
-            if sleeve_order_row is not None:
-                update_sleeve_order_status_fn(
-                    conn,
-                    sleeve_order_id=sleeve_order_row.id,
-                    status=live.status.value,
-                    updated_at=now,
-                )
 
             if live.status == OrderStatus.FILLED:
-                record_trade_fn(
-                    conn,
-                    account_name=account_name,
-                    side=persisted.side,
-                    ticker=persisted.ticker,
-                    qty=live.filled_qty,
-                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted.requested_price,
-                    fee=fee,
-                    trade_time=now,
-                    note=f"ib-fill order={live.broker_order_id}",
-                )
                 newly_filled += 1
 
         return newly_filled

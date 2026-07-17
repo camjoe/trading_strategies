@@ -7,6 +7,7 @@ import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
+import { createPortfolioFeature } from "./features/portfolio";
 import { createLogsFeature } from "./features/logs";
 import { initDocsFeature } from "./features/docs";
 import { buildDocsTemplate } from "./lib/docs-renderer";
@@ -22,6 +23,7 @@ import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
+import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
 import ibkrPaperMonitorTemplate from "./views/ibkr-paper-monitor.html?raw";
 import { errorMessage } from "./lib/http";
@@ -59,6 +61,7 @@ function renderShell(): void {
     .replace("<!-- IBKR_PAPER_MONITOR_TAB_PARTIAL -->", ibkrPaperMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
+    .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
 }
@@ -83,6 +86,7 @@ const adminFeature = createAdminFeature({
     await compareFeature.loadComparison();
   },
 });
+const portfolioFeature = createPortfolioFeature();
 const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
 
@@ -95,6 +99,7 @@ async function bootstrap(): Promise<void> {
   adminFeature.wireActions();
   logsFeature.wireActions();
   compareFeature.wireActions();
+  portfolioFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
   initIBKRPaperMonitor();
@@ -110,6 +115,7 @@ async function bootstrap(): Promise<void> {
   await adminFeature.loadDeleteAccounts();
   await logsFeature.loadLogFiles();
   await compareFeature.loadComparison();
+  await portfolioFeature.loadRollup();
   await backtestingFeature.loadBacktestRuns();
   // Background fetch so the provider health badge is visible before the Alt Strategies tab is first opened
   void altStrategiesFeature.fetchProviderHealth();

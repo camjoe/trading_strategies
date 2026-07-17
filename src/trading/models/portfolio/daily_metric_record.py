@@ -8,11 +8,14 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int
 
 @dataclass(frozen=True, slots=True)
 class DailyMetricRecord:
-    """Persisted daily_metrics row materialized from the database."""
+    """Daily metrics row (book-keyed storage).
+
+    ``account_id`` is carried by every repository query via the books join.
+    """
 
     id: int
     account_id: int
-    sleeve_id: int | None
+    book_id: int | None
     metric_date: str
     return_pct: float | None
     drawdown_pct: float | None
@@ -31,7 +34,7 @@ class DailyMetricRecord:
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
-            sleeve_id=row_int(values, "sleeve_id"),
+            book_id=row_int(values, "book_id"),
             metric_date=row_expect_str(values, "metric_date"),
             return_pct=row_float(values, "return_pct"),
             drawdown_pct=row_float(values, "drawdown_pct"),

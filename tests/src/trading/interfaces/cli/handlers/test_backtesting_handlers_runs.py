@@ -33,7 +33,7 @@ def test_handle_backtest_calls_run_backtest_with_built_config() -> None:
         "run_backtest": lambda _conn, _cfg: make_backtest_result(account_name="acct"),
     }
 
-    handle_backtest(object(), make_backtest_args(account="my_acct"), _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest(object(), make_backtest_args(account="my_acct"), _parser(), deps=deps)
 
     assert len(configs) == 1
     assert configs[0]["account_name"] == "my_acct"
@@ -47,7 +47,7 @@ def test_handle_backtest_prints_warnings_when_present(capsys) -> None:
         "run_backtest": lambda *_: result,
     }
 
-    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
 
     assert "LEAPs mode is approximated" in capsys.readouterr().out
 
@@ -59,7 +59,7 @@ def test_handle_backtest_routes_value_error_to_parser_error() -> None:
     }
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest(object(), make_backtest_args(), _parser(), deps=deps, module_file="", db_path="")
+        handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
 
 
 def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
@@ -69,7 +69,7 @@ def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
         "run_backtest": lambda *_: result,
     }
 
-    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "Benchmark comparison unavailable" in out
@@ -87,7 +87,7 @@ def test_handle_backtest_batch_prints_rank_table(capsys) -> None:
         tickers_file="tickers.txt",
     )
 
-    handle_backtest_batch(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_batch(object(), args, _parser(), deps=deps)
 
     assert "rank" in capsys.readouterr().out
 
@@ -105,7 +105,7 @@ def test_handle_backtest_batch_splits_accounts_on_comma() -> None:
     }
     args = make_backtest_batch_args(accounts=" acct_a , acct_b ", tickers_file="tickers.txt")
 
-    handle_backtest_batch(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_batch(object(), args, _parser(), deps=deps)
 
     assert seen_accounts == ["acct_a", "acct_b"]
 
@@ -120,7 +120,7 @@ def test_handle_backtest_batch_routes_value_error_to_parser_error() -> None:
     args = make_backtest_batch_args(accounts="acct_a", tickers_file="tickers.txt")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_batch(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_backtest_batch(object(), args, _parser(), deps=deps)
 
 
 def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
@@ -138,7 +138,7 @@ def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
     }
     args = make_walk_forward_args(account="acct", tickers_file="tickers.txt")
 
-    handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_walk_forward(object(), args, _parser(), deps=deps)
 
     assert "windows=3" in capsys.readouterr().out
 
@@ -153,7 +153,7 @@ def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> No
     args = make_walk_forward_args(account="acct", tickers_file="tickers.txt")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_backtest_walk_forward(object(), args, _parser(), deps=deps)
 
 
 class _RecordingParser:
@@ -171,7 +171,7 @@ def test_handle_backtest_records_parser_error_without_printing_success(capsys) -
         "run_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad backtest")),
     }
 
-    handle_backtest(object(), make_backtest_args(), parser, deps=deps, module_file="", db_path="")
+    handle_backtest(object(), make_backtest_args(), parser, deps=deps)
 
     assert parser.message == "bad backtest"
     assert "Backtest complete" not in capsys.readouterr().out
@@ -189,8 +189,6 @@ def test_handle_backtest_batch_records_parser_error_without_printing_success(cap
         make_backtest_batch_args(accounts="acct_a", tickers_file="tickers.txt"),
         parser,
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert parser.message == "bad batch"
@@ -209,8 +207,6 @@ def test_handle_backtest_walk_forward_records_parser_error_without_printing_succ
         make_walk_forward_args(account="acct", tickers_file="tickers.txt"),
         parser,
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert parser.message == "bad walk-forward"

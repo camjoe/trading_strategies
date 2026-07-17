@@ -4,13 +4,12 @@ This folder is the repo's primary reusable task surface.
 
 ## Purpose
 
-Define how this repository uses reusable skills vs repo-specific agents, and provide guardrails for maintaining both.
+Define how this repository uses reusable skills, and provide guardrails for maintaining them.
 
 ## Usage
 
 1. Choose the closest matching skill folder and follow its `SKILL.md`.
-2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
-3. To add or improve a skill, follow the authoring guide at `docs/reference/agent-skills.md`.
+2. To add or improve a skill, see the authoring rules below.
 
 ## Active layout
 
@@ -27,65 +26,40 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 
 | Skill folder | Covers |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
-| `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
-| `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
+| `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
+| `help/` | Interactive discovery: list available skills and common prompts |
+| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
-| `update-skill/` | Improving or refactoring existing skills |
-| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
+| `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
+
+## Workflows vs skills
+
+Some skills are executable workflows that orchestrate other skills and commands. For example,
+`check-pr-readiness/` runs deterministic validation, invokes code-review judgment, runs advisory
+docs checks, and saves a report. Keep workflow skills when ordering, stop conditions, or output
+artifacts matter; keep capability skills like `validate-code/` and `code-review/` focused on one
+kind of work.
 
 ### Reference files (inside skill folders, not skills themselves)
 
-| File | Parent skill | Contains |
-|---|---|---|
-| `code-review/code-review.md` | `code-review/` | Standard, Baseline, and Deep diff review |
-| `code-review/code-review-aggressive.md` | `code-review/` | High-scrutiny safety-critical review |
-| `code-review/architecture-review.md` | `code-review/` | Layering and boundary review |
-| `code-review/code-cleanup.md` | `code-review/` | Behavior-preserving refactor |
-| `code-review/ui-api-contract.md` | `code-review/` | Frontend/backend contract alignment |
-| `code-review/pr-review-arch.md` | `code-review/` | PR architecture constraints pass |
-| `code-review/pr-review-style.md` | `code-review/` | PR style compliance pass |
-| `code-review/pr-review-quality.md` | `code-review/` | PR quality standards pass |
-| `db-migration/create-migration.md` | `db-migration/` | Write a new ColumnMigration entry |
-| `db-migration/validate-migration.md` | `db-migration/` | Validate safety and correctness checklist |
-| `db-migration/estimate-risk.md` | `db-migration/` | Blast radius, index needs, backtest impact |
-| `db-migration/generate-rollback.md` | `db-migration/` | Rollback strategy for SQLite schema changes |
-| `create-runtime-job/templates.md` | `create-runtime-job/` | Module + test + sentinel + schedule scaffolding templates |
-| `update-documentation/docs-sync.md` | `update-documentation/` | Active docs drift sync |
-| `validate-code/layer-check.md` | `validate-code/` | Layer boundary check |
-| `validate-code/lint.md` | `validate-code/` | Ruff + eslint/tsc lint |
-| `validate-code/type-check.md` | `validate-code/` | Mypy type check |
-| `validate-code/tests.md` | `validate-code/` | Branch-targeted pytest + vitest |
-| `reference-doc/reference-doc.md` | `reference-doc/` | Reference doc and ADR creation |
+Do not maintain a file inventory here — it drifts. Each `SKILL.md` links the reference files it
+loads; the folders on disk are the source of truth. A reference file exists only when its parent
+`SKILL.md` links to it; single-file skills are the norm when the workflow fits in one page.
 
-Retired from the active set:
-
-- `code-review/code-review-baseline.md` (folded into `code-review.md` Baseline mode)
-- `deep-code-review` (merged into `code-review` Aggressive mode)
-- `frontend-cleanup` (merged into `code-review/code-cleanup.md`)
-- `python-cleanup` (merged into `code-review/code-cleanup.md`)
-- flat `.skill.md` shims (removed — not needed by Copilot CLI)
-- `templates/` (removed — blank placeholders, not referenced by any workflow)
-
-## Remaining repo-specific agents
-
-These agents still exist because they encode repo-specific execution behavior that the skills should not absorb:
-
-| Agent | Repo-specific value |
-|---|---|
-| `backtesting-analyst.agent.md` | Exact backtesting, reporting, and UI flows |
-| `broker-live-safety.agent.md` | Live-trading safety rules |
-| `db-migration-steward.agent.md` | SQLite migration and backup rules |
-| `trading-runtime.agent.md` | Runtime job and operator flows |
-
-Repo-specific agents live in `.ai/agents/`.
+Retired from the active set (do not reintroduce without a fresh decision): the standalone
+`deep-code-review`, `frontend-cleanup`, and `python-cleanup` skills (merged into `code-review/`
+modes); flat `.skill.md` shims; blank `templates/`; `update-documentation/docs-sync.md` and
+`reference-doc/reference-doc.md` (folded into their `SKILL.md`s, 2026-07-02).
 
 ## Authoring rules
+
+### Reusability and structure
 
 Skills should:
 
@@ -98,11 +72,24 @@ Skills should not:
 
 1. assume this repo's layout is universal
 2. present repo-specific commands as if they exist everywhere
-3. absorb project-only safety rules that belong in `AGENTS.md` or a repo-specific agent
+3. absorb project-only safety rules that belong in `AGENTS.md` or `docs/architecture/architecture-conventions.md`
 
-## When to add a new skill vs agent
+### Content philosophy
 
-Add a new skill when the capability should be reusable outside this repo with only light localization.
+When writing a skill:
 
-Add a new agent only when the task depends on repo-specific execution behavior that would make the skill less reusable or more confusing.
+1. **Concise is key.** The context window is shared. Assume the model is already smart — only add
+   context it doesn't have. Every SKILL.md paragraph must justify its token cost.
+2. **Progressive disclosure.** Keep SKILL.md as the entry point; push mode- or domain-specific
+   detail into sibling reference files loaded on demand.
+3. **Match freedom to fragility.** Give text instructions for judgment tasks; give exact commands
+   or scripts for fragile, deterministic steps (validation commands, file paths).
+4. **Test with real usage.** A skill's description decides whether it triggers — write it from the
+   user's task vocabulary, not the skill's internals, and iterate on real invocations.
 
+## When to add a new skill
+
+Add a new skill when the capability should be reusable outside this repo with only light
+localization. Repo-only safety rules and routing belong in `AGENTS.md` /
+`docs/architecture/architecture-conventions.md`, not inside a skill. (The former agent-persona
+surface was retired 2026-07-02 — do not reintroduce it without a fresh decision.)

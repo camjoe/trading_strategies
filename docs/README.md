@@ -3,9 +3,9 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-09
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
-Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header.md)
+Related: [Docs Map](maps/docs-map.md), [Documentation Authoring Standard](conventions/docs-authoring.md)
 
 ## Overview
 
@@ -23,9 +23,10 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 ## Quick Start
 
+- [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`roadmap.md`](roadmap.md) — outstanding product improvements backlog (partials + Now/Next/Later)
+- [`adr/`](adr/) — durable architecture and product decisions
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
@@ -38,7 +39,6 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
 - [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
-- [`architecture/restructure-notes.md`](architecture/restructure-notes.md) — `src/` restructure notes: outcome, reusable patterns, and the open domain-slicing question (foundation phase complete)
 
 ## Maps (file/directory inventories)
 
@@ -54,22 +54,24 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
+- [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
-- [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
-- [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
-- [`adr/007-production-runtime-hosting-and-deployment.md`](adr/007-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
+- [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
+- [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
+- [`adr/015-numbered-alembic-migrations.md`](adr/015-numbered-alembic-migrations.md) — numbered Alembic revisions replace probe-based schema init; runtime is verify-only
+- [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
+- [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
+- [`adr/010-book-keyed-execution-model.md`](adr/010-book-keyed-execution-model.md) — books are the execution primitive after sleeve retirement
+- [`adr/008-production-runtime-hosting-and-deployment.md`](adr/008-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
 - [`adr/004-runtime-naming-and-operational-settings.md`](adr/004-runtime-naming-and-operational-settings.md) — disambiguate "runtime" naming; operational_settings package
-- [`adr/003-sleeve-virtualization-architecture.md`](adr/003-sleeve-virtualization-architecture.md) — sleeve virtualization architecture decision record
-- [`adr/002-backtesting-layering.md`](adr/002-backtesting-layering.md) — decision rationale for backtesting module layering
-- [`adr/001-cross-platform-paths.md`](adr/001-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
 ## Conventions
 
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
-- [`conventions/reference-doc.md`](conventions/reference-doc.md) — standard structure for reference notes
+- [`conventions/docs-authoring.md`](conventions/docs-authoring.md) — required doc headers, doc types, templates, and reference-doc/ADR section layouts
 - [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
 
 ## Runbooks

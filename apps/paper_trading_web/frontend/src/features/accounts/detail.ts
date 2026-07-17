@@ -65,26 +65,18 @@ function buildParamsPayload(): AccountParamsUpdate {
     rollDteThreshold: readInt("#editRollDteThresholdInput"),
     profitTakePct: readNum("#editProfitTakePctInput"),
     maxLossPct: readNum("#editMaxLossPctInput"),
-    rotationEnabled: (() => {
-      const el = find<HTMLSelectElement>("#editRotationEnabledSelect");
-      return el ? el.value === "true" : undefined;
+    rotation: (() => {
+      const enabledEl = find<HTMLSelectElement>("#editRotationEnabledSelect");
+      const rotation = {
+        enabled: enabledEl ? enabledEl.value === "true" : undefined,
+        lookbackDays: readInt("#editRotationLookbackDaysInput"),
+        schedule: readCsv("#editRotationScheduleInput"),
+      };
+      const hasAny = rotation.enabled !== undefined
+        || rotation.lookbackDays !== undefined
+        || rotation.schedule !== undefined;
+      return hasAny ? rotation : undefined;
     })(),
-    rotationMode: find<HTMLSelectElement>("#editRotationModeSelect")?.value || undefined,
-    rotationOptimalityMode: find<HTMLSelectElement>("#editRotationOptimalityModeSelect")?.value || undefined,
-    rotationIntervalDays: readInt("#editRotationIntervalDaysInput"),
-    rotationIntervalMinutes: readInt("#editRotationIntervalMinutesInput"),
-    rotationLookbackDays: readInt("#editRotationLookbackDaysInput"),
-    rotationSchedule: readCsv("#editRotationScheduleInput"),
-    rotationRegimeStrategyRiskOn: readStr("#editRotationRegimeRiskOnInput"),
-    rotationRegimeStrategyNeutral: readStr("#editRotationRegimeNeutralInput"),
-    rotationRegimeStrategyRiskOff: readStr("#editRotationRegimeRiskOffInput"),
-    rotationOverlayMode: find<HTMLSelectElement>("#editRotationOverlayModeSelect")?.value || undefined,
-    rotationOverlayMinTickers: readInt("#editRotationOverlayMinTickersInput"),
-    rotationOverlayConfidenceThreshold: readNum("#editRotationOverlayConfidenceThresholdInput"),
-    rotationOverlayWatchlist: readCsv("#editRotationOverlayWatchlistInput"),
-    rotationActiveIndex: readInt("#editRotationActiveIndexInput"),
-    rotationLastAt: readStr("#editRotationLastAtInput"),
-    rotationActiveStrategy: readStr("#editRotationActiveStrategyInput"),
   };
 }
 

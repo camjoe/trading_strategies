@@ -3,6 +3,7 @@ export type FinanceTerm = {
   group: string;
   use: string;
   definition: string;
+  ui_label?: string;
 };
 
 export type SoftwarePackage = {

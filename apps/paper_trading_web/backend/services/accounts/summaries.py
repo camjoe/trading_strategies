@@ -9,9 +9,9 @@ from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
     get_latest_account_snapshot,
-    parse_rotation_overlay_watchlist,
-    parse_rotation_schedule,
 )
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
+from trading.services.books.rotation import resolve_default_book_rotation_schedule
 from trading.services.reporting import (
     build_account_stats,
     inject_settlement_price,
@@ -75,8 +75,12 @@ def _build_summary_from_stats(
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = get_latest_account_snapshot(conn, row.id)
-    rotation_schedule = parse_rotation_schedule(row.rotation_schedule)
-    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(row.rotation_overlay_watchlist)
+    # Rotation scheduling is book-owned (ADR 014) and execution settings are
+    # book columns (revision 0004): both read from the default book, alongside
+    # the assignment-derived active strategy.
+    rotation = resolve_default_book_rotation_schedule(conn, account_id=row.id)
+    active_strategy = active_strategy_for_account(conn, row.id)
+    book = get_default_book(conn, account_id=row.id)
 
     effective_initial = row.initial_cash if row.initial_cash else total_deposited
     delta = equity - effective_initial
@@ -90,11 +94,11 @@ def _build_summary_from_stats(
     return {
         "name": row.name,
         "displayName": row.descriptive_name,
-        "strategy": row.strategy,
-        "instrumentMode": row.instrument_mode,
+        "strategy": active_strategy,
+        "instrumentMode": book.instrument_mode if book is not None else "equity",
         "accountKind": row.account_kind,
         "brokerType": row.broker_type or "paper",
-        "riskPolicy": row.risk_policy,
+        "riskPolicy": book.risk_policy if book is not None else "none",
         "benchmark": row.benchmark_ticker,
         "initialCash": row.initial_cash,
         "equity": equity,
@@ -103,44 +107,39 @@ def _build_summary_from_stats(
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
         "latestSnapshotTime": latest_snapshot.snapshot_time if latest_snapshot else None,
-        "stopLossPct": row.stop_loss_pct,
-        "takeProfitPct": row.take_profit_pct,
-        "tradeSizePct": (row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT),
-        "maxPositionPct": (row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT),
-        "goalMinReturnPct": row.goal_min_return_pct,
-        "goalMaxReturnPct": row.goal_max_return_pct,
-        "goalPeriod": row.goal_period,
-        "learningEnabled": bool(row.learning_enabled),
-        "optionStrikeOffsetPct": row.option_strike_offset_pct,
-        "optionMinDte": row.option_min_dte,
-        "optionMaxDte": row.option_max_dte,
-        "optionType": row.option_type,
-        "targetDeltaMin": row.target_delta_min,
-        "targetDeltaMax": row.target_delta_max,
-        "maxPremiumPerTrade": row.max_premium_per_trade,
-        "maxContractsPerTrade": row.max_contracts_per_trade,
-        "ivRankMin": row.iv_rank_min,
-        "ivRankMax": row.iv_rank_max,
-        "rollDteThreshold": row.roll_dte_threshold,
-        "profitTakePct": row.profit_take_pct,
-        "maxLossPct": row.max_loss_pct,
-        "rotationEnabled": bool(row.rotation_enabled),
-        "rotationMode": row.rotation_mode or "time",
-        "rotationOptimalityMode": row.rotation_optimality_mode or "previous_period_best",
-        "rotationIntervalDays": row.rotation_interval_days,
-        "rotationIntervalMinutes": row.rotation_interval_minutes,
-        "rotationLookbackDays": row.rotation_lookback_days,
-        "rotationSchedule": rotation_schedule or None,
-        "rotationRegimeStrategyRiskOn": row.rotation_regime_strategy_risk_on,
-        "rotationRegimeStrategyNeutral": row.rotation_regime_strategy_neutral,
-        "rotationRegimeStrategyRiskOff": row.rotation_regime_strategy_risk_off,
-        "rotationOverlayMode": row.rotation_overlay_mode or "none",
-        "rotationOverlayMinTickers": row.rotation_overlay_min_tickers,
-        "rotationOverlayConfidenceThreshold": row.rotation_overlay_confidence_threshold,
-        "rotationOverlayWatchlist": rotation_overlay_watchlist,
-        "rotationActiveIndex": row.rotation_active_index if row.rotation_active_index is not None else 0,
-        "rotationLastAt": row.rotation_last_at,
-        "rotationActiveStrategy": row.rotation_active_strategy,
+        "stopLossPct": book.stop_loss_pct if book is not None else None,
+        "takeProfitPct": book.take_profit_pct if book is not None else None,
+        "tradeSizePct": (
+            book.trade_size_pct if book is not None and book.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
+        ),
+        "maxPositionPct": (
+            book.max_position_pct
+            if book is not None and book.max_position_pct is not None
+            else DEFAULT_MAX_POSITION_PCT
+        ),
+        "goalMinReturnPct": book.goal_min_return_pct if book is not None else None,
+        "goalMaxReturnPct": book.goal_max_return_pct if book is not None else None,
+        "goalPeriod": book.goal_period if book is not None else None,
+        "learningEnabled": bool(book.learning_enabled) if book is not None else False,
+        "optionStrikeOffsetPct": book.option_strike_offset_pct if book is not None else None,
+        "optionMinDte": book.option_min_dte if book is not None else None,
+        "optionMaxDte": book.option_max_dte if book is not None else None,
+        "optionType": book.option_type if book is not None else None,
+        "targetDeltaMin": book.target_delta_min if book is not None else None,
+        "targetDeltaMax": book.target_delta_max if book is not None else None,
+        "maxPremiumPerTrade": book.max_premium_per_trade if book is not None else None,
+        "maxContractsPerTrade": book.max_contracts_per_trade if book is not None else None,
+        "ivRankMin": book.iv_rank_min if book is not None else None,
+        "ivRankMax": book.iv_rank_max if book is not None else None,
+        "rollDteThreshold": book.roll_dte_threshold if book is not None else None,
+        "profitTakePct": book.profit_take_pct if book is not None else None,
+        "maxLossPct": book.max_loss_pct if book is not None else None,
+        "activeStrategy": active_strategy,
+        "rotation": {
+            "enabled": rotation.rotation_enabled,
+            "schedule": list(rotation.schedule) or None,
+            "lookbackDays": rotation.lookback_days,
+        },
     }
 
 
@@ -175,6 +174,7 @@ def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list
 def build_comparison_account_payload(
     summary: dict[str, object],
     latest_backtest: dict[str, object] | None,
+    evaluation: dict[str, object],
 ) -> dict[str, object]:
     """Build comparison payload from a fully-enriched account summary.
 
@@ -195,4 +195,5 @@ def build_comparison_account_payload(
         "liveBenchmarkReturnPct": summary["liveBenchmarkReturnPct"],
         "liveAlphaPct": summary["liveAlphaPct"],
         "latestBacktest": latest_backtest,
+        "evaluation": evaluation,
     }

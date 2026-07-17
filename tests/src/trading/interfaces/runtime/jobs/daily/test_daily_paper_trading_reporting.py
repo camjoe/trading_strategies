@@ -23,12 +23,12 @@ def test_latest_shadow_eval_summary_handles_non_list_results(tmp_path: Path) -> 
         "status": "ok",
         "artifact_path": artifact.relative_to(tmp_path).as_posix(),
         "account_count": 0,
-        "sleeve_count": 0,
+        "book_count": 0,
         "challenger_count": 0,
     }
 
 
-def test_latest_shadow_eval_summary_counts_valid_sleeves_and_challengers(tmp_path: Path) -> None:
+def test_latest_shadow_eval_summary_counts_valid_books_and_challengers(tmp_path: Path) -> None:
     export_dir = tmp_path / module.SHADOW_EVAL_EXPORT_DIR
     export_dir.mkdir(parents=True)
     artifact = export_dir / "daily_challenger_shadow_eval_20260327_080910.json"
@@ -37,8 +37,8 @@ def test_latest_shadow_eval_summary_counts_valid_sleeves_and_challengers(tmp_pat
             {
                 "status": "ok",
                 "results": [
-                    {"sleeves": [{"challenger_count": 2}, {"challenger_count": 0}, "bad"]},
-                    {"sleeves": "not-a-list"},
+                    {"books": [{"challenger_count": 2}, {"challenger_count": 0}, "bad"]},
+                    {"books": "not-a-list"},
                     "not-a-dict",
                 ],
             }
@@ -52,7 +52,7 @@ def test_latest_shadow_eval_summary_counts_valid_sleeves_and_challengers(tmp_pat
         "status": "ok",
         "artifact_path": artifact.relative_to(tmp_path).as_posix(),
         "account_count": 3,
-        "sleeve_count": 3,
+        "book_count": 3,
         "challenger_count": 2,
     }
 
@@ -126,6 +126,7 @@ def test_maybe_send_notification_calls_notifier_for_errors() -> None:
     assert calls == [
         {
             "webhook_url": "https://example.invalid",
+            "email_config": None,
             "event": "daily-paper-trading",
             "status": "error",
             "message": "failed",

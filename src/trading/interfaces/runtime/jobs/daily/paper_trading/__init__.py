@@ -11,7 +11,11 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+from trading.interfaces.runtime.job_status import (
+    DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
+    DAILY_RUN_STATUS_FAILED,
+    DAILY_RUN_STATUS_SUCCESS,
+)
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     group_accounts_by_caps,
     load_trade_caps_config,
@@ -40,13 +44,13 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
+    resolve_email_config_from_env,
     stream_command,
     tee_line,
     ts,
     write_artifact,
 )
-from trading.interfaces.runtime.notifications import notify_webhook_best_effort
-from trading.services.auto_trading import EXECUTION_MODE_SLEEVE
+from trading.interfaces.runtime.notifications import notify_runtime_event
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -115,8 +119,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--shadow-eval-rolling-window-days",
         type=int,
-        default=30,
-        help="Lookback window passed to challenger shadow evaluation (default: 30).",
+        default=None,
+        help=(
+            "Override the challenger shadow-eval lookback window in days"
+            " (default: each book's own configured lookback)."
+        ),
     )
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument(
@@ -180,8 +187,6 @@ def run_auto_trader_group(
         str(max_trades),
         "--fee",
         str(fee),
-        "--execution-mode",
-        EXECUTION_MODE_SLEEVE,
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])
@@ -235,7 +240,7 @@ def main() -> int:
     if args.primary_min_trades < 1:
         print("--primary-min-trades must be >= 1", file=sys.stderr)
         return 1
-    if args.shadow_eval_rolling_window_days < 1:
+    if args.shadow_eval_rolling_window_days is not None and args.shadow_eval_rolling_window_days < 1:
         print("--shadow-eval-rolling-window-days must be >= 1", file=sys.stderr)
         return 1
     if args.primary_max_trades < args.primary_min_trades:
@@ -320,13 +325,20 @@ def main() -> int:
         )
         skip_dag_step(
             step_results,
-            step_id="01_mark_sleeve_nav",
+            step_id="01_mark_book_nav",
             reason="nav_marking_is_handled_in_runtime_snapshot_and_reconciliation",
             now_iso=ts,
         )
 
         shadow_eval_summary: dict[str, object] | None = None
         if args.run_challenger_shadow_eval:
+            # An explicit window overrides every book's own lookback (ADR 014),
+            # so the flag is only forwarded when the operator set one.
+            shadow_eval_window_args = (
+                ["--rolling-window-days", str(args.shadow_eval_rolling_window_days)]
+                if args.shadow_eval_rolling_window_days is not None
+                else []
+            )
             run_dag_step(
                 step_results,
                 step_id="02_run_signals_all_strategies",
@@ -340,14 +352,19 @@ def main() -> int:
                             "--accounts",
                             ",".join(accounts),
                             "--enable-run",
-                            "--rolling-window-days",
-                            str(args.shadow_eval_rolling_window_days),
+                            *shadow_eval_window_args,
                             "--run-source",
                             "daily-paper-trading",
                         ],
                         repo_root,
                     ),
-                    {"rolling_window_days": args.shadow_eval_rolling_window_days},
+                    {
+                        "rolling_window_days": (
+                            args.shadow_eval_rolling_window_days
+                            if args.shadow_eval_rolling_window_days is not None
+                            else "book-owned"
+                        )
+                    },
                 )[1],
                 now_iso=ts,
             )
@@ -375,7 +392,7 @@ def main() -> int:
         skip_dag_step(
             step_results,
             step_id="04_rotation_decision",
-            reason="rotation_decisions_are_enforced_inside_sleeve_runtime_path",
+            reason="rotation_decisions_are_enforced_inside_book_runtime_path",
             now_iso=ts,
         )
 
@@ -412,7 +429,7 @@ def main() -> int:
 
         run_dag_step(
             step_results,
-            step_id="05_build_position_targets_by_sleeve",
+            step_id="05_build_position_targets_by_book",
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )
@@ -479,7 +496,7 @@ def main() -> int:
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         success_payload = {
             **run_meta,
-            "status": "success",
+            "status": DAILY_RUN_STATUS_SUCCESS,
             "completed_steps": completed_steps_from_dag(step_results),
             "step_results": serialize_step_results(step_results),
             "finished_at": ts(),
@@ -489,8 +506,9 @@ def main() -> int:
             success_payload,
         )
         maybe_send_notification(
-            notifier=notify_webhook_best_effort,
+            notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
+            email_config=resolve_email_config_from_env(),
             notify_on_success=args.notify_on_success,
             status="ok",
             message="Daily paper trading run completed successfully",
@@ -506,7 +524,7 @@ def main() -> int:
         tee_line(log_path, f"[{ts()}] ERROR: {exc}")
         failure_payload = {
             **run_meta,
-            "status": "failed",
+            "status": DAILY_RUN_STATUS_FAILED,
             "completed_steps": completed_steps_from_dag(step_results),
             "step_results": serialize_step_results(step_results),
             "failed_step": failed_step_id(step_results),
@@ -518,8 +536,9 @@ def main() -> int:
             failure_payload,
         )
         maybe_send_notification(
-            notifier=notify_webhook_best_effort,
+            notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
+            email_config=resolve_email_config_from_env(),
             notify_on_success=args.notify_on_success,
             status="fail",
             message=f"Daily paper trading run failed: {exc}",

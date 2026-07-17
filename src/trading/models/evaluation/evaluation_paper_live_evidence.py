@@ -18,7 +18,7 @@ class EvaluationPaperLiveEvidence:
     market_value: float | None = None
     realized_pnl: float | None = None
     unrealized_pnl: float | None = None
-    rotation_episode_id: int | None = None
-    episode_started_at: str | None = None
-    episode_ended_at: str | None = None
-    episode_realized_pnl_delta: float | None = None
+    # Bounds of the strategy's most recent live window (book snapshots sliced at
+    # rotation_decisions boundaries).
+    window_started_at: str | None = None
+    window_ended_at: str | None = None

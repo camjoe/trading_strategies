@@ -11,10 +11,9 @@ from trading.interfaces.runtime.job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
 from trading.services.accounts import get_account
-from trading.services.sleeves.shadow_evaluation import (
-    DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
-    ShadowEvaluationRun,
-    build_sleeve_shadow_evaluation,
+from trading.services.books.challenger_evaluation import (
+    ChallengerEvaluationRun,
+    build_book_challenger_evaluations,
 )
 
 JOB_NAME = "daily_challenger_shadow_eval"
@@ -28,39 +27,41 @@ def _add_window_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--rolling-window-days",
         type=int,
-        default=DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
+        default=None,
         help=(
-            "Historical lookback window in days for challenger evidence "
-            f"(default: {DEFAULT_SHADOW_ROLLING_WINDOW_DAYS})"
+            "Override the historical lookback window in days for challenger"
+            " evidence (default: each book's own configured lookback)"
         ),
     )
 
 
 def _validate(args: argparse.Namespace) -> str | None:
-    if int(args.rolling_window_days) < 1:
+    if args.rolling_window_days is not None and int(args.rolling_window_days) < 1:
         return "--rolling-window-days must be >= 1"
     return None
 
 
 def _run_meta(args: argparse.Namespace) -> dict[str, object]:
-    return {"rolling_window_days": int(args.rolling_window_days)}
+    window = args.rolling_window_days
+    return {"rolling_window_days": int(window) if window is not None else "book-owned"}
 
 
-def _serialize_shadow_run(result: ShadowEvaluationRun) -> dict[str, object]:
+def _serialize_shadow_run(result: ChallengerEvaluationRun) -> dict[str, object]:
     return {
         "account_id": result.account_id,
         "account_name": result.account_name,
-        "window_start_day": result.window_start_day,
-        "window_end_day": result.window_end_day,
-        "sleeves": [
+        "books": [
             {
-                "sleeve_id": sleeve.sleeve_id,
-                "incumbent_strategy": sleeve.incumbent_strategy,
-                "challenger_count": len(sleeve.challengers),
+                "book_id": book.book_id,
+                "incumbent_strategy": book.incumbent_strategy,
+                # The evidence window is per-book (book-owned lookback, ADR 014).
+                "rolling_window_days": book.rolling_window_days,
+                "window_start_day": book.window_start_day,
+                "window_end_day": book.window_end_day,
+                "challenger_count": len(book.challengers),
                 "challengers": [
                     {
                         "strategy_name": challenger.strategy_name,
-                        "param_set_id": challenger.param_set_id,
                         "trade_count": challenger.trade_count,
                         "risk_adjusted_return": challenger.risk_adjusted_return,
                         "stability": challenger.stability,
@@ -68,10 +69,10 @@ def _serialize_shadow_run(result: ShadowEvaluationRun) -> dict[str, object]:
                         "cost_penalty": challenger.cost_penalty,
                         "regime_fit": challenger.regime_fit,
                     }
-                    for challenger in sleeve.challengers
+                    for challenger in book.challengers
                 ],
             }
-            for sleeve in result.sleeves
+            for book in result.books
         ],
     }
 
@@ -80,11 +81,11 @@ def run_shadow_eval_for_account(
     conn,
     *,
     account_name: str,
-    rolling_window_days: int,
+    rolling_window_days: int | None,
     as_of_iso: str,
-) -> ShadowEvaluationRun:
+) -> ChallengerEvaluationRun:
     account = get_account(conn, account_name)
-    return build_sleeve_shadow_evaluation(
+    return build_book_challenger_evaluations(
         conn,
         account=account,
         as_of_iso=as_of_iso,
@@ -110,13 +111,14 @@ def run_shadow_eval_for_account(
     extra_meta=_run_meta,
 )
 def main(ctx: JobContext, account: str) -> dict[str, object]:
+    window = ctx.args.rolling_window_days
     shadow_run = run_shadow_eval_for_account(
         ctx.conn,
         account_name=account,
-        rolling_window_days=int(ctx.args.rolling_window_days),
+        rolling_window_days=int(window) if window is not None else None,
         as_of_iso=ts(),
     )
-    ctx.log(f"SHADOW_EVAL: account={account} sleeves={len(shadow_run.sleeves)}")
+    ctx.log(f"SHADOW_EVAL: account={account} books={len(shadow_run.books)}")
     return {"status": "success", **_serialize_shadow_run(shadow_run)}
 
 

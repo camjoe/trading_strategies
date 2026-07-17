@@ -12,6 +12,7 @@ python -m scripts.screenshot_ui
 python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab backtesting
 python -m scripts.screenshot_ui --tab compare
+python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab ibkr-paper-monitor
 python -m scripts.screenshot_ui --tab admin
 
@@ -29,7 +30,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, compare, backtesting, ibkr-paper-monitor,
+  accounts, compare, portfolio, backtesting, ibkr-paper-monitor,
   alt-strategies, docs, admin
 """
 
@@ -161,7 +162,7 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-        "compare, backtesting, ibkr-paper-monitor, alt-strategies, docs, admin",
+        "compare, portfolio, backtesting, ibkr-paper-monitor, alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",

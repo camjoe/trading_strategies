@@ -3,17 +3,23 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import AccountRepository
+from trading.repositories.books import BookRepository
+from trading.services.books.book_assignments import UNASSIGNED_STRATEGY_LABEL, active_strategy_for_account
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
 GOAL_NOT_SET_TEXT = "not-set"
 
 
-def format_goal_text(row: AccountRecord) -> str:
-    min_goal = row.goal_min_return_pct
-    max_goal = row.goal_max_return_pct
-    goal_period = row.goal_period or "period"
+def format_goal_text(book: BookRecord | None) -> str:
+    """Goal metadata line — goals are book columns (revision 0008)."""
+    if book is None:
+        return GOAL_NOT_SET_TEXT
+    min_goal = book.goal_min_return_pct
+    max_goal = book.goal_max_return_pct
+    goal_period = book.goal_period or "period"
     if min_goal is None and max_goal is None:
         return GOAL_NOT_SET_TEXT
     if min_goal is not None and max_goal is not None:
@@ -23,28 +29,28 @@ def format_goal_text(row: AccountRecord) -> str:
     return f"<= {max_goal:.2f}% per {goal_period}"
 
 
-def _resolve_base_and_active_strategy(row: AccountRecord) -> tuple[str, str]:
-    base_strategy = row.strategy
-    rotation_enabled = bool(row.rotation_enabled)
-    if not rotation_enabled:
-        return base_strategy, base_strategy
-
-    active_strategy = row.rotation_active_strategy or base_strategy
-    return base_strategy, active_strategy
-
-
-def format_account_policy_text(row: AccountRecord) -> str:
-    base_strategy, active_strategy = _resolve_base_and_active_strategy(row)
-    learning_enabled = row.learning_enabled
-    trade_size_pct = row.trade_size_pct
-    max_position_pct = row.max_position_pct
+def format_account_policy_text(
+    row: AccountRecord,
+    *,
+    active_strategy: str | None = None,
+    book: BookRecord | None = None,
+) -> str:
+    """Format the policy line; ``active_strategy`` is the default-book
+    assignment's strategy (ADR 014). Execution knobs are book columns
+    (revision 0004), so ``book`` is the account's default book; without one
+    the code defaults are shown. accounts.strategy was dropped in revision
+    0008 — the assignment-derived active strategy is the only strategy."""
+    active_strategy = active_strategy or UNASSIGNED_STRATEGY_LABEL
+    learning_enabled = book.learning_enabled if book is not None else 0
+    trade_size_pct = book.trade_size_pct if book is not None else None
+    max_position_pct = book.max_position_pct if book is not None else None
     benchmark_ticker = row.benchmark_ticker
-    risk_policy = row.risk_policy
-    instrument_mode = row.instrument_mode
+    risk_policy = book.risk_policy if book is not None else "none"
+    instrument_mode = book.instrument_mode if book is not None else "equity"
     resolved_trade_size_pct = trade_size_pct if trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
     resolved_max_position_pct = max_position_pct if max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
     return (
-        f"base_strategy={base_strategy} | active_strategy={active_strategy} | "
+        f"active_strategy={active_strategy} | "
         f"benchmark={benchmark_ticker} | "
         f"{HEURISTIC_EXPLORATION_LABEL}={'on' if learning_enabled else 'off'} | "
         f"risk={risk_policy} | instrument={instrument_mode} | "
@@ -52,36 +58,57 @@ def format_account_policy_text(row: AccountRecord) -> str:
     )
 
 
-def build_account_summary_line(row: AccountRecord) -> str:
+def build_account_summary_line(
+    row: AccountRecord,
+    *,
+    active_strategy: str | None = None,
+    book: BookRecord | None = None,
+) -> str:
     initial_cash = row.initial_cash
     initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
-    policy_text = format_account_policy_text(row)
+    policy_text = format_account_policy_text(row, active_strategy=active_strategy, book=book)
     summary = (
         f"[{row.id}] {row.name} | display_name={row.descriptive_name} | "
         f"initial_cash={initial_cash_text} | account_policy={policy_text} | "
         f"created={row.created_at}"
     )
-    goal_text = format_goal_text(row)
+    goal_text = format_goal_text(book)
     if goal_text != GOAL_NOT_SET_TEXT:
         return f"{summary} | goal_metadata={goal_text}"
     return summary
 
 
-def build_account_listing_lines(accounts: list[AccountRecord], *, by_strategy: bool) -> list[str]:
+def build_account_listing_lines(
+    accounts: list[AccountRecord],
+    *,
+    by_strategy: bool,
+    active_strategies: dict[int, str] | None = None,
+    default_books: dict[int, BookRecord] | None = None,
+) -> list[str]:
+    resolved = active_strategies or {}
+    books = default_books or {}
     lines: list[str] = []
     if by_strategy:
-        current_strategy = None
-        for account in accounts:
-            strategy = account.strategy
+        # Grouping key is the assignment-derived active strategy (revision 0008).
+        current_strategy: str | None = None
+        for account in sorted(accounts, key=lambda a: (resolved.get(a.id, UNASSIGNED_STRATEGY_LABEL), a.name)):
+            strategy = resolved.get(account.id, UNASSIGNED_STRATEGY_LABEL)
             if strategy != current_strategy:
                 if current_strategy is not None:
                     lines.append("")
                 current_strategy = strategy
-                lines.append(f"Base Strategy: {current_strategy}")
-            lines.append(f"  {build_account_summary_line(account)}")
+                lines.append(f"Strategy: {current_strategy}")
+            lines.append(
+                "  "
+                + build_account_summary_line(
+                    account, active_strategy=resolved.get(account.id), book=books.get(account.id)
+                )
+            )
         return lines
     for account in accounts:
-        lines.append(build_account_summary_line(account))
+        lines.append(
+            build_account_summary_line(account, active_strategy=resolved.get(account.id), book=books.get(account.id))
+        )
     return lines
 
 
@@ -89,4 +116,13 @@ def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[st
     accounts = AccountRepository(conn).fetch_listing()
     if not accounts:
         return []
-    return build_account_listing_lines(accounts, by_strategy=by_strategy)
+    active_strategies = {account.id: active_strategy_for_account(conn, account.id) for account in accounts}
+    book_repo = BookRepository(conn)
+    default_books: dict[int, BookRecord] = {}
+    for account in accounts:
+        book = book_repo.fetch_default_for_account(account_id=account.id)
+        if book is not None:
+            default_books[account.id] = book
+    return build_account_listing_lines(
+        accounts, by_strategy=by_strategy, active_strategies=active_strategies, default_books=default_books
+    )

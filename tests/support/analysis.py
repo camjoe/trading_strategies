@@ -20,8 +20,8 @@ def make_analysis_account(
         from common.time import utc_now_iso
 
         conn.execute(
-            "INSERT INTO accounts (name, strategy, initial_cash, created_at, benchmark_ticker) VALUES (?,?,?,?,?)",
-            (name, "trend", 0.0, utc_now_iso(), "SPY"),
+            "INSERT INTO accounts (name, initial_cash, created_at, benchmark_ticker) VALUES (?,?,?,?)",
+            (name, 0.0, utc_now_iso(), "SPY"),
         )
         conn.commit()
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
@@ -39,11 +39,17 @@ def record_analysis_buy(
 ) -> None:
     from common.time import utc_now_iso
 
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) VALUES (?,?,?,?,?,?,?,?)",
-        (account_id, ticker, "buy", qty, price, 0.0, utc_now_iso(), None),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker=ticker,
+        side="buy",
+        qty=qty,
+        price=price,
+        trade_time=utc_now_iso(),
     )
-    conn.commit()
 
 
 def patch_analysis_market_data(

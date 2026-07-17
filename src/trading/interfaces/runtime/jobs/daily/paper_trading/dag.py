@@ -7,11 +7,11 @@ from dataclasses import dataclass, field
 
 DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
     ("00_ingest_market_and_account", "Ingest market and account context"),
-    ("01_mark_sleeve_nav", "Mark sleeve NAV"),
+    ("01_mark_book_nav", "Mark book NAV"),
     ("02_run_signals_all_strategies", "Run incumbent/challenger strategy signals"),
     ("03_score_incumbent_vs_challengers", "Score incumbent versus challengers"),
     ("04_rotation_decision", "Apply rotation decision gates"),
-    ("05_build_position_targets_by_sleeve", "Build position targets by sleeve"),
+    ("05_build_position_targets_by_book", "Build position targets by book"),
     ("06_pretrade_risk_gate", "Apply pretrade risk gate"),
     ("07_submit_ibkr_orders", "Submit broker orders"),
     ("08_reconcile_fills_update_ledgers", "Reconcile fills and update ledgers"),

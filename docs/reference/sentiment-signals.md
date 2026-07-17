@@ -3,14 +3,14 @@
 Type: notes
 Status: Active
 Created: 2026-03-30
-Last Reviewed: 2026-04-25
+Last Reviewed: 2026-07-17
 Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
 Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
 
 Capture the current architecture and extension points for alternative-data
-signals used by strategy execution and rotation overlays.
+signals used by strategy execution.
 
 This document intentionally focuses on current behavior. It is not a phase
 history or backlog tracker.
@@ -22,7 +22,7 @@ This reference covers:
 - `policy_regime`
 - `news_sentiment`
 - `social_trend_rotation`
-- account-level news/social overlay behavior for regime rotation
+- live feature injection for alternative strategies
 
 Strategy catalog details (all strategy families) live in:
 
@@ -40,11 +40,15 @@ Signal dispatch and registration:
 Provider boundary:
 
 - `src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
-  `ExternalFeatureBundle`.
-- Concrete providers:
-  - `src/infrastructure/feature_providers/policy_provider.py`
-  - `src/infrastructure/feature_providers/news_provider.py`
-  - `src/infrastructure/feature_providers/social_provider.py`
+   `ExternalFeatureBundle`.
+- Concrete provider ownership:
+
+| Strategy | Provider | Feature source |
+|---|---|---|
+| `policy_regime` | `src/infrastructure/feature_providers/policy_provider.py` | ETF proxy returns such as TLT/GLD/XLU/UUP vs SPY |
+| `news_sentiment` | `src/infrastructure/feature_providers/news_provider.py` | RSS headlines plus optional NewsAPI supplementation, scored with VADER |
+| `social_trend_rotation` | `src/infrastructure/feature_providers/social_provider.py` | Google Trends interest plus Reddit mention/sentiment data |
+
 - Feature-provider imports are isolated to `src/infrastructure/feature_providers/`.
 
 Market-data dependency:
@@ -62,29 +66,27 @@ Degradation contract:
 - when required features are unavailable, strategy logic returns conservative
   behavior (typically `hold`)
 
-Rotation overlays:
+Live strategy execution:
 
-- `src/trading/services/auto_trading/rotation.py` applies news/social overlay votes
-  when `rotation_overlay_mode` is enabled.
-- Overlay coverage uses the union of current holdings and
-  `rotation_overlay_watchlist`.
-- Overlay watchlist defaults are seeded from `src/infrastructure/config/trade_universe.txt`
-  at schema/default time. Changing that file later does not automatically
-  update already-migrated DB values.
+- `src/trading/services/auto_trading/execution.py` builds per-ticker feature
+   history for alternative strategies with `build_feature_history_fn`.
+- `policy_regime` uses the configured policy fetcher, `news_sentiment` uses the
+  configured news fetcher, and `social_trend_rotation` uses the configured
+  social fetcher. Missing or failing providers return no feature history, so
+  the signal functions degrade to conservative behavior.
+- Regime/news/social rotation overlays were retired after the runtime converged on the single
+  book-keyed decision-score path. The providers and alternative-strategy signals remain supported;
+  reintroducing regime-aware rotation must extend the current book rotation model rather than
+  restore the retired account-level selection branch.
 
 Operator visibility:
 
-- UI feature status and signal inspection are exposed via
-  `paper_trading_web` feature routes/services.
-
-## Not Implemented in This Slice
-
-Still out of scope for the current implementation:
-
-- historical sentiment feature store for backfill/replay
-- event-calendar and earnings-driver integrations
-- insider-flow and unusual-options-flow datasets
-- experiment-tracking infrastructure for model research workflows
+- The `alt-strategies` UI tab exposes provider status and feature-only signal
+  inspection.
+- Backend orchestration lives in `apps/paper_trading_web/backend/services/features/`.
+- Feature-only UI signal inspection intentionally omits live price history, so
+  price-momentum guards remain active and the response reports `available:
+  false` even when provider features are present.
 
 ## Related References
 

@@ -15,6 +15,7 @@ def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
     return EquitySnapshotRecord(
         id=0,
         account_id=0,
+        book_id=None,
         snapshot_time=snapshot_time,
         cash=0.0,
         market_value=0.0,

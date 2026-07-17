@@ -5,6 +5,7 @@ from trading.services.accounts import (
     format_account_policy_text,
     format_goal_text,
 )
+from tests.support.account_records import make_book_record
 from tests.support.accounts import make_accounts_service_row
 
 
@@ -25,34 +26,39 @@ class TestFormatGoalText:
         goal_period: str,
         expected: str,
     ) -> None:
-        row = make_accounts_service_row(
+        # Goals are book columns (revision 0008).
+        book = make_book_record(
             goal_min_return_pct=goal_min,
             goal_max_return_pct=goal_max,
             goal_period=goal_period,
         )
-        assert format_goal_text(row) == expected
+        assert format_goal_text(book) == expected
+
+    def test_missing_book_is_not_set(self) -> None:
+        assert format_goal_text(None) == "not-set"
 
 
 class TestBuildAccountListingLines:
     def test_by_strategy_groups_and_inserts_headers(self) -> None:
         rows = [
-            make_accounts_service_row(name="a1", strategy="Momentum"),
-            make_accounts_service_row(name="a2", strategy="Momentum"),
-            make_accounts_service_row(name="b1", strategy="Trend"),
+            make_accounts_service_row(id=1, name="a1"),
+            make_accounts_service_row(id=2, name="a2"),
+            make_accounts_service_row(id=3, name="b1"),
         ]
-        lines = build_account_listing_lines(rows, by_strategy=True)
-        assert any("Base Strategy: Momentum" in line for line in lines)
-        assert any("Base Strategy: Trend" in line for line in lines)
+        active = {1: "momentum", 2: "momentum", 3: "trend"}
+        lines = build_account_listing_lines(rows, by_strategy=True, active_strategies=active)
+        assert any("Strategy: momentum" in line for line in lines)
+        assert any("Strategy: trend" in line for line in lines)
         assert any("a1" in line for line in lines)
         assert any("b1" in line for line in lines)
 
     def test_flat_mode_omits_strategy_headers(self) -> None:
         rows = [
-            make_accounts_service_row(name="a1", strategy="Momentum"),
-            make_accounts_service_row(name="b1", strategy="Trend"),
+            make_accounts_service_row(id=1, name="a1"),
+            make_accounts_service_row(id=2, name="b1"),
         ]
-        lines = build_account_listing_lines(rows, by_strategy=False)
-        assert not any("Base Strategy:" in line for line in lines)
+        lines = build_account_listing_lines(rows, by_strategy=False, active_strategies={1: "momentum", 2: "trend"})
+        assert not any(line.startswith("Strategy:") for line in lines)
         assert any("a1" in line for line in lines)
         assert any("b1" in line for line in lines)
 
@@ -61,35 +67,31 @@ class TestBuildAccountListingLines:
 
     def test_strategy_change_inserts_blank_separator(self) -> None:
         rows = [
-            make_accounts_service_row(name="a1", strategy="Momentum"),
-            make_accounts_service_row(name="b1", strategy="Trend"),
+            make_accounts_service_row(id=1, name="a1"),
+            make_accounts_service_row(id=2, name="b1"),
         ]
-        lines = build_account_listing_lines(rows, by_strategy=True)
+        lines = build_account_listing_lines(rows, by_strategy=True, active_strategies={1: "momentum", 2: "trend"})
         assert "" in lines
 
-    def test_rotation_accounts_show_base_and_active_strategy(self) -> None:
-        rows = [
-            make_accounts_service_row(
-                name="rot",
-                strategy="Trend",
-                rotation_enabled=1,
-                rotation_active_strategy="mean_reversion",
-            ),
-        ]
+    def test_rotation_accounts_show_active_strategy(self) -> None:
+        # The active strategy comes from the default-book assignment (ADR 014);
+        # accounts.strategy was dropped in revision 0008.
+        rows = [make_accounts_service_row(name="rot")]
 
-        lines = build_account_listing_lines(rows, by_strategy=False)
+        lines = build_account_listing_lines(rows, by_strategy=False, active_strategies={rows[0].id: "mean_reversion"})
 
-        assert "account_policy=base_strategy=Trend | active_strategy=mean_reversion" in lines[0]
+        assert "account_policy=active_strategy=mean_reversion" in lines[0]
         assert "display_name=Account" in lines[0]
         assert "heuristic_exploration=off" in lines[0]
         assert "goal_metadata=" not in lines[0]
 
 
-def test_format_account_policy_text_for_non_rotation_account() -> None:
-    row = make_accounts_service_row(strategy="Trend")
+def test_format_account_policy_text_defaults() -> None:
+    row = make_accounts_service_row()
+    book = make_book_record(trade_size_pct=10.0, max_position_pct=20.0)
 
-    assert format_account_policy_text(row) == (
-        "base_strategy=Trend | active_strategy=Trend | benchmark=SPY | "
+    assert format_account_policy_text(row, active_strategy="trend", book=book) == (
+        "active_strategy=trend | benchmark=SPY | "
         "heuristic_exploration=off | risk=none | instrument=equity | "
         "trade_size=10.00% | max_position=20.00%"
     )
