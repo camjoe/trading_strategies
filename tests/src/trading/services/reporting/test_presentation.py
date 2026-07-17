@@ -109,7 +109,7 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
 
     account_report(conn, "acct_rot")
     out = capsys.readouterr().out
-    assert "base_strategy=Trend | active_strategy=mean_reversion" in out
+    assert "active_strategy=mean_reversion" in out
 
 
 def test_compare_strategies_outputs_summary_and_truncates_positions(

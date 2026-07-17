@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-23 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+24 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
 `strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
@@ -29,7 +29,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Account identity, custody, goals, and broker connection (rotation columns dropped in `0003`; execution/option columns moved to `books` in `0004`/`0005`) | — |
+| `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
@@ -42,7 +42,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Strategy-execution primitive incl. execution/risk and option settings columns (revisions `0004`/`0005`); one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
 | `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
@@ -52,6 +52,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
 | `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
+| `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 

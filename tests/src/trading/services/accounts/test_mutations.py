@@ -35,7 +35,6 @@ def test_set_account_strategy_syncs_default_book_assignment(conn) -> None:
     set_account_strategy(conn, "acct_edit", "MeanRev")
 
     account = get_account(conn, "acct_edit")
-    assert account.strategy == "MeanRev"
     assignment = open_assignment_for_book(conn, book_id=default_book_id(conn, account.id))
     assert assignment is not None
     assert assignment.strategy_name == "meanrev"

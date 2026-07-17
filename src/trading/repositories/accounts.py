@@ -8,15 +8,10 @@ from trading.models import AccountInsert, AccountRecord
 _ACCOUNT_INSERT_COLUMNS = (
     "name",
     "account_kind",
-    "strategy",
     "initial_cash",
     "created_at",
     "benchmark_ticker",
     "descriptive_name",
-    "goal_min_return_pct",
-    "goal_max_return_pct",
-    "goal_period",
-    "trade_universes",
 )
 _ACCOUNT_INSERT_SQL = (
     f"INSERT INTO accounts ({', '.join(_ACCOUNT_INSERT_COLUMNS)}) "
@@ -40,7 +35,7 @@ class AccountRepository:
         return self._row_to_record(row) if row is not None else None
 
     def fetch_listing(self) -> list[AccountRecord]:
-        rows = self._conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name ASC").fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_names(self) -> list[str]:

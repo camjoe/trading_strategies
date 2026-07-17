@@ -60,14 +60,12 @@ def _print_leaps_params(book: BookRecord) -> None:
 
 
 def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> None:
-    active_strategy = active_strategy_for_account(
-        conn, row_expect_int(account, "id"), fallback=row_expect_str(account, "strategy")
-    )
+    active_strategy = active_strategy_for_account(conn, row_expect_int(account, "id"))
     default_book = BookRepository(conn).fetch_default_for_account(account_id=row_expect_int(account, "id"))
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
     print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")
-    goal_text = format_goal_text(account)
+    goal_text = format_goal_text(default_book)
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
     if default_book is not None and default_book.instrument_mode == "leaps":
@@ -128,8 +126,8 @@ def _compare_account_header(account: AccountRecord) -> str:
     return f"- {account['name']} | display_name={account['descriptive_name']}"
 
 
-def _compare_goal_metadata_line(account: AccountRecord) -> str | None:
-    goal_text = format_goal_text(account)
+def _compare_goal_metadata_line(book: BookRecord | None) -> str | None:
+    goal_text = format_goal_text(book)
     if goal_text == GOAL_NOT_SET_TEXT:
         return None
     return f"  goal_metadata={goal_text}"
@@ -273,9 +271,13 @@ def compare_strategies(
         position_count, positions_text = positions_summary_text(state.positions)
 
         print(_compare_account_header(account))
-        active_strategy = active_strategy_for_account(conn, account.id, fallback=account.strategy)
-        print(f"  account_policy={format_account_policy_text(account, active_strategy=active_strategy)}")
-        goal_metadata_line = _compare_goal_metadata_line(account)
+        active_strategy = active_strategy_for_account(conn, account.id)
+        compare_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+        print(
+            "  account_policy="
+            f"{format_account_policy_text(account, active_strategy=active_strategy, book=compare_book)}"
+        )
+        goal_metadata_line = _compare_goal_metadata_line(compare_book)
         if goal_metadata_line is not None:
             print(goal_metadata_line)
         print(

@@ -57,15 +57,8 @@ def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None
 def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, strategy, initial_cash, created_at) VALUES ('acct_seed', 'trend', 5000, ?)",
+        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_seed', 5000, ?)",
         (NOW,),
-    )
-    conn.execute(
-        """
-        UPDATE accounts
-        SET goal_min_return_pct = 2.0, trade_universes = '["core"]'
-        WHERE name = 'acct_seed'
-        """
     )
     conn.commit()
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'acct_seed'").fetchone()[0])
@@ -78,8 +71,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     assert book is not None
     assert book.is_default == 1
     assert book.start_equity == pytest.approx(5000.0)
-    assert book.goal_min_return_pct == pytest.approx(2.0)
-    assert book.trade_universes == '["core"]'
+    assert book.trade_universes == '["default"]'
 
     # Execution settings are book columns (revision 0004); bootstrap starts on
     # DDL defaults — account creation / editors set real values.
@@ -92,18 +84,17 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     # Account rotation columns are gone (revision 0003): bootstrapped books
     # start with rotation disabled until profiles/settings enable it.
     assert rotation.rotation_enabled == 0
-    trend_id = StrategyRepository(conn).fetch_by_key(strategy_key="trend")
-    assert trend_id is not None
 
+    # Repair-path books open with no assignment (accounts.strategy was
+    # dropped in revision 0008); operators assign explicitly.
     assignment = BookAssignmentRepository(conn).fetch_open(book_id=book.id)
-    assert assignment is not None
-    assert assignment.strategy_id == trend_id.id
+    assert assignment is None
 
 
 def test_ensure_default_books_skips_unknown_legacy_strategy_label(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, strategy, initial_cash, created_at) VALUES ('acct_odd', 'Momentum Growth X', 1000, ?)",
+        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_odd', 1000, ?)",
         (NOW,),
     )
     conn.commit()

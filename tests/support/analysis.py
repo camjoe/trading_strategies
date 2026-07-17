@@ -20,8 +20,8 @@ def make_analysis_account(
         from common.time import utc_now_iso
 
         conn.execute(
-            "INSERT INTO accounts (name, strategy, initial_cash, created_at, benchmark_ticker) VALUES (?,?,?,?,?)",
-            (name, "trend", 0.0, utc_now_iso(), "SPY"),
+            "INSERT INTO accounts (name, initial_cash, created_at, benchmark_ticker) VALUES (?,?,?,?)",
+            (name, 0.0, utc_now_iso(), "SPY"),
         )
         conn.commit()
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()

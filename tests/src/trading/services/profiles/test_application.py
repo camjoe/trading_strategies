@@ -75,9 +75,9 @@ class TestApplyAccountProfiles:
         created, _, _ = apply_account_profiles(conn, profiles, create_missing=True)
         assert created == 1
         account = get_account(conn, "minimal")
-        assert account["goal_period"] == "monthly"
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
+        assert book.goal_period == "monthly"
         assert book.risk_policy == "none"
         assert book.instrument_mode == "equity"
         assert book.learning_enabled == 0
@@ -104,7 +104,10 @@ class TestApplyAccountProfiles:
             conn, [{"name": "s_acct", "strategy": "breakout"}], create_missing=False
         )
         assert updated == 1
-        assert get_account(conn, "s_acct")["strategy"] == "breakout"
+        from trading.services.books.book_assignments import active_strategy_for_account
+
+        account = get_account(conn, "s_acct")
+        assert active_strategy_for_account(conn, account.id) == "breakout"
 
     def test_update_configure_fields(self, conn):
         apply_account_profiles(
@@ -256,7 +259,9 @@ class TestApplyBookRotationSettings:
         )
 
         account = get_account(conn, "acct_with_universe")
-        raw = account["trade_universes"]
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        raw = book.trade_universes
         assert raw is not None
         assert json.loads(raw) == ["large_cap", "growth"]
 
@@ -276,6 +281,8 @@ class TestApplyBookRotationSettings:
         )
 
         account = get_account(conn, "upd_universe")
-        raw = account["trade_universes"]
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        raw = book.trade_universes
         assert raw is not None
         assert json.loads(raw) == ["dividend"]

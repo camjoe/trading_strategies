@@ -23,7 +23,7 @@ class TestAdminRoutes:
             "/api/admin/accounts/create",
             json={
                 "name": "acct_admin_create",
-                "strategy": "trend",
+                "strategy": "trend_v1",
                 "initialCash": 7500,
                 "benchmarkTicker": "SPY",
                 "descriptiveName": "Admin Created",
@@ -66,7 +66,7 @@ class TestAdminRoutes:
         api_client: TestClient,
         seed_account: Callable[..., None],
     ) -> None:
-        seed_account("acct_admin_delete", strategy="trend")
+        seed_account("acct_admin_delete")
 
         response = api_client.post(
             "/api/admin/accounts/delete",
@@ -81,7 +81,7 @@ class TestAdminRoutes:
         api_client: TestClient,
         seed_account: Callable[..., None],
     ) -> None:
-        seed_account("acct_admin_preview", strategy="trend")
+        seed_account("acct_admin_preview")
 
         response = api_client.get(
             "/api/admin/accounts/delete-preview",
@@ -94,7 +94,7 @@ class TestAdminRoutes:
             "preview": {
                 "accountName": "acct_admin_preview",
                 "descriptiveName": "acct_admin_preview",
-                "strategy": "trend",
+                "strategy": "trend_v1",
             },
         }
 
@@ -105,7 +105,7 @@ class TestAdminRoutes:
                 "/api/admin/accounts/create",
                 json={
                     "name": "acct_bad",
-                    "strategy": "trend",
+                    "strategy": "trend_v1",
                     "initialCash": 5000,
                     "benchmarkTicker": "SPY",
                 },
@@ -124,7 +124,7 @@ class TestAdminRoutes:
                 "/api/admin/accounts/create",
                 json={
                     "name": "acct_dup",
-                    "strategy": "trend",
+                    "strategy": "trend_v1",
                     "initialCash": 5000,
                     "benchmarkTicker": "SPY",
                 },
@@ -143,7 +143,7 @@ class TestAdminRoutes:
                     "/api/admin/accounts/create",
                     json={
                         "name": "acct_bug",
-                        "strategy": "trend",
+                        "strategy": "trend_v1",
                         "initialCash": 5000,
                         "benchmarkTicker": "SPY",
                     },

@@ -79,7 +79,7 @@ def _build_summary_from_stats(
     # book columns (revision 0004): both read from the default book, alongside
     # the assignment-derived active strategy.
     rotation = resolve_default_book_rotation_schedule(conn, account_id=row.id)
-    active_strategy = active_strategy_for_account(conn, row.id, fallback=row.strategy)
+    active_strategy = active_strategy_for_account(conn, row.id)
     book = get_default_book(conn, account_id=row.id)
 
     effective_initial = row.initial_cash if row.initial_cash else total_deposited
@@ -94,7 +94,7 @@ def _build_summary_from_stats(
     return {
         "name": row.name,
         "displayName": row.descriptive_name,
-        "strategy": row.strategy,
+        "strategy": active_strategy,
         "instrumentMode": book.instrument_mode if book is not None else "equity",
         "accountKind": row.account_kind,
         "brokerType": row.broker_type or "paper",
@@ -117,9 +117,9 @@ def _build_summary_from_stats(
             if book is not None and book.max_position_pct is not None
             else DEFAULT_MAX_POSITION_PCT
         ),
-        "goalMinReturnPct": row.goal_min_return_pct,
-        "goalMaxReturnPct": row.goal_max_return_pct,
-        "goalPeriod": row.goal_period,
+        "goalMinReturnPct": book.goal_min_return_pct if book is not None else None,
+        "goalMaxReturnPct": book.goal_max_return_pct if book is not None else None,
+        "goalPeriod": book.goal_period if book is not None else None,
         "learningEnabled": bool(book.learning_enabled) if book is not None else False,
         "optionStrikeOffsetPct": book.option_strike_offset_pct if book is not None else None,
         "optionMinDte": book.option_min_dte if book is not None else None,

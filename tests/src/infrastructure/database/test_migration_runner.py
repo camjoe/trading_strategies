@@ -289,13 +289,17 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
         conn.executescript(
             """
             INSERT INTO accounts (id, name, strategy, initial_cash, created_at, option_min_dte, option_type)
-            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 90, 'call');
+            VALUES
+                (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 90, 'call'),
+                -- 'both' is legal app vocabulary the retired 1:1 table's CHECK never allowed.
+                (2, 'acct_both', 'Trend', 500, '2026-01-01T00:00:00Z', 30, 'both');
             INSERT INTO books (
                 id, account_id, name, start_equity, current_cash, current_equity, created_at, updated_at
             )
             VALUES
                 (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (3, 2, 'default', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
             INSERT INTO book_option_settings (
                 book_id, option_min_dte, option_type, max_premium_per_trade, created_at, updated_at
             )
@@ -320,6 +324,8 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
             "call",
             None,
         )
+        # 'both' backfills intact — the books CHECK matches the app vocabulary.
+        assert (rows[3]["option_min_dte"], rows[3]["option_type"]) == (30, "both")
         account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
         assert "option_min_dte" not in account_columns and "option_type" not in account_columns
         tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -331,6 +337,11 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
             "SELECT option_min_dte, option_type FROM book_option_settings WHERE book_id = 1"
         ).fetchone()
         assert (restored["option_min_dte"], restored["option_type"]) == (180, "put")
+        # 'both' cannot round-trip into the 0001-shape CHECK; it maps to NULL.
+        both_restored = conn.execute(
+            "SELECT option_min_dte, option_type FROM book_option_settings WHERE book_id = 3"
+        ).fetchone()
+        assert (both_restored["option_min_dte"], both_restored["option_type"]) == (30, None)
         book_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(books)")}
         assert "option_min_dte" not in book_columns
         assert "risk_policy" in book_columns  # 0004 execution columns survive the rebuild
@@ -400,6 +411,73 @@ def test_revision_0007_backfills_promotion_strategy_fk(tmp_path: Path) -> None:
         assert conn.execute("SELECT COUNT(*) FROM promotion_reviews").fetchone()[0] == 2
         indexes = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
         assert "idx_promotion_reviews_open_requested" in indexes
+    finally:
+        conn.close()
+
+
+def test_revision_0008_universe_history_and_final_accounts_shape(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "final_shrink.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0007", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at, trade_universes, goal_min_return_pct)
+            VALUES
+                (1, 'acct_with', 'Trend', 1000, '2026-01-01T00:00:00Z', '["growth"]', 2.0),
+                (2, 'acct_without', 'Trend', 500, '2026-01-01T00:00:00Z', NULL, NULL);
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 'default', 1000, 1000, 1000, '["large_cap"]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 1, 'second', 100, 100, 100, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (3, 2, 'default', 500, 500, 500, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0008", connection=conn)
+        universes = {
+            int(r["id"]): str(r["trade_universes"]) for r in conn.execute("SELECT id, trade_universes FROM books")
+        }
+        # Own value kept; account inherited; default backfilled.
+        assert universes == {1: '["large_cap"]', 2: '["growth"]', 3: '["default"]'}
+        history = conn.execute(
+            "SELECT book_id, universes_json, effective_to FROM book_universe_history ORDER BY book_id"
+        ).fetchall()
+        assert [(r["book_id"], r["universes_json"], r["effective_to"]) for r in history] == [
+            (1, '["large_cap"]', None),
+            (2, '["growth"]', None),
+            (3, '["default"]', None),
+        ]
+        account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert account_columns == {
+            "id",
+            "name",
+            "account_kind",
+            "base_ccy",
+            "initial_cash",
+            "created_at",
+            "updated_at",
+            "benchmark_ticker",
+            "descriptive_name",
+            "broker_type",
+            "broker_host",
+            "broker_port",
+            "broker_client_id",
+            "live_trading_enabled",
+        }
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0007", connection=conn)
+        columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert "strategy" in columns and "trade_universes" in columns
+        tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "book_universe_history" not in tables
+        # Book universes survive the downgrade (nullable again, values kept).
+        assert conn.execute("SELECT trade_universes FROM books WHERE id = 3").fetchone()[0] == '["default"]'
     finally:
         conn.close()
 

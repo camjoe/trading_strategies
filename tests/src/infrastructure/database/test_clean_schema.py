@@ -42,7 +42,7 @@ def conn(tmp_path: Path):
 
 def _insert_account(conn, name: str = "acct_books") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, strategy, initial_cash, created_at) VALUES (?, 'trend', 5000, '2026-07-03T00:00:00Z')",
+        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, '2026-07-03T00:00:00Z')",
         (name,),
     )
     return int(cursor.lastrowid)
@@ -53,8 +53,8 @@ def _insert_book(conn, account_id: int, name: str = "default", is_default: int =
         """
         INSERT INTO books (
             account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, created_at, updated_at
-        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
+            current_equity, trade_universes, created_at, updated_at
+        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["default"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (account_id, name, is_default),
     )

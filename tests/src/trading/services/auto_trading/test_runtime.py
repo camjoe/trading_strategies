@@ -1,4 +1,3 @@
-import json
 from unittest.mock import Mock
 
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
@@ -60,22 +59,6 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     assert books_runner.call_args.kwargs["account"] is account
     # The book path owns the broker lifecycle; the delegator opens nothing.
     broker_factory.assert_not_called()
-
-
-def test_resolve_account_universe_prefers_account_named_universes(monkeypatch) -> None:
-    account = make_auto_trading_account(id=42, trade_universes=json.dumps(["tech", "growth"]))
-    monkeypatch.setattr(runtime_service, "resolve_named_universes", Mock(return_value=["AAPL", "MSFT"]))
-
-    resolved = runtime_service._resolve_account_universe(account, ["SPY"])
-
-    assert resolved == ["AAPL", "MSFT"]
-    runtime_service.resolve_named_universes.assert_called_once_with(["tech", "growth"])
-
-
-def test_resolve_account_universe_falls_back_to_global_when_empty() -> None:
-    account = make_auto_trading_account(id=42, trade_universes="[]")
-
-    assert runtime_service._resolve_account_universe(account, ["SPY"]) == ["SPY"]
 
 
 def test_reconcile_open_ib_orders_delegates_to_broker_reconciliation(monkeypatch) -> None:

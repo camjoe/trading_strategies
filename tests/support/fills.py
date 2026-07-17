@@ -24,9 +24,9 @@ def ensure_default_book_id(conn: sqlite3.Connection, account_id: int, *, now: st
         """
         INSERT INTO books (
             account_id, name, is_default, start_equity, current_cash, current_equity,
-            created_at, updated_at
+            trade_universes, created_at, updated_at
         )
-        VALUES (?, 'default', 1, 0, 0, 0, ?, ?)
+        VALUES (?, 'default', 1, 0, 0, 0, '["default"]', ?, ?)
         """,
         (int(account_id), now, now),
     )

@@ -51,7 +51,7 @@ def _patch_book_reads(
     monkeypatch.setattr(
         account_summaries,
         "active_strategy_for_account",
-        lambda _conn, _account_id, *, fallback: active_strategy or fallback,
+        lambda _conn, _account_id: active_strategy,
     )
     # Execution settings are book columns (revision 0004); conn=None tests
     # stub the default-book read (None -> code defaults in the summary).

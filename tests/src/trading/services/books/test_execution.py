@@ -81,7 +81,7 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     account_id = insert_repository_account(conn, name=account_name)
     book_id = _insert_book(conn, account_id=account_id, name="signal")
     account = get_account(conn, account_name)
-    _assign(conn, book_id=book_id, strategy_name=str(account.strategy))
+    _assign(conn, book_id=book_id, strategy_name="trend")
 
     rising = pd.Series([float(i) for i in range(1, 41)])
     flat = pd.Series([100.0] * 40)

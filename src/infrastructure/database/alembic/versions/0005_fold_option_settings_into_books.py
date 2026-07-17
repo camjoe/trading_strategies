@@ -30,7 +30,9 @@ _BOOK_OPTION_COLUMN_DDL = (
     "option_strike_offset_pct REAL",
     "option_min_dte INTEGER",
     "option_max_dte INTEGER",
-    "option_type TEXT CHECK (option_type IS NULL OR option_type IN ('call', 'put'))",
+    # The app vocabulary has always allowed 'both' (accounts carried no CHECK);
+    # the books column accepts it, unlike the retired 1:1 table.
+    "option_type TEXT CHECK (option_type IS NULL OR option_type IN ('call', 'put', 'both'))",
     "target_delta_min REAL",
     "target_delta_max REAL",
     "max_premium_per_trade REAL",
@@ -246,10 +248,15 @@ def downgrade() -> None:
     # Restore book_option_settings from the books columns.
     op.execute(_BOOK_OPTION_SETTINGS_DDL)
     option_list = ", ".join(_OPTION_COLUMNS)
+    # 'both' predates the 0001-shape CHECK ('call','put'); it cannot round-trip
+    # into the recreated 1:1 table and downgrades restore shape, not data.
+    select_list = option_list.replace(
+        "option_type", "CASE WHEN option_type IN ('call', 'put') THEN option_type ELSE NULL END"
+    )
     op.execute(
         "INSERT INTO book_option_settings "
         f"(book_id, {option_list}, created_at, updated_at) "
-        f"SELECT id, {option_list}, created_at, updated_at FROM books"
+        f"SELECT id, {select_list}, created_at, updated_at FROM books"
     )
 
     # Rebuild books without the option columns (back to the 0004 shape).

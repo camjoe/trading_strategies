@@ -12,21 +12,17 @@ def _make_account_insert(**overrides: object) -> AccountInsert:
     values: dict[str, object] = {
         "name": "acct_a",
         "account_kind": "managed",
-        "strategy": "Trend",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00",
         "benchmark_ticker": "SPY",
         "descriptive_name": "acct_a",
-        "goal_min_return_pct": None,
-        "goal_max_return_pct": None,
-        "goal_period": "monthly",
     }
     values.update(overrides)
     return AccountInsert(**values)
 
 
-def _insert(conn, name: str, strategy: str = "Trend") -> None:
-    AccountRepository(conn).insert(_make_account_insert(name=name, descriptive_name=name, strategy=strategy))
+def _insert(conn, name: str) -> None:
+    AccountRepository(conn).insert(_make_account_insert(name=name, descriptive_name=name))
 
 
 class TestFetchAccountByName:
@@ -46,24 +42,18 @@ class TestInsertAccount:
             _make_account_insert(
                 name="full_acct",
                 account_kind="local",
-                strategy="Momentum",
                 initial_cash=5000.0,
                 created_at="2026-03-01T10:00:00",
                 benchmark_ticker="QQQ",
                 descriptive_name="Full Account",
-                goal_min_return_pct=1.5,
-                goal_max_return_pct=3.0,
-                goal_period="weekly",
             ),
         )
         row = AccountRepository(conn).fetch_by_name("full_acct")
         assert row is not None
-        assert row["strategy"] == "Momentum"
         assert row["account_kind"] == "local"
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
-        assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
-        assert row["goal_period"] == "weekly"
+        assert row["descriptive_name"] == "Full Account"
 
 
 class TestUpdateAccountBenchmark:
@@ -78,12 +68,12 @@ class TestUpdateAccountBenchmark:
 
 class TestFetchAccountListingRows:
     def test_returns_all_accounts_ordered_by_strategy_then_name(self, conn) -> None:
-        _insert(conn, "z_acct", strategy="A_Strategy")
-        _insert(conn, "a_acct", strategy="A_Strategy")
-        _insert(conn, "m_acct", strategy="B_Strategy")
+        _insert(conn, "z_acct")
+        _insert(conn, "a_acct")
+        _insert(conn, "m_acct")
         rows = AccountRepository(conn).fetch_listing()
         names = [r["name"] for r in rows]
-        assert names == ["a_acct", "z_acct", "m_acct"]
+        assert names == ["a_acct", "m_acct", "z_acct"]
 
     def test_empty_table_returns_empty_list(self, conn) -> None:
         assert AccountRepository(conn).fetch_listing() == []
@@ -114,9 +104,9 @@ class TestUpdateAccountFields:
         _insert(conn, "upd_acct")
         repo = AccountRepository(conn)
         row = repo.fetch_by_name("upd_acct")
-        repo.update(account_id=row["id"], updates=["strategy = ?"], params=["NewStrategy"])
+        repo.update(account_id=row["id"], updates=["descriptive_name = ?"], params=["Renamed"])
         updated = repo.fetch_by_name("upd_acct")
-        assert updated["strategy"] == "NewStrategy"
+        assert updated["descriptive_name"] == "Renamed"
 
     def test_updates_multiple_fields(self, conn) -> None:
         _insert(conn, "multi_upd")
@@ -124,12 +114,12 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["goal_period = ?", "goal_min_return_pct = ?"],
-            params=["weekly", 2.5],
+            updates=["descriptive_name = ?", "account_kind = ?"],
+            params=["Multi", "local"],
         )
         updated = repo.fetch_by_name("multi_upd")
-        assert updated["goal_period"] == "weekly"
-        assert float(updated["goal_min_return_pct"]) == pytest.approx(2.5)
+        assert updated["descriptive_name"] == "Multi"
+        assert updated["account_kind"] == "local"
 
 
 class TestFetchAllAccountNames:

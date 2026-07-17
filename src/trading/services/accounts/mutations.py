@@ -18,7 +18,6 @@ from trading.services.accounts.config import (
     normalize_account_kind,
     normalize_instrument_mode,
     normalize_lower,
-    normalize_lower_obj,
     normalize_option_type,
     normalize_risk_policy,
     validate_goal_range_from_inputs,
@@ -67,13 +66,8 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
         raise ValidationError("strategy cannot be empty.")
     validate_strategy_name(normalized_strategy)
     account = get_account(conn, account_name)
-    AccountRepository(conn).update(
-        account_id=account.id,
-        updates=["strategy = ?"],
-        params=[normalized_strategy],
-    )
-    # The default book's assignment is what actually trades; keep it in step
-    # with the account's strategy column.
+    # Strategy truth is the default book's assignment (accounts.strategy was
+    # dropped in revision 0008).
     sync_default_book_assignment(
         conn,
         account_id=account.id,
@@ -123,17 +117,10 @@ def create_account(
             AccountInsert(
                 name=name,
                 account_kind=account_kind,
-                strategy=strategy,
                 initial_cash=float(initial_cash),
                 created_at=utc_now_iso(),
                 benchmark_ticker=benchmark_ticker.upper().strip(),
                 descriptive_name=display,
-                goal_min_return_pct=cfg.goal_min_return_pct,
-                goal_max_return_pct=cfg.goal_max_return_pct,
-                goal_period=normalize_lower(cfg.goal_period or "monthly"),
-                trade_universes=(
-                    _serialize_trade_universes(cfg.trade_universes) if cfg.trade_universes is not None else None
-                ),
             ),
         )
     except sqlite3.IntegrityError as exc:
@@ -175,7 +162,31 @@ def create_account(
             "iv_rank_min": cfg.iv_rank_min,
             "iv_rank_max": cfg.iv_rank_max,
             "roll_dte_threshold": cfg.roll_dte_threshold,
+            "goal_min_return_pct": cfg.goal_min_return_pct,
+            "goal_max_return_pct": cfg.goal_max_return_pct,
+            "goal_period": normalize_lower(cfg.goal_period or "monthly"),
         },
+    )
+    if cfg.trade_universes is not None:
+        _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
+
+
+def _apply_trade_universes_to_default_book(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    names: list[str],
+) -> None:
+    """Set the default book's universes (history-recorded; revision 0008)."""
+    if not names:
+        raise ValidationError("trade_universes must name at least one universe.")
+    book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
+    if book is None:
+        raise NotFoundError(f"Default book missing for account id {account_id}.")
+    BookRepository(conn).update_trade_universes(
+        book_id=book.id,
+        trade_universes=_serialize_trade_universes(names),
+        updated_at=utc_now_iso(),
     )
 
 
@@ -207,18 +218,15 @@ def configure_account(
     if cfg.account_kind is not None:
         append_update(updates, params, "account_kind", normalize_account_kind(cfg.account_kind))
 
-    append_update(updates, params, "goal_period", cfg.goal_period, normalize_lower_obj)
-    append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, expect_float)
-    append_update(updates, params, "goal_max_return_pct", cfg.goal_max_return_pct, expect_float)
-
-    if cfg.trade_universes is not None:
-        updates.append("trade_universes = ?")
-        params.append(_serialize_trade_universes(cfg.trade_universes))
-
-    # Execution/option knobs are book columns (revisions 0004/0005): validate
-    # merged over the default book's current values, then write to the book.
+    # Goals, universes, and execution/option knobs are book columns
+    # (revisions 0004/0005/0008): validate merged over the default book's
+    # current values, then write to the book.
     default_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
-    validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
+    validate_goal_range_from_inputs(
+        default_book if default_book is not None else {},
+        cfg.goal_min_return_pct,
+        cfg.goal_max_return_pct,
+    )
     validate_position_sizing_from_inputs(
         default_book.trade_size_pct if default_book is not None else None,
         default_book.max_position_pct if default_book is not None else None,
@@ -268,8 +276,17 @@ def configure_account(
             "iv_rank_min": expect_float(cfg.iv_rank_min) if cfg.iv_rank_min is not None else None,
             "iv_rank_max": expect_float(cfg.iv_rank_max) if cfg.iv_rank_max is not None else None,
             "roll_dte_threshold": expect_int(cfg.roll_dte_threshold) if cfg.roll_dte_threshold is not None else None,
+            "goal_min_return_pct": expect_float(cfg.goal_min_return_pct)
+            if cfg.goal_min_return_pct is not None
+            else None,
+            "goal_max_return_pct": expect_float(cfg.goal_max_return_pct)
+            if cfg.goal_max_return_pct is not None
+            else None,
+            "goal_period": normalize_lower(cfg.goal_period) if cfg.goal_period is not None else None,
         },
     )
+    if cfg.trade_universes is not None:
+        _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
 
     if not updates:
         return

@@ -271,7 +271,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T07:19:27+00:00. Tables: 23.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T17:05:35+00:00. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -331,7 +331,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T07:19:27+00:00",
+  "generatedAt": "2026-07-17T17:05:35+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -445,14 +445,6 @@
           "type": "TEXT"
         },
         {
-          "default": null,
-          "name": "strategy",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
           "default": "'USD'",
           "name": "base_ccy",
           "notNull": true,
@@ -500,50 +492,6 @@
           "default": "''",
           "name": "descriptive_name",
           "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "goal_min_return_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "goal_max_return_pct",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "REAL"
-        },
-        {
-          "default": "'monthly'",
-          "name": "goal_period",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#0f8b5f",
-            "id": "books",
-            "label": "Books"
-          },
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "trade_universes",
-          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -1372,6 +1320,84 @@
         },
         {
           "default": null,
+          "name": "book_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "universes_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "effective_from",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "effective_to",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "book_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "book_id"
+          ],
+          "name": "idx_book_universe_history_open_per_book",
+          "origin": "c",
+          "unique": true
+        },
+        {
+          "columns": [
+            "book_id",
+            "effective_from"
+          ],
+          "name": "idx_book_universe_history_book_from",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "book_universe_history",
+      "section": null
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "account_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -1433,7 +1459,7 @@
         {
           "default": null,
           "name": "trade_universes",
-          "notNull": false,
+          "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -4021,6 +4047,7 @@
         "backtest_trades",
         "book_rotation_settings",
         "book_strategy_assignments",
+        "book_universe_history",
         "books",
         "daily_metrics",
         "equity_snapshots",
