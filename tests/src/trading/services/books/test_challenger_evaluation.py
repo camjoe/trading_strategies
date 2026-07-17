@@ -28,7 +28,7 @@ def _artifact(*, blended_score: float | None, trade_count: int, available: bool 
 
 def test_build_book_challenger_evaluations_builds_incumbent_and_challengers(conn, monkeypatch) -> None:
     account_name = "acct_shadow_eval"
-    account_id = insert_repository_account(conn, name=account_name, strategy="trend")
+    account_id = insert_repository_account(conn, name=account_name)
     book_id = insert_test_book(conn, account_id=account_id, name="core")
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
     set_test_book_rotation_scheduling(
@@ -68,7 +68,7 @@ def test_build_book_challenger_evaluations_builds_incumbent_and_challengers(conn
 
 
 def test_disabled_or_unconfigured_books_are_skipped(conn, monkeypatch) -> None:
-    account_id = insert_repository_account(conn, name="acct_shadow_gate", strategy="trend")
+    account_id = insert_repository_account(conn, name="acct_shadow_gate")
     disabled = insert_test_book(conn, account_id=account_id, name="disabled")
     assign_test_book_strategy(conn, book_id=disabled, strategy_name="trend")
     set_test_book_rotation_scheduling(conn, book_id=disabled, enabled=0, schedule=["trend", "meanrev"])
@@ -88,7 +88,7 @@ def test_disabled_or_unconfigured_books_are_skipped(conn, monkeypatch) -> None:
 
 
 def test_explicit_window_overrides_book_lookback(conn, monkeypatch) -> None:
-    account_id = insert_repository_account(conn, name="acct_shadow_override", strategy="trend")
+    account_id = insert_repository_account(conn, name="acct_shadow_override")
     book_id = insert_test_book(conn, account_id=account_id, name="core")
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
     set_test_book_rotation_scheduling(conn, book_id=book_id, enabled=1, schedule=["trend"], lookback_days=90)

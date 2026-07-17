@@ -15,12 +15,11 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_float, row_str
+from common.coercion import row_expect_float, row_expect_int
 from common.time import utc_now_iso
 from trading.domain.strategy_signals import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_settings import BookRotationSettingsRepository
 
 
@@ -65,15 +64,15 @@ def _seed_book_settings(conn: sqlite3.Connection, *, book_id: int, now: str) -> 
 
 
 def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
-    """Create the real default book + settings rows for accounts missing one.
+    """Create the default book + settings rows for accounts missing one.
 
-    Also opens the book's strategy assignment from the account's legacy strategy
-    label when the seeded catalog knows it. Returns books created.
+    Repair path only: accounts carry no strategy/goal/universe columns since
+    revision 0008, so a repaired book starts on DDL defaults with the default
+    universe and no assignment — the account create path and book editors set
+    real values. Returns books created.
     """
     now = now_iso or utc_now_iso()
     book_repo = BookRepository(conn)
-    assignment_repo = BookAssignmentRepository(conn)
-    strategy_repo = StrategyRepository(conn)
 
     accounts = conn.execute("SELECT * FROM accounts ORDER BY id ASC").fetchall()
     created = 0
@@ -89,25 +88,9 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
             start_equity=initial_cash,
             current_cash=initial_cash,
             current_equity=initial_cash,
-            trade_universes=row_str(dict(account), "trade_universes"),
-            goal_min_return_pct=row_float(dict(account), "goal_min_return_pct"),
-            goal_max_return_pct=row_float(dict(account), "goal_max_return_pct"),
-            goal_period=row_str(dict(account), "goal_period"),
             created_at=now,
             updated_at=now,
         )
         _seed_book_settings(conn, book_id=book_id, now=now)
-
-        legacy_strategy = row_str(dict(account), "strategy")
-        if legacy_strategy:
-            record = strategy_repo.fetch_by_key(strategy_key=legacy_strategy.strip().lower())
-            if record is not None:
-                assignment_repo.assign_strategy(
-                    book_id=book_id,
-                    strategy_id=record.id,
-                    effective_from=now,
-                    created_at=now,
-                    updated_at=now,
-                )
         created += 1
     return created

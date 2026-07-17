@@ -178,22 +178,17 @@ dropped; `AccountRecord`/`AccountInsert` shed the fields. Implementation notes:
 
 #### A4 — Goal columns (OD2 decided: drop)
 
-Drop `accounts.goal_min_return_pct`, `goal_max_return_pct`, `goal_period`. One branch:
-rebuild `accounts` without the three columns; account create/config surfaces
-(`src/trading/services/accounts/config.py`, `mutations.py`, account profile JSONs, CLI shared
-handlers), the web backend account contract
-(`apps/paper_trading_web/backend/account_contract/mappings.py`,
-`services/accounts/summaries.py`), and `AccountRecord` shed the fields. CRUD/display readers
-only — no execution path reads account goals.
-
-`accounts.trade_universes` is handled by A7 (OD6 decided), not this item.
+**DONE 2026-07-17 — revision `0008` (shared with A5/A7).** Goal fields route to the default
+book (write-through, `monthly` default preserved at create); `format_goal_text` and every
+display reads the book. `AccountRecord`/`AccountInsert` shed the fields.
 
 #### A5 — `accounts.strategy` (OD3 decided: remove)
 
-Remove the column, the `AccountRecord.strategy` field, and the display-only fallback readers
-(`reporting/presentation.py`, `accounts/listing.py`, `accounts/deletions.py` — verified the
-complete list 2026-07-16). Active strategy displays derive from `book_strategy_assignments`
-with no account fallback. Roadmap previously omitted this column entirely.
+**DONE 2026-07-17 — revision `0008` (shared with A4/A7).** `active_strategy_for_account` lost
+its account fallback (returns `unassigned` when no open assignment); `set_account_strategy` and
+`create_account` write the assignment only; listing groups by active strategy; backtest/
+walk-forward/leaderboard SQL resolves strategy purely via the `strategies` FK (`'unknown'` for
+NULL). The repair-path bootstrap (`ensure_default_books`) no longer opens legacy assignments.
 
 #### A6 — Broker settings (OD4 decided: keep on `accounts`)
 
@@ -203,19 +198,13 @@ Trading Safety Guard is untouched. Remaining action is documentation-only (note 
 
 #### A7 — Trade universes: book-only, required, historied (OD6 decided)
 
-One atomic branch implementing OD6:
-
-- Migration: create `book_universe_history`; create a default universe file from the current
-  global ticker list if any book needs it; backfill `books.trade_universes` (account value
-  where the book's is NULL, else the default universe); rebuild `books` with
-  `trade_universes TEXT NOT NULL`; seed one open history row per book; rebuild `accounts`
-  without `trade_universes` (can share the A4 rebuild if branched together).
-- Code: `_resolve_account_universe` collapses to book-only (`src/trading/services/auto_trading/
-  runtime.py`); the book-universe fallback branch in `src/trading/services/books/execution.py`
-  simplifies; book create/update surfaces require universes and write history rows; account
-  create/config and web contract surfaces shed the field.
-- Validation: auto-trading runtime + books suites; every existing book trades the same tickers
-  before and after; changing a book's universes closes the old history row and opens a new one.
+**DONE 2026-07-17 — revision `0008` (shared with A4/A5).** `book_universe_history` created
+(append-only, partial-unique open row per book) and seeded from every book;
+`books.trade_universes` is NOT NULL (backfill book → account → `'["default"]'`, with the
+`default` universe file shipped from the global ticker list); `accounts.trade_universes`
+dropped. `_resolve_account_universe` deleted (chain is book → global-config guard);
+`BookRepository.insert`/`update_trade_universes` record history on every set/change; account
+create/config surfaces route universes to the default book (≥1 name required).
 
 ### Group B — Trade history unification
 

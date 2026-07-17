@@ -9,12 +9,7 @@ class AccountInsert:
 
     name: str
     account_kind: str
-    strategy: str
     initial_cash: float
     created_at: str
     benchmark_ticker: str
     descriptive_name: str
-    goal_min_return_pct: float | None
-    goal_max_return_pct: float | None
-    goal_period: str
-    trade_universes: str | None = None

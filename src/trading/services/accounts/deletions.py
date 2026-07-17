@@ -24,10 +24,14 @@ def preview_account_deletion(
     account = repo.fetch_by_name(normalized_name)
     if account is None:
         raise NotFoundError(f"Account '{normalized_name}' not found.")
+    # accounts.strategy was dropped in revision 0008; the preview shows the
+    # assignment-derived active strategy.
+    from trading.services.books.book_assignments import active_strategy_for_account
+
     return AccountDeletionPreview(
         account_name=account.name,
         descriptive_name=account.descriptive_name or account.name,
-        strategy=account.strategy,
+        strategy=active_strategy_for_account(conn, account.id),
     )
 
 

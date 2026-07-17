@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 from collections import defaultdict
@@ -23,7 +22,6 @@ from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.services.accounts import get_account
 from trading.services.operational_settings import enforce_runtime_trade_throttles
-from trading.services.universe import resolve_named_universes
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.services.auto_trading.execution import (
     FeatureHistoryFn,
@@ -167,17 +165,6 @@ def _run_book_rotation_decisions(
         )
 
 
-def _resolve_account_universe(account: AccountRecord, global_universe: list[str]) -> list[str]:
-    """Return the account-specific universe, falling back to the global one."""
-    raw = account.trade_universes
-    if not raw:
-        return global_universe
-    names: object = json.loads(raw)
-    if not isinstance(names, list) or not names:
-        return global_universe
-    return resolve_named_universes([str(n) for n in names])
-
-
 def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
     """Convert the gate's book-keyed decisions into audit dicts."""
     return [asdict(decision) for decision in decisions]
@@ -228,12 +215,13 @@ def _run_books_for_account(
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
-    effective_universe = _resolve_account_universe(account, universe)
+    # Universes are book-owned and required (revision 0008): each book resolves
+    # its own names; the global list is only the guard for malformed data.
     _run_book_rotation_decisions(conn, account=account, decision_time=snapshot_time)
     intents = generate_book_trade_intents(
         conn,
         account=account,
-        universe=effective_universe,
+        universe=universe,
         prices=prices,
         iv_rank_proxy=iv_rank_proxy,
         max_trades=max_trades,

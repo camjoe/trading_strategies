@@ -26,7 +26,7 @@ _GROUP_SELECT = """
 SELECT g.id,
        g.grouping_key,
        g.account_id,
-       COALESCE(s.strategy_key, a.strategy) AS strategy_name,
+       COALESCE(s.strategy_key, 'unknown') AS strategy_name,
        g.run_name_prefix,
        g.start_date,
        g.end_date,
@@ -149,7 +149,7 @@ def fetch_latest_walk_forward_group_for_account_strategy(
         _GROUP_SELECT
         + """
         WHERE g.account_id = ?
-          AND LOWER(COALESCE(s.strategy_key, a.strategy)) = LOWER(?)
+          AND LOWER(s.strategy_key) = LOWER(?)
         ORDER BY g.created_at DESC, g.id DESC
         LIMIT 1
         """,

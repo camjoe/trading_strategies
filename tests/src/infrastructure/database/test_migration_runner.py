@@ -404,6 +404,73 @@ def test_revision_0007_backfills_promotion_strategy_fk(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_revision_0008_universe_history_and_final_accounts_shape(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "final_shrink.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0007", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, strategy, initial_cash, created_at, trade_universes, goal_min_return_pct)
+            VALUES
+                (1, 'acct_with', 'Trend', 1000, '2026-01-01T00:00:00Z', '["growth"]', 2.0),
+                (2, 'acct_without', 'Trend', 500, '2026-01-01T00:00:00Z', NULL, NULL);
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 'default', 1000, 1000, 1000, '["large_cap"]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 1, 'second', 100, 100, 100, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (3, 2, 'default', 500, 500, 500, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0008", connection=conn)
+        universes = {
+            int(r["id"]): str(r["trade_universes"]) for r in conn.execute("SELECT id, trade_universes FROM books")
+        }
+        # Own value kept; account inherited; default backfilled.
+        assert universes == {1: '["large_cap"]', 2: '["growth"]', 3: '["default"]'}
+        history = conn.execute(
+            "SELECT book_id, universes_json, effective_to FROM book_universe_history ORDER BY book_id"
+        ).fetchall()
+        assert [(r["book_id"], r["universes_json"], r["effective_to"]) for r in history] == [
+            (1, '["large_cap"]', None),
+            (2, '["growth"]', None),
+            (3, '["default"]', None),
+        ]
+        account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert account_columns == {
+            "id",
+            "name",
+            "account_kind",
+            "base_ccy",
+            "initial_cash",
+            "created_at",
+            "updated_at",
+            "benchmark_ticker",
+            "descriptive_name",
+            "broker_type",
+            "broker_host",
+            "broker_port",
+            "broker_client_id",
+            "live_trading_enabled",
+        }
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0007", connection=conn)
+        columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
+        assert "strategy" in columns and "trade_universes" in columns
+        tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "book_universe_history" not in tables
+        # Book universes survive the downgrade (nullable again, values kept).
+        assert conn.execute("SELECT trade_universes FROM books WHERE id = 3").fetchone()[0] == '["default"]'
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

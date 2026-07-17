@@ -78,13 +78,13 @@ def test_enumerate_trading_books_skips_unassigned_default_book(conn) -> None:
 def test_active_strategy_for_account_resolves_default_book_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_active")
 
-    # No default book yet: read-only fallback, no bootstrap.
-    assert active_strategy_for_account(conn, account_id, fallback=" Trend ") == "Trend"
+    # No default book yet: read-only, no bootstrap; unassigned label.
+    assert active_strategy_for_account(conn, account_id) == "unassigned"
     assert conn.execute("SELECT COUNT(*) FROM books WHERE account_id = ?", (account_id,)).fetchone()[0] == 0
 
     sync_default_book_assignment(conn, account_id=account_id, strategy_name="meanrev", now_iso=NOW)
 
-    assert active_strategy_for_account(conn, account_id, fallback="Trend") == "meanrev"
+    assert active_strategy_for_account(conn, account_id) == "meanrev"
 
 
 def test_sync_default_book_assignment_opens_and_is_idempotent(conn) -> None:

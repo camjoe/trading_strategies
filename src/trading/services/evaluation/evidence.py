@@ -67,11 +67,7 @@ WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
 def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
-    return active_strategy_for_account(
-        conn,
-        row_expect_int(account, "id"),
-        fallback=row_expect_str(account, "strategy"),
-    )
+    return active_strategy_for_account(conn, row_expect_int(account, "id"))
 
 
 def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) -> bool:
@@ -103,7 +99,9 @@ def build_basic_scope(
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
-        base_strategy=row_expect_str(account, "strategy"),
+        # accounts.strategy was dropped (revision 0008): the assignment-derived
+        # active strategy is the only strategy.
+        base_strategy=_active_strategy(conn, account),
         active_strategy=_active_strategy(conn, account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=default_book.instrument_mode if default_book is not None else None,

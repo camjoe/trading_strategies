@@ -9,8 +9,13 @@ from trading.services.accounts import create_account
 def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_a', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
+        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z');
+
+        INSERT INTO strategies (
+            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+        )
+        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,
@@ -36,12 +41,12 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             (12, '2026-02-28T00:00:00Z', 1000, -10, 990, 0, -10);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
         VALUES (
-            7, 'wf-group-1', 1, 'wf', '2026-01-01', '2026-02-28',
+            7, 'wf-group-1', 1, 900, 'wf', '2026-01-01', '2026-02-28',
             1, 1, 2, 0.5, 0.5, 2.0, -1.0, '2026-03-15T00:00:00Z'
         );
 
@@ -58,7 +63,7 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
     report = fetch_walk_forward_report_data(conn, group_id=7)
 
     assert report.group_id == 7
-    assert report.strategy_name == "Trend"
+    assert report.strategy_name == "trend"
     assert report.window_count == 2
     assert [item.window_index for item in report.windows] == [1, 2]
     assert report.windows[0].backtest_summary.run_name == "wf_01"
@@ -68,8 +73,13 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
 def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_a', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
+        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z');
+
+        INSERT INTO strategies (
+            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+        )
+        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,
@@ -88,12 +98,12 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
             (11, '2026-01-31T00:00:00Z', 1000, 30, 1030, 0, 30);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
         VALUES (
-            9, 'wf-group-9', 1, 'wf', '2026-01-01', '2026-01-31',
+            9, 'wf-group-9', 1, 900, 'wf', '2026-01-01', '2026-01-31',
             1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-03-15T00:00:00Z'
         );
 
@@ -151,8 +161,13 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
     """Fetching by account_name + strategy_name uses the strategy branch (line 38) and succeeds."""
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (50, 'acct_wf_strat', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
+        VALUES (50, 'acct_wf_strat', 1000, 'SPY', '2026-01-01T00:00:00Z');
+
+        INSERT INTO strategies (
+            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+        )
+        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,
@@ -169,11 +184,11 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
             (50, '2026-01-31T00:00:00Z', 1000, 10, 1010, 0, 10);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         ) VALUES (
-            50, 'wf-strat-key', 50, 'wf_s', '2026-01-01', '2026-01-31',
+            50, 'wf-strat-key', 50, 900, 'wf_s', '2026-01-01', '2026-01-31',
             1, 1, 1, 1.0, 1.0, 1.0, 1.0, '2026-03-15T00:00:00Z'
         );
 
@@ -187,5 +202,5 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
     report = fetch_walk_forward_report_data(conn, account_name="acct_wf_strat", strategy_name="Trend")
 
     assert report.group_id == 50
-    assert report.strategy_name == "Trend"
+    assert report.strategy_name == "trend"
     assert len(report.windows) == 1

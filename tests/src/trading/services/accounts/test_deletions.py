@@ -16,7 +16,7 @@ class TestPreviewAccountDeletion:
 
         assert preview.account_name == "acct_a"
         assert preview.descriptive_name == "acct_a"
-        assert preview.strategy == "Trend"
+        assert preview.strategy == "unassigned"
         assert deletion_seeded_conn.execute("SELECT id FROM accounts WHERE name = 'acct_a'").fetchone() is not None
 
     def test_raises_for_missing_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:

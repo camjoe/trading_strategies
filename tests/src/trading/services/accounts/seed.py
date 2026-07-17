@@ -14,18 +14,20 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
     """
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, strategy, initial_cash, created_at)
+        INSERT INTO accounts (id, name, initial_cash, created_at)
         VALUES
-            (1, 'acct_a', 'Trend', 1000, '2026-01-01T00:00:00Z'),
-            (2, 'acct_b', 'Trend', 1500, '2026-01-01T00:00:00Z');
+            (1, 'acct_a', 1000, '2026-01-01T00:00:00Z'),
+            (2, 'acct_b', 1500, '2026-01-01T00:00:00Z');
 
         INSERT INTO books (
             id, account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, created_at, updated_at
+            current_equity, trade_universes, created_at, updated_at
         )
         VALUES
-            (1, 1, 'default', 'active', 1, 1000, 900, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-            (2, 2, 'default', 'active', 1, 1500, 1300, 1500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            (1, 1, 'default', 'active', 1, 1000, 900, 1000, '["default"]',
+             '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+            (2, 2, 'default', 'active', 1, 1500, 1300, 1500, '["default"]',
+             '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO equity_snapshots (
             book_id, snapshot_time, cash, market_value, equity, realized_pnl,

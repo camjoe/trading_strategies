@@ -68,7 +68,7 @@ def run_backtest(
     strategy_name = (
         strategy_override.strip()
         if strategy_override and strategy_override.strip()
-        else active_strategy_for_account(conn, account_id, fallback=row_expect_str(account, "strategy"))
+        else active_strategy_for_account(conn, account_id)
     )
     strategy_spec = resolve_strategy(strategy_name)
 

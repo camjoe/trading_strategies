@@ -158,8 +158,9 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_strategy_snapshot", slippage_bps=1.0, run_name="strategy-snapshot"),
         )
 
-        conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
-        conn.commit()
+        from trading.services.accounts import set_account_strategy
+
+        set_account_strategy(conn, "acct_strategy_snapshot", "mean_reversion")
 
         # The report reflects the run's own strategy (a strategies FK snapshot),
         # not the account's later strategy. The catalog stores the canonical key,

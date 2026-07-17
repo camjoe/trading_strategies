@@ -10,7 +10,6 @@ from common.coercion import (
     row_str,
 )
 from trading.domain.exceptions import ValidationError
-from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -213,12 +212,13 @@ def resolved_int(value: int | None, row: "Mapping[str, object]", column: str) ->
 
 
 def validate_goal_range_from_inputs(
-    account: AccountRecord,
+    current: "Mapping[str, object]",
     goal_min_return_pct: float | None,
     goal_max_return_pct: float | None,
 ) -> None:
-    min_value = resolved_float(goal_min_return_pct, account, "goal_min_return_pct")
-    max_value = resolved_float(goal_max_return_pct, account, "goal_max_return_pct")
+    """Validate goal inputs merged over the current (book-owned) values."""
+    min_value = resolved_float(goal_min_return_pct, current, "goal_min_return_pct")
+    max_value = resolved_float(goal_max_return_pct, current, "goal_max_return_pct")
     if min_value is not None and max_value is not None and min_value > max_value:
         raise ValidationError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 

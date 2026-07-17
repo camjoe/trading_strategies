@@ -23,7 +23,8 @@ class BookRecord(Mapping[str, object]):
     start_equity: float
     current_cash: float
     current_equity: float
-    trade_universes: str | None
+    # NOT NULL since revision 0008 — books are always explicitly set.
+    trade_universes: str
     goal_min_return_pct: float | None
     goal_max_return_pct: float | None
     goal_period: str | None
@@ -64,7 +65,7 @@ class BookRecord(Mapping[str, object]):
             start_equity=row_expect_float(values, "start_equity"),
             current_cash=row_expect_float(values, "current_cash"),
             current_equity=row_expect_float(values, "current_equity"),
-            trade_universes=row_str(values, "trade_universes"),
+            trade_universes=row_expect_str(values, "trade_universes"),
             goal_min_return_pct=row_float(values, "goal_min_return_pct"),
             goal_max_return_pct=row_float(values, "goal_max_return_pct"),
             goal_period=row_str(values, "goal_period"),

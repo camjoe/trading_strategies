@@ -19,7 +19,7 @@ def _seed_run(conn, *, account_id: int, strategy_name: str, created_at: str) -> 
 
 
 def _rotation_account(conn, name: str, *, schedule: list[str], enabled: int = 1) -> int:
-    account_id = insert_repository_account(conn, name=name, strategy="trend")
+    account_id = insert_repository_account(conn, name=name)
     sync_default_book_assignment(conn, account_id=account_id, strategy_name="trend", now_iso=REFERENCE)
     set_test_book_rotation_scheduling(
         conn, book_id=default_book_id(conn, account_id), enabled=enabled, schedule=schedule

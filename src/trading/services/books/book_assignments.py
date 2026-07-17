@@ -91,21 +91,26 @@ def get_default_book(conn: sqlite3.Connection, *, account_id: int) -> BookRecord
     return BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
 
 
-def active_strategy_for_account(conn: sqlite3.Connection, account_id: int, *, fallback: str) -> str:
+# Shown when an account's default book has no open strategy assignment yet
+# (accounts.strategy was dropped in revision 0008 — there is no fallback).
+UNASSIGNED_STRATEGY_LABEL = "unassigned"
+
+
+def active_strategy_for_account(conn: sqlite3.Connection, account_id: int) -> str:
     """The strategy the account's default book actually runs.
 
     Resolves from the default book's open assignment — the record rotation
-    applies to (ADR 014) — falling back to the account's base ``strategy``
-    column when no default book or assignment exists yet. Read-only: it never
-    bootstraps the default book.
+    applies to (ADR 014). ``UNASSIGNED_STRATEGY_LABEL`` when no default book
+    or open assignment exists yet. Read-only: it never bootstraps the default
+    book.
     """
     book = BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
     if book is None:
-        return fallback.strip()
+        return UNASSIGNED_STRATEGY_LABEL
     view = open_assignment_for_book(conn, book_id=book.id)
     if view is not None:
         return view.strategy_name
-    return fallback.strip()
+    return UNASSIGNED_STRATEGY_LABEL
 
 
 def sync_default_book_assignment(

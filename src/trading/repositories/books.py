@@ -30,7 +30,7 @@ class BookRepository:
         start_equity: float,
         current_cash: float,
         current_equity: float,
-        trade_universes: str | None = None,
+        trade_universes: str = '["default"]',
         goal_min_return_pct: float | None = None,
         goal_max_return_pct: float | None = None,
         goal_period: str | None = None,
@@ -110,8 +110,35 @@ class BookRepository:
                 updated_at,
             ),
         )
+        book_id = int(cursor.lastrowid or 0)
+        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=created_at)
         self._conn.commit()
-        return int(cursor.lastrowid or 0)
+        return book_id
+
+    def _record_universe_history(self, *, book_id: int, universes_json: str, effective_from: str) -> None:
+        """Close the open universe-history row (if any) and open a new one."""
+        self._conn.execute(
+            "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
+            (effective_from, int(book_id)),
+        )
+        self._conn.execute(
+            """
+            INSERT INTO book_universe_history (book_id, universes_json, effective_from, effective_to)
+            VALUES (?, ?, ?, NULL)
+            """,
+            (int(book_id), universes_json, effective_from),
+        )
+
+    def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
+        return self._conn.execute(
+            """
+            SELECT universes_json, effective_from, effective_to
+            FROM book_universe_history
+            WHERE book_id = ?
+            ORDER BY effective_from ASC, id ASC
+            """,
+            (int(book_id),),
+        ).fetchall()
 
     def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
         """Apply pre-built ``column = ?`` update fragments to one book."""
@@ -149,11 +176,13 @@ class BookRepository:
         )
         self._conn.commit()
 
-    def update_trade_universes(self, *, book_id: int, trade_universes: str | None, updated_at: str) -> None:
+    def update_trade_universes(self, *, book_id: int, trade_universes: str, updated_at: str) -> None:
+        """Set the book's universes and record the change in the history table."""
         self._conn.execute(
             "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
             (trade_universes, updated_at, int(book_id)),
         )
+        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=updated_at)
         self._conn.commit()
 
     def update_balances(

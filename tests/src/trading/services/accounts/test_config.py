@@ -81,9 +81,9 @@ class TestCreateAccountIntegration:
         account = get_account(conn, "acct_norm")
         assert account["benchmark_ticker"] == "QQQ"
         assert account["descriptive_name"] == "Growth Focus"
-        assert account["goal_period"] == "weekly"
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
+        assert book.goal_period == "weekly"
         assert book.option_type == "call"
 
     def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
@@ -92,7 +92,9 @@ class TestCreateAccountIntegration:
         set_account_strategy(conn, "acct_strategy", "MeanRev")
 
         account = get_account(conn, "acct_strategy")
-        assert account["strategy"] == "MeanRev"
+        from trading.services.books.book_assignments import active_strategy_for_account
+
+        assert active_strategy_for_account(conn, account.id) == "meanrev"
 
 
 class TestConfigureAccountIntegration:
@@ -161,9 +163,9 @@ class TestConfigureAccountIntegration:
         )
 
         account = get_account(conn, base_account)
-        assert account["goal_period"] == "weekly"
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
+        assert book.goal_period == "weekly"
         assert book.learning_enabled == 1
 
     def test_validates_position_sizing_against_existing_values(self, conn) -> None:

@@ -55,9 +55,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
     with (
-        patch.object(
-            execution_service, "active_strategy_for_account", lambda _conn, _account_id, *, fallback: "trend"
-        ),
+        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
         patch.object(
             execution_service,
             "resolve_strategy",
@@ -191,9 +189,7 @@ def _patched_run_backtest(
         kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
 
     with (
-        patch.object(
-            execution_service, "active_strategy_for_account", lambda _conn, _account_id, *, fallback: "trend"
-        ),
+        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
         patch.object(
             execution_service,
             "resolve_strategy",
