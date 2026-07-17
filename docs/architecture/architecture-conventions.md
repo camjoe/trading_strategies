@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-17
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
 Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -144,6 +144,16 @@ Rules:
 Rationale and delivered cleanup: `docs/adr/010-book-keyed-execution-model.md`,
 `docs/adr/011-strategy-catalog-and-parameter-ownership.md`, and
 `docs/adr/014-execution-mode-collapse.md`.
+
+## Database Modeling
+
+1. Prefer typed tables and columns with explicit domain meaning. Do not introduce generic
+   entity-attribute-value or category/value storage.
+2. Add mapping tables only for genuine many-to-many relationships or when the relationship itself
+   carries historical meaning.
+3. Physical schema changes use immutable, numbered Alembic revisions. Each revision must provide a
+   reversible downgrade; SQLite rebuilds follow the established migration pattern documented in
+   `docs/reference/db-migration-system.md`.
 
 ## External Data Strategies
 

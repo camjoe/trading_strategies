@@ -97,6 +97,15 @@ The account-level `trades` table was dropped in revision `0006`. Execution histo
 account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
 were not carried over — pre-`0006` notes live only in database backups.
 
+### Universe history
+
+`book_universe_history` records the names assigned to each book over time, not the membership of
+those universes at each point in time. Universe definitions remain file-backed, so historical
+evaluation can identify a universe change but cannot reconstruct membership after a definition
+changes. This membership-drift gap is known and accepted while universe definitions stabilize.
+Promoting universes to database entities with membership snapshots requires an explicit schema and
+product decision.
+
 ### Deletion semantics
 
 - Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
@@ -106,6 +115,13 @@ were not carried over — pre-`0006` notes live only in database backups.
   must not silently vanish from its group's composition. Account deletion still succeeds because
   SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
   "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
+
+### History retention
+
+Promotion, risk, backtest, and walk-forward records currently have no automated age-based
+retention policy. They remain until their owning account is deleted, at which point the deletion
+semantics above apply. Any pruning or archival policy requires an explicit product/operator
+decision before implementation.
 
 ---
 
