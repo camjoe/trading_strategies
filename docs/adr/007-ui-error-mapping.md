@@ -3,7 +3,7 @@
 Type: adr
 Status: Accepted
 Created: 2026-06-27
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-14
 Purpose: Decide how the FastAPI backend should map domain/validation errors to HTTP responses, replacing the per-route try/except → HTTPException duplication.
 Related: [Architecture Conventions](../architecture/architecture-conventions.md) (UI Backend Boundary Rule + Cross-Cutting Patterns), [ADR 006](006-cross-cutting-decorators.md)
 
@@ -102,7 +102,7 @@ Accepted and shipped as the first slice:
 - The not-found-only routes dropped their local 404 mapping
   (`routes/backtests.py`, `routes/ibkr_paper_monitor.py`,
   `services/accounts/data_access.require_account_row`), and
-  `services/admin.delete_account_and_dependents` dropped its
+  `services/admin.delete_managed_account` dropped its
   `"Accounts not found:"` string heuristic — all now rely on the app handler.
 
 **Conversion principle.** Only "a requested entity does not exist" (a lookup
@@ -110,15 +110,51 @@ miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
 (`backtest_data_service` bad directory path, `csv_export` invalid table — 400
 -class) and *internal post-write integrity* checks (`repositories/promotion`
 "not found after insert", `services/promotion/actions` "not found after request
-creation", `services/sleeves/accounting` fill-processing invariants — 500-class,
+creation", `services/books/accounting` fill-processing invariants — 500-class,
 not user not-found).
 
-Deferred (still behavior-preserving today *because* `NotFoundError` is a
-`ValueError`): the `routes/admin.py` promotion-overview `"not found"` heuristic
-stays — `build_promotion_overview`'s assessment/history fetches return empty
-rather than raising, so removing it would lose the 404. It can go when those
-paths gain typed not-found semantics. Validation (400/422) mapping stays
-per-route (no `ValidationError` introduced yet).
+### Phase 2 — implemented
+
+The second slice completes the migration for the remaining per-route
+`ValueError` catches:
+
+- `ValidationError(ValueError)` added to `src/trading/domain/exceptions.py`
+  (sibling of `NotFoundError`; both subclass `ValueError` so existing
+  `except ValueError` callers — CLI, tests — are unchanged). A second app-level
+  handler in `apps/paper_trading_web/backend/main.py` maps `ValidationError -> 400`.
+- User-input validation raises reachable from the migrated routes now raise
+  `ValidationError`: `services/accounts/config.py` (enum/range/sizing/option
+  checks), `services/accounts/mutations.py` and `queries.py` (empty-name,
+  positive-id/limit, `initial_cash > 0`), `domain/strategy_signals.py`
+  (unknown-strategy), `backtesting/domain/windowing.py` and
+  `backtesting/services/backtest_data_service.py` (date/lookback/universe
+  checks), and `services/profiles/rotation_config_parser.py` (rotation object
+  shape, lookback, schedule strategy names).
+- Routes dropped their blanket `except ValueError -> 400`: `routes/backtests.py`
+  (run/preflight/walk-forward), `routes/admin.py` (create account). The account
+  params route (`routes/accounts.py`) narrowed its catch to
+  `except ValidationError -> 422`, preserving that route-specific status.
+- The `routes/admin.py` promotion-overview `"not found"` string heuristic was
+  removed: a missing account already raises `NotFoundError` (from `get_account`),
+  which the app handler maps to 404.
+- The account-create service wrapper (`backend/services/admin.py`) now translates
+  the domain `AccountAlreadyExistsError` to `ValidationError` (duplicate name is
+  caller-correctable input -> 400); it no longer flattens arbitrary `ValueError`,
+  so unexpected errors surface as 500.
+
+**Conversion principle (unchanged).** Only user-input validation becomes
+`ValidationError`. Deliberately left as bare `ValueError` -> 500: backtest
+domain-math invariants (`backtesting/domain/metrics.py`,
+`simulation_math.py`, `execution_service.py`), internal post-write integrity
+checks, and the generic `domain/rotation.py` list parser (also used on
+DB-sourced data, where a failure is an integrity error, not user input).
+Route-specific transport guards stay direct `HTTPException`: the preflight
+`FileNotFoundError -> 400` (missing tickers file) and `services/exports.py`
+path validation.
+
+**Deferred.** No `ConflictError`/409 was introduced — a duplicate account
+stays 400, preserving the prior client contract. It can be added later if a
+409 is wanted for conflict cases.
 
 ## Consequences
 

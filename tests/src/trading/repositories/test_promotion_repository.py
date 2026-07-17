@@ -54,7 +54,7 @@ def _assessment(*, account_name: str = "acct_a", strategy_name: str = "Trend") -
 
 
 def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
+    account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
     repo = PromotionReviewRepository(conn)
 
     review = repo.insert_review(
@@ -79,7 +79,7 @@ def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
 
 
 def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
+    account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
     repo = PromotionReviewRepository(conn)
     review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
@@ -119,7 +119,7 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
 
 
 def test_fetch_open_history_and_update_review_state(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
+    account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
     repo = PromotionReviewRepository(conn)
     review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),

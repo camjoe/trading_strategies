@@ -2,9 +2,9 @@ import pytest
 
 import trading.services.accounting.mutations as accounting_mutations
 from common.time import utc_now_iso
-from trading.repositories.trades import TradeRepository
-from trading.services.accounting import record_trade
+from trading.services.accounting import list_account_trades, record_trade
 from trading.services.accounts import create_account, get_account
+from trading.services.books.book_assignments import get_default_book
 from trading.services.operational_settings import set_runtime_throttle_settings
 
 
@@ -41,7 +41,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_roundtrip")
-        rows = TradeRepository(conn).fetch_for_account(account_id=account["id"])
+        rows = list_account_trades(conn, account["id"])
 
         assert len(rows) == 1
         row = rows[0]
@@ -49,7 +49,11 @@ class TestRecordTrade:
         assert row["side"] == "buy"
         assert float(row["qty"]) == pytest.approx(3.0)
         assert float(row["price"]) == pytest.approx(100.0)
-        assert row["note"] == "entry"
+
+        # The fill was applied to the default book (revision 0006).
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.current_cash == pytest.approx(700.0)
 
     def test_rejects_invalid_side(self, conn) -> None:
         create_account(conn, "acct_bad_side", "Trend", 1000.0, "SPY")
@@ -60,6 +64,22 @@ class TestRecordTrade:
                 account_name="acct_bad_side",
                 side="hold",
                 ticker="MSFT",
+                qty=1,
+                price=100,
+                fee=0,
+                trade_time="2026-01-01T00:00:00Z",
+                note=None,
+            )
+
+    def test_rejects_oversell(self, conn) -> None:
+        create_account(conn, "acct_oversell", "Trend", 1000.0, "SPY")
+
+        with pytest.raises(ValueError, match="Invalid sell"):
+            record_trade(
+                conn,
+                account_name="acct_oversell",
+                side="sell",
+                ticker="AAPL",
                 qty=1,
                 price=100,
                 fee=0,
@@ -95,8 +115,33 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_sell")
-        rows = TradeRepository(conn).fetch_for_account(account_id=account["id"])
+        rows = list_account_trades(conn, account["id"])
         assert [row["side"] for row in rows] == ["buy", "sell"]
+
+    def test_cash_ticker_records_ledger_deposit(self, conn) -> None:
+        create_account(conn, "acct_deposit", "Trend", 100.0, "SPY")
+
+        record_trade(
+            conn,
+            account_name="acct_deposit",
+            side="buy",
+            ticker="CASH",
+            qty=250,
+            price=1.0,
+            fee=0,
+            trade_time="2026-01-01T00:00:00Z",
+            note="deposit",
+        )
+
+        account = get_account(conn, "acct_deposit")
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.current_cash == pytest.approx(350.0)
+        from trading.services.accounting import load_account_state
+
+        state = load_account_state(conn, account_id=account.id, initial_cash=account.initial_cash)
+        assert state.total_deposited == pytest.approx(250.0)
+        assert state.cash == pytest.approx(350.0)
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_account(conn, "acct_default_time", "Trend", 1000.0, "SPY")
@@ -115,7 +160,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_default_time")
-        row = TradeRepository(conn).fetch_for_account(account_id=account["id"])[0]
+        row = list_account_trades(conn, account["id"])[0]
         assert row["trade_time"] == "2099-01-01T00:00:00Z"
 
     def test_normalizes_side_and_ticker(self, conn) -> None:
@@ -134,7 +179,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_norm_order")
-        row = TradeRepository(conn).fetch_for_account(account_id=account["id"])[0]
+        row = list_account_trades(conn, account["id"])[0]
         assert row["side"] == "buy"
         assert row["ticker"] == "MSFT"
 
@@ -171,4 +216,4 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_global_settings_manual")
-        assert len(TradeRepository(conn).fetch_for_account(account_id=account["id"])) == 2
+        assert len(list_account_trades(conn, account["id"])) == 2

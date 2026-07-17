@@ -1,33 +1,65 @@
 from __future__ import annotations
 
 from trading.models import AccountRecord
+from trading.models.books.book_record import BookRecord
 
 
 def make_account_record(**overrides: object) -> AccountRecord:
     """Build an ``AccountRecord`` test fixture with sensible defaults.
 
     Tests can override only the fields they care about while keeping a complete,
-    production-shaped account row.
+    production-shaped account row. Execution and option settings are book
+    columns (revisions 0004/0005) — see ``make_book_record``.
     """
 
     values: dict[str, object] = {
         "id": 1,
         "name": "acct-sample",
         "account_kind": "managed",
-        "strategy": "trend",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00Z",
         "benchmark_ticker": "SPY",
         "descriptive_name": "Sample Account",
+        "broker_type": "paper",
+        "broker_host": None,
+        "broker_port": None,
+        "broker_client_id": None,
+        # SAFETY: tests must never opt into live trading by default.
+        "live_trading_enabled": 0,
+    }
+    values.update(overrides)
+    return AccountRecord.from_mapping(values)
+
+
+def make_book_record(**overrides: object) -> BookRecord:
+    """Build a ``BookRecord`` test fixture with sensible defaults.
+
+    Books carry the execution and option settings columns (revisions
+    0004/0005); tests override only the knobs they exercise.
+    """
+
+    values: dict[str, object] = {
+        "id": 1,
+        "account_id": 1,
+        "name": "default",
+        "status": "active",
+        "is_default": 1,
+        "start_equity": 1000.0,
+        "current_cash": 1000.0,
+        "current_equity": 1000.0,
+        "trade_universes": '["default"]',
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
-        "goal_period": "monthly",
+        "goal_period": None,
         "learning_enabled": 0,
         "risk_policy": "none",
         "stop_loss_pct": None,
         "take_profit_pct": None,
+        "profit_take_pct": None,
+        "max_loss_pct": None,
         "trade_size_pct": None,
         "max_position_pct": None,
+        "max_trades_per_run": None,
         "instrument_mode": "equity",
         "option_strike_offset_pct": None,
         "option_min_dte": None,
@@ -40,35 +72,11 @@ def make_account_record(**overrides: object) -> AccountRecord:
         "iv_rank_min": None,
         "iv_rank_max": None,
         "roll_dte_threshold": None,
-        "profit_take_pct": None,
-        "max_loss_pct": None,
-        "rotation_enabled": 0,
-        "rotation_mode": None,
-        "rotation_optimality_mode": None,
-        "rotation_interval_days": None,
-        "rotation_interval_minutes": None,
-        "rotation_lookback_days": None,
-        "rotation_schedule": None,
-        "rotation_regime_strategy_risk_on": None,
-        "rotation_regime_strategy_neutral": None,
-        "rotation_regime_strategy_risk_off": None,
-        "rotation_overlay_mode": None,
-        "rotation_overlay_min_tickers": None,
-        "rotation_overlay_confidence_threshold": None,
-        "rotation_overlay_watchlist": None,
-        "rotation_active_index": None,
-        "rotation_last_at": None,
-        "rotation_active_strategy": None,
-        "broker_type": "paper",
-        "broker_host": None,
-        "broker_port": None,
-        "broker_client_id": None,
-        # SAFETY: tests must never opt into live trading by default.
-        "live_trading_enabled": 0,
-        "trade_universes": None,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
     }
     values.update(overrides)
-    return AccountRecord.from_mapping(values)
+    return BookRecord.from_mapping(values)
 
 
-__all__ = ["make_account_record"]
+__all__ = ["make_account_record", "make_book_record"]

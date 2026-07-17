@@ -1,228 +1,97 @@
+"""Runtime connection gate: ensure_db() verifies the Alembic revision.
+
+Any state other than exactly the expected head — missing/empty, unversioned,
+behind, ahead, or branched — is rejected with the same error pointing at the
+operator status command. Runtime never applies or downgrades migrations.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.init import _column_names, _ensure_column, ensure_db, init_schema
-from infrastructure.database.migrations import (
-    ACCOUNT_MIGRATIONS,
-    BACKTEST_RUN_MIGRATIONS,
-    DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,
-)
+from infrastructure.database.connection import SchemaVersionError, db_session, ensure_db
+from tests.support.db_schema import build_db_at_head
 
 
 @pytest.fixture
-def backend_file(tmp_path: Path) -> Path:
-    return tmp_path / "paper_trading.db"
-
-
-@pytest.fixture
-def sqlite_backend(backend_file: Path):
+def db_path(tmp_path: Path) -> Iterator[Path]:
+    path = tmp_path / "paper_trading.db"
     original = get_backend()
-    backend = SQLiteBackend(backend_file)
-    set_backend(backend)
+    set_backend(SQLiteBackend(path))
     try:
-        yield backend
+        yield path
     finally:
         set_backend(original)
 
 
-def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
+def _set_version(path: Path, *versions: str) -> None:
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("DELETE FROM alembic_version")
+        for version in versions:
+            conn.execute("INSERT INTO alembic_version (version_num) VALUES (?)", (version,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_at_head_database_connects(db_path: Path) -> None:
+    build_db_at_head(db_path)
     conn = ensure_db()
     try:
-        table_rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name ASC").fetchall()
-        names = {str(row["name"]) for row in table_rows}
-
-        assert "accounts" in names
-        assert "trades" in names
-        assert "global_settings" in names
-        assert "equity_snapshots" in names
-        assert "backtest_runs" in names
-        assert "backtest_trades" in names
-        assert "backtest_equity_snapshots" in names
-        assert "promotion_reviews" in names
-        assert "promotion_review_events" in names
+        assert conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
     finally:
         conn.close()
 
 
-def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
-    sqlite_backend: SQLiteBackend,
-) -> None:
-    conn = sqlite_backend.open_connection()
+def test_missing_database_is_rejected(db_path: Path) -> None:
+    with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
+        ensure_db()
+
+
+def test_unversioned_populated_database_is_rejected(db_path: Path) -> None:
+    build_db_at_head(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("DROP TABLE alembic_version")
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(SchemaVersionError, match="'none'"):
+        ensure_db()
+
+
+@pytest.mark.parametrize("versions", [("0000",), ("9999",), ("0001", "0002")])
+def test_wrong_revision_is_rejected(db_path: Path, versions: tuple[str, ...]) -> None:
+    build_db_at_head(db_path)
+    _set_version(db_path, *versions)
+    with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
+        ensure_db()
+
+
+def test_rejected_connection_leaves_database_untouched(db_path: Path) -> None:
+    sqlite3.connect(db_path).close()  # empty file, no schema
+    with pytest.raises(SchemaVersionError):
+        ensure_db()
+
+    conn = sqlite3.connect(db_path)
     try:
-        conn.executescript(
-            """
-            CREATE TABLE accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                strategy TEXT NOT NULL,
-                initial_cash REAL NOT NULL,
-                created_at TEXT NOT NULL
-            );
-
-            CREATE TABLE backtest_runs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id INTEGER NOT NULL,
-                run_name TEXT,
-                start_date TEXT NOT NULL,
-                end_date TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-
-            INSERT INTO accounts (name, strategy, initial_cash, created_at)
-            VALUES ('acct_legacy', 'Trend', 1000, '2026-01-01T00:00:00Z');
-            """
-        )
-
-        init_schema(conn)
-
-        account_columns = _column_names(conn, "accounts")
-        run_columns = _column_names(conn, "backtest_runs")
-
-        assert "benchmark_ticker" in account_columns
-        assert "descriptive_name" in account_columns
-        assert "rotation_overlay_watchlist" in account_columns
-        assert "rotation_active_strategy" in account_columns
-        assert "strategy_name" in run_columns
-        global_settings_columns = _column_names(conn, "global_settings")
-        assert "runtime_max_trades_per_day" in global_settings_columns
-        assert "runtime_max_trades_per_minute" in global_settings_columns
-        assert "evaluation_backtest_trade_count_for_full_confidence" in global_settings_columns
-        assert "promotion_min_live_overall_confidence" in global_settings_columns
-
-        row = conn.execute(
-            "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist "
-            "FROM accounts WHERE name = 'acct_legacy'"
-        ).fetchone()
-        assert row is not None
-        assert row["descriptive_name"] == "acct_legacy"
-        assert row["benchmark_ticker"] == "SPY"
-        assert row["rotation_overlay_watchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+        assert conn.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()[0] == 0
     finally:
         conn.close()
 
 
-def test_init_schema_migrates_legacy_global_settings_columns(sqlite_backend: SQLiteBackend) -> None:
-    conn = sqlite_backend.open_connection()
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE global_settings (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                runtime_max_trades_per_day INTEGER,
-                runtime_max_trades_per_minute INTEGER,
-                updated_at TEXT
-            );
-
-            INSERT INTO global_settings (id, runtime_max_trades_per_day, runtime_max_trades_per_minute, updated_at)
-            VALUES (1, 5, 2, '2026-01-01T00:00:00Z');
-            """
-        )
-
-        init_schema(conn)
-
-        columns = _column_names(conn, "global_settings")
-        assert "evaluation_backtest_trade_confidence_weight" in columns
-        assert "promotion_min_research_backtest_trade_count" in columns
-
-        row = conn.execute(
-            """
-            SELECT
-                evaluation_backtest_trade_count_for_full_confidence,
-                evaluation_paper_live_evidence_weight,
-                promotion_min_research_backtest_trade_count,
-                promotion_min_live_overall_confidence
-            FROM global_settings
-            WHERE id = 1
-            """
-        ).fetchone()
-        assert row is not None
-        assert int(row["evaluation_backtest_trade_count_for_full_confidence"]) == 50
-        assert float(row["evaluation_paper_live_evidence_weight"]) == pytest.approx(0.4)
-        assert int(row["promotion_min_research_backtest_trade_count"]) == 10
-        assert float(row["promotion_min_live_overall_confidence"]) == pytest.approx(0.6)
-    finally:
-        conn.close()
+def test_db_session_yields_verified_connection(db_path: Path) -> None:
+    build_db_at_head(db_path)
+    with db_session() as conn:
+        assert conn.execute("SELECT 1").fetchone()[0] == 1
 
 
-def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBackend) -> None:
-    conn = sqlite_backend.open_connection()
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                strategy TEXT NOT NULL,
-                initial_cash REAL NOT NULL,
-                created_at TEXT NOT NULL
-            );
-
-            INSERT INTO accounts (name, strategy, initial_cash, created_at)
-            VALUES ('acct_post', 'Trend', 1000, '2026-01-01T00:00:00Z');
-            """
-        )
-
-        migration = next(item for item in ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name")
-        _ensure_column(conn, "accounts", migration)
-
-        row = conn.execute("SELECT descriptive_name FROM accounts WHERE name = 'acct_post'").fetchone()
-        assert row is not None
-        assert row["descriptive_name"] == "acct_post"
-    finally:
-        conn.close()
-
-
-def test_overlay_watchlist_migration_backfills_existing_accounts(sqlite_backend: SQLiteBackend) -> None:
-    conn = sqlite_backend.open_connection()
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                strategy TEXT NOT NULL,
-                initial_cash REAL NOT NULL,
-                created_at TEXT NOT NULL
-            );
-
-            INSERT INTO accounts (name, strategy, initial_cash, created_at)
-            VALUES ('acct_watchlist', 'Trend', 1000, '2026-01-01T00:00:00Z');
-            """
-        )
-
-        migration = next(item for item in ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist")
-        _ensure_column(conn, "accounts", migration)
-
-        row = conn.execute("SELECT rotation_overlay_watchlist FROM accounts WHERE name = 'acct_watchlist'").fetchone()
-        assert row is not None
-        assert row["rotation_overlay_watchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
-    finally:
-        conn.close()
-
-
-def test_ensure_column_is_noop_when_column_exists(sqlite_backend: SQLiteBackend) -> None:
-    conn = sqlite_backend.open_connection()
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE backtest_runs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id INTEGER NOT NULL,
-                strategy_name TEXT,
-                run_name TEXT,
-                start_date TEXT NOT NULL,
-                end_date TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            """
-        )
-
-        migration = BACKTEST_RUN_MIGRATIONS[0]
-        _ensure_column(conn, "backtest_runs", migration)
-
-        columns = _column_names(conn, "backtest_runs")
-        assert "strategy_name" in columns
-    finally:
-        conn.close()
+def test_db_session_propagates_schema_error(db_path: Path) -> None:
+    with pytest.raises(SchemaVersionError):
+        with db_session():
+            pass

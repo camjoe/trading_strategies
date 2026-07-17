@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.domain.exceptions import ValidationError
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models import AccountRecord, EquitySnapshotRecord
@@ -10,13 +11,13 @@ from trading.models import AccountRecord, EquitySnapshotRecord
 def _normalize_account_name(name: str) -> str:
     normalized = name.strip()
     if not normalized:
-        raise ValueError("account_name cannot be empty.")
+        raise ValidationError("account_name cannot be empty.")
     return normalized
 
 
 def _require_positive_account_id(account_id: int) -> None:
     if account_id <= 0:
-        raise ValueError("account_id must be positive.")
+        raise ValidationError("account_id must be positive.")
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
@@ -47,5 +48,5 @@ def list_account_snapshots(
 ) -> list[EquitySnapshotRecord]:
     _require_positive_account_id(account_id)
     if limit <= 0:
-        raise ValueError("limit must be positive.")
+        raise ValidationError("limit must be positive.")
     return EquitySnapshotRepository(conn).fetch_history(account_id=account_id, limit=limit)

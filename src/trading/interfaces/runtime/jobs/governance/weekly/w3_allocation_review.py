@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""W3 weekly governance job — allocation reweight review comparing actual vs target sleeve NAV."""
+"""W3 weekly governance job — allocation reweight review comparing actual vs target book NAV."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyAllocationAccountPayload,
     WeeklyAllocationArtifactPayload,
-    WeeklyAllocationSleevePayload,
+    WeeklyAllocationBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
@@ -19,7 +19,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -52,7 +52,7 @@ def _add_drift_threshold_arg(parser: argparse.ArgumentParser) -> None:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="week",
-    description="W3 weekly governance: compare actual sleeve NAV allocation vs original start_equity ratios.",
+    description="W3 weekly governance: compare actual book NAV allocation vs original start_equity ratios.",
     add_arguments=_add_drift_threshold_arg,
 )
 def main(ctx: JobContext) -> dict[str, object]:
@@ -65,26 +65,27 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        sleeves = SleeveRepository(ctx.conn).fetch_for_account(account_id=account.id)
+        books = [book for book, _assignment in list_report_books(ctx.conn, account_id=account.id)]
 
-        # current_equity already includes cash for each sleeve.
-        current_navs = [s.current_equity for s in sleeves]
+        # current_equity already includes cash for each book — sum live book
+        # balances, never frozen/stale ones.
+        current_navs = [b.current_equity for b in books]
         total_nav = sum(current_navs)
 
         # Compute target allocation from original start_equity.
-        start_equities = [s.start_equity for s in sleeves]
+        start_equities = [b.start_equity for b in books]
         total_start_equity = sum(start_equities)
 
-        sleeve_rows: list[WeeklyAllocationSleevePayload] = []
-        for sleeve, current_nav, start_equity in zip(sleeves, current_navs, start_equities):
+        book_rows: list[WeeklyAllocationBookPayload] = []
+        for book, current_nav, start_equity in zip(books, current_navs, start_equities):
             current_pct = (current_nav / total_nav * 100.0) if total_nav != 0.0 else 0.0
             target_pct = (start_equity / total_start_equity * 100.0) if total_start_equity != 0.0 else 0.0
             drift_pct = current_pct - target_pct
             reweight_suggested = abs(drift_pct) >= drift_threshold
 
-            sleeve_rows.append(
-                WeeklyAllocationSleevePayload(
-                    sleeve_name=sleeve.name,
+            book_rows.append(
+                WeeklyAllocationBookPayload(
+                    book_name=book.name,
                     current_nav=current_nav,
                     current_pct=current_pct,
                     target_pct=target_pct,
@@ -97,14 +98,14 @@ def main(ctx: JobContext) -> dict[str, object]:
             WeeklyAllocationAccountPayload(
                 account_name=account_name,
                 total_nav=total_nav,
-                sleeves=sleeve_rows,
+                books=book_rows,
             )
         )
-        reweight_count = sum(1 for s in sleeve_rows if s.reweight_suggested)
+        reweight_count = sum(1 for b in book_rows if b.reweight_suggested)
         ctx.log(
             f"ALLOCATION_REVIEW: account={account_name} "
             f"total_nav={total_nav:.2f} "
-            f"sleeves={len(sleeve_rows)} reweight_suggested={reweight_count}"
+            f"books={len(book_rows)} reweight_suggested={reweight_count}"
         )
 
     payload = WeeklyAllocationArtifactPayload(

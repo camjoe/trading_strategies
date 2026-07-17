@@ -4,47 +4,25 @@ import pytest
 
 from trading.models import AccountInsert
 from trading.repositories.accounts import AccountRepository
+from tests.support.repositories import insert_repository_account
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 def _make_account_insert(**overrides: object) -> AccountInsert:
     values: dict[str, object] = {
         "name": "acct_a",
         "account_kind": "managed",
-        "strategy": "Trend",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00",
         "benchmark_ticker": "SPY",
         "descriptive_name": "acct_a",
-        "goal_min_return_pct": None,
-        "goal_max_return_pct": None,
-        "goal_period": "monthly",
-        "learning_enabled": 0,
-        "risk_policy": "none",
-        "stop_loss_pct": None,
-        "take_profit_pct": None,
-        "trade_size_pct": 10.0,
-        "max_position_pct": 20.0,
-        "instrument_mode": "equity",
-        "option_strike_offset_pct": None,
-        "option_min_dte": None,
-        "option_max_dte": None,
-        "option_type": None,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "max_premium_per_trade": None,
-        "max_contracts_per_trade": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "roll_dte_threshold": None,
-        "profit_take_pct": None,
-        "max_loss_pct": None,
     }
     values.update(overrides)
     return AccountInsert(**values)
 
 
-def _insert(conn, name: str, strategy: str = "Trend") -> None:
-    AccountRepository(conn).insert(_make_account_insert(name=name, descriptive_name=name, strategy=strategy))
+def _insert(conn, name: str) -> None:
+    AccountRepository(conn).insert(_make_account_insert(name=name, descriptive_name=name))
 
 
 class TestFetchAccountByName:
@@ -64,48 +42,18 @@ class TestInsertAccount:
             _make_account_insert(
                 name="full_acct",
                 account_kind="local",
-                strategy="Momentum",
                 initial_cash=5000.0,
                 created_at="2026-03-01T10:00:00",
                 benchmark_ticker="QQQ",
                 descriptive_name="Full Account",
-                goal_min_return_pct=1.5,
-                goal_max_return_pct=3.0,
-                goal_period="weekly",
-                learning_enabled=1,
-                risk_policy="fixed_stop",
-                stop_loss_pct=5.0,
-                take_profit_pct=10.0,
-                trade_size_pct=12.5,
-                max_position_pct=25.0,
-                instrument_mode="leaps",
-                option_strike_offset_pct=2.0,
-                option_min_dte=90,
-                option_max_dte=180,
-                option_type="call",
-                target_delta_min=0.25,
-                target_delta_max=0.45,
-                max_premium_per_trade=300.0,
-                max_contracts_per_trade=2,
-                iv_rank_min=20.0,
-                iv_rank_max=70.0,
-                roll_dte_threshold=30,
-                profit_take_pct=25.0,
-                max_loss_pct=15.0,
             ),
         )
         row = AccountRepository(conn).fetch_by_name("full_acct")
         assert row is not None
-        assert row["strategy"] == "Momentum"
         assert row["account_kind"] == "local"
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
-        assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
-        assert int(row["learning_enabled"]) == 1
-        assert float(row["trade_size_pct"]) == pytest.approx(12.5)
-        assert float(row["max_position_pct"]) == pytest.approx(25.0)
-        assert row["instrument_mode"] == "leaps"
-        assert int(row["option_min_dte"]) == 90
+        assert row["descriptive_name"] == "Full Account"
 
 
 class TestUpdateAccountBenchmark:
@@ -120,12 +68,12 @@ class TestUpdateAccountBenchmark:
 
 class TestFetchAccountListingRows:
     def test_returns_all_accounts_ordered_by_strategy_then_name(self, conn) -> None:
-        _insert(conn, "z_acct", strategy="A_Strategy")
-        _insert(conn, "a_acct", strategy="A_Strategy")
-        _insert(conn, "m_acct", strategy="B_Strategy")
+        _insert(conn, "z_acct")
+        _insert(conn, "a_acct")
+        _insert(conn, "m_acct")
         rows = AccountRepository(conn).fetch_listing()
         names = [r["name"] for r in rows]
-        assert names == ["a_acct", "z_acct", "m_acct"]
+        assert names == ["a_acct", "m_acct", "z_acct"]
 
     def test_empty_table_returns_empty_list(self, conn) -> None:
         assert AccountRepository(conn).fetch_listing() == []
@@ -156,9 +104,9 @@ class TestUpdateAccountFields:
         _insert(conn, "upd_acct")
         repo = AccountRepository(conn)
         row = repo.fetch_by_name("upd_acct")
-        repo.update(account_id=row["id"], updates=["strategy = ?"], params=["NewStrategy"])
+        repo.update(account_id=row["id"], updates=["descriptive_name = ?"], params=["Renamed"])
         updated = repo.fetch_by_name("upd_acct")
-        assert updated["strategy"] == "NewStrategy"
+        assert updated["descriptive_name"] == "Renamed"
 
     def test_updates_multiple_fields(self, conn) -> None:
         _insert(conn, "multi_upd")
@@ -166,12 +114,12 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["risk_policy = ?", "stop_loss_pct = ?"],
-            params=["fixed_stop", 7.5],
+            updates=["descriptive_name = ?", "account_kind = ?"],
+            params=["Multi", "local"],
         )
         updated = repo.fetch_by_name("multi_upd")
-        assert updated["risk_policy"] == "fixed_stop"
-        assert float(updated["stop_loss_pct"]) == pytest.approx(7.5)
+        assert updated["descriptive_name"] == "Multi"
+        assert updated["account_kind"] == "local"
 
 
 class TestFetchAllAccountNames:
@@ -183,3 +131,62 @@ class TestFetchAllAccountNames:
 
     def test_empty_table_returns_empty(self, conn) -> None:
         assert AccountRepository(conn).fetch_names() == []
+
+
+def _account_id(conn, name: str = "count_acct") -> int:
+    return insert_repository_account(conn, name=name)
+
+
+def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend") -> int:
+    cursor = conn.execute(
+        "INSERT INTO backtest_runs (account_id, strategy_id, start_date, end_date, created_at) VALUES (?,?,?,?,?)",
+        (
+            account_id,
+            ensure_strategy_id_for_label(conn, strategy_name),
+            "2026-01-01",
+            "2026-06-01",
+            "2026-01-01T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def _insert_trade(conn, *, account_id: int) -> None:
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time="2026-01-01T10:00:00Z",
+    )
+
+
+class TestDeleteByName:
+    def test_removes_account_and_cascades_owned_rows(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert_trade(conn, account_id=acct_id)
+        run_id = _insert_backtest_run(conn, account_id=acct_id)
+
+        repo = AccountRepository(conn)
+        deleted = repo.delete_by_name("count_acct")
+
+        assert deleted is not None
+        assert deleted.name == "count_acct"
+        assert conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone() is None
+        assert conn.execute("SELECT id FROM backtest_runs WHERE id = ?", (run_id,)).fetchone() is None
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+    def test_does_not_remove_other_accounts(self, conn) -> None:
+        _account_id(conn, "del_a")
+        acct_b = _account_id(conn, "del_b")
+        AccountRepository(conn).delete_by_name("del_a")
+        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_b,)).fetchone()
+        assert row is not None
+
+    def test_returns_none_for_missing_account(self, conn) -> None:
+        assert AccountRepository(conn).delete_by_name("missing") is None

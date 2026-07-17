@@ -9,15 +9,17 @@ test-infrastructure fixture, not any production behaviour.
 
 from __future__ import annotations
 
+from trading.repositories.daily_metrics import DailyMetricsRepository
+
 from tests.support.seed.db import (
     ACCT_LOCAL,
     ACCT_MOMENTUM,
     ACCT_TREND,
     BACKTEST_RUN_NAME,
     PROMOTION_STRATEGY,
-    SLEEVE_METRIC_DATE,
-    SLEEVE_STRATEGY,
-    SLEEVE_TREND,
+    BOOK_METRIC_DATE,
+    BOOK_STRATEGY,
+    BOOK_TREND,
     SNAPSHOT_T1,
     SNAPSHOT_T2,
     SNAPSHOT_T3,
@@ -44,10 +46,17 @@ class TestSeededAccounts:
 
 class TestSeededTrades:
     def test_trend_account_has_three_trades(self, seeded_conn) -> None:
+        # Fills are the execution history (revision 0006).
         acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
-        count = seeded_conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (acct_id,)).fetchone()[
-            "n"
-        ]
+        count = seeded_conn.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM order_fills f
+            JOIN orders o ON o.id = f.order_id
+            WHERE o.account_id = ?
+            """,
+            (acct_id,),
+        ).fetchone()["n"]
         assert count == 3
 
 
@@ -57,7 +66,7 @@ class TestSeededSnapshots:
         times = {
             row["snapshot_time"]
             for row in seeded_conn.execute(
-                "SELECT snapshot_time FROM equity_snapshots WHERE account_id = ?",
+                "SELECT s.snapshot_time FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
                 (acct_id,),
             ).fetchall()
         }
@@ -90,32 +99,29 @@ class TestSeededPromotionReview:
         assert row["review_state"] == "requested"
 
 
-class TestSeededSleeves:
-    def test_sleeve_exists_under_trend_account(self, seeded_conn) -> None:
+class TestSeededBooks:
+    def test_book_exists_under_trend_account(self, seeded_conn) -> None:
         acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
-            "SELECT name FROM strategy_sleeves WHERE account_id = ? AND name = ?",
-            (acct_id, SLEEVE_TREND),
+            "SELECT name FROM books WHERE account_id = ? AND name = ?",
+            (acct_id, BOOK_TREND),
         ).fetchone()
         assert row is not None
 
-    def test_sleeve_has_incumbent_strategy_assignment(self, seeded_conn) -> None:
-        sleeve_id = seeded_conn.execute("SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)).fetchone()[
-            "id"
-        ]
+    def test_book_has_open_strategy_assignment(self, seeded_conn) -> None:
+        book_id = seeded_conn.execute("SELECT id FROM books WHERE name = ?", (BOOK_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
-            "SELECT strategy_name FROM sleeve_strategy_assignments WHERE sleeve_id = ? AND is_incumbent = 1",
-            (sleeve_id,),
+            """
+            SELECT s.strategy_key FROM book_strategy_assignments a
+            JOIN strategies s ON s.id = a.strategy_id
+            WHERE a.book_id = ? AND a.effective_to IS NULL
+            """,
+            (book_id,),
         ).fetchone()
         assert row is not None
-        assert row["strategy_name"] == SLEEVE_STRATEGY
+        assert row["strategy_key"] == BOOK_STRATEGY
 
-    def test_sleeve_has_daily_metric_row(self, seeded_conn) -> None:
-        sleeve_id = seeded_conn.execute("SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)).fetchone()[
-            "id"
-        ]
-        row = seeded_conn.execute(
-            "SELECT metric_date FROM daily_metrics WHERE sleeve_id = ? AND metric_date = ?",
-            (sleeve_id, SLEEVE_METRIC_DATE),
-        ).fetchone()
-        assert row is not None
+    def test_book_has_daily_metric_row(self, seeded_conn) -> None:
+        book_id = seeded_conn.execute("SELECT id FROM books WHERE name = ?", (BOOK_TREND,)).fetchone()["id"]
+        rows = DailyMetricsRepository(seeded_conn).fetch_for_book(book_id=book_id, limit=10)
+        assert BOOK_METRIC_DATE in {row.metric_date for row in rows}

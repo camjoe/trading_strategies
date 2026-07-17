@@ -1,14 +1,7 @@
 import { getJson } from "./http";
 import type { AccountConfigOptions } from "../types/accounts";
 
-type OptionsKey =
-  | "goalPeriods"
-  | "riskPolicies"
-  | "instrumentModes"
-  | "optionTypes"
-  | "rotationModes"
-  | "rotationOptimalityModes"
-  | "rotationOverlayModes";
+type OptionsKey = "goalPeriods" | "riskPolicies" | "instrumentModes" | "optionTypes";
 
 let cachedOptions: AccountConfigOptions | null = null;
 
@@ -30,17 +23,6 @@ const ADMIN_SELECT_CONFIGS: AdminSelectConfig[] = [
   { selector: 'select[name="riskPolicy"]', optionsKey: "riskPolicies", defaultKey: "riskPolicy" },
   { selector: 'select[name="instrumentMode"]', optionsKey: "instrumentModes", defaultKey: "instrumentMode" },
   { selector: 'select[name="optionType"]', optionsKey: "optionTypes", includeEmpty: true, emptyLabel: "(none)" },
-  { selector: 'select[name="rotationMode"]', optionsKey: "rotationModes", defaultKey: "rotationMode" },
-  {
-    selector: 'select[name="rotationOptimalityMode"]',
-    optionsKey: "rotationOptimalityModes",
-    defaultKey: "rotationOptimalityMode",
-  },
-  {
-    selector: 'select[name="rotationOverlayMode"]',
-    optionsKey: "rotationOverlayModes",
-    defaultKey: "rotationOverlayMode",
-  },
 ];
 
 function buildValueList(values: readonly string[], currentValue: string | undefined): string[] {

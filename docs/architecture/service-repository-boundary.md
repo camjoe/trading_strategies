@@ -3,9 +3,9 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-13
 Purpose: Define the repeatable boundary between service and repository layers — what belongs where and why.
-Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Architecture Conventions](architecture-conventions.md), [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
 
 This note defines the repeatable boundary for modules that have both a
 `src/trading/services/*` and `src/trading/repositories/*` layer.
@@ -64,22 +64,18 @@ External callers should prefer the service layer. However, that does **not**
 mean the service module should mirror repository names one-for-one.
 
 Prefer **one** stable public service surface per capability. In practice, that
-usually means the package root when a capability already has an internal split,
-for example:
+usually means the package root when a capability already has an internal split.
+Use [service-cookbook.md](service-cookbook.md) for the current capability →
+package lookup.
 
-- `trading.services.accounts`
-- `trading.services.accounting`
-- `trading.services.reporting`
-- `trading.services.promotion`
-- `trading.services.evaluation`
-- `trading.services.admin`
-- `trading.services.auto_trading`
-- `trading.services.profiles`
-- `trading.services.operational_settings`
+Exception: `trading.services.execution` is intentionally submodule-oriented for
+now because its safety-critical concerns are clearer as focused modules
+(`submission`, `gate`, `pre_submit_gate`, `nav`, `reconciliation`) than as a
+broad package-root facade.
 
-Do **not** keep a second sibling facade such as `accounts_service.py` once the
-package root already serves as the stable import surface. That creates two
-public APIs for the same capability and reintroduces redirect-only wrappers.
+Do **not** keep a second sibling facade once the package root already serves as
+the stable import surface. That creates two public APIs for the same capability
+and reintroduces redirect-only wrappers.
 
 Avoid public service helpers that are only passthroughs like:
 
@@ -126,7 +122,9 @@ Use this checklist when cleaning another service/repository pair:
 7. Collapse onto a single stable service import surface for the capability.
 8. Remove redundant service exports/modules once callers are migrated.
 
-## Accounts example
+## Core Examples
+
+### Account lookup and mutation
 
 For `accounts`:
 
@@ -144,12 +142,11 @@ For `accounts`:
   - `get_latest_account_snapshot`
   - `set_account_strategy`
 
-The stable public import surface should be `trading.services.accounts`, not both
-`trading.services.accounts` and `trading.services.accounts_service`.
+The stable public import surface should be `trading.services.accounts`.
 
 That split keeps repository files table-shaped and service files workflow-shaped.
 
-## Runtime example
+### Operational settings
 
 For the operational-settings slice:
 
@@ -168,24 +165,24 @@ like `runtime_job_status.py` can remain standalone when it is already a clear
 surface and does not duplicate a sibling facade or blur a service/repository
 boundary.
 
-## Profiles example
+### Profile application
 
 For profile application flows:
 
 - `trading.services.profiles` is the stable public service surface for loading
   and applying account profiles.
-- `trading.services.profile_source` can remain a separate source abstraction
-  because it represents profile-input backends rather than a sibling facade for
-  the same use-case API.
+- `trading.services.profiles.source` can remain a separate internal source
+  abstraction because it represents profile-input backends rather than a sibling
+  facade for the same use-case API.
 
-## Evaluation example
+### Evaluation and auto-trading package splits
 
 For strategy evaluation flows:
 
 - `trading.services.evaluation` is the stable public service surface for
   caller-facing evaluation reads.
 - internal evidence-building helpers can live beneath that package root without
-  exposing a second sibling facade such as `evaluation_service.py`.
+  exposing a second sibling facade.
 
 ## Auto-trading example
 
@@ -195,6 +192,19 @@ For the runtime trading cluster:
   runtime auto-trading orchestration, market/input preparation, and rotation
   bridge helpers.
 - execution and rotation internals can live beneath that package root without
-  keeping sibling facades such as `auto_trader_service.py`,
-  `trade_execution_service.py`, `rotation_service.py`, or
-  `auto_trader_runtime_service.py`.
+  keeping sibling facades.
+
+### Book execution and parameters
+
+For the clean book-keyed runtime:
+
+- `trading.services.books` owns book assignments, rotation, trade-candidate
+  generation, and book-local reporting helpers.
+- `trading.services.execution.*` owns the shared submit/persist/on-fill path and
+  the pre-submit gate seam used by every book. Keep imports focused on the
+  submodule that owns the specific execution concern.
+- `trading.services.strategy_catalog` owns strategy catalog seeding,
+  primitive-plus-parameter resolution, and catalog edits.
+- `trading.services.parameters` owns the unified parameter source view and
+  edit workflows over the existing owning stores; it is not a new persistence
+  layer.

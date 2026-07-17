@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("/api/ibkr-paper-accounts")
 def api_ibkr_paper_accounts() -> dict[str, object]:
-    """Return list of IBKR paper accounts with sleeve summary and latest run status."""
+    """Return list of IBKR paper accounts with book summary and latest run status."""
     with db_conn() as conn:
         accounts = fetch_ibkr_paper_accounts_list(conn)
         return {"accounts": accounts}
@@ -27,7 +27,7 @@ def api_ibkr_paper_account_detail(account_name: str) -> dict[str, object]:
 
     Includes:
     - Account overview (total equity, cash, positions)
-    - Sleeve status and performance metrics
+    - Book status and performance metrics
     - Latest daily workflow run details
     - Governance check status (W1-W3, M1-M3)
     - Burn-in progress

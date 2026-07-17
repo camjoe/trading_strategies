@@ -93,7 +93,8 @@ Alternatives considered:
 
 6. **First application (this ADR's proof case):** introduce a
    `governance_job(*, job_name, sentinel, period)` decorator factory in
-   `src/trading/interfaces/runtime/jobs/job_runner.py`, backed by a
+   `src/trading/interfaces/runtime/jobs/job_runner/` (originally a single
+   `job_runner.py`; since split into a package), backed by a
    `contextlib` job-session context manager that owns the logs/artifacts/DB
    lifecycle and the skip-guard. Each governance job becomes a small body that
    receives a `JobContext` and returns a payload dict. Migrate one job (`m1`)

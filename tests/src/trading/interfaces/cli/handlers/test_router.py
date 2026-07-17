@@ -23,7 +23,19 @@ _EXPECTED_COMMANDS = {
     "snapshot",
     "snapshot-history",
     "compare-strategies",
+    "portfolio-exposure",
+    "portfolio-concentration",
+    "parameters",
+    "configure-throttle",
+    "configure-evaluation",
+    "configure-promotion",
+    "configure-book-rotation",
+    "configure-book-rotation-policy",
+    "create-strategy-variant",
+    "configure-strategy",
+    "freeze-strategy",
     "backtest",
+    "refresh-stale-backtests",
     "backtest-report",
     "backtest-leaderboard",
     "backtest-batch",
@@ -46,8 +58,6 @@ def test_dispatch_command_routes_to_registered_handler() -> None:
             types.SimpleNamespace(command="list-accounts"),
             None,
             deps={},
-            module_file="",
-            db_path="",
         )
     finally:
         COMMAND_HANDLERS["list-accounts"] = original
@@ -66,8 +76,6 @@ def test_dispatch_command_calls_parser_error_for_unknown_command() -> None:
             types.SimpleNamespace(command="not-a-command"),
             _StubParser(),
             deps={},
-            module_file="",
-            db_path="",
         )
 
 
@@ -87,8 +95,6 @@ def test_dispatch_command_records_parser_error_then_returns() -> None:
         types.SimpleNamespace(command="not-a-command"),
         parser,
         deps={},
-        module_file="",
-        db_path="",
     )
 
     assert result is None

@@ -3,14 +3,14 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
-Purpose: Index of operational runbooks for the IBKR Paper Autonomy trading system with quick-start commands.
-Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
+Last Reviewed: 2026-07-13
+Purpose: Index of operational runbooks for the paper-trading runtime with quick-start commands.
+Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
 
 ## Overview
 
-Operational procedures for the IBKR Paper Autonomy trading system. Use these runbooks to monitor
-daily and weekly runtime jobs, manage the burn-in period, and conduct weekly/monthly governance reviews.
+Operational procedures for the paper-trading runtime. Use these runbooks to monitor daily and
+weekly runtime jobs, manage the burn-in period, and conduct weekly/monthly governance reviews.
 
 ## Contents
 
@@ -23,20 +23,24 @@ daily and weekly runtime jobs, manage the burn-in period, and conduct weekly/mon
 
 ## Quick Start
 
-### Check today's run status
+### Check job status
 ```bash
-# Check whether today's daily run succeeded
+./.venv/bin/python -m scripts.check_jobs
+```
+
+### Inspect today's daily run
+```bash
 ls local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 grep "COMPLETE" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 ```
 
 ### Replay a missed date
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
     --from-date YYYY-MM-DD --to-date YYYY-MM-DD
 ```
 
 ### Check burn-in status
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```

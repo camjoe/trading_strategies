@@ -2,7 +2,7 @@ import { currency, num, pct } from "../lib/format";
 import { getJson, errorMessage } from "../lib/http";
 import type {
   IbkrPaperAccountOverview,
-  IbkrPaperSleeve,
+  IbkrPaperBook,
   IbkrDailyWorkflow,
   GovernanceCheckStatus,
   BurnInStatus,
@@ -12,7 +12,7 @@ import type {
 } from "../types/ibkr-paper-monitor";
 
 interface IbkrPaperState {
-  accounts: Array<{ name: string; total_equity: number; sleeve_count: number }>;
+  accounts: Array<{ name: string; total_equity: number; book_count: number }>;
   selectedAccount: string | null;
   currentData: IbkrPaperAccountOverview | null;
   loading: boolean;
@@ -31,7 +31,7 @@ const state: IbkrPaperState = {
 
 async function fetchAccounts(): Promise<void> {
   try {
-    const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; sleeve_count: number }> }>("/api/ibkr-paper-accounts");
+    const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; book_count: number }> }>("/api/ibkr-paper-accounts");
     state.accounts = response.accounts || [];
     updateAccountSelect();
   } catch (err) {
@@ -64,7 +64,7 @@ function updateAccountSelect(): void {
   if (!select) return;
   
   select.innerHTML = '<option value="">-- Select Account --</option>' +
-    state.accounts.map(a => `<option value="${a.name}">${a.name} (${a.sleeve_count} sleeves)</option>`).join("");
+    state.accounts.map(a => `<option value="${a.name}">${a.name} (${a.book_count} books)</option>`).join("");
 }
 
 function renderError(): void {
@@ -99,7 +99,7 @@ function renderDashboard(): void {
   dashboard.className = "ibkr-paper-dashboard";
   dashboard.innerHTML = `
     ${renderAccountOverview(account)}
-    ${renderSleevesPanel(data.sleeves || [])}
+    ${renderBooksPanel(data.books || [])}
     ${renderDailyWorkflowPanel(data.daily_workflow)}
     ${renderGovernancePanel(data.governance_checks || {})}
     ${renderBurnInPanel(data.burn_in_status || {})}
@@ -136,8 +136,8 @@ export function renderAccountOverview(account: IbkrPaperAccountOverview["account
           <strong class="value">${num(account.total_equity - account.initial_cash)} (${pct(account.return_pct)})</strong>
         </div>
         <div class="overview-item">
-          <span class="label">Sleeves Active</span>
-          <strong class="value">${account.sleeve_count}</strong>
+          <span class="label">Books Active</span>
+          <strong class="value">${account.book_count}</strong>
         </div>
         <div class="overview-item">
           <span class="label">Initial Capital</span>
@@ -148,22 +148,22 @@ export function renderAccountOverview(account: IbkrPaperAccountOverview["account
   `;
 }
 
-export function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
-  if (sleeves.length === 0) {
-    return '<section class="card sleeves-card"><p>No sleeves configured</p></section>';
+export function renderBooksPanel(books: IbkrPaperBook[]): string {
+  if (books.length === 0) {
+    return '<section class="card books-card"><p>No books configured</p></section>';
   }
   
-  const rows = sleeves.map(s => {
-    const statusClass = s.status === "active" ? "active" : s.status === "paused" ? "paused" : "retired";
-    const sleeveReturnClass = s.return_pct >= 0 ? "up" : "down";
+  const rows = books.map(s => {
+    const statusClass = s.status === "active" ? "active" : s.status === "paused" ? "paused" : "closed";
+    const bookReturnClass = s.return_pct >= 0 ? "up" : "down";
     
     return `
-      <tr class="sleeve-row status-${statusClass}">
+      <tr class="book-row status-${statusClass}">
         <td class="name">${s.name}</td>
         <td class="strategy">${s.strategy}</td>
         <td class="equity">${currency.format(s.current_equity)}</td>
         <td class="cash">${currency.format(s.current_cash)}</td>
-        <td class="return ${sleeveReturnClass}">${pct(s.return_pct)}</td>
+        <td class="return ${bookReturnClass}">${pct(s.return_pct)}</td>
         <td class="metrics">
           ${s.latest_metrics.hit_rate ? `Hit Rate: ${pct(s.latest_metrics.hit_rate)}` : "—"}
         </td>
@@ -173,11 +173,11 @@ export function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
   }).join("");
   
   return `
-    <section class="card sleeves-card">
+    <section class="card books-card">
       <div class="card-header">
-        <h3>Strategy Sleeves</h3>
+        <h3>Strategy Books</h3>
       </div>
-      <table class="sleeves-table">
+      <table class="books-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -327,7 +327,7 @@ export function renderRotationsPanel(rotations: RotationDecision[]): string {
   
   const rows = rotations.slice(0, 10).map((r: RotationDecision) => `
     <tr>
-      <td>${r.sleeve_name}</td>
+      <td>${r.book_name}</td>
       <td>${r.incumbent}</td>
       <td>→ ${r.challenger}</td>
       <td>${r.reason || "—"}</td>
@@ -343,7 +343,7 @@ export function renderRotationsPanel(rotations: RotationDecision[]): string {
       <table class="rotations-table">
         <thead>
           <tr>
-            <th>Sleeve</th>
+            <th>Book</th>
             <th>Incumbent</th>
             <th>Transition</th>
             <th>Reason</th>
@@ -364,7 +364,7 @@ export function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
   
   const violationRows = violations.slice(0, 5).map((v: RiskViolation) => `
     <tr class="violation-row action-${v.action}">
-      <td>${v.sleeve_name}</td>
+      <td>${v.book_name}</td>
       <td>${v.reason}</td>
       <td><span class="badge action-${v.action}">${v.action.toUpperCase()}</span></td>
       <td>${new Date(v.decision_time).toLocaleString()}</td>
@@ -389,7 +389,7 @@ export function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
             <table class="violations-table">
               <thead>
                 <tr>
-                  <th>Sleeve</th>
+                  <th>Book</th>
                   <th>Reason</th>
                   <th>Action</th>
                   <th>Time</th>

@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-06-29
+Last Reviewed: 2026-07-13
 Purpose: Inventory the `src/common/` shared kernel — small, dependency-light utilities imported across `src/trading`, `src/infrastructure`, `apps/`, and `scripts/`.
 Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](infrastructure-map.md)
 

@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-17
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
 Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -69,11 +69,11 @@ Disallowed:
 
 6. `src/trading/models/`: passive data contracts (the lowest layer)
    - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
-     state/order models, and domain value objects (evaluation/promotion/sleeve).
+     state/order models, and domain value objects (evaluation/promotion/books).
    - No business logic, no I/O, and **no imports from `domain`, `services`,
      `repositories`, `interfaces`, or `infrastructure`** — enforced by
-     `scripts/checks/layer_check.py`. `domain` may import `models`, never the reverse.
-   - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
+     `scripts/checks/repo/layer_check.py`. `domain` may import `models`, never the reverse.
+   - Organized into feature subfolders (`accounts/`, `books/`, `evaluation/`, …),
      one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
 
 7. `src/trading/repositories/`: SQL persistence adapters
@@ -82,69 +82,98 @@ Disallowed:
 8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
-   - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
+   - For migration reviews and schema-change validation, use the `db-migration` skill (`.ai/skills/db-migration/`).
 
 9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
-   - See `docs/adr/002-backtesting-layering.md` for layering rationale.
+   - See `docs/reference/backtesting.md` and `src/trading/backtesting/README.md`.
 
 10. `src/infrastructure/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
 11. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
-    - This package is the **only** place that may import external API libraries
-      (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
-      network calls to third-party services.
+    - Owns third-party external-data SDK imports and network calls.
     - Shared contracts and signal keys live in `src/trading/domain/feature_provider.py`.
-    - `src/trading/` must never import from `src/infrastructure/feature_providers/`; the interface layer (`src/trading/interfaces/`)
-      is the sole wiring point.
     - Signal functions in `src/trading/domain/strategy_signals.py` must
-      consume feature bundles via injected callables — they must never call external
-      APIs directly.
+      consume feature bundles via injected callables.
 
 12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
-   - Keep all broker SDK imports (ib_async, ibapi) inside this package.
+   - Owns broker SDK imports and broker connection adapters.
    - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
-   - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
 
 13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
-   - Keep the `yfinance` SDK import inside this package (`providers.py`).
+   - Owns market-data SDK imports and concrete market-data providers.
    - Service and domain layers must depend only on the `MarketDataProvider` port from
      `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
    - The factory (`src/infrastructure/market_data/factory.py`) is the sole location for `provider` routing
      (env/config resolution) and concrete-adapter construction (`build_provider`).
-   - `src/trading/` must never import from `src/infrastructure/market_data/`; the interface layer
-     (`src/trading/interfaces/`) and the backtest composition seam (`src/trading/backtesting/backtest.py`)
-     are the only wiring points. This boundary is enforced by `scripts/checks/layer_check.py`.
    - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
      trading-domain computation over an injected market-data provider, with no external-library dependency.
+
+Broker SDK, external-data SDK, market-data adapter, and retired runtime package-name boundaries are
+enforced by `python -m scripts.checks.repo.layer_check`.
+
+## Execution and Parameter Ownership
+
+Books are the execution primitive. A book is a bounded pool of capital inside an
+account, run to one active strategy assignment with book-keyed rotation,
+submission, accounting, risk, and reporting.
+
+Rules:
+
+1. New runtime trading, rotation, risk, accounting, and reporting work should be
+   book-keyed unless the change is explicitly about broker account identity,
+   custody, credentials, or account-level operator metadata.
+2. The default book is the compatibility bridge for account-level workflows.
+   Do not reintroduce a separate account-mode execution path or another
+   execution primitive.
+3. Rotation scheduling is book-owned. `book_rotation_settings` owns the
+   per-book rotation gate, schedule, lookback, and cooldown policy. Do not add
+   new account-row rotation configuration.
+4. Strategy primitives and parameter schemas stay in code. Strategy-specific
+   knob values live on strategy rows as `params_json`.
+5. Execution, risk, option, goal, and universe settings live as typed columns on `books`.
+   Rotation settings remain in `book_rotation_settings` because they form a large, coherent,
+   comparatively sparse group.
+6. Global operational settings remain separate from per-book settings.
+7. `src/trading/services/parameters/` is a read/edit surface over those owning
+   stores, not a new consolidated persistence model.
+
+Rationale and delivered cleanup: `docs/adr/010-book-keyed-execution-model.md` and
+`docs/adr/014-execution-mode-collapse.md`.
+
+## Database Modeling
+
+1. Prefer typed tables and columns with explicit domain meaning. Do not introduce generic
+   entity-attribute-value or category/value storage.
+2. Add mapping tables only for genuine many-to-many relationships or when the relationship itself
+   carries historical meaning.
+3. Physical schema changes use immutable, numbered Alembic revisions. Each revision must provide a
+   reversible downgrade; SQLite rebuilds follow the established migration pattern documented in
+   `docs/reference/db-migration-system.md`.
 
 ## External Data Strategies
 
 Rules for all alternative-strategy development (strategy_style = "alternative"):
 
-1. **External calls are isolated in `src/infrastructure/feature_providers/`** — no direct imports of
-   `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
-   external-data library outside of `src/infrastructure/feature_providers/` submodules.
-
-2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
+1. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
    must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
    Signal functions must check `bundle.available` first and return `"hold"` if `False`.
 
-3. **No API keys in source code** — all credentials are read exclusively from
-   environment variables (e.g. `NEWS_API_KEY`, `REDDIT_CLIENT_ID`). Never
-   commit secrets to source.
+2. **Credentials stay out of source** — read them from environment variables
+   or other non-committed configuration; `secret_hygiene_check` blocks committed
+   literal credentials in source/config files.
 
-4. **Use the base class** — all external providers must subclass
+3. **Use the base class** — all external providers must subclass
    `trading.domain.feature_provider.ExternalFeatureProvider`. Do not create
    ad-hoc fetch functions that bypass the caching/TTL/degradation contract.
 
 ## Constants and Magic Numbers
 
-All bots must follow this rule when writing or reviewing Python code:
+All agents must follow this rule when writing or reviewing Python code:
 
 1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
 2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
@@ -266,11 +295,11 @@ error-to-result mapping, registration. Full rationale and the first application
 
 ## Cross-Platform Safety
 
-1. Use `pathlib`/OS-agnostic joins in Python code.
-2. Do not hardcode slash direction (`/` vs `\\`) in runtime logic.
-3. Keep command examples runnable from repo root and prefer `python -m ...`.
-4. Avoid reliance on case-insensitive path behavior.
-5. Make type narrowing explicit where mypy/platform inference may differ.
+1. Use `pathlib`/OS-agnostic joins in Python code; `path_safety_check` blocks
+   clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards.
+2. Keep command examples runnable from repo root and prefer `python -m ...`.
+3. Avoid platform assumptions such as case-insensitive paths or implicit type
+   narrowing where mypy/platform inference may differ.
 
 ## UI Backend Boundary Rule
 
@@ -291,6 +320,27 @@ Domain logic belongs in `src/trading/`.  If a calculation is needed by any inter
 `src/trading/domain/`.  The UI backend then delegates to those functions and shapes
 the result for the HTTP response.
 
+**Interface primacy.**  The scheduler (runtime jobs) and CLI are the primary drivers of
+this system; the UI is an optional consumer that views results and edits parameters over
+the same services.  Every capability must be reachable from the scheduler and CLI without
+the UI — never make a capability, contract, or parameter editable *only* through the UI,
+and do not design contracts around UI convenience.  UI-shaping (camelCase JSON, response
+payloads) stays at the UI backend boundary only.
+
+HTTP error mapping follows the same boundary:
+
+1. Domain/services should raise typed domain exceptions for reusable workflow
+   errors as those paths are migrated.
+2. The FastAPI app may map typed domain exceptions to HTTP responses with
+   app-level handlers.
+3. Route-specific validation may still raise `HTTPException` directly when the
+   error is genuinely transport-specific.
+4. Do not add a blanket `ValueError` -> HTTP 400 handler. Unexpected
+   `ValueError` should surface as a server error, not be disguised as client
+   input failure.
+
+See `docs/adr/007-ui-error-mapping.md`.
+
 Violation example: settlement-corrected equity math or benchmark return
 calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
 migrated to `src/trading/services/reporting/` and must not be re-introduced into
@@ -302,11 +352,11 @@ Before creating or moving code in `src/trading/`:
 
 1. Classify change target: interface/service/domain/repository/database.
 2. Place any shared symbol (constant, type, value object) at its **lowest owning
-   layer** — the lowest layer that owns the concept and is reachable by all
-   consumers without an upward import. Layer direction: `domain` → `models`/`common`;
-   `models` → `common`; nothing imports upward. Passive data contracts and their
-   field vocabulary live in `models/`; domain policy/logic and policy-knob configs
-   live in `domain/`; generic primitives in `common/`.
+   layer** — see the placement table and layer-direction rule in
+   [Constants and Magic Numbers](#constants-and-magic-numbers) §3, which is the
+   canonical statement. In short: passive data contracts and their field
+   vocabulary → `models/`; domain policy/logic and policy-knob configs →
+   `domain/`; generic primitives → `common/`.
 3. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
 4. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
 5. Keep SQL in repositories, not in handlers/routes.
@@ -314,12 +364,32 @@ Before creating or moving code in `src/trading/`:
 
 For a task-oriented "where do I put X" reference, see `docs/architecture/nav-guide.md`.
 
+## Structural Moves
+
+Use this guidance for large package relocations or adapter-boundary changes:
+
+1. Inject dependencies at composition seams, not through globals. Define the
+   port in the domain/service layer, then build concrete adapters via factories
+   imported only at interface/composition seams (CLI, runtime jobs, web routes,
+   or bounded-context entrypoints).
+2. Move concrete adapters last. Thread dependency injection first while the
+   adapter and any old global lookup stay in place; relocating the adapter too
+   early can create circular imports through package `__init__` files.
+3. Keep moves small and continuously green: `git mv`, import codemod, tests,
+   tooling updates, maps, and docs should move together for each coherent step.
+4. Relocating a package under `src/` is usually a pure `git mv`; the package
+   name is unchanged because `src/` is the discovery root. Re-run the editable
+   install when needed, and expect mypy to surface latent type issues once the
+   package enters the checked set.
+5. Slice by coupling, not uniformly. Create top-level bounded contexts only
+   when isolation materially improves clarity and safety.
+
 ## Live Trading Safety Guard
 
 The `live_trading_enabled` column on the `accounts` table is a hard safety gate
 that prevents live broker orders from being submitted accidentally.
 
-**Rules that all bots must follow without exception:**
+**Rules that all agents must follow without exception:**
 
 1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
    script, fixture, test factory, or seed data.  This flag must only be set
@@ -330,12 +400,18 @@ that prevents live broker orders from being submitted accidentally.
    code or automated process.
 
 3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
-   `trading.brokers.factory`).  If this error surfaces, it must propagate so
+   `infrastructure.brokers.factory`).  If this error surfaces, it must propagate so
    the operator can investigate.
 
-4. **Test accounts must always have `live_trading_enabled = 0`** (the column
-   default).  Never override this in test fixtures or helper factories.
+4. **Shared test fixtures and helper factories must default to
+   `live_trading_enabled = 0`**. Tests that explicitly exercise the live guard
+   may model an already-enabled account locally, but must not make that state a
+   reusable default.
 
 Rationale: `live_trading_enabled = 1` causes real money to move through a
-live broker.  No automated process — including bots, CI pipelines, or scripts
+live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
+
+Enforcement: `python -m scripts.checks.repo.live_safety_check --enforce` blocks
+state-mutating automation surfaces from setting `live_trading_enabled` to true/1
+(enforced in the CI profile).

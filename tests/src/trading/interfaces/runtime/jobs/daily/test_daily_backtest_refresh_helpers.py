@@ -1,18 +1,8 @@
-from pathlib import Path
-
 from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
     make_daily_backtest_refresh_args,
 )
-
-
-def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:
-    day_tag = "20260414"
-    log = tmp_path / f"daily_backtest_refresh_{day_tag}_010101.log"
-    log.write_text(f"anything\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
-
-    assert module.already_completed_today(tmp_path, day_tag) is True
 
 
 def test_retry_delay_seconds_doubles_each_attempt() -> None:
@@ -21,9 +11,10 @@ def test_retry_delay_seconds_doubles_each_attempt() -> None:
     assert retry_delay_seconds(2.0, 3) == 8.0
 
 
-def test_build_backtest_command_includes_optional_settings() -> None:
+def test_build_backtest_command_includes_strategy_and_optional_settings() -> None:
     command = module.build_backtest_command(
         account="acct1",
+        strategy="macd",
         args=make_daily_backtest_refresh_args(
             tickers_file="local/tickers.txt",
             universe_history_dir="local/history",
@@ -37,6 +28,8 @@ def test_build_backtest_command_includes_optional_settings() -> None:
     )
 
     assert command[:5] == ["-m", "trading.interfaces.cli.main", "backtest", "--account", "acct1"]
+    # The targeted refresh always pins the specific strategy.
+    assert command[command.index("--strategy") + 1] == "macd"
     assert "--universe-history-dir" in command
     assert "--start" in command
     assert "--end" in command

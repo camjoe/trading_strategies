@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping
 
 import pandas as pd
 
+from trading.domain.exceptions import ValidationError
 from trading.domain.indicators import calculate_macd, calculate_rs_rsi
 
 from common.constants import (
@@ -230,8 +231,11 @@ def _bollinger_mean_reversion_signal(
     close = float(segment.iloc[-1])
     if not math.isfinite(close):
         return "hold"
-    middle = float(segment.mean())
-    std = float(segment.std(ddof=0))
+    segment_finite = segment[segment.map(lambda value: math.isfinite(float(value)))]
+    if len(segment_finite) < len(segment):
+        return "hold"
+    middle = float(segment_finite.mean())
+    std = float(segment_finite.std(ddof=0))
     if not math.isfinite(std) or std <= 0:
         return "hold"
 
@@ -725,9 +729,106 @@ def available_strategy_ids() -> list[str]:
     return sorted(STRATEGY_REGISTRY.keys())
 
 
+@dataclass(frozen=True)
+class PrimitiveSpec:
+    """A code signal primitive: the tested signal function plus its knob schema.
+
+    The code half of the strategy = primitive + knobs model. A `strategies`
+    row binds one primitive to a concrete knob dict; the knob schema here is the
+    primitive's tunable knob names with their code defaults.
+    """
+
+    primitive: str
+    signal_fn: SignalFunction
+    knob_schema: Mapping[str, Any]
+    style: str
+    required_features: tuple[str, ...] = ()
+    description: str = ""
+
+
+# One primitive per registered signal function today; keyed by the registry
+# strategy id, which doubles as the primitive name for the seeded catalog.
+PRIMITIVE_CATALOG: dict[str, PrimitiveSpec] = {
+    spec.strategy_id: PrimitiveSpec(
+        primitive=spec.strategy_id,
+        signal_fn=spec.signal_fn,
+        knob_schema=dict(spec.default_params),
+        style=spec.strategy_style,
+        required_features=spec.required_features,
+        description=spec.description,
+    )
+    for spec in STRATEGY_REGISTRY.values()
+}
+
+
+def resolve_primitive(primitive: str) -> PrimitiveSpec:
+    """Resolve a primitive name to its code spec; raises for unknown primitives."""
+    spec = PRIMITIVE_CATALOG.get(primitive.strip().lower())
+    if spec is None:
+        available = ", ".join(sorted(PRIMITIVE_CATALOG))
+        raise ValueError(f"Unknown signal primitive '{primitive}'. Valid primitives: {available}")
+    return spec
+
+
+def validate_params_against_primitive(primitive: str, params: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate and coerce knob overrides against a primitive's knob schema.
+
+    Rejects knob names the primitive does not define and values that cannot be
+    coerced to the knob's type. Returns a new dict of the coerced overrides
+    (only the provided keys); callers layer these over the primitive defaults.
+    """
+    spec = resolve_primitive(primitive)
+    schema = spec.knob_schema
+    unknown = sorted(name for name in params if name not in schema)
+    if unknown:
+        valid = ", ".join(sorted(schema)) or "(none)"
+        raise ValueError(
+            f"Unknown knob(s) for primitive '{spec.primitive}': {', '.join(unknown)}. Valid knobs: {valid}"
+        )
+    return {name: _coerce_knob_value(name, value, schema[name]) for name, value in params.items()}
+
+
+def _coerce_knob_value(name: str, value: Any, default: Any) -> Any:
+    if isinstance(default, bool):
+        if isinstance(value, bool):
+            return value
+        raise ValueError(f"Knob '{name}' expects a boolean, got {value!r}.")
+    if isinstance(default, int):  # bool is handled above
+        return _coerce_int_knob(name, value)
+    if isinstance(default, float):
+        return _coerce_float_knob(name, value)
+    return value
+
+
+def _coerce_int_knob(name: str, value: Any) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"Knob '{name}' expects an integer, got boolean {value!r}.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise ValueError(f"Knob '{name}' expects an integer, got {value!r}.")
+        return int(value)
+    try:
+        return int(str(value).strip())
+    except TypeError, ValueError:
+        raise ValueError(f"Knob '{name}' expects an integer, got {value!r}.") from None
+
+
+def _coerce_float_knob(name: str, value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"Knob '{name}' expects a number, got boolean {value!r}.")
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip())
+    except TypeError, ValueError:
+        raise ValueError(f"Knob '{name}' expects a number, got {value!r}.") from None
+
+
 def _invalid_strategy_error(strategy_name: str) -> ValueError:
     available = ", ".join(available_strategy_ids())
-    return ValueError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
+    return ValidationError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
 
 
 def _resolve_exact_or_alias(name: str) -> StrategySpec | None:
@@ -795,11 +896,22 @@ def validate_strategy_name(strategy_name: str) -> str:
     return resolve_strategy(strategy_name).strategy_id
 
 
+def evaluate_signal(
+    strategy_name: str,
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Evaluate a strategy's signal with explicit params — the shared backtest/live entry."""
+    spec = resolve_strategy(strategy_name)
+    return spec.signal_fn(history, params, feature_history)
+
+
 def resolve_signal(
     strategy_name: str,
     history: pd.Series,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
-    """Resolve strategy labels to explicit signal models used during backtesting."""
+    """Resolve strategy labels to explicit signal models evaluated with default params."""
     spec = resolve_strategy(strategy_name)
-    return spec.signal_fn(history, spec.default_params, feature_history)
+    return evaluate_signal(strategy_name, history, spec.default_params, feature_history)

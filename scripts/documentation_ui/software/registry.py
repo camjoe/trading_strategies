@@ -18,11 +18,15 @@ GROUP_ORDER = [
 ]
 
 GROUP_BY_PACKAGE = {
+    "alembic": "Developer Tooling",
+    "sqlalchemy": "Developer Tooling",
     "fastapi": "Backend & Validation",
     "ib_async": "Data & Market Access",
     "httpx": "Developer Tooling",
+    "httpx2": "Developer Tooling",
     "hypothesis": "Developer Tooling",
     "matplotlib": "Visualization",
+    "mypy": "Developer Tooling",
     "newsapi-python": "Data & Market Access",
     "numpy": "Analysis & Modeling",
     "pandas": "Analysis & Modeling",
@@ -34,6 +38,7 @@ GROUP_BY_PACKAGE = {
     "pytest-mock": "Developer Tooling",
     "pytest-xdist": "Developer Tooling",
     "python-dotenv": "Backend & Validation",
+    "ruff": "Developer Tooling",
     "pytrends": "Data & Market Access",
     "uvicorn": "Backend & Validation",
     "vadersentiment": "Analysis & Modeling",
@@ -41,16 +46,24 @@ GROUP_BY_PACKAGE = {
 }
 
 PURPOSE_BY_PACKAGE = {
+    "alembic": (
+        "Database schema migration tool. Ops-only — the numbered SQLite migration commands use it "
+        "to create, apply, and revert revisions; the application runtime never imports it."
+    ),
+    "sqlalchemy": "SQL toolkit that backs Alembic's migration engine; used only by the ops-only migration tooling.",
+    "httpx2": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests.",
     "ib_async": (
         "Async Interactive Brokers client used for broker connectivity, live account queries, "
         "and order execution flows."
     ),
+    "mypy": "Static type checker used by local and CI Python quality gates.",
     "newsapi-python": (
         "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals."
     ),
     "playwright": "Browser automation library used for UI smoke checks and end-to-end interaction coverage.",
     "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
     "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
+    "ruff": "Python linter and formatter used by local and CI quality gates.",
     "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
     "vadersentiment": (
         "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features."
@@ -66,7 +79,7 @@ def normalize_package_name(raw: str) -> str:
 
 def parse_requirement_entry(raw: str) -> tuple[str, str] | None:
     line = raw.strip()
-    if not line or line.startswith("#") or line.startswith("-r"):
+    if not line or line.startswith("#") or line.startswith(("-r", "-e", "--editable")):
         return None
 
     for marker in ("==", ">=", "<=", "~=", "!=", ">", "<"):

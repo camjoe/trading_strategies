@@ -34,7 +34,7 @@
     },
     {
       "name": "rotation_time_5k",
-      "descriptive_name": "Rotation Time-Based Example",
+      "descriptive_name": "Rotation Champion/Challenger Example",
       "strategy": "trend",
       "initial_cash": 5000,
       "benchmark_ticker": "SPY",
@@ -46,16 +46,14 @@
       "stop_loss_pct": 4,
       "take_profit_pct": 8,
       "instrument_mode": "equity",
-      "rotation_enabled": true,
-      "rotation_mode": "time",
-      "rotation_interval_days": 14,
-      "rotation_schedule": ["trend", "mean_reversion", "breakout"],
-      "rotation_active_index": 0,
-      "rotation_active_strategy": "trend"
+      "rotation": {
+        "enabled": true,
+        "schedule": ["trend", "mean_reversion", "breakout"]
+      }
     },
     {
       "name": "rotation_optimal_5k",
-      "descriptive_name": "Rotation Optimal Example",
+      "descriptive_name": "Rotation Long-Lookback Example",
       "strategy": "trend",
       "initial_cash": 5000,
       "benchmark_ticker": "SPY",
@@ -67,14 +65,11 @@
       "stop_loss_pct": 4,
       "take_profit_pct": 10,
       "instrument_mode": "equity",
-      "rotation_enabled": true,
-      "rotation_mode": "optimal",
-      "rotation_optimality_mode": "previous_period_best",
-      "rotation_lookback_days": 120,
-      "rotation_interval_days": 7,
-      "rotation_schedule": ["trend", "mean_reversion", "breakout", "bollinger_mean_reversion"],
-      "rotation_active_index": 0,
-      "rotation_active_strategy": "trend"
+      "rotation": {
+        "enabled": true,
+        "schedule": ["trend", "mean_reversion", "breakout", "bollinger_mean_reversion"],
+        "lookback_days": 120
+      }
     },
     {
       "name": "core_growth_20k",
@@ -123,12 +118,10 @@
       "stop_loss_pct": 4,
       "take_profit_pct": 8,
       "instrument_mode": "equity",
-      "rotation_enabled": true,
-      "rotation_mode": "time",
-      "rotation_interval_days": 14,
-      "rotation_schedule": ["trend", "ma_crossover", "mean_reversion"],
-      "rotation_active_index": 0,
-      "rotation_active_strategy": "trend",
+      "rotation": {
+        "enabled": true,
+        "schedule": ["trend", "ma_crossover", "mean_reversion"]
+      },
       "max_loss_pct": 6,
       "profit_take_pct": 8
     }

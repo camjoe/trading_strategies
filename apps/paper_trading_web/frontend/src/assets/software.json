@@ -3,7 +3,7 @@
   "packages": [
     {
       "name": "ib_async",
-      "version": "==1.0.3",
+      "version": "==2.1.0",
       "scope": "runtime",
       "group": "Data & Market Access",
       "purpose": "Async Interactive Brokers client used for broker connectivity, live account queries, and order execution flows."
@@ -31,7 +31,7 @@
     },
     {
       "name": "yfinance",
-      "version": "==1.2.0",
+      "version": "==1.4.1",
       "scope": "runtime",
       "group": "Data & Market Access",
       "purpose": "Primary market data source for daily OHLCV, adjusted close, and related Yahoo Finance history."
@@ -66,7 +66,7 @@
     },
     {
       "name": "fastapi",
-      "version": "==0.120.4",
+      "version": "==0.136.1",
       "scope": "runtime",
       "group": "Backend & Validation",
       "purpose": "REST API framework for the paper_trading_ui backend."
@@ -80,24 +80,38 @@
     },
     {
       "name": "python-dotenv",
-      "version": "==1.2.1",
+      "version": "==1.2.2",
       "scope": "runtime",
       "group": "Backend & Validation",
       "purpose": "Loads environment variables for local backend and script configuration."
     },
     {
       "name": "uvicorn[standard]",
-      "version": "==0.35.0",
+      "version": "==0.46.0",
       "scope": "runtime",
       "group": "Backend & Validation",
       "purpose": "ASGI server used to run the FastAPI application locally and in lightweight deployments."
     },
     {
+      "name": "alembic",
+      "version": "==1.18.5",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Database schema migration tool. Ops-only \u2014 the numbered SQLite migration commands use it to create, apply, and revert revisions; the application runtime never imports it."
+    },
+    {
       "name": "httpx",
-      "version": ">=0.23.0,<1.0.0",
+      "version": ">=0.28.1,<1.0.0",
       "scope": "runtime",
       "group": "Developer Tooling",
       "purpose": "HTTP client used in API and integration tests."
+    },
+    {
+      "name": "httpx2",
+      "version": ">=2.0.0,<3.0.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests."
     },
     {
       "name": "hypothesis",
@@ -105,6 +119,13 @@
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Property-based testing library for broader edge-case coverage."
+    },
+    {
+      "name": "mypy",
+      "version": "==2.3.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Static type checker used by local and CI Python quality gates."
     },
     {
       "name": "playwright",
@@ -115,7 +136,7 @@
     },
     {
       "name": "pytest",
-      "version": "==8.3.5",
+      "version": "==9.0.3",
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Primary test runner for unit and integration suites."
@@ -136,10 +157,24 @@
     },
     {
       "name": "pytest-xdist",
-      "version": ">=3.0.0",
+      "version": ">=3.8.0",
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Parallel test execution plugin used to speed up larger local and CI pytest runs."
+    },
+    {
+      "name": "ruff",
+      "version": "==0.15.21",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Python linter and formatter used by local and CI quality gates."
+    },
+    {
+      "name": "sqlalchemy",
+      "version": "==2.0.51",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "SQL toolkit that backs Alembic's migration engine; used only by the ops-only migration tooling."
     }
   ],
   "projects": [

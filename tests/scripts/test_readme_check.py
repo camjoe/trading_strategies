@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def _run_check(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "scripts.checks.readme_check", "--repo-root", str(repo), *args],
+        [sys.executable, "-m", "scripts.checks.docs.readme_check", "--repo-root", str(repo), *args],
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,
@@ -81,7 +81,7 @@ def test_readme_consistency_ignores_code_fence_headings(tmp_path: Path) -> None:
     assert "Style issues: 0" in result.stdout
 
 
-def test_readme_consistency_ignores_virtualenv_readmes(tmp_path: Path) -> None:
+def test_readme_consistency_ignores_non_repository_readmes(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "README.md").write_text(
@@ -92,6 +92,9 @@ def test_readme_consistency_ignores_virtualenv_readmes(tmp_path: Path) -> None:
     venv_readme = repo / "venv" / "lib" / "python3.12" / "site-packages" / "pkg" / "README.md"
     venv_readme.parent.mkdir(parents=True)
     venv_readme.write_text("not a heading\n", encoding="utf-8")
+    local_readme = repo / "local" / "README.md"
+    local_readme.parent.mkdir()
+    local_readme.write_text("not a heading\n", encoding="utf-8")
 
     result = _run_check(repo, "--enforce-style")
 

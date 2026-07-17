@@ -16,6 +16,7 @@ def make_backtest_args(**overrides):
         "fee": 0.0,
         "run_name": None,
         "allow_approximate_leaps": False,
+        "strategy": None,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)

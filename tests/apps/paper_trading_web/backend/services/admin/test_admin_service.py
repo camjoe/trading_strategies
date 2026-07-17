@@ -7,43 +7,35 @@ from paper_trading_web.backend.services import admin as services_admin
 from paper_trading_web.backend.services.admin import create_account_with_rotation
 from trading.domain import AccountAlreadyExistsError
 from trading.domain.exceptions import NotFoundError
-from trading.services.admin import DELETE_COUNT_KEYS
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 
-def test_managed_account_delete_count_mapping_uses_known_service_keys() -> None:
-    assert set(services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS) <= set(DELETE_COUNT_KEYS)
-
-
-def test_managed_account_delete_count_mapping_exposes_stable_web_subset() -> None:
-    assert services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS == {
-        "accounts": "accounts",
-        "trades": "trades",
-        "equity_snapshots": "equitySnapshots",
-        "backtest_runs": "backtestRuns",
-        "backtest_trades": "backtestTrades",
-        "backtest_equity_snapshots": "backtestEquitySnapshots",
-    }
-
-
-def test_delete_account_and_dependents_not_found_raises(conn) -> None:
+def test_delete_managed_account_not_found_raises(conn) -> None:
     with pytest.raises(NotFoundError):
-        services_admin.delete_account_and_dependents("missing")
+        services_admin.delete_managed_account("missing")
 
 
-def test_delete_account_and_dependents_removes_related_rows(conn, create_account_row) -> None:
+def test_delete_managed_account_removes_related_rows(conn, create_account_row) -> None:
     account_id = create_account_row("acct_delete")
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-02T00:00:00Z"),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time="2026-01-02T00:00:00Z",
     )
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, "2026-01-02T00:00:00Z", 900.0, 100.0, 1000.0, 0.0, 0.0),
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time="2026-01-02T00:00:00Z",
+        cash=900.0,
+        market_value=100.0,
+        equity=1000.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
     conn.execute(
         """
@@ -87,16 +79,15 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     conn.execute(
         """
         INSERT INTO walk_forward_groups (
-            grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+            grouping_key, account_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             "acct_delete_wf",
             account_id,
-            "trend",
             "wf-del",
             "2026-01-01",
             "2026-01-31",
@@ -126,20 +117,16 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     )
     conn.commit()
 
-    counts = services_admin.delete_account_and_dependents("acct_delete")
-    assert counts == {
-        "accounts": 1,
-        "trades": 1,
-        "equitySnapshots": 1,
-        "backtestRuns": 1,
-        "backtestTrades": 1,
-        "backtestEquitySnapshots": 1,
-    }
+    deleted_name = services_admin.delete_managed_account("acct_delete")
+    assert deleted_name == "acct_delete"
 
     assert conn.execute("SELECT COUNT(*) AS n FROM accounts WHERE id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
+    assert conn.execute("SELECT COUNT(*) AS n FROM orders WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
     assert (
-        conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (account_id,)).fetchone()["n"]
+        conn.execute(
+            "SELECT COUNT(*) AS n FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
+            (account_id,),
+        ).fetchone()["n"]
         == 0
     )
     assert (
@@ -167,7 +154,7 @@ def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -
         initial_cash=1000.0,
         benchmark_ticker="SPY",
         config_values={},
-        rotation_profile={},
+        rotation_settings={},
     )
 
     def _raise_duplicate(*_args, **_kwargs) -> None:

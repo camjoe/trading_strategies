@@ -4,13 +4,25 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.leaderboard_service as leaderboard_service
 from tests.support.backtesting import create_backtest_account, make_backtest_config
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 class TestBacktestValidationAndFailurePaths:
     def test_run_backtest_rejects_unknown_account_strategy(self, conn, bt_market_data) -> None:
+        # The backtest runs the default-book assignment's strategy (ADR 014);
+        # an assignment carrying an unknown label must be rejected.
+        from trading.services.books.book_assignments import sync_default_book_assignment
+
         create_backtest_account(conn, "acct_invalid_strategy")
-        conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mystery_strategy", "acct_invalid_strategy"))
-        conn.commit()
+        account_id = int(
+            conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_invalid_strategy",)).fetchone()["id"]
+        )
+        sync_default_book_assignment(
+            conn,
+            account_id=account_id,
+            strategy_name="mystery_strategy",
+            now_iso="2026-01-01T00:00:00Z",
+        )
         bt_market_data(["AAPL"], [100.0, 101.0])
 
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
@@ -40,13 +52,13 @@ class TestBacktestValidationAndFailurePaths:
         cursor = conn.execute(
             """
             INSERT INTO backtest_runs (
-                account_id, strategy_name, run_name, start_date, end_date, created_at,
+                account_id, strategy_id, run_name, start_date, end_date, created_at,
                 slippage_bps, fee_per_trade, tickers_file, notes, warnings
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(account_id),
-                "trend_v1",
+                ensure_strategy_id_for_label(conn, "trend_v1"),
                 "no-snapshots",
                 "2026-01-01",
                 "2026-02-01",

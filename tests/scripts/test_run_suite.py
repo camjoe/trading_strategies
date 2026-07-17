@@ -13,6 +13,7 @@ import pytest
 from scripts.checks.run_suite import (
     _best_suite_for_file,
     _deduplicate_suites,
+    _format_suite_listing,
     detect_suites_from_changes,
     discover_suites,
     resolve_targets,
@@ -66,6 +67,13 @@ class TestDiscoverSuites:
         suites = discover_suites(tmp_path)
         assert all("/" in s or len(Path(s).parts) == 1 for s in suites)
         assert not any("\\" in s for s in suites)
+
+
+def test_suite_listing_is_cp1252_safe() -> None:
+    listing = _format_suite_listing(["trading", "trading/services"])
+
+    assert "all  ->  tests/" in listing
+    listing.encode("cp1252")
 
 
 # ---------------------------------------------------------------------------

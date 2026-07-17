@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models.evaluation import (
+    BacktestFreshness,
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,
+    EvaluationDiagnostics,
     EvaluationPaperLiveEvidence,
     StrategyEvaluationArtifact,
 )
@@ -17,24 +20,31 @@ def insert_trade(
     price: float,
     trade_time: str = "2026-01-01T00:00:00Z",
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, ticker, "buy", qty, price, 0.0, trade_time, "entry"),
+    # Fills are the execution history (revision 0006); the replayed account
+    # state sees this exactly like the retired trades row.
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker=ticker,
+        side="buy",
+        qty=qty,
+        price=price,
+        trade_time=trade_time,
     )
 
 
 def insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -> None:
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, snapshot_time, equity, 0.0, equity, 0.0, 0.0),
+    # Snapshots are book-keyed; the repository resolves the default book.
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        cash=equity,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
 
 
@@ -49,6 +59,7 @@ def make_evaluation_artifact(
     paper_live_snapshot_count: int | None = None,
     blended_score: float | None = None,
     overall_confidence: float = 0.0,
+    backtest_freshness: BacktestFreshness | None = None,
 ) -> StrategyEvaluationArtifact:
     return StrategyEvaluationArtifact(
         basic=EvaluationBasicScope(account_id=account_id, account_name=account_name),
@@ -67,6 +78,7 @@ def make_evaluation_artifact(
             overall_confidence=overall_confidence,
             blended_score=blended_score,
         ),
+        diagnostics=EvaluationDiagnostics(backtest_freshness=backtest_freshness),
     )
 
 

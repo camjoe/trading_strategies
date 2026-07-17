@@ -103,5 +103,9 @@ def test_format_goal_text_variants(conn, goal_min, goal_max, goal_period, expect
             goal_period=goal_period,
         ),
     )
+    # Goals are book columns (revision 0008).
+    from trading.services.books.book_assignments import get_default_book
+
     account = get_account(conn, "acct_goal")
-    assert format_goal_text(account) == expected
+    book = get_default_book(conn, account_id=account.id)
+    assert format_goal_text(book) == expected

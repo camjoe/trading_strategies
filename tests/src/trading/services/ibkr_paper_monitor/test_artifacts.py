@@ -87,7 +87,7 @@ def test_fetch_daily_workflow_status_parses_artifact(mock_repo_root: Path) -> No
         "failed_step": None,
         "steps": [
             {"name": "Load accounts", "status": "completed"},
-            {"name": "Run sleeves", "status": "completed"},
+            {"name": "Run books", "status": "completed"},
             {"name": "Generate reports", "status": "completed"},
         ],
     }
@@ -112,10 +112,10 @@ def test_fetch_daily_workflow_status_handles_failed_run(mock_repo_root: Path) ->
         "success": False,
         "run_timestamp": "2026-05-10T09:30:00Z",
         "duration_seconds": 10.2,
-        "failed_step": "Run sleeves",
+        "failed_step": "Run books",
         "steps": [
             {"name": "Load accounts", "status": "completed"},
-            {"name": "Run sleeves", "status": "failed"},
+            {"name": "Run books", "status": "failed"},
         ],
     }
     artifact_file.write_text(__import__("json").dumps(artifact_data))
@@ -123,7 +123,7 @@ def test_fetch_daily_workflow_status_handles_failed_run(mock_repo_root: Path) ->
     result = artifacts.fetch_daily_workflow_status(repo_root=mock_repo_root)
 
     assert result["status"] == "failed"
-    assert result["failed_step"] == "Run sleeves"
+    assert result["failed_step"] == "Run books"
     assert result["completed_steps"] == 1
 
 

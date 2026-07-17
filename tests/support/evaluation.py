@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from trading.repositories.snapshots import EquitySnapshotRepository
+from tests.support.strategies import ensure_strategy_id_for_label
 from trading.backtesting.repositories.walk_forward_repository import (
     insert_walk_forward_group,
     insert_walk_forward_group_run,
@@ -17,7 +19,7 @@ def insert_backtest_run(
         """
         INSERT INTO backtest_runs (
             account_id,
-            strategy_name,
+            strategy_id,
             run_name,
             start_date,
             end_date,
@@ -32,7 +34,7 @@ def insert_backtest_run(
         """,
         (
             account_id,
-            strategy_name,
+            ensure_strategy_id_for_label(conn, strategy_name),
             run_name,
             "2026-01-01",
             "2026-01-31",
@@ -134,28 +136,15 @@ def insert_account_snapshot(
     realized_pnl: float,
     unrealized_pnl: float,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id,
-            snapshot_time,
-            cash,
-            market_value,
-            equity,
-            realized_pnl,
-            unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account_id,
-            snapshot_time,
-            cash,
-            market_value,
-            equity,
-            realized_pnl,
-            unrealized_pnl,
-        ),
+    # Snapshots are book-keyed; the repository resolves the default book.
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        cash=cash,
+        market_value=market_value,
+        equity=equity,
+        realized_pnl=realized_pnl,
+        unrealized_pnl=unrealized_pnl,
     )
 
 

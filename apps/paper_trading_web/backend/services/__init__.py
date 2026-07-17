@@ -18,7 +18,7 @@ from .accounts import (
 )
 from .admin import (
     create_account_with_rotation,
-    delete_account_and_dependents,
+    delete_managed_account,
 )
 from .backtests import (
     build_backtest_config_from_preflight_request,
@@ -48,7 +48,7 @@ __all__ = [
     "build_walk_forward_config_from_request",
     "db_conn",
     "create_account_with_rotation",
-    "delete_account_and_dependents",
+    "delete_managed_account",
     "fetch_recent_backtest_run_summaries",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",

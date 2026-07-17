@@ -42,7 +42,7 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
-from scripts.checks.shared import resolve_python_exe
+from scripts.checks._runner import resolve_python_exe
 
 _EXCLUDED_DIRS = {"support", "__pycache__"}
 _ALL_ALIAS = "all"
@@ -59,6 +59,13 @@ def discover_suites(tests_root: Path) -> list[str]:
         rel = path.relative_to(tests_root)
         suites.append(str(rel).replace("\\", "/"))
     return suites
+
+
+def _format_suite_listing(suites: list[str]) -> str:
+    """Return an ASCII-safe suite listing for Windows and POSIX consoles."""
+    lines = [f"Available suites ({len(suites)} total):", "", "  all  ->  tests/  (entire test suite)", ""]
+    lines.extend(f"  {suite}" for suite in suites)
+    return "\n".join(lines)
 
 
 def _git_changed_files(repo_root: Path, base_ref: str | None) -> list[str]:
@@ -357,10 +364,7 @@ def main() -> int:
 
     if args.list:
         suites = discover_suites(tests_root)
-        print(f"Available suites ({len(suites)} total):\n")
-        print("  all  →  tests/  (entire test suite)\n")
-        for suite in suites:
-            print(f"  {suite}")
+        print(_format_suite_listing(suites))
         return 0
 
     # Separate suite names from pytest pass-through args.

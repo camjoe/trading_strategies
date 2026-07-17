@@ -9,6 +9,12 @@ on:
       - apps/trends/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/frontend/**
+      - docs/**
+      - scripts/**
+      - .ai/**
+      - AGENTS.md
+      - .editorconfig
+      - .gitattributes
       - requirements-base.txt
       - requirements-dev.txt
       - .github/workflows/quality-gates.yml
@@ -24,6 +30,7 @@ jobs:
     outputs:
       python_related: ${{ steps.filter.outputs.python_related }}
       frontend_related: ${{ steps.filter.outputs.frontend_related }}
+      docs_enforcement_related: ${{ steps.filter.outputs.docs_enforcement_related }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -42,6 +49,18 @@ jobs:
               - .github/workflows/quality-gates.yml
             frontend_related:
               - apps/paper_trading_web/frontend/**
+              - requirements-base.txt
+              - requirements-dev.txt
+              - .github/workflows/quality-gates.yml
+            docs_enforcement_related:
+              - docs/**
+              - scripts/**
+              - .ai/**
+              - AGENTS.md
+              - .editorconfig
+              - .gitattributes
+              - apps/paper_trading_web/backend/routes/**
+              - apps/paper_trading_web/frontend/src/assets/**
               - requirements-base.txt
               - requirements-dev.txt
               - .github/workflows/quality-gates.yml
@@ -68,13 +87,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-          pip install ruff mypy
 
-      - name: Run ruff lint gate
-        run: ruff check src/trading apps/trends apps/paper_trading_web/backend --select F,E9
+      - name: Run repository quality gates
+        run: python -m scripts.run_checks repo
 
-      - name: Run mypy type gate
-        run: mypy apps/paper_trading_web/backend src/trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
+      - name: Run Python quality gates
+        run: python -m scripts.run_checks python --no-cov
 
   frontend-quality:
     needs: changes
@@ -103,3 +121,31 @@ jobs:
       - name: Run frontend typecheck gate
         working-directory: apps/paper_trading_web/frontend
         run: npm run typecheck
+
+  docs-enforcement:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.docs_enforcement_related == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements-base.txt
+            requirements-dev.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run documentation and safety enforcement
+        run: |
+          python -m scripts.run_checks docs
+          python -m scripts.run_checks repo

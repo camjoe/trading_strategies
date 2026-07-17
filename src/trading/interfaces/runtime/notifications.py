@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import smtplib
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Callable, TypedDict
+from collections.abc import Callable
+from dataclasses import dataclass
+from email.message import EmailMessage
+from typing import Any, TypedDict
 
 from common.time import utc_now_iso
 
@@ -15,6 +19,12 @@ WEBHOOK_TIMEOUT_SECONDS = 10.0
 
 # User-Agent header for outbound runtime notification requests.
 WEBHOOK_USER_AGENT = "trading-strategies-runtime-alert/1.0"
+
+# Seconds to wait for the SMTP server before treating an email notification as failed.
+SMTP_TIMEOUT_SECONDS = 15.0
+
+# Factory that opens an SMTP connection; injectable so tests supply a fake server.
+SmtpFactory = Callable[..., smtplib.SMTP]
 
 
 class RuntimeNotificationPayload(TypedDict):
@@ -93,3 +103,121 @@ def notify_webhook_best_effort(
         )
         return False
     return True
+
+
+@dataclass(frozen=True)
+class EmailNotificationConfig:
+    """SMTP delivery settings for runtime email notifications.
+
+    Sourced from environment variables at the job boundary (see
+    ``resolve_email_config_from_env``). Auth is optional: leave ``username``/
+    ``password`` unset to relay through a server that does not require login.
+    """
+
+    host: str
+    port: int
+    sender: str
+    recipients: tuple[str, ...]
+    username: str | None = None
+    password: str | None = None
+    use_tls: bool = True
+
+    def is_deliverable(self) -> bool:
+        """Whether enough is configured to attempt delivery (host + sender + a recipient)."""
+        return bool(self.host.strip() and self.sender.strip() and self.recipients)
+
+
+def _build_email_message(config: EmailNotificationConfig, payload: RuntimeNotificationPayload) -> EmailMessage:
+    message = EmailMessage()
+    message["Subject"] = f"[{payload['status'].upper()}] {payload['event']}: {payload['message']}"
+    message["From"] = config.sender
+    message["To"] = ", ".join(config.recipients)
+    body = json.dumps(payload, indent=2, sort_keys=True)
+    message.set_content(f"{payload['message']}\n\n{body}\n")
+    return message
+
+
+def send_email_notification(
+    config: EmailNotificationConfig,
+    payload: RuntimeNotificationPayload,
+    *,
+    smtp_factory: SmtpFactory = smtplib.SMTP,
+) -> None:
+    if not config.is_deliverable():
+        raise ValueError("Email config must set host, sender, and at least one recipient.")
+
+    message = _build_email_message(config, payload)
+    with smtp_factory(config.host, config.port, timeout=SMTP_TIMEOUT_SECONDS) as smtp:
+        if config.use_tls:
+            smtp.starttls()
+        if config.username and config.password:
+            smtp.login(config.username, config.password)
+        smtp.send_message(message)
+
+
+def notify_email_best_effort(
+    *,
+    email_config: EmailNotificationConfig | None,
+    event: str,
+    status: str,
+    message: str,
+    details: dict[str, object] | None = None,
+    smtp_factory: SmtpFactory = smtplib.SMTP,
+) -> bool:
+    if email_config is None or not email_config.is_deliverable():
+        return False
+
+    payload = build_runtime_notification_payload(
+        event=event,
+        status=status,
+        message=message,
+        details=details,
+    )
+    try:
+        send_email_notification(email_config, payload, smtp_factory=smtp_factory)
+    except (OSError, smtplib.SMTPException, TimeoutError, ValueError) as exc:
+        print(
+            f"[WARN] Failed to send runtime email notification for {event}: {exc}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
+def notify_runtime_event(
+    *,
+    event: str,
+    status: str,
+    message: str,
+    details: dict[str, object] | None = None,
+    webhook_url: str | None = None,
+    email_config: EmailNotificationConfig | None = None,
+    urlopen_fn: Callable[..., Any] = urllib.request.urlopen,
+    smtp_factory: SmtpFactory = smtplib.SMTP,
+) -> bool:
+    """Fan a runtime event out to every configured transport (webhook and/or email).
+
+    The event-level seam runtime jobs call so they stay transport-agnostic: an
+    unset/blank transport config skips that transport, and delivery failures are
+    non-fatal (logged to stderr). Each transport is attempted independently so one
+    failing does not suppress the other.
+
+    Returns True if any transport delivered.
+    """
+    webhook_delivered = notify_webhook_best_effort(
+        webhook_url=webhook_url,
+        event=event,
+        status=status,
+        message=message,
+        details=details,
+        urlopen_fn=urlopen_fn,
+    )
+    email_delivered = notify_email_best_effort(
+        email_config=email_config,
+        event=event,
+        status=status,
+        message=message,
+        details=details,
+        smtp_factory=smtp_factory,
+    )
+    return webhook_delivered or email_delivered

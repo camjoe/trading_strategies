@@ -3,11 +3,11 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-13
 Purpose: Step-by-step setup of the dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it, with a trackable setup checklist.
-Related: [Production Runtime Hosting ADR](../adr/007-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
+Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
-This runbook implements [ADR 007](../adr/007-production-runtime-hosting-and-deployment.md): one dedicated
+This runbook implements [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): one dedicated
 Linux host runs the scheduled jobs from a production checkout that tracks `main`, development happens
 elsewhere, and every deploy passes a pre-deploy test gate. Read the ADR first for the *why* (including
 why blue/green is deferred). This runbook is the *how*.
@@ -17,8 +17,8 @@ Conventions used below (adjust to your host):
 | Placeholder | Meaning | Example |
 |---|---|---|
 | `<user>` | Login user on the Linux host | `cam` |
-| `~/trading-prod` | Production checkout (tracks `main`, cron runs from here) | `/home/cam/trading-prod` |
-| `~/trading-staging` | Optional staging checkout (tracks `develop`, no cron) | `/home/cam/trading-staging` |
+| `~/trading-prod` | Production checkout (tracks `main`, scheduled jobs run from here) | `/home/cam/trading-prod` |
+| `~/trading-staging` | Optional staging checkout (tracks `develop`, no scheduler) | `/home/cam/trading-staging` |
 
 Repo URL (already filled into the commands below): `https://github.com/camjoe/trading_strategies.git`
 
@@ -36,23 +36,26 @@ Repo URL (already filled into the commands below): `https://github.com/camjoe/tr
    ```
    > Python 3.14 is new — if your distro's default `python3` is older, install 3.14 via the deadsnakes
    > PPA or pyenv and use that interpreter to create the venv in §1.2. Verify with `python3 --version`.
-2. **Set the timezone** — cron fires on local time, so this must match the timezone your schedule
-   times assume:
+2. **Set the timezone** — OS schedulers fire on local time, so this must match the timezone your
+   schedule times assume:
    ```bash
    timedatectl                       # check current
    sudo timedatectl set-timezone America/New_York   # set to your market timezone
    ```
-3. **Disable sleep/suspend** so the host stays up unattended:
-   ```bash
-   sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-   ```
-   On a laptop lid, also set `HandleLidSwitch=ignore` in `/etc/systemd/logind.conf`, then
-   `sudo systemctl restart systemd-logind`.
-4. **Ensure cron runs and starts on boot:**
-   ```bash
-   sudo systemctl enable --now cron
-   ```
-5. Configure unattended security updates to **not** auto-reboot during market hours (or schedule any
+3. **Sleep/suspend.** Choose one of two approaches (decision recorded in Part 5):
+   - **Always-on (simpler):** Disable sleep so the host never misses a job:
+     ```bash
+     sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+     ```
+     On a laptop lid also set `HandleLidSwitch=ignore` in `/etc/systemd/logind.conf`, then
+     `sudo systemctl restart systemd-logind`.
+   - **Suspend+wake (power-saving):** Keep auto-suspend enabled and rely on `WakeSystem=yes` in
+     the systemd timer units (§1.5) to wake the machine before each job. Extend the AC inactivity
+     timeout to at least 60 minutes so jobs finish before the machine re-suspends:
+     ```bash
+     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
+     ```
+4. Configure unattended security updates to **not** auto-reboot during market hours (or schedule any
    reboot window outside them). This is the Linux analogue of the Windows-update problem we are
    leaving behind.
 
@@ -65,6 +68,7 @@ git checkout main
 python3 -m venv .venv
 ./.venv/bin/pip install --upgrade pip
 ./.venv/bin/pip install -r requirements-base.txt   # runtime-only deps (no test deps needed in prod)
+./.venv/bin/pip install -e . --no-build-isolation  # expose src/ and apps/ packages
 ```
 
 ### 1.3 Secrets and configuration
@@ -74,7 +78,7 @@ Copy the committed template and fill in real values:
 ```bash
 cd ~/trading-prod
 cp .env.example .env        # .env is gitignored
-$EDITOR .env                # set TRADING_IBKR_WEB_API_ACCOUNT_ID, TRADING_RUNTIME_ALERT_WEBHOOK_URL, etc.
+$EDITOR .env                # set TRADING_IBKR_WEB_API_ACCOUNT_ID, runtime notifications, etc.
 chmod 600 .env              # readable only by the runtime user
 ```
 
@@ -85,30 +89,73 @@ chmod 600 .env              # readable only by the runtime user
 > and do not run coding agents on this host. (Optional defense in depth on the dev machine: a Claude
 > Code `permissions.deny` read rule for `**/.env` and secret paths.)
 
-**Important — the runtime jobs do not auto-load `.env`.** Unlike the web backend (which loads
-`apps/paper_trading_web/backend/.env` via dotenv), the cron job entrypoints read `os.environ`
-directly. So you must get these vars into the job's environment one of two ways:
+**Important — the runtime jobs do not auto-load `.env`.** Unlike the web backend (which loads its
+own dotenv file from the committed `apps/paper_trading_web/backend/.env.example` template), the job
+entrypoints read `os.environ` directly.
+Choose one of the approaches below to get secrets into each job's environment.
 
-- **Source the file in a cron wrapper.** Point each cron command at a tiny wrapper script:
-  ```bash
-  # ~/trading-prod/run-job.sh
-  #!/usr/bin/env bash
-  set -euo pipefail
-  cd "$(dirname "$0")"
-  set -a && . ./.env && set +a
-  exec ./.venv/bin/python "$@"
-  ```
-  ```bash
-  chmod +x ~/trading-prod/run-job.sh
-  ```
-  Then register schedules with `--python /home/<user>/trading-prod/run-job.sh` in §1.5 so every
-  job inherits the env. (The wrapper forwards `-m <module> …` straight through.)
-- **Or** declare the vars directly in the crontab (export lines / `KEY=value` header) above the
-  generated job lines.
+#### Approach A — systemd `EnvironmentFile` (recommended for systemd setups)
+
+Pass `--env-file` when registering schedules. The installer adds `EnvironmentFile=-<path>` to each
+generated service unit, so systemd loads the file automatically at job launch. The `-` prefix means
+a missing file is silently ignored rather than failing the job:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+    --env-file /home/<user>/trading-prod/.env \
+    --daily-paper-trading-time 13:00 \
+    ...
+```
+
+Secrets stay in `.env` on disk, mode `600`. Only systemd reads them at runtime — they are never
+embedded in the unit files or any logs.
+
+#### Approach B — `run-job.sh` wrapper (for cron setups, or if EnvironmentFile is not available)
+
+Create a tiny shell wrapper at `~/trading-prod/run-job.sh`. It sources `.env` and then
+forwards all arguments to the venv Python, so every job it launches inherits the full environment:
+
+```bash
+#!/usr/bin/env bash
+# run-job.sh — sources .env then delegates to the venv python.
+# Pass --python /path/to/run-job.sh to manage_job_schedules so cron jobs inherit secrets.
+set -euo pipefail
+cd "$(dirname "$0")"
+set -a && . ./.env && set +a
+exec ./.venv/bin/python "$@"
+```
+
+```bash
+chmod +x ~/trading-prod/run-job.sh
+```
+
+Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the venv python directly:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+    --python /home/<user>/trading-prod/run-job.sh \
+    --scheduler cron \
+    --daily-paper-trading-time 13:00 \
+    ...
+```
+
+Every cron line then runs through the wrapper, which loads `.env` before handing off to Python.
+
+#### Approach C — inline vars in crontab (quick / no wrapper)
+
+Declare vars at the top of the crontab above the generated lines:
+
+```
+TRADING_RUNTIME_ALERT_WEBHOOK_URL=https://...
+TRADING_IBKR_WEB_API_ACCOUNT_ID=...
+```
+
+Least preferred — secrets end up visible in `crontab -l` output.
 
 At minimum set:
-- `TRADING_RUNTIME_ALERT_WEBHOOK_URL` so missed/failed runs are visible (see
-  [runtime-operations.md](runtime-operations.md#webhook-notifications)).
+- Runtime notifications so missed/failed runs are visible: either `TRADING_RUNTIME_ALERT_WEBHOOK_URL`
+  or the SMTP variables documented in
+  [runtime-operations.md](runtime-operations.md#runtime-notifications).
 - `TRADING_IBKR_WEB_API_ACCOUNT_ID` (required) — configure the rest of the IBKR connection per
   [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
 
@@ -118,50 +165,55 @@ At minimum set:
   host into the same relative path under `~/trading-prod/`, or initialize fresh and run migrations.
 - Confirm migrations are current (see [db-migration-system.md](../reference/db-migration-system.md)).
 
-### 1.5 Register the schedule (cron)
+### 1.5 Register the schedule (systemd timers)
 
-`manage_job_schedules` writes cron lines that `cd` into the checkout it is run from, so run it from
-`~/trading-prod` and point `--python` at the production venv — or, if you used the env wrapper from
-§1.3, at `~/trading-prod/run-job.sh` instead (so jobs inherit `.env`). **Always `--dry-run` first** and
-read the lines it would write:
+`manage_job_schedules` auto-detects systemd on Linux and generates systemd timer + service units with `WakeSystem=yes`, so the machine wakes from sleep before each job fires. It writes a sudo-ready install script to `local/install_trading_timers.sh`. Run from `~/trading-prod`. **Always `--dry-run` first:**
 
 ```bash
 cd ~/trading-prod
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
-    --python /home/<user>/trading-prod/.venv/bin/python \
-    --daily-paper-trading-time 13:10 \
-    --daily-paper-trading-fallback-time 14:10 \
-    --health-check-time 16:30 \
-    --weekly-db-backup-time 02:00 --weekly-db-backup-day-of-week Sunday \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-fallback-time 13:20 \
+    --health-check-time 13:35 \
+    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday \
     --dry-run
 ```
 
-Re-run without `--dry-run` to install. See the
-[Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available
-entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify:
+Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
-crontab -l        # confirm the expected lines, each cd-ing into ~/trading-prod
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-fallback-time 13:20 \
+    --health-check-time 13:35 \
+    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday
+
+sudo bash ~/trading-prod/local/install_trading_timers.sh
+```
+
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify timers are active:
+
+```bash
+systemctl list-timers --all | grep trading
 ```
 
 ### 1.6 Verify end to end
 
 ```bash
 cd ~/trading-prod
-# A safe manual run of the daily job (or --dry-run if you want zero writes):
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
-# Confirm health check sees a fresh successful artifact:
+# Confirm the runtime can import, read its environment, and inspect recent artifacts:
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
 Then confirm monitoring per [runtime-operations.md](runtime-operations.md): logs land in `local/logs/`,
-artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes status.
+artifacts in `local/exports/`, and `./.venv/bin/python -m scripts.check_jobs` summarizes status.
 
 ---
 
 ## Part 2 — Ongoing deploy workflow
 
-The rule from [ADR 007](../adr/007-production-runtime-hosting-and-deployment.md): **the scheduler only
+The rule from [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): **the scheduler only
 ever runs promoted `main` code from a checkout no one edits.** Development never touches the host
 directly.
 
@@ -177,13 +229,13 @@ Run on the dev machine against the change you intend to ship:
 
 ```bash
 # Full CI-profile checks (layer + lint + type + tests)
-.venv/bin/python -m scripts.run_checks --profile ci
+.venv/bin/python -m scripts.run_checks ci
 # Targeted suites for the areas you touched (faster signal)
 .venv/bin/python -m scripts.checks.run_suite --base develop
 ```
 
-For a risky change, also smoke it in the **staging checkout** (Part 3) with `--dry-run` against a copy
-of the production DB before promoting.
+For a risky change, also smoke it in the **staging checkout** (Part 3) against a copy of the
+production DB before promoting.
 
 ### 2.3 Promote to `main`
 
@@ -199,6 +251,7 @@ git status                 # confirm clean working tree, on main
 git pull origin main
 # If dependencies changed:
 ./.venv/bin/pip install -r requirements-base.txt
+./.venv/bin/pip install -e . --no-build-isolation
 # If a DB migration shipped: apply it (see db-migration-system.md)
 # If job set or schedule times changed: re-run Part 1.5 registration
 ```
@@ -208,7 +261,7 @@ git pull origin main
 ```bash
 cd ~/trading-prod
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
-python -m scripts.check_jobs
+./.venv/bin/python -m scripts.check_jobs
 ```
 
 Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
@@ -218,8 +271,9 @@ Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
 
 ## Part 3 — Optional staging checkout (pre-deploy smoke test)
 
-A lightweight stand-in for blue/green (see [ADR 007 §4](../adr/007-production-runtime-hosting-and-deployment.md#decision)).
-It has **no cron**, so it never trades — it exists only for manual dry-runs.
+A lightweight stand-in for blue/green (see [ADR 008 §4](../adr/008-production-runtime-hosting-and-deployment.md#decision)).
+It has **no scheduler**, so it never trades automatically. Use it for deterministic checks and
+manual smoke tests against a copy of production state.
 
 ```bash
 git clone https://github.com/camjoe/trading_strategies.git ~/trading-staging
@@ -237,15 +291,19 @@ Smoke a candidate before promoting:
 ```bash
 cd ~/trading-staging
 git pull origin develop
-./.venv/bin/python -m scripts.run_checks --profile ci
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --dry-run
+./.venv/bin/python -m scripts.run_checks ci
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
+
+Do not run `daily.paper_trading` from staging with real broker credentials unless you intentionally
+want a paper-broker execution test. The job has no `--dry-run` flag.
 
 ---
 
 ## Part 4 — Rollback
 
-No hot standby (by design — ADR 007 §4). Rollback is a git checkout, plus DB restore only if data was
+No hot standby (by design — ADR 008 §4). Rollback is a git checkout, plus DB restore only if data was
 affected:
 
 ```bash
@@ -253,6 +311,7 @@ cd ~/trading-prod
 git log --oneline -n 10            # find the last-good commit
 git checkout <good-sha>            # detached HEAD on the known-good code
 ./.venv/bin/pip install -r requirements-base.txt   # if deps differ
+./.venv/bin/pip install -e . --no-build-isolation
 # If the bad deploy corrupted data, restore from the weekly backup:
 #   see runtime-operations.md "Weekly database backup"
 ```
@@ -273,29 +332,24 @@ This splits the problem into two states:
   auto-power-on after AC loss can start it.
 - **From SUSPEND** → a systemd timer with `WakeSystem=true`, or `rtcwake`, can resume it.
 
-### Recommended pattern: always-on + self-recover + scheduled-power-on safety net
+### Recommended pattern: suspend overnight, wake on schedule
 
-This is the most reliable for unattended daily runs and needs the least moving parts:
+This machine runs jobs for ~35 minutes per day (12:58–13:35) and suspends the rest of the time.
+The systemd timers installed in §1.5 include `WakeSystem=yes`, which sets the RTC alarm so the
+machine wakes from suspend automatically before each job fires. No cron daemon or always-on
+requirement is needed for the recommended systemd path.
 
-1. **Disable sleep/suspend** (already in §1.1) so the host never drops into a state a missed wake
-   could strand it during the trading day.
-2. **Auto-recover from power loss.** In BIOS/UEFI set **"Restore on AC Power Loss" / "AC Power
-   Recovery" → On (or Last State)**. A power blip then brings the machine back by itself.
-3. **No login required to run jobs.** cron (and systemd services) run without an interactive login;
-   confirm `systemctl enable --now cron` (§1.1) and that the runtime user's crontab is installed.
-   Do not gate jobs behind a desktop session/auto-login.
-4. **Scheduled power-on safety net (optional but recommended).** In BIOS/UEFI enable **"Power On by
-   RTC Alarm" / "Wake on RTC"** to power the machine on daily a bit before market open. Then even a
-   full shutdown self-corrects before the first job.
+Setup (already applied on this host):
 
-### Alternative: suspend overnight, wake on schedule (power saving)
-
-Only if you care about idle power draw and accept an extra failure mode:
-
-- Let the host suspend when idle, and schedule an RTC wake before the daily run. Either a systemd
-  timer unit with `WakeSystem=true`, or an `rtcwake` call (e.g. `rtcwake -m no -t $(date +%s -d 'tomorrow 06:00')`
-  to arm the next wake). Validate it actually wakes *before* relying on it — RTC-from-suspend support
-  varies by board.
+1. **AC inactivity timeout set to 60 minutes** — machine stays up through the full job window then
+   auto-suspends:
+   ```bash
+   gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
+   ```
+2. **Systemd timers with `WakeSystem=yes`** — installed via `local/install_trading_timers.sh`.
+   Verify with `systemctl list-timers --all | grep trading`.
+3. **AC Power Recovery in BIOS/UEFI** — set to **On** or **Last State** so a power blip brings
+   the machine back. (Board-specific menu path — capture below.)
 
 ### Missed-run safety net (independent of wake reliability)
 
@@ -309,31 +363,27 @@ Even with the above, treat a missed run as expected-occasionally, not catastroph
 
 ### TODO — capture machine-specific details on the Linux host
 
-The exact settings below are board/distro-specific and should be filled in **while on the Linux PC**.
-Until then this section stays `Draft`.
-
 - [ ] BIOS/UEFI vendor + version, and the exact menu path + label for **AC power recovery**
 - [ ] Whether the board supports **RTC wake / Power On by Alarm**, and its menu path (or note "not supported")
-- [ ] Confirm `rtcwake`/systemd `WakeSystem` behavior from suspend on this hardware (works / doesn't)
+- [x] Confirmed `systemd WakeSystem=yes` wakes from suspend on this hardware (verified 2026-06-29)
 - [ ] NIC **Wake-on-LAN** capability (`ethtool <iface> | grep Wake-on`) and whether to enable it
-- [ ] Distro + version, init/power-management specifics (`systemd-logind` lid/idle settings as configured)
-- [ ] Decision recorded: **always-on** vs **suspend+wake**, and which power-on safety net is enabled
+- [ ] Distro + version noted; `systemd-logind` AC inactivity timeout set to 3600 s (60 min) on 2026-06-29
+- [x] Decision recorded: **suspend+wake** (systemd `WakeSystem=yes`); AC power recovery TBD
 
 ---
 
 ## Setup progress checklist
 
-Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 007 follow-ups.)
+Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 008 follow-ups.)
 
-- [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend disabled, cron enabled,
-      auto-reboot kept out of market hours
-- [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base)
+- [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend configured (suspend+wake or always-on), auto-reboot kept out of market hours
+- [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base + editable install)
 - [ ] 1.3 Secrets in `.env` on the host only (mode 600), loading mechanism chosen; no `.env` on dev machine
 - [ ] 1.4 Database seeded and migrations current
-- [ ] 1.5 Cron schedule registered from `~/trading-prod` with prod venv; `crontab -l` verified
+- [ ] 1.5 Systemd timers registered from `~/trading-prod`; `systemctl list-timers --all | grep trading` verified
 - [ ] 1.6 End-to-end manual run + health check pass; monitoring confirmed
-- [ ] Confirmed cron survives a reboot (reboot the host, verify next run fires)
-- [ ] Part 5 uptime configured: AC-power-recovery on, sleep disabled, (optional) RTC power-on enabled
+- [ ] Confirmed systemd timers survive a reboot (reboot the host, verify next run fires)
+- [ ] Part 5 uptime configured: AC-power-recovery on, suspend+wake with `WakeSystem=yes`, AC inactivity timeout set to 3600 s
 - [ ] Part 5 machine-specific details captured on the Linux host (fills in the TODO list)
 - [ ] Decided whether to stand up the optional staging checkout (Part 3) now or later
 - [ ] Old Windows host scheduled tasks unregistered so jobs don't double-run

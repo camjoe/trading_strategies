@@ -25,7 +25,7 @@ def test_fetch_ibkr_paper_accounts_list_delegates_to_trading_service(
             "account_id": 1,
             "name": "paper_account_1",
             "total_equity": 50000.0,
-            "sleeve_count": 2,
+            "book_count": 2,
         },
     ]
 
@@ -47,9 +47,9 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
             "account_id": 1,
             "name": "test_account",
             "total_equity": 50000.0,
-            "sleeve_count": 2,
+            "book_count": 2,
         },
-        "sleeves": [],
+        "books": [],
         "recent_rotations": [],
         "risk_summary": {"kill_switch_triggered": False},
     }
@@ -90,7 +90,7 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
 
                     # Check that DB data is present
                     assert result["account"]["name"] == "test_account"
-                    assert result["sleeves"] == []
+                    assert result["books"] == []
                     assert result["recent_rotations"] == []
 
                     # Check that artifact data is present

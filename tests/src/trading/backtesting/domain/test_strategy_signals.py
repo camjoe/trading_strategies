@@ -36,7 +36,7 @@ def _assert_signal(
     assert strategy_signals.resolve_signal(strategy_name, history, feature_history) == expected
 
 
-def test_available_strategy_ids_include_phase2_families() -> None:
+def test_available_strategy_ids_include_expanded_families() -> None:
     ids = set(strategy_signals.available_strategy_ids())
     assert "breakout" in ids
     assert "pullback_trend" in ids
@@ -204,6 +204,23 @@ def test_default_hold_when_short_history() -> None:
 def test_resolve_signal_rejects_unknown_strategy_name() -> None:
     with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
         strategy_signals.resolve_signal("unknown_strategy", _series_range(1, 40))
+
+
+def test_evaluate_signal_explicit_params_override_defaults() -> None:
+    history = _series_range(1, 40)
+    spec = strategy_signals.resolve_strategy("trend")
+
+    default_signal = strategy_signals.evaluate_signal("trend", history, spec.default_params)
+    assert default_signal == strategy_signals.resolve_signal("trend", history) == "buy"
+
+    # Swapping the windows inverts the SMA relationship, so explicit params flip buy → hold.
+    overridden = strategy_signals.evaluate_signal("trend", history, {"fast_window": 20, "slow_window": 10})
+    assert overridden == "hold"
+
+
+def test_evaluate_signal_rejects_unknown_strategy_name() -> None:
+    with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
+        strategy_signals.evaluate_signal("unknown_strategy", _series_range(1, 40), {})
 
 
 def test_fuzz_resolve_signal_outputs_known_actions() -> None:
