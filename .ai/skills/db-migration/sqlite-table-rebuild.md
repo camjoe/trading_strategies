@@ -54,6 +54,9 @@ are the reference DDL shapes.
 
 ```sh
 .venv\Scripts\python.exe -m scripts.checks.repo.migration_check
-.venv\Scripts\python.exe -m scripts.data_ops.audit_foreign_keys --scope all
+.venv\Scripts\python.exe -m scripts.data_ops.describe_db_schema
 .venv\Scripts\python.exe -m scripts.checks.run_suite src/infrastructure/database --no-cov
 ```
+
+Review the schema output to confirm the intended FK actions and that foreign-key columns used by
+large cascades or routine filters have an index prefix.

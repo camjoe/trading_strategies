@@ -95,9 +95,9 @@ diagnosis. The expected head comes from `schema_version.EXPECTED_HEAD_REVISION`;
    - Data-mutating statements (`UPDATE`/`DELETE`) in a revision require explicit human review.
    - Never set `live_trading_enabled = 1` or point broker columns at live endpoints
      (Live Trading Safety Guard, enforced by `live_safety_check`).
-7. For any table rebuild, re-run the foreign-key index audit. Every foreign-key column used by a
-   cascading delete or routine filter should be covered by an index prefix:
-   `python -m scripts.data_ops.audit_foreign_keys`.
+7. For any table rebuild, run `PRAGMA foreign_key_check` and test the intended `ON DELETE` actions.
+   Verify that every foreign-key column used by a large cascade or routine filter is covered by an
+   index prefix; this index-coverage review is manual until a deterministic repository check exists.
 8. After any schema change, regenerate `docs/reference/database-diagram-viewer.html`, synchronize
    `docs/reference/db-schema.md`, and run `python -m scripts.checks.docs.readme_check`.
 9. Run `python -m scripts.checks.repo.migration_check` and the database test suites.

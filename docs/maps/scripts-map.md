@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-17
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -93,7 +93,6 @@ One-off data operations. Safe to run on the live DB when noted.
 
 | Module | Responsibility |
 |---|---|
-| `audit_foreign_keys.py` | Read-only FK action audit for account-deletion cascade planning and broader schema inspection |
 | `backup_db.py` | SQLite DB backup — copies the live DB to a timestamped backup file |
 | `check_cash_invariant.py` | Read-only reconciliation report: each book's `current_cash` vs `start_equity` + ledger sum, within a float tolerance |
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
