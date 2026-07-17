@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-30
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-17
 Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
 Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -74,8 +74,10 @@ Live strategy execution:
   configured news fetcher, and `social_trend_rotation` uses the configured
   social fetcher. Missing or failing providers return no feature history, so
   the signal functions degrade to conservative behavior.
-- Regime/news/social rotation overlays were retired; see
-   `docs/adr/009-regime-overlay-rotation-retired.md` for the preserved design.
+- Regime/news/social rotation overlays were retired after the runtime converged on the single
+  book-keyed decision-score path. The providers and alternative-strategy signals remain supported;
+  reintroducing regime-aware rotation must extend the current book rotation model rather than
+  restore the retired account-level selection branch.
 
 Operator visibility:
 

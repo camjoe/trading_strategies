@@ -172,8 +172,8 @@ Reconciliation behavior:
 
 - polls open broker orders
 - persists fill updates to clean book-keyed `orders` / `order_fills`
-- applies fills through shared book accounting and mirrors completed fills into
-  the legacy account ledger via `record_trade`
+- applies fills through shared book accounting (`apply_book_fill`); account-level
+  history derives from the fill rows — the `trades` table was retired in revision `0006`
 
 ## Legacy Socket/TWS Path
 

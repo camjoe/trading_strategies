@@ -67,6 +67,39 @@ Domain-specific meaning that the schema alone does not convey.
 | Column | Note |
 |--------|------|
 | `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `broker_*`, `live_trading_enabled` | Broker connection stays on `accounts` by explicit decision (2026-07-16): it is core custody metadata, not a settings group — no 1:1 split table. The live-trading safety guard reads these columns. |
+
+### `positions`
+
+`market_value` and `unrealized_pnl` are **price-dependent caches** next to the authoritative
+`qty`/`avg_cost` — they are only as fresh as the last mark-to-market. Do not treat them as truth;
+recompute from current prices when accuracy matters.
+
+### `global_settings`
+
+The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime throttles,
+evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
+split only if a fourth domain lands here.
+
+When the row is absent, services resolve code defaults; the first global-setting edit upserts it.
+Seeded environments may already contain the row populated by schema defaults. Once present, its
+`NOT NULL` values become authoritative and no longer track later code-default changes. This is
+intentional because the columns carry schema defaults and `CHECK` constraints.
+
+### `book_rotation_settings`
+
+Rotation scheduling and policy columns are nullable so each field can independently fall back to
+its code default. Passing `none` through the rotation-policy editing surface clears a stored policy
+value and resumes default tracking for that field. This differs intentionally from persisted global
+settings.
+
+### Money as REAL
+
+Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,
+accepted limitation** for paper trading — do not churn the schema toward integer cents or TEXT
+decimals. Float drift is expected to surface via reconciliation checks rather than be prevented by
+the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any book whose
+`current_cash` diverges from `start_equity` plus its `ledger` sum beyond a tolerance.
 
 ### Account trade history
 
@@ -75,6 +108,15 @@ The account-level `trades` table was dropped in revision `0006`. Execution histo
 (`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
 account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
 were not carried over — pre-`0006` notes live only in database backups.
+
+### Universe history
+
+`book_universe_history` records the names assigned to each book over time, not the membership of
+those universes at each point in time. Universe definitions remain file-backed, so historical
+evaluation can identify a universe change but cannot reconstruct membership after a definition
+changes. This membership-drift gap is known and accepted while universe definitions stabilize.
+Promoting universes to database entities with membership snapshots requires an explicit schema and
+product decision.
 
 ### Deletion semantics
 
@@ -85,6 +127,13 @@ were not carried over — pre-`0006` notes live only in database backups.
   must not silently vanish from its group's composition. Account deletion still succeeds because
   SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
   "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
+
+### History retention
+
+Promotion, risk, backtest, and walk-forward records currently have no automated age-based
+retention policy. They remain until their owning account is deleted, at which point the deletion
+semantics above apply. Any pruning or archival policy requires an explicit product/operator
+decision before implementation.
 
 ---
 

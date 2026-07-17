@@ -3,10 +3,10 @@
 Type: adr
 Status: Accepted
 Created: 2026-07-10
-Last Reviewed: 2026-07-10
+Last Reviewed: 2026-07-17
 Purpose: Record the collapse of the account/book runtime split onto one book-keyed path and the move
 of rotation scheduling ownership onto `book_rotation_settings`.
-Related: [ADR 010](010-book-keyed-execution-model.md), [ADR 011](011-strategy-catalog-and-parameter-ownership.md)
+Related: [ADR 010](010-book-keyed-execution-model.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Database Schema](../reference/db-schema.md)
 
 ## Context
 
@@ -64,3 +64,13 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
   surface are unchanged.
 - Future rotation features (per-book cadence preferences, schedule editing UI) extend
   `book_rotation_settings` — never the account row.
+
+## Later refinement
+
+Revision `0003` subsequently removed the 17 retired account rotation columns after their readers,
+writers, and compatibility requirements were eliminated. The unused interval and regime/overlay
+columns remain on `book_rotation_settings`; current scheduling continues to use
+`rotation_enabled`, `rotation_schedule`, and `rotation_lookback_days`.
+
+This refinement changes the temporary column-retention consequence above, not the accepted
+book-keyed execution and rotation-ownership decisions.

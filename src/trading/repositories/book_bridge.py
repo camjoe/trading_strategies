@@ -2,8 +2,9 @@
 
 Two shared resolutions used across services (execution, rotation, parameters):
 
-- account → its default book (created bare on first write; settings rows are
-  intentionally absent — a missing row means code defaults),
+- account → its default book (created bare on first write; execution/option
+  settings are DDL defaults on the books columns, and the rotation settings
+  row is intentionally absent — a missing row means code defaults),
 - strategy label → a `strategies` row (created as a draft when the catalog
   has no row for the label yet).
 

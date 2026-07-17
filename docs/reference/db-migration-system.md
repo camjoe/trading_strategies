@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-31
-Last Reviewed: 2026-07-14
+Last Reviewed: 2026-07-17
 Purpose: Reference for the numbered Alembic migration system — key files, operator commands, revision-authoring rules, and runtime verification.
 Related: [ADR 015 Numbered Alembic Migrations](../adr/015-numbered-alembic-migrations.md), [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
@@ -95,7 +95,12 @@ diagnosis. The expected head comes from `schema_version.EXPECTED_HEAD_REVISION`;
    - Data-mutating statements (`UPDATE`/`DELETE`) in a revision require explicit human review.
    - Never set `live_trading_enabled = 1` or point broker columns at live endpoints
      (Live Trading Safety Guard, enforced by `live_safety_check`).
-7. Run `python -m scripts.checks.repo.migration_check` and the database test suites.
+7. For any table rebuild, run `PRAGMA foreign_key_check` and test the intended `ON DELETE` actions.
+   Verify that every foreign-key column used by a large cascade or routine filter is covered by an
+   index prefix; this index-coverage review is manual until a deterministic repository check exists.
+8. After any schema change, regenerate `docs/reference/database-diagram-viewer.html`, synchronize
+   `docs/reference/db-schema.md`, and run `python -m scripts.checks.docs.readme_check`.
+9. Run `python -m scripts.checks.repo.migration_check` and the database test suites.
 
 For task-oriented guidance (risk estimation, validation, rollback planning) use the
 `db-migration` skill (`.ai/skills/db-migration/`).
