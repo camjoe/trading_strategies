@@ -67,6 +67,26 @@ Domain-specific meaning that the schema alone does not convey.
 | Column | Note |
 |--------|------|
 | `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `broker_*`, `live_trading_enabled` | Broker connection stays on `accounts` by explicit decision (2026-07-16): it is core custody metadata, not a settings group — no 1:1 split table. The live-trading safety guard reads these columns. |
+
+### `positions`
+
+`market_value` and `unrealized_pnl` are **price-dependent caches** next to the authoritative
+`qty`/`avg_cost` — they are only as fresh as the last mark-to-market. Do not treat them as truth;
+recompute from current prices when accuracy matters.
+
+### `global_settings`
+
+The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime throttles,
+evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
+split only if a fourth domain lands here.
+
+### Money as REAL
+
+Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,
+accepted limitation** for paper trading — do not churn the schema toward integer cents or TEXT
+decimals. Float drift is expected to surface via reconciliation checks (e.g. `books.current_cash`
+vs the `ledger` sum) rather than be prevented by the storage type.
 
 ### Account trade history
 

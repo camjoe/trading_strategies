@@ -23,13 +23,13 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "accounts",
         "label": "Accounts",
         "color": "#2563eb",
-        "tables": ("accounts", "trades"),
+        "tables": ("accounts",),
     },
     {
         "id": "books",
         "label": "Books",
         "color": "#0f8b5f",
-        "tables": ("books", "book_execution_settings", "book_option_settings", "positions", "ledger"),
+        "tables": ("books", "book_universe_history", "positions", "ledger"),
     },
     {
         "id": "orders",
@@ -70,10 +70,6 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
 )
 
 ACCOUNT_COLUMN_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "books",
-        ("goal_", "learning_", "risk_policy", "stop_", "take_", "trade_size_", "max_", "instrument_", "option_"),
-    ),
     ("orders", ("broker_", "live_trading_")),
     ("snapshots", ("benchmark_",)),
 )
@@ -91,8 +87,8 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
         "description": "Tables affected directly or indirectly when account deletion behavior changes.",
         "tables": (
             "accounts",
-            "trades",
             "books",
+            "book_universe_history",
             "orders",
             "order_fills",
             "equity_snapshots",
@@ -118,8 +114,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
         "tables": (
             "accounts",
             "books",
-            "book_execution_settings",
-            "book_option_settings",
+            "book_universe_history",
             "book_rotation_settings",
             "book_strategy_assignments",
             "strategies",

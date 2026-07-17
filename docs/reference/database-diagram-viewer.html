@@ -271,7 +271,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T17:05:35+00:00. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T17:56:14+00:00. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -331,15 +331,14 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T17:05:35+00:00",
+  "generatedAt": "2026-07-17T17:56:14+00:00",
   "sections": [
     {
       "color": "#2563eb",
       "id": "accounts",
       "label": "Accounts",
       "tables": [
-        "accounts",
-        "trades"
+        "accounts"
       ]
     },
     {
@@ -348,8 +347,7 @@
       "label": "Books",
       "tables": [
         "books",
-        "book_execution_settings",
-        "book_option_settings",
+        "book_universe_history",
         "positions",
         "ledger"
       ]
@@ -1384,7 +1382,11 @@
         }
       ],
       "name": "book_universe_history",
-      "section": null
+      "section": {
+        "color": "#0f8b5f",
+        "id": "books",
+        "label": "Books"
+      }
     },
     {
       "columns": [
@@ -4074,6 +4076,7 @@
       "tables": [
         "accounts",
         "books",
+        "book_universe_history",
         "orders",
         "order_fills",
         "equity_snapshots",
@@ -4099,6 +4102,7 @@
       "tables": [
         "accounts",
         "books",
+        "book_universe_history",
         "book_rotation_settings",
         "book_strategy_assignments",
         "strategies",
