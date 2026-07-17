@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
-from datetime import UTC, datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,7 @@ from scripts.database_diagrams.sqlite_introspection import (
 )
 
 DEFAULT_OUTPUT_PATH = REPO_ROOT / "docs" / "reference" / "database-diagram-viewer.html"
+PST = timezone(timedelta(hours=-8), name="PST")
 
 SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
@@ -264,7 +265,7 @@ def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     return {
         "title": "Trading Strategies Database Diagram Viewer",
         "source": "fresh code schema",
-        "generatedAt": datetime.now(UTC).isoformat(timespec="seconds"),
+        "generatedAt": datetime.now(PST).strftime("%H:%M %d-%m-%Y %Z"),
         "sections": SECTION_DEFINITIONS,
         "tables": tables,
         "views": views,

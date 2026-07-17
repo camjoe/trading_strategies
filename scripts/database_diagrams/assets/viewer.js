@@ -1131,8 +1131,6 @@
       applyTransform();
     }
 
-    document.getElementById("zoomOut").addEventListener("click", () => setScale(scale - 0.1));
-    document.getElementById("zoomIn").addEventListener("click", () => setScale(scale + 0.1));
     toggleIndexesEl.addEventListener("click", () => {
       showIndexes = !showIndexes;
       toggleIndexesEl.setAttribute("aria-pressed", String(showIndexes));

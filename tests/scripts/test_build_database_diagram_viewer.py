@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from scripts.data_ops import build_database_diagram_viewer
@@ -87,6 +88,7 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     html = build_database_diagram_viewer.build_html()
 
     assert "Trading Strategies Database Diagram Viewer" in html
+    assert re.search(r"Generated: \d{2}:\d{2} \d{2}-\d{2}-\d{4} PST\.", html)
     assert "Full overview" in html
     assert "Account deletion" in html
     assert "Book execution spine" in html
@@ -99,7 +101,9 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "attachSectionDragHandlers" in html
     assert "restackDefaultLayout" in html
     assert "layoutMarginX" in html
-    assert "zoomIn" in html
+    assert 'id="zoomIn"' not in html
+    assert 'id="zoomOut"' not in html
+    assert 'addEventListener("wheel"' in html
     assert "toggleConstraints" in html
     assert "toggleDeleteActions" in html
     assert "fk-arrow" in html
