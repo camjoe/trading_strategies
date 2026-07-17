@@ -177,6 +177,8 @@ SECTION_BY_TABLE = {
 }
 SECTION_BY_ID = {str(section["id"]): section for section in SECTION_DEFINITIONS}
 
+CATEGORY_VIEW_ANCHORS: tuple[str, ...] = ("accounts", "books")
+
 
 def _connect_fresh_schema() -> sqlite3.Connection:
     conn = migration_runner.build_reference_connection()
@@ -246,6 +248,19 @@ def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
                 "tables": view_tables,
             }
         )
+    category_views: list[dict[str, object]] = []
+    for section in SECTION_DEFINITIONS:
+        if section["id"] == "accounts":
+            continue
+        category_tables = dict.fromkeys((*CATEGORY_VIEW_ANCHORS, *section["tables"]))
+        category_views.append(
+            {
+                "id": f"category_{section['id']}",
+                "label": section["label"],
+                "description": f"{section['label']} tables with the accounts and books anchors.",
+                "tables": [name for name in category_tables if name in table_set],
+            }
+        )
     return {
         "title": "Trading Strategies Database Diagram Viewer",
         "source": "fresh code schema",
@@ -253,6 +268,7 @@ def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
         "sections": SECTION_DEFINITIONS,
         "tables": tables,
         "views": views,
+        "categoryViews": category_views,
     }
 
 

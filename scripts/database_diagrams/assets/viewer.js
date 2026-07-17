@@ -1,13 +1,15 @@
     const payload = JSON.parse(document.getElementById("schema-payload").textContent);
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
+    const categoryTabsEl = document.getElementById("categoryTabs");
+    const categoryViews = payload.categoryViews || [];
+    const allViews = [...payload.views, ...categoryViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
     const linesEl = document.getElementById("lines");
     const canvasEl = document.getElementById("canvas");
     const stageEl = document.getElementById("stage");
-    const searchEl = document.getElementById("search");
     const viewTitleEl = document.getElementById("viewTitle");
     const viewDescriptionEl = document.getElementById("viewDescription");
     const toggleIndexesEl = document.getElementById("toggleIndexes");
@@ -278,20 +280,25 @@
     }
 
     function renderTabs() {
-      tabsEl.innerHTML = payload.views.map((view) => `
+      function renderViewButtons(container, views) {
+        container.innerHTML = views.map((view) => `
         <button class="tab" type="button" aria-pressed="${view.id === activeView.id}" data-view="${view.id}">
           ${escapeHtml(view.label)}
         </button>`).join("");
-      tabsEl.querySelectorAll("button").forEach((button) => {
-        button.addEventListener("click", () => {
-          activeView = payload.views.find((view) => view.id === button.dataset.view);
-          render();
+        container.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeView = allViews.find((view) => view.id === button.dataset.view);
+            render();
+          });
         });
-      });
+      }
+
+      renderViewButtons(tabsEl, payload.views);
+      categoryTabsEl.hidden = categoryViews.length === 0;
+      renderViewButtons(categoryTabsEl, categoryViews);
     }
 
     function render() {
-      const query = searchEl.value.trim().toLowerCase();
       const viewTables = activeViewTables();
       const layout = layoutTables(viewTables);
       currentPositions = layout.positions;
@@ -303,10 +310,6 @@
         const pos = currentPositions.get(table.name);
         card.style.left = `${pos.x}px`;
         card.style.top = `${pos.y}px`;
-        const matches = !query
-          || table.name.toLowerCase().includes(query)
-          || table.columns.some((column) => column.name.toLowerCase().includes(query));
-        card.classList.toggle("hidden", !matches);
       }
       restackDefaultLayout(viewTables);
       renderSections(layout.sections);
@@ -1130,18 +1133,6 @@
 
     document.getElementById("zoomOut").addEventListener("click", () => setScale(scale - 0.1));
     document.getElementById("zoomIn").addEventListener("click", () => setScale(scale + 0.1));
-    document.getElementById("zoomReset").addEventListener("click", () => {
-      scale = 0.78;
-      offsetX = 40;
-      offsetY = 72;
-      applyTransform();
-    });
-    document.getElementById("resetLayout").addEventListener("click", () => {
-      localStorage.removeItem(storageKey());
-      localStorage.removeItem(arrowStorageKey());
-      localStorage.removeItem(arrowSourceStorageKey());
-      render();
-    });
     toggleIndexesEl.addEventListener("click", () => {
       showIndexes = !showIndexes;
       toggleIndexesEl.setAttribute("aria-pressed", String(showIndexes));
@@ -1162,7 +1153,6 @@
       toggleDeleteActionsEl.setAttribute("aria-pressed", String(showDeleteActions));
       drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
     });
-    searchEl.addEventListener("input", render);
     canvasEl.addEventListener("wheel", (event) => {
       event.preventDefault();
       setScale(scale + (event.deltaY < 0 ? 0.06 : -0.06));

@@ -74,6 +74,11 @@
       white-space: nowrap;
       min-width: max-content;
     }
+    .category-tabs {
+      background: #f8fafc;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
     main {
       height: calc(100vh - 118px);
       overflow: hidden;
@@ -271,7 +276,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T17:56:14+00:00. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T20:34:09+00:00. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -286,6 +291,7 @@
     </div>
   </header>
   <nav id="tabs" class="tabs" aria-label="Diagram views"></nav>
+  <nav id="categoryTabs" class="tabs category-tabs" aria-label="Category views" hidden></nav>
   <main>
     <details class="info-panel" open>
       <summary>Diagram info</summary>
@@ -331,7 +337,112 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T17:56:14+00:00",
+  "categoryViews": [
+    {
+      "description": "Accounts tables with the accounts and books anchors.",
+      "id": "category_accounts",
+      "label": "Accounts",
+      "tables": [
+        "accounts",
+        "books"
+      ]
+    },
+    {
+      "description": "Books tables with the accounts and books anchors.",
+      "id": "category_books",
+      "label": "Books",
+      "tables": [
+        "accounts",
+        "books",
+        "book_universe_history",
+        "positions",
+        "ledger"
+      ]
+    },
+    {
+      "description": "Orders tables with the accounts and books anchors.",
+      "id": "category_orders",
+      "label": "Orders",
+      "tables": [
+        "accounts",
+        "books",
+        "orders",
+        "order_fills"
+      ]
+    },
+    {
+      "description": "Snapshots and metrics tables with the accounts and books anchors.",
+      "id": "category_snapshots",
+      "label": "Snapshots and metrics",
+      "tables": [
+        "accounts",
+        "books",
+        "equity_snapshots",
+        "daily_metrics",
+        "backtest_equity_snapshots",
+        "risk_snapshots"
+      ]
+    },
+    {
+      "description": "Rotations tables with the accounts and books anchors.",
+      "id": "category_rotations",
+      "label": "Rotations",
+      "tables": [
+        "accounts",
+        "books",
+        "book_rotation_settings",
+        "book_strategy_assignments",
+        "rotation_decisions"
+      ]
+    },
+    {
+      "description": "Research tables with the accounts and books anchors.",
+      "id": "category_research",
+      "label": "Research",
+      "tables": [
+        "accounts",
+        "books",
+        "backtest_runs",
+        "backtest_trades",
+        "walk_forward_groups",
+        "walk_forward_group_runs"
+      ]
+    },
+    {
+      "description": "Promotion and risk tables with the accounts and books anchors.",
+      "id": "category_governance",
+      "label": "Promotion and risk",
+      "tables": [
+        "accounts",
+        "books",
+        "promotion_reviews",
+        "promotion_review_events",
+        "risk_decisions"
+      ]
+    },
+    {
+      "description": "Catalogs and settings tables with the accounts and books anchors.",
+      "id": "category_catalogs",
+      "label": "Catalogs and settings",
+      "tables": [
+        "accounts",
+        "books",
+        "strategies",
+        "feature_providers",
+        "global_settings"
+      ]
+    },
+    {
+      "description": "Tables without a colored category, with the accounts and books anchors.",
+      "id": "category_uncategorized",
+      "label": "Uncategorized",
+      "tables": [
+        "accounts",
+        "books"
+      ]
+    }
+  ],
+  "generatedAt": "2026-07-17T20:34:09+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -4164,6 +4275,9 @@
     const payload = JSON.parse(document.getElementById("schema-payload").textContent);
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
+    const categoryTabsEl = document.getElementById("categoryTabs");
+    const categoryViews = payload.categoryViews || [];
+    const allViews = [...payload.views, ...categoryViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
@@ -4441,16 +4555,22 @@
     }
 
     function renderTabs() {
-      tabsEl.innerHTML = payload.views.map((view) => `
+      function renderViewButtons(container, views) {
+        container.innerHTML = views.map((view) => `
         <button class="tab" type="button" aria-pressed="${view.id === activeView.id}" data-view="${view.id}">
           ${escapeHtml(view.label)}
         </button>`).join("");
-      tabsEl.querySelectorAll("button").forEach((button) => {
-        button.addEventListener("click", () => {
-          activeView = payload.views.find((view) => view.id === button.dataset.view);
-          render();
+        container.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeView = allViews.find((view) => view.id === button.dataset.view);
+            render();
+          });
         });
-      });
+      }
+
+      renderViewButtons(tabsEl, payload.views);
+      categoryTabsEl.hidden = categoryViews.length === 0;
+      renderViewButtons(categoryTabsEl, categoryViews);
     }
 
     function render() {

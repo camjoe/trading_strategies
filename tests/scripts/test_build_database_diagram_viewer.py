@@ -64,6 +64,25 @@ def test_payload_defines_expected_focused_views() -> None:
     assert "book_strategy_assignments" in views["book_execution"]["tables"]
 
 
+def test_payload_defines_category_views_with_account_and_book_anchors() -> None:
+    conn = _fresh_conn()
+    try:
+        payload = build_database_diagram_viewer.build_diagram_payload(conn)
+    finally:
+        conn.close()
+
+    category_views = {str(view["id"]): view for view in payload["categoryViews"]}
+    expected_ids = {
+        *(
+            f"category_{section['id']}"
+            for section in build_database_diagram_viewer.SECTION_DEFINITIONS
+            if section["id"] != "accounts"
+        ),
+    }
+    assert set(category_views) == expected_ids
+    assert all({"accounts", "books"} <= set(view["tables"]) for view in category_views.values())
+
+
 def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     html = build_database_diagram_viewer.build_html()
 
@@ -72,6 +91,7 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "Account deletion" in html
     assert "Book execution spine" in html
     assert "schema-payload" in html
+    assert "categoryTabs" in html
     assert "section-label" in html
     assert "groupedTables" in html
     assert "info-panel" in html
@@ -126,6 +146,8 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "oppositeSide" not in html
     assert 'side === "top"' not in html
     assert 'side === "bottom"' not in html
-    assert "resetLayout" in html
+    assert 'id="search"' not in html
+    assert 'id="zoomReset"' not in html
+    assert 'id="resetLayout"' not in html
     assert "Drag table cards" in html
     assert "child/FK table points to referenced parent table" in html
