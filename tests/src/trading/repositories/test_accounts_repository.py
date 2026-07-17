@@ -20,26 +20,6 @@ def _make_account_insert(**overrides: object) -> AccountInsert:
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": "monthly",
-        "learning_enabled": 0,
-        "risk_policy": "none",
-        "stop_loss_pct": None,
-        "take_profit_pct": None,
-        "trade_size_pct": 10.0,
-        "max_position_pct": 20.0,
-        "instrument_mode": "equity",
-        "option_strike_offset_pct": None,
-        "option_min_dte": None,
-        "option_max_dte": None,
-        "option_type": None,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "max_premium_per_trade": None,
-        "max_contracts_per_trade": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "roll_dte_threshold": None,
-        "profit_take_pct": None,
-        "max_loss_pct": None,
     }
     values.update(overrides)
     return AccountInsert(**values)
@@ -74,26 +54,6 @@ class TestInsertAccount:
                 goal_min_return_pct=1.5,
                 goal_max_return_pct=3.0,
                 goal_period="weekly",
-                learning_enabled=1,
-                risk_policy="fixed_stop",
-                stop_loss_pct=5.0,
-                take_profit_pct=10.0,
-                trade_size_pct=12.5,
-                max_position_pct=25.0,
-                instrument_mode="leaps",
-                option_strike_offset_pct=2.0,
-                option_min_dte=90,
-                option_max_dte=180,
-                option_type="call",
-                target_delta_min=0.25,
-                target_delta_max=0.45,
-                max_premium_per_trade=300.0,
-                max_contracts_per_trade=2,
-                iv_rank_min=20.0,
-                iv_rank_max=70.0,
-                roll_dte_threshold=30,
-                profit_take_pct=25.0,
-                max_loss_pct=15.0,
             ),
         )
         row = AccountRepository(conn).fetch_by_name("full_acct")
@@ -103,11 +63,7 @@ class TestInsertAccount:
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
         assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
-        assert int(row["learning_enabled"]) == 1
-        assert float(row["trade_size_pct"]) == pytest.approx(12.5)
-        assert float(row["max_position_pct"]) == pytest.approx(25.0)
-        assert row["instrument_mode"] == "leaps"
-        assert int(row["option_min_dte"]) == 90
+        assert row["goal_period"] == "weekly"
 
 
 class TestUpdateAccountBenchmark:
@@ -168,12 +124,12 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["risk_policy = ?", "stop_loss_pct = ?"],
-            params=["fixed_stop", 7.5],
+            updates=["goal_period = ?", "goal_min_return_pct = ?"],
+            params=["weekly", 2.5],
         )
         updated = repo.fetch_by_name("multi_upd")
-        assert updated["risk_policy"] == "fixed_stop"
-        assert float(updated["stop_loss_pct"]) == pytest.approx(7.5)
+        assert updated["goal_period"] == "weekly"
+        assert float(updated["goal_min_return_pct"]) == pytest.approx(2.5)
 
 
 class TestFetchAllAccountNames:
@@ -207,11 +163,17 @@ def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend")
 
 
 def _insert_trade(conn, *, account_id: int) -> None:
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?,?,?,?,?,?,?)",
-        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-01T10:00:00Z"),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time="2026-01-01T10:00:00Z",
     )
-    conn.commit()
 
 
 class TestDeleteByName:

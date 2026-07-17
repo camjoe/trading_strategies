@@ -14,6 +14,18 @@
     const toggleLabelsEl = document.getElementById("toggleLabels");
     const toggleConstraintsEl = document.getElementById("toggleConstraints");
     const toggleDeleteActionsEl = document.getElementById("toggleDeleteActions");
+    // Delete-actions mode recolors lines by FK ON DELETE action instead of by
+    // section, so the actions read on their own. Colors mirror the CSS legend.
+    const DELETE_ACTION_COLORS = new Map([
+      ["CASCADE", "#0f8b5f"],
+      ["SET NULL", "#1d4ed8"],
+      ["NO ACTION", "#667085"],
+      ["RESTRICT", "#b54708"],
+    ]);
+    const DELETE_ACTION_FALLBACK_COLOR = "#db2777";
+    // Near-aligned endpoints snap onto the source row so the connector renders
+    // as one straight line; exact alignment by hand needs too much precision.
+    const STRAIGHT_SNAP_TOLERANCE = 24;
     const ROUTE_TABLE_COLLISION_PENALTY = 10000;
     const ROUTE_OVERLAP_BASE_PENALTY = 6500;
     const ROUTE_OVERLAP_LENGTH_PENALTY = 30;
@@ -40,6 +52,10 @@
 
     function arrowStorageKey() {
       return `database-diagram-arrow-targets:${activeView.id}`;
+    }
+
+    function arrowSourceStorageKey() {
+      return `database-diagram-arrow-sources:${activeView.id}`;
     }
 
     function loadJson(key) {
@@ -433,21 +449,39 @@
       });
     }
 
+    function deleteActionColor(onDelete) {
+      return DELETE_ACTION_COLORS.get(onDelete) || DELETE_ACTION_FALLBACK_COLOR;
+    }
+
+    function relationshipStroke(relationship) {
+      return showDeleteActions ? deleteActionColor(relationship.onDelete) : relationship.sectionColor;
+    }
+
+    function relationshipMarkerId(relationship) {
+      if (!showDeleteActions) return relationship.sectionId;
+      return `action-${relationship.onDelete.replaceAll(" ", "_")}`;
+    }
+
     function drawRelationships(relationships, positions) {
       linesEl.innerHTML = "";
       const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
       const markerMap = new Map();
       for (const relationship of relationships) {
-        markerMap.set(relationship.sectionId, relationship.sectionColor);
+        markerMap.set(relationshipMarkerId(relationship), relationshipStroke(relationship));
       }
-      defs.innerHTML = Array.from(markerMap.entries()).map(([sectionId, color]) => `
+      // Reference mode points at the referenced parent (marker-end). Delete-
+      // actions mode flips the arrow onto the child end (marker-start with
+      // auto-start-reverse) so it points at the table whose rows the parent's
+      // deletion removes (CASCADE), clears (SET NULL), or that blocks it.
+      const markerOrient = showDeleteActions ? "auto-start-reverse" : "auto";
+      defs.innerHTML = Array.from(markerMap.entries()).map(([markerId, color]) => `
         <marker
-          id="fk-arrow-${sectionId}"
+          id="fk-arrow-${markerId}"
           markerWidth="11"
           markerHeight="8"
           refX="9.5"
           refY="4"
-          orient="auto"
+          orient="${markerOrient}"
         >
           <path d="M 0 0 L 11 4 L 0 8 z" fill="${color}"></path>
         </marker>`).join("");
@@ -460,11 +494,12 @@
       const bridgedCrossings = new Set();
       const targetSlots = targetSlotAssignments(relationships);
       const arrowTargets = loadArrowTargets();
+      const arrowSources = loadArrowSources();
       relationships.forEach((relationship, relationshipIndex) => {
         const from = positions.get(relationship.from);
         const to = positions.get(relationship.to);
         if (!from || !to) return;
-        const fromBounds = { tableName: relationship.from, ...relationshipSourceBounds(relationship, from) };
+        const fromBounds = { tableName: relationship.from, ...sourceAnchorBounds(relationship, from, arrowSources) };
         const toSlot = targetSlots.get(relationshipKey(relationship));
         const toBounds = {
           tableName: relationship.to,
@@ -474,12 +509,14 @@
         const labelPoint = routeLabelPoint(route.points);
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", routedPathData(route.points, drawnSegments, bridgedCrossings));
-        const actionClass = showDeleteActions ? relationship.onDelete.replace(" ", "_") : "";
+        const actionClass = showDeleteActions ? relationship.onDelete.replaceAll(" ", "_") : "";
         path.setAttribute("class", `rel-line ${actionClass}`);
-        path.setAttribute("style", `stroke: ${relationship.sectionColor}`);
-        path.setAttribute("marker-end", `url(#fk-arrow-${relationship.sectionId})`);
+        path.setAttribute("style", `stroke: ${relationshipStroke(relationship)}`);
+        const markerSide = showDeleteActions ? "marker-start" : "marker-end";
+        path.setAttribute(markerSide, `url(#fk-arrow-${relationshipMarkerId(relationship)})`);
         linesEl.appendChild(path);
-        attachArrowDragHandle(relationship, route.points[route.points.length - 1], relationship.sectionColor);
+        attachArrowDragHandle(relationship, route.points[route.points.length - 1], relationshipStroke(relationship), "target");
+        attachArrowDragHandle(relationship, route.points[0], relationshipStroke(relationship), "source");
         drawnSegments.push(...route.segments);
         if (showLabels) {
           const labelGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -519,10 +556,20 @@
       saveJson(arrowStorageKey(), targets);
     }
 
-    function attachArrowDragHandle(relationship, targetPoint, color) {
+    function loadArrowSources() {
+      return loadJson(arrowSourceStorageKey());
+    }
+
+    function saveArrowSource(relationship, y) {
+      const sources = loadArrowSources();
+      sources[relationshipKey(relationship)] = y;
+      saveJson(arrowSourceStorageKey(), sources);
+    }
+
+    function attachArrowDragHandle(relationship, endpointPoint, color, end) {
       const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      handle.setAttribute("cx", String(targetPoint.x));
-      handle.setAttribute("cy", String(targetPoint.y));
+      handle.setAttribute("cx", String(endpointPoint.x));
+      handle.setAttribute("cy", String(endpointPoint.y));
       handle.setAttribute("r", "14");
       handle.setAttribute("fill", color);
       handle.setAttribute("opacity", "0");
@@ -530,9 +577,10 @@
       handle.addEventListener("pointerdown", (event) => {
         arrowDragState = {
           relationship,
+          end,
           pointerId: event.pointerId,
           startY: event.clientY,
-          originY: targetPoint.y,
+          originY: endpointPoint.y,
         };
         event.stopPropagation();
       });
@@ -542,7 +590,11 @@
     function handleArrowPointerMove(event) {
       if (!arrowDragState || arrowDragState.pointerId !== event.pointerId) return;
       const nextY = arrowDragState.originY + (event.clientY - arrowDragState.startY) / scale;
-      saveArrowTarget(arrowDragState.relationship, nextY);
+      if (arrowDragState.end === "source") {
+        saveArrowSource(arrowDragState.relationship, nextY);
+      } else {
+        saveArrowTarget(arrowDragState.relationship, nextY);
+      }
       drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
       event.preventDefault();
     }
@@ -573,7 +625,16 @@
       return assignments;
     }
 
-    function routeRelationship(fromBounds, toBounds, allBounds, relationshipIndex, previousSegments) {
+    function snapAlignedTarget(fromBounds, toBounds) {
+      // The source anchor is the FK column row (fixed); the target anchor is a
+      // slot or drag position (arbitrary), so it is the side that moves.
+      const deltaY = toBounds.centerY - fromBounds.centerY;
+      if (deltaY === 0 || Math.abs(deltaY) > STRAIGHT_SNAP_TOLERANCE) return toBounds;
+      return { ...toBounds, top: fromBounds.centerY - 1, centerY: fromBounds.centerY };
+    }
+
+    function routeRelationship(fromBounds, rawToBounds, allBounds, relationshipIndex, previousSegments) {
+      const toBounds = snapAlignedTarget(fromBounds, rawToBounds);
       const laneOffset = relationshipLaneOffset(relationshipIndex);
       const fromSides = connectorSides(fromBounds, toBounds);
       const toSides = connectorSides(toBounds, fromBounds);
@@ -988,6 +1049,24 @@
       };
     }
 
+    function sourceAnchorBounds(relationship, position, arrowSources) {
+      // Default anchor is the FK column row; a dragged source overrides it,
+      // clamped inside the card like the target-side drag.
+      const savedY = arrowSources[relationshipKey(relationship)];
+      if (!Number.isFinite(savedY)) return relationshipSourceBounds(relationship, position);
+      const cardBox = cardBounds(relationship.from, position);
+      const margin = 28;
+      const y = Math.max(cardBox.top + margin, Math.min(cardBox.top + cardBox.height - margin, savedY));
+      return {
+        left: cardBox.left,
+        top: y - 1,
+        width: cardBox.width,
+        height: 2,
+        centerX: cardBox.centerX,
+        centerY: y,
+      };
+    }
+
     function relationshipSourceBounds(relationship, position) {
       if (!relationship.fields || relationship.fields.length <= 1) {
         return columnBounds(relationship.from, relationship.column, position);
@@ -1060,6 +1139,7 @@
     document.getElementById("resetLayout").addEventListener("click", () => {
       localStorage.removeItem(storageKey());
       localStorage.removeItem(arrowStorageKey());
+      localStorage.removeItem(arrowSourceStorageKey());
       render();
     });
     toggleIndexesEl.addEventListener("click", () => {

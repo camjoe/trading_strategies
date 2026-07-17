@@ -17,9 +17,16 @@ def test_delete_managed_account_not_found_raises(conn) -> None:
 
 def test_delete_managed_account_removes_related_rows(conn, create_account_row) -> None:
     account_id = create_account_row("acct_delete")
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-02T00:00:00Z"),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=100.0,
+        trade_time="2026-01-02T00:00:00Z",
     )
     EquitySnapshotRepository(conn).insert(
         account_id=account_id,
@@ -114,7 +121,7 @@ def test_delete_managed_account_removes_related_rows(conn, create_account_row) -
     assert deleted_name == "acct_delete"
 
     assert conn.execute("SELECT COUNT(*) AS n FROM accounts WHERE id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
+    assert conn.execute("SELECT COUNT(*) AS n FROM orders WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
     assert (
         conn.execute(
             "SELECT COUNT(*) AS n FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",

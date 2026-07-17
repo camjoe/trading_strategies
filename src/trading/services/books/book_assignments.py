@@ -80,6 +80,17 @@ def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> lis
     return trading_books
 
 
+def get_default_book(conn: sqlite3.Connection, *, account_id: int) -> BookRecord | None:
+    """The account's default book, or None before bootstrap.
+
+    Service-level accessor for interface layers (which must not import
+    repositories directly); execution settings are book columns since
+    revision 0004, so this is how displays read an account's effective
+    execution configuration.
+    """
+    return BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
+
+
 def active_strategy_for_account(conn: sqlite3.Connection, account_id: int, *, fallback: str) -> str:
     """The strategy the account's default book actually runs.
 

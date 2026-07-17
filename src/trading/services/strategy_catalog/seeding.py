@@ -15,17 +15,13 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_float, row_expect_int, row_float, row_str
 from common.time import utc_now_iso
 from trading.domain.strategy_signals import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import (
-    BookExecutionSettingsRepository,
-    BookOptionSettingsRepository,
-    BookRotationSettingsRepository,
-)
+from trading.repositories.book_settings import BookRotationSettingsRepository
 
 
 def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
@@ -53,54 +49,16 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
     return inserted
 
 
-def _copy_book_settings_from_account(
-    conn: sqlite3.Connection,
-    *,
-    account: sqlite3.Row,
-    book_id: int,
-    now: str,
-) -> None:
-    row = dict(account)
-    BookExecutionSettingsRepository(conn).upsert(
-        book_id=book_id,
-        learning_enabled=row_expect_int(row, "learning_enabled"),
-        risk_policy=row_expect_str(row, "risk_policy"),
-        stop_loss_pct=row_float(row, "stop_loss_pct"),
-        take_profit_pct=row_float(row, "take_profit_pct"),
-        profit_take_pct=row_float(row, "profit_take_pct"),
-        max_loss_pct=row_float(row, "max_loss_pct"),
-        trade_size_pct=row_float(row, "trade_size_pct"),
-        max_position_pct=row_float(row, "max_position_pct"),
-        max_trades_per_run=None,
-        instrument_mode=row_expect_str(row, "instrument_mode"),
-        created_at=now,
-        updated_at=now,
-    )
-    if row_expect_str(row, "instrument_mode") == "leaps":
-        BookOptionSettingsRepository(conn).upsert(
-            book_id=book_id,
-            option_strike_offset_pct=row_float(row, "option_strike_offset_pct"),
-            option_min_dte=row_int(row, "option_min_dte"),
-            option_max_dte=row_int(row, "option_max_dte"),
-            option_type=row_str(row, "option_type"),
-            target_delta_min=row_float(row, "target_delta_min"),
-            target_delta_max=row_float(row, "target_delta_max"),
-            max_premium_per_trade=row_float(row, "max_premium_per_trade"),
-            max_contracts_per_trade=row_int(row, "max_contracts_per_trade"),
-            iv_rank_min=row_float(row, "iv_rank_min"),
-            iv_rank_max=row_float(row, "iv_rank_max"),
-            roll_dte_threshold=row_int(row, "roll_dte_threshold"),
-            created_at=now,
-            updated_at=now,
-        )
-
-    # The interval-cadence columns are dead (ADR 014): only the book-owned
-    # scheduling inputs are copied.
+def _seed_book_settings(conn: sqlite3.Connection, *, book_id: int, now: str) -> None:
+    # Execution and option settings are books columns (revisions 0004/0005),
+    # so a bootstrapped default book starts on DDL defaults; account creation
+    # and the book settings editors set real values. Rotation starts disabled
+    # (account rotation columns were dropped in 0003; book-owned per ADR 014).
     BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
-        rotation_enabled=row_expect_int(row, "rotation_enabled"),
-        rotation_lookback_days=row_int(row, "rotation_lookback_days"),
-        rotation_schedule=row_str(row, "rotation_schedule"),
+        rotation_enabled=0,
+        rotation_lookback_days=None,
+        rotation_schedule=None,
         created_at=now,
         updated_at=now,
     )
@@ -138,7 +96,7 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
             created_at=now,
             updated_at=now,
         )
-        _copy_book_settings_from_account(conn, account=account, book_id=book_id, now=now)
+        _seed_book_settings(conn, book_id=book_id, now=now)
 
         legacy_strategy = row_str(dict(account), "strategy")
         if legacy_strategy:

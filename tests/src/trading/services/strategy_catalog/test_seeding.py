@@ -13,7 +13,6 @@ from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_settings import (
-    BookExecutionSettingsRepository,
     BookRotationSettingsRepository,
 )
 from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
@@ -64,9 +63,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     conn.execute(
         """
         UPDATE accounts
-        SET risk_policy = 'stop_and_target', stop_loss_pct = 4.0, learning_enabled = 1,
-            rotation_enabled = 1,
-            goal_min_return_pct = 2.0, trade_universes = '["core"]'
+        SET goal_min_return_pct = 2.0, trade_universes = '["core"]'
         WHERE name = 'acct_seed'
         """
     )
@@ -84,15 +81,17 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     assert book.goal_min_return_pct == pytest.approx(2.0)
     assert book.trade_universes == '["core"]'
 
-    execution = BookExecutionSettingsRepository(conn).fetch(book_id=book.id)
-    assert execution is not None
-    assert execution.risk_policy == "stop_and_target"
-    assert execution.stop_loss_pct == pytest.approx(4.0)
-    assert execution.learning_enabled == 1
+    # Execution settings are book columns (revision 0004); bootstrap starts on
+    # DDL defaults — account creation / editors set real values.
+    assert book.risk_policy == "none"
+    assert book.stop_loss_pct is None
+    assert book.learning_enabled == 0
 
     rotation = BookRotationSettingsRepository(conn).fetch(book_id=book.id)
     assert rotation is not None
-    assert rotation.rotation_enabled == 1
+    # Account rotation columns are gone (revision 0003): bootstrapped books
+    # start with rotation disabled until profiles/settings enable it.
+    assert rotation.rotation_enabled == 0
     trend_id = StrategyRepository(conn).fetch_by_key(strategy_key="trend")
     assert trend_id is not None
 

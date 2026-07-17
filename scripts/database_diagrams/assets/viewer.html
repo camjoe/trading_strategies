@@ -37,19 +37,24 @@ __VIEWER_CSS__  </style>
         <section class="panel-section" aria-label="Relationship legend">
           <h3>Relationship key</h3>
           <span class="legend-row">
-            <i class="swatch fk"></i>Arrow: child/FK table points to referenced parent table.
+            <i class="swatch fk"></i>Arrow: child/FK table points to referenced parent table. With "Delete
+            actions" on, color and dash show the ON DELETE action, and the arrow flips to point at the child
+            table affected when the referenced table's rows are deleted.
           </span>
           <span class="legend-row">
-            <i class="swatch cascade"></i>Delete action on: CASCADE deletes child rows automatically.
+            <i class="swatch cascade"></i>CASCADE deletes child rows automatically.
           </span>
           <span class="legend-row">
-            <i class="swatch no-action"></i>Delete action on: NO ACTION blocks parent deletion until children are
-            handled.
+            <i class="swatch set-null"></i>SET NULL keeps child rows but clears the FK column.
           </span>
           <span class="legend-row">
-            <i class="swatch restrict"></i>Delete action on: RESTRICT intentionally blocks deletion.
+            <i class="swatch no-action"></i>NO ACTION blocks parent deletion until children are handled.
           </span>
-          <span class="legend-row">Drag table cards or section headers to rearrange a view.</span>
+          <span class="legend-row">
+            <i class="swatch restrict"></i>RESTRICT intentionally blocks deletion, even mid-cascade.
+          </span>
+          <span class="legend-row">Drag table cards or section headers to rearrange a view. Drag either end of a
+            line vertically to re-order where it meets the card.</span>
         </section>
         <section class="panel-section">
           <h3>Color key</h3>

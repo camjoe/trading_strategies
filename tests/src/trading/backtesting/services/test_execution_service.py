@@ -46,6 +46,7 @@ def test_execution_service_rejects_short_history() -> None:
             insert_run_fn=lambda *_args, **_kwargs: 1,
             insert_trade_fn=lambda *_args, **_kwargs: None,
             insert_snapshot_fn=lambda *_args, **_kwargs: None,
+            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
 
@@ -93,6 +94,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
             insert_run_fn=lambda *_args, **_kwargs: 77,
             insert_trade_fn=lambda *_args, **_kwargs: None,
             insert_snapshot_fn=lambda *_args, **_kwargs: None,
+            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
     assert result.run_id == 77
@@ -143,6 +145,7 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
             )[1],
             insert_trade_fn=lambda *_args, **_kwargs: None,
             insert_snapshot_fn=lambda *_args, **_kwargs: None,
+            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
     assert result.run_id == 88
@@ -153,16 +156,6 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
 # ---------------------------------------------------------------------------
 # _row_optional_float unit tests
 # ---------------------------------------------------------------------------
-
-
-def test_row_optional_float_missing_key_returns_none() -> None:
-    """KeyError path — column absent from account row (lines 29-31)."""
-    assert execution_service._row_optional_float({"a": 1.0}, "b") is None
-
-
-def test_row_optional_float_none_value_returns_none() -> None:
-    """None-value path — column present but value is None (lines 32-33)."""
-    assert execution_service._row_optional_float({"trade_size_pct": None}, "trade_size_pct") is None
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +185,7 @@ def _patched_run_backtest(
         insert_run_fn=lambda *_args, **_kwargs: 1,
         insert_trade_fn=lambda *_args, **_kwargs: None,
         insert_snapshot_fn=lambda *_args, **_kwargs: None,
+        get_default_book_fn=lambda _conn, *, account_id: None,
     )
     if choose_buy_qty_fn is not None:
         kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn

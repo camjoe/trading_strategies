@@ -43,8 +43,12 @@ def test_payload_includes_columns_indexes_and_fk_actions() -> None:
     assert books["section"] == {"id": "books", "label": "Books", "color": "#0f8b5f"}
 
     accounts = _table(payload, "accounts")
-    rotation_column = next(column for column in accounts["columns"] if column["name"] == "rotation_enabled")
-    assert rotation_column["section"] == {"id": "rotations", "label": "Rotations", "color": "#d97706"}
+    account_column_names = {str(column["name"]) for column in accounts["columns"]}
+    # Revision 0003 removed the account rotation columns; rotation config is book-owned.
+    assert not {name for name in account_column_names if name.startswith("rotation_")}
+
+    rotation_settings = _table(payload, "book_rotation_settings")
+    assert rotation_settings["section"] == {"id": "rotations", "label": "Rotations", "color": "#d97706"}
 
 
 def test_payload_defines_expected_focused_views() -> None:

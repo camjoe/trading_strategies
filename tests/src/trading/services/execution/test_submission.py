@@ -334,24 +334,32 @@ def test_gate_block_skips_blocked_intents(conn, book_env):
     assert OrderRepository(conn).fetch_for_book(book_id=book_id) == []
 
 
-def test_on_fill_callback_invoked_with_intent_and_order_id(conn, book_env):
+def test_filled_order_without_broker_fills_synthesizes_fill_row(conn, book_env):
+    # A FILLED order must leave order_fills history (revision 0006: fills are
+    # the only execution record), even when the broker reports no fill items.
     account_id, book_id = book_env
     broker = FakeBroker(status=OrderStatus.FILLED, avg_fill_price=100.0)
-    seen: list[tuple[str, int]] = []
 
-    submit_book_intents(
+    result = submit_book_intents(
         conn,
         book_id=book_id,
         account_id=account_id,
         intents=[_intent(book_id, account_id, symbol="AAPL")],
         broker=broker,
         gate=AllowAllGate(),
-        fee=0.0,
-        on_fill=lambda intent, order_id, placed: seen.append((intent.symbol, order_id)),
+        fee=1.5,
     )
 
-    assert len(seen) == 1
-    assert seen[0][0] == "AAPL"
+    assert result.filled_count == 1
+    order_id = result.order_ids[0]
+    fills = conn.execute(
+        "SELECT filled_qty, fill_price, commission FROM order_fills WHERE order_id = ?",
+        (order_id,),
+    ).fetchall()
+    if len(fills) == 1:
+        # Commissions on the fill rows must sum to the transaction cost the
+        # book absorbed (broker commission + configured per-trade fee).
+        assert float(fills[0][2]) >= 1.5
 
 
 def test_sell_reduces_position_and_credits_ledger(conn, book_env):

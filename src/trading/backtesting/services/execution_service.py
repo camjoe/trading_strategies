@@ -17,21 +17,11 @@ from trading.backtesting.domain.simulation_math import (
 )
 from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
-from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]
-
-
-def _row_optional_float(row: AccountRow, column: str) -> float | None:
-    try:
-        value = row[column]
-    except KeyError, IndexError:
-        return None
-    if value is None:
-        return None
-    return float(value)  # type: ignore[arg-type]
 
 
 def run_backtest(
@@ -40,7 +30,7 @@ def run_backtest(
     *,
     get_account_fn: Callable[[sqlite3.Connection, str], AccountRow],
     resolve_backtest_dates_fn: Callable[..., tuple[date, date]],
-    warnings_for_config_fn: Callable[[AccountRow, bool], list[str]],
+    warnings_for_config_fn: Callable[[Any, bool], list[str]],
     resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
     fetch_close_history_fn: Callable[..., object],
     fetch_benchmark_close_fn: Callable[..., object],
@@ -48,11 +38,15 @@ def run_backtest(
     insert_trade_fn,
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
+    get_default_book_fn: Callable[..., Any] = get_default_book,
     feature_provider: FeatureDataProvider | None = None,
 ) -> BacktestResult:
     account = get_account_fn(conn, cfg.account_name)
+    # Execution settings are book-owned (revision 0004): the account's default
+    # book supplies the risk/sizing knobs the simulation runs under.
+    default_book = get_default_book_fn(conn, account_id=row_expect_int(account, "id"))
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = warnings_for_config_fn(account, cfg.allow_approximate_leaps)
+    warnings = warnings_for_config_fn(default_book, cfg.allow_approximate_leaps)
 
     default_tickers, month_to_tickers, all_tickers, universe_warnings = resolve_universe_fn(
         cfg,
@@ -153,8 +147,8 @@ def run_backtest(
                     cash,
                     exec_px,
                     cfg.fee_per_trade,
-                    trade_size_pct=_row_optional_float(account, "trade_size_pct"),
-                    max_position_pct=_row_optional_float(account, "max_position_pct"),
+                    trade_size_pct=default_book.trade_size_pct if default_book is not None else None,
+                    max_position_pct=default_book.max_position_pct if default_book is not None else None,
                     current_position_value=float(positions[ticker]) * px,
                     portfolio_equity=cash + compute_market_value(positions, trade_prices.to_dict()),
                 )

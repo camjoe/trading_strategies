@@ -3,12 +3,12 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-17
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
-- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the full current DDL)
+- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the base DDL; later revisions amend it)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-26 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+23 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
 `strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
@@ -29,8 +29,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Paper/live trading account config — strategy, risk policy, instrument mode, broker, rotation settings | — |
-| `trades` | Individual paper trades (equities and options) | → `accounts` |
+| `accounts` | Account identity, custody, goals, and broker connection (rotation columns dropped in `0003`; execution/option columns moved to `books` in `0004`/`0005`) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
@@ -43,11 +42,9 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Clean-schema strategy-execution primitive; one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive incl. execution/risk and option settings columns (revisions `0004`/`0005`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `book_execution_settings` | Per-unit execution/risk settings (risk policy, stops, sizing, per-run cap) | → `books` |
-| `book_option_settings` | Per-unit option/leaps config (strike offset, DTE, delta/IV bounds, caps) | → `books` |
 | `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
 | `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
@@ -68,17 +65,25 @@ Domain-specific meaning that the schema alone does not convey.
 
 | Column | Note |
 |--------|------|
-| `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected via `CASH`-ticker buy trades in the `trades` table. Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
 
-### `trades`
+### Account trade history
 
-**Note conventions used in `note` field:**
+The account-level `trades` table was dropped in revision `0006`. Execution history is
+`orders`/`order_fills` (book-keyed); deposits/withdrawals are `ledger` entries. Account state
+(`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
+account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
+were not carried over — pre-`0006` notes live only in database backups.
 
-| Prefix | Meaning |
-|--------|---------|
-| `auto-daily;strategy=<name>` | System-generated daily trade |
-| `manual-import;source=<name>` | Manually imported trade |
-| `manual-import;...;instrument=option;type=call;action=bought\|sold\|expired` | Options trade |
+### Deletion semantics
+
+- Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
+  account-owned row (books, orders and fills, research, governance, and risk history). The
+  pre-deletion database backup is the only retention path — there is no archive model.
+- `walk_forward_group_runs.run_id -> backtest_runs` is deliberately `NO ACTION`: a grouped run
+  must not silently vanish from its group's composition. Account deletion still succeeds because
+  SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
+  "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
 
 ---
 

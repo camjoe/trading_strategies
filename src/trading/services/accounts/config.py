@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from common.coercion import (
     coerce_float,
@@ -133,20 +133,6 @@ def validate_option_settings(
     validate_range(iv_rank_min, iv_rank_max, "iv_rank")
 
 
-def resolve_sizing_value(
-    value: float | None,
-    row: AccountRecord,
-    column: str,
-    default: float,
-) -> float:
-    if value is not None:
-        return value
-    existing = row_float(row, column)
-    if existing is not None:
-        return existing
-    return default
-
-
 def validate_position_sizing(
     trade_size_pct: float | None,
     max_position_pct: float | None,
@@ -172,21 +158,21 @@ def validate_position_sizing(
 
 
 def validate_position_sizing_from_inputs(
-    account: AccountRecord,
+    current_trade_size_pct: float | None,
+    current_max_position_pct: float | None,
     trade_size_pct: float | None,
     max_position_pct: float | None,
 ) -> tuple[float, float]:
-    resolved_trade_size_pct = resolve_sizing_value(
-        trade_size_pct,
-        account,
-        "trade_size_pct",
-        DEFAULT_TRADE_SIZE_PCT,
+    """Validate sizing inputs merged over the current (book-owned) values."""
+    resolved_trade_size_pct = (
+        trade_size_pct
+        if trade_size_pct is not None
+        else (current_trade_size_pct if current_trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT)
     )
-    resolved_max_position_pct = resolve_sizing_value(
-        max_position_pct,
-        account,
-        "max_position_pct",
-        DEFAULT_MAX_POSITION_PCT,
+    resolved_max_position_pct = (
+        max_position_pct
+        if max_position_pct is not None
+        else (current_max_position_pct if current_max_position_pct is not None else DEFAULT_MAX_POSITION_PCT)
     )
     validate_position_sizing(resolved_trade_size_pct, resolved_max_position_pct)
     return resolved_trade_size_pct, resolved_max_position_pct
@@ -214,13 +200,13 @@ def append_numeric_updates(
         append_update(updates, params, column, value, transform)
 
 
-def resolved_float(value: float | None, row: AccountRecord, column: str) -> float | None:
+def resolved_float(value: float | None, row: "Mapping[str, object]", column: str) -> float | None:
     if value is not None:
         return value
     return row_float(row, column)
 
 
-def resolved_int(value: int | None, row: AccountRecord, column: str) -> int | None:
+def resolved_int(value: int | None, row: "Mapping[str, object]", column: str) -> int | None:
     if value is not None:
         return value
     return row_int(row, column)
@@ -238,7 +224,7 @@ def validate_goal_range_from_inputs(
 
 
 def validate_option_settings_from_inputs(
-    account: AccountRecord,
+    current: "Mapping[str, object]",
     option_type: str | None,
     target_delta_min: float | None,
     target_delta_max: float | None,
@@ -247,15 +233,15 @@ def validate_option_settings_from_inputs(
     iv_rank_min: float | None,
     iv_rank_max: float | None,
 ) -> None:
-    min_dte = resolved_int(option_min_dte, account, "option_min_dte")
-    max_dte = resolved_int(option_max_dte, account, "option_max_dte")
+    min_dte = resolved_int(option_min_dte, current, "option_min_dte")
+    max_dte = resolved_int(option_max_dte, current, "option_max_dte")
     if min_dte is not None and max_dte is not None and min_dte > max_dte:
         raise ValidationError("option_min_dte cannot be greater than option_max_dte.")
-    delta_min = resolved_float(target_delta_min, account, "target_delta_min")
-    delta_max = resolved_float(target_delta_max, account, "target_delta_max")
-    iv_min = resolved_float(iv_rank_min, account, "iv_rank_min")
-    iv_max = resolved_float(iv_rank_max, account, "iv_rank_max")
-    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
+    delta_min = resolved_float(target_delta_min, current, "target_delta_min")
+    delta_max = resolved_float(target_delta_max, current, "target_delta_max")
+    iv_min = resolved_float(iv_rank_min, current, "iv_rank_min")
+    iv_max = resolved_float(iv_rank_max, current, "iv_rank_max")
+    resolved_opt_type = option_type if option_type is not None else row_str(current, "option_type")
     validate_option_settings(
         resolved_opt_type,
         delta_min,

@@ -36,7 +36,10 @@ class TestDeleteAccount:
         assert [str(row["name"]) for row in remaining_accounts] == ["acct_b"]
 
         removed = {
-            "trades": "SELECT COUNT(*) AS n FROM trades WHERE account_id = 1",
+            "books": "SELECT COUNT(*) AS n FROM books WHERE account_id = 1",
+            "equity_snapshots": "SELECT COUNT(*) AS n FROM equity_snapshots WHERE book_id = 1",
+            "daily_metrics": "SELECT COUNT(*) AS n FROM daily_metrics WHERE book_id = 1",
+            "rotation_decisions": "SELECT COUNT(*) AS n FROM rotation_decisions WHERE book_id = 1",
             "orders": "SELECT COUNT(*) AS n FROM orders WHERE account_id = 1",
             "order_fills": "SELECT COUNT(*) AS n FROM order_fills WHERE order_id = 501",
             "backtest_runs": "SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = 1",

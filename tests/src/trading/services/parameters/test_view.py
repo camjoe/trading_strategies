@@ -66,10 +66,17 @@ class TestBookGroups:
 
         mandate = _group(view, "account view_acct / book book_a / mandate")
         assert _entry(mandate, "goal_period").source == PARAMETER_SOURCE_DB
-        for concern in ("execution", "options"):
-            group = _group(view, f"account view_acct / book book_a / {concern}")
-            assert group.entries == ()
-            assert group.note is not None
+        # Execution and option settings are book columns (revisions
+        # 0004/0005): a book row always exists, so both groups are always
+        # populated and db-sourced.
+        execution = _group(view, "account view_acct / book book_a / execution")
+        assert execution.note is None
+        assert _entry(execution, "risk_policy").value == "none"
+        assert _entry(execution, "risk_policy").source == PARAMETER_SOURCE_DB
+        options = _group(view, "account view_acct / book book_a / options")
+        assert options.note is None
+        assert _entry(options, "option_type").value == "none"
+        assert _entry(options, "option_type").source == PARAMETER_SOURCE_DB
         # The rotation group always shows the effective policy: a missing row
         # means every policy field is the code default.
         rotation = _group(view, "account view_acct / book book_a / rotation")

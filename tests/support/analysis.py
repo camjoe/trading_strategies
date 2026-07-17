@@ -39,11 +39,17 @@ def record_analysis_buy(
 ) -> None:
     from common.time import utc_now_iso
 
-    conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) VALUES (?,?,?,?,?,?,?,?)",
-        (account_id, ticker, "buy", qty, price, 0.0, utc_now_iso(), None),
+    from tests.support.fills import seed_fill_event
+
+    seed_fill_event(
+        conn,
+        account_id=account_id,
+        ticker=ticker,
+        side="buy",
+        qty=qty,
+        price=price,
+        trade_time=utc_now_iso(),
     )
-    conn.commit()
 
 
 def patch_analysis_market_data(

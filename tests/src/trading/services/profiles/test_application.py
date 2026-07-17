@@ -3,6 +3,7 @@ import pytest
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.services.accounts import get_account
+from trading.services.books.book_assignments import get_default_book
 from trading.services.profiles import apply_account_profiles
 
 
@@ -52,14 +53,17 @@ class TestApplyAccountProfiles:
 
         account = get_account(conn, "prof_a")
         assert account["descriptive_name"] == "Profile A"
-        assert account["risk_policy"] == "fixed_stop"
-        assert account["instrument_mode"] == "leaps"
-        assert int(account["learning_enabled"]) == 1
-        assert account["option_type"] == "call"
-        assert float(account["target_delta_min"]) == 0.25
-        assert float(account["target_delta_max"]) == 0.55
-        assert float(account["iv_rank_min"]) == 20.0
-        assert float(account["iv_rank_max"]) == 80.0
+        # Execution and option settings are book columns (revisions 0004/0005).
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "fixed_stop"
+        assert book.instrument_mode == "leaps"
+        assert book.learning_enabled == 1
+        assert book.option_type == "call"
+        assert book.target_delta_min == 0.25
+        assert book.target_delta_max == 0.55
+        assert book.iv_rank_min == 20.0
+        assert book.iv_rank_max == 80.0
 
     def test_create_missing_false_skips(self, conn):
         profiles = [{"name": "no_create", "initial_cash": 1000}]
@@ -72,9 +76,11 @@ class TestApplyAccountProfiles:
         assert created == 1
         account = get_account(conn, "minimal")
         assert account["goal_period"] == "monthly"
-        assert account["risk_policy"] == "none"
-        assert account["instrument_mode"] == "equity"
-        assert int(account["learning_enabled"]) == 0
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "none"
+        assert book.instrument_mode == "equity"
+        assert book.learning_enabled == 0
 
     def test_update_benchmark(self, conn):
         apply_account_profiles(
@@ -111,8 +117,10 @@ class TestApplyAccountProfiles:
         )
         assert updated == 1
         account = get_account(conn, "cfg")
-        assert account["risk_policy"] == "fixed_stop"
-        assert float(account["stop_loss_pct"]) == 5.0
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.risk_policy == "fixed_stop"
+        assert book.stop_loss_pct == 5.0
 
     def test_no_op_skipped(self, conn):
         apply_account_profiles(
@@ -211,8 +219,9 @@ class TestApplyBookRotationSettings:
             )
 
     def test_account_columns_stay_untouched(self, conn):
-        # Rotation is book-owned (ADR 014): applying rotation config must not
-        # write the retained account rotation columns.
+        # Rotation is book-owned (ADR 014): applying rotation config writes
+        # book settings only. The account rotation columns were removed
+        # outright in revision 0003, so writing them is structurally impossible.
         apply_account_profiles(
             conn,
             [
@@ -226,11 +235,8 @@ class TestApplyBookRotationSettings:
             create_missing=True,
         )
 
-        row = conn.execute(
-            "SELECT rotation_enabled, rotation_schedule FROM accounts WHERE name = 'rot_cols'"
-        ).fetchone()
-        assert not row["rotation_enabled"]
-        assert row["rotation_schedule"] is None
+        account_columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(accounts)")}
+        assert not {name for name in account_columns if name.startswith("rotation_")}
 
     def test_trade_universes_stored_on_create(self, conn) -> None:
         import json

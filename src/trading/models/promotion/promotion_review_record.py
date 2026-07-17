@@ -11,6 +11,9 @@ class PromotionReviewRecord:
     id: int | None = None
     account_id: int | None = None
     account_name_snapshot: str | None = None
+    # strategy_id is the real strategies FK (revision 0007); strategy_name is
+    # the display snapshot, mirroring account_id + account_name_snapshot.
+    strategy_id: int | None = None
     strategy_name: str | None = None
     review_state: PromotionReviewState = PromotionReviewState.REQUESTED
     assessment_stage: PromotionStage = PromotionStage.CANDIDATE

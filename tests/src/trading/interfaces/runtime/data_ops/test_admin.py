@@ -134,7 +134,7 @@ class TestHelpersAndCommands:
 
         args = Namespace(
             account="acct_a",
-            backup_before=False,
+            no_backup=False,
             backup_destination=None,
             dry_run=True,
         )
@@ -144,7 +144,7 @@ class TestHelpersAndCommands:
         output = capsys.readouterr().out
         assert "would remove all related data" in output
 
-    def test_cmd_delete_account_runs_backup_and_delete(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    def test_cmd_delete_account_backs_up_by_default(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         captured: dict[str, object] = {}
         conn = SimpleNamespace(close=lambda: captured.__setitem__("closed", True))
         monkeypatch.setattr(admin, "backup_database", lambda destination: Path("backup-before.db"))
@@ -156,7 +156,7 @@ class TestHelpersAndCommands:
         )
         args = Namespace(
             account="acct_a",
-            backup_before=True,
+            no_backup=False,
             backup_destination="backups",
             dry_run=False,
         )
@@ -165,6 +165,31 @@ class TestHelpersAndCommands:
         assert captured == {"closed": True}
         output = capsys.readouterr().out
         assert "Backup created before delete: backup-before.db" in output
+        assert "Deleted account 'acct_a'" in output
+
+    def test_cmd_delete_account_skips_backup_when_opted_out(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+        conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(
+            admin,
+            "backup_database",
+            lambda destination: pytest.fail("backup_database must not run with --no-backup"),
+        )
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
+        monkeypatch.setattr(
+            admin,
+            "delete_account",
+            lambda conn_obj, name: SimpleNamespace(name=name),
+        )
+        args = Namespace(
+            account="acct_a",
+            no_backup=True,
+            backup_destination=None,
+            dry_run=False,
+        )
+
+        assert admin._cmd_delete_account(args) == 0
+        output = capsys.readouterr().out
+        assert "Backup created" not in output
         assert "Deleted account 'acct_a'" in output
 
 
@@ -178,6 +203,7 @@ class TestParserAndMain:
 
         assert backup_args.handler is admin._cmd_backup_db
         assert delete_args.handler is admin._cmd_delete_account
+        assert delete_args.no_backup is False  # backup is on unless opted out
         assert list_args.handler is admin._cmd_list_accounts
 
     def test_main_dispatches_handler(self, monkeypatch: pytest.MonkeyPatch) -> None:

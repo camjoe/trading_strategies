@@ -11,7 +11,6 @@ from common.coercion import row_int
 from trading.domain.strategy_signals import evaluate_signal, resolve_strategy
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.models import AccountRecord
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +31,6 @@ class AccountStateLike(Protocol):
 
 class TradePreparationStateLike(AccountStateLike, Protocol):
     cash: float
-
-
-def _account_value(account: AccountRecord, key: str) -> object | None:
-    return account.get(key)
 
 
 def _position_mark_price(
@@ -171,7 +166,7 @@ def select_signal_trade_candidates(
 
 
 def prepare_trade_selection(
-    account: AccountRecord,
+    option_settings: auto_trader_policy.AccountPolicyInput,
     active_strategy: str | None,
     params: Mapping[str, object] | None,
     state,
@@ -183,14 +178,19 @@ def prepare_trade_selection(
     instrument_mode: str,
     fee: float,
     *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
     """Select the next trade from the active strategy's signals.
 
     ``params`` are the strategy's effective knobs, resolved by the caller from
-    the catalog. Sells take priority (the forced risk-stop first, then
-    signaled sells) so cash is freed before buys. Returns None when nothing
-    signals — callers must not manufacture a trade in that case.
+    the catalog. Execution and option settings are book columns (revisions
+    0004/0005): sizing knobs are passed explicitly and ``option_settings`` is
+    the book (a Mapping) supplying the option/leaps knobs. Sells take priority
+    (the forced risk-stop first, then signaled sells) so cash is freed before
+    buys. Returns None when nothing signals — callers must not manufacture a
+    trade in that case.
     """
     buy_candidates: list[str] = []
     sell_candidates: list[str] = []
@@ -220,13 +220,15 @@ def prepare_trade_selection(
             return "sell", ticker, qty, trade_price, None, None
 
     prepared_buy = prepare_buy_trade(
-        account,
+        option_settings,
         instrument_mode,
         buy_candidates,
         prices,
         iv_rank_proxy,
         state,
         fee,
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
     )
     if prepared_buy is None:
         return None
@@ -235,19 +237,22 @@ def prepare_trade_selection(
 
 
 def _size_buy_for_ticker(
-    account: AccountRecord,
+    option_settings: auto_trader_policy.AccountPolicyInput,
     instrument_mode: str,
     ticker: str,
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
     state: TradePreparationStateLike,
     fee: float,
+    *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
 ) -> tuple[str, int, float, float | None, float | None] | None:
     """Size a buy for one signaled ticker; None when it cannot be sized (or leaps-blocked)."""
     price = float(prices[ticker])
     if instrument_mode == "leaps":
         ok, delta_est, iv_est = auto_trader_policy.option_candidate_allowed(
-            account,
+            option_settings,
             ticker,
             iv_rank_proxy,
         )
@@ -257,8 +262,8 @@ def _size_buy_for_ticker(
             auto_trader_policy.estimate_option_premium(
                 price,
                 delta_est,
-                row_int(account, "option_min_dte"),
-                row_int(account, "option_max_dte"),
+                row_int(option_settings, "option_min_dte"),
+                row_int(option_settings, "option_max_dte"),
             )
         )
     else:
@@ -270,8 +275,8 @@ def _size_buy_for_ticker(
         state.cash,
         trade_price,
         fee,
-        trade_size_pct=_account_value(account, "trade_size_pct"),
-        max_position_pct=_account_value(account, "max_position_pct"),
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
         current_position_value=_current_position_value(
             state,
             ticker,
@@ -291,7 +296,7 @@ def _size_buy_for_ticker(
         return None
 
     if instrument_mode == "leaps":
-        qty = auto_trader_policy.apply_leaps_buy_qty_limits(qty, trade_price, account)
+        qty = auto_trader_policy.apply_leaps_buy_qty_limits(qty, trade_price, option_settings)
         if qty <= 0:
             return None
 
@@ -299,13 +304,16 @@ def _size_buy_for_ticker(
 
 
 def prepare_buy_trade(
-    account: AccountRecord,
+    option_settings: auto_trader_policy.AccountPolicyInput,
     instrument_mode: str,
     buy_candidates: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
     state: TradePreparationStateLike,
     fee: float,
+    *,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
 ) -> tuple[str, int, float, float | None, float | None] | None:
     """Prepare the first sizable buy among the signal-selected candidates, in order."""
     for ticker in buy_candidates:
@@ -313,13 +321,15 @@ def prepare_buy_trade(
         if price is None or price <= 0:
             continue
         prepared = _size_buy_for_ticker(
-            account,
+            option_settings,
             instrument_mode,
             ticker,
             prices,
             iv_rank_proxy,
             state,
             fee,
+            trade_size_pct=trade_size_pct,
+            max_position_pct=max_position_pct,
         )
         if prepared is not None:
             return prepared

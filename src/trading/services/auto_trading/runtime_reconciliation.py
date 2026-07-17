@@ -2,10 +2,10 @@
 
 Polls the broker for fills on the account's open clean ``orders`` and applies any
 new executions to the book (``order_fills`` + position/ledger/balances via the
-shared ``apply_book_fill``), then mirrors the fill into the legacy account ledger
-(``trades``) so account-level reporting stays in sync during the cutover window.
-Paper brokers fill synchronously and report no open trades, so this is a no-op for
-them; it matters for async live brokers.
+shared ``apply_book_fill``). Account-level history derives from those fill rows
+(the trades table was retired in revision 0006). Paper brokers fill synchronously
+and report no open trades, so this is a no-op for them; it matters for async live
+brokers.
 """
 
 from __future__ import annotations
@@ -35,12 +35,9 @@ def resolve_reconciliation_exec_id(
 
 def reconcile_open_orders_impl(
     conn: sqlite3.Connection,
-    account_name: str,
     account: AccountRecord,
-    fee: float,
     *,
     get_broker_for_account_fn: Callable[..., Any],
-    record_trade_fn: Callable[..., object],
 ) -> int:
     broker = get_broker_for_account_fn(account)
     account_id = row_expect_int(account, "id")
@@ -104,17 +101,6 @@ def reconcile_open_orders_impl(
             )
 
             if live.status == OrderStatus.FILLED:
-                record_trade_fn(
-                    conn,
-                    account_name=account_name,
-                    side=persisted.side,
-                    ticker=persisted.symbol,
-                    qty=live.filled_qty,
-                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted.requested_price,
-                    fee=fee,
-                    trade_time=now,
-                    note=f"ib-fill order={live.broker_order_id}",
-                )
                 newly_filled += 1
 
         return newly_filled

@@ -53,6 +53,13 @@ def _patch_book_reads(
         "active_strategy_for_account",
         lambda _conn, _account_id, *, fallback: active_strategy or fallback,
     )
+    # Execution settings are book columns (revision 0004); conn=None tests
+    # stub the default-book read (None -> code defaults in the summary).
+    monkeypatch.setattr(
+        account_summaries,
+        "get_default_book",
+        lambda _conn, *, account_id: None,
+    )
 
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:

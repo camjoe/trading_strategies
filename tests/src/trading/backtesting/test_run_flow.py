@@ -35,8 +35,9 @@ class TestBacktestRunFlow:
         ).fetchone()
         assert snapshots is not None and int(snapshots["n"]) >= 2
 
-        paper_trades = conn.execute("SELECT COUNT(*) AS n FROM trades").fetchone()
-        assert paper_trades is not None and int(paper_trades["n"]) == 0
+        # Backtests must not touch live execution history (fills, revision 0006).
+        live_fills = conn.execute("SELECT COUNT(*) AS n FROM order_fills").fetchone()
+        assert live_fills is not None and int(live_fills["n"]) == 0
 
     def test_run_backtest_leaps_adds_financial_risk_warnings(self, conn, bt_market_data) -> None:
         create_backtest_account(
