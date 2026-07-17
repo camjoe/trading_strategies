@@ -95,6 +95,7 @@ One-off data operations. Safe to run on the live DB when noted.
 |---|---|
 | `audit_foreign_keys.py` | Read-only FK action audit for account-deletion cascade planning and broader schema inspection |
 | `backup_db.py` | SQLite DB backup — copies the live DB to a timestamped backup file |
+| `check_cash_invariant.py` | Read-only reconciliation report: each book's `current_cash` vs `start_equity` + ledger sum, within a float tolerance |
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `export_db_csv.py` | Export all DB tables to individual CSV files |

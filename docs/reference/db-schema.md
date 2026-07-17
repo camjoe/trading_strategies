@@ -85,8 +85,9 @@ split only if a fourth domain lands here.
 
 Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,
 accepted limitation** for paper trading — do not churn the schema toward integer cents or TEXT
-decimals. Float drift is expected to surface via reconciliation checks (e.g. `books.current_cash`
-vs the `ledger` sum) rather than be prevented by the storage type.
+decimals. Float drift is expected to surface via reconciliation checks rather than be prevented by
+the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any book whose
+`current_cash` diverges from `start_equity` plus its `ledger` sum beyond a tolerance.
 
 ### Account trade history
 

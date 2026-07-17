@@ -10,7 +10,6 @@ from infrastructure.database import migration_runner
 from infrastructure.database.config import get_db_path
 
 ACCOUNT_DELETE_RELATED_TABLES = (
-    "trades",
     "books",
     "equity_snapshots",
     "backtest_runs",

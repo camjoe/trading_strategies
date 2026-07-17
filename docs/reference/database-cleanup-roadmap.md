@@ -34,9 +34,6 @@ config home. Semantic consequences are documented in [db-schema.md](db-schema.md
 
 ## Open follow-ups
 
-- **Cash invariant check** (from D2): add a small check (script or existing checks profile)
-  asserting `books.current_cash` reconciles with the `ledger` sum within a tolerance, so float
-  drift surfaces as a report instead of a silent divergence.
 - **Universe membership snapshots** (deferred from OD6): universe definitions are file-backed;
   `book_universe_history` records names, not membership. Promoting universes to DB entities with
   membership snapshots is deferred until universe definitions stabilize — "membership drift" is a
