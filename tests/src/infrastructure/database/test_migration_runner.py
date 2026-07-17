@@ -289,13 +289,17 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
         conn.executescript(
             """
             INSERT INTO accounts (id, name, strategy, initial_cash, created_at, option_min_dte, option_type)
-            VALUES (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 90, 'call');
+            VALUES
+                (1, 'acct', 'Trend', 1000, '2026-01-01T00:00:00Z', 90, 'call'),
+                -- 'both' is legal app vocabulary the retired 1:1 table's CHECK never allowed.
+                (2, 'acct_both', 'Trend', 500, '2026-01-01T00:00:00Z', 30, 'both');
             INSERT INTO books (
                 id, account_id, name, start_equity, current_cash, current_equity, created_at, updated_at
             )
             VALUES
                 (1, 1, 'default', 1000, 1000, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                (2, 1, 'nosettings', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (3, 2, 'default', 500, 500, 500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
             INSERT INTO book_option_settings (
                 book_id, option_min_dte, option_type, max_premium_per_trade, created_at, updated_at
             )
@@ -320,6 +324,8 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
             "call",
             None,
         )
+        # 'both' backfills intact — the books CHECK matches the app vocabulary.
+        assert (rows[3]["option_min_dte"], rows[3]["option_type"]) == (30, "both")
         account_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(accounts)")}
         assert "option_min_dte" not in account_columns and "option_type" not in account_columns
         tables = {str(r[0]) for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -331,6 +337,11 @@ def test_revision_0005_folds_option_settings_into_books(tmp_path: Path) -> None:
             "SELECT option_min_dte, option_type FROM book_option_settings WHERE book_id = 1"
         ).fetchone()
         assert (restored["option_min_dte"], restored["option_type"]) == (180, "put")
+        # 'both' cannot round-trip into the 0001-shape CHECK; it maps to NULL.
+        both_restored = conn.execute(
+            "SELECT option_min_dte, option_type FROM book_option_settings WHERE book_id = 3"
+        ).fetchone()
+        assert (both_restored["option_min_dte"], both_restored["option_type"]) == (30, None)
         book_columns = {str(r[1]) for r in conn.execute("PRAGMA table_info(books)")}
         assert "option_min_dte" not in book_columns
         assert "risk_policy" in book_columns  # 0004 execution columns survive the rebuild

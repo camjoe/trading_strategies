@@ -120,7 +120,7 @@ _BOOKS_DDL_TEMPLATE = """
         option_strike_offset_pct REAL,
         option_min_dte INTEGER,
         option_max_dte INTEGER,
-        option_type TEXT CHECK (option_type IS NULL OR option_type IN ('call', 'put')),
+        option_type TEXT CHECK (option_type IS NULL OR option_type IN ('call', 'put', 'both')),
         target_delta_min REAL,
         target_delta_max REAL,
         max_premium_per_trade REAL,
