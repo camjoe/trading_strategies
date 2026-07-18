@@ -11,5 +11,6 @@ class AccountInsert:
     account_kind: str
     initial_cash: float
     created_at: str
+    updated_at: str
     benchmark_ticker: str
     descriptive_name: str

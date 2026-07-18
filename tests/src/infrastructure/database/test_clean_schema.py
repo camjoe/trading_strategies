@@ -42,7 +42,8 @@ def conn(tmp_path: Path):
 
 def _insert_account(conn, name: str = "acct_books") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, '2026-07-03T00:00:00Z')",
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) "
+        "VALUES (?, 5000, '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')",
         (name,),
     )
     return int(cursor.lastrowid)

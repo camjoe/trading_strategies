@@ -9,8 +9,8 @@ from trading.services.accounts import create_account
 def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at, updated_at)
+        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
             id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
@@ -73,8 +73,8 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
 def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at, updated_at)
+        VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
             id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
@@ -161,8 +161,8 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
     """Fetching by account_name + strategy_name uses the strategy branch (line 38) and succeeds."""
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at)
-        VALUES (50, 'acct_wf_strat', 1000, 'SPY', '2026-01-01T00:00:00Z');
+        INSERT INTO accounts (id, name, initial_cash, benchmark_ticker, created_at, updated_at)
+        VALUES (50, 'acct_wf_strat', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
             id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at

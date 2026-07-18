@@ -54,6 +54,12 @@ class SQLiteBackend(DatabaseBackend):
         # Schema convention: every *_id is a real, enforced FK. SQLite
         # defaults the pragma to OFF per connection.
         conn.execute("PRAGMA foreign_keys = ON")
+        # WAL lets the web backend and runtime jobs read while a writer
+        # commits (journal_mode persists in the file; re-asserting is cheap).
+        # busy_timeout makes brief lock contention wait instead of raising
+        # "database is locked".
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
         return conn
 
     def run_script(self, conn: Any, script: str) -> None:

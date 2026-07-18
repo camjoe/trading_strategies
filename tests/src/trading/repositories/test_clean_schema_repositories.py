@@ -37,8 +37,8 @@ def conn(tmp_path: Path):
 
 def _insert_account(conn, name: str = "acct_repo") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, ?)",
-        (name, NOW),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES (?, 5000, ?, ?)",
+        (name, NOW, NOW),
     )
     return int(cursor.lastrowid)
 

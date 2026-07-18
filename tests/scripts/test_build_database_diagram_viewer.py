@@ -117,6 +117,7 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "targetAnchorBounds" in html
     assert "targetSlotAssignments" in html
     assert "arrowStorageKey" in html
+    assert "sectionStorageKey" in html
     assert "loadJson" in html
     assert "saveJson" in html
     assert "attachArrowDragHandle" in html
@@ -153,5 +154,5 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert 'id="search"' not in html
     assert 'id="zoomReset"' not in html
     assert 'id="resetLayout"' not in html
-    assert "Drag table cards" in html
+    assert "Drag table cards or category titles independently" in html
     assert "child/FK table points to referenced parent table" in html

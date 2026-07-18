@@ -57,8 +57,8 @@ def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None
 def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_seed', 5000, ?)",
-        (NOW,),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES ('acct_seed', 5000, ?, ?)",
+        (NOW, NOW),
     )
     conn.commit()
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'acct_seed'").fetchone()[0])
@@ -94,8 +94,8 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
 def test_ensure_default_books_skips_unknown_legacy_strategy_label(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_odd', 1000, ?)",
-        (NOW,),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES ('acct_odd', 1000, ?, ?)",
+        (NOW, NOW),
     )
     conn.commit()
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'acct_odd'").fetchone()[0])

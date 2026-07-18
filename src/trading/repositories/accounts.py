@@ -10,6 +10,7 @@ _ACCOUNT_INSERT_COLUMNS = (
     "account_kind",
     "initial_cash",
     "created_at",
+    "updated_at",
     "benchmark_ticker",
     "descriptive_name",
 )

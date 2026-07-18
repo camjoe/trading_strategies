@@ -9,7 +9,8 @@ from tests.support.db_schema import memory_db_at_head
 
 def _seed_account_with_default_book(conn: sqlite3.Connection, *, name: str, initial_cash: float) -> int:
     conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, ?, '2026-07-17T00:00:00Z')",
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) "
+        "VALUES (?, ?, '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z')",
         (name, initial_cash),
     )
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()["id"])

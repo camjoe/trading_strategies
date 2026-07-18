@@ -112,13 +112,15 @@ def create_account(
         cfg.iv_rank_max,
     )
 
+    created_ts = utc_now_iso()
     try:
         AccountRepository(conn).insert(
             AccountInsert(
                 name=name,
                 account_kind=account_kind,
                 initial_cash=float(initial_cash),
-                created_at=utc_now_iso(),
+                created_at=created_ts,
+                updated_at=created_ts,
                 benchmark_ticker=benchmark_ticker.upper().strip(),
                 descriptive_name=display,
             ),

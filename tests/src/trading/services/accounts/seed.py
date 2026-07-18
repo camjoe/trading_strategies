@@ -14,10 +14,10 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
     """
     conn.executescript(
         """
-        INSERT INTO accounts (id, name, initial_cash, created_at)
+        INSERT INTO accounts (id, name, initial_cash, created_at, updated_at)
         VALUES
-            (1, 'acct_a', 1000, '2026-01-01T00:00:00Z'),
-            (2, 'acct_b', 1500, '2026-01-01T00:00:00Z');
+            (1, 'acct_a', 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+            (2, 'acct_b', 1500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO books (
             id, account_id, name, status, is_default, start_equity, current_cash,
