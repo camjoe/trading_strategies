@@ -42,7 +42,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "snapshots",
         "label": "Snapshots and metrics",
         "color": "#0891b2",
-        "tables": ("equity_snapshots", "daily_metrics", "backtest_equity_snapshots", "risk_snapshots"),
+        "tables": ("equity_snapshots", "daily_metrics", "risk_snapshots"),
     },
     {
         "id": "rotations",
@@ -54,7 +54,13 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "research",
         "label": "Research",
         "color": "#7c3aed",
-        "tables": ("backtest_runs", "backtest_trades", "walk_forward_groups", "walk_forward_group_runs"),
+        "tables": (
+            "backtest_runs",
+            "backtest_trades",
+            "backtest_equity_snapshots",
+            "walk_forward_groups",
+            "walk_forward_group_runs",
+        ),
     },
     {
         "id": "governance",

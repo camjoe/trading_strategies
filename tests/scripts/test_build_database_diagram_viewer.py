@@ -51,6 +51,9 @@ def test_payload_includes_columns_indexes_and_fk_actions() -> None:
     rotation_settings = _table(payload, "book_rotation_settings")
     assert rotation_settings["section"] == {"id": "rotations", "label": "Rotations", "color": "#d97706"}
 
+    backtest_snapshots = _table(payload, "backtest_equity_snapshots")
+    assert backtest_snapshots["section"] == {"id": "research", "label": "Research", "color": "#7c3aed"}
+
 
 def test_payload_defines_expected_focused_views() -> None:
     conn = _fresh_conn()

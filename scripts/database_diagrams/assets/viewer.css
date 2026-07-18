@@ -140,15 +140,15 @@
     }
     .section-label {
       position: absolute;
-      min-width: 260px;
-      height: 34px;
-      padding: 7px 12px 6px;
+      min-width: 290px;
+      height: 40px;
+      padding: 9px 14px 8px;
       border-left: 6px solid var(--section-color);
       border-radius: 7px;
       background: rgba(255, 255, 255, 0.86);
       color: var(--section-color);
       box-shadow: var(--shadow);
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 760;
       letter-spacing: 0;
       cursor: grab;
