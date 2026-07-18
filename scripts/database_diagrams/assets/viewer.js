@@ -60,6 +60,10 @@
       return `database-diagram-arrow-sources:${activeView.id}`;
     }
 
+    function sectionStorageKey() {
+      return `database-diagram-section-labels:${activeView.id}`;
+    }
+
     function loadJson(key) {
       try {
         return JSON.parse(localStorage.getItem(key) || "{}");
@@ -107,7 +111,12 @@
             .join("")
         : "<li>No indexes</li>";
       return `
-        <article class="table-card" id="table-${table.name}" data-table="${table.name}">
+        <article
+          class="table-card"
+          id="table-${table.name}"
+          data-table="${table.name}"
+          style="--table-section-color: ${table.section?.color || "#475467"}"
+        >
           <header><h3>${escapeHtml(table.name)}</h3></header>
           <ul class="column-list">${columns}</ul>
           <details class="indexes" ${showIndexes ? "open" : ""}>
@@ -337,16 +346,18 @@
     }
 
     function sectionDisplayRegions(sections) {
+      const saved = loadJson(sectionStorageKey());
       return sections.map((section) => {
         const positions = section.tables.map((tableName) => currentPositions.get(tableName)).filter(Boolean);
         if (!positions.length) return section;
         const minX = Math.min(...positions.map((position) => position.x));
         const minY = Math.min(...positions.map((position) => position.y));
         const maxX = Math.max(...positions.map((position) => position.x + 300));
+        const savedPosition = saved[section.id];
         return {
           ...section,
-          x: minX,
-          y: Math.max(0, minY - 48),
+          x: Number.isFinite(savedPosition?.x) ? savedPosition.x : minX,
+          y: Number.isFinite(savedPosition?.y) ? savedPosition.y : Math.max(0, minY - 48),
           width: maxX - minX,
         };
       });
@@ -415,7 +426,6 @@
             startY: event.clientY,
             originX: section.x,
             originY: section.y,
-            origins: new Map(section.tables.map((tableName) => [tableName, currentPositions.get(tableName)])),
           };
           label.classList.add("moving");
           label.setPointerCapture(event.pointerId);
@@ -429,23 +439,17 @@
           sectionDragState.section.y = sectionDragState.originY + deltaY;
           sectionDragState.label.style.left = `${sectionDragState.section.x}px`;
           sectionDragState.label.style.top = `${sectionDragState.section.y}px`;
-          for (const [tableName, origin] of sectionDragState.origins.entries()) {
-            if (!origin) continue;
-            const next = { x: origin.x + deltaX, y: origin.y + deltaY };
-            currentPositions.set(tableName, next);
-            const card = document.getElementById(`table-${tableName}`);
-            if (card) {
-              card.style.left = `${next.x}px`;
-              card.style.top = `${next.y}px`;
-            }
-          }
-          drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
           event.stopPropagation();
         });
         label.addEventListener("pointerup", (event) => {
           if (!sectionDragState || sectionDragState.pointerId !== event.pointerId) return;
           sectionDragState.label.classList.remove("moving");
-          saveCurrentPositions();
+          const saved = loadJson(sectionStorageKey());
+          saved[sectionDragState.section.id] = {
+            x: sectionDragState.section.x,
+            y: sectionDragState.section.y,
+          };
+          saveJson(sectionStorageKey(), saved);
           sectionDragState = null;
           event.stopPropagation();
         });

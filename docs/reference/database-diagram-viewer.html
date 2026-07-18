@@ -179,8 +179,9 @@
       position: static;
       padding: 10px 12px;
       display: block;
-      border-bottom: 1px solid var(--line);
-      background: #f9fafb;
+      border-bottom: 1px solid color-mix(in srgb, var(--table-section-color) 35%, var(--line));
+      border-left: 5px solid var(--table-section-color);
+      background: color-mix(in srgb, var(--table-section-color) 12%, #ffffff);
     }
     .table-card h3 { margin: 0; font-size: 15px; }
     .column-list {
@@ -275,7 +276,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 12:47 17-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 16:28 17-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -313,8 +314,8 @@
           <span class="legend-row">
             <i class="swatch restrict"></i>RESTRICT intentionally blocks deletion, even mid-cascade.
           </span>
-          <span class="legend-row">Drag table cards or section headers to rearrange a view. Drag either end of a
-            line vertically to re-order where it meets the card.</span>
+          <span class="legend-row">Drag table cards or category titles independently to rearrange a view. Drag
+            either end of a line vertically to re-order where it meets the card.</span>
         </section>
         <section class="panel-section">
           <h3>Color key</h3>
@@ -418,7 +419,7 @@
       ]
     }
   ],
-  "generatedAt": "12:47 17-07-2026 PST",
+  "generatedAt": "16:28 17-07-2026 PST",
   "sections": [
     {
       "color": "#2563eb",
@@ -556,7 +557,7 @@
         {
           "default": null,
           "name": "updated_at",
-          "notNull": false,
+          "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -2557,7 +2558,11 @@
           "name": "rotation_decision_id",
           "notNull": false,
           "primaryKeyPosition": 0,
-          "section": null,
+          "section": {
+            "color": "#d97706",
+            "id": "rotations",
+            "label": "Rotations"
+          },
           "type": "INTEGER"
         },
         {
@@ -2666,6 +2671,13 @@
         }
       ],
       "foreignKeys": [
+        {
+          "column": "rotation_decision_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "rotation_decisions"
+        },
         {
           "column": "strategy_id",
           "onDelete": "NO ACTION",
@@ -3276,7 +3288,7 @@
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
-          "type": "INTEGER"
+          "type": "REAL"
         },
         {
           "default": null,
@@ -3284,7 +3296,7 @@
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
-          "type": "INTEGER"
+          "type": "REAL"
         },
         {
           "default": null,
@@ -4310,6 +4322,10 @@
       return `database-diagram-arrow-sources:${activeView.id}`;
     }
 
+    function sectionStorageKey() {
+      return `database-diagram-section-labels:${activeView.id}`;
+    }
+
     function loadJson(key) {
       try {
         return JSON.parse(localStorage.getItem(key) || "{}");
@@ -4357,7 +4373,12 @@
             .join("")
         : "<li>No indexes</li>";
       return `
-        <article class="table-card" id="table-${table.name}" data-table="${table.name}">
+        <article
+          class="table-card"
+          id="table-${table.name}"
+          data-table="${table.name}"
+          style="--table-section-color: ${table.section?.color || "#475467"}"
+        >
           <header><h3>${escapeHtml(table.name)}</h3></header>
           <ul class="column-list">${columns}</ul>
           <details class="indexes" ${showIndexes ? "open" : ""}>
@@ -4587,16 +4608,18 @@
     }
 
     function sectionDisplayRegions(sections) {
+      const saved = loadJson(sectionStorageKey());
       return sections.map((section) => {
         const positions = section.tables.map((tableName) => currentPositions.get(tableName)).filter(Boolean);
         if (!positions.length) return section;
         const minX = Math.min(...positions.map((position) => position.x));
         const minY = Math.min(...positions.map((position) => position.y));
         const maxX = Math.max(...positions.map((position) => position.x + 300));
+        const savedPosition = saved[section.id];
         return {
           ...section,
-          x: minX,
-          y: Math.max(0, minY - 48),
+          x: Number.isFinite(savedPosition?.x) ? savedPosition.x : minX,
+          y: Number.isFinite(savedPosition?.y) ? savedPosition.y : Math.max(0, minY - 48),
           width: maxX - minX,
         };
       });
@@ -4665,7 +4688,6 @@
             startY: event.clientY,
             originX: section.x,
             originY: section.y,
-            origins: new Map(section.tables.map((tableName) => [tableName, currentPositions.get(tableName)])),
           };
           label.classList.add("moving");
           label.setPointerCapture(event.pointerId);
@@ -4679,23 +4701,17 @@
           sectionDragState.section.y = sectionDragState.originY + deltaY;
           sectionDragState.label.style.left = `${sectionDragState.section.x}px`;
           sectionDragState.label.style.top = `${sectionDragState.section.y}px`;
-          for (const [tableName, origin] of sectionDragState.origins.entries()) {
-            if (!origin) continue;
-            const next = { x: origin.x + deltaX, y: origin.y + deltaY };
-            currentPositions.set(tableName, next);
-            const card = document.getElementById(`table-${tableName}`);
-            if (card) {
-              card.style.left = `${next.x}px`;
-              card.style.top = `${next.y}px`;
-            }
-          }
-          drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
           event.stopPropagation();
         });
         label.addEventListener("pointerup", (event) => {
           if (!sectionDragState || sectionDragState.pointerId !== event.pointerId) return;
           sectionDragState.label.classList.remove("moving");
-          saveCurrentPositions();
+          const saved = loadJson(sectionStorageKey());
+          saved[sectionDragState.section.id] = {
+            x: sectionDragState.section.x,
+            y: sectionDragState.section.y,
+          };
+          saveJson(sectionStorageKey(), saved);
           sectionDragState = null;
           event.stopPropagation();
         });

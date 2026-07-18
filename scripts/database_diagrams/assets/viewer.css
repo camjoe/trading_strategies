@@ -172,8 +172,9 @@
       position: static;
       padding: 10px 12px;
       display: block;
-      border-bottom: 1px solid var(--line);
-      background: #f9fafb;
+      border-bottom: 1px solid color-mix(in srgb, var(--table-section-color) 35%, var(--line));
+      border-left: 5px solid var(--table-section-color);
+      background: color-mix(in srgb, var(--table-section-color) 12%, #ffffff);
     }
     .table-card h3 { margin: 0; font-size: 15px; }
     .column-list {
