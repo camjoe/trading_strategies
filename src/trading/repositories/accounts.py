@@ -47,18 +47,18 @@ class AccountRepository:
         self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
         self._conn.commit()
 
-    def update(self, *, account_id: int, updates: list[str], params: list[object]) -> None:
-        query_params = [*params, account_id]
+    def update(self, *, account_id: int, updates: list[str], params: list[object], updated_at: str) -> None:
+        query_params = [*params, updated_at, account_id]
         self._conn.execute(
-            f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?",
+            f"UPDATE accounts SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
             tuple(query_params),
         )
         self._conn.commit()
 
-    def update_benchmark(self, *, account_id: int, benchmark_ticker: str) -> None:
+    def update_benchmark(self, *, account_id: int, benchmark_ticker: str, updated_at: str) -> None:
         self._conn.execute(
-            "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
-            (benchmark_ticker, account_id),
+            "UPDATE accounts SET benchmark_ticker = ?, updated_at = ? WHERE id = ?",
+            (benchmark_ticker, updated_at, account_id),
         )
         self._conn.commit()
 

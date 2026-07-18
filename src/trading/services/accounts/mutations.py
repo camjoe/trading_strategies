@@ -197,6 +197,7 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     AccountRepository(conn).update_benchmark(
         account_id=account.id,
         benchmark_ticker=benchmark_ticker.upper().strip(),
+        updated_at=utc_now_iso(),
     )
 
 
@@ -297,6 +298,7 @@ def configure_account(
         account_id=account.id,
         updates=updates,
         params=params,
+        updated_at=utc_now_iso(),
     )
 
 
