@@ -10,11 +10,14 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 class EquitySnapshotRecord:
     """Equity snapshot row (book-keyed storage; account view is the roll-up).
 
-    ``book_id`` is None for account roll-up rows aggregated across books;
-    ``account_id`` is carried by every repository query for consumer context.
+    ``book_id`` and ``id`` are coupled: both are real on a single-book read, and
+    both are ``None`` on a multi-book account roll-up row aggregated across books
+    (a synthetic aggregate is not an addressable stored row, so it carries no
+    id). ``account_id`` is carried by every repository query for consumer
+    context.
     """
 
-    id: int
+    id: int | None
     account_id: int
     book_id: int | None
     snapshot_time: str
@@ -27,7 +30,7 @@ class EquitySnapshotRecord:
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> EquitySnapshotRecord:
         return cls(
-            id=row_expect_int(values, "id"),
+            id=row_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
             book_id=row_int(values, "book_id"),
             snapshot_time=row_expect_str(values, "snapshot_time"),

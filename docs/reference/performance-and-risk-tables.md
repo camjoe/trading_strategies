@@ -31,13 +31,15 @@ different grains:
 
 Consequences worth knowing before you build on them:
 
-- **`equity_snapshots` account rollup fabricates identity.** The rollup select
-  (`repositories/snapshots.py`) returns `MIN(s.id) AS id`, and `book_id` is
-  `NULL` whenever the account has more than one book. A rollup record's `id` is
-  **not** an addressable row — never feed it back into an update/delete.
+- **`equity_snapshots` account rollup carries no identity.** In the rollup
+  select (`repositories/snapshots.py`), `id` and `book_id` are coupled: both are
+  real on a single-book read, and both are `NULL` on a multi-book aggregate. A
+  rollup record is therefore not an addressable row, and `EquitySnapshotRecord.id`
+  is `int | None` so misuse fails loudly instead of silently targeting `MIN(id)`.
 - **`daily_metrics` has no account rollup.** Percentages don't sum, so
-  `fetch_for_account` returns each book's row. "Account daily metrics" is
-  therefore N rows per date for an N-book account, not one aggregated row.
+  `fetch_book_rows_for_account` returns each book's row (the name says so).
+  "Account daily metrics" is therefore N rows per date for an N-book account,
+  not one aggregated row.
 - **`risk_snapshots` is account-only by design** — gross/net exposure and
   concentration are portfolio-wide properties. There is no per-book risk row.
 

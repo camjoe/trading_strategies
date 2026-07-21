@@ -8,7 +8,16 @@ from trading.models.books.risk_snapshot_record import RiskSnapshotRecord
 
 
 class RiskSnapshotRepository:
-    """SQL access for clean-schema risk_snapshots (successor to portfolio_risk_snapshots)."""
+    """SQL access for clean-schema risk_snapshots (successor to portfolio_risk_snapshots).
+
+    Grain: **account-emergent**, by design. Gross/net exposure are additive, but
+    concentration is a portfolio property that cannot be reconstructed from
+    per-book maxima (a symbol under-concentrated in each book can be
+    over-concentrated in aggregate), and the risk gate enforces its caps at the
+    account level. So there is no per-book risk row and no roll-up. Contrast
+    ``EquitySnapshotRepository`` (book-additive) and ``DailyMetricsRepository``
+    (book-native); see docs/reference/performance-and-risk-tables.md.
+    """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn

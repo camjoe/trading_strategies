@@ -21,6 +21,13 @@ _METRIC_COLUMNS = (
 class DailyMetricsRepository:
     """Book-keyed daily metrics with an account-level convenience path.
 
+    Grain: **book-native, non-additive**. Daily percentages (return, drawdown,
+    turnover, hit rate) do not sum across books, so there is no account roll-up:
+    ``fetch_book_rows_for_account`` returns one row *per book* per date, not an
+    aggregated account row. Contrast ``EquitySnapshotRepository`` (book-additive
+    SUM roll-up) and ``RiskSnapshotRepository`` (account-emergent); see
+    docs/reference/performance-and-risk-tables.md.
+
     Storage keys on ``book_id`` (UNIQUE per book+metric_date). Account-level
     rows live on the account's default book, created (bootstrapped) on first
     write.
@@ -89,7 +96,13 @@ class DailyMetricsRepository:
         del cursor
         return int(row[0])
 
-    def fetch_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:
+    def fetch_book_rows_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:
+        """Return per-book daily-metric rows for the account (NOT an aggregate).
+
+        Daily percentages don't sum across books, so this is a flat list of each
+        book's rows (most recent first), not a rolled-up account row. Callers
+        that want an account total must aggregate additive fields themselves.
+        """
         rows = self._conn.execute(
             """
             SELECT m.*, b.account_id AS account_id
