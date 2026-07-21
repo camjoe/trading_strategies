@@ -8,14 +8,18 @@ from common.coercion import row_expect_int, row_expect_str, row_str
 
 @dataclass(frozen=True, slots=True)
 class BookStrategyAssignmentRecord:
-    """Persisted book_strategy_assignments row materialized from the database."""
+    """Persisted book_strategy_assignments row materialized from the database.
+
+    The open row (``effective_to is None``) is the book's incumbent assignment;
+    closed rows are prior assignments. There is no dedicated incumbent flag —
+    "incumbent" is defined by ``effective_to``.
+    """
 
     id: int
     book_id: int
     strategy_id: int
     effective_from: str
     effective_to: str | None
-    is_incumbent: int
     created_at: str
     updated_at: str
 
@@ -27,7 +31,6 @@ class BookStrategyAssignmentRecord:
             strategy_id=row_expect_int(values, "strategy_id"),
             effective_from=row_expect_str(values, "effective_from"),
             effective_to=row_str(values, "effective_to"),
-            is_incumbent=row_expect_int(values, "is_incumbent"),
             created_at=row_expect_str(values, "created_at"),
             updated_at=row_expect_str(values, "updated_at"),
         )

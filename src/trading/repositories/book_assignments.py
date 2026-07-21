@@ -8,9 +8,12 @@ from trading.models.books.book_strategy_assignment_record import BookStrategyAss
 class BookAssignmentRepository:
     """SQL access for book_strategy_assignments.
 
-    The one-open-assignment-per-book invariant is enforced by the partial unique
-    index `idx_book_assignments_open_per_book`; `assign_strategy` closes the open
-    row (if any) and opens the new one in a single transaction.
+    The book's *incumbent* is by definition its open assignment — the row with
+    `effective_to IS NULL`. The one-open-assignment-per-book invariant is
+    enforced by the partial unique index `idx_book_assignments_open_per_book`;
+    `assign_strategy` closes the open row (if any) and opens the new one in a
+    single transaction. (There is no `is_incumbent` flag — it was dropped in
+    revision 0012 as a redundant second encoding of `effective_to IS NULL`.)
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -52,7 +55,7 @@ class BookAssignmentRepository:
             self._conn.execute(
                 """
                 UPDATE book_strategy_assignments
-                SET effective_to = ?, is_incumbent = 0, updated_at = ?
+                SET effective_to = ?, updated_at = ?
                 WHERE book_id = ? AND effective_to IS NULL
                 """,
                 (effective_from, updated_at, int(book_id)),
@@ -61,9 +64,9 @@ class BookAssignmentRepository:
                 """
                 INSERT INTO book_strategy_assignments (
                     book_id, strategy_id, effective_from, effective_to,
-                    is_incumbent, created_at, updated_at
+                    created_at, updated_at
                 )
-                VALUES (?, ?, ?, NULL, 1, ?, ?)
+                VALUES (?, ?, ?, NULL, ?, ?)
                 """,
                 (
                     int(book_id),

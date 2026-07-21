@@ -106,9 +106,9 @@ def test_one_open_assignment_per_book_enforced(conn) -> None:
         conn.execute(
             """
             INSERT INTO book_strategy_assignments (
-                book_id, strategy_id, effective_from, effective_to, is_incumbent,
+                book_id, strategy_id, effective_from, effective_to,
                 created_at, updated_at
-            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?, 1,
+            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """,
             (book_id, strategy_id, effective_to),

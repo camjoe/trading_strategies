@@ -112,11 +112,11 @@ class BookRepository:
             ),
         )
         book_id = int(cursor.lastrowid or 0)
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=created_at)
+        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=created_at)
         self._conn.commit()
         return book_id
 
-    def _record_universe_history(self, *, book_id: int, universes_json: str, effective_from: str) -> None:
+    def _record_universe_history(self, *, book_id: int, trade_universes: str, effective_from: str) -> None:
         """Close the open universe-history row (if any) and open a new one."""
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
@@ -124,16 +124,16 @@ class BookRepository:
         )
         self._conn.execute(
             """
-            INSERT INTO book_universe_history (book_id, universes_json, effective_from, effective_to)
+            INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
             VALUES (?, ?, ?, NULL)
             """,
-            (int(book_id), universes_json, effective_from),
+            (int(book_id), trade_universes, effective_from),
         )
 
     def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
         return self._conn.execute(
             """
-            SELECT universes_json, effective_from, effective_to
+            SELECT trade_universes, effective_from, effective_to
             FROM book_universe_history
             WHERE book_id = ?
             ORDER BY effective_from ASC, id ASC
@@ -183,7 +183,7 @@ class BookRepository:
             "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
             (trade_universes, updated_at, int(book_id)),
         )
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=updated_at)
+        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=updated_at)
         self._conn.commit()
 
     def update_balances(

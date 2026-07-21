@@ -44,7 +44,7 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
     book_id = int(cursor.lastrowid or 0)
     conn.execute(
         """
-        INSERT INTO book_universe_history (book_id, universes_json, effective_from, effective_to)
+        INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
         SELECT ?, '["default"]', created_at, NULL FROM accounts WHERE id = ?
         """,
         (book_id, int(account_id)),
