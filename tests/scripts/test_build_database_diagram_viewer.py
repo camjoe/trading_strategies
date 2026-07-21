@@ -87,6 +87,33 @@ def test_payload_defines_category_views_with_account_and_book_anchors() -> None:
     assert all({"accounts", "books"} <= set(view["tables"]) for view in category_views.values())
 
 
+def test_payload_role_views_partition_every_table() -> None:
+    conn = _fresh_conn()
+    try:
+        payload = build_database_diagram_viewer.build_diagram_payload(conn)
+    finally:
+        conn.close()
+
+    role_views = {str(view["id"]): view for view in payload["roleViews"]}
+    assert set(role_views) == {
+        "role_operational_state",
+        "role_temporal_history",
+        "role_decision_logs",
+        "role_snapshots",
+        "role_provenance",
+    }
+    # A few anchor classifications from the audit-architecture discussion.
+    assert "rotation_decisions" in role_views["role_decision_logs"]["tables"]
+    assert "book_strategy_assignments" in role_views["role_temporal_history"]["tables"]
+    assert "promotion_reviews" in role_views["role_provenance"]["tables"]
+
+    # The roles must be an exhaustive, disjoint partition of the schema.
+    all_tables = {str(table["name"]) for table in payload["tables"]}
+    role_tables = [name for view in role_views.values() for name in view["tables"]]
+    assert sorted(role_tables) == sorted(all_tables)
+    assert len(role_tables) == len(set(role_tables))
+
+
 def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     html = build_database_diagram_viewer.build_html()
 

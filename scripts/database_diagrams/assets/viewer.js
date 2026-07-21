@@ -2,8 +2,10 @@
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
     const categoryTabsEl = document.getElementById("categoryTabs");
+    const roleTabsEl = document.getElementById("roleTabs");
     const categoryViews = payload.categoryViews || [];
-    const allViews = [...payload.views, ...categoryViews];
+    const roleViews = payload.roleViews || [];
+    const allViews = [...payload.views, ...categoryViews, ...roleViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
@@ -305,6 +307,8 @@
       renderViewButtons(tabsEl, payload.views);
       categoryTabsEl.hidden = categoryViews.length === 0;
       renderViewButtons(categoryTabsEl, categoryViews);
+      roleTabsEl.hidden = roleViews.length === 0;
+      renderViewButtons(roleTabsEl, roleViews);
     }
 
     function render() {

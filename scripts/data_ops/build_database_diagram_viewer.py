@@ -179,6 +179,87 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
     },
 )
 
+# Data-role classification: the five canonical roles a production schema sorts
+# into. Unlike the domain sections/views above (which group tables by subject
+# area), these group every table by *how* it is used — mutable current state vs.
+# append-only logs vs. derived series — as a legibility lens over the whole
+# schema. Together they partition all tables (enforced by a build-time check and
+# a test), so the row doubles as a "is every table classified?" audit.
+ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
+    {
+        "id": "role_operational_state",
+        "label": "Operational state",
+        "description": (
+            "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. "
+            "Updated in place; they hold what is true now, not a history of changes."
+        ),
+        "tables": (
+            "accounts",
+            "books",
+            "positions",
+            "book_rotation_settings",
+            "strategies",
+            "feature_providers",
+            "global_settings",
+        ),
+    },
+    {
+        "id": "role_temporal_history",
+        "label": "Temporal history",
+        "description": (
+            "Effective-dated (valid-time / SCD Type 2) tables: one open row plus closed prior rows, "
+            "bounded by effective_from/effective_to, reconstructing what was active at any past time."
+        ),
+        "tables": (
+            "book_strategy_assignments",
+            "book_universe_history",
+        ),
+    },
+    {
+        "id": "role_decision_logs",
+        "label": "Decision and event logs",
+        "description": (
+            "Append-only audit trails: automated decisions and business events, insert-only and never "
+            "updated, each carrying the provenance of why it happened."
+        ),
+        "tables": (
+            "orders",
+            "order_fills",
+            "ledger",
+            "rotation_decisions",
+            "risk_decisions",
+            "promotion_review_events",
+        ),
+    },
+    {
+        "id": "role_snapshots",
+        "label": "Snapshots and time-series",
+        "description": (
+            "Periodic materialized state and computed results captured at a point in time: equity and "
+            "risk snapshots, daily metrics, and backtest / walk-forward outputs."
+        ),
+        "tables": (
+            "equity_snapshots",
+            "risk_snapshots",
+            "daily_metrics",
+            "backtest_runs",
+            "backtest_trades",
+            "backtest_equity_snapshots",
+            "walk_forward_groups",
+            "walk_forward_group_runs",
+        ),
+    },
+    {
+        "id": "role_provenance",
+        "label": "Provenance",
+        "description": (
+            "Frozen decision inputs: the full evaluation and assessment payload captured at decision "
+            "time, so a past promotion decision can be re-justified against what it actually saw."
+        ),
+        "tables": ("promotion_reviews",),
+    },
+)
+
 SECTION_BY_TABLE = {
     table_name: str(section["id"]) for section in SECTION_DEFINITIONS for table_name in section["tables"]
 }
@@ -219,13 +300,37 @@ def _column_section_id(table_name: str, column_name: str, foreign_keys: list[dic
     return None
 
 
+def _assert_roles_partition(table_set: set[str]) -> None:
+    """Fail loudly if the data-role classification is not a clean partition.
+
+    Every table must belong to exactly one role. A new table added without a
+    role assignment (or a table double-classified, or a role naming a table the
+    schema no longer has) trips this — the role row is only trustworthy as a
+    "how is each table used?" audit if it stays exhaustive and disjoint.
+    """
+    assigned: list[str] = [name for role in ROLE_DEFINITIONS for name in role["tables"]]
+    assigned_set = set(assigned)
+    duplicates = sorted({name for name in assigned if assigned.count(name) > 1})
+    unclassified = sorted(table_set - assigned_set)
+    unknown = sorted(assigned_set - table_set)
+    if duplicates or unclassified or unknown:
+        raise ValueError(
+            "Data-role classification is not a clean partition of the schema: "
+            f"unclassified tables={unclassified}, tables in multiple roles={duplicates}, "
+            f"roles naming unknown tables={unknown}."
+        )
+
+
 def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     """Return the schema payload consumed by the HTML diagram viewer.
 
     Uses the project-agnostic introspection from ``scripts.database_diagrams``
     and decorates the neutral payload with this repo's section and view metadata.
     """
-    names = table_names(conn)
+    # Code-defined application schema only — Alembic's bookkeeping table is not
+    # part of it (build_html drops it upstream; this guard keeps direct callers,
+    # e.g. tests, from feeding it in and tripping the role partition check).
+    names = [name for name in table_names(conn) if name != "alembic_version"]
     tables: list[dict[str, Any]] = []
     for table_name in names:
         table_foreign_keys = foreign_keys(conn, table_name)
@@ -255,6 +360,17 @@ def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
                 "tables": view_tables,
             }
         )
+    role_views: list[dict[str, object]] = []
+    for role in ROLE_DEFINITIONS:
+        role_views.append(
+            {
+                "id": role["id"],
+                "label": role["label"],
+                "description": role["description"],
+                "tables": [name for name in role["tables"] if name in table_set],
+            }
+        )
+    _assert_roles_partition(table_set)
     category_views: list[dict[str, object]] = []
     for section in SECTION_DEFINITIONS:
         if section["id"] == "accounts":
@@ -276,6 +392,7 @@ def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
         "tables": tables,
         "views": views,
         "categoryViews": category_views,
+        "roleViews": role_views,
     }
 
 

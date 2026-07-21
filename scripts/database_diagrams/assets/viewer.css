@@ -71,8 +71,25 @@
       padding-top: 8px;
       padding-bottom: 8px;
     }
+    .role-tabs {
+      background: #f1f5f9;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      align-items: center;
+    }
+    .role-tabs::before {
+      content: "By data role";
+      align-self: center;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: 4px;
+    }
     main {
-      height: calc(100vh - 118px);
+      height: calc(100vh - 162px);
       overflow: hidden;
       position: relative;
     }

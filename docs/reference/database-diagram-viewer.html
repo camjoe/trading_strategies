@@ -78,8 +78,25 @@
       padding-top: 8px;
       padding-bottom: 8px;
     }
+    .role-tabs {
+      background: #f1f5f9;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      align-items: center;
+    }
+    .role-tabs::before {
+      content: "By data role";
+      align-self: center;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: 4px;
+    }
     main {
-      height: calc(100vh - 118px);
+      height: calc(100vh - 162px);
       overflow: hidden;
       position: relative;
     }
@@ -276,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 11:15 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 11:29 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -287,6 +304,7 @@
   </header>
   <nav id="tabs" class="tabs" aria-label="Diagram views"></nav>
   <nav id="categoryTabs" class="tabs category-tabs" aria-label="Category views" hidden></nav>
+  <nav id="roleTabs" class="tabs role-tabs" aria-label="Data-role views" hidden></nav>
   <main>
     <details class="info-panel" open>
       <summary>Diagram info</summary>
@@ -419,7 +437,68 @@
       ]
     }
   ],
-  "generatedAt": "11:15 21-07-2026 PST",
+  "generatedAt": "11:29 21-07-2026 PST",
+  "roleViews": [
+    {
+      "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
+      "id": "role_operational_state",
+      "label": "Operational state",
+      "tables": [
+        "accounts",
+        "books",
+        "positions",
+        "book_rotation_settings",
+        "strategies",
+        "feature_providers",
+        "global_settings"
+      ]
+    },
+    {
+      "description": "Effective-dated (valid-time / SCD Type 2) tables: one open row plus closed prior rows, bounded by effective_from/effective_to, reconstructing what was active at any past time.",
+      "id": "role_temporal_history",
+      "label": "Temporal history",
+      "tables": [
+        "book_strategy_assignments",
+        "book_universe_history"
+      ]
+    },
+    {
+      "description": "Append-only audit trails: automated decisions and business events, insert-only and never updated, each carrying the provenance of why it happened.",
+      "id": "role_decision_logs",
+      "label": "Decision and event logs",
+      "tables": [
+        "orders",
+        "order_fills",
+        "ledger",
+        "rotation_decisions",
+        "risk_decisions",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Periodic materialized state and computed results captured at a point in time: equity and risk snapshots, daily metrics, and backtest / walk-forward outputs.",
+      "id": "role_snapshots",
+      "label": "Snapshots and time-series",
+      "tables": [
+        "equity_snapshots",
+        "risk_snapshots",
+        "daily_metrics",
+        "backtest_runs",
+        "backtest_trades",
+        "backtest_equity_snapshots",
+        "walk_forward_groups",
+        "walk_forward_group_runs"
+      ]
+    },
+    {
+      "description": "Frozen decision inputs: the full evaluation and assessment payload captured at decision time, so a past promotion decision can be re-justified against what it actually saw.",
+      "id": "role_provenance",
+      "label": "Provenance",
+      "tables": [
+        "promotion_reviews"
+      ]
+    }
+  ],
   "sections": [
     {
       "color": "#2563eb",
@@ -4216,8 +4295,10 @@
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
     const categoryTabsEl = document.getElementById("categoryTabs");
+    const roleTabsEl = document.getElementById("roleTabs");
     const categoryViews = payload.categoryViews || [];
-    const allViews = [...payload.views, ...categoryViews];
+    const roleViews = payload.roleViews || [];
+    const allViews = [...payload.views, ...categoryViews, ...roleViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
@@ -4519,6 +4600,8 @@
       renderViewButtons(tabsEl, payload.views);
       categoryTabsEl.hidden = categoryViews.length === 0;
       renderViewButtons(categoryTabsEl, categoryViews);
+      roleTabsEl.hidden = roleViews.length === 0;
+      renderViewButtons(roleTabsEl, roleViews);
     }
 
     function render() {
