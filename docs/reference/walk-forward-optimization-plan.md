@@ -42,17 +42,19 @@ For each chronological window:
 9. Report training selection, OOS evidence, and holdout evidence separately.
 
 The existing daily-bar simulator remains the execution engine. Optimization adds orchestration,
-immutable parameter injection, trial summaries, input artifacts, and evidence-aware reporting.
+immutable parameter injection, trial summaries, provenance manifests, and evidence-aware reporting.
 
 ## Window Methodology
 
 ### Training policies
 
-Support both policies as explicit experiment configuration:
+Use a single training policy for now:
 
-- **Rolling:** use the fixed-length interval immediately preceding each test window.
-- **Expanding:** use a fixed inception date and extend training through the date immediately before
-  each test window.
+- **Rolling (current):** use the fixed-length interval immediately preceding each test window.
+
+**Expanding training windows** (a fixed inception date extended through the date before each test
+window) are **deferred future work.** Persist the policy name with the experiment so an expanding
+policy can be added later without a schema change.
 
 Production defaults are 12 training months, 1-month test windows, 1-month steps, and a final
 untouched 6-month holdout. These values remain configurable and must be persisted.
@@ -86,17 +88,18 @@ Candidate parameters come from an explicit, bounded search-space snapshot compat
 strategy primitive's existing validation schema. Optimization must never mutate
 `strategies.params_json`; the simulator receives an immutable validated override.
 
-Use a pluggable optimizer interface with two initial implementations:
+Use a single optimizer for now:
 
-- exhaustive deterministic grid search;
-- seeded random search.
+- **exhaustive deterministic grid search.**
 
-Every experiment persists optimizer name/version, canonical search-space snapshot, candidate
-budget, and seed where applicable. Random search requires an explicit seed. Candidate ordering and
-canonical parameter serialization must be deterministic. Reject a grid whose Cartesian product
-exceeds the explicit candidate budget rather than truncating it invisibly.
+Every experiment persists optimizer name/version, canonical search-space snapshot, and candidate
+budget. Candidate ordering and canonical parameter serialization must be deterministic. Reject a
+grid whose Cartesian product exceeds the explicit candidate budget rather than truncating it
+invisibly.
 
-Bayesian or adaptive search is outside the initial completion boundary. A future optimizer must
+**Seeded random search and a pluggable optimizer interface are deferred future work.** Persist the
+optimizer name/version (and a seed field, unused by grid) so a second optimizer can be added later
+without a schema change. Bayesian or adaptive search is also out of scope; a future optimizer must
 persist all model state, search history, stopping rules, and seeds needed to explain its choices.
 
 ## Objective and Eligibility
@@ -176,17 +179,18 @@ holdout is required before this new optimization evidence can satisfy research p
 uses completed, reproducible OOS and holdout evidence and the configured promotion gates; it does
 not use training performance as realized evidence.
 
-Legacy rolling-window experiments remain reportable but do not satisfy the full optimization
-requirement.
+Rolling-window experiments remain reportable but do not satisfy the full optimization requirement.
 
-## Reproducibility and Leakage Controls
+## Provenance and Leakage Controls
 
-Every candidate, OOS run, and holdout must resolve to immutable effective inputs:
+Every candidate, OOS run, and holdout must resolve to an immutable, auditable record of its effective
+inputs:
 
 - validated strategy parameters;
 - initial capital, benchmark, fees, slippage, execution, and warm-up configuration;
 - exact universe membership;
-- market and feature data artifacts with provider and as-of metadata;
+- market and feature data provider and as-of metadata (full input-payload storage and offline replay
+  are out of scope; see the completion plan);
 - engine/objective/optimizer versions and source/build provenance.
 
 Required controls:
@@ -194,11 +198,11 @@ Required controls:
 | Risk | Control |
 |---|---|
 | Look-ahead | Enforce boundaries in pure domain logic and prove ranking sees training results only. |
-| External-data revision | Store point-in-time artifacts and availability lags, not only current provider output. |
+| External-data revision | Record point-in-time availability lags and provider/as-of metadata so revisions are detectable, and apply the lag during construction. |
 | Parameter overfitting | Bound and disclose the search space, candidate count, OOS sequence, and untouched holdout. |
 | Multiple testing | Persist every attempted candidate summary rather than only the winner. |
 | Regime specialization | Compare window stability and chain-linked OOS behavior, not only an aggregate return. |
-| Inconsistent assumptions | Freeze one manifest and input artifact set for comparable candidates. |
+| Inconsistent assumptions | Freeze one input manifest and configuration for comparable candidates. |
 | Misleading reporting | Label training, OOS, and holdout metrics separately and never blend them. |
 
 ## Architecture Alignment
@@ -207,36 +211,38 @@ Follow the existing dependency direction:
 
 - `backtesting/domain/`: pure boundaries, search generation, objective calculation, eligibility,
   ranking, tie-breaks, chain-linking, and leakage validation;
-- `backtesting/models/`: passive configuration, manifest, artifact, experiment, trial, selection,
-  and report contracts;
+- `backtesting/models/`: passive configuration, manifest, experiment, trial, selection, and report
+  contracts;
 - `backtesting/repositories/`: SQL persistence and purpose-aware evidence queries;
 - `backtesting/services/`: data resolution, orchestration, atomic execution, failure recording, and
   reporting;
 - `interfaces/cli/`: operator inputs and output over the shared services.
 
-Infrastructure owns concrete market-data and artifact-storage adapters. Domain and service code must
-not import those implementations directly.
+Infrastructure owns the concrete market-data adapter. Domain and service code must not import that
+implementation directly.
 
-Web parity, a scheduled runtime job, resumability, Bayesian optimization, and automatic artifact
-pruning are separate work and do not block the accepted CLI/service completion boundary.
+Expanding training windows, seeded random search, a pluggable optimizer interface, offline replay,
+input-payload artifact storage, web parity, a scheduled runtime job, resumability, Bayesian
+optimization, and automatic artifact pruning are separate work and do not block the accepted
+CLI/service completion boundary.
 
 ## Validation Strategy
 
 Automated coverage must include:
 
-- exact rolling and expanding boundaries;
+- exact rolling training-window boundaries;
 - warm-up exclusion and source-specific availability lags;
 - final-holdout isolation and OOS overlap rejection;
-- deterministic grid and seeded-random candidate generation;
+- deterministic grid candidate generation;
 - parameter validation without catalog mutation;
 - objective eligibility, denominator floor, rejection, and tie-breaking;
 - proof that ranking receives training data only;
-- consistent assumptions and artifacts across candidates;
+- consistent assumptions and a frozen input manifest across candidates;
 - atomic OOS and holdout persistence;
 - fail-fast experiment state without partial backtest trees;
 - chain-linked OOS aggregation without duplicate dates;
 - reports that keep training, OOS, and holdout evidence distinct;
-- promotion exclusion for legacy, failed, incomplete, or non-reproducible evidence.
+- promotion exclusion for failed, incomplete, or purpose-ineligible evidence.
 
 Include a deterministic changing-regime fixture whose expected winners and OOS results are fixed by
 construction rather than incidental live market data.
@@ -249,12 +255,13 @@ The capability may be called full train-optimize-test walk-forward optimization 
 - all attempted candidates and outcomes are auditable;
 - selection uses only a predetermined versioned objective and training evidence;
 - selected parameters are frozen before OOS execution;
-- actual input artifacts and manifests support offline reproduction;
+- manifests capture provenance (validated parameters, configuration, universe lineage, provider/as-of
+  metadata, and engine/build) for audit;
 - chronological leakage checks pass for prices, features, universes, and benchmarks;
 - OOS windows are non-overlapping and aggregated honestly;
 - an untouched final holdout is executed after OOS completion;
 - reports and promotion keep training, OOS, and holdout evidence distinct;
-- legacy rolling tests remain correctly identified;
+- rolling-window tests remain correctly identified;
 - shared services and CLI operation work without requiring the web UI.
 
 Implementation phases and progress are tracked in the
