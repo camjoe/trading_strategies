@@ -1,16 +1,21 @@
-"""Group repository writes into one atomic transaction.
+"""Group several database writes into one all-or-nothing transaction.
 
-Repositories in this codebase self-commit (`conn.commit()` after each write),
+Repositories in this codebase self-commit (``conn.commit()`` after each write),
 which is correct for a single-statement mutation but wrong for a multi-write
-sequence: a crash between two writes leaves the projections inconsistent (a
-recorded fill whose cash effect never landed, for example).
+sequence: a crash between two writes leaves the persisted state inconsistent —
+for example a recorded order fill whose cash effect never landed.
 
-`unit_of_work(conn)` opens a scope in which participating repositories call
-:func:`maybe_commit` instead of committing directly, so every write accumulates
-in one transaction that commits once at the end of the outermost scope — or
-rolls back entirely if the block raises. The scope is re-entrant, so a service
-can wrap a sequence that itself calls helpers which open their own
-`unit_of_work` blocks.
+Wrap the sequence in ``unit_of_work(conn)``. Inside that scope, participating
+repositories call :func:`commit_unit_of_work` instead of ``conn.commit()``, so
+every write accumulates in one transaction that commits once when the outermost
+scope exits cleanly — or rolls back entirely if the block raises. The scope is
+re-entrant, so a service can wrap a sequence that itself calls helpers which
+open their own ``unit_of_work`` blocks.
+
+Any repository write that should be able to participate must call
+:func:`commit_unit_of_work` rather than committing directly; a write that
+hard-commits inside a scope would end the transaction early and defeat the
+rollback guarantee.
 
 State is keyed by ``id(conn)`` and exists only while a scope is open on that
 connection (``sqlite3.Connection`` supports neither attribute assignment nor
@@ -53,12 +58,14 @@ def unit_of_work(conn: Any) -> Iterator[Any]:
             _ACTIVE_DEPTH[key] = outer_depth
 
 
-def maybe_commit(conn: Any) -> None:
-    """Commit *conn*, unless an enclosing :func:`unit_of_work` owns the transaction.
+def commit_unit_of_work(conn: Any) -> None:
+    """Commit the connection's current unit of work.
 
     The drop-in replacement for ``conn.commit()`` in repository writes that must
     be able to participate in a larger atomic sequence. Standalone (no enclosing
-    scope) it commits immediately, preserving each repository's prior behavior.
+    scope) it commits the write immediately, preserving each repository's prior
+    behavior. Inside an open :func:`unit_of_work` scope the commit is owned by
+    that scope, so this is a no-op and the write lands when the scope closes.
     """
     if _ACTIVE_DEPTH.get(id(conn), 0) == 0:
         conn.commit()

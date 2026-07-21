@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.unit_of_work import maybe_commit
+from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.orders.order_record import OrderRecord
 
 
@@ -83,7 +83,7 @@ class OrderRepository:
                 status_reason,
             ),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def insert_fill(
@@ -113,7 +113,7 @@ class OrderRepository:
                 fill_time,
             ),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)
 
     def fetch_fill_exec_ids(self, *, order_id: int) -> set[str]:
         """Return the non-null exec_ids already recorded for an order (fill dedup)."""
@@ -207,4 +207,4 @@ class OrderRepository:
             """,
             (status, filled_qty, avg_fill_price, status_reason, updated_at, int(order_id)),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)

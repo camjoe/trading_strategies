@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.unit_of_work import maybe_commit
+from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.books.position_record import PositionRecord
 
 
@@ -49,14 +49,14 @@ class PositionRepository:
                 updated_at,
             ),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)
 
     def delete(self, *, book_id: int, symbol: str) -> None:
         self._conn.execute(
             "DELETE FROM positions WHERE book_id = ? AND symbol = ?",
             (int(book_id), symbol),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)
 
     def fetch(self, *, book_id: int, symbol: str) -> PositionRecord | None:
         row = self._conn.execute(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.unit_of_work import maybe_commit
+from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.books.ledger_entry_record import LedgerEntryRecord
 
 
@@ -44,7 +44,7 @@ class LedgerRepository:
                 created_at,
             ),
         )
-        maybe_commit(self._conn)
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def fetch_for_book(self, *, book_id: int) -> list[LedgerEntryRecord]:

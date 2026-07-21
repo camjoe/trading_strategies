@@ -84,7 +84,7 @@ Findings:
    inconsistent projections, and exec_id dedup would then skip the fill on re-run,
    never applying its cash effect. **DONE (2026-07-21, its own commit):** added
    `trading/repositories/unit_of_work.py` — a re-entrant `unit_of_work(conn)`
-   scope in which the seven fill-path repository writes call `maybe_commit`
+   scope in which the seven fill-path repository writes call `commit_unit_of_work`
    (no-op inside the scope) so the whole sequence commits once or rolls back
    entirely. `apply_book_fill` and the three callers (submission, reconciliation,
    manual accounting) wrap their per-order sequences. Guarded by
