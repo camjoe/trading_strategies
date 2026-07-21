@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from statistics import median
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_str
 from trading.backtesting.report_models import BacktestReportSummary, WalkForwardDetailReport, WalkForwardWindowDetail
@@ -74,6 +75,9 @@ def fetch_walk_forward_report_data(
         )
         for item in group_runs
     ]
+    # Experiment-level aggregates are derived from the window returns rather than
+    # stored (they would otherwise drift from the member runs).
+    window_returns = [w.total_return_pct for w in windows]
     return WalkForwardDetailReport(
         group_id=row_expect_int(group, "id"),
         account_name=account_name or windows[0].backtest_summary.account_name if windows else account_name or "",
@@ -84,10 +88,10 @@ def fetch_walk_forward_report_data(
         test_months=row_expect_int(group, "test_months"),
         step_months=row_expect_int(group, "step_months"),
         window_count=row_expect_int(group, "window_count"),
-        average_return_pct=row_expect_float(group, "average_return_pct"),
-        median_return_pct=row_expect_float(group, "median_return_pct"),
-        best_return_pct=row_expect_float(group, "best_return_pct"),
-        worst_return_pct=row_expect_float(group, "worst_return_pct"),
+        average_return_pct=(sum(window_returns) / len(window_returns)) if window_returns else 0.0,
+        median_return_pct=float(median(window_returns)) if window_returns else 0.0,
+        best_return_pct=max(window_returns) if window_returns else 0.0,
+        worst_return_pct=min(window_returns) if window_returns else 0.0,
         created_at=row_expect_str(group, "created_at"),
         windows=windows,
     )

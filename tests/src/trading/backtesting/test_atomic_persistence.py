@@ -31,7 +31,7 @@ def _fail_on_nth_call(real_fn: Callable[..., object], *, nth: int) -> Callable[.
 
 def _research_row_counts(conn) -> tuple[int, int, int]:
     runs = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()["n"])
-    trades = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_trades").fetchone()["n"])
+    trades = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_executions").fetchone()["n"])
     snaps = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_equity_snapshots").fetchone()["n"])
     return runs, trades, snaps
 

@@ -55,7 +55,7 @@ def insert_backtest_snapshot(conn, *, run_id: int, snapshot_time: str, equity: f
         """
         INSERT INTO backtest_equity_snapshots (
             run_id,
-            snapshot_time,
+            snapshot_date,
             cash,
             market_value,
             equity,
@@ -71,9 +71,9 @@ def insert_backtest_snapshot(conn, *, run_id: int, snapshot_time: str, equity: f
 def insert_backtest_trade(conn, *, run_id: int, trade_time: str) -> None:
     conn.execute(
         """
-        INSERT INTO backtest_trades (
+        INSERT INTO backtest_executions (
             run_id,
-            trade_time,
+            execution_date,
             ticker,
             side,
             qty,
@@ -88,15 +88,9 @@ def insert_backtest_trade(conn, *, run_id: int, trade_time: str) -> None:
     )
 
 
-def insert_walk_forward_grouping(
-    conn,
-    *,
-    run_ids: list[int],
-    average_return_pct: float,
-    median_return_pct: float,
-    best_return_pct: float,
-    worst_return_pct: float,
-) -> None:
+def insert_walk_forward_grouping(conn, *, run_ids: list[int]) -> None:
+    # Window returns are total_return_pct = window_index (1.0, 2.0, ...); the
+    # experiment-level aggregates consumers report are derived from these.
     group_id = insert_walk_forward_group(
         conn,
         primary_run_id=run_ids[0],
@@ -107,10 +101,6 @@ def insert_walk_forward_grouping(
         test_months=1,
         step_months=1,
         window_count=len(run_ids),
-        average_return_pct=average_return_pct,
-        median_return_pct=median_return_pct,
-        best_return_pct=best_return_pct,
-        worst_return_pct=worst_return_pct,
         created_at="2026-04-01T00:00:00Z",
     )
     for window_index, run_id in enumerate(run_ids, start=1):

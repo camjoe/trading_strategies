@@ -18,7 +18,7 @@ DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
     "orders",
     "order_fills",
     "backtest_runs",
-    "backtest_trades",
+    "backtest_executions",
 )
 
 

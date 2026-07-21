@@ -79,10 +79,6 @@ def test_walk_forward_repository_persists_and_reads_latest_group(conn) -> None:
         test_months=1,
         step_months=1,
         window_count=1,
-        average_return_pct=1.0,
-        median_return_pct=1.0,
-        best_return_pct=1.0,
-        worst_return_pct=1.0,
         created_at="2026-04-01T00:00:00Z",
     )
     insert_walk_forward_group_run(
@@ -105,10 +101,6 @@ def test_walk_forward_repository_persists_and_reads_latest_group(conn) -> None:
         test_months=1,
         step_months=1,
         window_count=2,
-        average_return_pct=3.0,
-        median_return_pct=3.0,
-        best_return_pct=4.0,
-        worst_return_pct=2.0,
         created_at="2026-05-01T00:00:00Z",
     )
     for window_index, run_id in enumerate(latest_run_ids, start=1):
@@ -129,9 +121,8 @@ def test_walk_forward_repository_persists_and_reads_latest_group(conn) -> None:
     )
 
     assert latest_group is not None
-    assert latest_group["grouping_key"] == "wf-group-latest"
+    assert latest_group["experiment_key"] == "wf-group-latest"
     assert latest_group["window_count"] == 2
-    assert latest_group["average_return_pct"] == 3.0
 
     latest_group_runs = fetch_walk_forward_group_runs(conn, group_id=int(latest_group["id"]))
 

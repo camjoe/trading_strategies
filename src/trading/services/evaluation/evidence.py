@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import replace
+from statistics import median
 
 from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from trading.backtesting.domain.metrics import max_drawdown_pct
@@ -342,14 +343,17 @@ def build_walk_forward_evidence(
         conn,
         group_id=row_expect_int(group, "id"),
     )
+    # Aggregates are derived from the window returns rather than read from stored
+    # columns, which were dropped so they cannot drift from the member runs.
+    window_returns = [value for item in group_runs if (value := row_float(item, "total_return_pct")) is not None]
     return EvaluationWalkForwardEvidence(
         available=bool(group_runs),
         grouped=bool(group_runs),
         run_ids=[row_expect_int(item, "run_id") for item in group_runs],
-        average_return_pct=row_float(group, "average_return_pct"),
-        median_return_pct=row_float(group, "median_return_pct"),
-        best_return_pct=row_float(group, "best_return_pct"),
-        worst_return_pct=row_float(group, "worst_return_pct"),
+        average_return_pct=(sum(window_returns) / len(window_returns)) if window_returns else None,
+        median_return_pct=float(median(window_returns)) if window_returns else None,
+        best_return_pct=max(window_returns) if window_returns else None,
+        worst_return_pct=min(window_returns) if window_returns else None,
     )
 
 

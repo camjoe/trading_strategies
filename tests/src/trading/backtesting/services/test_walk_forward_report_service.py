@@ -32,7 +32,7 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             );
 
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
         )
         VALUES
             (11, '2026-01-01T00:00:00Z', 1000, 0, 1000, 0, 0),
@@ -40,18 +40,17 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             (12, '2026-02-01T00:00:00Z', 1000, 0, 1000, 0, 0),
             (12, '2026-02-28T00:00:00Z', 1000, -10, 990, 0, -10);
 
-        INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
-            test_months, step_months, window_count, average_return_pct, median_return_pct,
-            best_return_pct, worst_return_pct, created_at
+        INSERT INTO walk_forward_experiments (
+            id, experiment_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
+            test_months, step_months, window_count, created_at
         )
         VALUES (
             7, 'wf-group-1', 1, 900, 'wf', '2026-01-01', '2026-02-28',
-            1, 1, 2, 0.5, 0.5, 2.0, -1.0, '2026-03-15T00:00:00Z'
+            1, 1, 2, '2026-03-15T00:00:00Z'
         );
 
-        INSERT INTO walk_forward_group_runs (
-            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        INSERT INTO walk_forward_windows (
+            experiment_id, run_id, window_index, window_start, window_end, total_return_pct
         )
         VALUES
             (7, 11, 1, '2026-01-01', '2026-01-31', 2.0),
@@ -91,24 +90,23 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
         );
 
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
         )
         VALUES
             (11, '2026-01-01T00:00:00Z', 1000, 0, 1000, 0, 0),
             (11, '2026-01-31T00:00:00Z', 1000, 30, 1030, 0, 30);
 
-        INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
-            test_months, step_months, window_count, average_return_pct, median_return_pct,
-            best_return_pct, worst_return_pct, created_at
+        INSERT INTO walk_forward_experiments (
+            id, experiment_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
+            test_months, step_months, window_count, created_at
         )
         VALUES (
             9, 'wf-group-9', 1, 900, 'wf', '2026-01-01', '2026-01-31',
-            1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-03-15T00:00:00Z'
+            1, 1, 1, '2026-03-15T00:00:00Z'
         );
 
-        INSERT INTO walk_forward_group_runs (
-            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        INSERT INTO walk_forward_windows (
+            experiment_id, run_id, window_index, window_start, window_end, total_return_pct
         )
         VALUES (9, 11, 1, '2026-01-01', '2026-01-31', 3.0);
         """
@@ -178,22 +176,21 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
         );
 
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
         ) VALUES
             (50, '2026-01-01T00:00:00Z', 1000, 0, 1000, 0, 0),
             (50, '2026-01-31T00:00:00Z', 1000, 10, 1010, 0, 10);
 
-        INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
-            test_months, step_months, window_count, average_return_pct, median_return_pct,
-            best_return_pct, worst_return_pct, created_at
+        INSERT INTO walk_forward_experiments (
+            id, experiment_key, account_id, strategy_id, run_name_prefix, start_date, end_date,
+            test_months, step_months, window_count, created_at
         ) VALUES (
             50, 'wf-strat-key', 50, 900, 'wf_s', '2026-01-01', '2026-01-31',
-            1, 1, 1, 1.0, 1.0, 1.0, 1.0, '2026-03-15T00:00:00Z'
+            1, 1, 1, '2026-03-15T00:00:00Z'
         );
 
-        INSERT INTO walk_forward_group_runs (
-            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        INSERT INTO walk_forward_windows (
+            experiment_id, run_id, window_index, window_start, window_end, total_return_pct
         ) VALUES (50, 50, 1, '2026-01-01', '2026-01-31', 1.0);
         """
     )

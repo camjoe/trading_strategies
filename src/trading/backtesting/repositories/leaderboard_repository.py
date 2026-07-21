@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.backtesting.models import BACKTEST_PURPOSE_STANDALONE
+
 
 def fetch_leaderboard_rows(
     conn: sqlite3.Connection,
@@ -25,32 +27,33 @@ def fetch_leaderboard_rows(
                 SELECT s.equity
                 FROM backtest_equity_snapshots s
                 WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time ASC, s.id ASC
+                ORDER BY s.snapshot_date ASC, s.id ASC
                 LIMIT 1
             ) AS starting_equity,
             (
                 SELECT s.equity
                 FROM backtest_equity_snapshots s
                 WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time DESC, s.id DESC
+                ORDER BY s.snapshot_date DESC, s.id DESC
                 LIMIT 1
             ) AS ending_equity,
             (
                 SELECT COUNT(*)
-                FROM backtest_trades t
+                FROM backtest_executions t
                 WHERE t.run_id = r.id
             ) AS trade_count
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         LEFT JOIN strategies s ON s.id = r.strategy_id
-        WHERE (? IS NULL OR a.name = ?)
+        WHERE r.purpose = ?
+                    AND (? IS NULL OR a.name = ?)
                     AND (? IS NULL OR LOWER(COALESCE(s.strategy_key, 'unknown')) LIKE '%' || LOWER(?) || '%')
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?
     """
     return conn.execute(
         query,
-        (account_name, account_name, strategy, strategy, int(limit)),
+        (BACKTEST_PURPOSE_STANDALONE, account_name, account_name, strategy, strategy, int(limit)),
     ).fetchall()
 
 
@@ -60,7 +63,7 @@ def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row
         SELECT equity
         FROM backtest_equity_snapshots
         WHERE run_id = ?
-        ORDER BY snapshot_time ASC, id ASC
+        ORDER BY snapshot_date ASC, id ASC
         """,
         (run_id,),
     ).fetchall()
@@ -70,9 +73,9 @@ def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]
     return conn.execute(
         """
         SELECT ticker, side, qty, price, fee
-        FROM backtest_trades
+        FROM backtest_executions
         WHERE run_id = ?
-        ORDER BY trade_time ASC, id ASC
+        ORDER BY execution_date ASC, id ASC
         """,
         (run_id,),
     ).fetchall()

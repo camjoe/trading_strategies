@@ -31,14 +31,7 @@ def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_grouped_
         insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
         insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1010.0)
 
-    insert_walk_forward_grouping(
-        conn,
-        run_ids=run_ids,
-        average_return_pct=1.5,
-        median_return_pct=1.5,
-        best_return_pct=2.0,
-        worst_return_pct=1.0,
-    )
+    insert_walk_forward_grouping(conn, run_ids=run_ids)
 
     artifact = fetch_strategy_evaluation(conn, account_name="acct_eval_walk_forward")
 

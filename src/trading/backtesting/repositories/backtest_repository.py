@@ -30,6 +30,7 @@ def insert_backtest_run(
             account_id,
             strategy_id,
             run_name,
+            purpose,
             start_date,
             end_date,
             created_at,
@@ -39,12 +40,13 @@ def insert_backtest_run(
             notes,
             warnings
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             account_id,
             strategy_id,
             cfg.run_name,
+            cfg.purpose,
             start_date.isoformat(),
             end_date.isoformat(),
             created_at,
@@ -77,8 +79,8 @@ def insert_backtest_trade(
 ) -> None:
     conn.execute(
         """
-        INSERT INTO backtest_trades (
-            run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note
+        INSERT INTO backtest_executions (
+            run_id, execution_date, ticker, side, qty, price, fee, slippage_bps, note
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -101,7 +103,7 @@ def insert_backtest_snapshot(
     conn.execute(
         """
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,

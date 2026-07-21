@@ -118,18 +118,21 @@ def _fk_delete_action(conn: Any, table: str, column: str, references: str) -> st
 
 def test_child_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     assert _fk_delete_action(migrated_conn, "order_fills", "order_id", "orders") == "CASCADE"
-    assert _fk_delete_action(migrated_conn, "backtest_trades", "run_id", "backtest_runs") == "CASCADE"
+    assert _fk_delete_action(migrated_conn, "backtest_executions", "run_id", "backtest_runs") == "CASCADE"
     assert _fk_delete_action(migrated_conn, "backtest_equity_snapshots", "run_id", "backtest_runs") == "CASCADE"
     assert _fk_delete_action(migrated_conn, "promotion_review_events", "review_id", "promotion_reviews") == "CASCADE"
-    assert _fk_delete_action(migrated_conn, "walk_forward_group_runs", "group_id", "walk_forward_groups") == "CASCADE"
-    assert _fk_delete_action(migrated_conn, "walk_forward_group_runs", "run_id", "backtest_runs") == "NO ACTION"
+    assert (
+        _fk_delete_action(migrated_conn, "walk_forward_windows", "experiment_id", "walk_forward_experiments")
+        == "CASCADE"
+    )
+    assert _fk_delete_action(migrated_conn, "walk_forward_windows", "run_id", "backtest_runs") == "NO ACTION"
 
 
 def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     for table in (
         "orders",
         "backtest_runs",
-        "walk_forward_groups",
+        "walk_forward_experiments",
         "promotion_reviews",
         "risk_snapshots",
         "risk_decisions",

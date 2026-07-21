@@ -83,36 +83,35 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
             (11, 1, 'run_a', '2025-01-01', '2025-06-01', '2026-01-03T00:00:00Z'),
             (22, 2, 'run_b', '2025-01-01', '2025-06-01', '2026-01-03T00:00:00Z');
 
-        INSERT INTO backtest_trades (run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note)
+        INSERT INTO backtest_executions (run_id, execution_date, ticker, side, qty, price, fee, slippage_bps, note)
         VALUES
             (11, '2025-01-10T00:00:00Z', 'SPY', 'buy', 1, 100, 0, 0, ''),
             (22, '2025-01-10T00:00:00Z', 'QQQ', 'buy', 1, 200, 0, 0, '');
 
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl,
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl,
             unrealized_pnl
         )
         VALUES
             (11, '2025-01-10T00:00:00Z', 900, 100, 1000, 0, 0),
             (22, '2025-01-10T00:00:00Z', 1300, 200, 1500, 0, 0);
 
-        INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
-            test_months, step_months, window_count, average_return_pct, median_return_pct,
-            best_return_pct, worst_return_pct, created_at
+        INSERT INTO walk_forward_experiments (
+            id, experiment_key, account_id, run_name_prefix, start_date, end_date,
+            test_months, step_months, window_count, created_at
         )
         VALUES
             (
                 301, 'acct_a_wf', 1, 'wf_a', '2025-01-01', '2025-06-01',
-                1, 1, 1, 2.0, 2.0, 2.0, 2.0, '2026-01-03T00:00:00Z'
+                1, 1, 1, '2026-01-03T00:00:00Z'
             ),
             (
                 302, 'acct_b_wf', 2, 'wf_b', '2025-01-01', '2025-06-01',
-                1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-01-03T00:00:00Z'
+                1, 1, 1, '2026-01-03T00:00:00Z'
             );
 
-        INSERT INTO walk_forward_group_runs (
-            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        INSERT INTO walk_forward_windows (
+            experiment_id, run_id, window_index, window_start, window_end, total_return_pct
         )
         VALUES
             (301, 11, 1, '2025-01-01', '2025-06-01', 2.0),
