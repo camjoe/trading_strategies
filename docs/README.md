@@ -52,7 +52,8 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 Full listing: [`reference/`](reference/). Key entries:
 
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
-- [`reference/walk-forward-optimization-plan.md`](reference/walk-forward-optimization-plan.md) — phased plan for leakage-safe train–optimize–test walk-forward optimization
+- [`reference/research-persistence-review.md`](reference/research-persistence-review.md) — accepted architecture, implementation sequence, and progress for reproducible backtest and walk-forward research
+- [`reference/walk-forward-optimization-plan.md`](reference/walk-forward-optimization-plan.md) — accepted methodology and leakage controls for train–optimize–test walk-forward optimization
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI

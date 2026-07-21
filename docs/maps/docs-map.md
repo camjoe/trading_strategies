@@ -84,7 +84,8 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
-| `docs/reference/walk-forward-optimization-plan.md` | Methodology, schema, architecture, and phased plan for full train-optimize-test walk-forward optimization | The current rolling-window capability changes or a planned phase is implemented or revised |
+| `docs/reference/research-persistence-review.md` | Accepted architecture, delivery order, final schema direction, and progress for reproducible backtest and walk-forward research | A persistence phase is implemented or an accepted architecture decision changes |
+| `docs/reference/walk-forward-optimization-plan.md` | Accepted methodology, leakage controls, objective, and validation criteria for full train-optimize-test walk-forward optimization | The current rolling-window capability or accepted optimization methodology changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
 | `docs/reference/database-transactions.md` | The `unit_of_work` / `commit_unit_of_work` pattern for grouping multiple DB writes into one atomic transaction | `src/trading/repositories/unit_of_work.py` or the repository-commit convention changes |
