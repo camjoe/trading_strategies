@@ -482,6 +482,89 @@ def test_revision_0008_universe_history_and_final_accounts_shape(tmp_path: Path)
         conn.close()
 
 
+def test_revision_0014_drops_dead_rotation_settings_and_preserves_active_values(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "rotation_settings_drop.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0013", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, initial_cash, created_at, updated_at)
+            VALUES (1, 'acct', 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES (
+                1, 1, 'default', 1000, 1000, 1000,
+                '["default"]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+            );
+            INSERT INTO book_rotation_settings (
+                book_id, rotation_enabled, rotation_lookback_days, rotation_schedule,
+                cooldown_days, created_at, updated_at
+            )
+            VALUES (
+                1, 1, 45, '["trend"]', 10,
+                '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+            );
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0014", connection=conn)
+        columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(book_rotation_settings)")}
+        assert "rotation_schedule" in columns
+        assert "rotation_mode" not in columns
+        assert "regime_strategy_risk_on_id" not in columns
+        assert "overlay_mode" not in columns
+        row = conn.execute(
+            "SELECT rotation_enabled, rotation_lookback_days, rotation_schedule, cooldown_days "
+            "FROM book_rotation_settings WHERE book_id = 1"
+        ).fetchone()
+        assert tuple(row) == (1, 45, '["trend"]', 10)
+        assert _fk_delete_action(conn, "book_rotation_settings", "book_id", "books") == "CASCADE"
+
+        migration_runner.downgrade("0013", connection=conn)
+        restored_columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(book_rotation_settings)")}
+        assert {"rotation_mode", "regime_strategy_risk_on_id", "overlay_mode"} <= restored_columns
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        conn.close()
+
+
+def test_revision_0014_refuses_populated_dead_rotation_setting(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "rotation_settings_guard.db")
+    try:
+        migration_runner.upgrade("0013", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, initial_cash, created_at, updated_at)
+            VALUES (1, 'acct', 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES (
+                1, 1, 'default', 1000, 1000, 1000,
+                '["default"]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+            );
+            INSERT INTO book_rotation_settings (
+                book_id, overlay_mode, created_at, updated_at
+            )
+            VALUES (1, 'legacy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        with pytest.raises(RuntimeError, match="refuses to discard populated"):
+            migration_runner.upgrade("0014", connection=conn)
+        columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(book_rotation_settings)")}
+        assert "overlay_mode" in columns
+        assert conn.execute("SELECT overlay_mode FROM book_rotation_settings").fetchone()[0] == "legacy"
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

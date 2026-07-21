@@ -21,7 +21,7 @@ Findings are logged by disposition; nothing here is a change commitment until de
   account's currency matches `base_ccy` at connect time. Do not drop without deciding
   the system is USD-only forever.
 
-### Under discussion
+### Resolved cleanup
 
 - **`book_rotation_settings` dead columns (11)** — reviewed by the problem each group
   was solving (2026-07-17):
@@ -30,18 +30,22 @@ Findings are logged by disposition; nothing here is a change commitment until de
     reconsider strategy") is solved better by the live design — continuous
     evaluation + `cooldown_days` + `min_trades_in_window` (ADR 014). No capability
     lost by removal.
-    **Decision (Cameron, 2026-07-17): drop** — no reason to keep; include in the
-    next cleanup migration.
+    **Decision (Cameron, 2026-07-17): drop.**
   - *Group 2 — Regime mapping* (`regime_strategy_{risk_on,neutral,risk_off}_id`):
     problem ("adapt strategy to market regime") is **open** — see the score-stub
     finding below. These hard-mapping columns are not the revival path (ADR 014
     chose the score-based shape); the fix is code, not schema.
-    **Decision: pending** — tied to the score-stub direction below.
+    **Decision (Cameron, 2026-07-21): drop.** A future regime feature will use the
+    score-based design rather than revive hard strategy mappings.
   - *Group 3 — Overlay* (`overlay_mode`, `overlay_min_tickers`,
     `overlay_confidence_threshold`, `overlay_watchlist`): the universe-scoping half
     of the problem is solved by `books.trade_universes` + `book_universe_history`;
     confidence-gating was cut deliberately.
-    **Decision: pending.**
+    **Decision (Cameron, 2026-07-21): drop.**
+  - **DONE (revision `0014`, 2026-07-21):** all eleven columns removed with a
+    migration guard that rejects any database containing a non-null legacy value.
+
+### Under discussion
 
 - **Rotation score model is 4/5 stubbed** — `RotationStrategyMetrics` is built in
   exactly one place (`src/trading/services/books/rotation_metrics.py`) with
@@ -124,7 +128,7 @@ Reviewed together = discussed one-by-one in session, not just audited by tooling
 |---|---|---|---|
 | 1 | accounts | `base_ccy` finding above; rest clean | in progress |
 | 2 | books | wide by design (0004/0005); all columns used | |
-| 3 | book_rotation_settings | 11 dead columns (see above) | in progress |
+| 3 | book_rotation_settings | 11 dead columns removed in `0014`; score-weight finding remains | reviewed 2026-07-21 |
 | 4 | book_strategy_assignments | clean | |
 | 5 | book_universe_history | clean (new in 0008) | |
 | 6 | strategies | clean | |

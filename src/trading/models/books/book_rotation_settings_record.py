@@ -11,10 +11,8 @@ class BookRotationSettingsRecord:
     """Persisted book_rotation_settings row materialized from the database.
 
     Settings only — rotation *state* lives in book_strategy_assignments (the
-    open row) and rotation_decisions history. The dead mode/optimality/regime/
-    overlay and interval-cadence columns are retained on the table
-    (append-only) but no longer materialized here (rotation is continuous
-    evaluation gated by cooldown, ADR 014).
+    open row) and rotation_decisions history. Rotation uses continuous
+    evaluation gated by cooldown (ADR 014).
 
     The scheduling and policy fields are nullable: None means "use the
     BookRotationScheduleConfig / RotationPolicyConfig code default".

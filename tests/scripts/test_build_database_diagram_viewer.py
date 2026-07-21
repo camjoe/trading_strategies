@@ -50,6 +50,20 @@ def test_payload_includes_columns_indexes_and_fk_actions() -> None:
 
     rotation_settings = _table(payload, "book_rotation_settings")
     assert rotation_settings["section"] == {"id": "rotations", "label": "Rotations", "color": "#d97706"}
+    rotation_column_names = {str(column["name"]) for column in rotation_settings["columns"]}
+    assert "rotation_schedule" in rotation_column_names
+    assert "rotation_mode" not in rotation_column_names
+    assert "regime_strategy_risk_on_id" not in rotation_column_names
+    assert "overlay_mode" not in rotation_column_names
+    assert rotation_settings["foreignKeys"] == [
+        {
+            "column": "book_id",
+            "referencesTable": "books",
+            "referencesColumn": "id",
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+        }
+    ]
 
     backtest_snapshots = _table(payload, "backtest_equity_snapshots")
     assert backtest_snapshots["section"] == {"id": "research", "label": "Research", "color": "#7c3aed"}

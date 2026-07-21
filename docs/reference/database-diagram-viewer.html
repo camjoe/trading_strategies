@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 11:29 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 12:00 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -437,7 +437,7 @@
       ]
     }
   ],
-  "generatedAt": "11:29 21-07-2026 PST",
+  "generatedAt": "12:00 21-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -1114,38 +1114,6 @@
         },
         {
           "default": null,
-          "name": "rotation_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_optimality_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_days",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_minutes",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
           "name": "rotation_lookback_days",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -1226,74 +1194,6 @@
         },
         {
           "default": null,
-          "name": "regime_strategy_risk_on_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "regime_strategy_neutral_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "regime_strategy_risk_off_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "overlay_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "overlay_min_tickers",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "overlay_confidence_threshold",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "overlay_watchlist",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "created_at",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -1310,27 +1210,6 @@
         }
       ],
       "foreignKeys": [
-        {
-          "column": "regime_strategy_risk_off_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
-        {
-          "column": "regime_strategy_neutral_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
-        {
-          "column": "regime_strategy_risk_on_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
         {
           "column": "book_id",
           "onDelete": "CASCADE",

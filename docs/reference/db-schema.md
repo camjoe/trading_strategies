@@ -45,7 +45,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
+| `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
 | `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
 | `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
@@ -91,7 +91,8 @@ intentional because the columns carry schema defaults and `CHECK` constraints.
 Rotation scheduling and policy columns are nullable so each field can independently fall back to
 its code default. Passing `none` through the rotation-policy editing surface clears a stored policy
 value and resumes default tracking for that field. This differs intentionally from persisted global
-settings.
+settings. Revision `0014` removed eleven unused cadence, hard-regime-mapping, and overlay columns;
+the table now exposes only settings consumed by the active rotation path.
 
 ### Money as REAL
 

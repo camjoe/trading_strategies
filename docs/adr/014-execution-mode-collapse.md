@@ -37,10 +37,10 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
 4. **Contracts are rewritten, not shimmed.** Profiles, the admin API, and the frontend carry a
    nested `rotation` object (`enabled`, `schedule`, `lookback_days`), applied to the default
    book's settings row. The CLI edits scheduling via `configure-book-rotation` (interface primacy).
-5. **Columns retire append-only.** All 17 account `rotation_*` columns and the book interval
-   columns stay on their tables but are no longer materialized, read, or written (the 2b-7
-   precedent). Existing databases completed a one-time book-rotation cutover; its temporary
-   data-op and runbook were then retired.
+5. **Retired columns are removed after cutover.** Existing databases completed a one-time
+   book-rotation cutover before its temporary data-op and runbook were retired. Revisions `0003`
+   and `0014` subsequently removed the unused account and book settings columns after verifying
+   that the active path had no reader, writer, or retained values for them.
 
 ## Accepted behavior changes
 
@@ -68,9 +68,11 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
 ## Later refinement
 
 Revision `0003` subsequently removed the 17 retired account rotation columns after their readers,
-writers, and compatibility requirements were eliminated. The unused interval and regime/overlay
-columns remain on `book_rotation_settings`; current scheduling continues to use
-`rotation_enabled`, `rotation_schedule`, and `rotation_lookback_days`.
+writers, and compatibility requirements were eliminated. Revision `0014` likewise removed the
+eleven unused cadence, hard-regime-mapping, and overlay columns from `book_rotation_settings`.
+Current scheduling continues to use `rotation_enabled`, `rotation_schedule`, and
+`rotation_lookback_days`; champion/challenger policy uses the retained evidence, cooldown, and
+score-weight columns.
 
 This refinement changes the temporary column-retention consequence above, not the accepted
 book-keyed execution and rotation-ownership decisions.
