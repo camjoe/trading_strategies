@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
+from trading.repositories.unit_of_work import maybe_commit
 from trading.models.books.book_record import BookRecord
 
 
@@ -201,4 +202,4 @@ class BookRepository:
             """,
             (float(current_cash), float(current_equity), updated_at, int(book_id)),
         )
-        self._conn.commit()
+        maybe_commit(self._conn)

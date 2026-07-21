@@ -78,13 +78,20 @@ event-sourced orders, ledger-as-sole-cash-truth, compute-positions-on-read
 
 Findings:
 
-1. **Fill accounting is not atomic** (the one improvement worth scheduling) —
-   `apply_book_fill` spans ~5 separately-committed writes (fill → position →
-   ledger trade → ledger fee → book balances) because every repository method
-   self-commits. Crash mid-sequence leaves inconsistent projections; the
-   `check_cash_invariant` script detects but does not prevent. Fix: unit-of-work
-   wrapper (BEGIN … single COMMIT, repos skip self-commit inside it). Cheap now
-   that WAL is on. **Status: NEXT — its own commit (per Cameron, 2026-07-21).**
+1. **Fill accounting was not atomic** — `apply_book_fill` spanned ~5 separately
+   committed writes (fill → position → ledger trade → ledger fee → book balances)
+   because every repository method self-committed. Crash mid-sequence left
+   inconsistent projections, and exec_id dedup would then skip the fill on re-run,
+   never applying its cash effect. **DONE (2026-07-21, its own commit):** added
+   `trading/repositories/unit_of_work.py` — a re-entrant `unit_of_work(conn)`
+   scope in which the seven fill-path repository writes call `maybe_commit`
+   (no-op inside the scope) so the whole sequence commits once or rolls back
+   entirely. `apply_book_fill` and the three callers (submission, reconciliation,
+   manual accounting) wrap their per-order sequences. Guarded by
+   `tests/src/trading/repositories/test_unit_of_work.py` and
+   `tests/src/trading/services/execution/test_fill_atomicity.py`. Placed in the
+   repository layer, not `infrastructure/database/`, to satisfy the
+   "services → no direct database imports" boundary.
 2. **No status_reason on orders** — broker rejection/cancellation reasons were lost
    (gate blocks are captured in risk_decisions, broker reasons were not).
    **DONE (revision 0010, 2026-07-21):** nullable `status_reason TEXT` added; wired
