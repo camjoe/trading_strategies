@@ -19,7 +19,7 @@ NEW_TABLES = {
     "strategies",
     "feature_providers",
     "book_rotation_settings",
-    "book_strategy_assignments",
+    "book_strategy_history",
     "orders",
     "positions",
     "ledger",
@@ -105,7 +105,7 @@ def test_one_open_assignment_per_book_enforced(conn) -> None:
     def _insert_assignment(effective_to: str | None) -> None:
         conn.execute(
             """
-            INSERT INTO book_strategy_assignments (
+            INSERT INTO book_strategy_history (
                 book_id, strategy_id, effective_from, effective_to,
                 created_at, updated_at
             ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?,

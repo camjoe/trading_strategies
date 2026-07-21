@@ -68,7 +68,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
     assert result.decision.selected_strategy == "meanrev"
 
     # The *book* assignment is updated on rotate —
-    # book_strategy_assignments is the single live assignment record.
+    # book_strategy_history is the single effective-dated assignment history.
     book_assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert book_assignment is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)

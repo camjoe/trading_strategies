@@ -1,6 +1,6 @@
 """Book strategy assignments — the single live assignment record.
 
-``book_strategy_assignments`` is authoritative for which strategy a book runs.
+``book_strategy_history`` is authoritative for which strategy a book runs.
 This module owns the assignment seams and the two book enumerations:
 
 - ``open_assignment_for_book`` / ``assign_book_strategy`` — read/write a book's

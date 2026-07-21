@@ -565,6 +565,84 @@ def test_revision_0014_refuses_populated_dead_rotation_setting(tmp_path: Path) -
         conn.close()
 
 
+def test_revision_0015_renames_book_strategy_history_and_indexes(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "strategy_history_rename.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0014", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, initial_cash, created_at, updated_at)
+            VALUES (1, 'acct', 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES (
+                1, 1, 'default', 1000, 1000, 1000,
+                '["default"]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+            );
+            INSERT INTO strategies (
+                id, strategy_key, primitive, params_json, style, created_at, updated_at
+            )
+            VALUES
+                (1, 'trend', 'trend', '{}', 'trend', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 'meanrev', 'meanrev', '{}', 'mean_reversion', '2026-01-01T00:00:00Z',
+                 '2026-01-01T00:00:00Z');
+            INSERT INTO book_strategy_assignments (
+                id, book_id, strategy_id, effective_from, effective_to, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 1, '2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z',
+                 '2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z'),
+                (2, 1, 2, '2026-02-01T00:00:00Z', NULL,
+                 '2026-02-01T00:00:00Z', '2026-02-01T00:00:00Z');
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0015", connection=conn)
+        tables = _table_names(conn)
+        assert "book_strategy_history" in tables
+        assert "book_strategy_assignments" not in tables
+        rows = conn.execute("SELECT id, strategy_id, effective_to FROM book_strategy_history ORDER BY id").fetchall()
+        assert [tuple(row) for row in rows] == [
+            (1, 1, "2026-02-01T00:00:00Z"),
+            (2, 2, None),
+        ]
+        indexes = {str(row[0]) for row in conn.execute(_NAMED_INDEXES_QUERY)}
+        assert {
+            "idx_book_strategy_history_open_per_book",
+            "idx_book_strategy_history_book_effective",
+            "idx_book_strategy_history_strategy_effective",
+        } <= indexes
+        assert not {name for name in indexes if name.startswith("idx_book_assignments_")}
+        assert _fk_delete_action(conn, "book_strategy_history", "book_id", "books") == "CASCADE"
+        assert _fk_delete_action(conn, "book_strategy_history", "strategy_id", "strategies") == "NO ACTION"
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO book_strategy_history (
+                    book_id, strategy_id, effective_from, created_at, updated_at
+                )
+                VALUES (1, 1, '2026-03-01T00:00:00Z', '2026-03-01T00:00:00Z', '2026-03-01T00:00:00Z')
+                """
+            )
+        conn.rollback()
+
+        migration_runner.downgrade("0014", connection=conn)
+        tables = _table_names(conn)
+        assert "book_strategy_assignments" in tables
+        assert "book_strategy_history" not in tables
+        assert conn.execute("SELECT COUNT(*) FROM book_strategy_assignments").fetchone()[0] == 2
+        restored_indexes = {str(row[0]) for row in conn.execute(_NAMED_INDEXES_QUERY)}
+        assert "idx_book_assignments_open_per_book" in restored_indexes
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

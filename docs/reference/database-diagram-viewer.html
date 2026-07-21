@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 12:00 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 12:13 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -394,7 +394,7 @@
         "accounts",
         "books",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "rotation_decisions"
       ]
     },
@@ -437,7 +437,7 @@
       ]
     }
   ],
-  "generatedAt": "12:00 21-07-2026 PST",
+  "generatedAt": "12:13 21-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -458,7 +458,7 @@
       "id": "role_temporal_history",
       "label": "Temporal history",
       "tables": [
-        "book_strategy_assignments",
+        "book_strategy_history",
         "book_universe_history"
       ]
     },
@@ -544,7 +544,7 @@
       "label": "Rotations",
       "tables": [
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "rotation_decisions"
       ]
     },
@@ -1315,7 +1315,7 @@
             "strategy_id",
             "effective_from"
           ],
-          "name": "idx_book_assignments_strategy_effective",
+          "name": "idx_book_strategy_history_strategy_effective",
           "origin": "c",
           "unique": false
         },
@@ -1324,7 +1324,7 @@
             "book_id",
             "effective_from"
           ],
-          "name": "idx_book_assignments_book_effective",
+          "name": "idx_book_strategy_history_book_effective",
           "origin": "c",
           "unique": false
         },
@@ -1332,12 +1332,12 @@
           "columns": [
             "book_id"
           ],
-          "name": "idx_book_assignments_open_per_book",
+          "name": "idx_book_strategy_history_open_per_book",
           "origin": "c",
           "unique": true
         }
       ],
-      "name": "book_strategy_assignments",
+      "name": "book_strategy_history",
       "section": {
         "color": "#d97706",
         "id": "rotations",
@@ -4057,7 +4057,7 @@
         "backtest_runs",
         "backtest_trades",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "book_universe_history",
         "books",
         "daily_metrics",
@@ -4113,7 +4113,7 @@
         "books",
         "book_universe_history",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "strategies",
         "orders",
         "order_fills",
@@ -4160,7 +4160,7 @@
         "feature_providers",
         "global_settings",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "orders",
         "rotation_decisions",
         "backtest_runs",

@@ -10,7 +10,7 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int, 
 class BookRotationSettingsRecord:
     """Persisted book_rotation_settings row materialized from the database.
 
-    Settings only — rotation *state* lives in book_strategy_assignments (the
+    Settings only — rotation *state* lives in book_strategy_history (the
     open row) and rotation_decisions history. Rotation uses continuous
     evaluation gated by cooldown (ADR 014).
 

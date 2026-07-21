@@ -129,7 +129,7 @@ Reviewed together = discussed one-by-one in session, not just audited by tooling
 | 1 | accounts | `base_ccy` finding above; rest clean | in progress |
 | 2 | books | wide by design (0004/0005); all columns used | |
 | 3 | book_rotation_settings | 11 dead columns removed in `0014`; score-weight finding remains | reviewed 2026-07-21 |
-| 4 | book_strategy_assignments | clean | |
+| 4 | book_strategy_history | renamed from `book_strategy_assignments` in `0015`; clean | reviewed 2026-07-21 |
 | 5 | book_universe_history | clean (new in 0008) | |
 | 6 | strategies | clean | |
 | 7 | feature_providers | clean | |

@@ -29,7 +29,7 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
    resolved per-field with code-default fallback (`resolve_book_rotation_schedule`; missing row =
    rotation disabled). The interval cadence dissolves: rotation is continuous champion/challenger
    evaluation gated by the per-book `cooldown_days` policy — what production already did.
-3. **Rotation state is the assignment record.** `book_strategy_assignments`
+3. **Rotation state is the assignment record.** `book_strategy_history`
    (`effective_from`/`effective_to`) and `rotation_decisions` (`decision_time`) carry
    strategy-at-time-T attribution; the account state columns (`rotation_active_*`,
    `rotation_last_at`) retire. The active strategy resolves from the default book's open

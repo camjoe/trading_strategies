@@ -48,7 +48,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "rotations",
         "label": "Rotations",
         "color": "#d97706",
-        "tables": ("book_rotation_settings", "book_strategy_assignments", "rotation_decisions"),
+        "tables": ("book_rotation_settings", "book_strategy_history", "rotation_decisions"),
     },
     {
         "id": "research",
@@ -123,7 +123,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "books",
             "book_universe_history",
             "book_rotation_settings",
-            "book_strategy_assignments",
+            "book_strategy_history",
             "strategies",
             "orders",
             "order_fills",
@@ -170,7 +170,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "feature_providers",
             "global_settings",
             "book_rotation_settings",
-            "book_strategy_assignments",
+            "book_strategy_history",
             "orders",
             "rotation_decisions",
             "backtest_runs",
@@ -211,7 +211,7 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "bounded by effective_from/effective_to, reconstructing what was active at any past time."
         ),
         "tables": (
-            "book_strategy_assignments",
+            "book_strategy_history",
             "book_universe_history",
         ),
     },

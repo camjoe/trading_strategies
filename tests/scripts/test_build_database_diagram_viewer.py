@@ -79,7 +79,7 @@ def test_payload_defines_expected_focused_views() -> None:
     views = {str(view["id"]): view for view in payload["views"]}
     assert {"overview", "account_deletion", "book_execution", "research", "governance", "catalogs"} <= set(views)
     assert "accounts" in views["account_deletion"]["tables"]
-    assert "book_strategy_assignments" in views["book_execution"]["tables"]
+    assert "book_strategy_history" in views["book_execution"]["tables"]
 
 
 def test_payload_defines_category_views_with_account_and_book_anchors() -> None:
@@ -118,7 +118,7 @@ def test_payload_role_views_partition_every_table() -> None:
     }
     # A few anchor classifications from the audit-architecture discussion.
     assert "rotation_decisions" in role_views["role_decision_logs"]["tables"]
-    assert "book_strategy_assignments" in role_views["role_temporal_history"]["tables"]
+    assert "book_strategy_history" in role_views["role_temporal_history"]["tables"]
     assert "promotion_reviews" in role_views["role_provenance"]["tables"]
 
     # The roles must be an exhaustive, disjoint partition of the schema.

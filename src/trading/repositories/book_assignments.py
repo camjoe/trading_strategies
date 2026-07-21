@@ -6,11 +6,11 @@ from trading.models.books.book_strategy_assignment_record import BookStrategyAss
 
 
 class BookAssignmentRepository:
-    """SQL access for book_strategy_assignments.
+    """SQL access for book_strategy_history.
 
     The book's *incumbent* is by definition its open assignment — the row with
     `effective_to IS NULL`. The one-open-assignment-per-book invariant is
-    enforced by the partial unique index `idx_book_assignments_open_per_book`;
+    enforced by the partial unique index `idx_book_strategy_history_open_per_book`;
     `assign_strategy` closes the open row (if any) and opens the new one in a
     single transaction. (There is no `is_incumbent` flag — it was dropped in
     revision 0012 as a redundant second encoding of `effective_to IS NULL`.)
@@ -24,14 +24,14 @@ class BookAssignmentRepository:
 
     def fetch_open(self, *, book_id: int) -> BookStrategyAssignmentRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM book_strategy_assignments WHERE book_id = ? AND effective_to IS NULL",
+            "SELECT * FROM book_strategy_history WHERE book_id = ? AND effective_to IS NULL",
             (int(book_id),),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def fetch_history(self, *, book_id: int) -> list[BookStrategyAssignmentRecord]:
         rows = self._conn.execute(
-            "SELECT * FROM book_strategy_assignments WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
+            "SELECT * FROM book_strategy_history WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
             (int(book_id),),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
@@ -54,7 +54,7 @@ class BookAssignmentRepository:
         try:
             self._conn.execute(
                 """
-                UPDATE book_strategy_assignments
+                UPDATE book_strategy_history
                 SET effective_to = ?, updated_at = ?
                 WHERE book_id = ? AND effective_to IS NULL
                 """,
@@ -62,7 +62,7 @@ class BookAssignmentRepository:
             )
             cursor = self._conn.execute(
                 """
-                INSERT INTO book_strategy_assignments (
+                INSERT INTO book_strategy_history (
                     book_id, strategy_id, effective_from, effective_to,
                     created_at, updated_at
                 )

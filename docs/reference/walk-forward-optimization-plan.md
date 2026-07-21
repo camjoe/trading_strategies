@@ -121,7 +121,7 @@ The window→selected-trial relationship must not become a circular foreign key
 2026-07-17 schema review recommends resolving this with the repository's existing
 open-row idiom instead of a back-reference: a `selected` flag on the trial table
 enforced by a partial unique index (`UNIQUE(window_id) WHERE selected = 1`), the
-same pattern `book_strategy_assignments` and `book_universe_history` already use.
+same pattern `book_strategy_history` and `book_universe_history` already use.
 
 ### Optimization trials
 

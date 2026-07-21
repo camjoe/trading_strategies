@@ -112,7 +112,7 @@ class TestSeededBooks:
         book_id = seeded_conn.execute("SELECT id FROM books WHERE name = ?", (BOOK_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
             """
-            SELECT s.strategy_key FROM book_strategy_assignments a
+            SELECT s.strategy_key FROM book_strategy_history a
             JOIN strategies s ON s.id = a.strategy_id
             WHERE a.book_id = ? AND a.effective_to IS NULL
             """,
