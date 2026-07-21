@@ -179,11 +179,11 @@ optimizer schema, and CLI optimizer operations are out of scope and belong to
 
 ## Progress Tracker
 
-| Phase | State | Next deliverable |
+| Phase | State | Delivered |
 |---|---|---|
 | Documentation baseline | Complete | Program A scope separated from the optimizer program. |
-| Atomic persistence | Pending | Post-I/O unit-of-work implementation and failure-injection tests. |
-| Hygiene schema and purpose-aware reads | Pending | Typed contracts, drop-and-recreate migration, repository cutover, derived aggregates, and purpose-aware read queries. |
+| Atomic persistence | Complete | Run header, executions, and snapshots wrapped in one post-I/O `unit_of_work`; failure-injection tests at each write boundary. |
+| Hygiene schema and purpose-aware reads | Complete | Migration `0016` (renames, `purpose` + CHECK, dropped aggregates); repository cutover with transport-stable aliases; purpose-aware standalone reads; experiment/window aggregates derived at read time. |
 
 ## Boundaries
 
