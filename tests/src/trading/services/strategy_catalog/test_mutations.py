@@ -26,7 +26,6 @@ def test_create_variant_normalizes_key_and_stores_validated_overrides(conn) -> N
 
     assert record.strategy_key == "trend_fast"
     assert record.primitive == "trend"
-    assert record.style == "trend"
     assert record.status == "draft"
     assert json.loads(record.params_json) == {"fast_window": 5}
 

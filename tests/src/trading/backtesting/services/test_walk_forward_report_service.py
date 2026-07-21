@@ -13,9 +13,9 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
         VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
-            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+            id, strategy_key, primitive, params_json, status, enabled, created_at, updated_at
         )
-        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+        VALUES (900, 'trend', 'trend', '{}', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,
@@ -76,9 +76,9 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
         VALUES (1, 'acct_a', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
-            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+            id, strategy_key, primitive, params_json, status, enabled, created_at, updated_at
         )
-        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+        VALUES (900, 'trend', 'trend', '{}', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,
@@ -163,9 +163,9 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
         VALUES (50, 'acct_wf_strat', 1000, 'SPY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO strategies (
-            id, strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+            id, strategy_key, primitive, params_json, status, enabled, created_at, updated_at
         )
-        VALUES (900, 'trend', 'trend', '{}', 'trend', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+        VALUES (900, 'trend', 'trend', '{}', 'draft', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
             id, account_id, run_name, start_date, end_date, slippage_bps,

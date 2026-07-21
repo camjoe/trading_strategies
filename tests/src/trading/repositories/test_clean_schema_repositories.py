@@ -63,7 +63,6 @@ def _insert_strategy(conn, key: str = "trend_v1") -> int:
         strategy_key=key,
         primitive="trend",
         params_json='{"fast_window": 10, "slow_window": 20}',
-        style="trend",
         created_at=NOW,
         updated_at=NOW,
     )
@@ -101,7 +100,6 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
         strategy_id=strategy_id,
         primitive="trend",
         params_json='{"fast_window": 5, "slow_window": 15}',
-        required_features=None,
         updated_at=NOW,
     )
 
@@ -112,7 +110,6 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
             strategy_id=strategy_id,
             primitive="trend",
             params_json='{"fast_window": 2}',
-            required_features=None,
             updated_at=NOW,
         )
 

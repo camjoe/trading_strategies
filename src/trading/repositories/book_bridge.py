@@ -68,31 +68,31 @@ def strategy_id_for_label(
         return int(row[0])
     if not create:
         return None
-    primitive, style = _draft_primitive_and_style(key)
+    primitive = _draft_primitive(key)
     cursor = conn.execute(
         """
         INSERT INTO strategies (
-            strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
+            strategy_key, primitive, params_json, status, enabled, created_at, updated_at
         )
-        VALUES (?, ?, '{}', ?, 'draft', 1, ?, ?)
+        VALUES (?, ?, '{}', 'draft', 1, ?, ?)
         """,
-        (key, primitive, style, now_iso, now_iso),
+        (key, primitive, now_iso, now_iso),
     )
     return int(cursor.lastrowid or 0)
 
 
-def _draft_primitive_and_style(key: str) -> tuple[str, str]:
-    """Canonical primitive id + style for a bridged draft label.
+def _draft_primitive(key: str) -> str:
+    """Canonical primitive id for a bridged draft label.
 
     A draft records the canonical code primitive its label resolves to (e.g.
     ``momentum`` -> ``trend``) so the catalog stays internally consistent. An
-    unrecognized label keeps the raw key as a neutral placeholder primitive,
-    which the catalog resolver reports as unresolvable at read time.
+    unrecognized label keeps the raw key as a placeholder primitive, which the
+    catalog resolver reports as unresolvable at read time. Style and required
+    features are code-owned (``PrimitiveSpec``) and no longer stored.
     """
     from trading.domain.strategy_signals import resolve_strategy
 
     try:
-        spec = resolve_strategy(key)
+        return resolve_strategy(key).strategy_id
     except ValueError:
-        return key, "neutral"
-    return spec.strategy_id, spec.strategy_style
+        return key

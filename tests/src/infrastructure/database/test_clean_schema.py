@@ -66,8 +66,8 @@ def _insert_strategy(conn, key: str = "trend") -> int:
     cursor = conn.execute(
         """
         INSERT INTO strategies (
-            strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-        ) VALUES (?, 'trend', '{"fast_window": 10}', 'trend', 'draft', 1,
+            strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+        ) VALUES (?, 'trend', '{"fast_window": 10}', 'draft', 1,
                   '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (key,),
@@ -151,8 +151,8 @@ def test_strategies_status_vocabulary_enforced(conn) -> None:
         conn.execute(
             """
             INSERT INTO strategies (
-                strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-            ) VALUES ('bad_status', 'trend', '{}', 'trend', 'archived', 1,
+                strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+            ) VALUES ('bad_status', 'trend', '{}', 'archived', 1,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """
         )

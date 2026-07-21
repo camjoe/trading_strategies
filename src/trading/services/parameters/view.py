@@ -13,6 +13,7 @@ from dataclasses import fields
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
+from trading.domain.strategy_signals import resolve_primitive
 from trading.models.books.book_record import BookRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
@@ -196,12 +197,21 @@ def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) 
     ]
 
 
+def _primitive_style(primitive: str) -> str:
+    """The code primitive's style; ``strategies`` no longer stores a copy (revision 0017)."""
+    try:
+        return resolve_primitive(primitive).style
+    except ValueError:
+        return "unresolved"
+
+
 def _strategy_groups(conn: sqlite3.Connection) -> list[ParameterGroup]:
     groups: list[ParameterGroup] = []
     for strategy in StrategyRepository(conn).fetch_all():
         entries = (
             ParameterEntry(name="primitive", value=strategy.primitive, source=PARAMETER_SOURCE_DB),
-            ParameterEntry(name="style", value=strategy.style, source=PARAMETER_SOURCE_DB),
+            # style is code-owned (PrimitiveSpec), derived from the primitive.
+            ParameterEntry(name="style", value=_primitive_style(strategy.primitive), source=PARAMETER_SOURCE_DEFAULT),
             ParameterEntry(name="status", value=strategy.status, source=PARAMETER_SOURCE_DB),
             ParameterEntry(name="enabled", value=_render(bool(strategy.enabled)), source=PARAMETER_SOURCE_DB),
             ParameterEntry(name="params", value=strategy.params_json, source=PARAMETER_SOURCE_DB),

@@ -50,8 +50,6 @@ def create_strategy_variant(
         strategy_key=key,
         primitive=spec.primitive,
         params_json=json.dumps(validated, sort_keys=True),
-        style=spec.style,
-        required_features=json.dumps(list(spec.required_features)) if spec.required_features else None,
         description=description,
         status="draft",
         enabled=1,
@@ -88,7 +86,6 @@ def configure_strategy(
             strategy_id=record.id,
             primitive=record.primitive,
             params_json=json.dumps(merged, sort_keys=True),
-            required_features=record.required_features,
             updated_at=now,
         )
     if enabled is not None:

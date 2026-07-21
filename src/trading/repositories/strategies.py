@@ -29,8 +29,6 @@ class StrategyRepository:
         strategy_key: str,
         primitive: str,
         params_json: str,
-        style: str,
-        required_features: str | None = None,
         description: str | None = None,
         status: str = "draft",
         enabled: int = 1,
@@ -40,17 +38,15 @@ class StrategyRepository:
         cursor = self._conn.execute(
             """
             INSERT INTO strategies (
-                strategy_key, primitive, params_json, style, required_features,
+                strategy_key, primitive, params_json,
                 description, status, enabled, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 strategy_key,
                 primitive,
                 params_json,
-                style,
-                required_features,
                 description,
                 status,
                 int(enabled),
@@ -91,17 +87,16 @@ class StrategyRepository:
         strategy_id: int,
         primitive: str,
         params_json: str,
-        required_features: str | None,
         updated_at: str,
     ) -> None:
         """Update a draft strategy's primitive/knobs; rejects non-draft rows (invariant 5)."""
         cursor = self._conn.execute(
             """
             UPDATE strategies
-            SET primitive = ?, params_json = ?, required_features = ?, updated_at = ?
+            SET primitive = ?, params_json = ?, updated_at = ?
             WHERE id = ? AND status = 'draft'
             """,
-            (primitive, params_json, required_features, updated_at, int(strategy_id)),
+            (primitive, params_json, updated_at, int(strategy_id)),
         )
         if cursor.rowcount == 0:
             self._conn.rollback()
