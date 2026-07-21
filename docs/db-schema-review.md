@@ -1,5 +1,12 @@
 # DB Schema Review — table-by-table walkthrough
 
+Type: notes
+Status: Draft
+Created: 2026-07-17
+Last Reviewed: 2026-07-21
+Purpose: Track the table-by-table schema review — findings, decisions, and deferred cleanup — for the trading database.
+Related: [Database Schema](reference/db-schema.md), [Walk-Forward Optimization Plan](reference/walk-forward-optimization-plan.md)
+
 Working notes for the `features/db-final-overview` schema review (started 2026-07-17).
 Findings are logged by disposition; nothing here is a change commitment until decided.
 
@@ -77,14 +84,18 @@ Findings:
    self-commits. Crash mid-sequence leaves inconsistent projections; the
    `check_cash_invariant` script detects but does not prevent. Fix: unit-of-work
    wrapper (BEGIN … single COMMIT, repos skip self-commit inside it). Cheap now
-   that WAL is on.
-2. **No status_reason on orders** — broker rejection/cancellation reasons are lost
-   (gate blocks are captured in risk_decisions, broker reasons are not). Candidate:
-   nullable `status_reason` TEXT. An order_events lifecycle table is the heavier
-   alternative; deferred unless live-trading audit demands it.
-3. **`order_fills.broker_fill_id` is duplicative** — both write sites populate it
-   with the parent order's `broker_order_id`, not a per-fill broker id. Either store
-   a real broker fill id or drop the column; `exec_id` does the dedupe work.
+   that WAL is on. **Status: NEXT — its own commit (per Cameron, 2026-07-21).**
+2. **No status_reason on orders** — broker rejection/cancellation reasons were lost
+   (gate blocks are captured in risk_decisions, broker reasons were not).
+   **DONE (revision 0010, 2026-07-21):** nullable `status_reason TEXT` added; wired
+   end to end `BrokerOrder.status_reason` → `OrderRepository.insert`/`update_status`
+   (COALESCEd so a later poll cannot erase a recorded reason). Follow-up: the IB
+   adapters do not populate `BrokerOrder.status_reason` yet — a bounded change under
+   the Live Trading Safety Guard.
+3. **`order_fills.broker_fill_id` was duplicative** — every write site set it to the
+   parent order's `broker_order_id`, never a per-fill id; `exec_id` carries per-fill
+   identity + dedupe. **DONE (revision 0010, 2026-07-21):** column dropped, parameter
+   removed from `insert_fill` and all three call sites.
 4. Documented assumptions (fine, but schema-level): `positions` cannot represent a
    short (qty ≤ 0 deletes the row); `market_value`/`unrealized_pnl` are fill-marked
    until the NAV pass re-marks them.

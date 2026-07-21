@@ -28,6 +28,7 @@ class OrderRecord:
     commission: float
     submitted_at: str
     updated_at: str
+    status_reason: str | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> OrderRecord:
@@ -50,4 +51,5 @@ class OrderRecord:
             commission=row_expect_float(values, "commission"),
             submitted_at=row_expect_str(values, "submitted_at"),
             updated_at=row_expect_str(values, "updated_at"),
+            status_reason=row_str(values, "status_reason"),
         )

@@ -76,7 +76,6 @@ def reconcile_open_orders_impl(
                     fill_price=fill.fill_price,
                     fill_time=fill.fill_time,
                     commission=fill.commission,
-                    broker_fill_id=live.broker_order_id,
                     exec_id=exec_id,
                 )
                 apply_book_fill(
@@ -98,6 +97,7 @@ def reconcile_open_orders_impl(
                 filled_qty=live.filled_qty,
                 avg_fill_price=live.avg_fill_price,
                 updated_at=now,
+                status_reason=live.status_reason,
             )
 
             if live.status == OrderStatus.FILLED:

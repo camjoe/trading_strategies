@@ -5,7 +5,7 @@ Status: Draft
 Created: 2026-07-17
 Last Reviewed: 2026-07-17
 Purpose: Plan a leakage-safe evolution from rolling-window robustness tests to a full train-optimize-test walk-forward optimization system.
-Related: [Backtesting](backtesting.md), [Database Diagram Decisions](database-diagram-decisions.md), [Database Schema](db-schema.md), [DB Schema Review](../db_schema_review.md)
+Related: [Backtesting](backtesting.md), [Database Diagram Decisions](database-diagram-decisions.md), [Database Schema](db-schema.md), [DB Schema Review](../db-schema-review.md)
 
 ## Purpose
 

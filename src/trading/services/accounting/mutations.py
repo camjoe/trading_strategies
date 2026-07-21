@@ -116,7 +116,6 @@ def record_trade(
         fill_price=float(price),
         fill_time=entry_time,
         commission=float(fee),
-        broker_fill_id=None,
         exec_id=f"manual:{order_id}",
     )
     apply_book_fill(

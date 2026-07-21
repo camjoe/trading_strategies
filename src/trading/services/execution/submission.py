@@ -209,6 +209,7 @@ def submit_book_intents(
             commission=float(placed.commission),
             submitted_at=placed.submitted_at or submitted_at,
             updated_at=updated_at,
+            status_reason=placed.status_reason,
         )
         order_ids.append(order_id)
 
@@ -225,7 +226,6 @@ def submit_book_intents(
                 fill_price=float(fill.fill_price),
                 fill_time=fill.fill_time,
                 commission=float(fill.commission) + fee_share,
-                broker_fill_id=placed.broker_order_id,
                 exec_id=fill.exec_id,
             )
 
@@ -246,7 +246,6 @@ def submit_book_intents(
                     fill_price=fill_price,
                     fill_time=fill_time,
                     commission=float(placed.commission) + float(fee),
-                    broker_fill_id=placed.broker_order_id,
                     exec_id=None,
                 )
             apply_book_fill(
