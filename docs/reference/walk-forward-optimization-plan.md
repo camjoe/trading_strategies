@@ -1,30 +1,34 @@
-# Walk-Forward Optimization Plan
+# Program B — Walk-Forward Optimizer Plan
 
 Type: notes
 Status: Active
 Created: 2026-07-17
 Last Reviewed: 2026-07-21
-Purpose: Define the accepted leakage-safe methodology for evolving rolling-window tests into full train-optimize-test walk-forward optimization.
-Related: [Research Persistence and Walk-Forward Completion Plan](research-persistence-review.md), [Backtesting](backtesting.md), [Database Transactions](database-transactions.md), [Database Schema](db-schema.md)
+Purpose: Own the methodology, leakage controls, schema, delivery phases, and completion criteria for evolving rolling-window tests into full train-optimize-test walk-forward optimization.
+Related: [Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md), [Backtesting](backtesting.md), [Database Transactions](database-transactions.md), [Database Schema](db-schema.md), [Database Diagram Decisions](database-diagram-decisions.md)
 
 ## Purpose
 
-This document owns the financial methodology, leakage controls, optimization rules, and evaluation
-honesty requirements for full walk-forward optimization. The
-[Research Persistence and Walk-Forward Completion Plan](research-persistence-review.md) owns schema
-sequencing, delivery phases, and progress.
+This is the canonical plan for **Program B — the walk-forward optimizer**: the financial methodology,
+leakage controls, optimizer schema, delivery phases, and evaluation-honesty requirements for full
+train-optimize-test walk-forward optimization.
 
-This is a plan until its completion criteria are implemented. It must not be read as a claim that
-the current workflow already performs optimization.
+It is a plan until its completion criteria are implemented. It must not be read as a claim that the
+current workflow already performs optimization.
+
+**Prerequisite.** Program B builds on [Program A](research-persistence-review.md) — the renamed tables
+(`walk_forward_experiments`, `walk_forward_windows`, `backtest_executions`), the
+`backtest_runs.purpose` discriminator, and atomic persistence. Program A must be merged before Program B
+begins; Program B adds its own numbered migration on top of Program A's schema.
 
 ## Current Capability
 
-The current workflow executes a fixed strategy across chronologically shifted test windows. It
-stores each simulation as a normal backtest and groups the window results.
+The current workflow executes a fixed strategy across chronologically shifted test windows. It stores
+each simulation as a normal backtest and groups the window results.
 
-This is **rolling-window robustness testing**. It is useful evidence, but it is not full
-walk-forward optimization because it has no earlier training interval, candidate trials,
-predeclared selection objective, frozen winner, or untouched final holdout.
+This is **rolling-window robustness testing**. It is useful evidence, but it is not full walk-forward
+optimization because it has no earlier training interval, candidate trials, predeclared selection
+objective, frozen winner, or untouched final holdout.
 
 ## Target Lifecycle
 
@@ -53,14 +57,14 @@ Use a single training policy for now:
 - **Rolling (current):** use the fixed-length interval immediately preceding each test window.
 
 **Expanding training windows** (a fixed inception date extended through the date before each test
-window) are **deferred future work.** Persist the policy name with the experiment so an expanding
-policy can be added later without a schema change.
+window) are **deferred future work.** Persist the policy name with the experiment so an expanding policy
+can be added later without a schema change.
 
-Production defaults are 12 training months, 1-month test windows, 1-month steps, and a final
-untouched 6-month holdout. These values remain configurable and must be persisted.
+Production defaults are 12 training months, 1-month test windows, 1-month steps, and a final untouched
+6-month holdout. These values remain configurable and must be persisted.
 
-Each window persists `train_start`, `train_end`, `test_start`, and `test_end`. Training must end
-before testing starts. The final holdout is excluded from every training and OOS interval.
+Each window persists `train_start`, `train_end`, `test_start`, and `test_end`. Training must end before
+testing starts. The final holdout is excluded from every training and OOS interval.
 
 ### Warm-up and source availability
 
@@ -68,13 +72,14 @@ Indicator warm-up observations may precede a scoring interval, but they are used
 calculations. They do not count toward objective metrics or eligibility sample sizes. Persist the
 warm-up policy with the experiment and run manifests.
 
-Price-only daily strategies may use zero embargo because signals use prior-day values and execute on
-the next bar. External features must declare their point-in-time availability or publication lag.
-Apply that lag during construction and persist it with the source provenance. An explicit positive
-embargo remains available when a source requires additional separation.
+Price-only daily strategies may use zero embargo because signals use prior-day values and execute on the
+next bar. External features must declare their point-in-time availability or publication lag. Apply that
+lag during construction and persist it with the source provenance. An explicit positive embargo remains
+available when a source requires additional separation.
 
-An embargo is not a substitute for point-in-time data. Revised external data is eligible only when
-the stored artifact represents what would have been available at the simulated decision time.
+An embargo is not a substitute for point-in-time data. Revised external data is eligible only when the
+recorded provider/as-of metadata represents what would have been available at the simulated decision
+time.
 
 ### OOS overlap
 
@@ -84,18 +89,17 @@ reports must not imply continuous exposure across those gaps.
 
 ## Candidate Search
 
-Candidate parameters come from an explicit, bounded search-space snapshot compatible with the
-strategy primitive's existing validation schema. Optimization must never mutate
-`strategies.params_json`; the simulator receives an immutable validated override.
+Candidate parameters come from an explicit, bounded search-space snapshot compatible with the strategy
+primitive's existing validation schema. Optimization must never mutate `strategies.params_json`; the
+simulator receives an immutable validated override.
 
 Use a single optimizer for now:
 
 - **exhaustive deterministic grid search.**
 
-Every experiment persists optimizer name/version, canonical search-space snapshot, and candidate
-budget. Candidate ordering and canonical parameter serialization must be deterministic. Reject a
-grid whose Cartesian product exceeds the explicit candidate budget rather than truncating it
-invisibly.
+Every experiment persists optimizer name/version, canonical search-space snapshot, and candidate budget.
+Candidate ordering and canonical parameter serialization must be deterministic. Reject a grid whose
+Cartesian product exceeds the explicit candidate budget rather than truncating it invisibly.
 
 **Seeded random search and a pluggable optimizer interface are deferred future work.** Persist the
 optimizer name/version (and a seed field, unused by grid) so a second optimizer can be added later
@@ -104,8 +108,8 @@ persist all model state, search history, stopping rules, and seeds needed to exp
 
 ## Objective and Eligibility
 
-The initial objective is `calmar_v1`. It is selected before execution and applied identically to
-every candidate and window.
+The initial objective is `calmar_v1`. It is selected before execution and applied identically to every
+candidate and window.
 
 A training candidate is eligible only when it has:
 
@@ -121,8 +125,8 @@ The score is:
 annualized_return_pct / max(abs(max_drawdown_pct), 1.0)
 ```
 
-The one-percentage-point denominator floor makes the zero-drawdown case finite and persistable.
-Rank higher scores first. Deterministic ties resolve by:
+The one-percentage-point denominator floor makes the zero-drawdown case finite and persistable. Rank
+higher scores first. Deterministic ties resolve by:
 
 1. higher annualized return;
 2. lower absolute drawdown;
@@ -130,11 +134,42 @@ Rank higher scores first. Deterministic ties resolve by:
 4. canonical candidate order.
 
 Persist the objective name/version, value, component metrics, eligibility, rejection reasons, and
-tie-break fields for every candidate. If no candidate is eligible, fail the experiment; never select
-the least-bad ineligible candidate.
+tie-break fields for every candidate. If no candidate is eligible, fail the experiment; never select the
+least-bad ineligible candidate.
 
 Test and holdout results are evaluation outputs only. They must never influence candidate ranking or
 cause an earlier winner to be replaced.
+
+## Run Manifests
+
+`book_strategy_history` and `book_universe_history` remain useful lineage sources, but they cannot
+reproduce a run by themselves. At execution time, resolve effective state and freeze it into a versioned
+run manifest.
+
+The manifest includes:
+
+- strategy identity and exact validated parameters;
+- effective account/book settings that affect simulation;
+- initial cash, benchmark, dates, fees, slippage, warm-up, and execution policies;
+- exact universe membership and its source lineage;
+- market and external-feature provider/as-of metadata;
+- engine version, application build, source revision, and dirty-state provenance;
+- manifest schema version.
+
+The manifest is a **provenance and audit record**, not a replay input. It captures enough to explain and
+trust what a run consumed; it is not a guarantee that the run can be re-executed offline from stored
+bytes. **Offline replay and input-payload storage are both out of scope.**
+
+The plan does not persist full input *payloads*: there is no content-addressed artifact store, no
+canonical-JSON hashing, no deduplication, and no `research_artifacts` table. Provider/source and as-of
+metadata on the manifest are the record of what a run consumed. One accepted consequence is that a later
+rerun may differ slightly if the data provider has revised history; that is a trade-off for this
+workflow, not a defect. Point-in-time *validity* — ensuring a run never used information unavailable at
+the simulated decision time — is handled by the availability-lag and as-of controls in
+[Provenance and Leakage Controls](#provenance-and-leakage-controls), which need only metadata.
+
+Optimization injects an immutable validated parameter override into the simulator and never mutates
+`strategies.params_json`. A run is eligible for promotion only when its manifest is complete.
 
 ## Persistence and Failure Semantics
 
@@ -148,9 +183,9 @@ Persist trial summaries rather than full training result trees. Each trial recor
 - whether it was selected.
 
 Full executions and equity snapshots are reserved for selected OOS and final-holdout runs.
-Experiment/window tables own membership; shared `backtest_runs` rows own complete simulator results.
-The final table ownership and migration are specified in the
-[completion plan](research-persistence-review.md#final-schema-direction).
+`walk_forward_experiments` / `walk_forward_windows` own membership; shared `backtest_runs` rows own
+complete simulator results. The table ownership and migration are specified in
+[Program B Schema and Migration](#program-b-schema-and-migration).
 
 The workflow is fail-fast:
 
@@ -163,8 +198,8 @@ Failed experiment metadata is audit evidence. Partial backtest executions or equ
 
 ## OOS and Holdout Evaluation
 
-After candidate selection, freeze the selected parameters and manifest before the OOS interval
-begins. Execute each OOS period exactly once for that experiment.
+After candidate selection, freeze the selected parameters and manifest before the OOS interval begins.
+Execute each OOS period exactly once for that experiment.
 
 Report two OOS views:
 
@@ -174,10 +209,10 @@ Report two OOS views:
 Do not sum or directly concatenate independently reset account equity values. Chain-link returns and
 label any gaps introduced by a step longer than the test interval.
 
-After all OOS windows complete, run the selected process over the untouched 6-month holdout. The
-holdout is required before this new optimization evidence can satisfy research promotion. Promotion
-uses completed, reproducible OOS and holdout evidence and the configured promotion gates; it does
-not use training performance as realized evidence.
+After all OOS windows complete, run the selected process over the untouched 6-month holdout. The holdout
+is required before this new optimization evidence can satisfy research promotion. Promotion uses
+completed OOS and holdout evidence and the configured promotion gates; it does not use training
+performance as realized evidence.
 
 Rolling-window experiments remain reportable but do not satisfy the full optimization requirement.
 
@@ -190,7 +225,7 @@ inputs:
 - initial capital, benchmark, fees, slippage, execution, and warm-up configuration;
 - exact universe membership;
 - market and feature data provider and as-of metadata (full input-payload storage and offline replay
-  are out of scope; see the completion plan);
+  are out of scope; see [Run Manifests](#run-manifests));
 - engine/objective/optimizer versions and source/build provenance.
 
 Required controls:
@@ -204,6 +239,28 @@ Required controls:
 | Regime specialization | Compare window stability and chain-linked OOS behavior, not only an aggregate return. |
 | Inconsistent assumptions | Freeze one input manifest and configuration for comparable candidates. |
 | Misleading reporting | Label training, OOS, and holdout metrics separately and never blend them. |
+
+## Program B Schema and Migration
+
+Program B adds its own numbered migration on top of Program A's renamed tables. It should:
+
+- add manifest, engine/build, structured warning, and provenance fields to `backtest_runs`;
+- add `optimization_trials` (per-candidate summaries: canonical parameters and hash, candidate/optimizer
+  sequence, objective components and value, eligibility and rejection reasons, status/warnings/duration,
+  provenance, and a selected flag);
+- evolve `walk_forward_experiments` with methodology, training policy, window lengths, embargo/lag
+  policy, optimizer/objective versions, frozen search space, candidate budget, lifecycle, failure
+  details, timestamps, and a final-holdout run relationship;
+- evolve `walk_forward_windows` with train/test boundaries (`train_start`, `train_end`, `test_start`,
+  `test_end`), status, OOS run ownership, and selection information;
+- enforce one candidate index and candidate hash per window and at most one selected trial per window
+  through partial unique indexes;
+- add composite run/date, experiment/window, and purpose/latest-evidence indexes;
+- add safe numeric, state, and chronological checks (training ends before testing; non-overlapping OOS).
+
+A `research_artifacts` table, a run-to-artifact relationship table, and an artifact-hash index are **not
+part of this plan** (see [Run Manifests](#run-manifests)): the manifest carries provider/as-of metadata
+instead of stored input payloads.
 
 ## Architecture Alignment
 
@@ -225,6 +282,56 @@ Expanding training windows, seeded random search, a pluggable optimizer interfac
 input-payload artifact storage, web parity, a scheduled runtime job, resumability, Bayesian
 optimization, and automatic artifact pruning are separate work and do not block the accepted
 CLI/service completion boundary.
+
+## Implementation Phases
+
+Program B begins after [Program A](research-persistence-review.md) merges.
+
+### Phase B1: Immutable simulation inputs
+
+- Add immutable validated parameter overrides without mutating `strategies.params_json`.
+- Resolve and freeze the effective configuration manifest (provenance and audit) before persistence.
+- **Offline replay and input-payload storage are out of scope.** Persist provider/source and as-of
+  metadata on the manifest instead of full input payloads — no content-addressed store, hashing, or
+  deduplication (see [Run Manifests](#run-manifests)).
+- Land the migration described in [Program B Schema and Migration](#program-b-schema-and-migration).
+
+Developer verification: a persisted run resolves to a complete, human-auditable manifest (validated
+parameters, configuration, universe lineage, provider/as-of metadata, and engine/build provenance)
+without mutating any canonical strategy parameters.
+
+### Phase B2: Training and selection
+
+- Build leakage-safe rolling training windows. (Expanding is deferred future work.)
+- Implement deterministic grid candidate generation. (Seeded random and a pluggable optimizer interface
+  are deferred future work.)
+- Persist every attempted candidate summary and apply `calmar_v1` deterministically.
+- Freeze the selected parameters before OOS execution.
+
+Developer verification: a fixed changing-regime fixture selects the expected candidate using training
+data only.
+
+### Phase B3: OOS and holdout execution
+
+- Execute one complete atomic OOS run for each selected window.
+- Produce window-distribution and chain-linked, non-overlapping OOS metrics.
+- Run the untouched holdout after every OOS window completes.
+- On failure, roll back the active result tree, mark the experiment failed, and stop.
+
+Developer verification: every OOS and holdout result traces to immutable parameters, inputs, and a prior
+training selection.
+
+### Phase B4: Evidence consumers and operations
+
+- Make promotion queries purpose-aware and gate on the new evidence model. (Latest-run, leaderboard, and
+  evaluation queries were already made purpose-aware in Program A.)
+- Require a completed optimization experiment, passing OOS evidence, and a passing untouched holdout
+  before the new evidence satisfies research promotion.
+- Keep rolling-window tests reportable without treating them as full optimization.
+- Add CLI creation, status, failure inspection, and detailed reporting over shared services.
+
+Developer verification: a CLI report traces promotion evidence through the experiment, windows, selected
+trials, OOS runs, holdout, and manifests.
 
 ## Validation Strategy
 
@@ -264,12 +371,33 @@ The capability may be called full train-optimize-test walk-forward optimization 
 - rolling-window tests remain correctly identified;
 - shared services and CLI operation work without requiring the web UI.
 
-Implementation phases and progress are tracked in the
-[Research Persistence and Walk-Forward Completion Plan](research-persistence-review.md#implementation-phases).
+Program A (schema hygiene and atomic persistence) is tracked separately in
+[Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md).
+
+## Progress Tracker
+
+Program B begins after [Program A](research-persistence-review.md) merges.
+
+| Phase | State | Next deliverable |
+|---|---|---|
+| B1 — Immutable simulation inputs | Pending | Program B migration, manifest resolution, and immutable parameter overrides (no input-payload store). |
+| B2 — Training and selection | Pending | Grid search and `calmar_v1` (single rolling policy; random/pluggable/expanding deferred). |
+| B3 — OOS and final holdout | Pending | Atomic OOS/holdout execution and aggregation. |
+| B4 — Evidence consumers and CLI | Pending | Purpose-aware promotion, evidence reporting, and CLI operations. |
+
+## Boundaries
+
+- Do not claim a run can be re-executed offline; the manifest is a provenance and audit record, not a
+  replay guarantee.
+- Do not let training, failed, or incomplete runs silently enter standalone or promotion evidence.
+- Do not blend training metrics into reported OOS or holdout performance.
+- Do not mutate canonical strategy parameters during optimization.
+- Do not add expanding windows, seeded random search, a pluggable optimizer interface, offline replay,
+  or an input-payload store within this completion boundary.
 
 ## Related Docs
 
-- [Research persistence and walk-forward completion plan](research-persistence-review.md)
+- [Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md)
 - [Backtesting reference](backtesting.md)
 - [Database transactions](database-transactions.md)
 - [Database schema](db-schema.md)
