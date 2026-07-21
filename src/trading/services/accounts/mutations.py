@@ -151,8 +151,8 @@ def create_account(
             "trade_size_pct": trade_size_pct,
             "max_position_pct": max_position_pct,
             "instrument_mode": mode,
-            "profit_take_pct": cfg.profit_take_pct,
-            "max_loss_pct": cfg.max_loss_pct,
+            "option_profit_take_pct": cfg.option_profit_take_pct,
+            "option_max_loss_pct": cfg.option_max_loss_pct,
             "option_strike_offset_pct": cfg.option_strike_offset_pct,
             "option_min_dte": cfg.option_min_dte,
             "option_max_dte": cfg.option_max_dte,
@@ -260,8 +260,12 @@ def configure_account(
             "take_profit_pct": expect_float(cfg.take_profit_pct) if cfg.take_profit_pct is not None else None,
             "trade_size_pct": expect_float(cfg.trade_size_pct) if cfg.trade_size_pct is not None else None,
             "max_position_pct": expect_float(cfg.max_position_pct) if cfg.max_position_pct is not None else None,
-            "profit_take_pct": expect_float(cfg.profit_take_pct) if cfg.profit_take_pct is not None else None,
-            "max_loss_pct": expect_float(cfg.max_loss_pct) if cfg.max_loss_pct is not None else None,
+            "option_profit_take_pct": expect_float(cfg.option_profit_take_pct)
+            if cfg.option_profit_take_pct is not None
+            else None,
+            "option_max_loss_pct": expect_float(cfg.option_max_loss_pct)
+            if cfg.option_max_loss_pct is not None
+            else None,
             "option_type": normalize_option_type(cfg.option_type) if cfg.option_type is not None else None,
             "option_strike_offset_pct": (
                 expect_float(cfg.option_strike_offset_pct) if cfg.option_strike_offset_pct is not None else None

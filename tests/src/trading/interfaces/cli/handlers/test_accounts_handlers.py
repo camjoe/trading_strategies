@@ -41,8 +41,8 @@ def _config_args(**kwargs) -> types.SimpleNamespace:
         iv_rank_min=None,
         iv_rank_max=None,
         roll_dte_threshold=None,
-        profit_take_pct=None,
-        max_loss_pct=None,
+        option_profit_take_pct=None,
+        option_max_loss_pct=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)

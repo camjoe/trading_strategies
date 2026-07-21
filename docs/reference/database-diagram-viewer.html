@@ -276,7 +276,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 16:50 17-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 10:17 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -419,7 +419,7 @@
       ]
     }
   ],
-  "generatedAt": "16:50 17-07-2026 PST",
+  "generatedAt": "10:17 21-07-2026 PST",
   "sections": [
     {
       "color": "#2563eb",
@@ -1628,7 +1628,7 @@
         },
         {
           "default": null,
-          "name": "profit_take_pct",
+          "name": "option_profit_take_pct",
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1636,7 +1636,7 @@
         },
         {
           "default": null,
-          "name": "max_loss_pct",
+          "name": "option_max_loss_pct",
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
@@ -2425,14 +2425,6 @@
         },
         {
           "default": null,
-          "name": "broker_fill_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "exec_id",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -2665,6 +2657,14 @@
           "default": null,
           "name": "updated_at",
           "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "status_reason",
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"

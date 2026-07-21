@@ -35,8 +35,8 @@ export interface AccountConfigFields {
   ivRankMin: number | null;
   ivRankMax: number | null;
   rollDteThreshold: number | null;
-  profitTakePct: number | null;
-  maxLossPct: number | null;
+  optionProfitTakePct: number | null;
+  optionMaxLossPct: number | null;
   activeStrategy?: string;
   rotation?: RotationSettings | null;
 }

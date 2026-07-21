@@ -25,8 +25,8 @@
       "iv_rank_min": 20,
       "iv_rank_max": 80,
       "roll_dte_threshold": 45,
-      "profit_take_pct": 30,
-      "max_loss_pct": 20
+      "option_profit_take_pct": 30,
+      "option_max_loss_pct": 20
     },
     {
       "name": "meanrev_5k",
@@ -52,8 +52,8 @@
       "iv_rank_min": 15,
       "iv_rank_max": 70,
       "roll_dte_threshold": 40,
-      "profit_take_pct": 25,
-      "max_loss_pct": 18
+      "option_profit_take_pct": 25,
+      "option_max_loss_pct": 18
     },
     {
       "name": "rotation_time_agg_5k",
@@ -77,8 +77,8 @@
           "volatility_filtered_trend"
         ]
       },
-      "max_loss_pct": 20,
-      "profit_take_pct": 25
+      "option_max_loss_pct": 20,
+      "option_profit_take_pct": 25
     },
     {
       "name": "rotation_optimal_agg_5k",
@@ -104,8 +104,8 @@
         ],
         "lookback_days": 90
       },
-      "max_loss_pct": 20,
-      "profit_take_pct": 25
+      "option_max_loss_pct": 20,
+      "option_profit_take_pct": 25
     }
   ]
 }

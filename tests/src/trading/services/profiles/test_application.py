@@ -40,8 +40,8 @@ class TestApplyAccountProfiles:
                 "iv_rank_min": 20,
                 "iv_rank_max": 80,
                 "roll_dte_threshold": 45,
-                "profit_take_pct": 30,
-                "max_loss_pct": 20,
+                "option_profit_take_pct": 30,
+                "option_max_loss_pct": 20,
             }
         ]
 

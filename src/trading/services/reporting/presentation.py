@@ -54,8 +54,8 @@ def _print_leaps_params(book: BookRecord) -> None:
         f"max_premium={book.max_premium_per_trade} "
         f"max_contracts={book.max_contracts_per_trade} "
         f"roll_dte={book.roll_dte_threshold} "
-        f"leaps_profit_take_pct={book.profit_take_pct} "
-        f"leaps_max_loss_pct={book.max_loss_pct}"
+        f"option_profit_take_pct={book.option_profit_take_pct} "
+        f"option_max_loss_pct={book.option_max_loss_pct}"
     )
 
 
