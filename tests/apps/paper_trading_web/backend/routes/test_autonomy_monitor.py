@@ -37,9 +37,7 @@ def test_api_autonomy_accounts_returns_list(api_client: TestClient) -> None:
 def test_api_autonomy_account_detail_returns_data(api_client: TestClient) -> None:
     """Test that /api/autonomy/accounts/{account_name} returns account detail."""
     with patch("paper_trading_web.backend.routes.autonomy_monitor.db_conn") as mock_db:
-        with patch(
-            "paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data"
-        ) as mock_fetch:
+        with patch("paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.return_value = {
@@ -71,9 +69,7 @@ def test_api_autonomy_account_detail_returns_404_when_not_found(
 ) -> None:
     """Test that 404 is returned when account not found."""
     with patch("paper_trading_web.backend.routes.autonomy_monitor.db_conn") as mock_db:
-        with patch(
-            "paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data"
-        ) as mock_fetch:
+        with patch("paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.side_effect = NotFoundError("Account not found: nonexistent")

@@ -72,15 +72,11 @@ def test_fetch_autonomy_account_data_aggregates_db_and_artifacts(
     }
 
     with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_db_data") as mock_db:
-        with patch(
-            "paper_trading_web.backend.services.autonomy_monitor.fetch_daily_workflow_status"
-        ) as mock_workflow:
+        with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_daily_workflow_status") as mock_workflow:
             with patch(
                 "paper_trading_web.backend.services.autonomy_monitor.fetch_governance_checks_status"
             ) as mock_governance:
-                with patch(
-                    "paper_trading_web.backend.services.autonomy_monitor.fetch_burn_in_status"
-                ) as mock_burn_in:
+                with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_burn_in_status") as mock_burn_in:
                     mock_db.return_value = db_data
                     mock_workflow.return_value = workflow_data
                     mock_governance.return_value = governance_data

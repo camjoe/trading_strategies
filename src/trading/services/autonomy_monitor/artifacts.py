@@ -30,7 +30,7 @@ def _find_latest_artifact(pattern: str, search_dir: Path) -> dict[str, Any] | No
     try:
         with open(matching_files[0], "r", encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return None
 
 
