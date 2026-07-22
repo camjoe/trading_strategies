@@ -1,4 +1,4 @@
-"""Tests for UI backend IBKR paper account monitoring service."""
+"""Tests for UI backend autonomy monitoring service."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from paper_trading_web.backend.services import ibkr_paper_monitor as service
+from paper_trading_web.backend.services import autonomy_monitor as service
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def mock_conn() -> MagicMock:
     return MagicMock(spec=sqlite3.Connection)
 
 
-def test_fetch_ibkr_paper_accounts_list_delegates_to_trading_service(
+def test_fetch_autonomy_accounts_list_delegates_to_trading_service(
     mock_conn: MagicMock,
 ) -> None:
     """Test that accounts list is delegated to trading service."""
@@ -29,16 +29,16 @@ def test_fetch_ibkr_paper_accounts_list_delegates_to_trading_service(
         },
     ]
 
-    with patch("paper_trading_web.backend.services.ibkr_paper_monitor.fetch_db_accounts_list") as mock_fetch:
+    with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_db_accounts_list") as mock_fetch:
         mock_fetch.return_value = expected_accounts
 
-        result = service.fetch_ibkr_paper_accounts_list(mock_conn)
+        result = service.fetch_autonomy_accounts_list(mock_conn)
 
         assert result == expected_accounts
         mock_fetch.assert_called_once_with(mock_conn)
 
 
-def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
+def test_fetch_autonomy_account_data_aggregates_db_and_artifacts(
     mock_conn: MagicMock,
 ) -> None:
     """Test that dashboard data combines DB data with artifact data."""
@@ -71,22 +71,18 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
         "min_required_successes": 10,
     }
 
-    with patch("paper_trading_web.backend.services.ibkr_paper_monitor.fetch_db_data") as mock_db:
-        with patch(
-            "paper_trading_web.backend.services.ibkr_paper_monitor.fetch_daily_workflow_status"
-        ) as mock_workflow:
+    with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_db_data") as mock_db:
+        with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_daily_workflow_status") as mock_workflow:
             with patch(
-                "paper_trading_web.backend.services.ibkr_paper_monitor.fetch_governance_checks_status"
+                "paper_trading_web.backend.services.autonomy_monitor.fetch_governance_checks_status"
             ) as mock_governance:
-                with patch(
-                    "paper_trading_web.backend.services.ibkr_paper_monitor.fetch_burn_in_status"
-                ) as mock_burn_in:
+                with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_burn_in_status") as mock_burn_in:
                     mock_db.return_value = db_data
                     mock_workflow.return_value = workflow_data
                     mock_governance.return_value = governance_data
                     mock_burn_in.return_value = burn_in_data
 
-                    result = service.fetch_account_ibkr_paper_monitor_data(mock_conn, "test_account")
+                    result = service.fetch_autonomy_account_data(mock_conn, "test_account")
 
                     # Check that DB data is present
                     assert result["account"]["name"] == "test_account"
@@ -105,12 +101,12 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
                     mock_burn_in.assert_called_once()
 
 
-def test_fetch_account_ibkr_paper_monitor_data_raises_on_missing_account(
+def test_fetch_autonomy_account_data_raises_on_missing_account(
     mock_conn: MagicMock,
 ) -> None:
     """Test that ValueError is propagated when account not found."""
-    with patch("paper_trading_web.backend.services.ibkr_paper_monitor.fetch_db_data") as mock_db:
+    with patch("paper_trading_web.backend.services.autonomy_monitor.fetch_db_data") as mock_db:
         mock_db.side_effect = ValueError("Account not found: nonexistent")
 
         with pytest.raises(ValueError, match="Account not found"):
-            service.fetch_account_ibkr_paper_monitor_data(mock_conn, "nonexistent")
+            service.fetch_autonomy_account_data(mock_conn, "nonexistent")

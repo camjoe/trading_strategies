@@ -85,19 +85,19 @@
     },
     {
       "method": "GET",
-      "path": "/api/ibkr-paper-accounts",
-      "handler": "api_ibkr_paper_accounts",
-      "module": "ibkr_paper_monitor",
+      "path": "/api/autonomy/accounts",
+      "handler": "api_autonomy_accounts",
+      "module": "autonomy_monitor",
       "group": "Accounts & Snapshots Endpoints",
-      "description": "Return list of IBKR paper accounts with sleeve summary and latest run status."
+      "description": "Return list of managed accounts with book summary and latest run status."
     },
     {
       "method": "GET",
-      "path": "/api/ibkr-paper-accounts/{account_name}",
-      "handler": "api_ibkr_paper_account_detail",
-      "module": "ibkr_paper_monitor",
+      "path": "/api/autonomy/accounts/{account_name}",
+      "handler": "api_autonomy_account_detail",
+      "module": "autonomy_monitor",
       "group": "Accounts & Snapshots Endpoints",
-      "description": "Return comprehensive IBKR paper account dashboard data. Includes: - Account overview (total equity, cash, positions) - Sleeve status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
+      "description": "Return comprehensive autonomy dashboard data for a managed account. Includes: - Account overview (total equity, cash, positions) - Book status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
     },
     {
       "method": "GET",

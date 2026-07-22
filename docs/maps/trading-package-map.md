@@ -157,8 +157,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
-| `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
-| `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |
+| `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
+| `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
 | `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
 | `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |

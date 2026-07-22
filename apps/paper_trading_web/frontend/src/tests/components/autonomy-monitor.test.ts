@@ -2,12 +2,12 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  IbkrDailyWorkflow,
+  AutonomyDailyWorkflow,
   GovernanceCheckStatus,
   BurnInStatus,
   RotationDecision,
   RiskSummary,
-} from "../../types/ibkr-paper-monitor";
+} from "../../types/autonomy-monitor";
 
 // Import the actual render functions from the component
 import {
@@ -18,9 +18,9 @@ import {
   renderBurnInPanel,
   renderRotationsPanel,
   renderRiskSummaryPanel,
-} from "../../components/ibkr-paper-monitor";
+} from "../../components/autonomy-monitor";
 
-describe("IBKR Paper Monitor render functions", () => {
+describe("Autonomy Monitor render functions", () => {
   describe("renderAccountOverview", () => {
     it("renders account overview with positive return", () => {
       const account = {
@@ -171,7 +171,7 @@ describe("IBKR Paper Monitor render functions", () => {
     });
 
     it("renders workflow with success status", () => {
-      const workflow: IbkrDailyWorkflow = {
+      const workflow: AutonomyDailyWorkflow = {
         latest_run_date: "2026-05-10",
         latest_run_time: "2026-05-10T14:30:00Z",
         status: "success",
@@ -193,7 +193,7 @@ describe("IBKR Paper Monitor render functions", () => {
     });
 
     it("renders workflow with failed status", () => {
-      const workflow: IbkrDailyWorkflow = {
+      const workflow: AutonomyDailyWorkflow = {
         latest_run_date: "2026-05-10",
         latest_run_time: "2026-05-10T14:30:00Z",
         status: "failed",

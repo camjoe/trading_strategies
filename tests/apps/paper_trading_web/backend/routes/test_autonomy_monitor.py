@@ -1,4 +1,4 @@
-"""Tests for IBKR paper account monitoring API routes."""
+"""Tests for autonomy monitoring API routes."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from fastapi.testclient import TestClient
 from trading.domain.exceptions import NotFoundError
 
 
-def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
-    """Test that /api/ibkr-paper-accounts returns accounts list."""
-    with patch("paper_trading_web.backend.routes.ibkr_paper_monitor.db_conn") as mock_db:
-        with patch("paper_trading_web.backend.routes.ibkr_paper_monitor.fetch_ibkr_paper_accounts_list") as mock_fetch:
+def test_api_autonomy_accounts_returns_list(api_client: TestClient) -> None:
+    """Test that /api/autonomy/accounts returns accounts list."""
+    with patch("paper_trading_web.backend.routes.autonomy_monitor.db_conn") as mock_db:
+        with patch("paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_accounts_list") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.return_value = [
@@ -24,7 +24,7 @@ def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
                 },
             ]
 
-            response = api_client.get("/api/ibkr-paper-accounts")
+            response = api_client.get("/api/autonomy/accounts")
 
             assert response.status_code == 200
             data = response.json()
@@ -34,12 +34,10 @@ def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
             mock_fetch.assert_called_once_with(mock_conn)
 
 
-def test_api_ibkr_paper_account_detail_returns_data(api_client: TestClient) -> None:
-    """Test that /api/ibkr-paper-accounts/{account_name} returns account detail."""
-    with patch("paper_trading_web.backend.routes.ibkr_paper_monitor.db_conn") as mock_db:
-        with patch(
-            "paper_trading_web.backend.routes.ibkr_paper_monitor.fetch_account_ibkr_paper_monitor_data"
-        ) as mock_fetch:
+def test_api_autonomy_account_detail_returns_data(api_client: TestClient) -> None:
+    """Test that /api/autonomy/accounts/{account_name} returns account detail."""
+    with patch("paper_trading_web.backend.routes.autonomy_monitor.db_conn") as mock_db:
+        with patch("paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.return_value = {
@@ -57,7 +55,7 @@ def test_api_ibkr_paper_account_detail_returns_data(api_client: TestClient) -> N
                 "risk_summary": {"kill_switch_triggered": False},
             }
 
-            response = api_client.get("/api/ibkr-paper-accounts/test_account")
+            response = api_client.get("/api/autonomy/accounts/test_account")
 
             assert response.status_code == 200
             data = response.json()
@@ -66,19 +64,17 @@ def test_api_ibkr_paper_account_detail_returns_data(api_client: TestClient) -> N
             mock_fetch.assert_called_once_with(mock_conn, "test_account")
 
 
-def test_api_ibkr_paper_account_detail_returns_404_when_not_found(
+def test_api_autonomy_account_detail_returns_404_when_not_found(
     api_client: TestClient,
 ) -> None:
     """Test that 404 is returned when account not found."""
-    with patch("paper_trading_web.backend.routes.ibkr_paper_monitor.db_conn") as mock_db:
-        with patch(
-            "paper_trading_web.backend.routes.ibkr_paper_monitor.fetch_account_ibkr_paper_monitor_data"
-        ) as mock_fetch:
+    with patch("paper_trading_web.backend.routes.autonomy_monitor.db_conn") as mock_db:
+        with patch("paper_trading_web.backend.routes.autonomy_monitor.fetch_autonomy_account_data") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.side_effect = NotFoundError("Account not found: nonexistent")
 
-            response = api_client.get("/api/ibkr-paper-accounts/nonexistent")
+            response = api_client.get("/api/autonomy/accounts/nonexistent")
 
             assert response.status_code == 404
             data = response.json()

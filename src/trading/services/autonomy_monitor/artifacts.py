@@ -1,4 +1,4 @@
-"""Artifact reading for IBKR paper account monitoring.
+"""Artifact reading for autonomy monitoring.
 
 This module reads exported JSON artifacts from the trading runtime jobs:
 - Daily paper trading runs (daily_paper_trading_*.json)

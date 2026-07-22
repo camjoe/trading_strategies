@@ -95,12 +95,12 @@ Accepted and shipped as the first slice:
   `services/accounts/mutations.get_account`, `backtesting/services/report_service`,
   `backtesting/repositories/walk_forward_repository` (backtest run),
   `backtesting/services/walk_forward_report_service` (group),
-  `services/ibkr_paper_monitor/queries`, `services/admin/deletions`, and
+  `services/autonomy_monitor/queries`, `services/admin/deletions`, and
   `services/promotion/actions._fetch_review_or_raise`.
 - One app-level handler in `apps/paper_trading_web/backend/main.py`:
   `NotFoundError -> 404`.
 - The not-found-only routes dropped their local 404 mapping
-  (`routes/backtests.py`, `routes/ibkr_paper_monitor.py`,
+  (`routes/backtests.py`, `routes/autonomy_monitor.py`,
   `services/accounts/data_access.require_account_row`), and
   `services/admin.delete_managed_account` dropped its
   `"Accounts not found:"` string heuristic — all now rely on the app handler.
