@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 17:03 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 19:42 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -375,15 +375,14 @@
       ]
     },
     {
-      "description": "Snapshots and metrics tables with the accounts and books anchors.",
-      "id": "category_snapshots",
-      "label": "Snapshots and metrics",
+      "description": "Performance and metrics tables with the accounts and books anchors.",
+      "id": "category_performance",
+      "label": "Performance and metrics",
       "tables": [
         "accounts",
         "books",
         "equity_snapshots",
-        "daily_metrics",
-        "risk_snapshots"
+        "daily_metrics"
       ]
     },
     {
@@ -413,14 +412,24 @@
       ]
     },
     {
-      "description": "Promotion and risk tables with the accounts and books anchors.",
-      "id": "category_governance",
-      "label": "Promotion and risk",
+      "description": "Promotion governance tables with the accounts and books anchors.",
+      "id": "category_promotion",
+      "label": "Promotion governance",
       "tables": [
         "accounts",
         "books",
         "promotion_reviews",
-        "promotion_review_events",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Risk controls tables with the accounts and books anchors.",
+      "id": "category_risk",
+      "label": "Risk controls",
+      "tables": [
+        "accounts",
+        "books",
+        "risk_snapshots",
         "risk_decisions"
       ]
     },
@@ -437,7 +446,7 @@
       ]
     }
   ],
-  "generatedAt": "17:03 21-07-2026 PST",
+  "generatedAt": "19:42 21-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -463,9 +472,9 @@
       ]
     },
     {
-      "description": "Append-only audit trails: automated decisions and business events, insert-only and never updated, each carrying the provenance of why it happened.",
+      "description": "Automated decisions and execution/accounting events. Decision, fill, ledger, and review event rows preserve history; order rows are mutable lifecycle records reconciled in place.",
       "id": "role_decision_logs",
-      "label": "Decision and event logs",
+      "label": "Decisions and execution events",
       "tables": [
         "orders",
         "order_fills",
@@ -530,12 +539,11 @@
     },
     {
       "color": "#0891b2",
-      "id": "snapshots",
-      "label": "Snapshots and metrics",
+      "id": "performance",
+      "label": "Performance and metrics",
       "tables": [
         "equity_snapshots",
-        "daily_metrics",
-        "risk_snapshots"
+        "daily_metrics"
       ]
     },
     {
@@ -562,11 +570,19 @@
     },
     {
       "color": "#db2777",
-      "id": "governance",
-      "label": "Promotion and risk",
+      "id": "promotion",
+      "label": "Promotion governance",
       "tables": [
         "promotion_reviews",
-        "promotion_review_events",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "color": "#0f766e",
+      "id": "risk",
+      "label": "Risk controls",
+      "tables": [
+        "risk_snapshots",
         "risk_decisions"
       ]
     },
@@ -648,8 +664,8 @@
           "primaryKeyPosition": 0,
           "section": {
             "color": "#0891b2",
-            "id": "snapshots",
-            "label": "Snapshots and metrics"
+            "id": "performance",
+            "label": "Performance and metrics"
           },
           "type": "TEXT"
         },
@@ -1925,8 +1941,8 @@
       "name": "daily_metrics",
       "section": {
         "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "id": "performance",
+        "label": "Performance and metrics"
       }
     },
     {
@@ -2032,8 +2048,8 @@
       "name": "equity_snapshots",
       "section": {
         "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "id": "performance",
+        "label": "Performance and metrics"
       }
     },
     {
@@ -2820,8 +2836,8 @@
           "primaryKeyPosition": 0,
           "section": {
             "color": "#db2777",
-            "id": "governance",
-            "label": "Promotion and risk"
+            "id": "promotion",
+            "label": "Promotion governance"
           },
           "type": "INTEGER"
         },
@@ -2939,8 +2955,8 @@
       "name": "promotion_review_events",
       "section": {
         "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "id": "promotion",
+        "label": "Promotion governance"
       }
     },
     {
@@ -3171,8 +3187,8 @@
       "name": "promotion_reviews",
       "section": {
         "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "id": "promotion",
+        "label": "Promotion governance"
       }
     },
     {
@@ -3350,9 +3366,9 @@
       ],
       "name": "risk_decisions",
       "section": {
-        "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "color": "#0f766e",
+        "id": "risk",
+        "label": "Risk controls"
       }
     },
     {
@@ -3489,9 +3505,9 @@
       ],
       "name": "risk_snapshots",
       "section": {
-        "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "color": "#0f766e",
+        "id": "risk",
+        "label": "Risk controls"
       }
     },
     {
@@ -4113,14 +4129,23 @@
       ]
     },
     {
-      "description": "Promotion review, event, risk snapshot, and risk decision relationships.",
-      "id": "governance",
-      "label": "Promotion and risk governance",
+      "description": "Promotion review cases, event history, and their account and strategy anchors.",
+      "id": "promotion_governance",
+      "label": "Promotion governance",
+      "tables": [
+        "accounts",
+        "strategies",
+        "promotion_reviews",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Account risk snapshots and pre-submit risk decisions, including book ownership.",
+      "id": "risk_controls",
+      "label": "Runtime risk controls",
       "tables": [
         "accounts",
         "books",
-        "promotion_reviews",
-        "promotion_review_events",
         "risk_snapshots",
         "risk_decisions"
       ]

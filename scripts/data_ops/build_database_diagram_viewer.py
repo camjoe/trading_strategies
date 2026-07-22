@@ -39,10 +39,10 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "tables": ("orders", "order_fills"),
     },
     {
-        "id": "snapshots",
-        "label": "Snapshots and metrics",
+        "id": "performance",
+        "label": "Performance and metrics",
         "color": "#0891b2",
-        "tables": ("equity_snapshots", "daily_metrics", "risk_snapshots"),
+        "tables": ("equity_snapshots", "daily_metrics"),
     },
     {
         "id": "rotations",
@@ -63,10 +63,16 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         ),
     },
     {
-        "id": "governance",
-        "label": "Promotion and risk",
+        "id": "promotion",
+        "label": "Promotion governance",
         "color": "#db2777",
-        "tables": ("promotion_reviews", "promotion_review_events", "risk_decisions"),
+        "tables": ("promotion_reviews", "promotion_review_events"),
+    },
+    {
+        "id": "risk",
+        "label": "Risk controls",
+        "color": "#0f766e",
+        "tables": ("risk_snapshots", "risk_decisions"),
     },
     {
         "id": "catalogs",
@@ -78,7 +84,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
 
 ACCOUNT_COLUMN_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("orders", ("broker_", "live_trading_")),
-    ("snapshots", ("benchmark_",)),
+    ("performance", ("benchmark_",)),
 )
 
 VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
@@ -149,14 +155,23 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
         ),
     },
     {
-        "id": "governance",
-        "label": "Promotion and risk governance",
-        "description": "Promotion review, event, risk snapshot, and risk decision relationships.",
+        "id": "promotion_governance",
+        "label": "Promotion governance",
+        "description": "Promotion review cases, event history, and their account and strategy anchors.",
+        "tables": (
+            "accounts",
+            "strategies",
+            "promotion_reviews",
+            "promotion_review_events",
+        ),
+    },
+    {
+        "id": "risk_controls",
+        "label": "Runtime risk controls",
+        "description": "Account risk snapshots and pre-submit risk decisions, including book ownership.",
         "tables": (
             "accounts",
             "books",
-            "promotion_reviews",
-            "promotion_review_events",
             "risk_snapshots",
             "risk_decisions",
         ),
@@ -217,10 +232,10 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
     },
     {
         "id": "role_decision_logs",
-        "label": "Decision and event logs",
+        "label": "Decisions and execution events",
         "description": (
-            "Append-only audit trails: automated decisions and business events, insert-only and never "
-            "updated, each carrying the provenance of why it happened."
+            "Automated decisions and execution/accounting events. Decision, fill, ledger, and review "
+            "event rows preserve history; order rows are mutable lifecycle records reconciled in place."
         ),
         "tables": (
             "orders",

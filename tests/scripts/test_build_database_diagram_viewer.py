@@ -77,7 +77,15 @@ def test_payload_defines_expected_focused_views() -> None:
         conn.close()
 
     views = {str(view["id"]): view for view in payload["views"]}
-    assert {"overview", "account_deletion", "book_execution", "research", "governance", "catalogs"} <= set(views)
+    assert {
+        "overview",
+        "account_deletion",
+        "book_execution",
+        "research",
+        "promotion_governance",
+        "risk_controls",
+        "catalogs",
+    } <= set(views)
     assert "accounts" in views["account_deletion"]["tables"]
     assert "book_strategy_history" in views["book_execution"]["tables"]
 
@@ -99,6 +107,21 @@ def test_payload_defines_category_views_with_account_and_book_anchors() -> None:
     }
     assert set(category_views) == expected_ids
     assert all({"accounts", "books"} <= set(view["tables"]) for view in category_views.values())
+
+
+def test_payload_separates_performance_promotion_and_risk_domains() -> None:
+    conn = _fresh_conn()
+    try:
+        payload = build_database_diagram_viewer.build_diagram_payload(conn)
+    finally:
+        conn.close()
+
+    assert _table(payload, "equity_snapshots")["section"]["id"] == "performance"
+    assert _table(payload, "daily_metrics")["section"]["id"] == "performance"
+    assert _table(payload, "promotion_reviews")["section"]["id"] == "promotion"
+    assert _table(payload, "promotion_review_events")["section"]["id"] == "promotion"
+    assert _table(payload, "risk_snapshots")["section"]["id"] == "risk"
+    assert _table(payload, "risk_decisions")["section"]["id"] == "risk"
 
 
 def test_payload_role_views_partition_every_table() -> None:
