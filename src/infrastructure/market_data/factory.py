@@ -21,9 +21,9 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 from trading.services.market_data.protocols import MarketDataProvider
 
-from .providers import UnavailableProvider
-from .providers import DemoMarketDataProvider
-from .providers import YFinanceProvider
+from .demo_provider import DemoMarketDataProvider
+from .unavailable_provider import UnavailableProvider
+from .yfinance_provider import YFinanceProvider
 
 _REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_PROVIDER_NAME = "yfinance"

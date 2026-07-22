@@ -75,7 +75,10 @@ feature provider stay in `src/trading/services/market_data/`.
 
 | Module | Responsibility |
 |---|---|
-| `providers.py` | Concrete providers (`YFinanceProvider`, deterministic offline `DemoMarketDataProvider`, and unavailable placeholders) |
+| `demo_provider.py` | Deterministic offline `DemoMarketDataProvider` |
+| `yfinance_provider.py` | Network-backed `YFinanceProvider` and yfinance SDK boundary |
+| `unavailable_provider.py` | Placeholder adapter for configured integrations not yet implemented |
+| `providers.py` | Compatibility imports for the former combined provider module |
 | `factory.py` | `build_provider` + provider routing (env/config resolution) + `supported_provider_names` |
 | `cache.py` | Transport-level market-data cache (pickle-to-disk with TTL), used only by the adapter |
 

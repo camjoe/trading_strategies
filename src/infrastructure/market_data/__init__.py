@@ -16,10 +16,10 @@ from __future__ import annotations
 from .factory import build_provider
 from .factory import resolve_provider_name
 from .factory import supported_provider_names
-from .providers import UnavailableProvider
-from .providers import DemoMarketDataProvider
-from .providers import YFinanceProvider
-from .providers import yf
+from .demo_provider import DemoMarketDataProvider
+from .unavailable_provider import UnavailableProvider
+from .yfinance_provider import YFinanceProvider
+from .yfinance_provider import yf
 
 __all__ = [
     "UnavailableProvider",
