@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import sqlite3
+
+import pytest
+
+from trading.repositories.books import BookRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from tests.support.repositories import insert_repository_account
 
@@ -44,6 +49,39 @@ def test_risk_decisions_fetch_for_account_date_windows_by_day(conn) -> None:
     records = RiskDecisionRepository(conn).fetch_for_account_date(account_id=account_id, report_date="2026-05-03")
 
     assert [r.reason_code for r in records] == ["in_window"]
+
+
+def test_risk_decisions_enforce_book_account_relationship(conn) -> None:
+    book_account_id = insert_repository_account(conn, name="acct_risk_book")
+    other_account_id = insert_repository_account(conn, name="acct_risk_other")
+    book_id = BookRepository(conn).insert(
+        account_id=book_account_id,
+        name="risk-book",
+        is_default=0,
+        start_equity=1000.0,
+        current_cash=1000.0,
+        current_equity=1000.0,
+        created_at="2026-05-03T10:00:00Z",
+        updated_at="2026-05-03T10:00:00Z",
+    )
+
+    with pytest.raises(sqlite3.IntegrityError):
+        _insert_decision(
+            conn,
+            account_id=other_account_id,
+            book_id=book_id,
+            decision_time="2026-05-03T10:00:00Z",
+            reason_code="mismatched_book",
+        )
+
+    decision_id = _insert_decision(
+        conn,
+        account_id=other_account_id,
+        book_id=None,
+        decision_time="2026-05-03T10:01:00Z",
+        reason_code="account_level",
+    )
+    assert decision_id > 0
 
 
 def test_risk_snapshots_insert_and_fetch_latest(conn) -> None:

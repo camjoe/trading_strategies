@@ -116,6 +116,14 @@ def _fk_delete_action(conn: Any, table: str, column: str, references: str) -> st
     return None
 
 
+def _fk_delete_actions(conn: Any, table: str, column: str, references: str) -> set[str]:
+    return {
+        str(row[6]).upper()
+        for row in conn.execute(f"PRAGMA foreign_key_list({table})").fetchall()
+        if str(row[3]) == column and str(row[2]) == references
+    }
+
+
 def test_child_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     assert _fk_delete_action(migrated_conn, "order_fills", "order_id", "orders") == "CASCADE"
     assert _fk_delete_action(migrated_conn, "backtest_executions", "run_id", "backtest_runs") == "CASCADE"
@@ -140,7 +148,7 @@ def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     ):
         assert _fk_delete_action(migrated_conn, table, "account_id", "accounts") == "CASCADE", table
     # Standalone book deletion keeps account-level decision history.
-    assert _fk_delete_action(migrated_conn, "risk_decisions", "book_id", "books") == "SET NULL"
+    assert "SET NULL" in _fk_delete_actions(migrated_conn, "risk_decisions", "book_id", "books")
     # Book-owned history rides the accounts -> books cascade (revision 0002);
     # RESTRICT here blocked account deletion for accounts with rotation history.
     assert _fk_delete_action(migrated_conn, "rotation_decisions", "book_id", "books") == "CASCADE"
@@ -680,6 +688,69 @@ def test_revision_0018_makes_global_policy_values_nullable(tmp_path: Path) -> No
         assert restored["evaluation_backtest_trade_count_for_full_confidence"] == 50
         restored_columns = {str(row[1]): row for row in conn.execute("PRAGMA table_info(global_settings)")}
         assert restored_columns["evaluation_backtest_trade_count_for_full_confidence"][3] == 1
+    finally:
+        conn.close()
+
+
+def test_revision_0019_enforces_risk_decision_book_account_relationship(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "risk_decision_book_account.db")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        migration_runner.upgrade("0018", connection=conn)
+        conn.execute(
+            "INSERT INTO accounts (id, name, initial_cash, created_at, updated_at) VALUES (1, 'one', 1000, 't', 't')"
+        )
+        conn.execute(
+            "INSERT INTO accounts (id, name, initial_cash, created_at, updated_at) VALUES (2, 'two', 1000, 't', 't')"
+        )
+        conn.execute(
+            """
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            ) VALUES (10, 1, 'book', 1000, 1000, 1000, '[]', 't', 't')
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0019", connection=conn)
+
+        conn.execute(
+            """
+            INSERT INTO risk_decisions (
+                account_id, book_id, decision_time, action, reason_code, created_at
+            ) VALUES (1, 10, 't', 'allow', 'matched', 't')
+            """
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO risk_decisions (
+                    account_id, book_id, decision_time, action, reason_code, created_at
+                ) VALUES (2, 10, 't', 'block', 'mismatch', 't')
+                """
+            )
+        conn.execute(
+            """
+            INSERT INTO risk_decisions (
+                account_id, book_id, decision_time, action, reason_code, created_at
+            ) VALUES (2, NULL, 't', 'block', 'account_level', 't')
+            """
+        )
+        conn.commit()
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        conn.execute("DELETE FROM books WHERE id = 10")
+        matched = conn.execute("SELECT book_id FROM risk_decisions WHERE reason_code = 'matched'").fetchone()
+        assert matched["book_id"] is None
+        conn.commit()
+
+        migration_runner.downgrade("0018", connection=conn)
+        indexes = {str(row[0]) for row in conn.execute(_NAMED_INDEXES_QUERY)}
+        assert "idx_books_id_account" not in indexes
+        migration_runner.upgrade("0019", connection=conn)
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         conn.close()
 

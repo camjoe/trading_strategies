@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 16:07 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 17:03 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -437,7 +437,7 @@
       ]
     }
   ],
-  "generatedAt": "16:07 21-07-2026 PST",
+  "generatedAt": "17:03 21-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -1731,6 +1731,15 @@
         }
       ],
       "indexes": [
+        {
+          "columns": [
+            "id",
+            "account_id"
+          ],
+          "name": "idx_books_id_account",
+          "origin": "c",
+          "unique": true
+        },
         {
           "columns": [
             "account_id",
@@ -3182,9 +3191,9 @@
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": {
-            "color": "#2563eb",
-            "id": "accounts",
-            "label": "Accounts"
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
           },
           "type": "INTEGER"
         },
@@ -3290,6 +3299,20 @@
         }
       ],
       "foreignKeys": [
+        {
+          "column": "book_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "account_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "account_id",
+          "referencesTable": "books"
+        },
         {
           "column": "book_id",
           "onDelete": "SET NULL",

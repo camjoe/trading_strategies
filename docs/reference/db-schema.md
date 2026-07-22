@@ -48,7 +48,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
-| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
+| `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account (revision `0019`) | → `accounts`, `books` |
 | `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
 | `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run (renamed from `backtest_trades`, revision `0016`) | → `backtest_runs` |
 | `walk_forward_experiments` | A walk-forward experiment: methodology and its chronological window membership for an account/strategy (renamed from `walk_forward_groups`, revision `0016`) | → `accounts`, `strategies` |

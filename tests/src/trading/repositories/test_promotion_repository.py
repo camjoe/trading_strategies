@@ -5,6 +5,7 @@ import pytest
 from trading.models.evaluation import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.promotion import PromotionAssessment
 from trading.repositories.promotion import PromotionReviewRepository, _row_json_object
+from trading.repositories.strategies import StrategyRepository
 from tests.support.repositories import insert_repository_account
 
 
@@ -53,13 +54,25 @@ def _assessment(*, account_name: str = "acct_a", strategy_name: str = "Trend") -
     )
 
 
+def _insert_strategy(conn, *, strategy_key: str = "trend") -> int:
+    return StrategyRepository(conn).insert(
+        strategy_key=strategy_key,
+        primitive="trend",
+        params_json="{}",
+        created_at="2026-03-01T00:00:00Z",
+        updated_at="2026-03-01T00:00:00Z",
+    )
+
+
 def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
+    strategy_id = _insert_strategy(conn)
     repo = PromotionReviewRepository(conn)
 
     review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
+        strategy_id=strategy_id,
         requested_by="alice",
         operator_summary_note="initial request",
         created_at="2026-03-01T00:00:00Z",
@@ -80,10 +93,12 @@ def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
 
 def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
+    strategy_id = _insert_strategy(conn)
     repo = PromotionReviewRepository(conn)
     review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
+        strategy_id=strategy_id,
         requested_by="alice",
         operator_summary_note=None,
         created_at="2026-03-01T00:00:00Z",
@@ -120,10 +135,12 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
 
 def test_fetch_open_history_and_update_review_state(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", initial_cash=1000.0)
+    strategy_id = _insert_strategy(conn)
     repo = PromotionReviewRepository(conn)
     review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
+        strategy_id=strategy_id,
         requested_by="alice",
         operator_summary_note=None,
         created_at="2026-03-01T00:00:00Z",
@@ -135,6 +152,7 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
 
     updated = repo.update_review(
         review_id=int(review.id),
+        expected_review_state="requested",
         review_state="approved",
         reviewed_by="reviewer",
         operator_summary_note="looks good",
@@ -176,6 +194,19 @@ def test_insert_promotion_review_validates_required_evaluation_fields(evaluation
         PromotionReviewRepository(_StaticConnection()).insert_review(
             assessment=_assessment(),
             evaluation=evaluation,
+            strategy_id=1,
+            requested_by=None,
+            operator_summary_note=None,
+            created_at="2026-03-01T00:00:00Z",
+        )
+
+
+def test_insert_promotion_review_requires_strategy_id() -> None:
+    with pytest.raises(ValueError, match="Promotion review requires a strategy_id"):
+        PromotionReviewRepository(_StaticConnection()).insert_review(
+            assessment=_assessment(),
+            evaluation=_evaluation(),
+            strategy_id=None,
             requested_by=None,
             operator_summary_note=None,
             created_at="2026-03-01T00:00:00Z",
@@ -187,6 +218,7 @@ def test_insert_promotion_review_guard_paths_raise_when_ids_cannot_be_materializ
         PromotionReviewRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert_review(
             assessment=_assessment(),
             evaluation=_evaluation(),
+            strategy_id=1,
             requested_by="alice",
             operator_summary_note=None,
             created_at="2026-03-01T00:00:00Z",

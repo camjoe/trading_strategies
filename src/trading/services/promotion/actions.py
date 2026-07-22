@@ -20,6 +20,7 @@ from trading.models.promotion import (
     PromotionReviewState,
 )
 from trading.repositories.promotion import PromotionReviewRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.promotion.assessment import fetch_current_promotion_snapshot
 from trading.services.promotion.helpers import normalize_optional_text
 
@@ -65,6 +66,13 @@ def _ensure_no_open_review_for_request(
     raise ValueError(f"An open promotion review already exists for {account_name}/{strategy_name}.")
 
 
+def _require_strategy_id(conn: sqlite3.Connection, *, strategy_name: str) -> int:
+    strategy = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_name)
+    if strategy is None:
+        raise ValueError(f"Promotion review request requires a strategy_id for '{strategy_name}'.")
+    return strategy.id
+
+
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
     review = PromotionReviewRepository(conn).fetch_by_id(review_id=review_id)
     if review is None:
@@ -100,6 +108,7 @@ def _update_review(
     conn: sqlite3.Connection,
     *,
     review_id: int,
+    expected_review_state: PromotionReviewState,
     review_state: PromotionReviewState,
     reviewed_by: str | None,
     operator_summary_note: str | None,
@@ -108,6 +117,7 @@ def _update_review(
 ) -> PromotionReviewRecord:
     return PromotionReviewRepository(conn).update_review(
         review_id=review_id,
+        expected_review_state=expected_review_state,
         review_state=review_state,
         reviewed_by=reviewed_by,
         operator_summary_note=operator_summary_note,
@@ -139,6 +149,7 @@ def execute_promotion_review_request(
         strategy_name=strategy_name,
     )
     account_id, resolved_strategy_name = _require_request_context(artifact, assessment)
+    strategy_id = _require_strategy_id(conn, strategy_name=resolved_strategy_name)
     artifact = replace(
         artifact,
         basic=replace(artifact.basic, requested_strategy=resolved_strategy_name),
@@ -160,6 +171,7 @@ def execute_promotion_review_request(
         review = repo.insert_review(
             assessment=assessment,
             evaluation=artifact,
+            strategy_id=strategy_id,
             requested_by=normalized_requested_by,
             operator_summary_note=normalized_note,
             created_at=created_at,
@@ -223,6 +235,7 @@ def _execute_promotion_review_note(
         return _update_review(
             conn,
             review_id=int(review.id),
+            expected_review_state=PromotionReviewState.REQUESTED,
             review_state=review.review_state,
             reviewed_by=review.reviewed_by,
             operator_summary_note=note or review.operator_summary_note,
@@ -271,6 +284,7 @@ def execute_promotion_review_action(
         return _update_review(
             conn,
             review_id=review_id,
+            expected_review_state=review.review_state,
             review_state=next_state,
             reviewed_by=normalized_actor_name or review.reviewed_by,
             operator_summary_note=normalized_note or review.operator_summary_note,

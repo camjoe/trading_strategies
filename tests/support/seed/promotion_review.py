@@ -16,8 +16,12 @@ def seed_promotion_review(conn: sqlite3.Connection) -> None:
     )
     from trading.models.promotion import PromotionAssessment
     from trading.repositories.promotion import PromotionReviewRepository
+    from trading.repositories.strategies import StrategyRepository
 
     acct_id = seed_account_id(conn, ACCT_TREND)
+    strategy = StrategyRepository(conn).fetch_by_key(strategy_key=PROMOTION_STRATEGY)
+    if strategy is None:
+        raise AssertionError(f"Seed strategy '{PROMOTION_STRATEGY}' is missing.")
 
     evaluation = StrategyEvaluationArtifact(
         basic=EvaluationBasicScope(
@@ -47,6 +51,7 @@ def seed_promotion_review(conn: sqlite3.Connection) -> None:
     PromotionReviewRepository(conn).insert_review(
         assessment=assessment,
         evaluation=evaluation,
+        strategy_id=strategy.id,
         requested_by="seed",
         operator_summary_note="",
         created_at="2026-01-15T00:00:00Z",
