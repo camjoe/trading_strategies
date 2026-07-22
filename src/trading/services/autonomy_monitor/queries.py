@@ -1,7 +1,7 @@
-"""Queries for IBKR paper account monitoring data.
+"""Queries for autonomy (managed-account) monitoring data.
 
-Uses repository layer functions for all data access.
-Also handles artifact I/O (daily runs, governance, burn-in status).
+Uses repository layer functions for all data access. Covers accounts with
+``account_kind == "managed"`` — the accounts the system runs autonomously.
 """
 
 from __future__ import annotations
@@ -16,24 +16,35 @@ from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository
 from trading.services.books.book_assignments import list_report_books
+from trading.services.reporting.math import strategy_return_pct
+
+# Accounts the system runs autonomously (vs "local" research accounts).
+_MANAGED_ACCOUNT_KIND = "managed"
 
 
-def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Fetch list of IBKR paper accounts with book summary."""
+def _return_pct(equity: float, basis: float) -> float:
+    """Percent return of ``equity`` against a capital ``basis``.
+
+    Rounds to 2 dp and returns ``0.0`` when there is no basis to measure
+    against, so callers never divide by zero. Reuses the shared reporting
+    math so account/book returns stay defined the same way everywhere.
+    """
+    return round(strategy_return_pct(equity, basis), 2) if basis else 0.0
+
+
+def fetch_autonomy_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Fetch list of managed accounts with book summary."""
     all_accounts = AccountRepository(conn).fetch_all()
 
     result = []
     for account in all_accounts:
-        if account.account_kind != "managed":
+        if account.account_kind != _MANAGED_ACCOUNT_KIND:
             continue
 
         # Account totals are the Σ over the account's book balances.
         account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
         total_equity = sum(b.current_equity for b in account_books)
         total_cash = sum(b.current_cash for b in account_books)
-        return_pct = (
-            ((total_equity - account.initial_cash) / account.initial_cash * 100) if account.initial_cash else 0.0
-        )
 
         result.append(
             {
@@ -43,7 +54,7 @@ def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, A
                 "total_equity": round(total_equity, 2),
                 "total_cash": round(total_cash, 2),
                 "positions_market_value": round(total_equity - total_cash, 2),
-                "return_pct": round(return_pct, 2),
+                "return_pct": _return_pct(total_equity, account.initial_cash),
                 "book_count": len(list_report_books(conn, account_id=account.id)),
             }
         )
@@ -76,7 +87,6 @@ def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict
         start_equity = book.start_equity or 0.0
         curr_equity = book.current_equity or 0.0
         curr_cash = book.current_cash or 0.0
-        return_pct = ((curr_equity - start_equity) / start_equity * 100) if start_equity else 0.0
 
         result.append(
             {
@@ -87,7 +97,7 @@ def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict
                 "start_equity": start_equity,
                 "current_equity": round(curr_equity, 2),
                 "current_cash": round(curr_cash, 2),
-                "return_pct": round(return_pct, 2),
+                "return_pct": _return_pct(curr_equity, start_equity),
                 "latest_metrics": latest_metrics,
             }
         )
@@ -147,11 +157,11 @@ def _fetch_risk_summary(conn: sqlite3.Connection, account_id: int) -> dict[str, 
     }
 
 
-def fetch_ibkr_paper_account_detail(
+def fetch_autonomy_account_detail(
     conn: sqlite3.Connection,
     account_name: str,
 ) -> dict[str, Any]:
-    """Fetch all database-sourced data for IBKR paper account dashboard.
+    """Fetch all database-sourced data for a managed account's dashboard.
 
     Returns account overview, books, recent rotations, and risk summary.
     Uses repositories for all data access.
@@ -174,9 +184,7 @@ def fetch_ibkr_paper_account_detail(
             "total_equity": round(total_equity, 2),
             "total_cash": round(total_cash, 2),
             "positions_market_value": round(total_equity - total_cash, 2),
-            "return_pct": round(((total_equity - account.initial_cash) / account.initial_cash * 100), 2)
-            if account.initial_cash
-            else 0.0,
+            "return_pct": _return_pct(total_equity, account.initial_cash),
             "book_count": len(book_list),
         },
         "books": book_list,

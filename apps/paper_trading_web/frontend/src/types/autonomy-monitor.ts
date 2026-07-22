@@ -1,8 +1,8 @@
 /**
- * Type definitions for IBKR Paper Account Monitor API responses.
+ * Type definitions for the autonomy monitor API responses.
  */
 
-export interface IbkrPaperAccountOverview {
+export interface AutonomyAccountOverview {
   account: {
     account_id: number;
     name: string;
@@ -13,15 +13,15 @@ export interface IbkrPaperAccountOverview {
     return_pct: number;
     book_count: number;
   };
-  books: IbkrPaperBook[];
-  daily_workflow: IbkrDailyWorkflow | null;
+  books: AutonomyBook[];
+  daily_workflow: AutonomyDailyWorkflow | null;
   governance_checks: Record<string, GovernanceCheckStatus>;
   burn_in_status: BurnInStatus;
   recent_rotations: RotationDecision[];
   risk_summary: RiskSummary;
 }
 
-export interface IbkrPaperBook {
+export interface AutonomyBook {
   book_id: number;
   name: string;
   status: "active" | "paused" | "closed";
@@ -42,7 +42,7 @@ export interface IbkrPaperBook {
   updated_at: string;
 }
 
-export interface IbkrDailyWorkflow {
+export interface AutonomyDailyWorkflow {
   latest_run_date: string;
   latest_run_time: string;
   status: "success" | "failed" | "running" | "pending";
@@ -102,7 +102,7 @@ export interface RiskViolation {
   action: "block" | "rescale" | "allow";
 }
 
-export interface IbkrPaperAccountListItem {
+export interface AutonomyAccountListItem {
   account_id: number;
   name: string;
   initial_cash: number;

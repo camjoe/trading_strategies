@@ -15,7 +15,7 @@ from .routes import (
     backtests_router,
     features_router,
     health_router,
-    ibkr_paper_monitor_router,
+    autonomy_monitor_router,
     logs_router,
     portfolio_router,
 )
@@ -51,7 +51,7 @@ async def _validation_handler(_request: Request, exc: ValidationError) -> JSONRe
 
 app.include_router(health_router)
 app.include_router(accounts_router)
-app.include_router(ibkr_paper_monitor_router)
+app.include_router(autonomy_monitor_router)
 app.include_router(analysis_router)
 app.include_router(portfolio_router)
 app.include_router(admin_router)

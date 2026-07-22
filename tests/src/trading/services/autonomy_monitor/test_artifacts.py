@@ -1,4 +1,4 @@
-"""Tests for IBKR paper account monitoring artifact reading."""
+"""Tests for autonomy monitoring artifact reading."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.services.ibkr_paper_monitor import artifacts
+from trading.services.autonomy_monitor import artifacts
 
 
 @pytest.fixture

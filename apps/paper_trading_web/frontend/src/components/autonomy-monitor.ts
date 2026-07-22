@@ -1,26 +1,26 @@
 import { currency, num, pct } from "../lib/format";
 import { getJson, errorMessage } from "../lib/http";
 import type {
-  IbkrPaperAccountOverview,
-  IbkrPaperBook,
-  IbkrDailyWorkflow,
+  AutonomyAccountOverview,
+  AutonomyBook,
+  AutonomyDailyWorkflow,
   GovernanceCheckStatus,
   BurnInStatus,
   RotationDecision,
   RiskSummary,
   RiskViolation,
-} from "../types/ibkr-paper-monitor";
+} from "../types/autonomy-monitor";
 
-interface IbkrPaperState {
+interface AutonomyMonitorState {
   accounts: Array<{ name: string; total_equity: number; book_count: number }>;
   selectedAccount: string | null;
-  currentData: IbkrPaperAccountOverview | null;
+  currentData: AutonomyAccountOverview | null;
   loading: boolean;
   error: string | null;
   lastRefresh: Date | null;
 }
 
-const state: IbkrPaperState = {
+const state: AutonomyMonitorState = {
   accounts: [],
   selectedAccount: null,
   currentData: null,
@@ -31,7 +31,7 @@ const state: IbkrPaperState = {
 
 async function fetchAccounts(): Promise<void> {
   try {
-    const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; book_count: number }> }>("/api/ibkr-paper-accounts");
+    const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; book_count: number }> }>("/api/autonomy/accounts");
     state.accounts = response.accounts || [];
     updateAccountSelect();
   } catch (err) {
@@ -47,7 +47,7 @@ async function fetchAccountData(accountName: string): Promise<void> {
   state.error = null;
   
   try {
-    state.currentData = await getJson<IbkrPaperAccountOverview>(`/api/ibkr-paper-accounts/${encodeURIComponent(accountName)}`);
+    state.currentData = await getJson<AutonomyAccountOverview>(`/api/autonomy/accounts/${encodeURIComponent(accountName)}`);
     state.lastRefresh = new Date();
     renderDashboard();
   } catch (err) {
@@ -60,7 +60,7 @@ async function fetchAccountData(accountName: string): Promise<void> {
 }
 
 function updateAccountSelect(): void {
-  const select = document.getElementById("ibkrPaperAccountSelect") as HTMLSelectElement | null;
+  const select = document.getElementById("autonomyAccountSelect") as HTMLSelectElement | null;
   if (!select) return;
   
   select.innerHTML = '<option value="">-- Select Account --</option>' +
@@ -68,7 +68,7 @@ function updateAccountSelect(): void {
 }
 
 function renderError(): void {
-  const dashboard = document.getElementById("ibkrPaperDashboard");
+  const dashboard = document.getElementById("autonomyDashboard");
   if (!dashboard) return;
   
   dashboard.innerHTML = `
@@ -90,13 +90,13 @@ function renderDashboard(): void {
     return;
   }
   
-  const dashboard = document.getElementById("ibkrPaperDashboard");
+  const dashboard = document.getElementById("autonomyDashboard");
   if (!dashboard) return;
   
   const data = state.currentData;
   const account = data.account;
   
-  dashboard.className = "ibkr-paper-dashboard";
+  dashboard.className = "autonomy-dashboard";
   dashboard.innerHTML = `
     ${renderAccountOverview(account)}
     ${renderBooksPanel(data.books || [])}
@@ -110,7 +110,7 @@ function renderDashboard(): void {
   attachEventListeners();
 }
 
-export function renderAccountOverview(account: IbkrPaperAccountOverview["account"]): string {
+export function renderAccountOverview(account: AutonomyAccountOverview["account"]): string {
   const returnClass = account.return_pct >= 0 ? "up" : "down";
   
   return `
@@ -148,7 +148,7 @@ export function renderAccountOverview(account: IbkrPaperAccountOverview["account
   `;
 }
 
-export function renderBooksPanel(books: IbkrPaperBook[]): string {
+export function renderBooksPanel(books: AutonomyBook[]): string {
   if (books.length === 0) {
     return '<section class="card books-card"><p>No books configured</p></section>';
   }
@@ -197,7 +197,7 @@ export function renderBooksPanel(books: IbkrPaperBook[]): string {
   `;
 }
 
-export function renderDailyWorkflowPanel(workflow: IbkrDailyWorkflow | null): string {
+export function renderDailyWorkflowPanel(workflow: AutonomyDailyWorkflow | null): string {
   if (!workflow) {
     return '<section class="card workflow-card"><p>No workflow data available</p></section>';
   }
@@ -407,7 +407,7 @@ export function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
 }
 
 function attachEventListeners(): void {
-  const select = document.getElementById("ibkrPaperAccountSelect") as HTMLSelectElement | null;
+  const select = document.getElementById("autonomyAccountSelect") as HTMLSelectElement | null;
   if (!select) return;
 
   select.addEventListener("change", (e) => {
@@ -418,7 +418,7 @@ function attachEventListeners(): void {
     }
   });
 
-  const refreshBtn = document.getElementById("ibkrPaperRefreshBtn");
+  const refreshBtn = document.getElementById("autonomyRefreshBtn");
   if (refreshBtn && state.selectedAccount) {
     refreshBtn.addEventListener("click", () => fetchAccountData(state.selectedAccount!));
   }

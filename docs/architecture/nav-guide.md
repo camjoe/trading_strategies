@@ -58,7 +58,7 @@ The maps and this guide serve different questions:
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
 | Change stale-backtest target discovery/remediation support | `src/trading/services/backtesting/` |
-| Change IBKR paper monitor operator/dashboard queries or artifacts | `src/trading/services/ibkr_paper_monitor/` |
+| Change Autonomy monitor operator/dashboard queries or artifacts | `src/trading/services/autonomy_monitor/` |
 
 ### Configuration
 

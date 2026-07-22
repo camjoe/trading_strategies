@@ -12,8 +12,8 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
-- **IBKR Paper Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
-  for configured IBKR paper accounts.
+- **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
+  for configured managed accounts.
 - **Snapshots and operational logs** — snapshot actions stay in the account workspace, while operational logs now live under **Admin > Artifacts & Logs**.
 - **Admin operations visibility** — runtime job health plus recent scheduled refresh, daily snapshot, database-backup, promotion-review visibility, CSV database exports, and operational log browsing all live inside the Admin tab, grouped into focused Admin sub-sections instead of extra top-level tabs.
 
@@ -115,12 +115,12 @@ npm run dev
 - `GET /api/features/status` — probe all three alt-strategy providers (Policy, News, Social) and return availability + key scores. Each provider entry also includes `description`, `data_sources`, `feature_descriptions` (per-feature label and threshold info), and `signal_logic`.
 - `POST /api/features/signals` — run all three signal functions for a ticker. Body: `FeatureSignalsRequest` (`ticker`). Returns per-strategy `signal`, `available`, `features`, `interpretation` (human-readable summary of current feature values), `feature_descriptions`, and `signal_logic`.
 
-### Portfolio and IBKR Paper Monitoring
+### Portfolio and Autonomy Monitoring
 
 - `GET /api/portfolio/rollup` — cross-account exposure and symbol/sector concentration payload.
-- `GET /api/ibkr-paper-accounts` — configured IBKR paper accounts with book and latest-run summaries.
-- `GET /api/ibkr-paper-accounts/{account_name}` — detailed workflow, governance, burn-in, rotation,
-  and risk status for one IBKR paper account.
+- `GET /api/autonomy/accounts` — configured managed accounts with book and latest-run summaries.
+- `GET /api/autonomy/accounts/{account_name}` — detailed workflow, governance, burn-in, rotation,
+  and risk status for one managed account.
 
 ### Logs
 

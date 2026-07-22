@@ -2,7 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
-import { init as initIBKRPaperMonitor } from "./components/ibkr-paper-monitor";
+import { init as initAutonomyMonitor } from "./components/autonomy-monitor";
 import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
@@ -25,7 +25,7 @@ import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
-import ibkrPaperMonitorTemplate from "./views/ibkr-paper-monitor.html?raw";
+import autonomyMonitorTemplate from "./views/autonomy-monitor.html?raw";
 import { errorMessage } from "./lib/http";
 
 const appRoot = find<HTMLDivElement>("#app");
@@ -58,7 +58,7 @@ function renderShell(): void {
     .replace("<!-- LOGS_TAB_PARTIAL -->", logsTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
-    .replace("<!-- IBKR_PAPER_MONITOR_TAB_PARTIAL -->", ibkrPaperMonitorTemplate)
+    .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
@@ -106,7 +106,7 @@ async function bootstrap(): Promise<void> {
   portfolioFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
-  initIBKRPaperMonitor();
+  initAutonomyMonitor();
 
   try {
     await loadAccountConfigOptions();

@@ -44,7 +44,7 @@ python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab backtesting
-python -m scripts.screenshot_ui --tab ibkr-paper-monitor
+python -m scripts.screenshot_ui --tab autonomy-monitor
 python -m scripts.screenshot_ui --tab alt-strategies
 python -m scripts.screenshot_ui --tab admin
 python -m scripts.screenshot_ui --tab docs
@@ -74,7 +74,7 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 accounts        alt-strategies
 compare         admin
 portfolio       docs
-ibkr-paper-monitor
+autonomy-monitor
 backtesting
 ```
 

@@ -34,7 +34,7 @@ FastAPI routers. One file per logical domain. Routes call backend services; they
 | `backtests.py` | Backtest run submission and result retrieval |
 | `features.py` | Feature/signal data for alternative strategies |
 | `health.py` | Health check (`GET /health`) |
-| `ibkr_paper_monitor.py` | IBKR paper monitor status and artifacts |
+| `autonomy_monitor.py` | Autonomy monitor status and artifacts |
 | `logs.py` | Log file access |
 | `portfolio.py` | Cross-account portfolio rollup (`GET /api/portfolio/rollup`) |
 
@@ -62,7 +62,7 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
 | `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
-| `ibkr_paper_monitor.py` | IBKR monitor artifact assembly |
+| `autonomy_monitor.py` | Autonomy monitor artifact assembly |
 | `operations/` | Runtime operation services (job triggers, etc.) |
 | `portfolio.py` | Portfolio rollup payload shaping (delegates to `trading.services.analysis`) |
 | `promotion.py` | Promotion data service |
@@ -116,7 +116,7 @@ Reusable UI rendering modules. Called by features.
 | `alt-strategies.ts` | Alternative strategies component |
 | `backtesting.ts` | Backtesting results component |
 | `detail.ts` | Generic detail panel component |
-| `ibkr-paper-monitor.ts` | IBKR paper monitor status component |
+| `autonomy-monitor.ts` | Autonomy monitor status component |
 
 ### Library (`lib/`)
 
@@ -144,7 +144,7 @@ TypeScript type definitions for API response shapes. One file per backend domain
 | `admin.ts` | Admin response shapes |
 | `backtesting.ts` | Backtest run and result shapes |
 | `compare.ts` | Account comparison shapes |
-| `ibkr-paper-monitor.ts` | IBKR monitor response shapes |
+| `autonomy-monitor.ts` | Autonomy monitor response shapes |
 | `portfolio.ts` | Portfolio rollup response shapes |
 | `signals.ts` | Feature/signal response shapes |
 
@@ -165,7 +165,7 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `backtesting.html` | Backtesting page |
 | `compare.html` | Account comparison page |
 | `portfolio.html` | Cross-account portfolio rollup page |
-| `ibkr-paper-monitor.html` | IBKR paper monitor page |
+| `autonomy-monitor.html` | Autonomy monitor page |
 | `trades.html` | Trades view |
 | `app-layout.html` | Shared app layout shell |
 | `nav.html` | Navigation component |
@@ -187,7 +187,7 @@ Per-feature CSS files and design tokens. Import order controlled via `styles.css
 | `compare.css` | Comparison view |
 | `portfolio.css` | Portfolio rollup view |
 | `docs.css` | In-app docs |
-| `ibkr-paper-monitor.css` | IBKR monitor view |
+| `autonomy-monitor.css` | Autonomy monitor view |
 | `runtime.css` | Runtime status views |
 
 ### Assets (`assets/`)
