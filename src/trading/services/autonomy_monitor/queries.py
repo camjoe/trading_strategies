@@ -16,7 +16,7 @@ from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository
 from trading.services.books.book_assignments import list_report_books
-from trading.services.reporting.math import strategy_return_pct
+from trading.domain.portfolio_math import strategy_return_pct
 
 # Accounts the system runs autonomously (vs "local" research accounts).
 _MANAGED_ACCOUNT_KIND = "managed"
@@ -26,7 +26,7 @@ def _return_pct(equity: float, basis: float) -> float:
     """Percent return of ``equity`` against a capital ``basis``.
 
     Rounds to 2 dp and returns ``0.0`` when there is no basis to measure
-    against, so callers never divide by zero. Reuses the shared reporting
+    against, so callers never divide by zero. Reuses the shared portfolio
     math so account/book returns stay defined the same way everywhere.
     """
     return round(strategy_return_pct(equity, basis), 2) if basis else 0.0
