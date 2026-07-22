@@ -14,11 +14,13 @@ data-driven automated trader deployable from paper to a live IBKR account in a n
 
 ## Availability and licensing
 
-The project is being prepared for a future open-source release, but it is not currently offered under
-an open-source license. Until a `LICENSE` file is added, no permission to use, modify, or redistribute
-the source is granted beyond rights provided by applicable law.
+This source repository is publicly viewable on GitHub and is being prepared for a future open-source
+release, but it is not currently offered under an open-source license. Until a `LICENSE` file is
+added, no permission to use, modify, or redistribute the source is granted beyond rights provided by
+applicable law and GitHub's Terms of Service. The planned license is the Apache License 2.0; this
+statement records intent only and does not grant that license.
 
-See [Public Release Readiness](docs/reference/public-release-readiness.md) for the staged release plan,
+See [Open-Source Readiness](docs/reference/open-source-readiness.md) for the staged preparation plan,
 including the deferred license decision and future separation of private strategy implementations.
 
 **Start here:** [`docs/overview.md`](docs/overview.md) — the definitive explainer of what the app is,
