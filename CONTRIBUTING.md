@@ -17,10 +17,17 @@ below assume `.venv` is active and run from the repository root as modules.
 | `python -m scripts.fix_checks` | Safe mechanical fixes: Ruff lint fixes, formatting, generated reference-doc assets, docs drift fixes |
 | `python -m scripts.run_checks quick` | Repository safety checks + Python lint/type/test checks |
 | `python -m scripts.run_checks ci` | Docs + repository + Python + frontend checks |
+| `python -m scripts.run_checks repo` | Repository structure, safety, migration, skill, and secret-hygiene checks |
+| `python -m scripts.run_checks docs` | Documentation links, headers, maps, module references, and generated-reference consistency |
+| `python -m scripts.run_checks python` | Python conventions, Ruff, mypy, and the full Python test suite |
 | `python -m scripts.checks.run_suite <area>` | Tests for one area, e.g. `src/trading/services/reporting` |
 | `python -m scripts.run_checks python --base <base>` | Branch-targeted Python checks for PR validation |
 
-Use `scripts.fix_checks` for normal cleanup. Lint/format directly with `ruff check .` and `ruff format .` only when you need lower-level control.
+For focused local validation, run `repo`, `docs`, and `python` separately; this makes failures easier
+to isolate. Run `ci` when you want the complete aggregate profile, including frontend checks.
+
+Use `scripts.fix_checks` for normal cleanup. Lint/format directly with `ruff check .` and
+`ruff format .` only when you need lower-level control.
 
 ## Making a change
 

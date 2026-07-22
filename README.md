@@ -112,7 +112,8 @@ python -m scripts.run_checks ci
 
 The public workflows run Python tests, frontend tests, repository quality gates, documentation
 checks, and dependency/security checks. See [GitHub Actions](https://github.com/camjoe/trading_strategies/actions)
-for current results.
+for current results. Contributors who want focused feedback can run the repository, documentation,
+and Python profiles separately as described in [Contributing](CONTRIBUTING.md#running-checks).
 
 ## Availability and Licensing
 
