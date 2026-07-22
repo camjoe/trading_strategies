@@ -87,9 +87,7 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
         ),
     )
     monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
-    monkeypatch.setattr(
-        "trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None)
-    )
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
 
     account_report(conn, "acct_leaps")
     out = capsys.readouterr().out
@@ -114,9 +112,7 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
     )
 
     monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
-    monkeypatch.setattr(
-        "trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None)
-    )
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
 
     account_report(conn, "acct_rot")
     out = capsys.readouterr().out
