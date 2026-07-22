@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from trading.domain.exceptions import ValidationError
 from infrastructure.market_data.factory import build_provider
-from trading.services.accounting import list_account_trades
+from trading.services.execution.ledger import list_account_trades
 from trading.services.accounts import list_account_snapshots
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 

@@ -80,7 +80,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | Suite name | Tests directory |
 |---|---|
 | `src/trading/services` | `tests/src/trading/services/` |
-| `src/trading/services/accounting` | `tests/src/trading/services/accounting/` |
 | `src/trading/services/accounts` | `tests/src/trading/services/accounts/` |
 | `src/trading/services/analysis` | `tests/src/trading/services/analysis/` |
 | `src/trading/services/auto_trading` | `tests/src/trading/services/auto_trading/` |

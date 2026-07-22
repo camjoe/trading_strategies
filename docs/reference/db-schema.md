@@ -129,7 +129,7 @@ the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any 
 The account-level `trades` table was dropped in revision `0006`. Execution history is
 `orders`/`order_fills` (book-keyed); deposits/withdrawals are `ledger` entries. Account state
 (`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
-account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
+account's fills plus its ledger cash events (`trading.services.execution.ledger`). Free-text trade notes
 were not carried over — pre-`0006` notes live only in database backups.
 
 ### Universe history

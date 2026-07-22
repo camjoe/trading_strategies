@@ -125,8 +125,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `accounting/mutations.py` | Cash/equity accounting write operations |
-| `accounting/queries.py` | Cash/equity accounting read operations |
 | `accounts/listing.py` | Account listing and filtering |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
@@ -152,6 +150,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `demo/seeding.py` | Atomic application-owned synthetic account, trading, backtest, and promotion demo story |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission |
+| `execution/ledger/mutations.py` | Cash/equity accounting write operations (record trades to the book/account ledger) |
+| `execution/ledger/queries.py` | Cash/equity accounting read operations (account-state replay, trade listing) |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
