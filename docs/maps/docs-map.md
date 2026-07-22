@@ -71,6 +71,7 @@ Structural reference — one file per major package. Go stale when module files 
 | `docs/maps/common-map.md` | `src/common/` shared-kernel utilities | Any `src/common/` module added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
 | `docs/architecture/service-cookbook.md` | Capability → service-package pointers + the stable import pattern | A service package is added/removed or a capability moves packages |
+| `docs/architecture/service-ownership.md` | Per-service ownership boundaries within `src/trading/services/` (owns / does not own) | A service's ownership boundary changes, or a service is added/removed/merged |
 | `docs/architecture/service-repository-boundary.md` | Contract rules between service and repository layers | Layer boundary rules or exceptions change |
 
 ---
