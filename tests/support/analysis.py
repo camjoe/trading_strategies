@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.services.accounts import create_account
-from trading.services.analysis import queries as analysis_queries
+from trading.services.analysis import portfolio as analysis_portfolio
 
 
 def make_analysis_account(
@@ -60,12 +60,12 @@ def patch_analysis_market_data(
     benchmark: tuple[float | None, float | None] = (None, None),
 ) -> None:
     monkeypatch.setattr(
-        analysis_queries,
+        analysis_portfolio,
         "fetch_latest_prices",
         lambda _tickers, **_kwargs: prices or {},
     )
     monkeypatch.setattr(
-        analysis_queries,
+        analysis_portfolio,
         "benchmark_stats",
         lambda _ticker, _effective_initial, _created_at, **_kwargs: benchmark,
     )

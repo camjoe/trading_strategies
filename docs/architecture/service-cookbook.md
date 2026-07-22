@@ -34,7 +34,7 @@ Most service packages expose a supported internal `__all__` surface through thei
 ```python
 # Correct — supported internal surface
 from trading.services.accounts import get_account, list_account_records
-from trading.services.reporting import build_account_stats, build_live_benchmark_overlay
+from trading.services.analysis import build_account_stats, build_live_benchmark_overlay
 
 # Avoid — internal submodule (subject to change without notice)
 from trading.services.accounts.queries import get_account

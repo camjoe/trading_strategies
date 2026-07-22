@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
+from common.coercion import row_expect_int, row_float
 from common.time import utc_now_iso
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models import AccountRecord
@@ -26,14 +26,27 @@ from trading.services.accounts import (
 )
 from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.reporting.math import (
-    alpha_pct,
-    benchmark_available,
-    positions_summary_text,
-    strategy_return_pct,
-)
+from trading.domain.portfolio_math import alpha_pct, benchmark_available, strategy_return_pct
 from trading.services.pricing import benchmark_stats
-from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
+from trading.services.analysis.portfolio import (
+    build_account_return_summary,
+    build_account_stats,
+    infer_overall_trend,
+)
+
+# Compare output shows at most this many individual positions before truncating.
+POSITION_SUMMARY_LIMIT = 5
+
+
+def positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
+    position_count = len(positions)
+    if not positions:
+        return position_count, "none"
+    sorted_positions = sorted(positions.items(), key=lambda x: x[0])
+    positions_text = ", ".join(f"{ticker}:{qty:.2f}" for ticker, qty in sorted_positions[:POSITION_SUMMARY_LIMIT])
+    if len(sorted_positions) > POSITION_SUMMARY_LIMIT:
+        positions_text += ", ..."
+    return position_count, positions_text
 
 
 def _print_leaps_params(book: BookRecord) -> None:
@@ -203,14 +216,8 @@ def account_report(
     account = get_account(conn, account_name)
     state, prices, market_value, unrealized, equity = build_account_stats(conn, account, provider=provider)
     evaluation = fetch_strategy_evaluation_for_account_row(conn, account)
-    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
-    initial_cash = row_expect_float(account, "initial_cash")
-    created_at = row_expect_str(account, "created_at")
-    effective_initial = initial_cash if initial_cash else state.total_deposited
-    benchmark_equity, benchmark_return_pct = benchmark_stats(
-        benchmark_ticker, effective_initial, created_at, provider=provider
-    )
-    strategy_return_pct_value = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
+    summary = build_account_return_summary(account, state, equity, provider=provider)
+    strategy_return_pct_value = summary.account_return_pct
 
     _print_account_header(conn, account)
     _print_performance_lines(
@@ -221,8 +228,8 @@ def account_report(
         state.realized_pnl,
         unrealized,
         strategy_return_pct_value,
-        benchmark_equity,
-        benchmark_return_pct,
+        summary.benchmark_equity,
+        summary.benchmark_return_pct,
     )
     print(_evaluation_summary_line(evaluation, prefix="Evaluation Summary: "))
     _print_open_positions(state.positions, state.avg_cost, prices)

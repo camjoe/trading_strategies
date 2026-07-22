@@ -7,7 +7,7 @@ import pandas.testing as pdt
 import pytest
 
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
-from trading.services.reporting import benchmark
+from trading.services.analysis import benchmark
 
 
 def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:

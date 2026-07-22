@@ -1,21 +1,23 @@
-"""Reporting state and trend helpers for reporting consumers.
+"""Portfolio state and trend helpers for analysis consumers.
 
-Owns service-level portfolio state loading and trend inference beneath the
-stable ``trading.services.reporting`` package surface.
+Owns service-level portfolio state loading, settlement-corrected equity, the
+shared account return/benchmark/alpha summary, and trend inference beneath the
+stable ``trading.services.analysis`` package surface.
 """
 
 from __future__ import annotations
 
 import sqlite3
+from typing import NamedTuple
 
-from common.coercion import row_expect_float, row_expect_int
+from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER
+from trading.domain.portfolio_math import alpha_pct, compute_market_value_and_unrealized, strategy_return_pct
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounting import load_account_state
 from trading.services.market_data import MarketDataProvider
-from trading.services.reporting.math import compute_market_value_and_unrealized
-from trading.services.pricing import fetch_latest_prices
+from trading.services.pricing import benchmark_stats, fetch_latest_prices
 
 # The settlement ticker is always worth exactly $1 per unit (it represents cash).
 _SETTLEMENT_PRICE = 1.0
@@ -114,6 +116,45 @@ def build_account_stats(
     return state, prices, market_value, unrealized, equity
 
 
+class AccountReturnSummary(NamedTuple):
+    """Account return figures shared by the UI analysis payload and the printed report."""
+
+    account_return_pct: float
+    benchmark_equity: float | None
+    benchmark_return_pct: float | None
+    alpha_pct: float | None
+
+
+def build_account_return_summary(
+    account: AccountRecord,
+    state: AccountState,
+    equity: float,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> AccountReturnSummary:
+    """Return %, benchmark, and alpha for an account against the deposit-aware base.
+
+    ``effective_initial`` falls back to total deposited when ``initial_cash`` is 0,
+    so the UI analysis endpoint and the CLI account report measure return against
+    the same base and cannot silently drift apart.
+    """
+    initial_cash = row_expect_float(account, "initial_cash")
+    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
+    created_at = row_expect_str(account, "created_at")
+    effective_initial = initial_cash if initial_cash else state.total_deposited
+    account_return_pct = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
+    benchmark_equity, benchmark_return_pct = benchmark_stats(
+        benchmark_ticker, effective_initial, created_at, provider=provider
+    )
+    alpha = alpha_pct(account_return_pct, benchmark_return_pct) if benchmark_return_pct is not None else None
+    return AccountReturnSummary(
+        account_return_pct=account_return_pct,
+        benchmark_equity=benchmark_equity,
+        benchmark_return_pct=benchmark_return_pct,
+        alpha_pct=alpha,
+    )
+
+
 def infer_overall_trend(
     conn: sqlite3.Connection,
     account_id: int,
@@ -129,6 +170,8 @@ def infer_overall_trend(
 
 
 __all__ = [
+    "AccountReturnSummary",
+    "build_account_return_summary",
     "build_account_stats",
     "infer_overall_trend",
     "inject_settlement_price",
