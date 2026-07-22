@@ -59,7 +59,7 @@ The maps and this guide serve different questions:
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
-| Change stale-backtest target discovery/remediation support | `src/trading/services/backtesting/` |
+| Change stale-backtest target discovery/remediation support | `src/trading/backtesting/services/stale_backtests.py` |
 | Change Autonomy monitor operator/dashboard queries or artifacts | `src/trading/services/autonomy_monitor/` |
 
 ### Configuration

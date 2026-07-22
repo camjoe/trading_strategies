@@ -11,8 +11,13 @@ from trading.backtesting.services.leaderboard_service import fetch_backtest_lead
 from trading.backtesting.services.report_service import fetch_backtest_report_data
 from trading.backtesting.services.walk_forward_report_service import fetch_walk_forward_report_data
 from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
+from trading.backtesting.services.stale_backtests import (
+    StaleBacktestTarget,
+    find_stale_backtests,
+)
 
 __all__ = [
+    "StaleBacktestTarget",
     "build_monthly_universe",
     "execute_walk_forward_backtest",
     "fetch_backtest_leaderboard_entries",
@@ -20,6 +25,7 @@ __all__ = [
     "fetch_walk_forward_report_data",
     "fetch_benchmark_close",
     "fetch_close_history",
+    "find_stale_backtests",
     "load_tickers_from_file",
     "resolve_backtest_dates",
     "run_backtest",

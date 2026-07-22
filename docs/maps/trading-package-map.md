@@ -147,7 +147,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
 | `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
-| `backtesting/stale_backtests.py` | Enumerate (account, strategy) pairs whose backtest is stale or missing across each account's rotation candidates (backtest-freshness remediation) |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
 | `demo/seeding.py` | Atomic application-owned synthetic account, trading, backtest, and promotion demo story |

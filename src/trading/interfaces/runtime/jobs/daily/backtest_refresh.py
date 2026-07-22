@@ -24,7 +24,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     run_command_with_retry,
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
-from trading.services.backtesting import find_stale_backtests
+from trading.backtesting.services import find_stale_backtests
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
