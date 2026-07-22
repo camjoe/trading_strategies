@@ -14,10 +14,10 @@ possibility of unintended trades are especially important.
 Do not include credentials, account identifiers, private trading data, or exploitable details in a
 public issue.
 
-Use GitHub private vulnerability reporting when it is available for this repository. If it is not
-available, contact the repository owner privately before sharing sensitive details. A sanitized public
-issue is appropriate only when it contains no secret, personal, account, or immediately exploitable
-information.
+Submit sensitive reports through
+[GitHub private vulnerability reporting](https://github.com/camjoe/trading_strategies/security/advisories/new).
+A sanitized public issue is appropriate only when it contains no secret, personal, account, or
+immediately exploitable information.
 
 Include, when safe:
 
