@@ -334,12 +334,12 @@ This splits the problem into two states:
 
 ### Recommended pattern: suspend overnight, wake on schedule
 
-This machine runs jobs for ~35 minutes per day (12:58–13:35) and suspends the rest of the time.
-The systemd timers installed in §1.5 include `WakeSystem=yes`, which sets the RTC alarm so the
-machine wakes from suspend automatically before each job fires. No cron daemon or always-on
-requirement is needed for the recommended systemd path.
+Choose an AC inactivity timeout longer than the complete scheduled-job window. The systemd timers
+installed in §1.5 include `WakeSystem=yes`, which sets the RTC alarm so the machine wakes from
+suspend before each job fires. No cron daemon or always-on requirement is needed for the recommended
+systemd path.
 
-Setup (already applied on this host):
+Example setup:
 
 1. **AC inactivity timeout set to 60 minutes** — machine stays up through the full job window then
    auto-suspends:
@@ -361,14 +361,17 @@ Even with the above, treat a missed run as expected-occasionally, not catastroph
   [runtime-operations.md](runtime-operations.md#run-did-not-execute-scheduler-missed)).
 - The health-check job + alert webhook tell you when a run is missing so you can react.
 
-### TODO — capture machine-specific details on the Linux host
+### Record machine-specific details privately
+
+Copy this checklist into `local/operations/production-host-checklist.md` and complete it there. Tracked
+runbooks describe reusable procedures; they do not record the state of a particular installation.
 
 - [ ] BIOS/UEFI vendor + version, and the exact menu path + label for **AC power recovery**
 - [ ] Whether the board supports **RTC wake / Power On by Alarm**, and its menu path (or note "not supported")
-- [x] Confirmed `systemd WakeSystem=yes` wakes from suspend on this hardware (verified 2026-06-29)
+- [ ] Confirmed `systemd WakeSystem=yes` wakes from suspend on this hardware
 - [ ] NIC **Wake-on-LAN** capability (`ethtool <iface> | grep Wake-on`) and whether to enable it
-- [ ] Distro + version noted; `systemd-logind` AC inactivity timeout set to 3600 s (60 min) on 2026-06-29
-- [x] Decision recorded: **suspend+wake** (systemd `WakeSystem=yes`); AC power recovery TBD
+- [ ] Distro + version noted; `systemd-logind` AC inactivity timeout recorded
+- [ ] Uptime decision recorded: always-on or suspend+wake; AC power recovery configured
 
 ---
 
@@ -387,4 +390,4 @@ Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 00
 - [ ] Part 5 machine-specific details captured on the Linux host (fills in the TODO list)
 - [ ] Decided whether to stand up the optional staging checkout (Part 3) now or later
 - [ ] Old Windows host scheduled tasks unregistered so jobs don't double-run
-      (`manage_job_schedules --unregister` on the old machine) — currently none registered (verified 2026-06-27)
+      (`manage_job_schedules --unregister` on the old machine)

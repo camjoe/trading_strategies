@@ -115,5 +115,14 @@ reference-note template above, or `docs/adr/TEMPLATE.adr.md`.
 
 All files under `docs/` follow this standard, with `TEMPLATE.*.md` as placeholder-only templates.
 
+### Runbook operator state
+
+Tracked runbooks describe reusable procedures, safe examples, and blank checklists. They must not
+record the current state of a particular installation, including completed checklist items, dated
+machine verifications, actual host schedules, hardware details, or migration status. Record that state
+under the gitignored `local/operations/` directory instead.
+
 **Enforcement:** `python -m scripts.checks.docs.doc_header_check --enforce` verifies the required fields
 and Type/Status vocabulary across `docs/` in the CI profile.
+`python -m scripts.checks.docs.runbook_state_check --enforce` rejects common operator-state markers
+from tracked runbooks.

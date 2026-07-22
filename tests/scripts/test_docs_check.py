@@ -19,6 +19,7 @@ def test_docs_check_runs_expected_steps_in_order(monkeypatch) -> None:
     monkeypatch.setattr(docs_check, "run_db_schema_check", lambda **kwargs: calls.append("db") or 0)
     monkeypatch.setattr(docs_check, "run_doc_header_check", lambda **kwargs: calls.append("headers") or 0)
     monkeypatch.setattr(docs_check, "run_doc_naming_check", lambda **kwargs: calls.append("naming") or 0)
+    monkeypatch.setattr(docs_check, "run_runbook_state_check", lambda **kwargs: calls.append("runbook-state") or 0)
     monkeypatch.setattr(docs_check, "run_reference_docs_check", lambda **kwargs: calls.append("reference") or 0)
 
     assert docs_check.run_docs_check(Path("."), enforce=True, quiet=True) == 0
@@ -30,6 +31,7 @@ def test_docs_check_runs_expected_steps_in_order(monkeypatch) -> None:
         "db",
         "headers",
         "naming",
+        "runbook-state",
         "reference",
     ]
 
@@ -55,6 +57,7 @@ def test_docs_check_can_skip_reference_docs(monkeypatch) -> None:
     monkeypatch.setattr(docs_check, "run_db_schema_check", lambda **kwargs: calls.append("db") or 0)
     monkeypatch.setattr(docs_check, "run_doc_header_check", lambda **kwargs: calls.append("headers") or 0)
     monkeypatch.setattr(docs_check, "run_doc_naming_check", lambda **kwargs: calls.append("naming") or 0)
+    monkeypatch.setattr(docs_check, "run_runbook_state_check", lambda **kwargs: calls.append("runbook-state") or 0)
     monkeypatch.setattr(docs_check, "run_reference_docs_check", lambda **kwargs: calls.append("reference") or 0)
 
     assert docs_check.run_docs_check(Path("."), include_reference_docs=False) == 0
@@ -66,4 +69,5 @@ def test_docs_check_can_skip_reference_docs(monkeypatch) -> None:
         "db",
         "headers",
         "naming",
+        "runbook-state",
     ]
