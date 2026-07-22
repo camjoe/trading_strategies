@@ -8,41 +8,28 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str
+from common.coercion import row_expect_str
 from common.constants import SETTLEMENT_TICKER
-from trading.services.accounting import load_account_state
-from trading.services.market_data import MarketDataProvider
+from trading.models import AccountRecord
+from trading.services.analysis.portfolio import build_account_return_summary, build_account_stats
 from trading.services.analysis.position import (
     TOP_POSITIONS_COUNT,
     compute_position_analysis,
     generate_improvement_notes,
 )
-from trading.domain.portfolio_math import compute_market_value_and_unrealized, strategy_return_pct
-from trading.services.pricing import benchmark_stats, fetch_latest_prices
+from trading.services.market_data import MarketDataProvider
 
 
 def fetch_account_analysis(
     conn: sqlite3.Connection,
-    account_row: dict[str, object],
+    account_row: AccountRecord,
     *,
     provider: MarketDataProvider | None = None,
 ) -> dict[str, object]:
     """Return a full performance analysis dict for an account."""
-    account_id = row_expect_int(account_row, "id")
-    initial_cash = row_expect_float(account_row, "initial_cash")
     benchmark_ticker = row_expect_str(account_row, "benchmark_ticker")
-    created_at = row_expect_str(account_row, "created_at")
-
-    state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
-    tickers = sorted(state.positions.keys())
-    prices = fetch_latest_prices(tickers, provider=provider) if tickers else {}
-    market_value, unrealized = compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
-    equity = state.cash + market_value
-
-    effective_initial = initial_cash if initial_cash else state.total_deposited
-    account_return = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
-    _, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at, provider=provider)
-    alpha = (account_return - bench_return) if bench_return is not None else None
+    state, prices, _market_value, unrealized, equity = build_account_stats(conn, account_row, provider=provider)
+    summary = build_account_return_summary(account_row, state, equity, provider=provider)
 
     position_analysis = compute_position_analysis(state, prices, equity)
     ranked = sorted(
@@ -56,9 +43,9 @@ def fetch_account_analysis(
     )
 
     improvement_notes = generate_improvement_notes(
-        account_return,
-        bench_return,
-        alpha,
+        summary.account_return_pct,
+        summary.benchmark_return_pct,
+        summary.alpha_pct,
         position_analysis,
         state.realized_pnl,
     )
@@ -72,10 +59,10 @@ def fetch_account_analysis(
     )
 
     return {
-        "accountReturnPct": account_return,
-        "benchmarkReturnPct": bench_return,
+        "accountReturnPct": summary.account_return_pct,
+        "benchmarkReturnPct": summary.benchmark_return_pct,
         "benchmarkTicker": benchmark_ticker,
-        "alphaPct": alpha,
+        "alphaPct": summary.alpha_pct,
         "realizedPnl": state.realized_pnl,
         "unrealizedPnl": unrealized,
         "equity": equity,
