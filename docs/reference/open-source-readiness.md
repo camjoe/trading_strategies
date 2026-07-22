@@ -36,6 +36,10 @@ Changes should avoid creating unnecessary work for eventual open-source licensin
   or deployment details.
 - Keep strategy implementations behind the existing domain, catalog, and feature-provider boundaries.
   Shared execution, evaluation, persistence, and UI code must not depend on a specific private strategy.
+- Treat tracked account profiles and strategy parameters as synthetic examples. Keep real strategy
+  parameters, operator profiles, and research notes under the gitignored `local/strategies/` workspace.
+  Private implementation code that must run with the application belongs in a separately distributed
+  private package or repository, not in `local/`.
 - Keep setup instructions reproducible from a clean checkout and use example configuration files for
   local secrets.
 - Preserve clear safety gates around broker connections and order submission.

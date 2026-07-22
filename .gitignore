@@ -1,3 +1,4 @@
+# Private operator state, real strategy work, generated artifacts, logs, and databases.
 local/*
 trading/database/*.db
 trading/database/backups/*.db

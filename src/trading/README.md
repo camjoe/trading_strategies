@@ -194,6 +194,16 @@ Built-in account profile presets now live under:
 
 CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 
+These tracked presets are synthetic examples for testing and demonstration. Their account names,
+capital amounts, return goals, risk limits, and strategy schedules do not represent actual accounts,
+validated performance expectations, or recommended settings.
+
+Keep real strategy parameters, operator profiles, and research notes under the gitignored
+`local/strategies/` workspace. Do not replace the tracked presets with personal operating
+configuration. If private strategy implementation code later needs to run as part of the application,
+move it into a separately distributed private package or repository rather than importing code from
+`local/`.
+
 ## Boundary Snapshot
 
 - The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
