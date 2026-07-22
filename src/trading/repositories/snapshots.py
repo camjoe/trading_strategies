@@ -7,10 +7,12 @@ from trading.repositories.book_bridge import default_book_id
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
 # summed balances. Degenerates to the raw row while an account has only its
-# default book. Aggregated rows carry NULL book_id.
+# default book. Multi-book aggregate rows carry NULL book_id AND NULL id: the id
+# is coupled to book_id so a synthetic aggregate can never be mistaken for an
+# addressable stored row (both are real, or both are NULL).
 _ACCOUNT_VIEW_SELECT = """
 SELECT
-    MIN(s.id) AS id,
+    CASE WHEN COUNT(DISTINCT s.book_id) = 1 THEN MIN(s.id) ELSE NULL END AS id,
     b.account_id AS account_id,
     CASE WHEN COUNT(DISTINCT s.book_id) = 1 THEN MIN(s.book_id) ELSE NULL END AS book_id,
     s.snapshot_time AS snapshot_time,
@@ -40,6 +42,14 @@ _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND = _ACCOUNT_VIEW_SELECT.replace(
 
 class EquitySnapshotRepository:
     """Book-keyed snapshot storage with account-level roll-up reads.
+
+    Grain: **book-additive**. Balances sum across books, so every account-view
+    read (`fetch_latest`, `fetch_history`, ...) returns one *rolled-up* row per
+    `snapshot_time` — a `SUM` over the account's books. Multi-book aggregate
+    rows carry NULL `book_id` and NULL `id` (they are not addressable stored
+    rows). Contrast `DailyMetricsRepository` (book-native, non-additive) and
+    `RiskSnapshotRepository` (account-emergent); see
+    docs/reference/performance-and-risk-tables.md.
 
     `insert` is the account-keyed convenience writer: it resolves
     (bootstrapping if needed) the account's default book. `insert_for_book`

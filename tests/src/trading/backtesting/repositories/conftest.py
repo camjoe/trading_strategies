@@ -58,7 +58,7 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
         conn.executemany(
             """
             INSERT INTO backtest_equity_snapshots (
-                run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+                run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             [

@@ -16,6 +16,7 @@ from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMe
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
 
 DEFAULT_ROLLING_WINDOW_DAYS = 30
@@ -283,25 +284,26 @@ def evaluate_and_apply_book_rotation(
         incumbent_strategy=incumbent_strategy,
         challengers=challengers,
     )
-    decision, decision_id = evaluate_book_rotation(
-        conn,
-        book_id=book_id,
-        incumbent=incumbent,
-        challengers=normalized_challengers,
-        config=config,
-        cooldown_active=cooldown_active,
-        decision_time=now_iso,
-    )
-
-    rotated = False
-    if decision.rotation_action == "rotate":
-        assign_book_strategy(
+    with unit_of_work(conn):
+        decision, decision_id = evaluate_book_rotation(
             conn,
-            book_id=int(book_id),
-            strategy_name=decision.selected_strategy,
-            now_iso=now_iso,
+            book_id=book_id,
+            incumbent=incumbent,
+            challengers=normalized_challengers,
+            config=config,
+            cooldown_active=cooldown_active,
+            decision_time=now_iso,
         )
-        rotated = True
+
+        rotated = False
+        if decision.rotation_action == "rotate":
+            assign_book_strategy(
+                conn,
+                book_id=int(book_id),
+                strategy_name=decision.selected_strategy,
+                now_iso=now_iso,
+            )
+            rotated = True
 
     return RotationRunResult(
         book_id=int(book_id),

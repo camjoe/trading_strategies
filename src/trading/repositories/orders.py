@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.orders.order_record import OrderRecord
 
 
@@ -42,6 +43,7 @@ class OrderRepository:
         commission: float = 0.0,
         submitted_at: str,
         updated_at: str,
+        status_reason: str | None = None,
     ) -> int:
         owner = self._conn.execute(
             "SELECT account_id FROM books WHERE id = ?",
@@ -56,9 +58,9 @@ class OrderRepository:
             INSERT INTO orders (
                 book_id, account_id, strategy_id, rotation_decision_id, broker_order_id,
                 symbol, side, qty, order_type, time_in_force, requested_price, status,
-                filled_qty, avg_fill_price, commission, submitted_at, updated_at
+                filled_qty, avg_fill_price, commission, submitted_at, updated_at, status_reason
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(book_id),
@@ -78,9 +80,10 @@ class OrderRepository:
                 float(commission),
                 submitted_at,
                 updated_at,
+                status_reason,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def insert_fill(
@@ -91,7 +94,6 @@ class OrderRepository:
         fill_price: float,
         fill_time: str,
         commission: float = 0.0,
-        broker_fill_id: str | None = None,
         exec_id: str | None = None,
     ) -> None:
         # Fills key directly on the clean order_id (the execution service owns it).
@@ -99,12 +101,11 @@ class OrderRepository:
         self._conn.execute(
             """
             INSERT OR IGNORE INTO order_fills
-                (order_id, broker_fill_id, exec_id, filled_qty, fill_price, commission, fill_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (order_id, exec_id, filled_qty, fill_price, commission, fill_time)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 int(order_id),
-                broker_fill_id,
                 exec_id,
                 float(filled_qty),
                 float(fill_price),
@@ -112,7 +113,7 @@ class OrderRepository:
                 fill_time,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def fetch_fill_exec_ids(self, *, order_id: int) -> set[str]:
         """Return the non-null exec_ids already recorded for an order (fill dedup)."""
@@ -190,16 +191,20 @@ class OrderRepository:
         filled_qty: float | None = None,
         avg_fill_price: float | None = None,
         updated_at: str,
+        status_reason: str | None = None,
     ) -> None:
+        # status_reason is COALESCEd: a later poll without a reason must not erase
+        # one an earlier terminal update recorded.
         self._conn.execute(
             """
             UPDATE orders
             SET status = ?,
                 filled_qty = COALESCE(?, filled_qty),
                 avg_fill_price = COALESCE(?, avg_fill_price),
+                status_reason = COALESCE(?, status_reason),
                 updated_at = ?
             WHERE id = ?
             """,
-            (status, filled_qty, avg_fill_price, updated_at, int(order_id)),
+            (status, filled_qty, avg_fill_price, status_reason, updated_at, int(order_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)

@@ -33,8 +33,6 @@ class BookRotationSettingsRepository:
     ) -> None:
         # Scheduling-only write: policy columns keep their values when the row
         # already exists; a fresh row gets policy NULLs (code defaults). The
-        # mode/optimality/regime/overlay and interval columns are retained on
-        # the table (append-only) but are dead config — no longer written.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (

@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-21
 Purpose: Procedures for running and interpreting the read-only weekly and monthly governance jobs that produce review artifacts.
 Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Runtime Operations](runtime-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Strategy Catalog](../reference/strategies.md)
 
@@ -58,6 +58,13 @@ Reports promotion readiness and any blocking violations for each account.
 **When to act:**
 - `ready_for_live: true` with no blockers → persist a review with `promotion-request-review`, inspect history with `promotion-review-history`, then approve/reject/comment with `promotion-review-action`
 - Any book with `book_status` other than `active` for an extended period → investigate
+
+Promotion and rotation are separate controls. A promotion review is an operator-governance case:
+its event history records the request, notes, and terminal approval or rejection. Approval does not
+enable live trading, assign the strategy to a book, or cause a rotation. Conversely, rotation selects
+a strategy under a book's configured champion/challenger policy and does not constitute promotion
+approval. The current system does not require promotion approval before a strategy is eligible for
+rotation.
 
 ---
 

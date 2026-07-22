@@ -132,8 +132,8 @@ def _build_summary_from_stats(
         "ivRankMin": book.iv_rank_min if book is not None else None,
         "ivRankMax": book.iv_rank_max if book is not None else None,
         "rollDteThreshold": book.roll_dte_threshold if book is not None else None,
-        "profitTakePct": book.profit_take_pct if book is not None else None,
-        "maxLossPct": book.max_loss_pct if book is not None else None,
+        "optionProfitTakePct": book.option_profit_take_pct if book is not None else None,
+        "optionMaxLossPct": book.option_max_loss_pct if book is not None else None,
         "activeStrategy": active_strategy,
         "rotation": {
             "enabled": rotation.rotation_enabled,

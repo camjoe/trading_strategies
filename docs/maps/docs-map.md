@@ -84,8 +84,10 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
+| `docs/reference/walk-forward-optimization-plan.md` | Program B: methodology, leakage controls, objective, optimizer schema, delivery phases, and validation criteria for full train-optimize-test walk-forward optimization | The current rolling-window capability or accepted optimization methodology/schema changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
+| `docs/reference/database-transactions.md` | The `unit_of_work` / `commit_unit_of_work` pattern for grouping multiple DB writes into one atomic transaction | `src/trading/repositories/unit_of_work.py` or the repository-commit convention changes |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |

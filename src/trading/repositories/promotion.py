@@ -115,6 +115,7 @@ class PromotionReviewRepository:
         *,
         assessment: PromotionAssessment,
         evaluation: StrategyEvaluationArtifact,
+        strategy_id: int | None,
         requested_by: str | None,
         operator_summary_note: str | None,
         created_at: str,
@@ -125,6 +126,8 @@ class PromotionReviewRepository:
             raise ValueError("Promotion review requires evaluation.basic.account_name.")
         if evaluation.basic.requested_strategy is None:
             raise ValueError("Promotion review requires evaluation.basic.requested_strategy.")
+        if strategy_id is None:
+            raise ValueError("Promotion review requires a strategy_id.")
 
         cursor = self._conn.execute(
             """
@@ -149,15 +152,12 @@ class PromotionReviewRepository:
                 created_at,
                 updated_at,
                 closed_at
-            ) VALUES (?, ?, (SELECT id FROM strategies WHERE strategy_key = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 evaluation.basic.account_id,
                 evaluation.basic.account_name,
-                # Real FK resolved from the catalog key; the name column stays
-                # as the display snapshot (revision 0007). Unresolvable names
-                # keep a NULL id.
-                evaluation.basic.requested_strategy.strip().lower(),
+                strategy_id,
                 evaluation.basic.requested_strategy,
                 PromotionReviewState.REQUESTED,
                 assessment.stage,
@@ -295,17 +295,18 @@ class PromotionReviewRepository:
         self,
         *,
         review_id: int,
+        expected_review_state: PromotionReviewState,
         review_state: PromotionReviewState,
         reviewed_by: str | None,
         operator_summary_note: str | None,
         updated_at: str,
         closed_at: str | None,
     ) -> PromotionReviewRecord:
-        self._conn.execute(
+        cursor = self._conn.execute(
             """
             UPDATE promotion_reviews
             SET review_state = ?, reviewed_by = ?, operator_summary_note = ?, updated_at = ?, closed_at = ?
-            WHERE id = ?
+            WHERE id = ? AND review_state = ?
             """,
             (
                 review_state,
@@ -314,6 +315,9 @@ class PromotionReviewRepository:
                 updated_at,
                 closed_at,
                 review_id,
+                expected_review_state,
             ),
         )
+        if cursor.rowcount == 0:
+            raise ValueError(f"Promotion review {review_id} was already closed.")
         return self._require_review(review_id=review_id, context="update")

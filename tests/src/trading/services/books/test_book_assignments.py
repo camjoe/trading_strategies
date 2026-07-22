@@ -97,7 +97,7 @@ def test_sync_default_book_assignment_opens_and_is_idempotent(conn) -> None:
     # Matching strategy is a no-op: same open assignment, no history churn.
     assert second == first
     open_rows = conn.execute(
-        "SELECT COUNT(*) FROM book_strategy_assignments WHERE book_id = ?", (first.book_id,)
+        "SELECT COUNT(*) FROM book_strategy_history WHERE book_id = ?", (first.book_id,)
     ).fetchone()[0]
     assert open_rows == 1
 
@@ -111,7 +111,7 @@ def test_sync_default_book_assignment_rotates_on_strategy_change(conn) -> None:
     assert changed.strategy_name == "meanrev"
     assert changed.book_id == first.book_id
     closed = conn.execute(
-        "SELECT COUNT(*) FROM book_strategy_assignments WHERE book_id = ? AND effective_to IS NOT NULL",
+        "SELECT COUNT(*) FROM book_strategy_history WHERE book_id = ? AND effective_to IS NOT NULL",
         (first.book_id,),
     ).fetchone()[0]
     assert closed == 1

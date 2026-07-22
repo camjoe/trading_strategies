@@ -119,7 +119,6 @@ def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> N
         strategy_key="trend_fast",
         primitive="trend",
         params_json=json.dumps({"fast_window": 5, "slow_window": 10}),
-        style="trend",
         created_at="2026-07-12T00:00:00Z",
         updated_at="2026-07-12T00:00:00Z",
     )

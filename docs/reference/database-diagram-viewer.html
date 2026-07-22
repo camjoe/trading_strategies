@@ -47,7 +47,7 @@
       gap: 8px;
       justify-content: flex-end;
     }
-    button, input {
+    button {
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--ink);
@@ -61,7 +61,6 @@
       color: var(--accent);
       background: #eef4ff;
     }
-    input { min-width: 220px; padding: 0 10px; }
     .tabs {
       display: flex;
       gap: 6px;
@@ -74,8 +73,30 @@
       white-space: nowrap;
       min-width: max-content;
     }
+    .category-tabs {
+      background: #f8fafc;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .role-tabs {
+      background: #f1f5f9;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      align-items: center;
+    }
+    .role-tabs::before {
+      content: "By data role";
+      align-self: center;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: 4px;
+    }
     main {
-      height: calc(100vh - 118px);
+      height: calc(100vh - 162px);
       overflow: hidden;
       position: relative;
     }
@@ -143,15 +164,15 @@
     }
     .section-label {
       position: absolute;
-      min-width: 260px;
-      height: 34px;
-      padding: 7px 12px 6px;
+      min-width: 290px;
+      height: 40px;
+      padding: 9px 14px 8px;
       border-left: 6px solid var(--section-color);
       border-radius: 7px;
       background: rgba(255, 255, 255, 0.86);
       color: var(--section-color);
       box-shadow: var(--shadow);
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 760;
       letter-spacing: 0;
       cursor: grab;
@@ -175,8 +196,9 @@
       position: static;
       padding: 10px 12px;
       display: block;
-      border-bottom: 1px solid var(--line);
-      background: #f9fafb;
+      border-bottom: 1px solid color-mix(in srgb, var(--table-section-color) 35%, var(--line));
+      border-left: 5px solid var(--table-section-color);
+      background: color-mix(in srgb, var(--table-section-color) 12%, #ffffff);
     }
     .table-card h3 { margin: 0; font-size: 15px; }
     .column-list {
@@ -271,21 +293,18 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-17T17:56:14+00:00. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 19:42 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
-      <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
-      <button id="zoomOut" type="button">-</button>
-      <button id="zoomReset" type="button">Reset</button>
-      <button id="zoomIn" type="button">+</button>
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
       <button id="toggleLabels" type="button" aria-pressed="false">Labels</button>
       <button id="toggleConstraints" type="button" aria-pressed="false">Constraints</button>
       <button id="toggleDeleteActions" type="button" aria-pressed="false">Delete actions</button>
-      <button id="resetLayout" type="button">Reset layout</button>
     </div>
   </header>
   <nav id="tabs" class="tabs" aria-label="Diagram views"></nav>
+  <nav id="categoryTabs" class="tabs category-tabs" aria-label="Category views" hidden></nav>
+  <nav id="roleTabs" class="tabs role-tabs" aria-label="Data-role views" hidden></nav>
   <main>
     <details class="info-panel" open>
       <summary>Diagram info</summary>
@@ -313,8 +332,8 @@
           <span class="legend-row">
             <i class="swatch restrict"></i>RESTRICT intentionally blocks deletion, even mid-cascade.
           </span>
-          <span class="legend-row">Drag table cards or section headers to rearrange a view. Drag either end of a
-            line vertically to re-order where it meets the card.</span>
+          <span class="legend-row">Drag table cards or category titles independently to rearrange a view. Drag
+            either end of a line vertically to re-order where it meets the card.</span>
         </section>
         <section class="panel-section">
           <h3>Color key</h3>
@@ -331,7 +350,164 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-17T17:56:14+00:00",
+  "categoryViews": [
+    {
+      "description": "Books tables with the accounts and books anchors.",
+      "id": "category_books",
+      "label": "Books",
+      "tables": [
+        "accounts",
+        "books",
+        "book_universe_history",
+        "positions",
+        "ledger"
+      ]
+    },
+    {
+      "description": "Orders tables with the accounts and books anchors.",
+      "id": "category_orders",
+      "label": "Orders",
+      "tables": [
+        "accounts",
+        "books",
+        "orders",
+        "order_fills"
+      ]
+    },
+    {
+      "description": "Performance and metrics tables with the accounts and books anchors.",
+      "id": "category_performance",
+      "label": "Performance and metrics",
+      "tables": [
+        "accounts",
+        "books",
+        "equity_snapshots",
+        "daily_metrics"
+      ]
+    },
+    {
+      "description": "Rotations tables with the accounts and books anchors.",
+      "id": "category_rotations",
+      "label": "Rotations",
+      "tables": [
+        "accounts",
+        "books",
+        "book_rotation_settings",
+        "book_strategy_history",
+        "rotation_decisions"
+      ]
+    },
+    {
+      "description": "Research tables with the accounts and books anchors.",
+      "id": "category_research",
+      "label": "Research",
+      "tables": [
+        "accounts",
+        "books",
+        "backtest_runs",
+        "backtest_executions",
+        "backtest_equity_snapshots",
+        "walk_forward_experiments",
+        "walk_forward_windows"
+      ]
+    },
+    {
+      "description": "Promotion governance tables with the accounts and books anchors.",
+      "id": "category_promotion",
+      "label": "Promotion governance",
+      "tables": [
+        "accounts",
+        "books",
+        "promotion_reviews",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Risk controls tables with the accounts and books anchors.",
+      "id": "category_risk",
+      "label": "Risk controls",
+      "tables": [
+        "accounts",
+        "books",
+        "risk_snapshots",
+        "risk_decisions"
+      ]
+    },
+    {
+      "description": "Catalogs and settings tables with the accounts and books anchors.",
+      "id": "category_catalogs",
+      "label": "Catalogs and settings",
+      "tables": [
+        "accounts",
+        "books",
+        "strategies",
+        "feature_providers",
+        "global_settings"
+      ]
+    }
+  ],
+  "generatedAt": "19:42 21-07-2026 PST",
+  "roleViews": [
+    {
+      "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
+      "id": "role_operational_state",
+      "label": "Operational state",
+      "tables": [
+        "accounts",
+        "books",
+        "positions",
+        "book_rotation_settings",
+        "strategies",
+        "feature_providers",
+        "global_settings"
+      ]
+    },
+    {
+      "description": "Effective-dated (valid-time / SCD Type 2) tables: one open row plus closed prior rows, bounded by effective_from/effective_to, reconstructing what was active at any past time.",
+      "id": "role_temporal_history",
+      "label": "Temporal history",
+      "tables": [
+        "book_strategy_history",
+        "book_universe_history"
+      ]
+    },
+    {
+      "description": "Automated decisions and execution/accounting events. Decision, fill, ledger, and review event rows preserve history; order rows are mutable lifecycle records reconciled in place.",
+      "id": "role_decision_logs",
+      "label": "Decisions and execution events",
+      "tables": [
+        "orders",
+        "order_fills",
+        "ledger",
+        "rotation_decisions",
+        "risk_decisions",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Periodic materialized state and computed results captured at a point in time: equity and risk snapshots, daily metrics, and backtest / walk-forward outputs.",
+      "id": "role_snapshots",
+      "label": "Snapshots and time-series",
+      "tables": [
+        "equity_snapshots",
+        "risk_snapshots",
+        "daily_metrics",
+        "backtest_runs",
+        "backtest_executions",
+        "backtest_equity_snapshots",
+        "walk_forward_experiments",
+        "walk_forward_windows"
+      ]
+    },
+    {
+      "description": "Frozen decision inputs: the full evaluation and assessment payload captured at decision time, so a past promotion decision can be re-justified against what it actually saw.",
+      "id": "role_provenance",
+      "label": "Provenance",
+      "tables": [
+        "promotion_reviews"
+      ]
+    }
+  ],
   "sections": [
     {
       "color": "#2563eb",
@@ -363,13 +539,11 @@
     },
     {
       "color": "#0891b2",
-      "id": "snapshots",
-      "label": "Snapshots and metrics",
+      "id": "performance",
+      "label": "Performance and metrics",
       "tables": [
         "equity_snapshots",
-        "daily_metrics",
-        "backtest_equity_snapshots",
-        "risk_snapshots"
+        "daily_metrics"
       ]
     },
     {
@@ -378,7 +552,7 @@
       "label": "Rotations",
       "tables": [
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "rotation_decisions"
       ]
     },
@@ -388,18 +562,27 @@
       "label": "Research",
       "tables": [
         "backtest_runs",
-        "backtest_trades",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "backtest_executions",
+        "backtest_equity_snapshots",
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
       "color": "#db2777",
-      "id": "governance",
-      "label": "Promotion and risk",
+      "id": "promotion",
+      "label": "Promotion governance",
       "tables": [
         "promotion_reviews",
-        "promotion_review_events",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "color": "#0f766e",
+      "id": "risk",
+      "label": "Risk controls",
+      "tables": [
+        "risk_snapshots",
         "risk_decisions"
       ]
     },
@@ -469,7 +652,7 @@
         {
           "default": null,
           "name": "updated_at",
-          "notNull": false,
+          "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -481,8 +664,8 @@
           "primaryKeyPosition": 0,
           "section": {
             "color": "#0891b2",
-            "id": "snapshots",
-            "label": "Snapshots and metrics"
+            "id": "performance",
+            "label": "Performance and metrics"
           },
           "type": "TEXT"
         },
@@ -597,7 +780,7 @@
         },
         {
           "default": null,
-          "name": "snapshot_time",
+          "name": "snapshot_date",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -665,9 +848,122 @@
       ],
       "name": "backtest_equity_snapshots",
       "section": {
-        "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "execution_date",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "ticker",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "side",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "qty",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "price",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": "0",
+          "name": "fee",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": "0",
+          "name": "slippage_bps",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "note",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "run_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "run_id"
+          ],
+          "name": "idx_backtest_executions_run_id",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "backtest_executions",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
       }
     },
     {
@@ -708,6 +1004,14 @@
           "default": null,
           "name": "run_name",
           "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "'standalone'",
+          "name": "purpose",
+          "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -814,119 +1118,6 @@
       "columns": [
         {
           "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "trade_time",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "ticker",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "side",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "qty",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "price",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "fee",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "slippage_bps",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "note",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "run_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "backtest_runs"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "run_id"
-          ],
-          "name": "idx_backtest_trades_run_id",
-          "origin": "c",
-          "unique": false
-        }
-      ],
-      "name": "backtest_trades",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
           "name": "book_id",
           "notNull": false,
           "primaryKeyPosition": 1,
@@ -941,38 +1132,6 @@
           "default": "0",
           "name": "rotation_enabled",
           "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_optimality_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_days",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "rotation_interval_minutes",
-          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
@@ -1059,74 +1218,6 @@
         },
         {
           "default": null,
-          "name": "regime_strategy_risk_on_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "regime_strategy_neutral_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "regime_strategy_risk_off_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "overlay_mode",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "overlay_min_tickers",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "overlay_confidence_threshold",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "overlay_watchlist",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "created_at",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -1143,27 +1234,6 @@
         }
       ],
       "foreignKeys": [
-        {
-          "column": "regime_strategy_risk_off_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
-        {
-          "column": "regime_strategy_neutral_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
-        {
-          "column": "regime_strategy_risk_on_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
         {
           "column": "book_id",
           "onDelete": "CASCADE",
@@ -1231,14 +1301,6 @@
           "type": "TEXT"
         },
         {
-          "default": "1",
-          "name": "is_incumbent",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
           "default": null,
           "name": "created_at",
           "notNull": true,
@@ -1277,7 +1339,7 @@
             "strategy_id",
             "effective_from"
           ],
-          "name": "idx_book_assignments_strategy_effective",
+          "name": "idx_book_strategy_history_strategy_effective",
           "origin": "c",
           "unique": false
         },
@@ -1286,7 +1348,7 @@
             "book_id",
             "effective_from"
           ],
-          "name": "idx_book_assignments_book_effective",
+          "name": "idx_book_strategy_history_book_effective",
           "origin": "c",
           "unique": false
         },
@@ -1294,12 +1356,12 @@
           "columns": [
             "book_id"
           ],
-          "name": "idx_book_assignments_open_per_book",
+          "name": "idx_book_strategy_history_open_per_book",
           "origin": "c",
           "unique": true
         }
       ],
-      "name": "book_strategy_assignments",
+      "name": "book_strategy_history",
       "section": {
         "color": "#d97706",
         "id": "rotations",
@@ -1330,7 +1392,7 @@
         },
         {
           "default": null,
-          "name": "universes_json",
+          "name": "trade_universes",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1540,7 +1602,7 @@
         },
         {
           "default": null,
-          "name": "profit_take_pct",
+          "name": "option_profit_take_pct",
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1548,7 +1610,7 @@
         },
         {
           "default": null,
-          "name": "max_loss_pct",
+          "name": "option_max_loss_pct",
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1685,6 +1747,15 @@
         }
       ],
       "indexes": [
+        {
+          "columns": [
+            "id",
+            "account_id"
+          ],
+          "name": "idx_books_id_account",
+          "origin": "c",
+          "unique": true
+        },
         {
           "columns": [
             "account_id",
@@ -1870,8 +1941,8 @@
       "name": "daily_metrics",
       "section": {
         "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "id": "performance",
+        "label": "Performance and metrics"
       }
     },
     {
@@ -1977,8 +2048,8 @@
       "name": "equity_snapshots",
       "section": {
         "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "id": "performance",
+        "label": "Performance and metrics"
       }
     },
     {
@@ -2077,113 +2148,113 @@
           "type": "INTEGER"
         },
         {
-          "default": "50",
+          "default": null,
           "name": "evaluation_backtest_trade_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "60",
+          "default": null,
           "name": "evaluation_backtest_snapshot_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "30",
+          "default": null,
           "name": "evaluation_paper_live_snapshot_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.7",
+          "default": null,
           "name": "evaluation_backtest_trade_confidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.3",
+          "default": null,
           "name": "evaluation_backtest_snapshot_confidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.6",
+          "default": null,
           "name": "evaluation_backtest_evidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.4",
+          "default": null,
           "name": "evaluation_paper_live_evidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "10",
+          "default": null,
           "name": "promotion_min_research_backtest_trade_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "20",
+          "default": null,
           "name": "promotion_min_research_backtest_snapshot_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.0",
+          "default": null,
           "name": "promotion_min_research_backtest_return_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "-25.0",
+          "default": null,
           "name": "promotion_min_research_max_drawdown_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.0",
+          "default": null,
           "name": "promotion_min_research_walk_forward_average_return_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "10",
+          "default": null,
           "name": "promotion_min_live_paper_snapshot_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.6",
+          "default": null,
           "name": "promotion_min_live_overall_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
@@ -2337,14 +2408,6 @@
         },
         {
           "default": null,
-          "name": "broker_fill_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "exec_id",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -2470,7 +2533,11 @@
           "name": "rotation_decision_id",
           "notNull": false,
           "primaryKeyPosition": 0,
-          "section": null,
+          "section": {
+            "color": "#d97706",
+            "id": "rotations",
+            "label": "Rotations"
+          },
           "type": "INTEGER"
         },
         {
@@ -2576,9 +2643,24 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "status_reason",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
         }
       ],
       "foreignKeys": [
+        {
+          "column": "rotation_decision_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "rotation_decisions"
+        },
         {
           "column": "strategy_id",
           "onDelete": "NO ACTION",
@@ -2754,8 +2836,8 @@
           "primaryKeyPosition": 0,
           "section": {
             "color": "#db2777",
-            "id": "governance",
-            "label": "Promotion and risk"
+            "id": "promotion",
+            "label": "Promotion governance"
           },
           "type": "INTEGER"
         },
@@ -2873,8 +2955,8 @@
       "name": "promotion_review_events",
       "section": {
         "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "id": "promotion",
+        "label": "Promotion governance"
       }
     },
     {
@@ -3105,8 +3187,8 @@
       "name": "promotion_reviews",
       "section": {
         "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "id": "promotion",
+        "label": "Promotion governance"
       }
     },
     {
@@ -3125,9 +3207,9 @@
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": {
-            "color": "#2563eb",
-            "id": "accounts",
-            "label": "Accounts"
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
           },
           "type": "INTEGER"
         },
@@ -3189,7 +3271,7 @@
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
-          "type": "INTEGER"
+          "type": "REAL"
         },
         {
           "default": null,
@@ -3197,7 +3279,7 @@
           "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
-          "type": "INTEGER"
+          "type": "REAL"
         },
         {
           "default": null,
@@ -3235,6 +3317,20 @@
       "foreignKeys": [
         {
           "column": "book_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "account_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "account_id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "book_id",
           "onDelete": "SET NULL",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
@@ -3270,9 +3366,9 @@
       ],
       "name": "risk_decisions",
       "section": {
-        "color": "#db2777",
-        "id": "governance",
-        "label": "Promotion and risk"
+        "color": "#0f766e",
+        "id": "risk",
+        "label": "Risk controls"
       }
     },
     {
@@ -3409,9 +3505,9 @@
       ],
       "name": "risk_snapshots",
       "section": {
-        "color": "#0891b2",
-        "id": "snapshots",
-        "label": "Snapshots and metrics"
+        "color": "#0f766e",
+        "id": "risk",
+        "label": "Risk controls"
       }
     },
     {
@@ -3498,22 +3594,6 @@
         },
         {
           "default": null,
-          "name": "decision_score",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "decision_confidence",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
           "name": "score_components_json",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -3543,30 +3623,6 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "window_start",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "window_end",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "realized_pnl_delta",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
         },
         {
           "default": null,
@@ -3670,22 +3726,6 @@
         },
         {
           "default": null,
-          "name": "style",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "required_features",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "description",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -3755,125 +3795,7 @@
         },
         {
           "default": null,
-          "name": "group_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_index",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_start",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "window_end",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "total_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "run_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "backtest_runs"
-        },
-        {
-          "column": "group_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "walk_forward_groups"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "group_id",
-            "window_index"
-          ],
-          "name": "idx_walk_forward_group_runs_group_window",
-          "origin": "c",
-          "unique": false
-        },
-        {
-          "columns": [
-            "group_id",
-            "window_index"
-          ],
-          "name": "sqlite_autoindex_walk_forward_group_runs_2",
-          "origin": "u",
-          "unique": true
-        },
-        {
-          "columns": [
-            "run_id"
-          ],
-          "name": "sqlite_autoindex_walk_forward_group_runs_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "walk_forward_group_runs",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "grouping_key",
+          "name": "experiment_key",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -3953,38 +3875,6 @@
         },
         {
           "default": null,
-          "name": "average_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "median_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "best_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "worst_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
           "name": "created_at",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4015,20 +3905,129 @@
             "strategy_id",
             "created_at"
           ],
-          "name": "idx_walk_forward_groups_account_strategy_created",
+          "name": "idx_walk_forward_experiments_account_strategy_created",
           "origin": "c",
           "unique": false
         },
         {
           "columns": [
-            "grouping_key"
+            "experiment_key"
           ],
-          "name": "sqlite_autoindex_walk_forward_groups_1",
+          "name": "sqlite_autoindex_walk_forward_experiments_1",
           "origin": "u",
           "unique": true
         }
       ],
-      "name": "walk_forward_groups",
+      "name": "walk_forward_experiments",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "experiment_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "window_index",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "window_start",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "window_end",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "total_return_pct",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "run_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        },
+        {
+          "column": "experiment_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "walk_forward_experiments"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "experiment_id",
+            "window_index"
+          ],
+          "name": "sqlite_autoindex_walk_forward_windows_2",
+          "origin": "u",
+          "unique": true
+        },
+        {
+          "columns": [
+            "run_id"
+          ],
+          "name": "sqlite_autoindex_walk_forward_windows_1",
+          "origin": "u",
+          "unique": true
+        }
+      ],
+      "name": "walk_forward_windows",
       "section": {
         "color": "#7c3aed",
         "id": "research",
@@ -4045,10 +4044,10 @@
       "tables": [
         "accounts",
         "backtest_equity_snapshots",
+        "backtest_executions",
         "backtest_runs",
-        "backtest_trades",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "book_universe_history",
         "books",
         "daily_metrics",
@@ -4065,8 +4064,8 @@
         "risk_snapshots",
         "rotation_decisions",
         "strategies",
-        "walk_forward_group_runs",
-        "walk_forward_groups"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -4085,10 +4084,10 @@
         "positions",
         "ledger",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs",
+        "walk_forward_experiments",
+        "walk_forward_windows",
         "promotion_reviews",
         "promotion_review_events",
         "risk_snapshots",
@@ -4104,7 +4103,7 @@
         "books",
         "book_universe_history",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "strategies",
         "orders",
         "order_fills",
@@ -4123,21 +4122,30 @@
         "accounts",
         "strategies",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
-      "description": "Promotion review, event, risk snapshot, and risk decision relationships.",
-      "id": "governance",
-      "label": "Promotion and risk governance",
+      "description": "Promotion review cases, event history, and their account and strategy anchors.",
+      "id": "promotion_governance",
+      "label": "Promotion governance",
+      "tables": [
+        "accounts",
+        "strategies",
+        "promotion_reviews",
+        "promotion_review_events"
+      ]
+    },
+    {
+      "description": "Account risk snapshots and pre-submit risk decisions, including book ownership.",
+      "id": "risk_controls",
+      "label": "Runtime risk controls",
       "tables": [
         "accounts",
         "books",
-        "promotion_reviews",
-        "promotion_review_events",
         "risk_snapshots",
         "risk_decisions"
       ]
@@ -4151,11 +4159,11 @@
         "feature_providers",
         "global_settings",
         "book_rotation_settings",
-        "book_strategy_assignments",
+        "book_strategy_history",
         "orders",
         "rotation_decisions",
         "backtest_runs",
-        "walk_forward_groups"
+        "walk_forward_experiments"
       ]
     }
   ]
@@ -4164,13 +4172,17 @@
     const payload = JSON.parse(document.getElementById("schema-payload").textContent);
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
+    const categoryTabsEl = document.getElementById("categoryTabs");
+    const roleTabsEl = document.getElementById("roleTabs");
+    const categoryViews = payload.categoryViews || [];
+    const roleViews = payload.roleViews || [];
+    const allViews = [...payload.views, ...categoryViews, ...roleViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
     const linesEl = document.getElementById("lines");
     const canvasEl = document.getElementById("canvas");
     const stageEl = document.getElementById("stage");
-    const searchEl = document.getElementById("search");
     const viewTitleEl = document.getElementById("viewTitle");
     const viewDescriptionEl = document.getElementById("viewDescription");
     const toggleIndexesEl = document.getElementById("toggleIndexes");
@@ -4221,6 +4233,10 @@
       return `database-diagram-arrow-sources:${activeView.id}`;
     }
 
+    function sectionStorageKey() {
+      return `database-diagram-section-labels:${activeView.id}`;
+    }
+
     function loadJson(key) {
       try {
         return JSON.parse(localStorage.getItem(key) || "{}");
@@ -4268,7 +4284,12 @@
             .join("")
         : "<li>No indexes</li>";
       return `
-        <article class="table-card" id="table-${table.name}" data-table="${table.name}">
+        <article
+          class="table-card"
+          id="table-${table.name}"
+          data-table="${table.name}"
+          style="--table-section-color: ${table.section?.color || "#475467"}"
+        >
           <header><h3>${escapeHtml(table.name)}</h3></header>
           <ul class="column-list">${columns}</ul>
           <details class="indexes" ${showIndexes ? "open" : ""}>
@@ -4441,20 +4462,27 @@
     }
 
     function renderTabs() {
-      tabsEl.innerHTML = payload.views.map((view) => `
+      function renderViewButtons(container, views) {
+        container.innerHTML = views.map((view) => `
         <button class="tab" type="button" aria-pressed="${view.id === activeView.id}" data-view="${view.id}">
           ${escapeHtml(view.label)}
         </button>`).join("");
-      tabsEl.querySelectorAll("button").forEach((button) => {
-        button.addEventListener("click", () => {
-          activeView = payload.views.find((view) => view.id === button.dataset.view);
-          render();
+        container.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeView = allViews.find((view) => view.id === button.dataset.view);
+            render();
+          });
         });
-      });
+      }
+
+      renderViewButtons(tabsEl, payload.views);
+      categoryTabsEl.hidden = categoryViews.length === 0;
+      renderViewButtons(categoryTabsEl, categoryViews);
+      roleTabsEl.hidden = roleViews.length === 0;
+      renderViewButtons(roleTabsEl, roleViews);
     }
 
     function render() {
-      const query = searchEl.value.trim().toLowerCase();
       const viewTables = activeViewTables();
       const layout = layoutTables(viewTables);
       currentPositions = layout.positions;
@@ -4466,10 +4494,6 @@
         const pos = currentPositions.get(table.name);
         card.style.left = `${pos.x}px`;
         card.style.top = `${pos.y}px`;
-        const matches = !query
-          || table.name.toLowerCase().includes(query)
-          || table.columns.some((column) => column.name.toLowerCase().includes(query));
-        card.classList.toggle("hidden", !matches);
       }
       restackDefaultLayout(viewTables);
       renderSections(layout.sections);
@@ -4497,16 +4521,18 @@
     }
 
     function sectionDisplayRegions(sections) {
+      const saved = loadJson(sectionStorageKey());
       return sections.map((section) => {
         const positions = section.tables.map((tableName) => currentPositions.get(tableName)).filter(Boolean);
         if (!positions.length) return section;
         const minX = Math.min(...positions.map((position) => position.x));
         const minY = Math.min(...positions.map((position) => position.y));
         const maxX = Math.max(...positions.map((position) => position.x + 300));
+        const savedPosition = saved[section.id];
         return {
           ...section,
-          x: minX,
-          y: Math.max(0, minY - 48),
+          x: Number.isFinite(savedPosition?.x) ? savedPosition.x : minX,
+          y: Number.isFinite(savedPosition?.y) ? savedPosition.y : Math.max(0, minY - 48),
           width: maxX - minX,
         };
       });
@@ -4575,7 +4601,6 @@
             startY: event.clientY,
             originX: section.x,
             originY: section.y,
-            origins: new Map(section.tables.map((tableName) => [tableName, currentPositions.get(tableName)])),
           };
           label.classList.add("moving");
           label.setPointerCapture(event.pointerId);
@@ -4589,23 +4614,17 @@
           sectionDragState.section.y = sectionDragState.originY + deltaY;
           sectionDragState.label.style.left = `${sectionDragState.section.x}px`;
           sectionDragState.label.style.top = `${sectionDragState.section.y}px`;
-          for (const [tableName, origin] of sectionDragState.origins.entries()) {
-            if (!origin) continue;
-            const next = { x: origin.x + deltaX, y: origin.y + deltaY };
-            currentPositions.set(tableName, next);
-            const card = document.getElementById(`table-${tableName}`);
-            if (card) {
-              card.style.left = `${next.x}px`;
-              card.style.top = `${next.y}px`;
-            }
-          }
-          drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
           event.stopPropagation();
         });
         label.addEventListener("pointerup", (event) => {
           if (!sectionDragState || sectionDragState.pointerId !== event.pointerId) return;
           sectionDragState.label.classList.remove("moving");
-          saveCurrentPositions();
+          const saved = loadJson(sectionStorageKey());
+          saved[sectionDragState.section.id] = {
+            x: sectionDragState.section.x,
+            y: sectionDragState.section.y,
+          };
+          saveJson(sectionStorageKey(), saved);
           sectionDragState = null;
           event.stopPropagation();
         });
@@ -5291,20 +5310,6 @@
       applyTransform();
     }
 
-    document.getElementById("zoomOut").addEventListener("click", () => setScale(scale - 0.1));
-    document.getElementById("zoomIn").addEventListener("click", () => setScale(scale + 0.1));
-    document.getElementById("zoomReset").addEventListener("click", () => {
-      scale = 0.78;
-      offsetX = 40;
-      offsetY = 72;
-      applyTransform();
-    });
-    document.getElementById("resetLayout").addEventListener("click", () => {
-      localStorage.removeItem(storageKey());
-      localStorage.removeItem(arrowStorageKey());
-      localStorage.removeItem(arrowSourceStorageKey());
-      render();
-    });
     toggleIndexesEl.addEventListener("click", () => {
       showIndexes = !showIndexes;
       toggleIndexesEl.setAttribute("aria-pressed", String(showIndexes));
@@ -5325,7 +5330,6 @@
       toggleDeleteActionsEl.setAttribute("aria-pressed", String(showDeleteActions));
       drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
     });
-    searchEl.addEventListener("input", render);
     canvasEl.addEventListener("wheel", (event) => {
       event.preventDefault();
       setScale(scale + (event.deltaY < 0 ? 0.06 : -0.06));

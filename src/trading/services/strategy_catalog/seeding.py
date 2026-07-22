@@ -36,8 +36,6 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
             strategy_key=primitive,
             primitive=primitive,
             params_json=json.dumps(dict(spec.knob_schema), sort_keys=True),
-            style=spec.style,
-            required_features=json.dumps(list(spec.required_features)) if spec.required_features else None,
             description=spec.description or None,
             status="draft",
             enabled=1,

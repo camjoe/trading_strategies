@@ -71,8 +71,8 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
             max_premium_per_trade=500.0,
             max_contracts_per_trade=2,
             roll_dte_threshold=45,
-            profit_take_pct=30.0,
-            max_loss_pct=20.0,
+            option_profit_take_pct=30.0,
+            option_max_loss_pct=20.0,
         ),
     )
     monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})

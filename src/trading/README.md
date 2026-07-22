@@ -132,15 +132,6 @@ guard includes major full-day NYSE holidays plus scheduled 1:00 PM Eastern
 early closes for the day after Thanksgiving, eligible July 3 sessions, and
 eligible Christmas Eve sessions.
 
-### Rotation overlays
-
-Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.
-
-- Overlay coverage is computed from the union of the account's current holdings and its per-account `rotation_overlay_watchlist`.
-- New accounts and migrated existing accounts seed `rotation_overlay_watchlist` from `src/infrastructure/config/trade_universe.txt`, providing a stable default universe before positions are opened.
-- That seed is stored in the database schema/defaults at migration time. If you later change `src/infrastructure/config/trade_universe.txt` and want that new list to propagate, you must also run an explicit DB update or migration/backfill for `rotation_overlay_watchlist`.
-- Override the seeded watchlist per account through account profiles or the UI/API account-parameter endpoints when a narrower overlay universe is needed.
-
 ## Scheduler Operations
 
 Runtime job entrypoints, how to run them directly, and how to register or remove scheduler entries

@@ -3,6 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+# backtest_runs.purpose vocabulary: what kind of evidence a run represents.
+# standalone and rolling_window are produced today; walk_forward_oos and
+# final_holdout are reserved for the walk-forward optimizer (Program B). Kept in
+# sync with the CHECK constraint in migration 0016.
+BACKTEST_PURPOSE_STANDALONE = "standalone"
+BACKTEST_PURPOSE_ROLLING_WINDOW = "rolling_window"
+BACKTEST_PURPOSE_WALK_FORWARD_OOS = "walk_forward_oos"
+BACKTEST_PURPOSE_FINAL_HOLDOUT = "final_holdout"
+
 
 @dataclass
 class BacktestConfig:
@@ -18,6 +27,9 @@ class BacktestConfig:
     allow_approximate_leaps: bool
     # Optional strategy override; None backtests the account's active strategy.
     strategy: str | None = None
+    # Evidence kind persisted on the run; the walk-forward path overrides this
+    # to rolling_window so its window runs are distinguishable from standalone.
+    purpose: str = BACKTEST_PURPOSE_STANDALONE
 
 
 @dataclass

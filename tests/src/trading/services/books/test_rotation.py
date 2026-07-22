@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
+import trading.services.books.rotation as rotation_service
+
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
@@ -68,7 +72,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
     assert result.decision.selected_strategy == "meanrev"
 
     # The *book* assignment is updated on rotate —
-    # book_strategy_assignments is the single live assignment record.
+    # book_strategy_history is the single effective-dated assignment history.
     book_assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert book_assignment is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)
@@ -125,5 +129,42 @@ def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> No
     held = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert held is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=held.strategy_id)
+    assert strategy is not None
+    assert strategy.strategy_key == "trend"
+
+
+def test_rotation_rolls_back_decision_when_assignment_fails(conn, monkeypatch) -> None:
+    account_id = insert_repository_account(conn, name="acct_book_rotate_rollback")
+    book_id = _insert_book(conn, account_id=account_id)
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
+    challenger = RotationStrategyMetrics(
+        strategy_name="meanrev",
+        trade_count=30,
+        risk_adjusted_return=1.4,
+        stability=0.62,
+        drawdown_penalty=0.25,
+        cost_penalty=0.04,
+        regime_fit=0.03,
+    )
+
+    def fail_assignment(*args, **kwargs) -> None:
+        raise RuntimeError("assignment failed")
+
+    monkeypatch.setattr(rotation_service, "assign_book_strategy", fail_assignment)
+
+    with pytest.raises(RuntimeError, match="assignment failed"):
+        evaluate_and_apply_book_rotation(
+            conn,
+            book_id=book_id,
+            incumbent=_incumbent_metrics(strategy_name="trend"),
+            challengers=[challenger],
+            config=RotationPolicyConfig(min_trades_in_window=20, outperformance_threshold_bps=25.0),
+            decision_time="2026-05-05T12:00:00Z",
+        )
+
+    assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id) is None
+    assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    assert assignment is not None
+    strategy = StrategyRepository(conn).fetch_by_id(strategy_id=assignment.strategy_id)
     assert strategy is not None
     assert strategy.strategy_key == "trend"

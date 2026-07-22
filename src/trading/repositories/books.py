@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
+from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.books.book_record import BookRecord
 
 
@@ -38,8 +39,8 @@ class BookRepository:
         risk_policy: str = "none",
         stop_loss_pct: float | None = None,
         take_profit_pct: float | None = None,
-        profit_take_pct: float | None = None,
-        max_loss_pct: float | None = None,
+        option_profit_take_pct: float | None = None,
+        option_max_loss_pct: float | None = None,
         trade_size_pct: float | None = None,
         max_position_pct: float | None = None,
         max_trades_per_run: int | None = None,
@@ -64,7 +65,7 @@ class BookRepository:
                 account_id, name, status, is_default, start_equity, current_cash,
                 current_equity, trade_universes, goal_min_return_pct,
                 goal_max_return_pct, goal_period, learning_enabled, risk_policy,
-                stop_loss_pct, take_profit_pct, profit_take_pct, max_loss_pct,
+                stop_loss_pct, take_profit_pct, option_profit_take_pct, option_max_loss_pct,
                 trade_size_pct, max_position_pct, max_trades_per_run,
                 instrument_mode, option_strike_offset_pct, option_min_dte,
                 option_max_dte, option_type, target_delta_min, target_delta_max,
@@ -89,8 +90,8 @@ class BookRepository:
                 risk_policy,
                 stop_loss_pct,
                 take_profit_pct,
-                profit_take_pct,
-                max_loss_pct,
+                option_profit_take_pct,
+                option_max_loss_pct,
                 trade_size_pct,
                 max_position_pct,
                 max_trades_per_run,
@@ -111,11 +112,11 @@ class BookRepository:
             ),
         )
         book_id = int(cursor.lastrowid or 0)
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=created_at)
-        self._conn.commit()
+        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=created_at)
+        commit_unit_of_work(self._conn)
         return book_id
 
-    def _record_universe_history(self, *, book_id: int, universes_json: str, effective_from: str) -> None:
+    def _record_universe_history(self, *, book_id: int, trade_universes: str, effective_from: str) -> None:
         """Close the open universe-history row (if any) and open a new one."""
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
@@ -123,16 +124,16 @@ class BookRepository:
         )
         self._conn.execute(
             """
-            INSERT INTO book_universe_history (book_id, universes_json, effective_from, effective_to)
+            INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
             VALUES (?, ?, ?, NULL)
             """,
-            (int(book_id), universes_json, effective_from),
+            (int(book_id), trade_universes, effective_from),
         )
 
     def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
         return self._conn.execute(
             """
-            SELECT universes_json, effective_from, effective_to
+            SELECT trade_universes, effective_from, effective_to
             FROM book_universe_history
             WHERE book_id = ?
             ORDER BY effective_from ASC, id ASC
@@ -146,7 +147,7 @@ class BookRepository:
             f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
             (*params, utc_now_iso(), int(book_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(
@@ -182,8 +183,8 @@ class BookRepository:
             "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
             (trade_universes, updated_at, int(book_id)),
         )
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=updated_at)
-        self._conn.commit()
+        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=updated_at)
+        commit_unit_of_work(self._conn)
 
     def update_balances(
         self,
@@ -201,4 +202,4 @@ class BookRepository:
             """,
             (float(current_cash), float(current_equity), updated_at, int(book_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)

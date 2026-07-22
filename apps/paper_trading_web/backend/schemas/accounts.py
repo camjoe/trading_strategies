@@ -30,6 +30,6 @@ class AccountParamsRequest(BaseModel):
     ivRankMin: float | None = None
     ivRankMax: float | None = None
     rollDteThreshold: int | None = None
-    profitTakePct: float | None = None
-    maxLossPct: float | None = None
+    optionProfitTakePct: float | None = None
+    optionMaxLossPct: float | None = None
     rotation: RotationSettingsPayload | None = None

@@ -19,6 +19,7 @@ from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]
@@ -80,170 +81,173 @@ def run_backtest(
         feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
-    # Pass the canonical strategy key: backtest_runs stores a strategies FK,
-    # so aliases/display names must resolve to the seeded catalog key first.
-    run_id = insert_run_fn(conn, account_id, strategy_spec.strategy_id, start_date, end_date, cfg, warnings)
+    # Wrap the header, first snapshot, and the simulate/persist loop in one
+    # unit_of_work so an interrupted run leaves no partial result tree. All
+    # external data was fetched above; this transaction covers only in-memory
+    # simulation and its writes, never network I/O.
+    with unit_of_work(conn):
+        # Pass the canonical strategy key: backtest_runs stores a strategies FK,
+        # so aliases/display names must resolve to the seeded catalog key first.
+        run_id = insert_run_fn(conn, account_id, strategy_spec.strategy_id, start_date, end_date, cfg, warnings)
 
-    cash = initial_cash
-    realized_pnl = 0.0
-    positions: dict[str, float] = defaultdict(float)
-    avg_cost: dict[str, float] = defaultdict(float)
-    slippage_multiplier_buy = 1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
-    slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
+        cash = initial_cash
+        realized_pnl = 0.0
+        positions: dict[str, float] = defaultdict(float)
+        avg_cost: dict[str, float] = defaultdict(float)
+        slippage_multiplier_buy = 1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
+        slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
 
-    equity_curve: list[float] = []
-    executed_trades: list[dict[str, object]] = []
-    trade_count = 0
+        equity_curve: list[float] = []
+        executed_trades: list[dict[str, object]] = []
+        trade_count = 0
 
-    dates = list(close.index)
-    first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in all_tickers}
-    first_mv = compute_market_value(positions, first_prices)
-    first_equity = cash + first_mv
-    insert_snapshot_fn(
-        conn,
-        run_id,
-        dates[0].date().isoformat(),
-        cash,
-        first_mv,
-        first_equity,
-        realized_pnl,
-        0.0,
-    )
-    equity_curve.append(first_equity)
-
-    for idx in range(1, len(dates)):
-        signal_date = dates[idx - 1]
-        trade_date = dates[idx]
-
-        trade_prices = close.loc[trade_date]
-        month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
-        active_tickers = month_to_tickers.get(month_key, default_tickers)
-        held_tickers = [ticker for ticker, qty in positions.items() if qty > 0]
-        strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
-
-        for ticker in strategy_tickers:
-            history = close.loc[:signal_date, ticker].dropna()
-            feature_history = (
-                None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
-            )
-            if feature_history is None:
-                signal = resolve_signal(strategy_name, history)
-            else:
-                signal = resolve_signal(strategy_name, history, feature_history=feature_history)
-
-            if signal == "buy" and ticker not in active_tickers:
-                continue
-
-            if signal == "buy" and positions[ticker] <= 0:
-                px = float(trade_prices[ticker])
-                if px <= 0:
-                    continue
-
-                exec_px = px * slippage_multiplier_buy
-                if exec_px <= 0:
-                    continue
-
-                qty_int = choose_buy_qty_fn(
-                    cash,
-                    exec_px,
-                    cfg.fee_per_trade,
-                    trade_size_pct=default_book.trade_size_pct if default_book is not None else None,
-                    max_position_pct=default_book.max_position_pct if default_book is not None else None,
-                    current_position_value=float(positions[ticker]) * px,
-                    portfolio_equity=cash + compute_market_value(positions, trade_prices.to_dict()),
-                )
-                if qty_int < 1:
-                    continue
-
-                required = (qty_int * exec_px) + cfg.fee_per_trade
-                if required > cash:
-                    continue
-
-                cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
-                trade_count += 1
-                insert_trade_fn(
-                    conn,
-                    run_id,
-                    trade_date.date().isoformat(),
-                    ticker,
-                    "buy",
-                    float(qty_int),
-                    exec_px,
-                    cfg.fee_per_trade,
-                    cfg.slippage_bps,
-                    "signal=buy",
-                )
-                executed_trades.append(
-                    {
-                        "ticker": ticker,
-                        "side": "buy",
-                        "qty": float(qty_int),
-                        "price": exec_px,
-                        "fee": cfg.fee_per_trade,
-                    }
-                )
-
-            if signal == "sell" and positions[ticker] > 0:
-                px = float(trade_prices[ticker])
-                if px <= 0:
-                    continue
-
-                exec_px = px * slippage_multiplier_sell
-                qty_float = float(positions[ticker])
-                if qty_float <= 0:
-                    continue
-
-                cash, realized_pnl = update_on_sell(
-                    ticker,
-                    qty_float,
-                    exec_px,
-                    cfg.fee_per_trade,
-                    positions,
-                    avg_cost,
-                    cash,
-                    realized_pnl,
-                )
-                trade_count += 1
-                insert_trade_fn(
-                    conn,
-                    run_id,
-                    trade_date.date().isoformat(),
-                    ticker,
-                    "sell",
-                    qty_float,
-                    exec_px,
-                    cfg.fee_per_trade,
-                    cfg.slippage_bps,
-                    "signal=sell",
-                )
-                executed_trades.append(
-                    {
-                        "ticker": ticker,
-                        "side": "sell",
-                        "qty": qty_float,
-                        "price": exec_px,
-                        "fee": cfg.fee_per_trade,
-                    }
-                )
-
-        marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
-        market_value = compute_market_value(positions, marks)
-        unrealized_pnl = compute_unrealized_pnl(positions, avg_cost, marks)
-
-        equity = cash + market_value
-        equity_curve.append(equity)
+        dates = list(close.index)
+        first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in all_tickers}
+        first_mv = compute_market_value(positions, first_prices)
+        first_equity = cash + first_mv
         insert_snapshot_fn(
             conn,
             run_id,
-            trade_date.date().isoformat(),
+            dates[0].date().isoformat(),
             cash,
-            market_value,
-            equity,
+            first_mv,
+            first_equity,
             realized_pnl,
-            unrealized_pnl,
+            0.0,
         )
+        equity_curve.append(first_equity)
 
-    conn.commit()
+        for idx in range(1, len(dates)):
+            signal_date = dates[idx - 1]
+            trade_date = dates[idx]
+
+            trade_prices = close.loc[trade_date]
+            month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
+            active_tickers = month_to_tickers.get(month_key, default_tickers)
+            held_tickers = [ticker for ticker, qty in positions.items() if qty > 0]
+            strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
+
+            for ticker in strategy_tickers:
+                history = close.loc[:signal_date, ticker].dropna()
+                feature_history = (
+                    None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+                )
+                if feature_history is None:
+                    signal = resolve_signal(strategy_name, history)
+                else:
+                    signal = resolve_signal(strategy_name, history, feature_history=feature_history)
+
+                if signal == "buy" and ticker not in active_tickers:
+                    continue
+
+                if signal == "buy" and positions[ticker] <= 0:
+                    px = float(trade_prices[ticker])
+                    if px <= 0:
+                        continue
+
+                    exec_px = px * slippage_multiplier_buy
+                    if exec_px <= 0:
+                        continue
+
+                    qty_int = choose_buy_qty_fn(
+                        cash,
+                        exec_px,
+                        cfg.fee_per_trade,
+                        trade_size_pct=default_book.trade_size_pct if default_book is not None else None,
+                        max_position_pct=default_book.max_position_pct if default_book is not None else None,
+                        current_position_value=float(positions[ticker]) * px,
+                        portfolio_equity=cash + compute_market_value(positions, trade_prices.to_dict()),
+                    )
+                    if qty_int < 1:
+                        continue
+
+                    required = (qty_int * exec_px) + cfg.fee_per_trade
+                    if required > cash:
+                        continue
+
+                    cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
+                    trade_count += 1
+                    insert_trade_fn(
+                        conn,
+                        run_id,
+                        trade_date.date().isoformat(),
+                        ticker,
+                        "buy",
+                        float(qty_int),
+                        exec_px,
+                        cfg.fee_per_trade,
+                        cfg.slippage_bps,
+                        "signal=buy",
+                    )
+                    executed_trades.append(
+                        {
+                            "ticker": ticker,
+                            "side": "buy",
+                            "qty": float(qty_int),
+                            "price": exec_px,
+                            "fee": cfg.fee_per_trade,
+                        }
+                    )
+
+                if signal == "sell" and positions[ticker] > 0:
+                    px = float(trade_prices[ticker])
+                    if px <= 0:
+                        continue
+
+                    exec_px = px * slippage_multiplier_sell
+                    qty_float = float(positions[ticker])
+                    if qty_float <= 0:
+                        continue
+
+                    cash, realized_pnl = update_on_sell(
+                        ticker,
+                        qty_float,
+                        exec_px,
+                        cfg.fee_per_trade,
+                        positions,
+                        avg_cost,
+                        cash,
+                        realized_pnl,
+                    )
+                    trade_count += 1
+                    insert_trade_fn(
+                        conn,
+                        run_id,
+                        trade_date.date().isoformat(),
+                        ticker,
+                        "sell",
+                        qty_float,
+                        exec_px,
+                        cfg.fee_per_trade,
+                        cfg.slippage_bps,
+                        "signal=sell",
+                    )
+                    executed_trades.append(
+                        {
+                            "ticker": ticker,
+                            "side": "sell",
+                            "qty": qty_float,
+                            "price": exec_px,
+                            "fee": cfg.fee_per_trade,
+                        }
+                    )
+
+            marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
+            market_value = compute_market_value(positions, marks)
+            unrealized_pnl = compute_unrealized_pnl(positions, avg_cost, marks)
+
+            equity = cash + market_value
+            equity_curve.append(equity)
+            insert_snapshot_fn(
+                conn,
+                run_id,
+                trade_date.date().isoformat(),
+                cash,
+                market_value,
+                equity,
+                realized_pnl,
+                unrealized_pnl,
+            )
 
     ending_equity = equity_curve[-1]
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0

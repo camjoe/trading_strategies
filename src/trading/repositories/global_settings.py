@@ -6,6 +6,8 @@ from trading.models.settings.global_settings_record import GlobalSettingsRecord
 
 
 class GlobalSettingsRepository:
+    """Persist optional operator overrides for global operational policy."""
+
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

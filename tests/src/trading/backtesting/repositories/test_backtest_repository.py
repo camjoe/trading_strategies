@@ -65,7 +65,7 @@ def test_backtest_repository_inserts_run_trade_and_snapshot(conn) -> None:
     conn.commit()
 
     run_row = conn.execute("SELECT run_name, warnings FROM backtest_runs WHERE id = ?", (run_id,)).fetchone()
-    trades = conn.execute("SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id = ?", (run_id,)).fetchone()
+    trades = conn.execute("SELECT COUNT(*) AS n FROM backtest_executions WHERE run_id = ?", (run_id,)).fetchone()
     snaps = conn.execute("SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = ?", (run_id,)).fetchone()
 
     assert run_row is not None

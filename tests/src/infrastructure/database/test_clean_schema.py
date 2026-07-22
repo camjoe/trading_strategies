@@ -19,7 +19,7 @@ NEW_TABLES = {
     "strategies",
     "feature_providers",
     "book_rotation_settings",
-    "book_strategy_assignments",
+    "book_strategy_history",
     "orders",
     "positions",
     "ledger",
@@ -42,7 +42,8 @@ def conn(tmp_path: Path):
 
 def _insert_account(conn, name: str = "acct_books") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, '2026-07-03T00:00:00Z')",
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) "
+        "VALUES (?, 5000, '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')",
         (name,),
     )
     return int(cursor.lastrowid)
@@ -65,8 +66,8 @@ def _insert_strategy(conn, key: str = "trend") -> int:
     cursor = conn.execute(
         """
         INSERT INTO strategies (
-            strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-        ) VALUES (?, 'trend', '{"fast_window": 10}', 'trend', 'draft', 1,
+            strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+        ) VALUES (?, 'trend', '{"fast_window": 10}', 'draft', 1,
                   '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (key,),
@@ -104,10 +105,10 @@ def test_one_open_assignment_per_book_enforced(conn) -> None:
     def _insert_assignment(effective_to: str | None) -> None:
         conn.execute(
             """
-            INSERT INTO book_strategy_assignments (
-                book_id, strategy_id, effective_from, effective_to, is_incumbent,
+            INSERT INTO book_strategy_history (
+                book_id, strategy_id, effective_from, effective_to,
                 created_at, updated_at
-            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?, 1,
+            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """,
             (book_id, strategy_id, effective_to),
@@ -150,8 +151,8 @@ def test_strategies_status_vocabulary_enforced(conn) -> None:
         conn.execute(
             """
             INSERT INTO strategies (
-                strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-            ) VALUES ('bad_status', 'trend', '{}', 'trend', 'archived', 1,
+                strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+            ) VALUES ('bad_status', 'trend', '{}', 'archived', 1,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """
         )

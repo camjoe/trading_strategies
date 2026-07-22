@@ -4,6 +4,7 @@ import datetime as dt
 import sqlite3
 
 from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Reads join strategies to emit the label columns
 # (incumbent_strategy / challenger_strategy / selected_strategy) alongside the
@@ -46,11 +47,6 @@ class RotationDecisionRepository:
         gate_results_json: str,
         decision_reason: str | None,
         config_version: str | None,
-        decision_score: float | None = None,
-        decision_confidence: float | None = None,
-        window_start: str | None = None,
-        window_end: str | None = None,
-        realized_pnl_delta: float | None = None,
         created_at: str,
     ) -> int:
         """Record a rotation decision keyed directly on a book.
@@ -69,18 +65,13 @@ class RotationDecisionRepository:
                 selected_strategy_id,
                 rotation_action,
                 cooldown_active,
-                decision_score,
-                decision_confidence,
                 score_components_json,
                 gate_results_json,
                 decision_reason,
                 config_version,
-                window_start,
-                window_end,
-                realized_pnl_delta,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 book_id,
@@ -90,19 +81,14 @@ class RotationDecisionRepository:
                 strategy_id_for_label(self._conn, selected_strategy, now_iso=created_at),
                 rotation_action,
                 int(cooldown_active),
-                decision_score,
-                decision_confidence,
                 score_components_json,
                 gate_results_json,
                 decision_reason,
                 config_version,
-                window_start,
-                window_end,
-                realized_pnl_delta,
                 created_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         if cursor.lastrowid is None:
             raise ValueError("Expected rotation_decisions id after insert.")
         return int(cursor.lastrowid)

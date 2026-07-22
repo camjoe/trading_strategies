@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from statistics import median
 from uuid import uuid4
 
-from trading.backtesting.models import BacktestConfig, WalkForwardSummary
+from trading.backtesting.models import BACKTEST_PURPOSE_ROLLING_WINDOW, BacktestConfig, WalkForwardSummary
 from trading.backtesting.repositories.walk_forward_repository import (
     insert_walk_forward_group,
     insert_walk_forward_group_run,
@@ -78,10 +78,6 @@ def _persist_walk_forward_group(
         test_months=cfg.test_months,
         step_months=cfg.step_months,
         window_count=summary.window_count,
-        average_return_pct=summary.average_return_pct,
-        median_return_pct=summary.median_return_pct,
-        best_return_pct=summary.best_return_pct,
-        worst_return_pct=summary.worst_return_pct,
     )
     for result in window_results:
         insert_walk_forward_group_run(
@@ -136,6 +132,8 @@ def execute_walk_forward_backtest(
             fee_per_trade=cfg.fee_per_trade,
             run_name=run_name,
             allow_approximate_leaps=cfg.allow_approximate_leaps,
+            # Window runs are rolling-window evidence, not standalone backtests.
+            purpose=BACKTEST_PURPOSE_ROLLING_WINDOW,
         )
 
         result = run_backtest_fn(conn, test_cfg)

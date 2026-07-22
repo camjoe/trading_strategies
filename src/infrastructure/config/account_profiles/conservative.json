@@ -13,7 +13,7 @@
       "risk_policy": "fixed_stop",
       "stop_loss_pct": 3,
       "instrument_mode": "equity",
-      "max_loss_pct": 3
+      "option_max_loss_pct": 3
     },
     {
       "name": "meanrev_5k",
@@ -29,8 +29,8 @@
       "stop_loss_pct": 3,
       "take_profit_pct": 6,
       "instrument_mode": "equity",
-      "max_loss_pct": 4,
-      "profit_take_pct": 6
+      "option_max_loss_pct": 4,
+      "option_profit_take_pct": 6
     },
     {
       "name": "rotation_time_cons_5k",
@@ -53,8 +53,8 @@
           "ma_crossover"
         ]
       },
-      "max_loss_pct": 4,
-      "profit_take_pct": 6
+      "option_max_loss_pct": 4,
+      "option_profit_take_pct": 6
     },
     {
       "name": "rotation_optimal_cons_5k",
@@ -79,8 +79,8 @@
         ],
         "lookback_days": 180
       },
-      "max_loss_pct": 4,
-      "profit_take_pct": 6
+      "option_max_loss_pct": 4,
+      "option_profit_take_pct": 6
     }
   ]
 }

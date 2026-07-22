@@ -10,6 +10,7 @@ from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, 
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
@@ -76,7 +77,7 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
     )
 
 
-def create_account(
+def _create_account(
     conn: sqlite3.Connection,
     name: str,
     strategy: str,
@@ -112,13 +113,15 @@ def create_account(
         cfg.iv_rank_max,
     )
 
+    created_ts = utc_now_iso()
     try:
         AccountRepository(conn).insert(
             AccountInsert(
                 name=name,
                 account_kind=account_kind,
                 initial_cash=float(initial_cash),
-                created_at=utc_now_iso(),
+                created_at=created_ts,
+                updated_at=created_ts,
                 benchmark_ticker=benchmark_ticker.upper().strip(),
                 descriptive_name=display,
             ),
@@ -149,8 +152,8 @@ def create_account(
             "trade_size_pct": trade_size_pct,
             "max_position_pct": max_position_pct,
             "instrument_mode": mode,
-            "profit_take_pct": cfg.profit_take_pct,
-            "max_loss_pct": cfg.max_loss_pct,
+            "option_profit_take_pct": cfg.option_profit_take_pct,
+            "option_max_loss_pct": cfg.option_max_loss_pct,
             "option_strike_offset_pct": cfg.option_strike_offset_pct,
             "option_min_dte": cfg.option_min_dte,
             "option_max_dte": cfg.option_max_dte,
@@ -169,6 +172,19 @@ def create_account(
     )
     if cfg.trade_universes is not None:
         _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
+
+
+def create_account(
+    conn: sqlite3.Connection,
+    name: str,
+    strategy: str,
+    initial_cash: float,
+    benchmark_ticker: str,
+    config: AccountConfig | None = None,
+) -> None:
+    """Create an account and all required book-owned state atomically."""
+    with unit_of_work(conn):
+        _create_account(conn, name, strategy, initial_cash, benchmark_ticker, config)
 
 
 def _apply_trade_universes_to_default_book(
@@ -195,10 +211,11 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     AccountRepository(conn).update_benchmark(
         account_id=account.id,
         benchmark_ticker=benchmark_ticker.upper().strip(),
+        updated_at=utc_now_iso(),
     )
 
 
-def configure_account(
+def _configure_account(
     conn: sqlite3.Connection,
     account_name: str,
     config: AccountConfig | None = None,
@@ -257,8 +274,12 @@ def configure_account(
             "take_profit_pct": expect_float(cfg.take_profit_pct) if cfg.take_profit_pct is not None else None,
             "trade_size_pct": expect_float(cfg.trade_size_pct) if cfg.trade_size_pct is not None else None,
             "max_position_pct": expect_float(cfg.max_position_pct) if cfg.max_position_pct is not None else None,
-            "profit_take_pct": expect_float(cfg.profit_take_pct) if cfg.profit_take_pct is not None else None,
-            "max_loss_pct": expect_float(cfg.max_loss_pct) if cfg.max_loss_pct is not None else None,
+            "option_profit_take_pct": expect_float(cfg.option_profit_take_pct)
+            if cfg.option_profit_take_pct is not None
+            else None,
+            "option_max_loss_pct": expect_float(cfg.option_max_loss_pct)
+            if cfg.option_max_loss_pct is not None
+            else None,
             "option_type": normalize_option_type(cfg.option_type) if cfg.option_type is not None else None,
             "option_strike_offset_pct": (
                 expect_float(cfg.option_strike_offset_pct) if cfg.option_strike_offset_pct is not None else None
@@ -295,7 +316,18 @@ def configure_account(
         account_id=account.id,
         updates=updates,
         params=params,
+        updated_at=utc_now_iso(),
     )
+
+
+def configure_account(
+    conn: sqlite3.Connection,
+    account_name: str,
+    config: AccountConfig | None = None,
+) -> None:
+    """Apply one account configuration request atomically."""
+    with unit_of_work(conn):
+        _configure_account(conn, account_name, config)
 
 
 def create_managed_account(

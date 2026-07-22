@@ -20,11 +20,13 @@ def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> dict[
     return dict(row) if row is not None else None
 
 
-# Group reads emit strategy_name via the catalog key, falling back to the account
-# strategy when the FK is unset — so consumers keep reading a `strategy_name` column.
+# Experiment reads emit strategy_name via the catalog key, falling back to the
+# account strategy when the FK is unset — so consumers keep reading a
+# `strategy_name` column. Return aggregates (average/median/best/worst) are no
+# longer stored; the report service derives them from the window rows.
 _GROUP_SELECT = """
 SELECT g.id,
-       g.grouping_key,
+       g.experiment_key,
        g.account_id,
        COALESCE(s.strategy_key, 'unknown') AS strategy_name,
        g.run_name_prefix,
@@ -33,12 +35,8 @@ SELECT g.id,
        g.test_months,
        g.step_months,
        g.window_count,
-       g.average_return_pct,
-       g.median_return_pct,
-       g.best_return_pct,
-       g.worst_return_pct,
        g.created_at
-FROM walk_forward_groups g
+FROM walk_forward_experiments g
 JOIN accounts a ON a.id = g.account_id
 LEFT JOIN strategies s ON s.id = g.strategy_id
 """
@@ -55,10 +53,6 @@ def insert_walk_forward_group(
     test_months: int,
     step_months: int,
     window_count: int,
-    average_return_pct: float,
-    median_return_pct: float,
-    best_return_pct: float,
-    worst_return_pct: float,
     created_at: str | None = None,
 ) -> int:
     run_scope = _fetch_backtest_run_scope(conn, run_id=primary_run_id)
@@ -67,8 +61,8 @@ def insert_walk_forward_group(
 
     cursor = conn.execute(
         """
-        INSERT INTO walk_forward_groups (
-            grouping_key,
+        INSERT INTO walk_forward_experiments (
+            experiment_key,
             account_id,
             strategy_id,
             run_name_prefix,
@@ -77,13 +71,9 @@ def insert_walk_forward_group(
             test_months,
             step_months,
             window_count,
-            average_return_pct,
-            median_return_pct,
-            best_return_pct,
-            worst_return_pct,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             grouping_key,
@@ -95,10 +85,6 @@ def insert_walk_forward_group(
             int(test_months),
             int(step_months),
             int(window_count),
-            float(average_return_pct),
-            float(median_return_pct),
-            float(best_return_pct),
-            float(worst_return_pct),
             created_at or utc_now_iso(),
         ),
     )
@@ -118,8 +104,8 @@ def insert_walk_forward_group_run(
 ) -> None:
     conn.execute(
         """
-        INSERT INTO walk_forward_group_runs (
-            group_id,
+        INSERT INTO walk_forward_windows (
+            experiment_id,
             run_id,
             window_index,
             window_start,
@@ -197,8 +183,8 @@ def fetch_walk_forward_group_runs(
         for row in conn.execute(
             """
             SELECT run_id, window_index, window_start, window_end, total_return_pct
-            FROM walk_forward_group_runs
-            WHERE group_id = ?
+            FROM walk_forward_windows
+            WHERE experiment_id = ?
             ORDER BY window_index ASC, id ASC
             """,
             (int(group_id),),

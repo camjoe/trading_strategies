@@ -3,7 +3,7 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-21
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
 Related: [Docs Map](maps/docs-map.md), [Documentation Authoring Standard](conventions/docs-authoring.md)
 
@@ -52,11 +52,14 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 Full listing: [`reference/`](reference/). Key entries:
 
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
+- [`reference/walk-forward-optimization-plan.md`](reference/walk-forward-optimization-plan.md) — Program B: methodology, leakage controls, schema, and delivery for train–optimize–test walk-forward optimization
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
+- [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
+- [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
 - [`adr/015-numbered-alembic-migrations.md`](adr/015-numbered-alembic-migrations.md) — numbered Alembic revisions replace probe-based schema init; runtime is verify-only
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned

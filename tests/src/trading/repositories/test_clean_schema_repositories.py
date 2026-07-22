@@ -37,8 +37,8 @@ def conn(tmp_path: Path):
 
 def _insert_account(conn, name: str = "acct_repo") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, ?)",
-        (name, NOW),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES (?, 5000, ?, ?)",
+        (name, NOW, NOW),
     )
     return int(cursor.lastrowid)
 
@@ -63,7 +63,6 @@ def _insert_strategy(conn, key: str = "trend_v1") -> int:
         strategy_key=key,
         primitive="trend",
         params_json='{"fast_window": 10, "slow_window": 20}',
-        style="trend",
         created_at=NOW,
         updated_at=NOW,
     )
@@ -101,7 +100,6 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
         strategy_id=strategy_id,
         primitive="trend",
         params_json='{"fast_window": 5, "slow_window": 15}',
-        required_features=None,
         updated_at=NOW,
     )
 
@@ -112,7 +110,6 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
             strategy_id=strategy_id,
             primitive="trend",
             params_json='{"fast_window": 2}',
-            required_features=None,
             updated_at=NOW,
         )
 
@@ -140,8 +137,9 @@ def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
     assert open_assignment.strategy_id == second
     history = repo.fetch_history(book_id=book_id)
     assert len(history) == 2
+    # The first assignment is now closed; the incumbent is the open row.
     assert history[0].effective_to == "2026-07-04T12:00:00Z"
-    assert history[0].is_incumbent == 0
+    assert history[1].effective_to is None
 
 
 def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:

@@ -11,10 +11,10 @@ def insert_repository_account(
 ) -> int:
     cursor = conn.execute(
         """
-        INSERT INTO accounts (name, initial_cash, benchmark_ticker, created_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO accounts (name, initial_cash, benchmark_ticker, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        (name, initial_cash, benchmark_ticker, created_at),
+        (name, initial_cash, benchmark_ticker, created_at, created_at),
     )
     conn.commit()
     assert cursor.lastrowid is not None

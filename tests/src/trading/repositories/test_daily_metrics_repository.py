@@ -50,7 +50,7 @@ class TestUpsert:
         acct_id = _account_id(conn)
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-01", return_pct=1.0)
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-01", return_pct=9.9)
-        rows = DailyMetricsRepository(conn).fetch_for_account(account_id=acct_id, limit=10)
+        rows = DailyMetricsRepository(conn).fetch_book_rows_for_account(account_id=acct_id, limit=10)
         assert len(rows) == 1
         assert rows[0].return_pct == pytest.approx(9.9)
 
@@ -101,14 +101,14 @@ class TestUpsert:
 class TestFetchForAccount:
     def test_empty_when_no_metrics(self, conn) -> None:
         acct_id = _account_id(conn)
-        assert DailyMetricsRepository(conn).fetch_for_account(account_id=acct_id, limit=10) == []
+        assert DailyMetricsRepository(conn).fetch_book_rows_for_account(account_id=acct_id, limit=10) == []
 
     def test_only_returns_rows_for_requested_account(self, conn) -> None:
         acct_a = _account_id(conn, "acct_a")
         acct_b = _account_id(conn, "acct_b")
         _upsert(conn, account_id=acct_a, book_id=None, metric_date="2026-01-01", return_pct=1.0)
         _upsert(conn, account_id=acct_b, book_id=None, metric_date="2026-01-01", return_pct=2.0)
-        rows = DailyMetricsRepository(conn).fetch_for_account(account_id=acct_a, limit=10)
+        rows = DailyMetricsRepository(conn).fetch_book_rows_for_account(account_id=acct_a, limit=10)
         assert len(rows) == 1
         assert rows[0].return_pct == pytest.approx(1.0)
 
@@ -116,7 +116,7 @@ class TestFetchForAccount:
         acct_id = _account_id(conn)
         for day in ("2026-01-01", "2026-01-02", "2026-01-03"):
             _upsert(conn, account_id=acct_id, book_id=None, metric_date=day)
-        rows = DailyMetricsRepository(conn).fetch_for_account(account_id=acct_id, limit=2)
+        rows = DailyMetricsRepository(conn).fetch_book_rows_for_account(account_id=acct_id, limit=2)
         assert len(rows) == 2
 
     def test_ordered_by_metric_date_desc(self, conn) -> None:
@@ -124,7 +124,7 @@ class TestFetchForAccount:
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-01")
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-03")
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-02")
-        rows = DailyMetricsRepository(conn).fetch_for_account(account_id=acct_id, limit=10)
+        rows = DailyMetricsRepository(conn).fetch_book_rows_for_account(account_id=acct_id, limit=10)
         dates = [r.metric_date for r in rows]
         assert dates == sorted(dates, reverse=True)
 

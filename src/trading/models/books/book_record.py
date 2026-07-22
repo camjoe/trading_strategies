@@ -33,8 +33,8 @@ class BookRecord(Mapping[str, object]):
     risk_policy: str
     stop_loss_pct: float | None
     take_profit_pct: float | None
-    profit_take_pct: float | None
-    max_loss_pct: float | None
+    option_profit_take_pct: float | None
+    option_max_loss_pct: float | None
     trade_size_pct: float | None
     max_position_pct: float | None
     max_trades_per_run: int | None
@@ -73,8 +73,8 @@ class BookRecord(Mapping[str, object]):
             risk_policy=row_expect_str(values, "risk_policy"),
             stop_loss_pct=row_float(values, "stop_loss_pct"),
             take_profit_pct=row_float(values, "take_profit_pct"),
-            profit_take_pct=row_float(values, "profit_take_pct"),
-            max_loss_pct=row_float(values, "max_loss_pct"),
+            option_profit_take_pct=row_float(values, "option_profit_take_pct"),
+            option_max_loss_pct=row_float(values, "option_max_loss_pct"),
             trade_size_pct=row_float(values, "trade_size_pct"),
             max_position_pct=row_float(values, "max_position_pct"),
             max_trades_per_run=row_int(values, "max_trades_per_run"),

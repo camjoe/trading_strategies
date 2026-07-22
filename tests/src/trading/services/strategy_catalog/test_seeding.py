@@ -45,20 +45,19 @@ def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None
     assert trend.primitive == "trend"
     assert trend.status == "draft"
     assert json.loads(trend.params_json) == dict(PRIMITIVE_CATALOG["trend"].knob_schema)
-    assert trend.style == PRIMITIVE_CATALOG["trend"].style
+    # style/required_features are code-owned (PrimitiveSpec), no longer stored on
+    # the row (revision 0017); the seeded row carries only variant identity.
 
     news = repo.fetch_by_key(strategy_key="news_sentiment")
     assert news is not None
-    assert news.style == "alternative"
-    assert news.required_features is not None
-    assert json.loads(news.required_features) == list(PRIMITIVE_CATALOG["news_sentiment"].required_features)
+    assert news.primitive == "news_sentiment"
 
 
 def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_seed', 5000, ?)",
-        (NOW,),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES ('acct_seed', 5000, ?, ?)",
+        (NOW, NOW),
     )
     conn.commit()
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'acct_seed'").fetchone()[0])
@@ -94,8 +93,8 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
 def test_ensure_default_books_skips_unknown_legacy_strategy_label(conn) -> None:
     seed_strategy_catalog(conn, now_iso=NOW)
     conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES ('acct_odd', 1000, ?)",
-        (NOW,),
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES ('acct_odd', 1000, ?, ?)",
+        (NOW, NOW),
     )
     conn.commit()
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'acct_odd'").fetchone()[0])

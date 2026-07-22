@@ -14,8 +14,6 @@ class StrategyRecord:
     strategy_key: str
     primitive: str
     params_json: str
-    style: str
-    required_features: str | None
     description: str | None
     status: str
     enabled: int
@@ -29,8 +27,6 @@ class StrategyRecord:
             strategy_key=row_expect_str(values, "strategy_key"),
             primitive=row_expect_str(values, "primitive"),
             params_json=row_expect_str(values, "params_json"),
-            style=row_expect_str(values, "style"),
-            required_features=row_str(values, "required_features"),
             description=row_str(values, "description"),
             status=row_expect_str(values, "status"),
             enabled=row_expect_int(values, "enabled"),

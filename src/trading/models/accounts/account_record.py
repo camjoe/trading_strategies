@@ -11,7 +11,7 @@ class AccountRecord(Mapping[str, object]):
     """Persisted account row materialized from the database.
 
     The final account shape (revision 0008): identity, custody, and broker
-    connection. Strategy truth is book_strategy_assignments; goals,
+    connection. Strategy truth is book_strategy_history; goals,
     universes, and execution/option settings are books columns.
     """
 

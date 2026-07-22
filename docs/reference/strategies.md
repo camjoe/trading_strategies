@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-11
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-21
 Purpose: Catalog of strategy signal families, compatibility behavior, and evaluation workflow.
 Related: [Backtesting](backtesting.md), [Sentiment Signals](sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -21,7 +21,9 @@ A strategy is a **code primitive plus data knobs**, split across two sources:
   signal *logic* is still a code change. `STRATEGY_REGISTRY` seeds the primitive catalog and remains
   the alias-compat source for legacy labels.
 - **Strategy definitions (data)** — the `strategies` catalog table: each row binds a primitive to a
-  concrete `params_json`, plus style, status (`draft`/`frozen`/`retired`), and `enabled`.
+  concrete `params_json`, plus an operator `description`, status (`draft`/`frozen`/`retired`), and
+  `enabled`. Primitive-owned metadata (style, required features, knob schema) is **not** stored on the
+  row — it is derived from the code `PrimitiveSpec` at resolve time (revision `0017`).
 
 **The `strategies` catalog is canonical at runtime**: a book's assignment names a `strategies` row, and
 `resolve_catalog_strategy` (`trading.services.strategy_catalog.resolution`) resolves it to the

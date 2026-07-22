@@ -78,3 +78,6 @@ class BrokerOrder:
     submitted_at: str | None = None
     updated_at: str | None = None
     fills: list[OrderFill] = field(default_factory=list)
+    # Broker-supplied reason for a terminal non-fill status (rejected / cancelled);
+    # None until an adapter surfaces it. Persisted to orders.status_reason.
+    status_reason: str | None = None

@@ -172,8 +172,8 @@ export function createAdminAccountsController(
       ivRankMin: numOrUndefined(data.get("ivRankMin")),
       ivRankMax: numOrUndefined(data.get("ivRankMax")),
       rollDteThreshold: intOrUndefined(data.get("rollDteThreshold")),
-      profitTakePct: numOrUndefined(data.get("profitTakePct")),
-      maxLossPct: numOrUndefined(data.get("maxLossPct")),
+      optionProfitTakePct: numOrUndefined(data.get("optionProfitTakePct")),
+      optionMaxLossPct: numOrUndefined(data.get("optionMaxLossPct")),
       rotation: {
         enabled: rotationEnabled,
         schedule: rotationSchedule,

@@ -4,6 +4,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
+from trading.repositories.unit_of_work import unit_of_work
 from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.repositories.books import BookRepository
@@ -29,21 +30,22 @@ def _record_cash_event(
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
     assert book is not None
     signed = amount if side == "buy" else -amount
-    LedgerRepository(conn).insert(
-        book_id=book_id,
-        entry_type="deposit" if side == "buy" else "withdrawal",
-        amount=signed,
-        reference_type=_LEDGER_REFERENCE_TYPE_MANUAL,
-        reference_id=None,
-        entry_time=entry_time,
-        created_at=entry_time,
-    )
-    BookRepository(conn).update_balances(
-        book_id=book_id,
-        current_cash=book.current_cash + signed,
-        current_equity=book.current_equity + signed,
-        updated_at=entry_time,
-    )
+    with unit_of_work(conn):
+        LedgerRepository(conn).insert(
+            book_id=book_id,
+            entry_type="deposit" if side == "buy" else "withdrawal",
+            amount=signed,
+            reference_type=_LEDGER_REFERENCE_TYPE_MANUAL,
+            reference_id=None,
+            entry_time=entry_time,
+            created_at=entry_time,
+        )
+        BookRepository(conn).update_balances(
+            book_id=book_id,
+            current_cash=book.current_cash + signed,
+            current_equity=book.current_equity + signed,
+            updated_at=entry_time,
+        )
 
 
 def record_trade(
@@ -96,37 +98,39 @@ def record_trade(
             raise ValidationError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {held}.")
 
     order_repo = OrderRepository(conn)
-    order_id = order_repo.insert(
-        book_id=book.id,
-        account_id=account.id,
-        symbol=ticker,
-        side=side,
-        qty=float(qty),
-        requested_price=float(price),
-        status="filled",
-        filled_qty=float(qty),
-        avg_fill_price=float(price),
-        commission=float(fee),
-        submitted_at=entry_time,
-        updated_at=entry_time,
-    )
-    order_repo.insert_fill(
-        order_id=order_id,
-        filled_qty=float(qty),
-        fill_price=float(price),
-        fill_time=entry_time,
-        commission=float(fee),
-        broker_fill_id=None,
-        exec_id=f"manual:{order_id}",
-    )
-    apply_book_fill(
-        conn,
-        book_id=book.id,
-        order_id=order_id,
-        side=side,
-        symbol=ticker,
-        fill_qty=float(qty),
-        fill_price=float(price),
-        transaction_cost=float(fee),
-        fill_time=entry_time,
-    )
+    # One transaction for the whole manual fill: the order row, its fill, and the
+    # book accounting are all-or-nothing.
+    with unit_of_work(conn):
+        order_id = order_repo.insert(
+            book_id=book.id,
+            account_id=account.id,
+            symbol=ticker,
+            side=side,
+            qty=float(qty),
+            requested_price=float(price),
+            status="filled",
+            filled_qty=float(qty),
+            avg_fill_price=float(price),
+            commission=float(fee),
+            submitted_at=entry_time,
+            updated_at=entry_time,
+        )
+        order_repo.insert_fill(
+            order_id=order_id,
+            filled_qty=float(qty),
+            fill_price=float(price),
+            fill_time=entry_time,
+            commission=float(fee),
+            exec_id=f"manual:{order_id}",
+        )
+        apply_book_fill(
+            conn,
+            book_id=book.id,
+            order_id=order_id,
+            side=side,
+            symbol=ticker,
+            fill_qty=float(qty),
+            fill_price=float(price),
+            transaction_cost=float(fee),
+            fill_time=entry_time,
+        )

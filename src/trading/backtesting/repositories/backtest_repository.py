@@ -6,6 +6,7 @@ from datetime import date
 from common.time import utc_now_iso
 from trading.backtesting.models import BacktestConfig
 from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 def insert_backtest_run(
@@ -29,6 +30,7 @@ def insert_backtest_run(
             account_id,
             strategy_id,
             run_name,
+            purpose,
             start_date,
             end_date,
             created_at,
@@ -38,12 +40,13 @@ def insert_backtest_run(
             notes,
             warnings
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             account_id,
             strategy_id,
             cfg.run_name,
+            cfg.purpose,
             start_date.isoformat(),
             end_date.isoformat(),
             created_at,
@@ -54,7 +57,9 @@ def insert_backtest_run(
             " | ".join(warnings),
         ),
     )
-    conn.commit()
+    # Participates in the run's unit_of_work: commits standalone, defers inside a
+    # scope so the header, executions, and snapshots land together or not at all.
+    commit_unit_of_work(conn)
     assert cursor.lastrowid is not None
     return int(cursor.lastrowid)
 
@@ -74,13 +79,14 @@ def insert_backtest_trade(
 ) -> None:
     conn.execute(
         """
-        INSERT INTO backtest_trades (
-            run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note
+        INSERT INTO backtest_executions (
+            run_id, execution_date, ticker, side, qty, price, fee, slippage_bps, note
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note),
     )
+    commit_unit_of_work(conn)
 
 
 def insert_backtest_snapshot(
@@ -97,9 +103,10 @@ def insert_backtest_snapshot(
     conn.execute(
         """
         INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            run_id, snapshot_date, cash, market_value, equity, realized_pnl, unrealized_pnl
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl),
     )
+    commit_unit_of_work(conn)

@@ -63,8 +63,8 @@ function buildParamsPayload(): AccountParamsUpdate {
     maxPremiumPerTrade: readNum("#editMaxPremiumInput"),
     maxContractsPerTrade: readInt("#editMaxContractsInput"),
     rollDteThreshold: readInt("#editRollDteThresholdInput"),
-    profitTakePct: readNum("#editProfitTakePctInput"),
-    maxLossPct: readNum("#editMaxLossPctInput"),
+    optionProfitTakePct: readNum("#editOptionProfitTakePctInput"),
+    optionMaxLossPct: readNum("#editOptionMaxLossPctInput"),
     rotation: (() => {
       const enabledEl = find<HTMLSelectElement>("#editRotationEnabledSelect");
       const rotation = {

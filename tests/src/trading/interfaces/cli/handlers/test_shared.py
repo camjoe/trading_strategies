@@ -37,8 +37,8 @@ def _args(**kwargs) -> types.SimpleNamespace:
         iv_rank_min=None,
         iv_rank_max=None,
         roll_dte_threshold=None,
-        profit_take_pct=None,
-        max_loss_pct=None,
+        option_profit_take_pct=None,
+        option_max_loss_pct=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)
@@ -94,8 +94,8 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
         "iv_rank_min",
         "iv_rank_max",
         "roll_dte_threshold",
-        "profit_take_pct",
-        "max_loss_pct",
+        "option_profit_take_pct",
+        "option_max_loss_pct",
         "trade_universes",
     }
 

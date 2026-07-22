@@ -14,7 +14,7 @@ def test_leaderboard_repository_fetches_rows_and_equity_curve(conn, bt_repo_acco
     )
     conn.execute(
         """
-        INSERT INTO backtest_trades (run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note)
+        INSERT INTO backtest_executions (run_id, execution_date, ticker, side, qty, price, fee, slippage_bps, note)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (run_id, "2026-01-15", "AAPL", "buy", 1.0, 100.0, 0.0, 0.0, "test"),

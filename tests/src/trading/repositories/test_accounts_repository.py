@@ -14,6 +14,7 @@ def _make_account_insert(**overrides: object) -> AccountInsert:
         "account_kind": "managed",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00",
+        "updated_at": "2026-01-01T00:00:00",
         "benchmark_ticker": "SPY",
         "descriptive_name": "acct_a",
     }
@@ -61,9 +62,11 @@ class TestUpdateAccountBenchmark:
         _insert(conn, "bench_acct")
         repo = AccountRepository(conn)
         row = repo.fetch_by_name("bench_acct")
-        repo.update_benchmark(account_id=row["id"], benchmark_ticker="QQQ")
+        repo.update_benchmark(account_id=row["id"], benchmark_ticker="QQQ", updated_at="2026-02-01T00:00:00")
         updated = repo.fetch_by_name("bench_acct")
         assert updated["benchmark_ticker"] == "QQQ"
+        stamped = conn.execute("SELECT updated_at FROM accounts WHERE id = ?", (row["id"],)).fetchone()
+        assert stamped["updated_at"] == "2026-02-01T00:00:00"
 
 
 class TestFetchAccountListingRows:
@@ -104,9 +107,16 @@ class TestUpdateAccountFields:
         _insert(conn, "upd_acct")
         repo = AccountRepository(conn)
         row = repo.fetch_by_name("upd_acct")
-        repo.update(account_id=row["id"], updates=["descriptive_name = ?"], params=["Renamed"])
+        repo.update(
+            account_id=row["id"],
+            updates=["descriptive_name = ?"],
+            params=["Renamed"],
+            updated_at="2026-02-01T00:00:00",
+        )
         updated = repo.fetch_by_name("upd_acct")
         assert updated["descriptive_name"] == "Renamed"
+        stamped = conn.execute("SELECT updated_at FROM accounts WHERE id = ?", (row["id"],)).fetchone()
+        assert stamped["updated_at"] == "2026-02-01T00:00:00"
 
     def test_updates_multiple_fields(self, conn) -> None:
         _insert(conn, "multi_upd")
@@ -116,6 +126,7 @@ class TestUpdateAccountFields:
             account_id=row["id"],
             updates=["descriptive_name = ?", "account_kind = ?"],
             params=["Multi", "local"],
+            updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("multi_upd")
         assert updated["descriptive_name"] == "Multi"

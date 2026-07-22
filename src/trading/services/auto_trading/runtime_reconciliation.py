@@ -16,6 +16,7 @@ from typing import Any
 
 from common.coercion import row_expect_int
 from common.time import utc_now_iso
+from trading.repositories.unit_of_work import unit_of_work
 from trading.models import AccountRecord
 from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.repositories.orders import OrderRepository
@@ -59,46 +60,50 @@ def reconcile_open_orders_impl(
             if persisted is None:
                 continue
 
-            # Apply only executions we have not already recorded (exec_id dedup), so a
-            # repeated poll of the same partial fill does not double-post to the book.
-            seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
-            for fill_index, fill in enumerate(live.fills):
-                exec_id = resolve_reconciliation_exec_id(
-                    broker_order_id=live.broker_order_id,
-                    fill=fill,
-                    fill_index=fill_index,
-                )
-                if exec_id in seen_exec_ids:
-                    continue
-                order_repo.insert_fill(
-                    order_id=persisted.id,
-                    filled_qty=fill.filled_qty,
-                    fill_price=fill.fill_price,
-                    fill_time=fill.fill_time,
-                    commission=fill.commission,
-                    broker_fill_id=live.broker_order_id,
-                    exec_id=exec_id,
-                )
-                apply_book_fill(
-                    conn,
-                    book_id=persisted.book_id,
-                    order_id=persisted.id,
-                    side=persisted.side,
-                    symbol=persisted.symbol,
-                    fill_qty=fill.filled_qty,
-                    fill_price=fill.fill_price,
-                    transaction_cost=fill.commission,
-                    fill_time=fill.fill_time,
-                )
-                seen_exec_ids.add(exec_id)
+            # One transaction per broker order: every new fill's book effect and
+            # the final status update land together, so a crash cannot leave a
+            # recorded fill (which exec_id dedup would then skip) unapplied.
+            with unit_of_work(conn):
+                # Apply only executions we have not already recorded (exec_id dedup), so a
+                # repeated poll of the same partial fill does not double-post to the book.
+                seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
+                for fill_index, fill in enumerate(live.fills):
+                    exec_id = resolve_reconciliation_exec_id(
+                        broker_order_id=live.broker_order_id,
+                        fill=fill,
+                        fill_index=fill_index,
+                    )
+                    if exec_id in seen_exec_ids:
+                        continue
+                    order_repo.insert_fill(
+                        order_id=persisted.id,
+                        filled_qty=fill.filled_qty,
+                        fill_price=fill.fill_price,
+                        fill_time=fill.fill_time,
+                        commission=fill.commission,
+                        exec_id=exec_id,
+                    )
+                    apply_book_fill(
+                        conn,
+                        book_id=persisted.book_id,
+                        order_id=persisted.id,
+                        side=persisted.side,
+                        symbol=persisted.symbol,
+                        fill_qty=fill.filled_qty,
+                        fill_price=fill.fill_price,
+                        transaction_cost=fill.commission,
+                        fill_time=fill.fill_time,
+                    )
+                    seen_exec_ids.add(exec_id)
 
-            order_repo.update_status(
-                order_id=persisted.id,
-                status=clean_order_status(live.status),
-                filled_qty=live.filled_qty,
-                avg_fill_price=live.avg_fill_price,
-                updated_at=now,
-            )
+                order_repo.update_status(
+                    order_id=persisted.id,
+                    status=clean_order_status(live.status),
+                    filled_qty=live.filled_qty,
+                    avg_fill_price=live.avg_fill_price,
+                    updated_at=now,
+                    status_reason=live.status_reason,
+                )
 
             if live.status == OrderStatus.FILLED:
                 newly_filled += 1

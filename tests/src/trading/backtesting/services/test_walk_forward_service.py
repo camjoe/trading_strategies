@@ -97,10 +97,6 @@ def test_walk_forward_service_builds_summary_and_run_names() -> None:
             "test_months": 1,
             "step_months": 1,
             "window_count": 3,
-            "average_return_pct": 2.0,
-            "median_return_pct": 2.0,
-            "best_return_pct": 3.0,
-            "worst_return_pct": 1.0,
         }
     ]
     assert persisted_group_runs == [

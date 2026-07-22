@@ -3,14 +3,18 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.books.book_strategy_assignment_record import BookStrategyAssignmentRecord
+from trading.repositories.unit_of_work import unit_of_work
 
 
 class BookAssignmentRepository:
-    """SQL access for book_strategy_assignments.
+    """SQL access for book_strategy_history.
 
-    The one-open-assignment-per-book invariant is enforced by the partial unique
-    index `idx_book_assignments_open_per_book`; `assign_strategy` closes the open
-    row (if any) and opens the new one in a single transaction.
+    The book's *incumbent* is by definition its open assignment — the row with
+    `effective_to IS NULL`. The one-open-assignment-per-book invariant is
+    enforced by the partial unique index `idx_book_strategy_history_open_per_book`;
+    `assign_strategy` closes the open row (if any) and opens the new one in a
+    single transaction. (There is no `is_incumbent` flag — it was dropped in
+    revision 0012 as a redundant second encoding of `effective_to IS NULL`.)
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -21,14 +25,14 @@ class BookAssignmentRepository:
 
     def fetch_open(self, *, book_id: int) -> BookStrategyAssignmentRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM book_strategy_assignments WHERE book_id = ? AND effective_to IS NULL",
+            "SELECT * FROM book_strategy_history WHERE book_id = ? AND effective_to IS NULL",
             (int(book_id),),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def fetch_history(self, *, book_id: int) -> list[BookStrategyAssignmentRecord]:
         rows = self._conn.execute(
-            "SELECT * FROM book_strategy_assignments WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
+            "SELECT * FROM book_strategy_history WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
             (int(book_id),),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
@@ -48,22 +52,22 @@ class BookAssignmentRepository:
         param-set store. (The legacy ``param_set_id`` column was dropped from
         the schema in revision ``0001``.)
         """
-        try:
+        with unit_of_work(self._conn):
             self._conn.execute(
                 """
-                UPDATE book_strategy_assignments
-                SET effective_to = ?, is_incumbent = 0, updated_at = ?
+                UPDATE book_strategy_history
+                SET effective_to = ?, updated_at = ?
                 WHERE book_id = ? AND effective_to IS NULL
                 """,
                 (effective_from, updated_at, int(book_id)),
             )
             cursor = self._conn.execute(
                 """
-                INSERT INTO book_strategy_assignments (
+                INSERT INTO book_strategy_history (
                     book_id, strategy_id, effective_from, effective_to,
-                    is_incumbent, created_at, updated_at
+                    created_at, updated_at
                 )
-                VALUES (?, ?, ?, NULL, 1, ?, ?)
+                VALUES (?, ?, ?, NULL, ?, ?)
                 """,
                 (
                     int(book_id),
@@ -73,8 +77,4 @@ class BookAssignmentRepository:
                     updated_at,
                 ),
             )
-        except Exception:
-            self._conn.rollback()
-            raise
-        self._conn.commit()
         return int(cursor.lastrowid or 0)

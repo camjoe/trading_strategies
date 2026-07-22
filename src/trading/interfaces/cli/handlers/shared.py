@@ -42,7 +42,7 @@ def common_account_config_kwargs(args, *, include_learning_disabled: bool) -> Ac
             "iv_rank_min": args.iv_rank_min,
             "iv_rank_max": args.iv_rank_max,
             "roll_dte_threshold": args.roll_dte_threshold,
-            "profit_take_pct": args.profit_take_pct,
-            "max_loss_pct": args.max_loss_pct,
+            "option_profit_take_pct": args.option_profit_take_pct,
+            "option_max_loss_pct": args.option_max_loss_pct,
         }
     )

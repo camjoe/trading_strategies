@@ -50,8 +50,8 @@ class AccountConfig:
     iv_rank_min: float | None = None
     iv_rank_max: float | None = None
     roll_dte_threshold: int | None = None
-    profit_take_pct: float | None = None
-    max_loss_pct: float | None = None
+    option_profit_take_pct: float | None = None
+    option_max_loss_pct: float | None = None
     trade_universes: list[str] | None = None
 
     @classmethod
@@ -80,8 +80,8 @@ class AccountConfig:
             iv_rank_min=coerce_float(values.get("iv_rank_min")),
             iv_rank_max=coerce_float(values.get("iv_rank_max")),
             roll_dte_threshold=coerce_int(values.get("roll_dte_threshold")),
-            profit_take_pct=coerce_float(values.get("profit_take_pct")),
-            max_loss_pct=coerce_float(values.get("max_loss_pct")),
+            option_profit_take_pct=coerce_float(values.get("option_profit_take_pct")),
+            option_max_loss_pct=coerce_float(values.get("option_max_loss_pct")),
             trade_universes=_coerce_trade_universes(values.get("trade_universes")),
         )
 

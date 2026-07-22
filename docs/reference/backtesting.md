@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-14
 Last Reviewed: 2026-07-09
 Purpose: Reference for backtesting commands, layering overview, and safeguards.
-Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Walk-Forward Optimization Plan](walk-forward-optimization-plan.md)
 
 Backtesting reuses account metadata from paper trading while storing run, trade, and equity history
 in dedicated backtest tables. Package structure and layer ownership live in
@@ -116,5 +116,6 @@ is not re-run once fresh.
 ## Related Docs
 
 - `docs/reference/strategies.md`
+- `docs/reference/walk-forward-optimization-plan.md`
 - `docs/maps/trading-package-map.md`
 - `src/trading/backtesting/README.md`

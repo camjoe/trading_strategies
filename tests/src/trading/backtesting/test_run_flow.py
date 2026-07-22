@@ -93,13 +93,13 @@ class TestBacktestRunFlow:
 
         small_qty = float(
             conn.execute(
-                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                "SELECT qty FROM backtest_executions WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
                 (small.run_id,),
             ).fetchone()["qty"]
         )
         large_qty = float(
             conn.execute(
-                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                "SELECT qty FROM backtest_executions WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
                 (large.run_id,),
             ).fetchone()["qty"]
         )

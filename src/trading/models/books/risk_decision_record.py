@@ -18,8 +18,8 @@ class RiskDecisionRecord:
     side: str | None
     action: str
     reason_code: str
-    requested_qty: int | None
-    approved_qty: int | None
+    requested_qty: float | None
+    approved_qty: float | None
     requested_notional: float | None
     approved_notional: float | None
     risk_payload_json: str
@@ -36,8 +36,8 @@ class RiskDecisionRecord:
             side=row_str(values, "side"),
             action=row_expect_str(values, "action"),
             reason_code=row_expect_str(values, "reason_code"),
-            requested_qty=row_int(values, "requested_qty"),
-            approved_qty=row_int(values, "approved_qty"),
+            requested_qty=row_float(values, "requested_qty"),
+            approved_qty=row_float(values, "approved_qty"),
             requested_notional=row_float(values, "requested_notional"),
             approved_notional=row_float(values, "approved_notional"),
             risk_payload_json=row_expect_str(values, "risk_payload_json"),

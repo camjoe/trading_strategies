@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-07-21
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -31,28 +31,28 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 |---|---|---|
 | `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
-| `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
+| `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
-| `backtest_runs` | Metadata for a single backtest execution (dates, fees, slippage, notes) | → `accounts` |
-| `backtest_trades` | Simulated trades within a backtest run | → `backtest_runs` |
-| `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
-| `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
-| `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
+| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`rolling_window`/`walk_forward_oos`/`final_holdout`, revision `0016`) | → `accounts` |
+| `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
-| `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
+| `promotion_reviews` | Strategy promotion review cases; new rows require stable strategy identity and closure uses an expected-open-state guard | → `accounts`, `strategies` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 | `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
-| `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
+| `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
+| `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
 | `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
-| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
+| `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account (revision `0019`) | → `accounts`, `books` |
 | `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
+| `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run (renamed from `backtest_trades`, revision `0016`) | → `backtest_runs` |
+| `walk_forward_experiments` | A walk-forward experiment: methodology and its chronological window membership for an account/strategy (renamed from `walk_forward_groups`, revision `0016`) | → `accounts`, `strategies` |
+| `walk_forward_windows` | One chronological OOS window of a walk-forward experiment, linked to its backtest run (renamed from `walk_forward_group_runs`, revision `0016`) | → `walk_forward_experiments`, `backtest_runs` |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
@@ -67,6 +67,7 @@ Domain-specific meaning that the schema alone does not convey.
 | Column | Note |
 |--------|------|
 | `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `base_ccy` | Declarative account currency metadata. It currently defaults to `USD` and has no operational consumer; calculations therefore remain effectively single-currency. Keep it as an explicit boundary unless the workspace is intentionally declared USD-only. |
 | `broker_*`, `live_trading_enabled` | Broker connection stays on `accounts` by explicit decision (2026-07-16): it is core custody metadata, not a settings group — no 1:1 split table. The live-trading safety guard reads these columns. |
 
 ### `positions`
@@ -75,23 +76,45 @@ Domain-specific meaning that the schema alone does not convey.
 `qty`/`avg_cost` — they are only as fresh as the last mark-to-market. Do not treat them as truth;
 recompute from current prices when accuracy matters.
 
+The current accounting model is long-only: reducing a position to `qty <= 0` removes its row.
+Representing short positions would require an explicit accounting and risk-model change, not just
+allowing negative quantities in this table.
+
 ### `global_settings`
 
 The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime throttles,
 evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
 split only if a fourth domain lands here.
 
-When the row is absent, services resolve code defaults; the first global-setting edit upserts it.
-Seeded environments may already contain the row populated by schema defaults. Once present, its
-`NOT NULL` values become authoritative and no longer track later code-default changes. This is
-intentional because the columns carry schema defaults and `CHECK` constraints.
+Its columns are nullable overrides over code-owned defaults. A non-NULL value is an intentional
+database override; NULL means the operational-settings service resolves the corresponding domain or
+service default. Each field is resolved independently, so editing a throttle does not pin untouched
+evaluation or promotion policy to database values. The parameter view reports each effective value
+as database- or default-sourced. Revision `0018` introduced this behavior while preserving existing
+stored values.
+
+### `promotion_reviews`
+
+`strategy_id` remains nullable in the physical schema for historical rows that could not be
+backfilled in revision `0007`, but every newly requested review must resolve a real strategy row.
+`strategy_name` is the frozen display snapshot, not the identity key. Review closure and note writes
+update only a row whose current state is still `requested`; if another action closed it first, the
+transaction rolls back the attempted event and state change together.
+
+### `risk_decisions`
+
+Rows with a `book_id` are constrained by `(book_id, account_id) -> books(id, account_id)` so a risk
+decision cannot pair a valid book with the wrong account. `book_id` remains nullable for genuinely
+account-level decisions. The original single-column book FK still owns `ON DELETE SET NULL`, keeping
+the account-level decision history when a standalone book is deleted.
 
 ### `book_rotation_settings`
 
 Rotation scheduling and policy columns are nullable so each field can independently fall back to
 its code default. Passing `none` through the rotation-policy editing surface clears a stored policy
 value and resumes default tracking for that field. This differs intentionally from persisted global
-settings.
+settings. Revision `0014` removed eleven unused cadence, hard-regime-mapping, and overlay columns;
+the table now exposes only settings consumed by the active rotation path.
 
 ### Money as REAL
 
@@ -123,8 +146,8 @@ product decision.
 - Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
   account-owned row (books, orders and fills, research, governance, and risk history). The
   pre-deletion database backup is the only retention path — there is no archive model.
-- `walk_forward_group_runs.run_id -> backtest_runs` is deliberately `NO ACTION`: a grouped run
-  must not silently vanish from its group's composition. Account deletion still succeeds because
+- `walk_forward_windows.run_id -> backtest_runs` is deliberately `NO ACTION`: a window run
+  must not silently vanish from its experiment's composition. Account deletion still succeeds because
   SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
   "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
 

@@ -26,8 +26,8 @@ ACCOUNT_CONFIG_API_FIELDS = (
     ApiFieldMapping("ivRankMin", "iv_rank_min"),
     ApiFieldMapping("ivRankMax", "iv_rank_max"),
     ApiFieldMapping("rollDteThreshold", "roll_dte_threshold"),
-    ApiFieldMapping("profitTakePct", "profit_take_pct"),
-    ApiFieldMapping("maxLossPct", "max_loss_pct"),
+    ApiFieldMapping("optionProfitTakePct", "option_profit_take_pct"),
+    ApiFieldMapping("optionMaxLossPct", "option_max_loss_pct"),
 )
 
 # The nested `rotation` object (book-owned scheduling, ADR 014); storage names

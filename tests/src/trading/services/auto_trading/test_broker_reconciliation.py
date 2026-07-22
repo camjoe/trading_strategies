@@ -16,8 +16,8 @@ def _make_db():
 
 def _insert_account_row(conn, account_id: int = 1, name: str = "acct-sample") -> None:
     conn.execute(
-        "INSERT OR IGNORE INTO accounts (id, name, initial_cash, created_at) "
-        "VALUES (?, ?, 10000, '2024-01-01T00:00:00')",
+        "INSERT OR IGNORE INTO accounts (id, name, initial_cash, created_at, updated_at) "
+        "VALUES (?, ?, 10000, '2024-01-01T00:00:00', '2024-01-01T00:00:00')",
         (account_id, name),
     )
     conn.commit()
