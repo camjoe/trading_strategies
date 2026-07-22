@@ -65,26 +65,36 @@ def _effective_entry(name: str, *, raw: object, default: object) -> ParameterEnt
 
 
 def _global_groups(conn: sqlite3.Connection) -> list[ParameterGroup]:
-    has_row = GlobalSettingsRepository(conn).fetch() is not None
-    source = PARAMETER_SOURCE_DB if has_row else PARAMETER_SOURCE_DEFAULT
-    note = None if has_row else NO_SETTINGS_ROW_NOTE
+    record = GlobalSettingsRepository(conn).fetch()
     throttle = fetch_runtime_throttle_settings(conn)
     evaluation = fetch_evaluation_confidence_settings(conn)
     promotion = fetch_promotion_policy_settings(conn)
+
+    def entries(instance: object, prefix: str) -> tuple[ParameterEntry, ...]:
+        return tuple(
+            _effective_entry(
+                field.name,
+                raw=getattr(record, f"{prefix}{field.name}") if record is not None else None,
+                default=getattr(instance, field.name),
+            )
+            for field in fields(instance)  # type: ignore[arg-type]
+        )
+
+    note = NO_SETTINGS_ROW_NOTE if record is None else None
     return [
         ParameterGroup(
             scope="global / trade throttle",
-            entries=_entries_from_dataclass(throttle, source=source),
+            entries=entries(throttle, "runtime_"),
             note=note,
         ),
         ParameterGroup(
             scope="global / evaluation confidence",
-            entries=_entries_from_dataclass(evaluation, source=source),
+            entries=entries(evaluation, "evaluation_"),
             note=note,
         ),
         ParameterGroup(
             scope="global / promotion policy",
-            entries=_entries_from_dataclass(promotion, source=source),
+            entries=entries(promotion, "promotion_"),
             note=note,
         ),
     ]

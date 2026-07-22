@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 12:13 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 16:07 21-07-2026 PST. Tables: 24.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -406,10 +406,10 @@
         "accounts",
         "books",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -437,7 +437,7 @@
       ]
     }
   ],
-  "generatedAt": "12:13 21-07-2026 PST",
+  "generatedAt": "16:07 21-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -484,10 +484,10 @@
         "risk_snapshots",
         "daily_metrics",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -554,10 +554,10 @@
       "label": "Research",
       "tables": [
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -764,7 +764,7 @@
         },
         {
           "default": null,
-          "name": "snapshot_time",
+          "name": "snapshot_date",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -849,6 +849,119 @@
         },
         {
           "default": null,
+          "name": "run_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "execution_date",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "ticker",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "side",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "qty",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "price",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": "0",
+          "name": "fee",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": "0",
+          "name": "slippage_bps",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "note",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "run_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "run_id"
+          ],
+          "name": "idx_backtest_executions_run_id",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "backtest_executions",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "account_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -875,6 +988,14 @@
           "default": null,
           "name": "run_name",
           "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "'standalone'",
+          "name": "purpose",
+          "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -971,119 +1092,6 @@
         }
       ],
       "name": "backtest_runs",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "trade_time",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "ticker",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "side",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "qty",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "price",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "fee",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": "0",
-          "name": "slippage_bps",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "note",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "run_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "backtest_runs"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "run_id"
-          ],
-          "name": "idx_backtest_trades_run_id",
-          "origin": "c",
-          "unique": false
-        }
-      ],
-      "name": "backtest_trades",
       "section": {
         "color": "#7c3aed",
         "id": "research",
@@ -2115,113 +2123,113 @@
           "type": "INTEGER"
         },
         {
-          "default": "50",
+          "default": null,
           "name": "evaluation_backtest_trade_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "60",
+          "default": null,
           "name": "evaluation_backtest_snapshot_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "30",
+          "default": null,
           "name": "evaluation_paper_live_snapshot_count_for_full_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.7",
+          "default": null,
           "name": "evaluation_backtest_trade_confidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.3",
+          "default": null,
           "name": "evaluation_backtest_snapshot_confidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.6",
+          "default": null,
           "name": "evaluation_backtest_evidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.4",
+          "default": null,
           "name": "evaluation_paper_live_evidence_weight",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "10",
+          "default": null,
           "name": "promotion_min_research_backtest_trade_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "20",
+          "default": null,
           "name": "promotion_min_research_backtest_snapshot_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.0",
+          "default": null,
           "name": "promotion_min_research_backtest_return_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "-25.0",
+          "default": null,
           "name": "promotion_min_research_max_drawdown_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "0.0",
+          "default": null,
           "name": "promotion_min_research_walk_forward_average_return_pct",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
         },
         {
-          "default": "10",
+          "default": null,
           "name": "promotion_min_live_paper_snapshot_count",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "INTEGER"
         },
         {
-          "default": "0.6",
+          "default": null,
           "name": "promotion_min_live_overall_confidence",
-          "notNull": true,
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "REAL"
@@ -3679,22 +3687,6 @@
         },
         {
           "default": null,
-          "name": "style",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "required_features",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
           "name": "description",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -3764,125 +3756,7 @@
         },
         {
           "default": null,
-          "name": "group_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_index",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_start",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "window_end",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "total_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "run_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "backtest_runs"
-        },
-        {
-          "column": "group_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "walk_forward_groups"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "group_id",
-            "window_index"
-          ],
-          "name": "idx_walk_forward_group_runs_group_window",
-          "origin": "c",
-          "unique": false
-        },
-        {
-          "columns": [
-            "group_id",
-            "window_index"
-          ],
-          "name": "sqlite_autoindex_walk_forward_group_runs_2",
-          "origin": "u",
-          "unique": true
-        },
-        {
-          "columns": [
-            "run_id"
-          ],
-          "name": "sqlite_autoindex_walk_forward_group_runs_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "walk_forward_group_runs",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "grouping_key",
+          "name": "experiment_key",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -3962,38 +3836,6 @@
         },
         {
           "default": null,
-          "name": "average_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "median_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "best_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
-          "name": "worst_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
           "name": "created_at",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4024,20 +3866,129 @@
             "strategy_id",
             "created_at"
           ],
-          "name": "idx_walk_forward_groups_account_strategy_created",
+          "name": "idx_walk_forward_experiments_account_strategy_created",
           "origin": "c",
           "unique": false
         },
         {
           "columns": [
-            "grouping_key"
+            "experiment_key"
           ],
-          "name": "sqlite_autoindex_walk_forward_groups_1",
+          "name": "sqlite_autoindex_walk_forward_experiments_1",
           "origin": "u",
           "unique": true
         }
       ],
-      "name": "walk_forward_groups",
+      "name": "walk_forward_experiments",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "experiment_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "run_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "window_index",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "window_start",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "window_end",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "total_return_pct",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "run_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        },
+        {
+          "column": "experiment_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "walk_forward_experiments"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "experiment_id",
+            "window_index"
+          ],
+          "name": "sqlite_autoindex_walk_forward_windows_2",
+          "origin": "u",
+          "unique": true
+        },
+        {
+          "columns": [
+            "run_id"
+          ],
+          "name": "sqlite_autoindex_walk_forward_windows_1",
+          "origin": "u",
+          "unique": true
+        }
+      ],
+      "name": "walk_forward_windows",
       "section": {
         "color": "#7c3aed",
         "id": "research",
@@ -4054,8 +4005,8 @@
       "tables": [
         "accounts",
         "backtest_equity_snapshots",
+        "backtest_executions",
         "backtest_runs",
-        "backtest_trades",
         "book_rotation_settings",
         "book_strategy_history",
         "book_universe_history",
@@ -4074,8 +4025,8 @@
         "risk_snapshots",
         "rotation_decisions",
         "strategies",
-        "walk_forward_group_runs",
-        "walk_forward_groups"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -4094,10 +4045,10 @@
         "positions",
         "ledger",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs",
+        "walk_forward_experiments",
+        "walk_forward_windows",
         "promotion_reviews",
         "promotion_review_events",
         "risk_snapshots",
@@ -4132,10 +4083,10 @@
         "accounts",
         "strategies",
         "backtest_runs",
-        "backtest_trades",
+        "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_groups",
-        "walk_forward_group_runs"
+        "walk_forward_experiments",
+        "walk_forward_windows"
       ]
     },
     {
@@ -4164,7 +4115,7 @@
         "orders",
         "rotation_decisions",
         "backtest_runs",
-        "walk_forward_groups"
+        "walk_forward_experiments"
       ]
     }
   ]

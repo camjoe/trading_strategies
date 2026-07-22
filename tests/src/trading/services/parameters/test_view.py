@@ -56,6 +56,20 @@ class TestGlobalGroups:
         assert entry.value == "15"
         assert entry.source == PARAMETER_SOURCE_DB
 
+        unlimited = _entry(throttle, "max_trades_per_minute")
+        assert unlimited.value == "none"
+        assert unlimited.source == PARAMETER_SOURCE_DEFAULT
+
+        evaluation = _group(view, "global / evaluation confidence")
+        evidence_weight = _entry(evaluation, "backtest_evidence_weight")
+        assert evidence_weight.value == "0.6"
+        assert evidence_weight.source == PARAMETER_SOURCE_DEFAULT
+
+        promotion = _group(view, "global / promotion policy")
+        confidence = _entry(promotion, "min_live_overall_confidence")
+        assert confidence.value == "0.6"
+        assert confidence.source == PARAMETER_SOURCE_DEFAULT
+
 
 class TestBookGroups:
     def test_book_groups_with_missing_settings_rows(self, conn: sqlite3.Connection) -> None:

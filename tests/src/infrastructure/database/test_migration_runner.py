@@ -646,6 +646,44 @@ def test_revision_0015_renames_book_strategy_history_and_indexes(tmp_path: Path)
         conn.close()
 
 
+def test_revision_0018_makes_global_policy_values_nullable(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "global_settings_overrides.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0017", connection=conn)
+        conn.execute(
+            """
+            INSERT INTO global_settings (
+                id, runtime_max_trades_per_day,
+                evaluation_backtest_trade_count_for_full_confidence
+            )
+            VALUES (1, 25, 75)
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0018", connection=conn)
+        columns = {str(row[1]): row for row in conn.execute("PRAGMA table_info(global_settings)")}
+        assert columns["evaluation_backtest_trade_count_for_full_confidence"][3] == 0
+        row = conn.execute("SELECT * FROM global_settings WHERE id = 1").fetchone()
+        assert row["runtime_max_trades_per_day"] == 25
+        assert row["evaluation_backtest_trade_count_for_full_confidence"] == 75
+
+        conn.execute(
+            "UPDATE global_settings SET evaluation_backtest_trade_count_for_full_confidence = NULL WHERE id = 1"
+        )
+        conn.commit()
+        migration_runner.downgrade("0017", connection=conn)
+
+        restored = conn.execute("SELECT * FROM global_settings WHERE id = 1").fetchone()
+        assert restored["runtime_max_trades_per_day"] == 25
+        assert restored["evaluation_backtest_trade_count_for_full_confidence"] == 50
+        restored_columns = {str(row[1]): row for row in conn.execute("PRAGMA table_info(global_settings)")}
+        assert restored_columns["evaluation_backtest_trade_count_for_full_confidence"][3] == 1
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

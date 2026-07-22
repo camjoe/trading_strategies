@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-07-21
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -31,7 +31,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 |---|---|---|
 | `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
-| `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
+| `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
 | `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`rolling_window`/`walk_forward_oos`/`final_holdout`, revision `0016`) | → `accounts` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
@@ -81,10 +81,12 @@ The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime th
 evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
 split only if a fourth domain lands here.
 
-When the row is absent, services resolve code defaults; the first global-setting edit upserts it.
-Seeded environments may already contain the row populated by schema defaults. Once present, its
-`NOT NULL` values become authoritative and no longer track later code-default changes. This is
-intentional because the columns carry schema defaults and `CHECK` constraints.
+Its columns are nullable overrides over code-owned defaults. A non-NULL value is an intentional
+database override; NULL means the operational-settings service resolves the corresponding domain or
+service default. Each field is resolved independently, so editing a throttle does not pin untouched
+evaluation or promotion policy to database values. The parameter view reports each effective value
+as database- or default-sourced. Revision `0018` introduced this behavior while preserving existing
+stored values.
 
 ### `book_rotation_settings`
 
