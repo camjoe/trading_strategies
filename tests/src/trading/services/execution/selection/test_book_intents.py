@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 
-import trading.services.books.execution as book_execution
+import trading.services.execution.selection.book_intents as book_intents
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.strategies import StrategyRepository
@@ -49,17 +49,17 @@ def test_generate_book_trade_intents_uses_active_books_and_assignments(conn, mon
     account = get_account(conn, account_name)
 
     monkeypatch.setattr(
-        book_execution.auto_trader_policy,
+        book_intents.auto_trader_policy,
         "choose_sell_ticker_by_risk",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        book_execution,
-        "_prepare_trade_selection",
+        book_intents,
+        "prepare_trade_selection",
         Mock(return_value=("buy", "AAPL", 1, 101.0, None, None)),
     )
 
-    intents = book_execution.generate_book_trade_intents(
+    intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["AAPL"],
@@ -86,7 +86,7 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     rising = pd.Series([float(i) for i in range(1, 41)])
     flat = pd.Series([100.0] * 40)
 
-    buy_intents = book_execution.generate_book_trade_intents(
+    buy_intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["AAPL"],
@@ -99,7 +99,7 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     assert [(intent.side, intent.symbol) for intent in buy_intents] == [("buy", "AAPL")]
 
     # No forced minimum: a flat (hold) history yields zero intents.
-    hold_intents = book_execution.generate_book_trade_intents(
+    hold_intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["AAPL"],
@@ -129,7 +129,7 @@ def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> N
     _assign(conn, book_id=book_id, strategy_name="trend_fast")
 
     rising = pd.Series([float(i) for i in range(1, 41)])
-    intents = book_execution.generate_book_trade_intents(
+    intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["AAPL"],
@@ -143,16 +143,6 @@ def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> N
     assert [(intent.side, intent.symbol) for intent in intents] == [("buy", "AAPL")]
     # Display/bookkeeping keeps the assigned variant key, not the primitive.
     assert intents[0].strategy_name == "trend_fast"
-
-
-def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch) -> None:
-    recorder = Mock(return_value=("buy", "SPY", 1, 100.0, None, None))
-    monkeypatch.setattr("trading.services.auto_trading.execution.prepare_trade_selection", recorder)
-
-    result = book_execution._prepare_trade_selection("account", "trend", feature_history_fn=None)
-
-    assert result == ("buy", "SPY", 1, 100.0, None, None)
-    recorder.assert_called_once_with("account", "trend", feature_history_fn=None)
 
 
 def test_build_book_state_reads_book_and_skips_non_positive_positions(conn) -> None:
@@ -188,7 +178,7 @@ def test_build_book_state_reads_book_and_skips_non_positive_positions(conn) -> N
         updated_at="2026-05-03T00:00:00Z",
     )
 
-    state = book_execution._build_book_state(conn, book_id=book_id)
+    state = book_intents._build_book_state(conn, book_id=book_id)
 
     assert state.cash == 750.0
     assert state.positions == {"AAPL": 2.0}
@@ -201,7 +191,7 @@ def test_generate_book_trade_intents_returns_empty_without_active_books(conn) ->
     _insert_book(conn, account_id=account_id, name="paused", status="paused")
     account = get_account(conn, account_name)
 
-    intents = book_execution.generate_book_trade_intents(
+    intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["AAPL"],
@@ -231,23 +221,23 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
     captured_universes: list[list[str]] = []
 
     monkeypatch.setattr(
-        book_execution.auto_trader_policy,
+        book_intents.auto_trader_policy,
         "choose_sell_ticker_by_risk",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        book_execution,
+        book_intents,
         "resolve_named_universes",
         lambda _names: (_ for _ in ()).throw(AssertionError("named universes should not be resolved")),
     )
     monkeypatch.setattr(
-        book_execution,
-        "_prepare_trade_selection",
+        book_intents,
+        "prepare_trade_selection",
         # positional args: (account, strategy_name, params, state, forced_sell, universe, ...)
         lambda *_args, **_kwargs: captured_universes.append(list(_args[5])) or None,
     )
 
-    intents = book_execution.generate_book_trade_intents(
+    intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
         universe=["SPY", "QQQ"],
@@ -269,17 +259,17 @@ def test_run_multi_book_mode_for_account_returns_generated_intent_count(conn, mo
     account = get_account(conn, account_name)
 
     monkeypatch.setattr(
-        book_execution.auto_trader_policy,
+        book_intents.auto_trader_policy,
         "choose_sell_ticker_by_risk",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        book_execution,
-        "_prepare_trade_selection",
+        book_intents,
+        "prepare_trade_selection",
         Mock(return_value=("buy", "MSFT", 1, 300.0, None, None)),
     )
 
-    generated = book_execution.run_multi_book_mode_for_account(
+    generated = book_intents.run_multi_book_mode_for_account(
         conn,
         account=account,
         universe=["MSFT"],

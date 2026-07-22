@@ -23,7 +23,7 @@ from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.services.accounts import get_account
 from trading.services.operational_settings import enforce_runtime_trade_throttles
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from trading.services.auto_trading.execution import (
+from trading.services.execution.selection.selection import (
     FeatureHistoryFn,
     build_feature_history_fn,
 )
@@ -39,7 +39,7 @@ from trading.services.execution.risk import (
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.services.books.execution import generate_book_trade_intents
+from trading.services.execution.selection.book_intents import generate_book_trade_intents
 from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.books.rotation import (
     evaluate_and_apply_book_rotation,

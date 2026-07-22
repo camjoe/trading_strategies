@@ -139,7 +139,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions |
 | `analysis/portfolio.py` | Account portfolio stats, settlement-corrected equity, and trend inference |
 | `analysis/benchmark.py` | Benchmark close-history fetch + live benchmark return overlay payloads |
-| `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
@@ -155,6 +154,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
+| `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
+| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`, `run_multi_book_mode_for_account`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
 | `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
 | `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
@@ -180,7 +181,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
 | `books/daily_report.py` | Multi-book daily operator report assembly |
-| `books/execution.py` | Multi-book trade-candidate generation (`generate_book_trade_intents`) |
 | `books/helpers.py` | Shared book service helpers (window math) |
 | `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |

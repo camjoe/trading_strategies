@@ -1,7 +1,8 @@
 """Multi-book trading services package.
 
 The stable public surface for multi-book trade orchestration: book assignments,
-intent generation, rotation, and challenger shadow evaluation.
+rotation, and challenger shadow evaluation. (Book-keyed intent generation now
+lives in ``trading.services.execution.selection``.)
 """
 
 from __future__ import annotations
@@ -10,10 +11,6 @@ from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.models.execution.risk_gate_result import RiskGateResult
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.services.books.execution import (
-    generate_book_trade_intents,
-    run_multi_book_mode_for_account,
-)
 from trading.services.books.rotation import (
     RotationPolicyConfig,
     RotationRunResult,
@@ -28,8 +25,6 @@ from trading.services.books.challenger_evaluation import (
 
 __all__ = [
     "BookTradeCandidate",
-    "generate_book_trade_intents",
-    "run_multi_book_mode_for_account",
     "RiskGateDecision",
     "RiskGateConfig",
     "RiskGateResult",
