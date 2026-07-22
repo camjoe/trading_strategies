@@ -133,7 +133,7 @@ added, no permission to use, modify, or redistribute the source is granted beyon
 applicable law and GitHub's Terms of Service.
 
 Apache License 2.0 is the planned license. This statement records intent only and does not grant that
-license. See [Open-Source Readiness](docs/reference/open-source-readiness.md) for the remaining steps.
+license.
 
 ## Documentation Index
 

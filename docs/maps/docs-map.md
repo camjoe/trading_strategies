@@ -93,7 +93,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |
 | `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
-| `docs/reference/open-source-readiness.md` | Current public-source posture, continuous preparation rules, and final open-source licensing gate | Licensing posture, strategy-publication plans, security reporting, or release requirements change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Current project capabilities, concepts, architecture, limitations, and scope (entry point) | Purpose, capabilities, architecture, limitations, or scope change |
