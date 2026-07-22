@@ -5,7 +5,8 @@ import json
 import pytest
 
 from infrastructure.market_data import build_provider, supported_provider_names
-from infrastructure.market_data.providers import UnavailableProvider, YFinanceProvider
+from infrastructure.market_data.unavailable_provider import UnavailableProvider
+from infrastructure.market_data.yfinance_provider import YFinanceProvider
 
 
 def test_supported_provider_names_include_default_and_placeholders() -> None:
