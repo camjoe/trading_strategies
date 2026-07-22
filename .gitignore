@@ -20,7 +20,12 @@ coverage.xml
 .pytest_cache/
 
 # Environments
+.env
+.env.*
+!.env.example
 .venv
+env/
+venv/
 
 # Claude local tooling
 .claude/launch.json
