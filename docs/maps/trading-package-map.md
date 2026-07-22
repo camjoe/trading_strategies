@@ -142,8 +142,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
-| `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
-| `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
@@ -153,8 +151,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/ledger/mutations.py` | Cash/equity accounting write operations (record trades to the book/account ledger) |
 | `execution/ledger/queries.py` | Cash/equity accounting read operations (account-state replay, trade listing) |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
+| `execution/open_order_reconciliation.py` | Runtime open-order/fill reconciliation against the broker (apply fills, record trades, resolve exec ids) |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
+| `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
 | `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
 | `autonomy_monitor/queries.py` | Autonomy-monitor data queries |

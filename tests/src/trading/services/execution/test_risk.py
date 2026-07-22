@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from trading.services.auto_trading.runtime_book_risk import compute_current_exposure_snapshot
+from trading.services.execution.risk import compute_current_exposure_snapshot
 
 
 def test_compute_current_exposure_snapshot_uses_injected_symbol_sector_map() -> None:

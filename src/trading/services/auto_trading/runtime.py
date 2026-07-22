@@ -27,12 +27,12 @@ from trading.services.auto_trading.execution import (
     FeatureHistoryFn,
     build_feature_history_fn,
 )
-from trading.services.auto_trading.runtime_reconciliation import (
+from trading.services.execution.open_order_reconciliation import (
     reconcile_open_orders_impl,
     resolve_reconciliation_exec_id,
 )
 from trading.services.market_data import MarketDataProvider
-from trading.services.auto_trading.runtime_book_risk import (
+from trading.services.execution.risk import (
     persist_book_risk_snapshot,
     persist_normalized_risk_decisions,
 )

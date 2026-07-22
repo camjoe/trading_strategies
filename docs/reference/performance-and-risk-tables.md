@@ -86,7 +86,7 @@ runtime job calls the writer, so runtime workflows do not currently populate thi
 
 Account-keyed point-in-time risk snapshot, unique on
 `(account_id, snapshot_time)`. Exposure fields are computed by
-`services/auto_trading/runtime_book_risk.py::compute_current_exposure_snapshot`
+`services/execution/risk.py::compute_current_exposure_snapshot`
 over the account's positions and books; concentration caps themselves live in
 `RiskGateConfig` (`domain/risk_gate.py`).
 
