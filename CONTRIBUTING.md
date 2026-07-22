@@ -4,16 +4,11 @@ Workflow and expectations for human contributors. **AI agents** should read **[A
 
 ## Development setup
 
-Use the repo-local virtual environment — never system Python.
+Follow the root [Python setup](README.md#python-setup) to create, activate, and install the
+repo-local virtual environment. Never use system Python for repository commands.
 
-```sh
-# Windows
-.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-# POSIX
-./.venv/bin/python -m pip install -r requirements-dev.txt
-```
-
-`requirements-base.txt` is runtime-only; `requirements-dev.txt` adds test/lint tooling. Run all commands from the repository root as modules (e.g. `python -m trading.interfaces.cli.main`).
+`requirements-base.txt` is runtime-only; `requirements-dev.txt` adds test/lint tooling. Commands
+below assume `.venv` is active and run from the repository root as modules.
 
 ## Running checks
 

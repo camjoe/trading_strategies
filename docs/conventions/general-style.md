@@ -38,5 +38,8 @@ Balanced means:
 1. Prefer short sections with actionable bullets.
 2. Keep architecture docs declarative and source-of-truth oriented.
 3. Include runnable commands from the repository root where relevant.
-4. Keep required metadata, document types, and reference/ADR layouts in
+4. Human-facing interactive commands assume the root README's virtual environment is active and use
+   concise `python -m ...` examples. Use an explicit virtual-environment interpreter path only when
+   activation cannot be assumed, such as scheduler, service, host-bootstrap, or agent instructions.
+5. Keep required metadata, document types, and reference/ADR layouts in
    [`docs-authoring.md`](docs-authoring.md); do not duplicate those rules here.

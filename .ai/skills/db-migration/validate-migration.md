@@ -6,7 +6,7 @@ Run through each item in order. Any ❌ is a blocker — stop and report before 
 
 ### 1. Chain integrity
 Review the file directly: 4-digit numeric id, `down_revision` points at the previous head, one
-linear chain. `.venv/Scripts/python.exe -m scripts.checks.repo.migration_check` passes — it verifies
+linear chain. `python -m scripts.checks.repo.migration_check` passes — it verifies
 the one part review can miss, that `EXPECTED_HEAD_REVISION` was bumped in the same change.
 
 ### 2. Self-contained
@@ -40,9 +40,9 @@ the new head.
 ## Validation commands
 
 ```
-.venv/Scripts/python.exe -m scripts.checks.repo.migration_check
-.venv/Scripts/python.exe -m scripts.checks.run_suite src/infrastructure/database tests/scripts/test_manage_db_migrations.py --no-cov
-.venv/Scripts/python.exe -m scripts.checks.docs.db_schema_check
+python -m scripts.checks.repo.migration_check
+python -m scripts.checks.run_suite src/infrastructure/database tests/scripts/test_manage_db_migrations.py --no-cov
+python -m scripts.checks.docs.db_schema_check
 ```
 
 ## Output

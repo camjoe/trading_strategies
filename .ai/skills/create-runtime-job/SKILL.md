@@ -60,7 +60,6 @@ Governance table that matches the job.
 ## 7. Validate
 
 ```
-python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/<area> --no-cov
 python -m scripts.run_checks repo
 python -m scripts.run_checks python --suite src/trading/interfaces/runtime/jobs/<area> --no-cov
 ```

@@ -16,8 +16,8 @@ This document is the source of truth for the financial and market knowledge glos
 Run these commands from the repository root:
 
 ```sh
-.venv/Scripts/python.exe -m scripts.documentation_ui.sync
-.venv/Scripts/python.exe -m scripts.documentation_ui.check
+python -m scripts.documentation_ui.sync
+python -m scripts.documentation_ui.check
 ```
 
 The `Use` column controls where a term appears:

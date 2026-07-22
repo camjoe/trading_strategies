@@ -66,10 +66,15 @@ git clone https://github.com/camjoe/trading_strategies.git ~/trading-prod
 cd ~/trading-prod
 git checkout main
 python3 -m venv .venv
-./.venv/bin/pip install --upgrade pip
-./.venv/bin/pip install -r requirements-base.txt   # runtime-only deps (no test deps needed in prod)
-./.venv/bin/pip install -e . --no-build-isolation  # expose src/ and apps/ packages
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-base.txt   # runtime-only deps (no test deps needed in prod)
+python -m pip install -e . --no-build-isolation  # expose src/ and apps/ packages
 ```
+
+Interactive commands below assume this environment is active. Activate it again after opening a
+new shell. Scheduler and wrapper configuration still uses an explicit interpreter path because it
+runs without an activated shell.
 
 ### 1.3 Secrets and configuration
 
@@ -101,7 +106,7 @@ generated service unit, so systemd loads the file automatically at job launch. T
 a missing file is silently ignored rather than failing the job:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --env-file /home/<user>/trading-prod/.env \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
     ...
@@ -135,7 +140,7 @@ chmod +x ~/trading-prod/run-job.sh
 Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the venv python directly:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --python /home/<user>/trading-prod/run-job.sh \
     --scheduler cron \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
@@ -174,7 +179,7 @@ At minimum set:
 
 ```bash
 cd ~/trading-prod
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
     --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
@@ -185,7 +190,7 @@ cd ~/trading-prod
 Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
     --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
@@ -205,12 +210,12 @@ systemctl list-timers --all | grep trading
 ```bash
 cd ~/trading-prod
 # Confirm the runtime can import, read its environment, and inspect recent artifacts:
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
+python -m trading.interfaces.runtime.jobs.daily.trader_health
+python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
 Then confirm monitoring per [runtime-operations.md](runtime-operations.md): logs land in `local/logs/`,
-artifacts in `local/exports/`, and `./.venv/bin/python -m scripts.check_jobs` summarizes status.
+artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes status.
 
 ---
 
@@ -232,9 +237,9 @@ Run on the dev machine against the change you intend to ship:
 
 ```bash
 # Full CI-profile checks (layer + lint + type + tests)
-.venv/bin/python -m scripts.run_checks ci
+python -m scripts.run_checks ci
 # Targeted suites for the areas you touched (faster signal)
-.venv/bin/python -m scripts.checks.run_suite --base develop
+python -m scripts.checks.run_suite --base develop
 ```
 
 For a risky change, also smoke it in the **staging checkout** (Part 3) against a copy of the
@@ -263,8 +268,8 @@ git pull origin main
 
 ```bash
 cd ~/trading-prod
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
-./.venv/bin/python -m scripts.check_jobs
+python -m trading.interfaces.runtime.jobs.daily.trader_health
+python -m scripts.check_jobs
 ```
 
 Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
@@ -294,9 +299,9 @@ Smoke a candidate before promoting:
 ```bash
 cd ~/trading-staging
 git pull origin develop
-./.venv/bin/python -m scripts.run_checks ci
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
+python -m scripts.run_checks ci
+python -m trading.interfaces.runtime.jobs.daily.trader_health
+python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
 Do not run `daily.paper_trading` from staging with real broker credentials unless you intentionally

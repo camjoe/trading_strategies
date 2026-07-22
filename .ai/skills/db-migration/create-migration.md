@@ -9,7 +9,7 @@ A new revision file in `src/infrastructure/database/alembic/versions/`, named
 ## Workflow
 
 1. **Find and reconcile the current head** — run
-   `.venv/Scripts/python.exe -m scripts.data_ops.manage_db_migrations history`, inspect the revision
+   `python -m scripts.data_ops.manage_db_migrations history`, inspect the revision
    directory, and confirm `EXPECTED_HEAD_REVISION` agrees. The new revision is the next numeric id.
 2. **Write the revision file** (copy the previous revision's header shape):
    ```python
@@ -43,8 +43,8 @@ A new revision file in `src/infrastructure/database/alembic/versions/`, named
 4. **Bump `EXPECTED_HEAD_REVISION`** to `"000N"` in the same commit.
 5. **Synchronize schema documentation** — update `docs/reference/db-schema.md` and regenerate
    `docs/reference/database-diagram-viewer.html` when schema shape or relationships change.
-6. **Validate** — run `.venv/Scripts/python.exe -m scripts.checks.repo.migration_check`, then
-   `.venv/Scripts/python.exe -m scripts.checks.run_suite src/infrastructure/database --no-cov`.
+6. **Validate** — run `python -m scripts.checks.repo.migration_check`, then
+   `python -m scripts.checks.run_suite src/infrastructure/database --no-cov`.
 
 ## Rules
 

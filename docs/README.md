@@ -28,10 +28,11 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 - [`adr/`](adr/) — durable architecture and product decisions
 
-**Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
+**Execution note:** Activate the repository virtual environment described in the root README, then
+run commands as Python modules from the repository root:
+
 ```sh
-.venv/Scripts/python -m trading.interfaces.cli.main   # Windows
-.venv/bin/python -m trading.interfaces.cli.main        # macOS/Linux
+python -m trading.interfaces.cli.main
 ```
 
 ## Architecture
