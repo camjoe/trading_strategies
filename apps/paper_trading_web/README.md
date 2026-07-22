@@ -11,16 +11,38 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
+- **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
+- **IBKR Paper Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
+  for configured IBKR paper accounts.
 - **Snapshots and operational logs** — snapshot actions stay in the account workspace, while operational logs now live under **Admin > Artifacts & Logs**.
 - **Admin operations visibility** — runtime job health plus recent scheduled refresh, daily snapshot, database-backup, promotion-review visibility, CSV database exports, and operational log browsing all live inside the Admin tab, grouped into focused Admin sub-sections instead of extra top-level tabs.
 
 ## Environment Setup
 
-Copy the example env files once before first run:
+Python 3.14 and Node.js 24 are currently supported. Complete the root
+[Python setup](../../README.md#python-setup), install the frontend dependencies, and migrate the
+database before starting the UI.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item apps/paper_trading_web/backend/.env.example apps/paper_trading_web/backend/.env
+Copy-Item apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/.env
+Set-Location apps/paper_trading_web/frontend
+npm ci
+Set-Location ../../..
+python -m scripts.data_ops.manage_db_migrations upgrade
+```
+
+macOS or Linux:
 
 ```sh
 cp apps/paper_trading_web/backend/.env.example apps/paper_trading_web/backend/.env
 cp apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/.env
+cd apps/paper_trading_web/frontend
+npm ci
+cd ../../..
+python -m scripts.data_ops.manage_db_migrations upgrade
 ```
 
 Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_API_BASE` (default `http://127.0.0.1:8000`).
@@ -45,14 +67,14 @@ This keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults
 Backend:
 
 ```sh
-uvicorn paper_trading_web.backend.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn paper_trading_web.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Frontend:
 
 ```sh
 cd apps/paper_trading_web/frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -67,6 +89,7 @@ npm run dev
 ### Accounts
 
 - `GET /api/accounts` — list visible accounts (`managed` and `local`).
+- `GET /api/accounts/config/options` — valid values used by account-configuration controls.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab). Includes live benchmark summary fields such as `liveBenchmarkReturnPct` and `liveAlphaPct` when enough snapshots exist.
 - `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include `accountKind`, `brokerType`, and rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
 - `PATCH /api/accounts/{account_name}/params` — update mutable account config and rotation fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
@@ -79,6 +102,9 @@ npm run dev
 
 - `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `src/infrastructure/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `src/infrastructure/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
+- `GET /api/admin/accounts/delete-preview?accountName=...` — preview account identity before deletion.
+- `GET /api/admin/exports/csv` — list available CSV database exports.
+- `GET /api/admin/exports/csv/preview?exportName=...&fileName=...&limit=200` — preview one exported CSV file.
 - `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
 - `GET /api/admin/promotion/overview?accountName=...&strategyName=&limit=5` — show the current computed promotion assessment plus recent persisted review history for one managed account.
 
@@ -86,6 +112,13 @@ npm run dev
 
 - `GET /api/features/status` — probe all three alt-strategy providers (Policy, News, Social) and return availability + key scores. Each provider entry also includes `description`, `data_sources`, `feature_descriptions` (per-feature label and threshold info), and `signal_logic`.
 - `POST /api/features/signals` — run all three signal functions for a ticker. Body: `FeatureSignalsRequest` (`ticker`). Returns per-strategy `signal`, `available`, `features`, `interpretation` (human-readable summary of current feature values), `feature_descriptions`, and `signal_logic`.
+
+### Portfolio and IBKR Paper Monitoring
+
+- `GET /api/portfolio/rollup` — cross-account exposure and symbol/sector concentration payload.
+- `GET /api/ibkr-paper-accounts` — configured IBKR paper accounts with book and latest-run summaries.
+- `GET /api/ibkr-paper-accounts/{account_name}` — detailed workflow, governance, burn-in, rotation,
+  and risk status for one IBKR paper account.
 
 ### Logs
 
@@ -110,7 +143,8 @@ npm run dev
 
 - `GET /health`
 
-For the complete, always-current route list (including backtesting endpoints), see `apps/paper_trading_web/backend/main.py`.
+For the complete route list and request/response schemas while the backend is running, open the
+interactive API documentation at `http://127.0.0.1:8000/docs`.
 
 ## Request Schemas
 

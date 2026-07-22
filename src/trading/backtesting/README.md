@@ -8,7 +8,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Entry Points
 
-- `backtest.py`: public API entrypoint.
+- `backtest.py`: supported internal package entrypoint.
   - Orchestrates calls into service and repository layers.
 
 ## Layers
@@ -38,7 +38,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Hook-Up Flow
 
-1. Caller invokes `backtest.py` public function.
+1. Caller invokes the supported function in `backtest.py`.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Strategy signal dispatch uses `trading.domain.strategy_signals`; alternative strategies receive

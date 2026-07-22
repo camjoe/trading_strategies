@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-14
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-22
 Purpose: Reference for backtesting commands, layering overview, and safeguards.
 Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Walk-Forward Optimization Plan](walk-forward-optimization-plan.md)
 
@@ -17,20 +17,28 @@ complexity, relationship tracking, or portability pressure materially increases.
 
 ## Commands
 
-All backtesting commands are under `python -m trading.interfaces.cli.main` and accept `--help` for the full reference.
+All backtesting commands use the shared trading CLI and accept `--help` for the full reference. They
+assume the repository virtual environment created in the root README is active.
+
+Create the database and apply the synthetic default account preset before the first run:
+
+```sh
+python -m scripts.data_ops.manage_db_migrations upgrade
+python -m trading.interfaces.cli.main apply-account-preset --preset default
+```
 
 ```sh
 # Single backtest
-python -m trading.interfaces.cli.main backtest --account trend_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest --account momentum_5k --lookback-months 12
 
 # Walk-forward
-python -m trading.interfaces.cli.main backtest-walk-forward --account trend_v1 --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
+python -m trading.interfaces.cli.main backtest-walk-forward --account momentum_5k --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
 
 # Persisted walk-forward detail report
-python -m trading.interfaces.cli.main backtest-walk-forward-report --account trend_v1
+python -m trading.interfaces.cli.main backtest-walk-forward-report --account momentum_5k
 
 # Batch comparison
-python -m trading.interfaces.cli.main backtest-batch --accounts trend_v1,meanrev_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,meanrev_5k --lookback-months 12
 
 # Leaderboard
 python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
