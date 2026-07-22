@@ -39,6 +39,7 @@ python -m trading.interfaces.cli.main
 ## Architecture
 
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
+- [`architecture/service-ownership.md`](architecture/service-ownership.md) — per-service ownership boundaries (owns / does not own)
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
 - [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
 

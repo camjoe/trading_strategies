@@ -126,7 +126,7 @@ class OrderRepository:
     def fetch_fill_events_for_account(self, *, account_id: int) -> list[sqlite3.Row]:
         """Fill executions for the account's orders as trade-shaped rows, oldest first.
 
-        Feeds the account-state replay (``trading.services.accounting``): the
+        Feeds the account-state replay (``trading.services.execution.ledger``): the
         keys mirror the retired ``trades`` rows so the pure replay math is
         unchanged.
         """

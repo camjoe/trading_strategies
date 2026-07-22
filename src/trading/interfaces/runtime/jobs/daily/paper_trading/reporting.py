@@ -9,7 +9,7 @@ from common.files import sorted_by_mtime_desc
 from infrastructure.database.connection import ensure_db
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account
-from trading.services.books.daily_report import account_daily_report_as_dict, build_account_daily_report
+from trading.services.reporting.daily_report import account_daily_report_as_dict, build_account_daily_report
 
 SHADOW_EVAL_EXPORT_DIR = Path("local") / "exports" / "daily_challenger_shadow_eval"
 

@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from unittest.mock import Mock
 
-import trading.services.auto_trading.execution as trade_execution_service
+import trading.services.execution.selection.selection as trade_execution_service
 from tests.src.trading.services.auto_trading.factories import make_option_settings
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from typing import TYPE_CHECKING, Mapping
+from typing import Mapping
 
 import pandas as pd
 
@@ -19,17 +19,9 @@ from trading.services.strategy_catalog.resolution import (
     resolve_catalog_strategy,
 )
 from trading.services.universe import resolve_named_universes
-
-if TYPE_CHECKING:
-    from trading.services.auto_trading.execution import FeatureHistoryFn
+from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_trade_selection
 
 logger = logging.getLogger(__name__)
-
-
-def _prepare_trade_selection(*args, **kwargs):
-    from trading.services.auto_trading.execution import prepare_trade_selection
-
-    return prepare_trade_selection(*args, **kwargs)
 
 
 def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeState:
@@ -118,7 +110,7 @@ def generate_book_trade_intents(
         )
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
-        selection = _prepare_trade_selection(
+        selection = prepare_trade_selection(
             book,
             signal_primitive,
             strategy_params,

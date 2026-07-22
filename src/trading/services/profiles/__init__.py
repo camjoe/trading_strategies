@@ -11,7 +11,7 @@ from trading.services.profiles.application import (
     load_account_profiles,
     load_account_profiles_from_source,
 )
-from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
+from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 
 __all__ = [
     "apply_account_profiles",

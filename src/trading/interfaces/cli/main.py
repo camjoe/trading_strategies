@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import partial
-from trading.services.accounting import record_trade
+from trading.services.execution.ledger import record_trade
 from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
 from trading.backtesting.backtest import (
     backtest_leaderboard_entries,
@@ -15,7 +15,7 @@ from infrastructure.database.config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.services.backtesting import find_stale_backtests
+from trading.backtesting.services import find_stale_backtests
 from trading.services.profiles import apply_account_profiles, load_account_profiles
 from trading.services.promotion import (
     execute_promotion_review_action,

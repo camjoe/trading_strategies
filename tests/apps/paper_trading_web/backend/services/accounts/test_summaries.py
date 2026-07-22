@@ -41,7 +41,7 @@ def _patch_book_reads(
     active_strategy: str = "trend",
 ) -> None:
     """Stub the book-owned rotation/assignment reads (ADR 014) for conn=None tests."""
-    from trading.services.books.rotation import BookRotationScheduleConfig
+    from trading.services.books.rotation.engine import BookRotationScheduleConfig
 
     monkeypatch.setattr(
         account_summaries,
@@ -231,7 +231,7 @@ class TestBuildAccountSummaryShape:
             assert key in summary, f"Missing key: {key}"
 
     def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
-        from trading.services.books.rotation import BookRotationScheduleConfig
+        from trading.services.books.rotation.engine import BookRotationScheduleConfig
 
         monkeypatch.setattr(
             account_summaries,

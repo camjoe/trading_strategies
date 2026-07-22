@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-import trading.services.books.rotation as rotation_service
+import trading.services.books.rotation.engine as rotation_service
 
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.books.rotation import (
+from trading.services.books.rotation.engine import (
     RotationPolicyConfig,
     evaluate_and_apply_book_rotation,
 )

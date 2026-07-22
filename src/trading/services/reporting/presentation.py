@@ -27,7 +27,7 @@ from trading.services.accounts import (
 from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.domain.portfolio_math import alpha_pct, benchmark_available, strategy_return_pct
-from trading.services.pricing import benchmark_stats
+from trading.services.market_data.lookups import benchmark_stats
 from trading.services.analysis.portfolio import (
     build_account_return_summary,
     build_account_stats,

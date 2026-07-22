@@ -125,8 +125,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `accounting/mutations.py` | Cash/equity accounting write operations |
-| `accounting/queries.py` | Cash/equity accounting read operations |
 | `accounts/listing.py` | Account listing and filtering |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
@@ -141,30 +139,31 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions |
 | `analysis/portfolio.py` | Account portfolio stats, settlement-corrected equity, and trend inference |
 | `analysis/benchmark.py` | Benchmark close-history fetch + live benchmark return overlay payloads |
-| `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
-| `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
-| `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
-| `backtesting/stale_backtests.py` | Enumerate (account, strategy) pairs whose backtest is stale or missing across each account's rotation candidates (backtest-freshness remediation) |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
 | `demo/seeding.py` | Atomic application-owned synthetic account, trading, backtest, and promotion demo story |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission |
+| `execution/ledger/mutations.py` | Cash/equity accounting write operations (record trades to the book/account ledger) |
+| `execution/ledger/queries.py` | Cash/equity accounting read operations (account-state replay, trade listing) |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
+| `execution/open_order_reconciliation.py` | Runtime open-order/fill reconciliation against the broker (apply fills, record trades, resolve exec ids) |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
+| `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
+| `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
+| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`, `run_multi_book_mode_for_account`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
 | `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
 | `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
 | `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
 | `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
-| `pricing/lookups.py` | Price lookup queries |
+| `market_data/lookups.py` | Caller-facing latest-price + benchmark lookup queries over the injected provider |
 | `profiles/application.py` | Account profile application logic |
-| `profiles/rotation_config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `profiles/source.py` | Profile source loading |
 | `promotion/actions.py` | Promotion action execution |
 | `promotion/assessment.py` | Promotion eligibility assessment |
@@ -174,20 +173,20 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/presentation.py` | Report presentation formatting (printed operator output) |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
+| `reporting/daily_report.py` | Multi-book daily operator report assembly |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
-| `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
-| `books/daily_report.py` | Multi-book daily operator report assembly |
-| `books/execution.py` | Multi-book trade-candidate generation (`generate_book_trade_intents`) |
 | `books/helpers.py` | Shared book service helpers (window math) |
-| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/engine.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
+| `books/rotation/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
+| `books/rotation/config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |
 | `parameters/presentation.py` | Printed view of the unified parameter source |
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
-| `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |

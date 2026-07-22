@@ -10,7 +10,7 @@ import pytest
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.services.books.challenger_evaluation import ChallengerEvaluationRun, BookChallengerEvaluation
+from trading.services.books.rotation.challenger_evaluation import ChallengerEvaluationRun, BookChallengerEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE as MODULE_NAME,

@@ -11,7 +11,7 @@ from trading.services.accounts import (
     get_latest_account_snapshot,
 )
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
-from trading.services.books.rotation import resolve_default_book_rotation_schedule
+from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
 from trading.services.analysis import (
     build_account_stats,
     inject_settlement_price,

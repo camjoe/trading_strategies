@@ -56,22 +56,22 @@ or `reconciliation`) instead of treating the package root as a facade.
 |---|---|---|
 | Look up, list, create, or configure accounts; change strategy/benchmark | `trading.services.accounts` | Strict (`get_*`) vs optional (`find_*`) lookups; runtime-eligible listing |
 | Apply named preset profiles to an account | `trading.services.profiles` | Profile loading + application (`profile_source` is the input-backend abstraction) |
-| Load account state; record trades; list trades | `trading.services.accounting` | Cash/positions/cost state + the trade ledger write path |
+| Load account state; record trades; list trades | `trading.services.execution.ledger` | Cash/positions/cost state + the trade ledger write path |
 | Account stats, equity/settlement math, benchmark overlays, CLI reports, snapshots | `trading.services.reporting` | Also owns compare-strategies and snapshot history display |
-| Fetch prices | `trading.services.pricing` | Latest-price lookups over the injected provider |
+| Fetch prices | `trading.services.market_data.lookups` | Latest-price + benchmark lookups over the injected provider |
 | Get/switch the market-data or feature provider | `trading.services.market_data` | Ports + `require_*` guards; concrete adapter lives in `src/infrastructure/market_data/` |
 | Run auto-trading for accounts; rotation-if-due; broker-order reconciliation | `trading.services.auto_trading` | Runtime orchestration; injected `broker_factory` and provider |
-| Submit book intents, reconcile fills/NAV, or run pre-submit gates | `trading.services.execution.<focused_module>` | Shared clean-schema order-submission path for every book; submodule-oriented surface |
-| Book execution, fills, risk gate, rotation, reconciliation | `trading.services.books` | Shares trade selection with `auto_trading` |
+| Trade selection, submit book intents, ledger, reconcile fills/NAV, pre-submit + risk gates | `trading.services.execution.<focused_module>` | Full order lifecycle (`selection/`, `ledger/`, gates, submission, reconciliation) for every book; submodule-oriented surface |
+| Book assignments, rotation, and challenger evaluation | `trading.services.books` | Book state + rotation; intent generation, submission, fills, and reconciliation now live in `trading.services.execution` |
 | Book performance windows; portfolio risk snapshots; account analysis | `trading.services.analysis` | Flat service modules (`performance.py`, `risk_snapshots.py`) — import directly |
 | Seed, resolve, create, configure, or freeze strategy catalog rows | `trading.services.strategy_catalog` | Strategy primitive + `params_json` resolution and catalog edits |
 | Read or edit the unified parameter source | `trading.services.parameters` | View/edit surface over global settings, book settings, and strategy rows |
 | Promotion assessments, review requests/actions, history | `trading.services.promotion` | Human-gated review workflow + CLI rendering |
 | Canonical strategy evaluation (evidence + decision score) | `trading.services.evaluation` | Backs compare, rotation, and promotion via `derive_decision_score` |
 | Operational settings: throttles, evaluation confidence, promotion policy | `trading.services.operational_settings` | Also owns trade-throttle enforcement |
-| Find stale backtest coverage targets | `trading.services.backtesting` | Service-level staleness enumeration/remediation support; the backtest engine remains under `src/trading/backtesting/` |
+| Find stale backtest coverage targets | `trading.backtesting.services` | Staleness enumeration/remediation, colocated with the rest of the backtesting bounded context under `src/trading/backtesting/` |
 | Query Autonomy monitor status, artifacts, governance, and risk | `trading.services.autonomy_monitor` | Operator/dashboard read model over DB state and runtime artifacts |
-| Bulk admin deletions | `trading.services.admin` | Backup-before-delete pattern applies |
+| Preview or delete an account (cascade) | `trading.services.accounts` | `deletions.py` — dry-run preview + cascade-backed delete |
 | Resolve trade universes | `trading.services.universe` | Universe name → ticker list |
 
 ---

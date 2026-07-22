@@ -6,7 +6,7 @@ from tests.support.books import set_test_book_rotation_scheduling
 from tests.support.evaluation import insert_backtest_run
 from tests.support.repositories import insert_repository_account
 from trading.repositories.book_bridge import default_book_id
-from trading.services.backtesting import find_stale_backtests
+from trading.backtesting.services import find_stale_backtests
 from trading.services.books.book_assignments import sync_default_book_assignment
 
 REFERENCE = "2026-03-16T00:00:00Z"

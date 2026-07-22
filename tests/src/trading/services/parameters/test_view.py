@@ -12,7 +12,7 @@ from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
 from trading.repositories.book_bridge import strategy_id_for_label
-from trading.services.books.rotation import BookRotationScheduleConfig, RotationPolicyConfig
+from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
 from trading.services.operational_settings import set_runtime_throttle_settings
 from trading.services.parameters import fetch_parameter_source_view, update_book_rotation_policy
 

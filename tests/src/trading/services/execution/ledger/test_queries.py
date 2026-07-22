@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from tests.support.fills import seed_fill_event
-from trading.services.accounting import list_account_trades
+from trading.services.execution.ledger import list_account_trades
 
 
 def test_list_account_trades_orders_by_trade_time_then_id(

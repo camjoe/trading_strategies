@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-29
 Last Reviewed: 2026-07-17
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
-Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Service Ownership Map](service-ownership.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Scope:
 
@@ -44,6 +44,10 @@ Disallowed:
 3. `src/trading/interfaces/*` embedding persistence SQL or domain policy math that belongs in lower layers
 
 ## Package Ownership Map
+
+This section owns **layer-level** ownership. For the boundaries **between service packages**
+inside `src/trading/services/` (who owns what, and what each explicitly does not own), see
+[Service Ownership Map](service-ownership.md).
 
 1. `src/trading/interfaces/cli/`: CLI adapters and command wiring
    - Keep transport/input wiring here, not domain logic.

@@ -68,7 +68,7 @@ Degradation contract:
 
 Live strategy execution:
 
-- `src/trading/services/auto_trading/execution.py` builds per-ticker feature
+- `src/trading/services/execution/selection/selection.py` builds per-ticker feature
    history for alternative strategies with `build_feature_history_fn`.
 - `policy_regime` uses the configured policy fetcher, `news_sentiment` uses the
   configured news fetcher, and `social_trend_rotation` uses the configured

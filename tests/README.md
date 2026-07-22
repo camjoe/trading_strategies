@@ -80,7 +80,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | Suite name | Tests directory |
 |---|---|
 | `src/trading/services` | `tests/src/trading/services/` |
-| `src/trading/services/accounting` | `tests/src/trading/services/accounting/` |
 | `src/trading/services/accounts` | `tests/src/trading/services/accounts/` |
 | `src/trading/services/analysis` | `tests/src/trading/services/analysis/` |
 | `src/trading/services/auto_trading` | `tests/src/trading/services/auto_trading/` |
@@ -88,7 +87,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/autonomy_monitor` | `tests/src/trading/services/autonomy_monitor/` |
 | `src/trading/services/market_data` | `tests/src/trading/services/market_data/` |
 | `src/trading/services/operational_settings` | `tests/src/trading/services/operational_settings/` |
-| `src/trading/services/pricing` | `tests/src/trading/services/pricing/` |
 | `src/trading/services/profiles` | `tests/src/trading/services/profiles/` |
 | `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
 | `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
