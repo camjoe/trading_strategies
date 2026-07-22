@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-21
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -174,6 +174,10 @@ Reconciliation behavior:
 - persists fill updates to clean book-keyed `orders` / `order_fills`
 - applies fills through shared book accounting (`apply_book_fill`); account-level
   history derives from the fill rows — the `trades` table was retired in revision `0006`
+
+The shared order contract and `orders.status_reason` can retain a broker-provided explanation for
+an order state. The current IBKR Web and legacy adapters leave that value unset, so operators should
+not yet expect rejection or cancellation explanations to survive reconciliation.
 
 ## Legacy Socket/TWS Path
 

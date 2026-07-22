@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-21
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -218,6 +218,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
 | `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
+| `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
 
 ---
 

@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-07-21
 Last Reviewed: 2026-07-21
 Purpose: How to group several database writes into one all-or-nothing transaction with `unit_of_work`, and how repositories participate via `commit_unit_of_work`.
-Related: [Architecture Conventions](../architecture/architecture-conventions.md), [DB Migration System](db-migration-system.md), [DB Schema Review](../db-schema-review.md)
+Related: [Architecture Conventions](../architecture/architecture-conventions.md), [DB Migration System](db-migration-system.md)
 
 ## Purpose
 
@@ -94,4 +94,3 @@ The broker/network call that produces the data must stay **outside** the
 
 - [Architecture Conventions](../architecture/architecture-conventions.md) — layer boundaries, including the services→database import rule
 - [DB Migration System](db-migration-system.md) — schema change lifecycle
-- [DB Schema Review](../db-schema-review.md) — the review that motivated this primitive

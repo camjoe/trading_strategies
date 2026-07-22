@@ -3,7 +3,7 @@
 Type: adr
 Status: Accepted
 Created: 2026-07-10
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-07-21
 Purpose: Record the collapse of the account/book runtime split onto one book-keyed path and the move
 of rotation scheduling ownership onto `book_rotation_settings`.
 Related: [ADR 010](010-book-keyed-execution-model.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Database Schema](../reference/db-schema.md)

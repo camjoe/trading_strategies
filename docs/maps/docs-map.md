@@ -84,7 +84,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
-| `docs/reference/research-persistence-review.md` | Program A: schema-hygiene and atomic-persistence plan (renames, run purpose, drop copied aggregates), delivery order, and progress for the backtest and walk-forward tables | A Program A phase is implemented or an accepted schema-hygiene decision changes |
 | `docs/reference/walk-forward-optimization-plan.md` | Program B: methodology, leakage controls, objective, optimizer schema, delivery phases, and validation criteria for full train-optimize-test walk-forward optimization | The current rolling-window capability or accepted optimization methodology/schema changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
@@ -93,7 +92,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
-| `docs/reference/database-diagram-decisions.md` | Database diagram organization, schema terminology decisions, and deferred follow-up | A recorded decision is implemented, revised, or superseded |
 | `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |
 | `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |

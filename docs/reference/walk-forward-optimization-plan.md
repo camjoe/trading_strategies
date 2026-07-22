@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-07-17
 Last Reviewed: 2026-07-21
 Purpose: Own the methodology, leakage controls, schema, delivery phases, and completion criteria for evolving rolling-window tests into full train-optimize-test walk-forward optimization.
-Related: [Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md), [Backtesting](backtesting.md), [Database Transactions](database-transactions.md), [Database Schema](db-schema.md), [Database Diagram Decisions](database-diagram-decisions.md)
+Related: [Backtesting](backtesting.md), [Database Transactions](database-transactions.md), [Database Schema](db-schema.md)
 
 ## Purpose
 
@@ -16,10 +16,10 @@ train-optimize-test walk-forward optimization.
 It is a plan until its completion criteria are implemented. It must not be read as a claim that the
 current workflow already performs optimization.
 
-**Prerequisite.** Program B builds on [Program A](research-persistence-review.md) — the renamed tables
-(`walk_forward_experiments`, `walk_forward_windows`, `backtest_executions`), the
-`backtest_runs.purpose` discriminator, and atomic persistence. Program A must be merged before Program B
-begins; Program B adds its own numbered migration on top of Program A's schema.
+**Delivered prerequisite.** Revision `0016` established the renamed research tables
+(`walk_forward_experiments`, `walk_forward_windows`, `backtest_executions`) and the
+`backtest_runs.purpose` discriminator. Completed-run persistence is atomic through the shared
+unit-of-work pattern. Program B adds its own numbered migration on top of that baseline.
 
 ## Current Capability
 
@@ -242,7 +242,7 @@ Required controls:
 
 ## Program B Schema and Migration
 
-Program B adds its own numbered migration on top of Program A's renamed tables. It should:
+Program B adds its own numbered migration on top of the current renamed research tables. It should:
 
 - add manifest, engine/build, structured warning, and provenance fields to `backtest_runs`;
 - add `optimization_trials` (per-candidate summaries: canonical parameters and hash, candidate/optimizer
@@ -285,7 +285,7 @@ CLI/service completion boundary.
 
 ## Implementation Phases
 
-Program B begins after [Program A](research-persistence-review.md) merges.
+The prerequisite research-schema and atomic-persistence baseline is complete.
 
 ### Phase B1: Immutable simulation inputs
 
@@ -324,7 +324,7 @@ training selection.
 ### Phase B4: Evidence consumers and operations
 
 - Make promotion queries purpose-aware and gate on the new evidence model. (Latest-run, leaderboard, and
-  evaluation queries were already made purpose-aware in Program A.)
+  evaluation queries are already purpose-aware in the current baseline.)
 - Require a completed optimization experiment, passing OOS evidence, and a passing untouched holdout
   before the new evidence satisfies research promotion.
 - Keep rolling-window tests reportable without treating them as full optimization.
@@ -371,12 +371,9 @@ The capability may be called full train-optimize-test walk-forward optimization 
 - rolling-window tests remain correctly identified;
 - shared services and CLI operation work without requiring the web UI.
 
-Program A (schema hygiene and atomic persistence) is tracked separately in
-[Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md).
-
 ## Progress Tracker
 
-Program B begins after [Program A](research-persistence-review.md) merges.
+The prerequisite baseline is complete; the optimizer phases remain pending.
 
 | Phase | State | Next deliverable |
 |---|---|---|
@@ -397,9 +394,7 @@ Program B begins after [Program A](research-persistence-review.md) merges.
 
 ## Related Docs
 
-- [Program A — Backtest and Walk-Forward Schema Plan](research-persistence-review.md)
 - [Backtesting reference](backtesting.md)
 - [Database transactions](database-transactions.md)
 - [Database schema](db-schema.md)
-- [Database diagram and terminology decisions](database-diagram-decisions.md)
 - [Architecture conventions](../architecture/architecture-conventions.md)

@@ -37,7 +37,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
-| `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
+| `promotion_reviews` | Strategy promotion review cases; new rows require stable strategy identity and closure uses an expected-open-state guard | → `accounts`, `strategies` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 | `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
@@ -67,6 +67,7 @@ Domain-specific meaning that the schema alone does not convey.
 | Column | Note |
 |--------|------|
 | `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `base_ccy` | Declarative account currency metadata. It currently defaults to `USD` and has no operational consumer; calculations therefore remain effectively single-currency. Keep it as an explicit boundary unless the workspace is intentionally declared USD-only. |
 | `broker_*`, `live_trading_enabled` | Broker connection stays on `accounts` by explicit decision (2026-07-16): it is core custody metadata, not a settings group — no 1:1 split table. The live-trading safety guard reads these columns. |
 
 ### `positions`
@@ -74,6 +75,10 @@ Domain-specific meaning that the schema alone does not convey.
 `market_value` and `unrealized_pnl` are **price-dependent caches** next to the authoritative
 `qty`/`avg_cost` — they are only as fresh as the last mark-to-market. Do not treat them as truth;
 recompute from current prices when accuracy matters.
+
+The current accounting model is long-only: reducing a position to `qty <= 0` removes its row.
+Representing short positions would require an explicit accounting and risk-model change, not just
+allowing negative quantities in this table.
 
 ### `global_settings`
 
@@ -87,6 +92,21 @@ service default. Each field is resolved independently, so editing a throttle doe
 evaluation or promotion policy to database values. The parameter view reports each effective value
 as database- or default-sourced. Revision `0018` introduced this behavior while preserving existing
 stored values.
+
+### `promotion_reviews`
+
+`strategy_id` remains nullable in the physical schema for historical rows that could not be
+backfilled in revision `0007`, but every newly requested review must resolve a real strategy row.
+`strategy_name` is the frozen display snapshot, not the identity key. Review closure and note writes
+update only a row whose current state is still `requested`; if another action closed it first, the
+transaction rolls back the attempted event and state change together.
+
+### `risk_decisions`
+
+Rows with a `book_id` are constrained by `(book_id, account_id) -> books(id, account_id)` so a risk
+decision cannot pair a valid book with the wrong account. `book_id` remains nullable for genuinely
+account-level decisions. The original single-column book FK still owns `ON DELETE SET NULL`, keeping
+the account-level decision history when a standalone book is deleted.
 
 ### `book_rotation_settings`
 

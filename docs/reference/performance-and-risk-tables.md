@@ -4,10 +4,13 @@ Type: notes
 Status: Active
 Created: 2026-07-21
 Last Reviewed: 2026-07-21
-Purpose: Define the grain, period, and exact meaning of every column in the equity_snapshots, daily_metrics, and risk_snapshots tables (and the books exit-threshold columns that read alike), so callers don't misread near-identical fields.
+Purpose: Provide the current table contract for performance snapshots, daily metrics, risk snapshots, risk decisions, and similarly named book exit thresholds.
 Related: [Database Transactions](database-transactions.md), [DB Migration System](db-migration-system.md), [Book-Keyed Execution Model](../adr/010-book-keyed-execution-model.md)
 
 ## Purpose
+
+This is a living current-state reference, not an implementation plan. It describes what the schema,
+repositories, and production writers do today and labels incomplete runtime coverage explicitly.
 
 `equity_snapshots`, `daily_metrics`, and `risk_snapshots` all hang off the
 `accounts → books` hierarchy but each sits at a different grain and uses a
@@ -27,7 +30,7 @@ different grains:
 | `equity_snapshots` | **book** + `snapshot_time` | `(book_id, snapshot_time)` | SQL rollup view: `SUM` of balances across the account's books per `snapshot_time` |
 | `daily_metrics` | **book** + `metric_date` | `(book_id, metric_date)` | JOIN filter that returns **one row per book** (no aggregation) |
 | `risk_snapshots` | **account** + `snapshot_time` | `(account_id, snapshot_time)` | native; no book breakdown exists |
-| `risk_decisions` | **account** (+ nullable `book_id`) | — | native |
+| `risk_decisions` | **account** (+ nullable `book_id`) | non-null `(book_id, account_id)` must match `books(id, account_id)` | native |
 
 Consequences worth knowing before you build on them:
 
@@ -62,8 +65,9 @@ account's default book).
 ## daily_metrics
 
 Book-keyed per-day performance metrics, upserted on `(book_id, metric_date)`
-via `DailyMetricsRepository.upsert`. Every metric column is nullable (a day may
-record only some metrics).
+via `DailyMetricsRepository.upsert`. The schema, repository, readers, and tests are implemented.
+Every metric column is nullable (a day may record only some metrics), but no production service or
+runtime job calls the writer, so runtime workflows do not currently populate this table.
 
 | Column | Type | Period | Meaning |
 |---|---|---|---|
@@ -111,7 +115,7 @@ are **not** interchangeable — each pair applies to a different `instrument_mod
 The option pair was renamed from `profit_take_pct` / `max_loss_pct` (revision
 `0011`) into the `option_*` column family so the instrument it belongs to is
 legible from the name. The equity pair drives `domain/auto_trading_policy.py`;
-the option pair is applied under LEAPS/options execution.
+the option pair is configurable and persisted but has no production execution consumer yet.
 
 ## Boundaries
 
@@ -128,12 +132,14 @@ the option pair is applied under LEAPS/options execution.
   `current_equity` duplicate the latest equity snapshot; nothing reconciles the
   two. Treat snapshots as the historical source of truth.
 
-## Open items (not yet pinned in code)
+## Implementation gaps
 
-- `daily_metrics.risk_adjusted_score` and `expectancy` lack a single shared
-  formula/helper — their meaning is currently writer-defined.
+- `daily_metrics` has no production writer. Its existing readers therefore have no runtime rows to
+  consume, and `risk_adjusted_score` and `expectancy` do not yet have a shared formula/helper.
 - `risk_snapshots.drawdown_pct`, `leverage_proxy`, and `daily_loss_pct` are
   columns without a populating writer (recorded `NULL` today).
+- `books.option_profit_take_pct` and `option_max_loss_pct` have configuration and persistence
+  surfaces but no production options-execution consumer.
 
 ## Related Docs
 
