@@ -23,7 +23,8 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 ## Quick Start
 
-- [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
+- [`overview.md`](overview.md) — **start here**: current capabilities, concepts, architecture,
+  limitations, and scope
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 - [`adr/`](adr/) — durable architecture and product decisions
