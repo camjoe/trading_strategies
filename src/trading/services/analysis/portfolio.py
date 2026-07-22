@@ -1,7 +1,8 @@
-"""Reporting state and trend helpers for reporting consumers.
+"""Portfolio state and trend helpers for analysis consumers.
 
-Owns service-level portfolio state loading and trend inference beneath the
-stable ``trading.services.reporting`` package surface.
+Owns service-level portfolio state loading, settlement-corrected equity, and
+trend inference beneath the stable ``trading.services.analysis`` package
+surface.
 """
 
 from __future__ import annotations
@@ -10,11 +11,11 @@ import sqlite3
 
 from common.coercion import row_expect_float, row_expect_int
 from common.constants import SETTLEMENT_TICKER
+from trading.domain.portfolio_math import compute_market_value_and_unrealized
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounting import load_account_state
 from trading.services.market_data import MarketDataProvider
-from trading.services.reporting.math import compute_market_value_and_unrealized
 from trading.services.pricing import fetch_latest_prices
 
 # The settlement ticker is always worth exactly $1 per unit (it represents cash).

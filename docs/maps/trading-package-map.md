@@ -139,6 +139,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/risk_snapshots.py` | Latest account risk snapshot access (clean risk_snapshots) |
 | `analysis/exposure.py` | Cross-account exposure rollup over latest equity snapshots + open positions |
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions |
+| `analysis/portfolio.py` | Account portfolio stats, settlement-corrected equity, and trend inference |
+| `analysis/benchmark.py` | Benchmark close-history fetch + live benchmark return overlay payloads |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
@@ -168,10 +170,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `promotion/helpers.py` | Promotion workflow helpers |
 | `promotion/history.py` | Promotion history queries |
 | `promotion/presentation.py` | Promotion result formatting |
-| `reporting/benchmark.py` | Benchmark comparison reporting |
-| `reporting/math.py` | Reporting math utilities |
-| `reporting/portfolio.py` | Portfolio reporting |
-| `reporting/presentation.py` | Report presentation formatting |
+| `reporting/presentation.py` | Report presentation formatting (printed operator output) |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
 | `operational_settings/models.py` | Operational setting models |
@@ -240,6 +239,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
+| `portfolio_math.py` | Pure portfolio return math shared by analysis + reporting (market value/unrealized, return %, alpha) |
 | `rotation.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |

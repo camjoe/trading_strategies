@@ -4,7 +4,18 @@ from trading.models import AccountConfig
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
+from trading.services.reporting.presentation import positions_summary_text
 from tests.support.reporting import insert_trade, make_evaluation_artifact
+
+
+def test_positions_summary_text_sorts_and_truncates() -> None:
+    count, text = positions_summary_text({"MSFT": 2.0, "AAPL": 5.0})
+    assert count == 2
+    assert text.startswith("AAPL")
+
+    truncated_count, truncated_text = positions_summary_text({f"T{i}": float(i) for i in range(7)})
+    assert truncated_count == 7
+    assert truncated_text.endswith(", ...")
 
 
 def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
@@ -14,7 +25,7 @@ def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytes
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.portfolio.fetch_latest_prices",
+        "trading.services.analysis.portfolio.fetch_latest_prices",
         lambda _tickers, **_kwargs: {"AAPL": 120.0},
     )
     monkeypatch.setattr(
@@ -75,7 +86,7 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
             option_max_loss_pct=20.0,
         ),
     )
-    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
     monkeypatch.setattr(
         "trading.services.reporting.presentation.benchmark_stats", lambda *_args, **_kwargs: (None, None)
     )
@@ -102,7 +113,7 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
         now_iso="2026-01-01T00:00:00Z",
     )
 
-    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
     monkeypatch.setattr(
         "trading.services.reporting.presentation.benchmark_stats", lambda *_args, **_kwargs: (None, None)
     )
@@ -124,7 +135,7 @@ def test_compare_strategies_outputs_summary_and_truncates_positions(
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.portfolio.fetch_latest_prices",
+        "trading.services.analysis.portfolio.fetch_latest_prices",
         lambda symbols, **_kwargs: {symbol: 110.0 for symbol in symbols},
     )
     monkeypatch.setattr(
@@ -223,7 +234,7 @@ def test_account_report_shows_stale_backtest_freshness(conn, monkeypatch: pytest
     from trading.models.evaluation import BacktestFreshness
 
     create_account(conn, "acct_fresh", "Trend", 1000.0, "SPY")
-    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _t, **_k: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _t, **_k: {})
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_a, **_k: (None, None))
     account = get_account(conn, "acct_fresh")
     monkeypatch.setattr(

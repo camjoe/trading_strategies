@@ -1,10 +1,9 @@
 import pytest
 
-from trading.services.reporting import (
+from trading.domain.portfolio_math import (
     alpha_pct,
     benchmark_available,
     compute_market_value_and_unrealized,
-    positions_summary_text,
     strategy_return_pct,
 )
 
@@ -31,13 +30,5 @@ def test_benchmark_available_requires_both_values() -> None:
     assert benchmark_available(105.0, None) is False
 
 
-def test_alpha_pct_and_positions_summary_text() -> None:
+def test_alpha_pct_computes_difference() -> None:
     assert alpha_pct(12.0, 8.0) == pytest.approx(4.0)
-
-    count, text = positions_summary_text({"MSFT": 2.0, "AAPL": 5.0})
-    assert count == 2
-    assert text.startswith("AAPL")
-
-    truncated_count, truncated_text = positions_summary_text({f"T{i}": float(i) for i in range(7)})
-    assert truncated_count == 7
-    assert truncated_text.endswith(", ...")

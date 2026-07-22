@@ -343,8 +343,8 @@ See `docs/adr/007-ui-error-mapping.md`.
 
 Violation example: settlement-corrected equity math or benchmark return
 calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
-migrated to `src/trading/services/reporting/` and must not be re-introduced into
-the UI backend layer.
+migrated to `src/trading/services/analysis/` (`portfolio.py`, `benchmark.py`) and
+must not be re-introduced into the UI backend layer.
 
 ## Placement Checklist
 

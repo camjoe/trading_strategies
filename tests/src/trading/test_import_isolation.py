@@ -16,6 +16,7 @@ import pytest
 # Entry points that each independently enter the evaluation/reporting/backtesting
 # subgraph; importing any of them first must not raise a circular ImportError.
 IMPORT_ENTRYPOINTS = [
+    "trading.services.analysis",
     "trading.services.evaluation",
     "trading.services.reporting",
     "trading.services.promotion.actions",

@@ -26,14 +26,23 @@ from trading.services.accounts import (
 )
 from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.reporting.math import (
-    alpha_pct,
-    benchmark_available,
-    positions_summary_text,
-    strategy_return_pct,
-)
+from trading.domain.portfolio_math import alpha_pct, benchmark_available, strategy_return_pct
 from trading.services.pricing import benchmark_stats
-from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
+from trading.services.analysis.portfolio import build_account_stats, infer_overall_trend
+
+# Compare output shows at most this many individual positions before truncating.
+POSITION_SUMMARY_LIMIT = 5
+
+
+def positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
+    position_count = len(positions)
+    if not positions:
+        return position_count, "none"
+    sorted_positions = sorted(positions.items(), key=lambda x: x[0])
+    positions_text = ", ".join(f"{ticker}:{qty:.2f}" for ticker, qty in sorted_positions[:POSITION_SUMMARY_LIMIT])
+    if len(sorted_positions) > POSITION_SUMMARY_LIMIT:
+        positions_text += ", ..."
+    return position_count, positions_text
 
 
 def _print_leaps_params(book: BookRecord) -> None:
