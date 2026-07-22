@@ -3,14 +3,15 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-07-13
-Purpose: Step-by-step setup of the dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it, with a trackable setup checklist.
+Last Reviewed: 2026-07-22
+Purpose: Step-by-step setup of the recommended dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it.
 Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
-This runbook implements [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): one dedicated
-Linux host runs the scheduled jobs from a production checkout that tracks `main`, development happens
-elsewhere, and every deploy passes a pre-deploy test gate. Read the ADR first for the *why* (including
-why blue/green is deferred). This runbook is the *how*.
+This runbook implements the project's recommended deployment model from
+[ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): one dedicated Linux host runs the
+scheduled jobs from a production checkout that tracks `main`, development happens elsewhere, and
+every deploy passes a pre-deploy test gate. Read the ADR first for the *why* (including why blue/green
+is deferred). Adapt the placeholders and optional host-management choices below to the installation.
 
 Conventions used below (adjust to your host):
 
@@ -20,7 +21,7 @@ Conventions used below (adjust to your host):
 | `~/trading-prod` | Production checkout (tracks `main`, scheduled jobs run from here) | `/home/<runtime-user>/trading-prod` |
 | `~/trading-staging` | Optional staging checkout (tracks `develop`, no scheduler) | `/home/<runtime-user>/trading-staging` |
 
-Repo URL (already filled into the commands below): `https://github.com/camjoe/trading_strategies.git`
+Set `<repository-url>` to the HTTPS or SSH clone URL for the repository.
 
 ---
 
@@ -62,7 +63,7 @@ Repo URL (already filled into the commands below): `https://github.com/camjoe/tr
 ### 1.2 Production checkout + venv
 
 ```bash
-git clone https://github.com/camjoe/trading_strategies.git ~/trading-prod
+git clone <repository-url> ~/trading-prod
 cd ~/trading-prod
 git checkout main
 python3 -m venv .venv
@@ -284,7 +285,7 @@ It has **no scheduler**, so it never trades automatically. Use it for determinis
 manual smoke tests against a copy of production state.
 
 ```bash
-git clone https://github.com/camjoe/trading_strategies.git ~/trading-staging
+git clone <repository-url> ~/trading-staging
 cd ~/trading-staging
 git checkout develop
 python3 -m venv .venv
@@ -381,21 +382,5 @@ runbooks describe reusable procedures; they do not record the state of a particu
 - [ ] Distro + version noted; `systemd-logind` AC inactivity timeout recorded
 - [ ] Uptime decision recorded: always-on or suspend+wake; AC power recovery configured
 
----
-
-## Setup progress checklist
-
-Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 008 follow-ups.)
-
-- [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend configured (suspend+wake or always-on), auto-reboot kept out of market hours
-- [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base + editable install)
-- [ ] 1.3 Secrets in `.env` on the host only (mode 600), loading mechanism chosen; no `.env` on dev machine
-- [ ] 1.4 Database seeded and migrations current
-- [ ] 1.5 Systemd timers registered from `~/trading-prod`; `systemctl list-timers --all | grep trading` verified
-- [ ] 1.6 End-to-end manual run + health check pass; monitoring confirmed
-- [ ] Confirmed systemd timers survive a reboot (reboot the host, verify next run fires)
-- [ ] Part 5 uptime configured: AC-power-recovery on, suspend+wake with `WakeSystem=yes`, AC inactivity timeout set to 3600 s
-- [ ] Part 5 machine-specific details captured on the Linux host (fills in the TODO list)
-- [ ] Decided whether to stand up the optional staging checkout (Part 3) now or later
-- [ ] Old Windows host scheduled tasks unregistered so jobs don't double-run
-      (`manage_job_schedules --unregister` on the old machine)
+The private installation checklist should also record whether another host still has these jobs
+registered. Unregister any superseded schedule before enabling this host so jobs cannot run twice.

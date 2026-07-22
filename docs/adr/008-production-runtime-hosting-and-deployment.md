@@ -1,22 +1,22 @@
 # ADR: Production Runtime Hosting and Deployment Strategy
 
 Type: adr
-Status: Proposed
+Status: Accepted
 Created: 2026-06-27
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-22
 Purpose: Record where the scheduled runtime jobs run in production, how code is promoted to that host, and why full blue/green is deliberately deferred for the paper-trading phase.
 Related: [Production Runtime Host Runbook](../runbooks/production-runtime-host.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
 ## Context
 
 The scheduled runtime jobs (daily paper-trading DAG, daily snapshot/health/backtest-refresh,
-weekly/monthly governance, weekly DB backup) must run reliably and unattended. They have so far run
-on a personal Windows development PC, which produced two recurring failure modes:
+weekly/monthly governance, weekly DB backup) must run reliably and unattended. Running them from the
+same workstation used for development produced two recurring failure modes:
 
 1. **Code churn breaks running jobs.** The jobs execute out of the same git checkout that is actively
    edited, so in-progress work is picked up by the scheduler mid-change.
-2. **Host unreliability.** A desktop OS used as a server is turned off, sleeps, or is force-rebooted by
-   Windows Update, so scheduled runs silently do not fire.
+2. **Host unreliability.** A workstation used as a server may be turned off, sleep, or reboot during a
+   scheduled window, so runs silently do not fire.
 
 Relevant facts that constrain the solution:
 
@@ -31,27 +31,25 @@ Relevant facts that constrain the solution:
   "test against production" environment meaningless.
 - The repo already uses a **main / develop** branch model where `main` is "stable, production-ready,
   PR-only" ([branching.md](../conventions/branching.md)). A production release gate already exists.
-- Current phase is **paper trading only** (at least through ~late July 2026). A missed or late run is
-  an annoyance, not a financial loss.
-
-The operator owns two PCs; the Linux PC has been freed from daily development use.
+- Current scheduled operation is **paper trading only**. A missed or late run does not place live
+  capital at risk.
 
 Alternatives considered for the host:
 
-- **Keep the Windows desktop.** Rejected — the forced-update/sleep problem is structural to a desktop
-  OS used as a server.
+- **Keep scheduling on the development workstation.** Rejected — development churn, sleep, and reboot
+  behavior make it an unreliable runtime host.
 - **Cloud VPS (Hetzner / Lightsail / DigitalOcean, ~$5/mo).** Viable and strictly more reliable
   (pro power/network, trivial off-site backups). Deferred, not rejected: it is the planned upgrade
   for the live-money phase. For paper trading it adds monthly cost and setup effort for reliability
   that exceeds current need.
-- **Dedicated Linux PC at home.** Chosen — zero incremental cost, no Windows-update problem, and the
-  cron path is already supported in code.
+- **Dedicated Linux host.** Chosen — it separates development from operation and uses the cron path
+  already supported in code without requiring additional orchestration.
 
 ## Decision
 
-1. **Single dedicated production host.** The repurposed Linux PC is the one always-on production
-   runtime environment. Cron is the scheduler (already supported); the host is configured not to sleep
-   and to run on a fixed, correct timezone so schedule times align with market hours.
+1. **Single dedicated production host.** A Linux host is the recommended always-on production runtime
+   environment. Cron is the scheduler (already supported); the host is configured not to sleep and to
+   run on a fixed, correct timezone so schedule times align with market hours.
 
 2. **Production runs from a dedicated checkout + venv, never the dev working copy.** A separate clone
    (e.g. `~/trading-prod`) with its own `.venv` holds the running code. Development edits never reach

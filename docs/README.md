@@ -53,8 +53,7 @@ python -m trading.interfaces.cli.main
 
 Full listing: [`reference/`](reference/). Key entries:
 
-- [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
-- [`reference/walk-forward-optimization-plan.md`](reference/walk-forward-optimization-plan.md) — Program B: methodology, leakage controls, schema, and delivery for train–optimize–test walk-forward optimization
+- [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, walk-forward terminology, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/open-source-readiness.md`](reference/open-source-readiness.md) — staged preparation and final gate for adopting an open-source license
@@ -78,7 +77,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
 - [`conventions/docs-authoring.md`](conventions/docs-authoring.md) — required doc headers, doc types, templates, and reference-doc/ADR section layouts
-- [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
+- [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles and documentation drift-check practices
 
 ## Runbooks
 

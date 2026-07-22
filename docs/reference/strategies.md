@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-11
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-07-22
 Purpose: Catalog of strategy signal families, compatibility behavior, and evaluation workflow.
 Related: [Backtesting](backtesting.md), [Sentiment Signals](sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -134,9 +134,9 @@ Use this checklist when proposing new strategies:
 
 ## Publication Boundary
 
-The current strategy catalog, generic signal primitives, research candidates, and roadmap are
-intentionally public. Honest known gaps remain public unless a concrete security, privacy, ownership,
-or proprietary-information concern requires otherwise.
+The current strategy catalog and generic signal primitives are intentionally public. Honest known
+gaps remain public unless a concrete security, privacy, ownership, or proprietary-information concern
+requires otherwise.
 
 Classify every new strategy primitive, feature provider, parameter set, fixture, result, and related
 documentation before placing it in tracked files:
@@ -150,12 +150,6 @@ Do not copy private strategy names, thresholds, hypotheses, evaluation results, 
 tracked tests or documentation. If classification is uncertain, treat the material as private until
 the owner makes an explicit publication decision. Removing it in a later commit does not retract
 copies from public Git history.
-
-## Research Candidates (Not Implemented as First-Class Strategies)
-
-- pairs/statistical arbitrage
-- broader multi-factor framework
-- richer cross-sectional momentum ranking engine
 
 ## Related References
 

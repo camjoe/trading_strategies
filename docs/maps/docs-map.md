@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-22
 Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
 Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -83,8 +83,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
-| `docs/reference/walk-forward-optimization-plan.md` | Program B: methodology, leakage controls, objective, optimizer schema, delivery phases, and validation criteria for full train-optimize-test walk-forward optimization | The current rolling-window capability or accepted optimization methodology/schema changes |
+| `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/trading/backtesting/` interface, safeguards, or evaluation methodology changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
 | `docs/reference/database-transactions.md` | The `unit_of_work` / `commit_unit_of_work` pattern for grouping multiple DB writes into one atomic transaction | `src/trading/repositories/unit_of_work.py` or the repository-commit convention changes |
@@ -127,7 +126,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/runbooks/production-runtime-host.md` | Linux production host setup + test-and-deploy workflow promoting code to it | Host setup steps, deploy workflow, or branch/promotion model change |
+| `docs/runbooks/production-runtime-host.md` | Recommended dedicated Linux host setup + test-and-deploy workflow | Host setup steps, deploy workflow, or branch/promotion model change |
 | `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
