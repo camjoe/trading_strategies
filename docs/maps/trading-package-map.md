@@ -174,13 +174,13 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/presentation.py` | Report presentation formatting (printed operator output) |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
+| `reporting/daily_report.py` | Multi-book daily operator report assembly |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
-| `books/daily_report.py` | Multi-book daily operator report assembly |
 | `books/helpers.py` | Shared book service helpers (window math) |
 | `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |
