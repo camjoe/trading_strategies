@@ -64,6 +64,10 @@ function renderShell(): void {
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
+  const demoBanner = find<HTMLElement>("#demoModeBanner");
+  if (demoBanner && import.meta.env.VITE_DEMO_MODE === "1") {
+    demoBanner.hidden = false;
+  }
 }
 
 const backtestingFeature = createBacktestingFeature();

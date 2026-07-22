@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -137,6 +138,11 @@ PROVIDER_META: dict[str, dict[str, Any]] = {
 }
 
 
+def external_features_disabled() -> bool:
+    """Return whether network-backed feature providers are administratively disabled."""
+    return os.getenv("TRADING_EXTERNAL_FEATURES_DISABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def build_unavailable_entry(name: str, source_label: str) -> dict[str, Any]:
     meta = PROVIDER_META.get(name, {})
     return {
@@ -158,6 +164,11 @@ def load_providers() -> list[tuple[Any, str, str, str, str]]:
     Returns a list of ``(provider_or_none, display_name, source_label, strategy_id, class_name)``
     tuples. Providers initialize independently so one failure does not block others.
     """
+    if external_features_disabled():
+        return [
+            (None, name, label, strategy_id, class_name) for name, label, class_name, strategy_id in PROVIDER_SPECS
+        ]
+
     from infrastructure.feature_providers.news_provider import NewsFeatureProvider
     from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
     from infrastructure.feature_providers.social_provider import SocialFeatureProvider

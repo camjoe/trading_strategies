@@ -132,7 +132,9 @@ Optimization must not mutate canonical strategy parameters. Candidate search spa
 candidates, assumptions, effective parameters, universe membership, provider/as-of metadata, and
 engine versions should be recorded well enough to audit how a winner was selected. Reports should
 compare window stability and chronologically chain-linked OOS returns rather than summing independently
-reset account equity values.
+reset account equity values. Model fees and slippage on every candidate and disclose turnover so a
+high-churn parameter set is not selected on gross returns, and compare a tuned winner against the
+strategy's existing default parameters, not only the benchmark.
 
 ## Safeguards and Approximation Notes
 
@@ -146,7 +148,7 @@ reset account equity values.
 
 - Keep assumptions explicit (slippage, fees, execution timing).
 - Prefer chronological validation with rolling or walk-forward windows.
-- Compare against simple baselines and benchmark returns.
+- Compare against simple baselines, the strategy's existing default parameters, and benchmark returns.
 
 ## Related Docs
 
