@@ -13,6 +13,10 @@ from common.paths.repo_paths import get_repo_root
 
 COMPLETED_CHECKBOX_RE = re.compile(r"^\s*- \[[xX]\]", re.MULTILINE)
 DATED_VERIFICATION_RE = re.compile(r"\bverified \d{4}-\d{2}-\d{2}\b", re.IGNORECASE)
+LITERAL_SCHEDULE_RE = re.compile(
+    r"--(?:daily-paper-trading(?:-fallback)?|daily-challenger-shadow-eval|daily-snapshot|"
+    r"daily-backtest-refresh|health-check|weekly-db-backup)-time\s+\d{2}:\d{2}",
+)
 HOST_STATE_PHRASES = (
     "already applied on this host",
     "this machine runs jobs",
@@ -27,12 +31,14 @@ class RunbookStateReport:
     problems: list[str] = field(default_factory=list)
 
 
-def discover_runbooks(repo_root: Path) -> list[Path]:
-    """Return tracked Markdown runbooks in deterministic order."""
+def discover_operational_docs(repo_root: Path) -> list[Path]:
+    """Return tracked operational Markdown documents in deterministic order."""
     runbooks_dir = repo_root / "docs" / "runbooks"
-    if not runbooks_dir.is_dir():
-        return []
-    return sorted(runbooks_dir.rglob("*.md"))
+    paths = list(runbooks_dir.rglob("*.md")) if runbooks_dir.is_dir() else []
+    runtime_jobs = repo_root / "docs" / "reference" / "runtime-jobs.md"
+    if runtime_jobs.is_file():
+        paths.append(runtime_jobs)
+    return sorted(paths)
 
 
 def check_file(path: Path) -> RunbookStateReport:
@@ -45,6 +51,8 @@ def check_file(path: Path) -> RunbookStateReport:
         report.problems.append("completed checklist item; record installation progress under local/operations/")
     if DATED_VERIFICATION_RE.search(text):
         report.problems.append("dated machine verification; record it under local/operations/")
+    if LITERAL_SCHEDULE_RE.search(text):
+        report.problems.append("literal operational schedule; use a placeholder and store it under local/operations/")
     for phrase in HOST_STATE_PHRASES:
         if phrase in lowered:
             report.problems.append(f"machine-specific state phrase: {phrase!r}")
@@ -57,7 +65,7 @@ def run_runbook_state_check(repo_root: Path, *, enforce: bool = False, quiet: bo
         print(f"ERROR: repo root does not exist: {repo_root}")
         return 2
 
-    reports = [report for path in discover_runbooks(repo_root) if (report := check_file(path)).problems]
+    reports = [report for path in discover_operational_docs(repo_root) if (report := check_file(path)).problems]
     total = sum(len(report.problems) for report in reports)
 
     if quiet and not total:

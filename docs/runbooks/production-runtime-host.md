@@ -103,9 +103,12 @@ a missing file is silently ignored rather than failing the job:
 ```bash
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --env-file /home/<user>/trading-prod/.env \
-    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-time <PRIMARY_HH:MM> \
     ...
 ```
+
+Replace schedule placeholders with private operator values from
+`local/operations/production-host-checklist.md`.
 
 Secrets stay in `.env` on disk, mode `600`. Only systemd reads them at runtime — they are never
 embedded in the unit files or any logs.
@@ -135,7 +138,7 @@ Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the ven
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --python /home/<user>/trading-prod/run-job.sh \
     --scheduler cron \
-    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-time <PRIMARY_HH:MM> \
     ...
 ```
 
@@ -172,10 +175,10 @@ At minimum set:
 ```bash
 cd ~/trading-prod
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-    --daily-paper-trading-time 13:00 \
-    --daily-paper-trading-fallback-time 13:20 \
-    --health-check-time 13:35 \
-    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday \
+    --daily-paper-trading-time <PRIMARY_HH:MM> \
+    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
+    --health-check-time <HEALTH_HH:MM> \
+    --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY> \
     --dry-run
 ```
 
@@ -183,10 +186,10 @@ Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-    --daily-paper-trading-time 13:00 \
-    --daily-paper-trading-fallback-time 13:20 \
-    --health-check-time 13:35 \
-    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday
+    --daily-paper-trading-time <PRIMARY_HH:MM> \
+    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
+    --health-check-time <HEALTH_HH:MM> \
+    --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY>
 
 sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```

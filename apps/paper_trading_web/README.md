@@ -25,6 +25,11 @@ cp apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/
 
 Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_API_BASE` (default `http://127.0.0.1:8000`).
 
+The operator UI is local-only. Keep backend and frontend bindings on `127.0.0.1`; do not expose them
+directly to a LAN or the internet. The application does not currently define the authentication, TLS,
+proxy-trust, or deployment boundary required for non-local access. A non-loopback deployment requires
+an explicit security design and review first.
+
 ## Quick Start
 
 The fastest way to start both services:

@@ -38,8 +38,25 @@ def test_dated_verification_and_host_state_are_reported(tmp_path: Path) -> None:
     assert any("machine-specific state phrase" in problem for problem in problems)
 
 
+def test_literal_operational_schedule_is_reported(tmp_path: Path) -> None:
+    path = _write_runbook(
+        tmp_path,
+        "# Runbook\n\ncommand --daily-paper-trading-time 13:00 --health-check-time 13:35\n",
+    )
+
+    assert any("literal operational schedule" in problem for problem in check_file(path).problems)
+
+
 def test_enforced_check_fails_with_operator_state(tmp_path: Path) -> None:
     _write_runbook(tmp_path, "# Runbook\n\n- [X] Host configured.\n")
+
+    assert run_runbook_state_check(tmp_path, enforce=True) == 1
+
+
+def test_runtime_jobs_reference_is_checked_for_literal_schedule(tmp_path: Path) -> None:
+    path = tmp_path / "docs" / "reference" / "runtime-jobs.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# Runtime Jobs\n\ncommand --weekly-db-backup-time 12:58\n", encoding="utf-8")
 
     assert run_runbook_state_check(tmp_path, enforce=True) == 1
 

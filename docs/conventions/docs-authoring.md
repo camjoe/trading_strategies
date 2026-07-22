@@ -125,4 +125,4 @@ under the gitignored `local/operations/` directory instead.
 **Enforcement:** `python -m scripts.checks.docs.doc_header_check --enforce` verifies the required fields
 and Type/Status vocabulary across `docs/` in the CI profile.
 `python -m scripts.checks.docs.runbook_state_check --enforce` rejects common operator-state markers
-from tracked runbooks.
+from tracked runbooks and runtime-job documentation.

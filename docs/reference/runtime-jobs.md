@@ -83,11 +83,11 @@ systemd and creates systemd timer units; falls back to cron if systemd is unavai
 ```sh
 # Register the core runtime jobs (Linux — generates local/install_trading_timers.sh)
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
-  --daily-paper-trading-fallback-time 13:20 \
-  --health-check-time 13:35 \
-  --weekly-db-backup-day-of-week Sunday \
-  --weekly-db-backup-time 12:58
+  --daily-paper-trading-time <PRIMARY_HH:MM> \
+  --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
+  --health-check-time <HEALTH_HH:MM> \
+  --weekly-db-backup-day-of-week <DAY> \
+  --weekly-db-backup-time <BACKUP_HH:MM>
 
 # Then install with sudo (systemd timers require root to write to /etc/systemd/system/)
 sudo bash local/install_trading_timers.sh
@@ -97,7 +97,7 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 
 
 # Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
+  --daily-paper-trading-time <PRIMARY_HH:MM> \
   --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
 
 # Remove previously registered entries (preview with --dry-run first)
@@ -105,6 +105,9 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 
 ./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 sudo bash local/uninstall_trading_timers.sh
 ```
+
+Replace schedule placeholders with private operator values. Store actual installation schedules under
+the gitignored `local/operations/` directory, not in tracked documentation.
 
 On Windows, the same registration commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.
