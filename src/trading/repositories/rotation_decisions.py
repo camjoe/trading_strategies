@@ -4,6 +4,7 @@ import datetime as dt
 import sqlite3
 
 from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Reads join strategies to emit the label columns
 # (incumbent_strategy / challenger_strategy / selected_strategy) alongside the
@@ -87,7 +88,7 @@ class RotationDecisionRepository:
                 created_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         if cursor.lastrowid is None:
             raise ValueError("Expected rotation_decisions id after insert.")
         return int(cursor.lastrowid)

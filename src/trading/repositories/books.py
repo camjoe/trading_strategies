@@ -113,7 +113,7 @@ class BookRepository:
         )
         book_id = int(cursor.lastrowid or 0)
         self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=created_at)
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return book_id
 
     def _record_universe_history(self, *, book_id: int, trade_universes: str, effective_from: str) -> None:
@@ -147,7 +147,7 @@ class BookRepository:
             f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
             (*params, utc_now_iso(), int(book_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(
@@ -184,7 +184,7 @@ class BookRepository:
             (trade_universes, updated_at, int(book_id)),
         )
         self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=updated_at)
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def update_balances(
         self,

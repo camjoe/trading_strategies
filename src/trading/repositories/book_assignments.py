@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.books.book_strategy_assignment_record import BookStrategyAssignmentRecord
+from trading.repositories.unit_of_work import unit_of_work
 
 
 class BookAssignmentRepository:
@@ -51,7 +52,7 @@ class BookAssignmentRepository:
         param-set store. (The legacy ``param_set_id`` column was dropped from
         the schema in revision ``0001``.)
         """
-        try:
+        with unit_of_work(self._conn):
             self._conn.execute(
                 """
                 UPDATE book_strategy_history
@@ -76,8 +77,4 @@ class BookAssignmentRepository:
                     updated_at,
                 ),
             )
-        except Exception:
-            self._conn.rollback()
-            raise
-        self._conn.commit()
         return int(cursor.lastrowid or 0)

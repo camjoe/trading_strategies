@@ -6,6 +6,7 @@ from trading.services.accounting import list_account_trades, record_trade
 from trading.services.accounts import create_account, get_account
 from trading.services.books.book_assignments import get_default_book
 from trading.services.operational_settings import set_runtime_throttle_settings
+from trading.repositories.books import BookRepository
 
 
 class TestRecordTrade:
@@ -142,6 +143,36 @@ class TestRecordTrade:
         state = load_account_state(conn, account_id=account.id, initial_cash=account.initial_cash)
         assert state.total_deposited == pytest.approx(250.0)
         assert state.cash == pytest.approx(350.0)
+
+    def test_cash_ticker_rolls_back_ledger_when_balance_update_fails(self, conn, monkeypatch) -> None:
+        create_account(conn, "acct_cash_rollback", "Trend", 100.0, "SPY")
+        account = get_account(conn, "acct_cash_rollback")
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+
+        def fail_balance_update(*args, **kwargs) -> None:
+            raise RuntimeError("balance update failed")
+
+        monkeypatch.setattr(BookRepository, "update_balances", fail_balance_update)
+
+        with pytest.raises(RuntimeError, match="balance update failed"):
+            record_trade(
+                conn,
+                account_name="acct_cash_rollback",
+                side="buy",
+                ticker="CASH",
+                qty=250,
+                price=1.0,
+                fee=0,
+                trade_time="2026-01-01T00:00:00Z",
+                note="deposit",
+            )
+
+        ledger_count = conn.execute("SELECT COUNT(*) FROM ledger WHERE book_id = ?", (book.id,)).fetchone()[0]
+        assert ledger_count == 0
+        unchanged = get_default_book(conn, account_id=account.id)
+        assert unchanged is not None
+        assert unchanged.current_cash == pytest.approx(100.0)
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_account(conn, "acct_default_time", "Trend", 1000.0, "SPY")

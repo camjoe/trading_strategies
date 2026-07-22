@@ -30,21 +30,22 @@ def _record_cash_event(
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
     assert book is not None
     signed = amount if side == "buy" else -amount
-    LedgerRepository(conn).insert(
-        book_id=book_id,
-        entry_type="deposit" if side == "buy" else "withdrawal",
-        amount=signed,
-        reference_type=_LEDGER_REFERENCE_TYPE_MANUAL,
-        reference_id=None,
-        entry_time=entry_time,
-        created_at=entry_time,
-    )
-    BookRepository(conn).update_balances(
-        book_id=book_id,
-        current_cash=book.current_cash + signed,
-        current_equity=book.current_equity + signed,
-        updated_at=entry_time,
-    )
+    with unit_of_work(conn):
+        LedgerRepository(conn).insert(
+            book_id=book_id,
+            entry_type="deposit" if side == "buy" else "withdrawal",
+            amount=signed,
+            reference_type=_LEDGER_REFERENCE_TYPE_MANUAL,
+            reference_id=None,
+            entry_time=entry_time,
+            created_at=entry_time,
+        )
+        BookRepository(conn).update_balances(
+            book_id=book_id,
+            current_cash=book.current_cash + signed,
+            current_equity=book.current_equity + signed,
+            updated_at=entry_time,
+        )
 
 
 def record_trade(

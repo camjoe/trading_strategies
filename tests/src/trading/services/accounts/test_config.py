@@ -1,5 +1,7 @@
 import pytest
 
+from trading.repositories.accounts import AccountRepository
+
 from trading.models import AccountConfig
 from trading.services.accounts import configure_account, create_account, get_account, set_account_strategy
 from trading.services.books.book_assignments import get_default_book
@@ -167,6 +169,27 @@ class TestConfigureAccountIntegration:
         assert book is not None
         assert book.goal_period == "weekly"
         assert book.learning_enabled == 1
+
+    def test_rolls_back_book_settings_when_account_update_fails(self, conn, base_account, monkeypatch) -> None:
+        account = get_account(conn, base_account)
+        before = get_default_book(conn, account_id=account.id)
+        assert before is not None
+
+        def fail_account_update(*args, **kwargs) -> None:
+            raise RuntimeError("account update failed")
+
+        monkeypatch.setattr(AccountRepository, "update", fail_account_update)
+
+        with pytest.raises(RuntimeError, match="account update failed"):
+            configure_account(
+                conn,
+                base_account,
+                config=AccountConfig(descriptive_name="Changed", risk_policy="fixed_stop"),
+            )
+
+        after = get_default_book(conn, account_id=account.id)
+        assert after is not None
+        assert after.risk_policy == before.risk_policy
 
     def test_validates_position_sizing_against_existing_values(self, conn) -> None:
         create_account(

@@ -10,6 +10,7 @@ from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, 
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
@@ -76,7 +77,7 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
     )
 
 
-def create_account(
+def _create_account(
     conn: sqlite3.Connection,
     name: str,
     strategy: str,
@@ -173,6 +174,19 @@ def create_account(
         _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
 
 
+def create_account(
+    conn: sqlite3.Connection,
+    name: str,
+    strategy: str,
+    initial_cash: float,
+    benchmark_ticker: str,
+    config: AccountConfig | None = None,
+) -> None:
+    """Create an account and all required book-owned state atomically."""
+    with unit_of_work(conn):
+        _create_account(conn, name, strategy, initial_cash, benchmark_ticker, config)
+
+
 def _apply_trade_universes_to_default_book(
     conn: sqlite3.Connection,
     *,
@@ -201,7 +215,7 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     )
 
 
-def configure_account(
+def _configure_account(
     conn: sqlite3.Connection,
     account_name: str,
     config: AccountConfig | None = None,
@@ -304,6 +318,16 @@ def configure_account(
         params=params,
         updated_at=utc_now_iso(),
     )
+
+
+def configure_account(
+    conn: sqlite3.Connection,
+    account_name: str,
+    config: AccountConfig | None = None,
+) -> None:
+    """Apply one account configuration request atomically."""
+    with unit_of_work(conn):
+        _configure_account(conn, account_name, config)
 
 
 def create_managed_account(

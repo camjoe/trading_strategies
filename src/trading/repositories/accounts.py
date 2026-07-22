@@ -4,6 +4,7 @@ import sqlite3
 from dataclasses import astuple
 
 from trading.models import AccountInsert, AccountRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 _ACCOUNT_INSERT_COLUMNS = (
     "name",
@@ -45,7 +46,7 @@ class AccountRepository:
 
     def insert(self, account: AccountInsert) -> None:
         self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def update(self, *, account_id: int, updates: list[str], params: list[object], updated_at: str) -> None:
         query_params = [*params, updated_at, account_id]
@@ -53,7 +54,7 @@ class AccountRepository:
             f"UPDATE accounts SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
             tuple(query_params),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def update_benchmark(self, *, account_id: int, benchmark_ticker: str, updated_at: str) -> None:
         self._conn.execute(
