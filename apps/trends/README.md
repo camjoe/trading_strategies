@@ -12,7 +12,7 @@ Provide a repeatable workflow for chart-based trend analysis and indicator gener
 2. Run from the project root:
 
 ```sh
-py -m trends
+python -m trends
 ```
 
 3. Charts are saved to `local/charts/`.
@@ -20,7 +20,7 @@ py -m trends
 Optional:
 
 ```sh
-py -m trends --explain
+python -m trends --explain
 ```
 
 The script calculates moving averages, RSI/RS, MACD, and daily returns, then saves charts.
@@ -51,19 +51,20 @@ SPY, QQQ, IWM
 
 ## Commands
 
-All flags accept `--help` for the full reference.
+All flags accept `--help` for the full reference. Commands assume the repository virtual environment
+created in the root README is active.
 
 ```sh
 # Run default ticker file
-py -m trends
+python -m trends
 
 # Single ticker
-py -m trends AAPL --period 1y --interval 1d
+python -m trends AAPL --period 1y --interval 1d
 
 # From file or category
-py -m trends --tickers-file apps/trends/assets/run_tickers.txt
-py -m trends --category tech --period 1y
-py -m trends --list-categories
+python -m trends --tickers-file apps/trends/assets/run_tickers.txt
+python -m trends --category tech --period 1y
+python -m trends --list-categories
 ```
 
 ## Notes

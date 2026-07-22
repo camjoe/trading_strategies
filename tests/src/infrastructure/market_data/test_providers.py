@@ -9,7 +9,8 @@ import pandas as pd
 import pytest
 
 import infrastructure.market_data as market_data
-import infrastructure.market_data.providers as provider_module
+import infrastructure.market_data.yfinance_provider as provider_module
+from infrastructure.market_data.unavailable_provider import UnavailableProvider
 from infrastructure.market_data.factory import resolve_provider_name
 from infrastructure.market_data.cache import _MARKET_DATA_CACHE_TTL_SECONDS
 
@@ -40,7 +41,7 @@ def test_planned_provider_placeholder_is_configurable(monkeypatch: pytest.Monkey
 
     assert resolve_provider_name() == "ccxt"
     provider = market_data.build_provider()
-    assert isinstance(provider, provider_module.UnavailableProvider)
+    assert isinstance(provider, UnavailableProvider)
 
     with pytest.raises(NotImplementedError, match="not implemented yet"):
         provider.fetch_close_series("SPY", "1mo")
@@ -344,7 +345,7 @@ def test_yfinance_close_series_returns_none_when_ticker_history_raises(
     ],
 )
 def test_unavailable_provider_methods_raise_not_implemented(method_name: str, args: tuple[object, ...]) -> None:
-    provider = provider_module.UnavailableProvider("ccxt")
+    provider = UnavailableProvider("ccxt")
 
     with pytest.raises(NotImplementedError, match="not implemented yet"):
         getattr(provider, method_name)(*args)

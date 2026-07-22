@@ -47,13 +47,18 @@ repository root.
 
 ## Quick Start
 
-Run these common commands from the repository root:
+Run these common commands from the repository root with the virtual environment created in the root
+README active.
 
 ```sh
-python -m trading.interfaces.cli.main init
-python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
+python -m scripts.data_ops.manage_db_migrations upgrade
+python -m trading.interfaces.cli.main apply-account-preset --preset default
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
 ```
+
+The migration command creates a missing database or upgrades an existing one. Application commands
+verify the schema version and never apply migrations automatically. The tracked presets contain
+synthetic examples only.
 
 For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
 
@@ -62,7 +67,6 @@ For scheduler operations, promotion review flows, and data-ops commands, use the
 All commands accept `--help` for the full flag reference.
 
 ```sh
-python -m trading.interfaces.cli.main init
 python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
 python -m trading.interfaces.cli.main report --account momentum_5k
 python -m trading.interfaces.cli.main snapshot --account momentum_5k
@@ -91,7 +95,7 @@ source.
 - `src/trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
 - `src/trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
-- `src/infrastructure/database/`: database infrastructure (schema init, backend, config).
+- `src/infrastructure/database/`: database migrations, schema-version verification, backend, and config.
 
 Use `src/trading/interfaces/runtime/jobs/` for schedulers and `src/trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
@@ -110,7 +114,9 @@ Trade universe files live under `src/infrastructure/config/`. The default is `tr
 | `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
 | `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
-Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help` for all options.
+Pass `--tickers-file` to use a non-default universe. Run
+`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help`
+for all options.
 
 ```sh
 # Default universe
@@ -160,7 +166,8 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 ## Backtesting Notes
 
-- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
+- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>`
+  shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
 - Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
@@ -194,9 +201,23 @@ Built-in account profile presets now live under:
 
 CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 
+These tracked presets are synthetic examples for testing and demonstration. Their account names,
+capital amounts, return goals, risk limits, and strategy schedules do not represent actual accounts,
+validated performance expectations, or recommended settings.
+
+Keep real strategy parameters, operator profiles, and research notes under the gitignored
+`local/strategies/` workspace. Do not replace the tracked presets with personal operating
+configuration. If private strategy implementation code later needs to run as part of the application,
+move it into a separately distributed private package or repository rather than importing code from
+`local/`.
+
 ## Boundary Snapshot
 
-- The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
+- The CLI entry point is `src/trading/interfaces/cli/main.py`
+  (`python -m trading.interfaces.cli.main`). The auto-trader entry point is
+  `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py`
+  (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`).
+  There are no top-level facade modules in `src/trading/`.
 - SQL access is owned by repository modules under `src/trading/repositories/`.
 - Orchestration and composition are owned by service modules under `src/trading/services/`.
 - Policy logic is owned by domain modules under `src/trading/domain/`.

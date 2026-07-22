@@ -55,10 +55,8 @@ Keep platform-specific string normalization only at input boundaries (e.g. user-
 
 ## Tooling
 
-- Run the normal Python quality gate through the project runner:
-  `.venv\Scripts\python.exe -m scripts.run_checks python` on Windows or
-  `./.venv/bin/python -m scripts.run_checks python` on POSIX.
+- With the repository virtual environment active, run the normal Python quality gate through the
+  project runner: `python -m scripts.run_checks python`.
 - Run mypy through the project runner:
-  `.venv\Scripts\python.exe -m scripts.checks.python.mypy_check` on Windows or
-  `./.venv/bin/python -m scripts.checks.python.mypy_check` on POSIX. Ad-hoc `mypy <file>` commands
-  do not resolve the `src/` layout reliably and can report false import errors.
+  `python -m scripts.checks.python.mypy_check`. Ad-hoc `mypy <file>` commands do not resolve the
+  `src/` layout reliably and can report false import errors.

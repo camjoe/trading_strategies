@@ -3,9 +3,9 @@
 Type: notes
 Status: Active
 Created: 2026-03-14
-Last Reviewed: 2026-07-09
-Purpose: Reference for backtesting commands, layering overview, and safeguards.
-Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Walk-Forward Optimization Plan](walk-forward-optimization-plan.md)
+Last Reviewed: 2026-07-22
+Purpose: Reference for backtesting commands, walk-forward terminology, layering overview, and safeguards.
+Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Backtesting reuses account metadata from paper trading while storing run, trade, and equity history
 in dedicated backtest tables. Package structure and layer ownership live in
@@ -17,20 +17,28 @@ complexity, relationship tracking, or portability pressure materially increases.
 
 ## Commands
 
-All backtesting commands are under `python -m trading.interfaces.cli.main` and accept `--help` for the full reference.
+All backtesting commands use the shared trading CLI and accept `--help` for the full reference. They
+assume the repository virtual environment created in the root README is active.
+
+Create the database and apply the synthetic default account preset before the first run:
+
+```sh
+python -m scripts.data_ops.manage_db_migrations upgrade
+python -m trading.interfaces.cli.main apply-account-preset --preset default
+```
 
 ```sh
 # Single backtest
-python -m trading.interfaces.cli.main backtest --account trend_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest --account momentum_5k --lookback-months 12
 
 # Walk-forward
-python -m trading.interfaces.cli.main backtest-walk-forward --account trend_v1 --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
+python -m trading.interfaces.cli.main backtest-walk-forward --account momentum_5k --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
 
 # Persisted walk-forward detail report
-python -m trading.interfaces.cli.main backtest-walk-forward-report --account trend_v1
+python -m trading.interfaces.cli.main backtest-walk-forward-report --account momentum_5k
 
 # Batch comparison
-python -m trading.interfaces.cli.main backtest-batch --accounts trend_v1,meanrev_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,meanrev_5k --lookback-months 12
 
 # Leaderboard
 python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
@@ -99,6 +107,35 @@ is not re-run once fresh.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
 
+## Walk-Forward Terminology and Evaluation Standards
+
+The current `backtest-walk-forward` workflow executes a fixed strategy across chronologically shifted
+test windows and groups the persisted results. This is **rolling-window robustness testing**, not full
+walk-forward optimization: it does not train candidate parameter sets on an earlier interval, select
+and freeze a winner, or evaluate the resulting process on an untouched final holdout.
+
+Use **walk-forward optimization** only for a workflow that meets all of these conditions:
+
+1. Every out-of-sample (OOS) window has a strictly earlier training interval.
+2. Candidate parameters and the selection objective are declared before examining OOS results.
+3. Ranking uses training evidence only, and the selected parameters are frozen before OOS execution.
+4. OOS windows do not overlap when results are aggregated.
+5. An untouched final holdout is excluded from training, selection, and preceding OOS windows.
+6. Training, OOS, and holdout results are reported separately.
+
+Point-in-time controls must account for indicator warm-up and external-data publication lag. Warm-up
+observations may initialize calculations but must not contribute to scored metrics. External features
+must use only values that would have been available at the simulated decision time; an embargo alone
+does not correct revised or forward-looking data.
+
+Optimization must not mutate canonical strategy parameters. Candidate search spaces, attempted
+candidates, assumptions, effective parameters, universe membership, provider/as-of metadata, and
+engine versions should be recorded well enough to audit how a winner was selected. Reports should
+compare window stability and chronologically chain-linked OOS returns rather than summing independently
+reset account equity values. Model fees and slippage on every candidate and disclose turnover so a
+high-churn parameter set is not selected on gross returns, and compare a tuned winner against the
+strategy's existing default parameters, not only the benchmark.
+
 ## Safeguards and Approximation Notes
 
 - Signals use prior-day data and execute on the next bar to reduce look-ahead bias.
@@ -111,11 +148,10 @@ is not re-run once fresh.
 
 - Keep assumptions explicit (slippage, fees, execution timing).
 - Prefer chronological validation with rolling or walk-forward windows.
-- Compare against simple baselines and benchmark returns.
+- Compare against simple baselines, the strategy's existing default parameters, and benchmark returns.
 
 ## Related Docs
 
 - `docs/reference/strategies.md`
-- `docs/reference/walk-forward-optimization-plan.md`
 - `docs/maps/trading-package-map.md`
 - `src/trading/backtesting/README.md`

@@ -4,7 +4,9 @@ Type: architecture
 Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-07-13
-Purpose: Answer "which package do I call for X?" — the stable import pattern plus capability → service-package pointers. The per-function surface lives in each package's `__init__.py` (`__all__`), not here.
+Purpose: Answer "which package do I call for X?" — the supported internal import pattern plus
+capability → service-package pointers. The per-function surface lives in each package's `__init__.py`
+(`__all__`), not here.
 Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
@@ -15,18 +17,22 @@ This is a task-oriented companion to [trading-package-map.md](../maps/trading-pa
 Use it when writing CLI commands, runtime jobs, or UI backend routes that need `src/trading/services/`.
 
 This doc deliberately does **not** mirror function signatures — an earlier version hand-maintained
-~70 of them and they drifted. Most packages' `__init__.py` files re-export their public surface
-via `__all__`; **read that (or the module docstrings) for the current functions and signatures.**
+~70 of them and they drifted. Most packages' `__init__.py` files re-export their supported internal
+surface via `__all__`; **read that (or the module docstrings) for the current functions and
+signatures.**
+
+These exports define the preferred integration boundary within this repository. They are not a
+versioned compatibility promise for external consumers.
 
 ---
 
 ## Import pattern
 
-Most service packages expose a stable `__all__` surface through their
+Most service packages expose a supported internal `__all__` surface through their
 `__init__.py`. Import from the package by default, not from the concrete submodule:
 
 ```python
-# Correct — stable public surface
+# Correct — supported internal surface
 from trading.services.accounts import get_account, list_account_records
 from trading.services.reporting import build_account_stats, build_live_benchmark_overlay
 

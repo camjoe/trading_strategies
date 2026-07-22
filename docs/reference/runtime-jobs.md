@@ -11,8 +11,9 @@ How to run and schedule the runtime job entrypoints. For the full structural mod
 [trading-package-map.md](../maps/trading-package-map.md) (Runtime jobs section); for monitoring and
 recovery procedures see the [Runtime Operations Runbook](../runbooks/runtime-operations.md).
 
-All commands run as Python modules from the repository root with the active venv interpreter
-(`.venv\Scripts\python.exe` on Windows, `./.venv/bin/python` on POSIX).
+All interactive commands run as Python modules from the repository root and assume the virtual
+environment described in the root README is active. Generated scheduler definitions use an explicit
+interpreter path because they do not run inside an activated shell.
 
 ## Scheduled jobs
 
@@ -59,19 +60,19 @@ The direct job scripts are the source of truth — run the job you want directly
 
 ```sh
 # Daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual
+python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual
 
 # Daily snapshot
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.snapshot --run-source manual --enable-run
+python -m trading.interfaces.runtime.jobs.daily.snapshot --run-source manual --enable-run
 
 # Daily backtest refresh
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run
+python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
+python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
 
 # Health check
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
+python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
 ```
 
 ## Registering schedules
@@ -82,12 +83,12 @@ systemd and creates systemd timer units; falls back to cron if systemd is unavai
 
 ```sh
 # Register the core runtime jobs (Linux — generates local/install_trading_timers.sh)
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
-  --daily-paper-trading-fallback-time 13:20 \
-  --health-check-time 13:35 \
-  --weekly-db-backup-day-of-week Sunday \
-  --weekly-db-backup-time 12:58
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+  --daily-paper-trading-time <PRIMARY_HH:MM> \
+  --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
+  --health-check-time <HEALTH_HH:MM> \
+  --weekly-db-backup-day-of-week <DAY> \
+  --weekly-db-backup-time <BACKUP_HH:MM>
 
 # Then install with sudo (systemd timers require root to write to /etc/systemd/system/)
 sudo bash local/install_trading_timers.sh
@@ -96,15 +97,18 @@ sudo bash local/install_trading_timers.sh
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
 
 # Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
+  --daily-paper-trading-time <PRIMARY_HH:MM> \
   --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
 
 # Remove previously registered entries (preview with --dry-run first)
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 sudo bash local/uninstall_trading_timers.sh
 ```
+
+Replace schedule placeholders with private operator values. Store actual installation schedules under
+the gitignored `local/operations/` directory, not in tracked documentation.
 
 On Windows, the same registration commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.

@@ -1,120 +1,143 @@
 # Trading Strategies
 
-A system for developing, evaluating, and progressively automating quantitative trading strategies. It
-takes a strategy from **backtest → walk-forward → paper → human-gated live**, continuously compares
-strategies against one another, and rotates toward the best performer — with the goal of a
-data-driven automated trader deployable from paper to a live IBKR account in a near-identical way.
+[![Quality Gates](https://github.com/camjoe/trading_strategies/actions/workflows/quality-gates.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/quality-gates.yml)
+[![Python Tests](https://github.com/camjoe/trading_strategies/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/python-tests.yml)
+[![Frontend Tests](https://github.com/camjoe/trading_strategies/actions/workflows/frontend-tests.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/frontend-tests.yml)
+[![Security Checks](https://github.com/camjoe/trading_strategies/actions/workflows/security-checks.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/security-checks.yml)
 
-**Start here:** [`docs/overview.md`](docs/overview.md) — the definitive explainer of what the app is,
-what it can do today (with honest gaps), how it works, and where it's going.
+A research framework for developing, backtesting, and paper-trading quantitative strategies.
+
+> [!WARNING]
+> This repository is educational and research software. It is not financial, investment, tax, or
+> legal advice, and it is not represented as production-ready investment infrastructure. Trading
+> involves risk of substantial loss. Backtests, simulations, and paper-trading results do not predict
+> future performance. You are responsible for reviewing the software, protecting broker credentials,
+> and deciding whether any use—including connection to a broker—is appropriate.
 
 ## Project Overview
 
-This repository provides tools for:
+The project supports a research workflow from historical testing through simulated execution:
 
-- **Trends Analysis**: Chart technical indicators and moving averages for stock tickers using `yfinance` and `matplotlib`.
-- **Backtesting**: Historical and walk-forward simulation with persisted run and per-window reporting.
-- **Paper Trading**: Live strategy execution with simulated portfolio management, benchmark tracking, and promotion review workflows.
-- **UI Dashboard**: Real-time monitoring of paper trading activity via a web interface, including live benchmark overlays.
+- Historical backtests and rolling-window robustness analysis.
+- Paper trading with simulated portfolios, performance tracking, and benchmark comparison.
+- Multiple strategy families and data-defined parameter variants.
+- Strategy evaluation, comparison, promotion review, and champion/challenger rotation.
+- Command-line and scheduled runtime workflows, with an optional local web dashboard.
+- Experimental broker adapters protected by an explicit human-controlled live-trading gate.
+
+The core focus is research and paper trading. Broker-connected and live-trading paths are advanced,
+experimental surfaces and are not required for ordinary development or backtesting.
+
+See the [project overview](docs/overview.md) for the current concepts, capabilities, limitations, and
+architecture.
 
 ## Directory Structure
 
 | Folder | Purpose |
-|--------|---------|
-| `apps/trends/` | Stock trends analysis and indicator calculations. |
-| `src/trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
-| `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
-| `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
-| `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
-| `docs/` | Detailed documentation and guides. |
-| `tests/` | Test suite for all modules. |
+|---|---|
+| `src/trading/` | Strategy, backtesting, paper-trading, evaluation, and runtime logic. |
+| `src/infrastructure/` | Database, broker, market-data, and feature-provider adapters. |
+| `src/common/` | Shared utilities used across packages. |
+| `apps/paper_trading_web/` | Optional local FastAPI and TypeScript dashboard. |
+| `apps/trends/` | Standalone trend and technical-indicator analysis. |
+| `scripts/` | Development, validation, data-operation, and launch commands. |
+| `docs/` | Architecture, reference, operating, and contributor documentation. |
+| `tests/` | Python test suite mirroring the source tree. |
 
 ## Python Setup
 
-Choose the dependency set that matches your purpose:
+Python 3.14 is currently supported. Create a repository-local virtual environment and install the
+development dependency set; it includes the runtime dependencies and an editable install of the
+workspace.
 
-```sh
-# Core runtime for trends, trading, and UI backend
-pip install -r requirements-base.txt
+Windows PowerShell:
 
-# Runtime plus test dependencies
-pip install -r requirements-dev.txt
+```powershell
+py -3.14 -m venv .venv
+.venv\Scripts\Activate.ps1
 ```
 
-**Execution Note:**
-- Run trading scripts as Python modules from the repository root using the active venv interpreter:
-  ```sh
-  .venv\Scripts\python -m trading.interfaces.cli.main init   # Windows
-  .venv/bin/python -m trading.interfaces.cli.main init        # macOS/Linux
-  ```
+macOS or Linux:
 
-## CI Smoke Check
+```sh
+python3.14 -m venv .venv
+source .venv/bin/activate
+```
 
-Run the same core checks used by GitHub Actions from the repository root:
+With the environment active, install the dependencies:
+
+```sh
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+```
+
+All Python commands below assume this virtual environment is active. Activate it again after opening
+a new terminal.
+
+Node.js 24 is required only for frontend development under
+`apps/paper_trading_web/frontend/`.
+
+## Quick Start
+
+Create or upgrade the local paper-trading database to the current schema:
+
+```sh
+python -m scripts.data_ops.manage_db_migrations upgrade
+```
+
+Application commands verify the schema but never apply migrations automatically. Re-run this
+upgrade command after pulling changes that add a database revision.
+
+From there:
+
+- [Backtesting](docs/reference/backtesting.md) documents historical and walk-forward workflows.
+- [Paper trading](src/trading/README.md) documents accounts, commands, and runtime jobs.
+- [Trends analysis](apps/trends/README.md) documents the standalone indicator workflow.
+- [Local dashboard](apps/paper_trading_web/README.md) documents the optional UI.
+
+After installing Node.js 24 and the frontend dependencies once with
+`npm ci --prefix apps/paper_trading_web/frontend`, launch a fresh offline synthetic demo with:
+
+```sh
+python -m scripts.launch_demo
+```
+
+The command does not install packages. It rebuilds `local/demo.db` on every launch, requires no
+broker credentials or internet access after setup, and leaves the database writable for the session.
+
+## Stability
+
+This is a pre-1.0 research project. It does not currently promise compatibility for an external
+Python API, CLI contract, configuration format, database schema, or HTTP API. Package-level exports
+and documented commands identify the intended internal integration paths, but they may change as the
+project evolves.
+
+## Testing
+
+Run the same complete validation profile used by GitHub Actions:
 
 ```sh
 python -m scripts.run_checks ci
 ```
 
-For deterministic local cleanup before re-running checks:
+The public workflows run Python tests, frontend tests, repository quality gates, documentation
+checks, and dependency/security checks. See [GitHub Actions](https://github.com/camjoe/trading_strategies/actions)
+for current results. Contributors who want focused feedback can run the repository, documentation,
+and Python profiles separately as described in [Contributing](CONTRIBUTING.md#running-checks).
 
-```sh
-python -m scripts.fix_checks
-```
+## Availability and Licensing
 
-This runs Ruff safe fixes, Ruff formatting, generated API/software reference-doc asset sync, and docs drift fixes (DB schema Quick Reference sync, stale map row removal).
+This source repository is publicly viewable on GitHub and is being prepared for a future open-source
+release, but it is not currently offered under an open-source license. Until a `LICENSE` file is
+added, no permission to use, modify, or redistribute the source is granted beyond rights provided by
+applicable law and GitHub's Terms of Service.
 
-## Quick Start
-
-### Trends Analysis
-
-See [apps/trends/README.md](apps/trends/README.md) for full documentation and usage examples.
-
-### Backtesting
-
-See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
-
-### Paper Trading
-
-See [src/trading/README.md](src/trading/README.md) for paper trading commands, account profiles, and scheduler operations.
-
-### UI Dashboard
-
-Run the backend and frontend together with the launch script:
-
-```sh
-python -m scripts.launch_ui
-```
-
-Or start each service separately (required when using the Python debugger — see below):
-
-```sh
-# Terminal 1 — FastAPI backend (no --reload so pdb stdin works)
-python -m uvicorn paper_trading_web.backend.main:app --host 127.0.0.1 --port 8000
-
-# Terminal 2 — Vite frontend dev server
-cd apps/paper_trading_web/frontend
-npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
-```
-
-#### Debugging with pdb
-
-Insert a `breakpoint()` call anywhere in backend Python code, then start the services separately (as above, **without** `--reload` so pdb can read from stdin).
-
-When the breakpoint is hit the browser request will pause and a `(Pdb)` prompt
-appears in the backend terminal.
-
-## Testing
-
-Run the full test suite from the project root:
-
-```sh
-python -m pytest
-```
-
-Tests cover both `trading` and `trends` packages with a minimum 70% coverage threshold.
+Apache License 2.0 is the planned license. This statement records intent only and does not grant that
+license.
 
 ## Documentation Index
 
-For detailed documentation on all components, see [docs/README.md](docs/README.md).
+- [Project overview](docs/overview.md)
+- [Documentation index](docs/README.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)

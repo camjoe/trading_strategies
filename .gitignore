@@ -1,6 +1,11 @@
+# Private operator state, real strategy work, generated artifacts, logs, and databases.
 local/*
-trading/database/*.db
-trading/database/backups/*.db
+
+# Runtime databases and logs remain private regardless of where a tool writes them.
+*.db
+*.sqlite
+*.sqlite3
+*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -15,7 +20,6 @@ coverage.xml
 .pytest_cache/
 
 # Environments
-# Ignore local env files (secrets/local config), but keep template examples in git.
 .env
 .env.*
 !.env.example

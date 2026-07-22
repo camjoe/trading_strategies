@@ -17,9 +17,9 @@ All checks are deterministic — no AI, no reasoning.
 ## Run all checks at once
 
 ```
-.venv\Scripts\python.exe -m scripts.run_checks repo
-.venv\Scripts\python.exe -m scripts.run_checks python --base develop
-.venv\Scripts\python.exe -m scripts.run_checks python --base main --no-cov
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base develop
+python -m scripts.run_checks python --base main --no-cov
 ```
 
 Run `repo` first, then `python`. Stop at the first failure.
@@ -27,8 +27,8 @@ Run `repo` first, then `python`. Stop at the first failure.
 ## Day-to-day profiles
 
 ```
-.venv\Scripts\python.exe -m scripts.run_checks quick
-.venv\Scripts\python.exe -m scripts.run_checks ci
+python -m scripts.run_checks quick
+python -m scripts.run_checks ci
 ```
 
 Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `python --suite <suite> --no-cov` for focused iteration.
@@ -38,10 +38,10 @@ Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `py
 Use these only when isolating a failure:
 
 ```sh
-.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
-.venv\Scripts\python.exe -m scripts.checks.python.ruff_check
-.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
-.venv\Scripts\python.exe -m scripts.checks.run_suite <suite> --no-cov
+python -m scripts.checks.repo.layer_check
+python -m scripts.checks.python.ruff_check
+python -m scripts.checks.python.mypy_check
+python -m scripts.checks.run_suite <suite> --no-cov
 ```
 
 ## On failure
@@ -50,7 +50,7 @@ Stop. Report the exact failing command and output — do not paraphrase. Do not 
 
 ## Constraints
 
-- Always use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (POSIX) — never system Python.
+- Follow the repository interpreter rules in `AGENTS.md`; command examples use `python` for readability.
 - Do not auto-fix lint errors unless explicitly asked. Run and report first.
 
 ## Not covered here (verify manually)

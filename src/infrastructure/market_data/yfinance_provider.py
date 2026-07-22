@@ -1,8 +1,9 @@
+"""Yahoo Finance market-data adapter."""
+
 from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from typing import NoReturn
 
 import pandas as pd
 import yfinance as yf
@@ -21,12 +22,7 @@ class YFinanceProvider(MarketDataProvider):
     """Concrete market data provider backed by yfinance / Yahoo Finance."""
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        cache_key = market_data_cache_key(
-            "ohlcv",
-            ticker=ticker.upper().strip(),
-            period=period,
-            interval=interval,
-        )
+        cache_key = market_data_cache_key("ohlcv", ticker=ticker.upper().strip(), period=period, interval=interval)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
             return cached
@@ -44,12 +40,7 @@ class YFinanceProvider(MarketDataProvider):
         write_market_data_cache(cache_key, df)
         return df
 
-    def fetch_close_history(
-        self,
-        tickers: list[str],
-        start_date: date,
-        end_date: date,
-    ) -> pd.DataFrame:
+    def fetch_close_history(self, tickers: list[str], start_date: date, end_date: date) -> pd.DataFrame:
         if not tickers:
             raise ValueError("At least one ticker is required.")
 
@@ -72,7 +63,6 @@ class YFinanceProvider(MarketDataProvider):
             progress=False,
             group_by="column",
         )
-
         if hist.empty:
             raise ValueError("No historical price data returned for requested tickers/date range.")
 
@@ -83,30 +73,20 @@ class YFinanceProvider(MarketDataProvider):
                 raise ValueError("Downloaded price frame is missing Close column.")
             close = hist["Close"].copy()
 
-        close = close.sort_index()
-        close = close.dropna(axis=1, how="all")
-        close = close.ffill().dropna(how="all")
-
+        close = close.sort_index().dropna(axis=1, how="all").ffill().dropna(how="all")
         if close.empty:
             raise ValueError("Close price history is empty after cleaning.")
-
         close.index = pd.to_datetime(close.index).tz_localize(None)
-
         missing = [ticker for ticker in normalized_tickers if ticker not in close.columns]
         if missing:
             raise ValueError(f"Missing close history for tickers: {', '.join(missing)}")
-
         result = close[normalized_tickers]
         write_market_data_cache(cache_key, result)
         return result
 
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
         normalized_ticker = ticker.upper().strip()
-        cache_key = market_data_cache_key(
-            "close-series",
-            ticker=normalized_ticker,
-            period=period,
-        )
+        cache_key = market_data_cache_key("close-series", ticker=normalized_ticker, period=period)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
             return cached
@@ -123,29 +103,3 @@ class YFinanceProvider(MarketDataProvider):
         except Exception as exc:
             logger.warning("Failed to fetch close history for %s: %s", ticker, exc, exc_info=True)
             return None
-
-
-class UnavailableProvider(MarketDataProvider):
-    """Placeholder provider for planned integrations not wired yet."""
-
-    def __init__(self, provider_name: str) -> None:
-        self.provider_name = provider_name
-
-    def _raise_unavailable(self) -> NoReturn:
-        raise NotImplementedError(
-            f"Market data provider '{self.provider_name}' is not implemented yet. Use provider 'yfinance' for now."
-        )
-
-    def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        self._raise_unavailable()
-
-    def fetch_close_history(
-        self,
-        tickers: list[str],
-        start_date: date,
-        end_date: date,
-    ) -> pd.DataFrame:
-        self._raise_unavailable()
-
-    def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
-        self._raise_unavailable()

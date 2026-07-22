@@ -148,6 +148,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `backtesting/stale_backtests.py` | Enumerate (account, strategy) pairs whose backtest is stale or missing across each account's rotation candidates (backtest-freshness remediation) |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
+| `demo/seeding.py` | Atomic application-owned synthetic account, trading, backtest, and promotion demo story |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
@@ -204,6 +205,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
+| `demo_seed.py` | Persistence operations for the synthetic offline demo story |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |

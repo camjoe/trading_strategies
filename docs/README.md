@@ -23,15 +23,17 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 ## Quick Start
 
-- [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
+- [`overview.md`](overview.md) — **start here**: current capabilities, concepts, architecture,
+  limitations, and scope
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 - [`adr/`](adr/) — durable architecture and product decisions
 
-**Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
+**Execution note:** Activate the repository virtual environment described in the root README, then
+run commands as Python modules from the repository root:
+
 ```sh
-.venv/Scripts/python -m trading.interfaces.cli.main   # Windows
-.venv/bin/python -m trading.interfaces.cli.main        # macOS/Linux
+python -m trading.interfaces.cli.main
 ```
 
 ## Architecture
@@ -51,8 +53,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 Full listing: [`reference/`](reference/). Key entries:
 
-- [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
-- [`reference/walk-forward-optimization-plan.md`](reference/walk-forward-optimization-plan.md) — Program B: methodology, leakage controls, schema, and delivery for train–optimize–test walk-forward optimization
+- [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, walk-forward terminology, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
@@ -75,7 +76,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
 - [`conventions/docs-authoring.md`](conventions/docs-authoring.md) — required doc headers, doc types, templates, and reference-doc/ADR section layouts
-- [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
+- [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles and documentation drift-check practices
 
 ## Runbooks
 
