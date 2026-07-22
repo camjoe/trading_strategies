@@ -75,7 +75,7 @@ feature provider stay in `src/trading/services/market_data/`.
 
 | Module | Responsibility |
 |---|---|
-| `providers.py` | Concrete `MarketDataProvider`s (`YFinanceProvider`, `UnavailableProvider` placeholders) |
+| `providers.py` | Concrete providers (`YFinanceProvider`, deterministic offline `DemoMarketDataProvider`, and unavailable placeholders) |
 | `factory.py` | `build_provider` + provider routing (env/config resolution) + `supported_provider_names` |
 | `cache.py` | Transport-level market-data cache (pickle-to-disk with TTL), used only by the adapter |
 

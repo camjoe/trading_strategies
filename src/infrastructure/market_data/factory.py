@@ -22,6 +22,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.services.market_data.protocols import MarketDataProvider
 
 from .providers import UnavailableProvider
+from .providers import DemoMarketDataProvider
 from .providers import YFinanceProvider
 
 _REPO_ROOT = get_repo_root(__file__)
@@ -29,6 +30,7 @@ _DEFAULT_PROVIDER_NAME = "yfinance"
 _DEFAULT_MARKET_DATA_CONFIG_PATH = _REPO_ROOT / "local" / "market_data_config.json"
 
 _PROVIDER_FACTORIES: dict[str, Callable[[], MarketDataProvider]] = {
+    "demo": DemoMarketDataProvider,
     "yfinance": YFinanceProvider,
     "yahooquery": lambda: UnavailableProvider("yahooquery"),
     "pandas-datareader": lambda: UnavailableProvider("pandas-datareader"),

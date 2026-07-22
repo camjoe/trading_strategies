@@ -54,6 +54,16 @@ python -m scripts.launch_ui
 
 This keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.
 
+For a credential-free offline walkthrough, install frontend dependencies once with
+`npm ci --prefix apps/paper_trading_web/frontend`, then run:
+
+```sh
+python -m scripts.launch_demo
+```
+
+The demo uses deterministic synthetic market data, disables network-backed feature providers, and
+rebuilds its writable `local/demo.db` on each launch. It does not install frontend packages.
+
 ## Manual Startup
 
 Backend:

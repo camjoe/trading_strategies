@@ -17,11 +17,13 @@ from .factory import build_provider
 from .factory import resolve_provider_name
 from .factory import supported_provider_names
 from .providers import UnavailableProvider
+from .providers import DemoMarketDataProvider
 from .providers import YFinanceProvider
 from .providers import yf
 
 __all__ = [
     "UnavailableProvider",
+    "DemoMarketDataProvider",
     "YFinanceProvider",
     "build_provider",
     "resolve_provider_name",

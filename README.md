@@ -95,8 +95,15 @@ From there:
 - [Trends analysis](apps/trends/README.md) documents the standalone indicator workflow.
 - [Local dashboard](apps/paper_trading_web/README.md) documents the optional UI.
 
-The repository does not yet provide a single-command seeded demo; adding one is part of the
-open-source preparation work.
+After installing Node.js 24 and the frontend dependencies once with
+`npm ci --prefix apps/paper_trading_web/frontend`, launch a fresh offline synthetic demo with:
+
+```sh
+python -m scripts.launch_demo
+```
+
+The command does not install packages. It rebuilds `local/demo.db` on every launch, requires no
+broker credentials or internet access after setup, and leaves the database writable for the session.
 
 ## Stability
 
