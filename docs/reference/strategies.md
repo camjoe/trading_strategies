@@ -122,6 +122,7 @@ Credential notes (alternative-data paths):
 
 Use this checklist when proposing new strategies:
 
+- publication classification: intentionally public example or private/proprietary
 - strategy hypothesis and intended market regime
 - required data sources and fallback behavior
 - entry/exit rules and position sizing
@@ -130,6 +131,25 @@ Use this checklist when proposing new strategies:
 - validation plan (walk-forward/out-of-sample)
 - comparable baseline(s)
 - reporting metrics (return, drawdown, turnover, hit rate, etc.)
+
+## Publication Boundary
+
+The current strategy catalog, generic signal primitives, research candidates, and roadmap are
+intentionally public. Honest known gaps remain public unless a concrete security, privacy, ownership,
+or proprietary-information concern requires otherwise.
+
+Classify every new strategy primitive, feature provider, parameter set, fixture, result, and related
+documentation before placing it in tracked files:
+
+- **Public example:** safe to publish permanently and appropriate for tracked source, tests, and docs.
+- **Private/proprietary:** keep research and parameters under `local/strategies/`. Put executable logic
+  that must integrate with the application in a separately distributed private package or repository
+  behind the established strategy interfaces.
+
+Do not copy private strategy names, thresholds, hypotheses, evaluation results, or fixtures into
+tracked tests or documentation. If classification is uncertain, treat the material as private until
+the owner makes an explicit publication decision. Removing it in a later commit does not retract
+copies from public Git history.
 
 ## Research Candidates (Not Implemented as First-Class Strategies)
 

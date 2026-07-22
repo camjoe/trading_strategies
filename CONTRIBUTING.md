@@ -35,6 +35,11 @@ Use `scripts.fix_checks` for normal cleanup. Lint/format directly with `ruff che
 4. Run `python -m scripts.run_checks quick` (and `ci` before a PR).
 5. Record architectural decisions as an ADR in `docs/adr/`.
 
+For strategy changes, decide before committing whether the primitive, provider, parameter set,
+fixture, result, or documentation is intentionally public. Tracked strategy material must be safe to
+publish permanently. Keep private research and parameters under the gitignored `local/strategies/`
+workspace; private executable logic belongs in a separate private package or repository.
+
 The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not covered here" section lists what you must verify manually.
 
 ## Database changes
@@ -50,6 +55,8 @@ Run `python -m scripts.run_checks repo` and `python -m scripts.run_checks python
 - Summary of the change and **why**
 - Testing performed
 - Any documentation updates
+- For strategy-related changes, confirmation that all included logic, parameters, fixtures, results,
+  and documentation are intentionally public
 
 ## Please avoid
 

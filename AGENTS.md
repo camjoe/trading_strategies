@@ -7,6 +7,12 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Before editing any file under `src/trading/`, read `docs/architecture/architecture-conventions.md` in full.
 - Respect the layering and ownership rules there. Do not invert dependency direction such as `interfaces -> services -> repositories/domain -> database`.
 - If a requested change would violate those conventions, stop and flag it before proceeding.
+- Before adding a strategy primitive, feature provider, strategy-specific parameter set, fixture, or
+  strategy documentation, classify it as intentionally public or private/proprietary. Only
+  intentionally public examples belong in tracked files. Keep private research and parameters under
+  `local/strategies/`; private executable strategy logic belongs in a separately distributed private
+  package or repository behind the established strategy interfaces. When classification is unclear,
+  stop and ask before writing tracked files.
 
 ## Python environment
 
