@@ -55,8 +55,6 @@ Windows PowerShell:
 ```powershell
 py -3.14 -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
 ```
 
 macOS or Linux:
@@ -64,6 +62,11 @@ macOS or Linux:
 ```sh
 python3.14 -m venv .venv
 source .venv/bin/activate
+```
+
+With the environment active, install the dependencies:
+
+```sh
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 ```

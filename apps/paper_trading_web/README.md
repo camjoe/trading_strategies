@@ -23,22 +23,14 @@ Python 3.14 and Node.js 24 are currently supported. Complete the root
 [Python setup](../../README.md#python-setup), install the frontend dependencies, and migrate the
 database before starting the UI.
 
-Windows PowerShell:
+Copy the example environment files before the first run:
 
-```powershell
-Copy-Item apps/paper_trading_web/backend/.env.example apps/paper_trading_web/backend/.env
-Copy-Item apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/.env
-Set-Location apps/paper_trading_web/frontend
-npm ci
-Set-Location ../../..
-python -m scripts.data_ops.manage_db_migrations upgrade
-```
+- In `apps/paper_trading_web/backend/`, duplicate `.env.example` as `.env`.
+- In `apps/paper_trading_web/frontend/`, duplicate `.env.example` as `.env`.
 
-macOS or Linux:
+Then install the frontend dependencies and migrate the database:
 
 ```sh
-cp apps/paper_trading_web/backend/.env.example apps/paper_trading_web/backend/.env
-cp apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/.env
 cd apps/paper_trading_web/frontend
 npm ci
 cd ../../..
