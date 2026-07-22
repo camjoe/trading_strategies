@@ -5,6 +5,22 @@ takes a strategy from **backtest → walk-forward → paper → human-gated live
 strategies against one another, and rotates toward the best performer — with the goal of a
 data-driven automated trader deployable from paper to a live IBKR account in a near-identical way.
 
+> [!WARNING]
+> This repository is educational and research software. It is not financial, investment, tax, or
+> legal advice, and it is not represented as production-ready investment infrastructure. Trading
+> involves risk of substantial loss. Backtests, simulations, and paper-trading results do not predict
+> future performance. You are responsible for reviewing the software, protecting broker credentials,
+> and deciding whether any use—including connection to a broker—is appropriate.
+
+## Availability and licensing
+
+The project is being prepared for a future open-source release, but it is not currently offered under
+an open-source license. Until a `LICENSE` file is added, no permission to use, modify, or redistribute
+the source is granted beyond rights provided by applicable law.
+
+See [Public Release Readiness](docs/reference/public-release-readiness.md) for the staged release plan,
+including the deferred license decision and future separation of private strategy implementations.
+
 **Start here:** [`docs/overview.md`](docs/overview.md) — the definitive explainer of what the app is,
 what it can do today (with honest gaps), how it works, and where it's going.
 

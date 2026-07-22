@@ -16,9 +16,9 @@ Conventions used below (adjust to your host):
 
 | Placeholder | Meaning | Example |
 |---|---|---|
-| `<user>` | Login user on the Linux host | `cam` |
-| `~/trading-prod` | Production checkout (tracks `main`, scheduled jobs run from here) | `/home/cam/trading-prod` |
-| `~/trading-staging` | Optional staging checkout (tracks `develop`, no scheduler) | `/home/cam/trading-staging` |
+| `<user>` | Login user on the Linux host | `trading` |
+| `~/trading-prod` | Production checkout (tracks `main`, scheduled jobs run from here) | `/home/<runtime-user>/trading-prod` |
+| `~/trading-staging` | Optional staging checkout (tracks `develop`, no scheduler) | `/home/<runtime-user>/trading-staging` |
 
 Repo URL (already filled into the commands below): `https://github.com/camjoe/trading_strategies.git`
 
