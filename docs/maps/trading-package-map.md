@@ -162,7 +162,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
 | `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
-| `pricing/lookups.py` | Price lookup queries |
+| `market_data/lookups.py` | Caller-facing latest-price + benchmark lookup queries over the injected provider |
 | `profiles/application.py` | Account profile application logic |
 | `profiles/rotation_config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `profiles/source.py` | Profile source loading |

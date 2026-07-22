@@ -3,8 +3,8 @@ from datetime import date
 import pandas as pd
 import pytest
 
-import trading.services.pricing.lookups as pricing_helpers
-from trading.services.pricing import benchmark_stats, fetch_latest_prices
+import trading.services.market_data.lookups as pricing_helpers
+from trading.services.market_data.lookups import benchmark_stats, fetch_latest_prices
 
 
 def _series(*closes: float) -> pd.Series:

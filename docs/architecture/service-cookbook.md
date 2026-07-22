@@ -58,7 +58,7 @@ or `reconciliation`) instead of treating the package root as a facade.
 | Apply named preset profiles to an account | `trading.services.profiles` | Profile loading + application (`profile_source` is the input-backend abstraction) |
 | Load account state; record trades; list trades | `trading.services.accounting` | Cash/positions/cost state + the trade ledger write path |
 | Account stats, equity/settlement math, benchmark overlays, CLI reports, snapshots | `trading.services.reporting` | Also owns compare-strategies and snapshot history display |
-| Fetch prices | `trading.services.pricing` | Latest-price lookups over the injected provider |
+| Fetch prices | `trading.services.market_data.lookups` | Latest-price + benchmark lookups over the injected provider |
 | Get/switch the market-data or feature provider | `trading.services.market_data` | Ports + `require_*` guards; concrete adapter lives in `src/infrastructure/market_data/` |
 | Run auto-trading for accounts; rotation-if-due; broker-order reconciliation | `trading.services.auto_trading` | Runtime orchestration; injected `broker_factory` and provider |
 | Submit book intents, reconcile fills/NAV, or run pre-submit gates | `trading.services.execution.<focused_module>` | Shared clean-schema order-submission path for every book; submodule-oriented surface |

@@ -13,7 +13,7 @@ from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_close_histories
 from trading.services.market_data import MarketDataProvider
-from trading.services.pricing import fetch_latest_prices
+from trading.services.market_data.lookups import fetch_latest_prices
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:

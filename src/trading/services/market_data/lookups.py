@@ -7,7 +7,7 @@ from datetime import date
 
 import pandas as pd
 
-from trading.services.market_data import MarketDataProvider, require_provider
+from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
 
