@@ -70,7 +70,6 @@ Docs drift fixers (`scripts/fixes/`):
 Modular check scripts (`scripts/checks/`):
 
 - `scripts/checks/docs/docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
-- `scripts/checks/docs/runbook_state_check.py`: prevents completed installation state and dated machine verifications from entering tracked runbooks.
 - `scripts/checks/repo/repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
 - `scripts/checks/python/python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
 - `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.

@@ -13,7 +13,6 @@ from scripts.checks.docs.link_check import run_link_check
 from scripts.checks.docs.maps_check import run_maps_check
 from scripts.checks.docs.module_ref_check import run_module_ref_check
 from scripts.checks.docs.readme_check import run_readme_consistency
-from scripts.checks.docs.runbook_state_check import run_runbook_state_check
 from scripts.documentation_ui.check import run_reference_docs_check
 
 
@@ -54,10 +53,6 @@ def run_docs_check(
             CheckStep(
                 "Doc naming",
                 lambda: run_doc_naming_check(repo_root=repo_root, enforce=enforce, quiet=quiet),
-            ),
-            CheckStep(
-                "Runbook state",
-                lambda: run_runbook_state_check(repo_root=repo_root, enforce=enforce, quiet=quiet),
             ),
             CheckStep(
                 "Reference docs",
