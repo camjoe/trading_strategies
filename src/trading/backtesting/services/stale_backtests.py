@@ -26,7 +26,7 @@ from trading.domain.strategy_signals import resolve_strategy
 from trading.models.accounts.account_record import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.books.rotation import resolve_book_rotation_schedule
+from trading.services.books.rotation.engine import resolve_book_rotation_schedule
 
 # Reasons a (account, strategy) pair needs a fresh backtest.
 REASON_MISSING = "missing"

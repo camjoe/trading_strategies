@@ -164,7 +164,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
 | `market_data/lookups.py` | Caller-facing latest-price + benchmark lookup queries over the injected provider |
 | `profiles/application.py` | Account profile application logic |
-| `profiles/rotation_config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `profiles/source.py` | Profile source loading |
 | `promotion/actions.py` | Promotion action execution |
 | `promotion/assessment.py` | Promotion eligibility assessment |
@@ -180,13 +179,14 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
-| `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
 | `books/helpers.py` | Shared book service helpers (window math) |
-| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/engine.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
+| `books/rotation/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
+| `books/rotation/config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |
 | `parameters/presentation.py` | Printed view of the unified parameter source |
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
-| `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |

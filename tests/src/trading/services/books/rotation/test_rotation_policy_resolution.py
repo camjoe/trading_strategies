@@ -1,4 +1,4 @@
-"""Tests for trading.services.books.rotation.resolve_rotation_policy_config."""
+"""Tests for trading.services.books.rotation.engine.resolve_rotation_policy_config."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import pytest
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.repositories.book_settings import BookRotationSettingsRepository
-from trading.services.books.rotation import (
+from trading.services.books.rotation.engine import (
     DEFAULT_MIN_TRADES_IN_WINDOW,
     DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS,
     DEFAULT_ROTATION_COOLDOWN_DAYS,

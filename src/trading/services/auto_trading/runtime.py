@@ -41,11 +41,11 @@ from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.services.execution.selection.book_intents import generate_book_trade_intents
 from trading.services.books.sector_config import load_symbol_sector_map
-from trading.services.books.rotation import (
+from trading.services.books.rotation.engine import (
     evaluate_and_apply_book_rotation,
     resolve_rotation_policy_config,
 )
-from trading.services.books.challenger_evaluation import build_book_challenger_evaluations
+from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
 from trading.models.execution.book_trade_intent import BookTradeIntent

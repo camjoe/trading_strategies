@@ -15,7 +15,7 @@ from trading.models.evaluation import (
     EvaluationDiagnostics,
     StrategyEvaluationArtifact,
 )
-from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
+from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
 _ROTATION_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
 

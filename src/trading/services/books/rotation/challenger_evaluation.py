@@ -7,8 +7,8 @@ from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMe
 from trading.models import AccountRecord
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
-from trading.services.books.rotation import resolve_book_rotation_schedule
-from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
+from trading.services.books.rotation.engine import resolve_book_rotation_schedule
+from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
 
 @dataclass(frozen=True, slots=True)

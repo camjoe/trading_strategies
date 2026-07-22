@@ -4,7 +4,7 @@ import pytest
 
 from trading.models.accounts.account_config import AccountConfig
 import trading.services.profiles.application as profiles_application
-from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
+from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 
 
 def test_apply_account_profiles_rejects_unknown_strategy_name(

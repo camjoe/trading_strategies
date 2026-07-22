@@ -128,7 +128,7 @@ The second slice completes the migration for the remaining per-route
   positive-id/limit, `initial_cash > 0`), `domain/strategy_signals.py`
   (unknown-strategy), `backtesting/domain/windowing.py` and
   `backtesting/services/backtest_data_service.py` (date/lookback/universe
-  checks), and `services/profiles/rotation_config_parser.py` (rotation object
+  checks), and `services/books/rotation/config_parser.py` (rotation object
   shape, lookback, schedule strategy names).
 - Routes dropped their blanket `except ValueError -> 400`: `routes/backtests.py`
   (run/preflight/walk-forward), `routes/admin.py` (create account). The account

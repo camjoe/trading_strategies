@@ -42,7 +42,7 @@ The maps and this guide serve different questions:
 | Change account snapshot logic | `src/trading/services/accounts/queries.py` + `src/trading/repositories/accounts.py` |
 | Change auto-trading execution flow | `src/trading/services/auto_trading/` |
 | Change shared book order submission, fill handling, reconciliation, or pre-submit gates | `src/trading/services/execution/` |
-| Change rotation logic | `src/trading/services/books/rotation.py` + `src/trading/domain/rotation.py` |
+| Change rotation logic | `src/trading/services/books/rotation/engine.py` + `src/trading/domain/rotation.py` |
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |
@@ -51,7 +51,7 @@ The maps and this guide serve different questions:
 | Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/portfolio_math.py` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
-| Change per-book rotation policy resolution | `src/trading/services/books/rotation.py` (`resolve_rotation_policy_config`) |
+| Change per-book rotation policy resolution | `src/trading/services/books/rotation/engine.py` (`resolve_rotation_policy_config`) |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change book logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change book performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |

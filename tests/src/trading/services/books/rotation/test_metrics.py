@@ -6,7 +6,7 @@ from trading.models.evaluation import (
     StrategyEvaluationArtifact,
 )
 from trading.services.accounts import get_account
-from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
+from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 from tests.support.repositories import insert_repository_account
 
 _FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"

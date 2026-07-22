@@ -11,7 +11,7 @@ from trading.interfaces.runtime.job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
 from trading.services.accounts import get_account
-from trading.services.books.challenger_evaluation import (
+from trading.services.books.rotation.challenger_evaluation import (
     ChallengerEvaluationRun,
     build_book_challenger_evaluations,
 )

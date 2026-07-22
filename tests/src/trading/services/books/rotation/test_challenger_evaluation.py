@@ -6,7 +6,7 @@ from trading.models.evaluation import (
     StrategyEvaluationArtifact,
 )
 from trading.services.accounts import get_account
-from trading.services.books.challenger_evaluation import build_book_challenger_evaluations
+from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
 from tests.support.repositories import insert_repository_account
 from tests.support.books import (
     assign_test_book_strategy,

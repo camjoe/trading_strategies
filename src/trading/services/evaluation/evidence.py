@@ -38,7 +38,7 @@ from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
-from trading.services.books.rotation import resolve_default_book_rotation_schedule
+from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"

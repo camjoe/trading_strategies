@@ -8,7 +8,7 @@ from common.time import utc_now_iso
 from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
-from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
+from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 from trading.services.accounts import (
     configure_account,
     create_account,
