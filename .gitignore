@@ -1,6 +1,12 @@
 # Private operator state, real strategy work, generated artifacts, logs, and databases.
 local/*
 
+# Runtime databases and logs remain private regardless of where a tool writes them.
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[co]

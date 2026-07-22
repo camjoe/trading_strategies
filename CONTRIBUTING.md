@@ -40,6 +40,10 @@ fixture, result, or documentation is intentionally public. Tracked strategy mate
 publish permanently. Keep private research and parameters under the gitignored `local/strategies/`
 workspace; private executable logic belongs in a separate private package or repository.
 
+Keep real operator databases, logs, exports, reports, charts, and screenshots under `local/`. Review
+any intentionally public example data or screenshots to confirm they contain only synthetic material
+before committing them.
+
 The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not covered here" section lists what you must verify manually.
 
 ## Database changes
