@@ -16,8 +16,8 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_latest_walk_forward_group_for_account_strategy,
     fetch_walk_forward_group_runs,
 )
-from trading.domain.backtest_freshness import assess_backtest_freshness
-from trading.domain.evaluation_confidence import (
+from trading.domain.evaluation.backtest_freshness import assess_backtest_freshness
+from trading.domain.evaluation.confidence import (
     EvaluationConfidenceSettings,
     compute_backtest_confidence,
     compute_blended_score,

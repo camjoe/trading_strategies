@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
+from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.domain.promotion_policy import PromotionPolicySettings
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.models import RuntimeThrottleSettings

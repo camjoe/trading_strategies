@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from trading.backtesting.services import find_stale_backtests
-from trading.domain.backtest_freshness import DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS
+from trading.domain.evaluation.backtest_freshness import DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,

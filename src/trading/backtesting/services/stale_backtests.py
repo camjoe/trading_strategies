@@ -18,7 +18,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
     fetch_latest_backtest_run_id_for_account_strategy,
 )
-from trading.domain.backtest_freshness import (
+from trading.domain.evaluation.backtest_freshness import (
     DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
     assess_backtest_freshness,
 )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.evaluation_decision_score import derive_decision_score
+from trading.domain.evaluation.decision_score import derive_decision_score
 from trading.models.evaluation import StrategyEvaluationArtifact
 
 
