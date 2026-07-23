@@ -1,0 +1,133 @@
+import pytest
+
+from tests.support.reporting import insert_trade, make_evaluation_artifact
+from trading.models import AccountConfig
+from trading.services.accounts import create_account, get_account
+from trading.services.reporting import account_report
+
+
+def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    create_account(conn, "acct_report_out", "Trend", 1000.0, "SPY")
+    account = get_account(conn, "acct_report_out")
+    insert_trade(conn, account["id"], "AAPL", 2.0, 100.0)
+    conn.commit()
+
+    monkeypatch.setattr(
+        "trading.services.analysis.portfolio.fetch_latest_prices",
+        lambda _tickers, **_kwargs: {"AAPL": 120.0},
+    )
+    monkeypatch.setattr(
+        "trading.services.analysis.portfolio.benchmark_stats",
+        lambda *_args, **_kwargs: (1050.0, 5.0),
+    )
+    monkeypatch.setattr(
+        "trading.services.reporting.account.fetch_strategy_evaluation_for_account_row",
+        lambda *_args, **_kwargs: make_evaluation_artifact(
+            account_id=account["id"],
+            account_name="acct_report_out",
+            backtest_return_pct=12.5,
+            backtest_trade_count=18,
+            paper_live_mode="paper",
+            paper_live_return_pct=4.0,
+            paper_live_snapshot_count=6,
+            blended_score=9.25,
+            overall_confidence=0.62,
+        ),
+    )
+
+    stats, positions = account_report(conn, "acct_report_out")
+    out = capsys.readouterr().out
+
+    assert stats["equity"] == pytest.approx(1040.0)
+    assert positions == {"AAPL": 2.0}
+    assert "Display Name: acct_report_out" in out
+    assert "Benchmark Equity: 1050.00" in out
+    assert "Account Alpha vs Benchmark %: -1.00" in out
+    assert "Evaluation Summary: backtest=12.50% (18 trades) | paper=4.00% (6 snapshots)" in out
+    # No freshness on this artifact → advisory shows N/A.
+    assert "backtest_age=N/A" in out
+
+
+def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
+    conn, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    create_account(
+        conn,
+        "acct_leaps",
+        "Trend",
+        5000.0,
+        "SPY",
+        config=AccountConfig(
+            instrument_mode="leaps",
+            option_strike_offset_pct=5.0,
+            option_min_dte=120,
+            option_max_dte=365,
+            option_type="call",
+            target_delta_min=0.2,
+            target_delta_max=0.4,
+            iv_rank_min=20.0,
+            iv_rank_max=70.0,
+            max_premium_per_trade=500.0,
+            max_contracts_per_trade=2,
+            roll_dte_threshold=45,
+            option_profit_take_pct=30.0,
+            option_max_loss_pct=20.0,
+        ),
+    )
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
+
+    account_report(conn, "acct_leaps")
+    out = capsys.readouterr().out
+
+    assert "Benchmark comparison: unavailable (price history not found)" in out
+    assert "LEAPs Parameters:" in out
+    assert "LEAPs Options Filters:" in out
+    assert "LEAPs/Options Risk Limits:" in out
+
+
+def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    # The active strategy is the default book's open assignment (ADR 014).
+    from trading.services.books.book_assignments import sync_default_book_assignment
+
+    create_account(conn, "acct_rot", "Trend", 1000.0, "SPY")
+    account = get_account(conn, "acct_rot")
+    sync_default_book_assignment(
+        conn,
+        account_id=account["id"],
+        strategy_name="mean_reversion",
+        now_iso="2026-01-01T00:00:00Z",
+    )
+
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
+
+    account_report(conn, "acct_rot")
+    out = capsys.readouterr().out
+    assert "active_strategy=mean_reversion" in out
+
+
+def test_account_report_shows_stale_backtest_freshness(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    from trading.models.evaluation import BacktestFreshness
+
+    create_account(conn, "acct_fresh", "Trend", 1000.0, "SPY")
+    monkeypatch.setattr("trading.services.analysis.portfolio.fetch_latest_prices", lambda _t, **_k: {})
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_a, **_k: (None, None))
+    account = get_account(conn, "acct_fresh")
+    monkeypatch.setattr(
+        "trading.services.reporting.account.fetch_strategy_evaluation_for_account_row",
+        lambda *_a, **_k: make_evaluation_artifact(
+            account_id=account["id"],
+            account_name="acct_fresh",
+            backtest_return_pct=8.0,
+            backtest_trade_count=10,
+            blended_score=5.0,
+            overall_confidence=0.5,
+            backtest_freshness=BacktestFreshness(available=True, age_days=6.0, stale_threshold_days=3, is_stale=True),
+        ),
+    )
+
+    account_report(conn, "acct_fresh")
+    out = capsys.readouterr().out
+
+    assert "backtest_age=6.0d (stale)" in out

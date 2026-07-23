@@ -139,6 +139,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions |
 | `analysis/portfolio.py` | Account portfolio stats, settlement-corrected equity, and trend inference |
 | `analysis/benchmark.py` | Benchmark close-history fetch + live benchmark return overlay payloads |
+| `analysis/daily_report.py` | Multi-book daily operator report assembly (structured dataclasses + JSON dict; no printing) |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
@@ -170,10 +171,12 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `promotion/helpers.py` | Promotion workflow helpers |
 | `promotion/history.py` | Promotion history queries |
 | `promotion/presentation.py` | Promotion result formatting |
-| `reporting/presentation.py` | Report presentation formatting (printed operator output) |
+| `reporting/_formatting.py` | Shared pure formatting helpers for reporting output (evaluation summary line, position summary) |
+| `reporting/account.py` | Printed single-account report (state, evaluation evidence, benchmark) |
+| `reporting/comparison.py` | Printed cross-account policy/holdings comparison |
+| `reporting/snapshots.py` | Equity snapshot capture command + printed snapshot history (sole write in the package) |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
-| `reporting/daily_report.py` | Multi-book daily operator report assembly |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |

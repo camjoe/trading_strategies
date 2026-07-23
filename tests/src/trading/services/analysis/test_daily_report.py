@@ -8,7 +8,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.services.reporting.daily_report import (
+from trading.services.analysis.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
     build_account_daily_report,
