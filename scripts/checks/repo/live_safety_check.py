@@ -8,7 +8,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 # Mechanical safety check for the live-trading guard documented in
 # docs/architecture/architecture-conventions.md. This intentionally enforces only the
 # high-confidence rule: automation must not set live_trading_enabled to true/1. The human-only

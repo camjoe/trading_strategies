@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
@@ -7,7 +8,6 @@ from trading.models.evaluation import (
 )
 from trading.services.accounts import get_account
 from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
-from tests.support.repositories import insert_repository_account
 
 _FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
 

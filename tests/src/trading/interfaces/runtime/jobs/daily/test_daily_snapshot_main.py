@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
-from trading.interfaces.runtime.jobs.job_helpers import day_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_SNAPSHOT_MODULE as MODULE_NAME,
@@ -16,6 +15,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     run_runtime_job_with_args,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import day_tag
 
 ENABLE_ARGS = ("--enable-run",)
 ENABLE_FORCE_ARGS = ("--enable-run", "--force-run")

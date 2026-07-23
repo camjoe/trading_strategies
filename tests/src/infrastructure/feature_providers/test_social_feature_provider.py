@@ -17,7 +17,6 @@ from trading.domain.strategies.registry import STRATEGY_REGISTRY
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.domain.strategies.signals.alternative import _social_trend_rotation_signal
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

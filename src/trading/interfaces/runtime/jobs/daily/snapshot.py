@@ -10,8 +10,8 @@ from typing import Callable
 
 from trading.interfaces.runtime.job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
-    AttemptOutcome,
     CLI_MAIN_MODULE,
+    AttemptOutcome,
     run_command,
     run_command_with_retry,
 )

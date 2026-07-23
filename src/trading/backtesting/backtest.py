@@ -3,12 +3,9 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-from trading.models.books.book_record import BookRecord
-from trading.repositories.books import BookRepository
-from trading.domain.auto_trading_policy import choose_buy_qty
 from infrastructure.market_data.factory import build_provider
-from trading.services.market_data import build_feature_provider
-from trading.services.accounts import get_account
+from trading.backtesting.domain.risk_warnings import build_backtest_warnings
+from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -17,10 +14,6 @@ from trading.backtesting.models import (
     WalkForwardSummary,
 )
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
-
-from trading.backtesting.domain.risk_warnings import build_backtest_warnings
-from trading.domain.strategies.resolution import resolve_strategy
-from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_run,
     insert_backtest_snapshot,
@@ -31,13 +24,19 @@ from trading.backtesting.services import (
     execute_walk_forward_backtest,
     fetch_backtest_leaderboard_entries,
     fetch_backtest_report_data,
-    fetch_walk_forward_report_data,
     fetch_benchmark_close,
     fetch_close_history,
+    fetch_walk_forward_report_data,
     load_tickers_from_file,
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
 )
+from trading.domain.auto_trading_policy import choose_buy_qty
+from trading.domain.strategies.resolution import resolve_strategy
+from trading.models.books.book_record import BookRecord
+from trading.repositories.books import BookRepository
+from trading.services.accounts import get_account
+from trading.services.market_data import build_feature_provider
 
 
 def build_walk_forward_windows(

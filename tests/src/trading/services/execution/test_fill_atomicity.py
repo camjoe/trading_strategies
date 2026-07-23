@@ -13,10 +13,10 @@ import sqlite3
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.services.execution import submission
 from trading.services.execution.submission import apply_book_fill
-from tests.support.repositories import insert_repository_account
 
 
 @pytest.fixture

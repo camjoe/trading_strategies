@@ -14,11 +14,17 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
     summarize_backtest_performance,
+)
+from trading.backtesting.report_models import (
+    BacktestFullReport,
+    BacktestReportSnapshot,
+    BacktestReportSummary,
+    BacktestReportTrade,
 )
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
@@ -28,14 +34,8 @@ from trading.backtesting.repositories.report_repository import (
     fetch_latest_backtest_run_id_for_account as _repo_fetch_latest_backtest_run_id_for_account,
     fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
 )
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.domain.exceptions import NotFoundError
-from trading.backtesting.report_models import (
-    BacktestFullReport,
-    BacktestReportSnapshot,
-    BacktestReportSummary,
-    BacktestReportTrade,
-)
 
 logger = logging.getLogger(__name__)
 

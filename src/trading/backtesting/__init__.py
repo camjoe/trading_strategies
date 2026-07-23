@@ -20,8 +20,8 @@ from trading.backtesting.backtest import (
     build_walk_forward_windows,
     run_backtest,
     run_backtest_batch,
-    walk_forward_report,
     run_walk_forward_backtest,
+    walk_forward_report,
 )
 from trading.backtesting.report_models import (
     BacktestFullReport,

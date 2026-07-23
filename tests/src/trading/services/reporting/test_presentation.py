@@ -1,11 +1,11 @@
 import pytest
 
+from tests.support.reporting import insert_trade, make_evaluation_artifact
 from trading.models import AccountConfig
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 from trading.services.reporting.presentation import positions_summary_text
-from tests.support.reporting import insert_trade, make_evaluation_artifact
 
 
 def test_positions_summary_text_sorts_and_truncates() -> None:

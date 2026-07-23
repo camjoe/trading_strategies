@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import list_report_books
 
 

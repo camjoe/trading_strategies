@@ -42,6 +42,7 @@ Async fill note:
 from __future__ import annotations
 
 from common.time import utc_now_iso
+from infrastructure.brokers.legacy.ib_client import IBClientProtocol
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import (
     BrokerOrder,
@@ -49,7 +50,6 @@ from trading.models.orders.broker_order import (
     OrderStatus,
     OrderType,
 )
-from infrastructure.brokers.legacy.ib_client import IBClientProtocol
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"

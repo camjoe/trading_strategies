@@ -14,11 +14,11 @@ import sqlite3
 from typing import Any
 
 from trading.services.autonomy_monitor import (
-    fetch_autonomy_accounts_list as fetch_db_accounts_list,
     fetch_autonomy_account_detail as fetch_db_data,
+    fetch_autonomy_accounts_list as fetch_db_accounts_list,
+    fetch_burn_in_status,
     fetch_daily_workflow_status,
     fetch_governance_checks_status,
-    fetch_burn_in_status,
 )
 
 

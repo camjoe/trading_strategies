@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 import paper_trading_web.backend.services.promotion as promotion_module
+import pytest
 from paper_trading_web.backend.services.promotion import (
     _normalize_optional_text,
     build_promotion_overview,
 )
+
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,

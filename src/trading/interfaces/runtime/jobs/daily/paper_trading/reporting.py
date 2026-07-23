@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
 from common.files import sorted_by_mtime_desc
 from infrastructure.database.connection import ensure_db

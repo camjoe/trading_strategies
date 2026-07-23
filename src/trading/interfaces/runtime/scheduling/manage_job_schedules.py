@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-import sys
 
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE

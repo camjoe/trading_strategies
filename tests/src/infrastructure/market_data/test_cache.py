@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 
 from infrastructure.market_data.cache import (
+    _CACHE_MISS,
     market_data_cache_dir,
     market_data_cache_disabled,
     market_data_cache_key,
     read_market_data_cache,
     write_market_data_cache,
-    _CACHE_MISS,
 )
 
 

@@ -39,7 +39,6 @@ from trading.domain.strategies.signals.technical import (
     _volatility_filtered_trend_signal,
 )
 
-
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "trend": StrategySpec(
         strategy_id="trend",

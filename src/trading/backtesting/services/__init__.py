@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from trading.backtesting.services.backtest_data_service import (
     build_monthly_universe,
     fetch_benchmark_close,
@@ -9,12 +10,12 @@ from trading.backtesting.services.backtest_data_service import (
 from trading.backtesting.services.execution_service import run_backtest
 from trading.backtesting.services.leaderboard_service import fetch_backtest_leaderboard_entries
 from trading.backtesting.services.report_service import fetch_backtest_report_data
-from trading.backtesting.services.walk_forward_report_service import fetch_walk_forward_report_data
-from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
 from trading.backtesting.services.stale_backtests import (
     StaleBacktestTarget,
     find_stale_backtests,
 )
+from trading.backtesting.services.walk_forward_report_service import fetch_walk_forward_report_data
+from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
 
 __all__ = [
     "StaleBacktestTarget",

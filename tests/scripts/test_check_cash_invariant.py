@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from scripts.data_ops.check_cash_invariant import invariant_payload
-from trading.repositories.book_bridge import default_book_id
 from tests.support.db_schema import memory_db_at_head
+from trading.repositories.book_bridge import default_book_id
 
 
 def _seed_account_with_default_book(conn: sqlite3.Connection, *, name: str, initial_cash: float) -> int:

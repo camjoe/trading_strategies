@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.snapshots import EquitySnapshotRepository
-
 from tests.support.seed.accounts import ACCT_TREND, seed_account_id
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 # ---------------------------------------------------------------------------
 # Public name constants

@@ -12,7 +12,6 @@ import pandas as pd
 
 from common.paths.repo_paths import get_repo_root
 
-
 _REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_MARKET_DATA_CACHE_DIR = _REPO_ROOT / "local" / "cache" / "market_data"
 _MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60

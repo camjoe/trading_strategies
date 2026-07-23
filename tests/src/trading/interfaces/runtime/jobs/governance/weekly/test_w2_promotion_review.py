@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import datetime as dt
-from pathlib import Path
 import sys
+from pathlib import Path
+
 import pytest
 
-from trading.models.promotion import PromotionAssessment
 import trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review as module
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
-from trading.interfaces.runtime.jobs.job_helpers import week_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
@@ -17,6 +16,8 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     stub_runtime_job_basics,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import week_tag
+from trading.models.promotion import PromotionAssessment
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review"
 RUN_ALL_ARGS = RUN_ALL_ACCOUNTS_ARGS

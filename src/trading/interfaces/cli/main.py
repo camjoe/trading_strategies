@@ -1,44 +1,29 @@
 from __future__ import annotations
+
 from functools import partial
-from trading.services.execution.ledger import record_trade
-from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
+
+from infrastructure.database.config import get_db_path
+from infrastructure.database.connection import db_session
+from infrastructure.market_data.factory import build_provider
 from trading.backtesting.backtest import (
     backtest_leaderboard_entries,
     backtest_report,
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
-    walk_forward_report,
     run_walk_forward_backtest,
+    walk_forward_report,
 )
+from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
+from trading.backtesting.services import find_stale_backtests
 from trading.backtesting.services.walk_forward_optimizer_service import (
     run_walk_forward_optimization,
 )
-from infrastructure.database.connection import db_session
-from infrastructure.database.config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
-from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.backtesting.services import find_stale_backtests
-from trading.services.profiles import apply_account_profiles, load_account_profiles
-from trading.services.promotion import (
-    execute_promotion_review_action,
-    execute_promotion_review_request,
-    show_promotion_review_history,
-    show_promotion_status,
-)
-from infrastructure.market_data.factory import build_provider
-from trading.services.parameters import (
-    show_parameters,
-    update_book_rotation_policy,
-    update_book_rotation_scheduling,
-)
-from trading.services.strategy_catalog import (
-    configure_strategy,
-    create_strategy_variant,
-    freeze_strategy,
-)
+from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
+from trading.services.execution.ledger import record_trade
 from trading.services.operational_settings import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
@@ -47,6 +32,18 @@ from trading.services.operational_settings import (
     set_promotion_policy_settings,
     set_runtime_throttle_settings,
 )
+from trading.services.parameters import (
+    show_parameters,
+    update_book_rotation_policy,
+    update_book_rotation_scheduling,
+)
+from trading.services.profiles import apply_account_profiles, load_account_profiles
+from trading.services.promotion import (
+    execute_promotion_review_action,
+    execute_promotion_review_request,
+    show_promotion_review_history,
+    show_promotion_status,
+)
 from trading.services.reporting import (
     account_report,
     compare_strategies,
@@ -54,6 +51,11 @@ from trading.services.reporting import (
     show_portfolio_exposure,
     show_snapshots,
     snapshot_account,
+)
+from trading.services.strategy_catalog import (
+    configure_strategy,
+    create_strategy_variant,
+    freeze_strategy,
 )
 
 

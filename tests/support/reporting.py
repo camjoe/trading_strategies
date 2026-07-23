@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models.evaluation import (
     BacktestFreshness,
     EvaluationBacktestEvidence,
@@ -10,6 +9,7 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     StrategyEvaluationArtifact,
 )
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 
 def insert_trade(

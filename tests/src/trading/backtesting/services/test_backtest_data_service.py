@@ -5,11 +5,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
+from hypothesis import given, settings, strategies as st
 
-from trading.backtesting.services import backtest_data_service as backtest_data
 from infrastructure.market_data import YFinanceProvider
+from trading.backtesting.services import backtest_data_service as backtest_data
 
 
 def _business_days(periods: int) -> pd.DatetimeIndex:

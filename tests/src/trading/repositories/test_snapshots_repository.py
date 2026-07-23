@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 
 def _account_id(conn, name: str = "snap_acct") -> int:

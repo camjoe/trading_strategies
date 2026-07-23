@@ -1,8 +1,8 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from trading.interfaces.cli import main as cli_main
 from tests.src.trading.interfaces.cli.helpers import install_main_harness
+from trading.interfaces.cli import main as cli_main
 
 
 def test_main_init_prints_initialized_path(monkeypatch, capsys) -> None:

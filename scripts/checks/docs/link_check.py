@@ -8,7 +8,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 # A markdown link or image: [text](target) / ![alt](target). Captures the target.
 #   "[Docs Map](maps/docs-map.md)"  ->  captures "maps/docs-map.md"
 MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")

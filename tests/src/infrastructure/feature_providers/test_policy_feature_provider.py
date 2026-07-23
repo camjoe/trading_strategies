@@ -7,18 +7,17 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from infrastructure.feature_providers.policy_provider import (
-    POLICY_DEFENSIVE_TILT,
-    POLICY_RISK_ON_SCORE,
-    PolicyFeatureProvider,
+    _ALL_ETFS,
     _DEFENSIVE_ETFS,
     _EQUITY_BENCHMARK,
-    _ALL_ETFS,
+    POLICY_DEFENSIVE_TILT,
     POLICY_MIN_OBSERVATIONS,
+    POLICY_RISK_ON_SCORE,
+    PolicyFeatureProvider,
 )
 from trading.domain.strategies.registry import STRATEGY_REGISTRY
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.domain.strategies.signals.alternative import _policy_regime_signal
-
 
 # ---------------------------------------------------------------------------
 # Helpers

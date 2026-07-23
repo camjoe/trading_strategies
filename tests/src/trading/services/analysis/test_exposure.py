@@ -6,11 +6,11 @@ import sqlite3
 
 import pytest
 
+from tests.support.analysis import make_analysis_account
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.analysis import fetch_portfolio_exposure
-from tests.support.analysis import make_analysis_account
 
 
 def insert_exposure_snapshot(

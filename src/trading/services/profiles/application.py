@@ -5,10 +5,11 @@ from collections.abc import Mapping
 
 from common.coercion import coerce_float
 from common.time import utc_now_iso
+from trading.domain.rotation import dump_rotation_schedule
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
-from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 from trading.services.accounts import (
     configure_account,
     create_account,
@@ -16,9 +17,8 @@ from trading.services.accounts import (
     set_account_strategy,
     set_benchmark,
 )
+from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
-from trading.domain.rotation import dump_rotation_schedule
-from trading.domain.strategies.resolution import validate_strategy_name
 
 
 def load_account_profiles_from_source(source: AccountProfileSource) -> list[dict[str, object]]:

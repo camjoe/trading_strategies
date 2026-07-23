@@ -3,7 +3,6 @@ import sqlite3
 import pytest
 
 import trading.services.accounts.mutations as account_mutations
-
 from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.book_bridge import default_book_id
 from trading.services.accounts import create_account, get_account, set_account_strategy

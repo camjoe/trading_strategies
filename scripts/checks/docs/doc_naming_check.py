@@ -8,7 +8,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 # Mechanical filename rules from docs/conventions/naming.md. Humans still choose the title and
 # scope; this checker verifies that doc paths stay predictable.
 

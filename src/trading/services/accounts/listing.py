@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models import AccountRecord
 from trading.models.books.book_record import BookRecord
-from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.services.books.book_assignments import UNASSIGNED_STRATEGY_LABEL, active_strategy_for_account

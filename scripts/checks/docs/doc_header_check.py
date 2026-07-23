@@ -8,7 +8,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 # The doc-header standard: docs/conventions/docs-authoring.md. Every file under docs/ carries a
 # metadata block immediately after the H1 title. TEMPLATE.*.md files hold placeholder values and
 # are exempt.

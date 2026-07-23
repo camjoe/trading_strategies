@@ -1,8 +1,8 @@
-from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
     make_daily_backtest_refresh_args,
 )
+from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 
 
 def test_retry_delay_seconds_doubles_each_attempt() -> None:

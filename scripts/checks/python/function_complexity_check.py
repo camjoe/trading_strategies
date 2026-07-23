@@ -8,7 +8,6 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 from scripts.checks.python.public_api_test_evidence_check import changed_files, changed_line_numbers
 
-
 SOURCE_ROOTS = (
     "scripts",
     "src",

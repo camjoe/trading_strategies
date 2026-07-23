@@ -9,7 +9,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 # --- Markdown parsing patterns. The map is read line by line; these pull out its structure. ---
 
 # Any inline code span (text between a pair of backticks). Captures the inner text.

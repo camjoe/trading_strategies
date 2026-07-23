@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks._runner import resolve_python_exe
 from scripts.checks.ci import run_ci
 from scripts.checks.docs.docs_check import run_docs_check

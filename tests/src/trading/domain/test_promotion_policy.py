@@ -1,3 +1,4 @@
+from trading.domain.promotion_policy import PromotionPolicySettings, assess_promotion_readiness
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
@@ -8,7 +9,6 @@ from trading.models.evaluation import (
     EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
-from trading.domain.promotion_policy import PromotionPolicySettings, assess_promotion_readiness
 
 
 def _artifact(

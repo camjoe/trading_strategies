@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from trading.services.accounts import create_account
+from trading.backtesting.models import BacktestConfig
 from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_run,
     insert_backtest_snapshot,
     insert_backtest_trade,
 )
-from trading.backtesting.models import BacktestConfig
+from trading.services.accounts import create_account
 
 
 def _cfg() -> BacktestConfig:

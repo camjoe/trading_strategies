@@ -6,7 +6,6 @@ import sqlite3
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from paper_trading_web.backend.services import autonomy_monitor as service
 
 

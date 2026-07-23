@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
-
 from paper_trading_web.backend.services import exports as services_exports
 
 

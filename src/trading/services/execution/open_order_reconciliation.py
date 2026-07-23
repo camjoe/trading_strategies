@@ -16,10 +16,10 @@ from typing import Any
 
 from common.coercion import row_expect_int
 from common.time import utc_now_iso
-from trading.repositories.unit_of_work import unit_of_work
 from trading.models import AccountRecord
 from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.repositories.orders import OrderRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.execution.submission import apply_book_fill, clean_order_status
 
 

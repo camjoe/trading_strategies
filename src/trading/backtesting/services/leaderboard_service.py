@@ -3,19 +3,19 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
     summarize_backtest_performance,
 )
-from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
+from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.backtesting.repositories.leaderboard_repository import (
     fetch_equity_rows,
     fetch_leaderboard_rows,
     fetch_trade_rows,
 )
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-from trading.backtesting.report_models import BacktestLeaderboardEntry
+from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 
 logger = logging.getLogger(__name__)
 

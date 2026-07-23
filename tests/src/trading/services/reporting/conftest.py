@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from trading.services.accounts import create_account, get_account
-from tests.support.repositories import insert_repository_account
 from tests.support.books import insert_test_book
+from tests.support.repositories import insert_repository_account
+from trading.services.accounts import create_account, get_account
 
 
 @pytest.fixture

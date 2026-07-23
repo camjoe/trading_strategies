@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 
-
 _CREATE_ACCOUNT = "paper_trading_web.backend.routes.admin.create_account_with_rotation"
 _INNER_CREATE_ACCOUNT = "paper_trading_web.backend.services.admin.create_account"
 _LIST_CSV_EXPORTS = "paper_trading_web.backend.routes.admin.list_csv_exports"

@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.books.book_record import BookRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class BookRepository:

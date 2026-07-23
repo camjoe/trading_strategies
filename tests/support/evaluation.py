@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.backtesting.repositories.walk_forward_repository import (
     insert_walk_forward_group,
     insert_walk_forward_group_run,
 )
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 
 def insert_backtest_run(

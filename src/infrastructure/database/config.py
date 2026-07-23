@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+
 from common.paths.project_paths import DB_CONFIG_PATH, PAPER_TRADING_DB_PATH, REPO_ROOT
 
 _DEFAULT_DB_PATH = PAPER_TRADING_DB_PATH

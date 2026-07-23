@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-
 from trading.domain.feature_provider import ExternalFeatureBundle, ExternalFeatureProvider
-
 
 # ---------------------------------------------------------------------------
 # Helpers

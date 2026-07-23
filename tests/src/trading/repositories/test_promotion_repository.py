@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.promotion import PromotionAssessment
 from trading.repositories.promotion import PromotionReviewRepository, _row_json_object
 from trading.repositories.strategies import StrategyRepository
-from tests.support.repositories import insert_repository_account
 
 
 class _StaticCursor:

@@ -13,13 +13,10 @@ and the backtest composition seam wire it in (mirroring ``infrastructure.brokers
 
 from __future__ import annotations
 
-from .factory import build_provider
-from .factory import resolve_provider_name
-from .factory import supported_provider_names
 from .demo_provider import DemoMarketDataProvider
+from .factory import build_provider, resolve_provider_name, supported_provider_names
 from .unavailable_provider import UnavailableProvider
-from .yfinance_provider import YFinanceProvider
-from .yfinance_provider import yf
+from .yfinance_provider import YFinanceProvider, yf
 
 __all__ = [
     "UnavailableProvider",

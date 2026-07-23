@@ -4,7 +4,6 @@ import html
 from pathlib import Path
 from typing import Any
 
-
 FINANCE_DOC_REL = "docs/reference/financial-market-knowledge.md"
 FINANCE_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/finance.json"
 

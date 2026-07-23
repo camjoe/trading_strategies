@@ -11,8 +11,6 @@ from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.unit_of_work import unit_of_work
-from trading.services.accounts.queries import find_account
-from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
     ACCOUNT_KIND_MANAGED,
     append_update,
@@ -28,6 +26,8 @@ from trading.services.accounts.config import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
+from trading.services.accounts.queries import find_account
+from trading.services.books.book_assignments import sync_default_book_assignment
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:

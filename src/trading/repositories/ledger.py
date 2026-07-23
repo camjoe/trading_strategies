@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.books.ledger_entry_record import LedgerEntryRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class LedgerRepository:

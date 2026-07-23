@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
@@ -19,7 +20,6 @@ from trading.services.execution.submission import (
     LEDGER_REFERENCE_TYPE_ORDER,
     submit_book_intents,
 )
-from tests.support.repositories import insert_repository_account
 
 # --- test doubles -----------------------------------------------------------
 

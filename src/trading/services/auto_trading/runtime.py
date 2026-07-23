@@ -5,55 +5,53 @@ from __future__ import annotations
 import logging
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable, Mapping
 from dataclasses import asdict
 
 import pandas as pd
 
 from common.coercion import row_expect_int
-from common.time import parse_utc_iso
-from common.time import utc_now_iso
-from collections.abc import Callable, Mapping
-
-from trading.models import AccountRecord
-from trading.models.orders.broker_order import OrderFill
+from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
-from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.services.accounts import get_account
-from trading.services.operational_settings import enforce_runtime_trade_throttles
-from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from trading.services.execution.selection.selection import (
-    FeatureHistoryFn,
-    build_feature_history_fn,
-)
-from trading.services.execution.open_order_reconciliation import (
-    reconcile_open_orders_impl,
-    resolve_reconciliation_exec_id,
-)
-from trading.services.market_data import MarketDataProvider
-from trading.services.execution.risk import (
-    persist_book_risk_snapshot,
-    persist_normalized_risk_decisions,
-)
+from trading.models import AccountRecord
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.services.execution.selection.book_intents import generate_book_trade_intents
-from trading.services.books.sector_config import load_symbol_sector_map
+from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.orders.broker_order import OrderFill
+from trading.repositories.books import BookRepository
+from trading.repositories.positions import PositionRepository
+from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
+from trading.services.accounts import get_account
+from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
 from trading.services.books.rotation.engine import (
     evaluate_and_apply_book_rotation,
     resolve_rotation_policy_config,
 )
-from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
-from trading.repositories.positions import PositionRepository
-from trading.repositories.books import BookRepository
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.services.execution.submission import submit_book_intents
+from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.execution.gate import AllowAllGate
-from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.nav import mark_account_to_market
+from trading.services.execution.open_order_reconciliation import (
+    reconcile_open_orders_impl,
+    resolve_reconciliation_exec_id,
+)
+from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.reconciliation import reconcile_book_equity
+from trading.services.execution.risk import (
+    persist_book_risk_snapshot,
+    persist_normalized_risk_decisions,
+)
+from trading.services.execution.selection.book_intents import generate_book_trade_intents
+from trading.services.execution.selection.selection import (
+    FeatureHistoryFn,
+    build_feature_history_fn,
+)
+from trading.services.execution.submission import submit_book_intents
+from trading.services.market_data import MarketDataProvider
+from trading.services.operational_settings import enforce_runtime_trade_throttles
 
 logger = logging.getLogger(__name__)
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from trading.models.execution.risk_gate_constants import (
+    DEFAULT_MAX_BOOK_NOTIONAL_PCT,
     DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE,
     DEFAULT_MAX_SECTOR_CONCENTRATION_PCT,
-    DEFAULT_MAX_BOOK_NOTIONAL_PCT,
     DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT,
 )
 

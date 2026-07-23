@@ -9,8 +9,8 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
 from trading.models import AccountRecord
+from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
 from trading.services.accounts import get_account
 from trading.services.evaluation.evidence import (
     build_backtest_evidence,

@@ -4,8 +4,8 @@ from collections.abc import Mapping
 
 from common.coercion import coerce_bool, coerce_int
 from trading.domain.exceptions import ValidationError
-from trading.domain.strategies.resolution import validate_strategy_name
 from trading.domain.rotation import parse_rotation_schedule
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.rotation.rotation_config import BookRotationConfig
 
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 import sqlite3
 
 from trading.domain.exceptions import ValidationError
+from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.models import AccountRecord, EquitySnapshotRecord
 
 
 def _normalize_account_name(name: str) -> str:

@@ -9,7 +9,6 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 

@@ -2,11 +2,11 @@ import pytest
 
 import trading.services.execution.ledger.mutations as accounting_mutations
 from common.time import utc_now_iso
-from trading.services.execution.ledger import list_account_trades, record_trade
+from trading.repositories.books import BookRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.books.book_assignments import get_default_book
+from trading.services.execution.ledger import list_account_trades, record_trade
 from trading.services.operational_settings import set_runtime_throttle_settings
-from trading.repositories.books import BookRepository
 
 
 class TestRecordTrade:

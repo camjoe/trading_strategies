@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock
 
-from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_snapshot as module
+from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 
 
 def test_retry_delay_seconds_doubles_each_attempt() -> None:

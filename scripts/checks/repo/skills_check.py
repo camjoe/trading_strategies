@@ -6,7 +6,6 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
-
 # Validates the two mechanical invariants of the skills surface (docs/conventions/
 # documentation-maintenance.md, principle 2):
 #   1. The AGENTS.md "Current skill inventory" table matches the .ai/skills/ folders on disk,

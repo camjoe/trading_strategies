@@ -1,9 +1,9 @@
 import pytest
 
 import trading.backtesting.backtest as backtest_module
+from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
 from trading.backtesting.models import BacktestBatchConfig
 from trading.backtesting.report_models import BacktestLeaderboardEntry
-from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
 
 
 class TestBacktestLeaderboardAndBatch:

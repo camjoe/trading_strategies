@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from trading.services.accounts import create_account
 from trading.repositories.strategies import StrategyRepository
+from trading.services.accounts import create_account
 
 
 @pytest.fixture

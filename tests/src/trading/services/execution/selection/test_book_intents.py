@@ -6,12 +6,12 @@ from unittest.mock import Mock
 import pandas as pd
 
 import trading.services.execution.selection.book_intents as book_intents
+from tests.support.books import assign_test_book_strategy, insert_test_book
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.accounts import get_account
-from tests.support.repositories import insert_repository_account
-from tests.support.books import assign_test_book_strategy, insert_test_book
 
 
 def _insert_book(

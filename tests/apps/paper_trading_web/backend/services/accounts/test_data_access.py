@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from paper_trading_web.backend.services.accounts import data_access as account_data_access
+
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 
 

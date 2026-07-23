@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import infrastructure.brokers.ib_web_adapter as ib_web_adapter_module
+from infrastructure.brokers.ib_web import IbWebApiContract
 from infrastructure.brokers.ib_web_adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
@@ -12,9 +13,8 @@ from infrastructure.brokers.ib_web_adapter import (
     _select_ledger_row,
     _summary_amount,
 )
-from infrastructure.brokers.ib_web import IbWebApiContract
-from trading.models.orders.broker_order import OrderStatus, OrderType
 from tests.support.brokers import make_broker_order
+from trading.models.orders.broker_order import OrderStatus, OrderType
 
 
 class TestInteractiveBrokersWebAdapter:
