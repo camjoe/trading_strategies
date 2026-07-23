@@ -71,10 +71,14 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 |---|---|
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
+| `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
+| `daily/paper_trading/run_context.py` | Resolves accounts, trade caps, artifact paths, and run metadata into the daily workflow context |
+| `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
+| `daily/paper_trading/workflow.py` | Daily DAG orchestration, artifact writing, notifications, and success/failure handling |
 | `daily/snapshot.py` | Daily equity snapshot job |
 | `daily/backtest_refresh.py` | Daily job that re-runs only stale/missing backtests across each account's rotation candidates (incumbent + challengers) |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
