@@ -495,6 +495,7 @@ def test_main_rejects_unknown_account_trade_cap_overrides(
 
 def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, tmp_path: Path) -> None:
     import builtins
+
     import common.paths.repo_paths as repo_paths_module
 
     original_import = builtins.__import__

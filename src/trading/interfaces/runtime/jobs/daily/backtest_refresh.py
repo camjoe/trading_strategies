@@ -16,17 +16,17 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from trading.backtesting.services import find_stale_backtests
 from trading.domain.backtest_freshness import DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS
+from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
-    AttemptOutcome,
     CLI_MAIN_MODULE,
+    AttemptOutcome,
     run_command,
     run_command_with_retry,
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
-from trading.backtesting.services import find_stale_backtests
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
-from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 JOB_NAME = "daily_backtest_refresh"
 COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL

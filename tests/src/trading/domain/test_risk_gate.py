@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from trading.domain.risk_gate import evaluate_risk_gate, resolve_sector_for_symbol
-from trading.models.execution.risk_gate_position import RiskGatePosition
-from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.models.execution.risk_gate_config import RiskGateConfig
+from trading.models.execution.risk_gate_position import RiskGatePosition
 
 
 def _intent(*, book_id: int, side: str, symbol: str, qty: int, price: float) -> BookTradeCandidate:

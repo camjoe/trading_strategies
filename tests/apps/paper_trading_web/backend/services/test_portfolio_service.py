@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Callable
 
 from paper_trading_web.backend.services.portfolio import build_portfolio_rollup_payload
+
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

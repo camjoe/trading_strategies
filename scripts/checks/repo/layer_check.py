@@ -24,7 +24,6 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
-
 # ---------------------------------------------------------------------------
 # Rules — edit this table to add or change layer constraints.
 # ---------------------------------------------------------------------------

@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Callable, Mapping
 from unittest.mock import Mock
 
+from tests.support.account_records import make_account_record, make_book_record
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.accounts.account_state import AccountState
 from trading.models.orders.broker_order import OrderStatus
-from tests.support.account_records import make_account_record, make_book_record
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
 MARKET_CLOSED_TIME_ISO = "2026-03-15T15:00:00Z"

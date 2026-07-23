@@ -4,7 +4,6 @@ import datetime as dt
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-
 DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
     ("00_ingest_market_and_account", "Ingest market and account context"),
     ("01_mark_book_nav", "Mark book NAV"),

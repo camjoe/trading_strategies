@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks.docs.db_schema_check import (
     DB_SCHEMA_DOC_REL,
     QR_TABLE_RE,

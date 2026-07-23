@@ -4,8 +4,7 @@ import random
 
 import pandas as pd
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
+from hypothesis import given, settings, strategies as st
 
 from trading.domain.strategies import resolution
 from trading.domain.strategies.registry import available_strategy_ids

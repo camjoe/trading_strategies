@@ -10,9 +10,9 @@ import pytest
 
 import infrastructure.market_data as market_data
 import infrastructure.market_data.yfinance_provider as provider_module
-from infrastructure.market_data.unavailable_provider import UnavailableProvider
-from infrastructure.market_data.factory import resolve_provider_name
 from infrastructure.market_data.cache import _MARKET_DATA_CACHE_TTL_SECONDS
+from infrastructure.market_data.factory import resolve_provider_name
+from infrastructure.market_data.unavailable_provider import UnavailableProvider
 
 
 def test_default_provider_is_yfinance() -> None:

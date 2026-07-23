@@ -1,6 +1,6 @@
 from __future__ import annotations
+
 from trading.domain.accounting import compute_account_state
-from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.auto_trading_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
@@ -11,15 +11,16 @@ from trading.domain.auto_trading_policy import (
     estimate_option_premium,
     option_candidate_allowed,
 )
-from trading.domain.returns import safe_return_pct
-from trading.domain.rotation import (
-    dump_rotation_schedule,
-    parse_rotation_schedule,
-)
 from trading.domain.book_accounting import (
     apply_book_fill_transition,
     compute_book_equity,
     normalize_book_order_input,
+)
+from trading.domain.exceptions import AccountAlreadyExistsError
+from trading.domain.returns import safe_return_pct
+from trading.domain.rotation import (
+    dump_rotation_schedule,
+    parse_rotation_schedule,
 )
 
 __all__ = [

@@ -10,11 +10,11 @@ import sqlite3
 
 from common.coercion import row_expect_int, row_float
 from common.time import utc_now_iso
-from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.domain.portfolio_math import alpha_pct, benchmark_available, strategy_return_pct
 from trading.models import AccountRecord
 from trading.models.books.book_record import BookRecord
+from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.repositories.books import BookRepository
-from trading.services.market_data import MarketDataProvider
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
@@ -24,15 +24,15 @@ from trading.services.accounts import (
     list_account_records,
     list_account_snapshots,
 )
-from trading.services.books.book_assignments import active_strategy_for_account
-from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.domain.portfolio_math import alpha_pct, benchmark_available, strategy_return_pct
-from trading.services.market_data.lookups import benchmark_stats
 from trading.services.analysis.portfolio import (
     build_account_return_summary,
     build_account_stats,
     infer_overall_trend,
 )
+from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
+from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.lookups import benchmark_stats
 
 # Compare output shows at most this many individual positions before truncating.
 POSITION_SUMMARY_LIMIT = 5

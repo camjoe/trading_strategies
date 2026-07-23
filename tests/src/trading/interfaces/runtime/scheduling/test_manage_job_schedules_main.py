@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
+
 import pytest
 
 from tests.src.trading.interfaces.helpers import run_module_as_main

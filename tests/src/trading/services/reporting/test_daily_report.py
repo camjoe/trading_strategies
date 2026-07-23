@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.books import assign_test_book_strategy
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.reporting.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
     build_account_daily_report,
 )
-from tests.support.repositories import insert_repository_account
-from tests.support.books import assign_test_book_strategy
 
 REPORT_DATE = "2026-05-07"
 

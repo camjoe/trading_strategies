@@ -14,12 +14,12 @@ from trading.models.execution.book_trade_state import BookTradeState
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
+from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_trade_selection
 from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
 )
 from trading.services.universe import resolve_named_universes
-from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_trade_selection
 
 logger = logging.getLogger(__name__)
 

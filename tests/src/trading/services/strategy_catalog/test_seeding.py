@@ -9,12 +9,12 @@ from infrastructure.database.backend import SQLiteBackend, get_backend, set_back
 from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.repositories.strategies import StrategyRepository
-from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_settings import (
     BookRotationSettingsRepository,
 )
+from trading.repositories.books import BookRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
 
 NOW = "2026-07-03T12:00:00Z"

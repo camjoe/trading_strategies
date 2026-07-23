@@ -7,10 +7,10 @@ from typing import Callable, Mapping, Protocol, cast
 
 import pandas as pd
 
-from common.coercion import row_int
-from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 import trading.domain.auto_trading_policy as auto_trader_policy
+from common.coercion import row_int
 from trading.domain.feature_provider import FeatureFetcherSet
+from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 
 logger = logging.getLogger(__name__)
 

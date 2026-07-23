@@ -15,9 +15,9 @@ import pytest
 
 from infrastructure.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
 from infrastructure.brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
-from infrastructure.brokers.legacy.ib_client import IBClientProtocol, IbApiClient, IbAsyncClient
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
+from infrastructure.brokers.legacy.ib_client import IbApiClient, IbAsyncClient, IBClientProtocol
 from tests.support.account_records import make_account_record
+from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
 
 
 def _make_account(**kwargs):

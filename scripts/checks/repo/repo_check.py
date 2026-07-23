@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks._runner import CheckStep, run_check_steps
 from scripts.checks.repo.layer_check import run_layer_check
 from scripts.checks.repo.live_safety_check import run_live_safety_check

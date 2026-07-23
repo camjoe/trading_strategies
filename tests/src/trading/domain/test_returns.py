@@ -1,8 +1,7 @@
 import math
 
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
+from hypothesis import given, settings, strategies as st
 
 from trading.domain.returns import safe_return_pct
 

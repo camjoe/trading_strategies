@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 
 from tests.support.strategies import ensure_strategy_id_for_label
-from trading.services.accounts import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
@@ -17,6 +16,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_latest_backtest_run_id_for_account_strategy,
     fetch_recent_backtest_runs,
 )
+from trading.services.accounts import create_account
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:

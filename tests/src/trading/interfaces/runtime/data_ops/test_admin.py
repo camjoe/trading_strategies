@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 import pytest
 
-
 import infrastructure.database.connection as db_init
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from tests.support.db_schema import build_db_at_head

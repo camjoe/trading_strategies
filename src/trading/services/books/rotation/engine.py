@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
 import json
 import sqlite3
+from dataclasses import dataclass
+from datetime import timedelta
 
-from common.time import parse_utc_iso
-from common.time import utc_now_iso
-from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
+from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation import parse_rotation_schedule
 from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
 from trading.models.rotation.rotation_decision import RotationDecision
@@ -18,6 +16,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
+from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
 DEFAULT_ROLLING_WINDOW_DAYS = 30
 DEFAULT_MIN_TRADES_IN_WINDOW = 20

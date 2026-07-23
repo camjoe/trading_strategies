@@ -4,9 +4,8 @@ import sqlite3
 from collections.abc import Sequence
 
 from common.time import utc_now_iso
-from trading.repositories.unit_of_work import unit_of_work
-from trading.domain.broker_connection import BrokerConnection
 from trading.domain.book_accounting import apply_book_fill_transition
+from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.submission_result import SubmissionResult
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus
@@ -14,6 +13,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
 

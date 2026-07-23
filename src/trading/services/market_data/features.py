@@ -8,10 +8,7 @@ import pandas as pd
 
 from common.tickers import load_ticker_categories
 
-from .protocols import FeatureBundle
-from .protocols import FeatureDataProvider
-from .protocols import MarketDataProvider
-from .protocols import require_provider
+from .protocols import FeatureBundle, FeatureDataProvider, MarketDataProvider, require_provider
 
 
 class ProxyFeatureDataProvider(FeatureDataProvider):

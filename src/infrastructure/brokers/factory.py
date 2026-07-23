@@ -15,11 +15,11 @@ kept available, but it is not the primary IBKR path for current development.
 
 from __future__ import annotations
 
-from trading.domain.broker_connection import BrokerConnection
-from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
-from infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from infrastructure.brokers.ib_web import InteractiveBrokersWebClient, load_ib_web_api_settings
+from infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from infrastructure.brokers.legacy.factory import build_legacy_ib_broker
+from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
+from trading.domain.broker_connection import BrokerConnection
 from trading.models import AccountRecord
 
 # Broker type identifiers stored in accounts.broker_type column.

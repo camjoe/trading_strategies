@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.models.execution.risk_gate_decision import RiskGateDecision
 
 
 @dataclass(frozen=True, slots=True)

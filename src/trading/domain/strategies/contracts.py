@@ -5,7 +5,6 @@ from typing import Any, Callable, Mapping
 
 import pandas as pd
 
-
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
 

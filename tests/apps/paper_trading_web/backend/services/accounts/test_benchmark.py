@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
 
 import trading.services.analysis.benchmark as analysis_benchmark
-from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 
 

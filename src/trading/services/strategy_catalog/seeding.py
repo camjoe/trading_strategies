@@ -18,9 +18,9 @@ import sqlite3
 from common.coercion import row_expect_float, row_expect_int
 from common.time import utc_now_iso
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.repositories.strategies import StrategyRepository
-from trading.repositories.books import BookRepository
 from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.books import BookRepository
+from trading.repositories.strategies import StrategyRepository
 
 
 def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:

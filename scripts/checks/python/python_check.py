@@ -5,12 +5,11 @@ import subprocess
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks._runner import CheckStep, resolve_python_exe, run_check_steps
 from scripts.checks.python.function_complexity_check import run_function_complexity_check
 from scripts.checks.python.mypy_check import run_mypy
-from scripts.checks.python.pytest_check import run_pytest
 from scripts.checks.python.public_api_test_evidence_check import run_public_api_test_evidence_check
+from scripts.checks.python.pytest_check import run_pytest
 from scripts.checks.python.python_conventions_check import run_python_conventions_check
 from scripts.checks.python.ruff_check import run_ruff
 from scripts.checks.run_suite import run_suite_targeted

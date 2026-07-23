@@ -6,15 +6,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
+from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
     logs_dir_for_repo,
     ts,
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
-from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL
-from trading.services.analysis import fetch_latest_risk_snapshot
 from trading.services.accounts.queries import find_account
+from trading.services.analysis import fetch_latest_risk_snapshot
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)

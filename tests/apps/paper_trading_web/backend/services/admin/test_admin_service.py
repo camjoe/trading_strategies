@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import pytest
-
-from common.time import utc_now_iso
 from paper_trading_web.backend.services import admin as services_admin
 from paper_trading_web.backend.services.admin import create_account_with_rotation
+
+from common.time import utc_now_iso
 from trading.domain import AccountAlreadyExistsError
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:

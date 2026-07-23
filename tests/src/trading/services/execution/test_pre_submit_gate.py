@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import Sequence
 from types import SimpleNamespace
 
+from tests.support.repositories import insert_repository_account
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.repositories.books import BookRepository
@@ -16,7 +17,6 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
 )
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
-from tests.support.repositories import insert_repository_account
 
 RUN_TIME = "2026-07-05T12:00:00Z"
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 # Top-level `status` vocabulary written to daily paper-trading run artifacts
 # (local/exports/daily_paper_trading/*.json) and read by the burn-in readiness scan.
 # Distinct from the per-step statuses ("ok" | "skipped" | "failed") inside step_results.

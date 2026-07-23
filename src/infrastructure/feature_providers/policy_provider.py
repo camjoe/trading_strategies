@@ -10,13 +10,13 @@ import pandas as pd
 import yfinance as yf
 
 from trading.domain.feature_provider import (
-    ExternalFeatureBundle,
-    ExternalFeatureProvider,
     POLICY_DEFENSIVE_TILT,
     POLICY_MAX_DEFENSIVE_TILT,
     POLICY_RISK_OFF_SELL_THRESHOLD,
     POLICY_RISK_ON_BUY_THRESHOLD,
     POLICY_RISK_ON_SCORE,
+    ExternalFeatureBundle,
+    ExternalFeatureProvider,
 )
 
 _LOG = logging.getLogger(__name__)

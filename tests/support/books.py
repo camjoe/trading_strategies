@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from tests.support.repositories import insert_repository_account
 from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import assign_book_strategy
-from tests.support.repositories import insert_repository_account
 
 DEFAULT_BOOK_TIMESTAMP = "2026-05-03T00:00:00Z"
 

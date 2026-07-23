@@ -16,6 +16,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_latest_walk_forward_group_for_account_strategy,
     fetch_walk_forward_group_runs,
 )
+from trading.domain.backtest_freshness import assess_backtest_freshness
 from trading.domain.evaluation_confidence import (
     EvaluationConfidenceSettings,
     compute_backtest_confidence,
@@ -23,6 +24,8 @@ from trading.domain.evaluation_confidence import (
     compute_overall_confidence,
     compute_paper_live_confidence,
 )
+from trading.domain.returns import safe_return_pct
+from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
@@ -31,9 +34,6 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
-from trading.domain.backtest_freshness import assess_backtest_freshness
-from trading.domain.returns import safe_return_pct
-from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

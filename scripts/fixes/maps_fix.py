@@ -6,9 +6,7 @@ from pathlib import Path
 
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks.docs.maps_check import MAP_SPECS, iter_table_row_paths
-
 
 # Fix counterpart of scripts.checks.docs.maps_check. Only the fully mechanical half of map
 # drift is fixable: a table row whose every `.py` token points at a deleted file carries no

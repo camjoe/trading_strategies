@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-
 from scripts.checks._runner import CheckStep, resolve_npm_exe, resolve_python_exe, run_check_steps, run_step
 from scripts.checks.docs.docs_check import run_docs_check
 from scripts.checks.python.python_check import run_python_check

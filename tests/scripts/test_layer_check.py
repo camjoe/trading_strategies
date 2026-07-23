@@ -14,7 +14,6 @@ from scripts.checks.repo.layer_check import (
     run_layer_check,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 

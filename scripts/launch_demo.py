@@ -11,9 +11,8 @@ import sys
 from pathlib import Path
 
 from infrastructure.database.migration_runner import upgrade
-from trading.services.demo import seed_demo_database
-
 from scripts import launch_ui
+from trading.services.demo import seed_demo_database
 
 DEMO_DATABASE_NAME = "demo.db"
 PREPARING_DATABASE_NAME = "demo.preparing.db"

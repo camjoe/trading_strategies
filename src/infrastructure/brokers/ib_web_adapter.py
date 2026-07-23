@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import time
 
+from common.coercion import coerce_bool, coerce_float
 from common.time import utc_now_iso
+from infrastructure.brokers.ib_web import InteractiveBrokersWebClient
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType
-from infrastructure.brokers.ib_web import InteractiveBrokersWebClient
-from common.coercion import coerce_bool, coerce_float
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (

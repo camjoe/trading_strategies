@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.unit_of_work import commit_unit_of_work
 from trading.models.orders.order_record import OrderRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class BookAccountMismatchError(ValueError):

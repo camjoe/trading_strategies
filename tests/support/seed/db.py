@@ -43,6 +43,12 @@ from tests.support.seed.accounts import (
     seed_global_settings,
 )
 from tests.support.seed.backtesting import BACKTEST_RUN_NAME, seed_backtest_run
+from tests.support.seed.book_data import (
+    BOOK_METRIC_DATE,
+    BOOK_STRATEGY,
+    BOOK_TREND,
+    seed_books,
+)
 from tests.support.seed.promotion_review import seed_promotion_review
 from tests.support.seed.reporting import (
     SNAPSHOT_T1,
@@ -53,12 +59,6 @@ from tests.support.seed.reporting import (
     TRADE_SELL_AAPL,
     seed_snapshots,
     seed_trades,
-)
-from tests.support.seed.book_data import (
-    BOOK_METRIC_DATE,
-    BOOK_STRATEGY,
-    BOOK_TREND,
-    seed_books,
 )
 
 

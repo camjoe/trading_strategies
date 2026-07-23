@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
+from trading.domain.promotion_policy import PromotionPolicySettings
+from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
@@ -14,10 +17,6 @@ from trading.services.operational_settings.queries import (
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,
 )
-from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
-from trading.domain.promotion_policy import PromotionPolicySettings
-from trading.repositories.global_settings import GlobalSettingsRepository
-
 
 # ---------------------------------------------------------------------------
 # fetch_runtime_throttle_settings

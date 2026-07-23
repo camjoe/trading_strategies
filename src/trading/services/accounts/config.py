@@ -9,8 +9,8 @@ from common.coercion import (
     row_int,
     row_str,
 )
-from trading.domain.exceptions import ValidationError
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
+from trading.domain.exceptions import ValidationError
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}

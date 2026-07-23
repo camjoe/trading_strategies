@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 
 import trading.services.books.rotation.engine as rotation_service
-
+from tests.support.books import assign_test_book_strategy, insert_test_book
+from tests.support.repositories import insert_repository_account
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
@@ -12,8 +13,6 @@ from trading.services.books.rotation.engine import (
     RotationPolicyConfig,
     evaluate_and_apply_book_rotation,
 )
-from tests.support.repositories import insert_repository_account
-from tests.support.books import assign_test_book_strategy, insert_test_book
 
 
 def _insert_book(conn, *, account_id: int, name: str = "core") -> int:

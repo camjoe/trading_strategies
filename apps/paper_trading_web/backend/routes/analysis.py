@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ..services.accounts.data_access import require_account_row
-from ..services.db import db_conn
 from infrastructure.market_data.factory import build_provider
 from trading.services.analysis import fetch_account_analysis
+
+from ..services.accounts.data_access import require_account_row
+from ..services.db import db_conn
 
 router = APIRouter()
 

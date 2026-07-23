@@ -7,16 +7,15 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from infrastructure.feature_providers.news_provider import (
+    _MAX_TOTAL_RSS_HEADLINES,
+    _MIN_HEADLINE_THRESHOLD,
     NEWS_HEADLINE_COUNT,
     NEWS_SENTIMENT_SCORE,
     NewsFeatureProvider,
-    _MIN_HEADLINE_THRESHOLD,
-    _MAX_TOTAL_RSS_HEADLINES,
 )
 from trading.domain.strategies.registry import STRATEGY_REGISTRY
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.domain.strategies.signals.alternative import _news_sentiment_signal
-
 
 # ---------------------------------------------------------------------------
 # Helpers

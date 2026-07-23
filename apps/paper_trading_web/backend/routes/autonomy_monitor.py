@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ..services.db import db_conn
 from ..services.autonomy_monitor import (
     fetch_autonomy_account_data,
     fetch_autonomy_accounts_list,
 )
+from ..services.db import db_conn
 
 router = APIRouter()
 

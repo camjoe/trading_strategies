@@ -4,9 +4,9 @@ import sqlite3
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from tests.support.repositories import insert_repository_account
 
 
 def _insert_decision(

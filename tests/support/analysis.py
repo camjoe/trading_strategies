@@ -39,7 +39,6 @@ def record_analysis_buy(
     price: float,
 ) -> None:
     from common.time import utc_now_iso
-
     from tests.support.fills import seed_fill_event
 
     seed_fill_event(

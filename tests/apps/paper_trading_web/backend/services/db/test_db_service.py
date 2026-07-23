@@ -3,9 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from paper_trading_web.backend.services import db as services_db, require_account_row
 
-from paper_trading_web.backend.services import require_account_row
-from paper_trading_web.backend.services import db as services_db
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import get_latest_account_snapshot

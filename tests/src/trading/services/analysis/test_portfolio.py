@@ -1,10 +1,10 @@
 import pytest
 
+from tests.support.reporting import insert_snapshot, insert_trade
+from tests.support.seed.db import ACCT_MOMENTUM
 from trading.models import AccountConfig
 from trading.services.accounts import create_account, format_goal_text, get_account
 from trading.services.analysis import build_account_stats, infer_overall_trend
-from tests.support.reporting import insert_snapshot, insert_trade
-from tests.support.seed.db import ACCT_MOMENTUM
 
 
 def test_build_account_stats_uses_price_map(analysis_account, conn, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -9,21 +9,20 @@ test-infrastructure fixture, not any production behaviour.
 
 from __future__ import annotations
 
-from trading.repositories.daily_metrics import DailyMetricsRepository
-
 from tests.support.seed.db import (
     ACCT_LOCAL,
     ACCT_MOMENTUM,
     ACCT_TREND,
     BACKTEST_RUN_NAME,
-    PROMOTION_STRATEGY,
     BOOK_METRIC_DATE,
     BOOK_STRATEGY,
     BOOK_TREND,
+    PROMOTION_STRATEGY,
     SNAPSHOT_T1,
     SNAPSHOT_T2,
     SNAPSHOT_T3,
 )
+from trading.repositories.daily_metrics import DailyMetricsRepository
 
 
 class TestSeededAccounts:

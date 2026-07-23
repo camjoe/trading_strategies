@@ -15,9 +15,8 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
-
 from dataclasses import dataclass
+from pathlib import Path
 
 from alembic import command
 from alembic.config import Config

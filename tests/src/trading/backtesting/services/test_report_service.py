@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.backtesting.backtest import run_backtest
 import trading.backtesting.services.report_service as report_service
-from trading.backtesting.report_models import BacktestFullReport
 from tests.support.backtesting import create_backtest_account, make_backtest_config
+from trading.backtesting.backtest import run_backtest
+from trading.backtesting.report_models import BacktestFullReport
 
 
 def test_report_service_contract_builds_typed_model(

@@ -6,8 +6,7 @@ import sqlite3
 from datetime import timedelta
 from typing import Callable
 
-from common.time import as_utc_iso
-from common.time import parse_utc_iso
+from common.time import as_utc_iso, parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.orders import OrderRepository
 from trading.services.operational_settings.models import RuntimeThrottleSettings

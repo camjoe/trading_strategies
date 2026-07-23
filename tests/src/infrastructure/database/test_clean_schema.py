@@ -5,10 +5,10 @@ Covers the additive clean-schema tables. Colliding legacy tables
 to their clean shapes separately.
 """
 
+import sqlite3
 from pathlib import Path
 
 import pytest
-import sqlite3
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.connection import ensure_db

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from trading.domain.exceptions import ValidationError
 from infrastructure.market_data.factory import build_provider
-from trading.services.execution.ledger import list_account_trades
+from trading.domain.exceptions import ValidationError
 from trading.services.accounts import list_account_snapshots
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
+from trading.services.execution.ledger import list_account_trades
 
-from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
+from ..account_options import get_account_config_options
 from ..schemas import AccountParamsRequest
 from ..services.accounts.backtests import (
     fetch_latest_backtest_metrics,

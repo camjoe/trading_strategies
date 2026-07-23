@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
-from datetime import date
 from collections.abc import Mapping
+from datetime import date
 from typing import Any, Callable, cast
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
@@ -16,11 +16,11 @@ from trading.backtesting.domain.simulation_math import (
     update_on_sell,
 )
 from trading.backtesting.domain.windowing import shift_months
-from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
-from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
+from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 from trading.repositories.unit_of_work import unit_of_work
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]

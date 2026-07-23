@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.src.trading.interfaces.cli.helpers import configure_account_args, install_main_harness
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from trading.interfaces.cli import main as cli_main
-from tests.src.trading.interfaces.cli.helpers import configure_account_args, install_main_harness
 
 
 def test_main_trade_dispatches_and_closes_connection(monkeypatch, capsys) -> None:

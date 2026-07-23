@@ -4,7 +4,6 @@ import types
 
 import pytest
 
-from trading.services.operational_settings.models import RuntimeThrottleSettings
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
     handle_configure_book_rotation,
@@ -13,6 +12,7 @@ from trading.interfaces.cli.handlers.settings_handlers import (
     handle_configure_promotion,
     handle_configure_throttle,
 )
+from trading.services.operational_settings.models import RuntimeThrottleSettings
 
 
 def _parser():

@@ -5,13 +5,13 @@ import pytest
 
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.execution_service as execution_service
+from tests.support.backtesting import create_backtest_account, make_backtest_config
 from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,
     BacktestReportTrade,
 )
-from tests.support.backtesting import create_backtest_account, make_backtest_config
 
 
 class TestBacktestRunFlow:

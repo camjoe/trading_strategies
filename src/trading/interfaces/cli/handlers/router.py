@@ -14,25 +14,13 @@ from trading.interfaces.cli.handlers.accounts_handlers import (
 )
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
-    handle_refresh_stale_backtests,
     handle_backtest_batch,
     handle_backtest_leaderboard,
-    handle_backtest_report,
     handle_backtest_optimize,
+    handle_backtest_report,
     handle_backtest_walk_forward,
     handle_backtest_walk_forward_report,
-)
-from trading.interfaces.cli.handlers.settings_handlers import (
-    handle_configure_book_rotation,
-    handle_configure_book_rotation_policy,
-    handle_configure_evaluation,
-    handle_configure_promotion,
-    handle_configure_throttle,
-)
-from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
-    handle_configure_strategy,
-    handle_create_strategy_variant,
-    handle_freeze_strategy,
+    handle_refresh_stale_backtests,
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
@@ -47,7 +35,18 @@ from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_snapshot,
     handle_snapshot_history,
 )
-
+from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_configure_book_rotation,
+    handle_configure_book_rotation_policy,
+    handle_configure_evaluation,
+    handle_configure_promotion,
+    handle_configure_throttle,
+)
+from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
+    handle_configure_strategy,
+    handle_create_strategy_variant,
+    handle_freeze_strategy,
+)
 
 COMMAND_HANDLERS = {
     "init": handle_init,

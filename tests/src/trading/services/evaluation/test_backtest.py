@@ -2,13 +2,13 @@ import sqlite3
 
 import pytest
 
-from trading.services.evaluation import fetch_strategy_evaluation
 from tests.support.evaluation import (
     insert_account_snapshot,
     insert_backtest_run,
     insert_backtest_snapshot,
     insert_backtest_trade,
 )
+from trading.services.evaluation import fetch_strategy_evaluation
 
 
 def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(

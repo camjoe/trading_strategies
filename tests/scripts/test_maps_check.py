@@ -18,7 +18,6 @@ from scripts.checks.docs.maps_check import (
     run_maps_check,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 

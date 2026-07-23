@@ -10,13 +10,13 @@ import sqlite3
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
+from trading.domain.portfolio_math import strategy_return_pct
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import list_report_books
-from trading.domain.portfolio_math import strategy_return_pct
 
 # Accounts the system runs autonomously (vs "local" research accounts).
 _MANAGED_ACCOUNT_KIND = "managed"

@@ -4,8 +4,8 @@ import datetime as dt
 import sqlite3
 from pathlib import Path
 
-from paper_trading_web.backend.services import operations as services_operations
-from paper_trading_web.backend.services import promotion as services_promotion
+from paper_trading_web.backend.services import operations as services_operations, promotion as services_promotion
+
 from trading.models.evaluation import StrategyEvaluationArtifact
 
 

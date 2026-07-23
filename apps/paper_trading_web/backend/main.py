@@ -8,14 +8,14 @@ from trading.domain.exceptions import NotFoundError, ValidationError
 
 from .config import CORS_ORIGINS
 from .routes import (
-    actions_router,
     accounts_router,
+    actions_router,
     admin_router,
     analysis_router,
+    autonomy_monitor_router,
     backtests_router,
     features_router,
     health_router,
-    autonomy_monitor_router,
     logs_router,
     portfolio_router,
 )

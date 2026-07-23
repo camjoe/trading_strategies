@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
-import sqlite3
 
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
+from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
-from trading.repositories.orders import OrderRepository, BookAccountMismatchError
+from trading.repositories.orders import BookAccountMismatchError, OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
-from trading.repositories.books import BookRepository
-from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
 
 NOW = "2026-07-03T12:00:00Z"
 

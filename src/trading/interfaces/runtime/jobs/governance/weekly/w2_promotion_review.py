@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
+from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionAccountPayload,
     WeeklyPromotionArtifactPayload,
@@ -17,9 +18,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     ts,
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
-from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
-from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
+from trading.services.books.book_assignments import list_report_books
 from trading.services.promotion.assessment import fetch_current_promotion_assessment
 
 REPO_ROOT = get_repo_root(__file__)

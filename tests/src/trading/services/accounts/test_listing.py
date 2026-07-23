@@ -1,12 +1,12 @@
 import pytest
 
+from tests.support.account_records import make_book_record
+from tests.support.accounts import make_accounts_service_row
 from trading.services.accounts import (
     build_account_listing_lines,
     format_account_policy_text,
     format_goal_text,
 )
-from tests.support.account_records import make_book_record
-from tests.support.accounts import make_accounts_service_row
 
 
 class TestFormatGoalText:

@@ -1,12 +1,12 @@
 import pytest
 
-from trading.services.accounts import create_account, get_account
-from trading.services.evaluation import fetch_strategy_evaluation
 from tests.support.evaluation import (
     insert_backtest_run,
     insert_backtest_snapshot,
     insert_walk_forward_grouping,
 )
+from trading.services.accounts import create_account, get_account
+from trading.services.evaluation import fetch_strategy_evaluation
 
 
 def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_grouped_runs(conn) -> None:

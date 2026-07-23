@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.support.books import assign_test_book_strategy, insert_test_book
+from tests.support.repositories import insert_repository_account
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.services.books.book_assignments import (
     active_strategy_for_account,
@@ -9,8 +11,6 @@ from trading.services.books.book_assignments import (
     open_assignment_for_book,
     sync_default_book_assignment,
 )
-from tests.support.repositories import insert_repository_account
-from tests.support.books import assign_test_book_strategy, insert_test_book
 
 NOW = "2026-05-05T12:00:00Z"
 

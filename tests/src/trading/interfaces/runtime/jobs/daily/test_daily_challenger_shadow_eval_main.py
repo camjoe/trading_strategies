@@ -8,9 +8,6 @@ from pathlib import Path
 import pytest
 
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
-from trading.interfaces.runtime.jobs.job_helpers import day_tag
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.services.books.rotation.challenger_evaluation import ChallengerEvaluationRun, BookChallengerEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE as MODULE_NAME,
@@ -19,6 +16,9 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     run_runtime_job_main,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import day_tag
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.services.books.rotation.challenger_evaluation import BookChallengerEvaluation, ChallengerEvaluationRun
 
 EXPORT_DIR_PARTS = ("local", "exports", "daily_challenger_shadow_eval")
 ARTIFACT_GLOB = "daily_challenger_shadow_eval_*.json"

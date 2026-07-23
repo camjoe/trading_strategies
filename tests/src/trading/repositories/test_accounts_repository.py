@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from trading.models import AccountInsert
-from trading.repositories.accounts import AccountRepository
 from tests.support.repositories import insert_repository_account
 from tests.support.strategies import ensure_strategy_id_for_label
+from trading.models import AccountInsert
+from trading.repositories.accounts import AccountRepository
 
 
 def _make_account_insert(**overrides: object) -> AccountInsert:

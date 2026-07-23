@@ -2,13 +2,13 @@ from dataclasses import replace
 
 import pytest
 
+from tests.support.promotion import make_ready_evaluation
 from trading.services.promotion import (
+    actions as promotion_actions,
     execute_promotion_review_action,
     execute_promotion_review_request,
     fetch_promotion_review_history,
 )
-from trading.services.promotion import actions as promotion_actions
-from tests.support.promotion import make_ready_evaluation
 
 
 def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str = "trend_v1"):

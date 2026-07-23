@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import sys
 import pytest
 
 import trading.interfaces.runtime.jobs.maintenance.replay_daily_runs as replay_module
@@ -17,7 +17,6 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
-
 
 # ---------------------------------------------------------------------------
 # --as-of-date flag tests (on daily_paper_trading itself)

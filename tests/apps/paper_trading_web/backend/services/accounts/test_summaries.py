@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import pytest
+from paper_trading_web.backend.services.accounts import summaries as account_summaries
+
+from tests.support.account_records import make_account_record
 from trading.models.accounts.account_state import AccountState
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
-import pytest
-
-from paper_trading_web.backend.services.accounts import summaries as account_summaries
-from tests.support.account_records import make_account_record
 
 
 def _account_record(**overrides: object):

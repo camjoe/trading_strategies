@@ -1,12 +1,12 @@
 from unittest.mock import Mock
 
-from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import (
     MARKET_CLOSED_TIME_ISO,
-    make_feature_fetchers,
     make_auto_trading_account,
+    make_feature_fetchers,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:

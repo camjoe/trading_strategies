@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from paper_trading_web.backend.services import backtests as services_backtests
 from paper_trading_web.backend.schemas import (
     BacktestPreflightRequest,
     BacktestRunRequest,
     WalkForwardRunRequest,
 )
+from paper_trading_web.backend.services import backtests as services_backtests
 
 
 def test_build_backtest_config_from_run_request_maps_fields() -> None:

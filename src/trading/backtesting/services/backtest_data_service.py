@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 from trading.services.market_data import MarketDataProvider, require_provider
-from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
 

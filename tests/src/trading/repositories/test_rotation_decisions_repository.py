@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.rotation_decisions import RotationDecisionRepository
-from tests.support.repositories import insert_repository_account
 from tests.support.books import insert_test_book
+from tests.support.repositories import insert_repository_account
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 
 
 def _account_id(conn, name: str = "rot_dec_acct") -> int:

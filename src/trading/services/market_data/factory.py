@@ -10,8 +10,7 @@ no external-library dependency.
 from __future__ import annotations
 
 from .features import ProxyFeatureDataProvider
-from .protocols import FeatureDataProvider
-from .protocols import MarketDataProvider
+from .protocols import FeatureDataProvider, MarketDataProvider
 
 
 def build_feature_provider(

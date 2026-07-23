@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from tests.support.books import (
+    assign_test_book_strategy,
+    insert_test_book,
+    set_test_book_rotation_scheduling,
+)
+from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
@@ -7,12 +13,6 @@ from trading.models.evaluation import (
 )
 from trading.services.accounts import get_account
 from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
-from tests.support.repositories import insert_repository_account
-from tests.support.books import (
-    assign_test_book_strategy,
-    insert_test_book,
-    set_test_book_rotation_scheduling,
-)
 
 # rotation_metrics resolves the evaluation fetch lazily (the one deliberate
 # books -> evaluation back-edge), so patch it on the evaluation package.

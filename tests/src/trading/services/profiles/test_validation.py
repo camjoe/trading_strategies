@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from trading.models.accounts.account_config import AccountConfig
 import trading.services.profiles.application as profiles_application
+from trading.models.accounts.account_config import AccountConfig
 from trading.services.books.rotation.config_parser import parse_book_rotation_config_from_profile
 
 

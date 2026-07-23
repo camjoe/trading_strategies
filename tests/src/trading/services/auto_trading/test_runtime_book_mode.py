@@ -1,29 +1,28 @@
 from __future__ import annotations
 
 import json
-
 from unittest.mock import Mock
 
-from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.books import BookRepository
-from trading.repositories.ledger import LedgerRepository
-from trading.repositories.orders import OrderRepository
-from trading.repositories.positions import PositionRepository
+import trading.services.auto_trading.runtime as runtime_service
+from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
+from tests.support.books import insert_test_book
+from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
     StrategyEvaluationArtifact,
 )
-from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.models.orders.broker_order import OrderFill, OrderStatus
+from trading.repositories.books import BookRepository
+from trading.repositories.ledger import LedgerRepository
+from trading.repositories.orders import OrderRepository
+from trading.repositories.positions import PositionRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.auto_trading.runtime import run_for_account
-import trading.services.auto_trading.runtime as runtime_service
-from trading.services.operational_settings import set_runtime_throttle_settings
-from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
-from tests.support.repositories import insert_repository_account
-from tests.support.books import insert_test_book
 from trading.services.books.book_assignments import open_assignment_for_book
+from trading.services.operational_settings import set_runtime_throttle_settings
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 

@@ -5,7 +5,6 @@ from pathlib import Path
 
 from scripts.documentation_ui.registry_utils import sort_registry_rows
 
-
 SOFTWARE_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/software.json"
 
 

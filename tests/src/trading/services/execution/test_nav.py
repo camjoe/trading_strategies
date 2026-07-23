@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.nav import mark_account_to_market, mark_book_to_market
-from tests.support.repositories import insert_repository_account
 
 AS_OF = "2026-07-05T12:00:00Z"
 
