@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
+from trading.models.books.rotation_decision_record import RotationDecisionRecord
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.unit_of_work import commit_unit_of_work
 
@@ -93,26 +94,28 @@ class RotationDecisionRepository:
             raise ValueError("Expected rotation_decisions id after insert.")
         return int(cursor.lastrowid)
 
-    def fetch_latest_for_book(self, *, book_id: int) -> sqlite3.Row | None:
+    def fetch_latest_for_book(self, *, book_id: int) -> RotationDecisionRecord | None:
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT 1",
             (int(book_id),),
         ).fetchall()
-        return rows[0] if rows else None
+        return RotationDecisionRecord.from_mapping(dict(rows[0])) if rows else None
 
-    def fetch_for_book(self, *, book_id: int, limit: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
+    def fetch_for_book(self, *, book_id: int, limit: int) -> list[RotationDecisionRecord]:
+        rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
             (int(book_id), int(limit)),
         ).fetchall()
+        return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
-    def fetch_for_book_on_date(self, *, book_id: int, report_date: str) -> list[sqlite3.Row]:
+    def fetch_for_book_on_date(self, *, book_id: int, report_date: str) -> list[RotationDecisionRecord]:
         next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
-        return self._conn.execute(
+        rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT
             + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
             (int(book_id), report_date, next_date),
         ).fetchall()
+        return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_selected_strategy_timeline(self, *, book_id: int) -> list[tuple[str, str | None, str | None]]:
         """Return the book's decision log as ``(decision_time, incumbent, selected)`` rows, oldest first.

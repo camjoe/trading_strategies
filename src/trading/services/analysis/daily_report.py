@@ -116,7 +116,7 @@ def _build_risk_violations(
             reason_counts[d.reason_code] = reason_counts.get(d.reason_code, 0) + 1
     top_reason_codes = sorted(reason_counts, key=lambda k: reason_counts[k], reverse=True)[:5]
 
-    snapshot = RiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
+    snapshot = RiskSnapshotRepository(conn).fetch_latest_as_of(account_id=account_id, report_date=report_date)
     kill_switch = snapshot is not None and bool(snapshot.kill_switch_triggered)
 
     return RiskViolationsSummary(
@@ -145,10 +145,10 @@ def _build_rotation_summary(
                 RotationDecisionRow(
                     book_id=book.id,
                     book_name=book.name,
-                    incumbent_strategy=d["incumbent_strategy"],
-                    challenger_strategy=d["challenger_strategy"],
-                    rotation_action=str(d["rotation_action"]),
-                    decision_reason=d["decision_reason"],
+                    incumbent_strategy=d.incumbent_strategy,
+                    challenger_strategy=d.challenger_strategy,
+                    rotation_action=d.rotation_action,
+                    decision_reason=d.decision_reason,
                 )
             )
     return rows

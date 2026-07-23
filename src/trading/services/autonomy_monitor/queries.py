@@ -114,13 +114,13 @@ def _fetch_recent_rotations(conn: sqlite3.Connection, account_id: int) -> list[d
         for rotation_row in rotation_rows:
             all_rotations.append(
                 {
-                    "rotation_id": rotation_row["id"],
+                    "rotation_id": rotation_row.id,
                     "book_id": book.id,
                     "book_name": book.name,
-                    "old_strategy": rotation_row["incumbent_strategy"] or "—",
-                    "new_strategy": rotation_row["challenger_strategy"] or "—",
-                    "decision_time": rotation_row["decision_time"],
-                    "reason": rotation_row["decision_reason"] or "—",
+                    "old_strategy": rotation_row.incumbent_strategy or "—",
+                    "new_strategy": rotation_row.challenger_strategy or "—",
+                    "decision_time": rotation_row.decision_time,
+                    "reason": rotation_row.decision_reason or "—",
                 }
             )
 

@@ -80,8 +80,8 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
 
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
-    assert latest_decision["rotation_action"] == "rotate"
-    assert latest_decision["config_version"] == "cfg-rot-a"
+    assert latest_decision.rotation_action == "rotate"
+    assert latest_decision.config_version == "cfg-rot-a"
 
 
 def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> None:

@@ -181,20 +181,20 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
         _make_book(id=2, name="Value Book"),
     ]
 
-    rotation_1 = {
-        "id": 101,
-        "incumbent_strategy": "momentum",
-        "challenger_strategy": "mean_reversion",
-        "decision_time": "2026-05-10T10:00:00",
-        "decision_reason": "Underperformance",
-    }
-    rotation_2 = {
-        "id": 102,
-        "incumbent_strategy": "div_yield",
-        "challenger_strategy": "growth",
-        "decision_time": "2026-05-11T14:00:00",
-        "decision_reason": "Better alpha",
-    }
+    rotation_1 = SimpleNamespace(
+        id=101,
+        incumbent_strategy="momentum",
+        challenger_strategy="mean_reversion",
+        decision_time="2026-05-10T10:00:00",
+        decision_reason="Underperformance",
+    )
+    rotation_2 = SimpleNamespace(
+        id=102,
+        incumbent_strategy="div_yield",
+        challenger_strategy="growth",
+        decision_time="2026-05-11T14:00:00",
+        decision_reason="Better alpha",
+    )
 
     with patch(
         "trading.services.autonomy_monitor.queries.list_report_books",
