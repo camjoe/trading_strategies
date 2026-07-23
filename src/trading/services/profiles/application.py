@@ -18,7 +18,7 @@ from trading.services.accounts import (
 )
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
 from trading.domain.rotation import dump_rotation_schedule
-from trading.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategies.resolution import validate_strategy_name
 
 
 def load_account_profiles_from_source(source: AccountProfileSource) -> list[dict[str, object]]:

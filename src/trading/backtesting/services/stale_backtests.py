@@ -22,7 +22,7 @@ from trading.domain.backtest_freshness import (
     DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
     assess_backtest_freshness,
 )
-from trading.domain.strategy_signals import resolve_strategy
+from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.accounts.account_record import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.books.book_assignments import enumerate_trading_books

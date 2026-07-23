@@ -19,7 +19,7 @@ from trading.backtesting.models import (
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
-from trading.domain.strategy_signals import resolve_strategy
+from trading.domain.strategies.resolution import resolve_strategy
 from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_run,

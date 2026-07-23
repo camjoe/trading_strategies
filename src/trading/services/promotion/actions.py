@@ -11,7 +11,7 @@ from dataclasses import replace
 
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
-from trading.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PromotionAssessment,

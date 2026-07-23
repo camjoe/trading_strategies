@@ -16,7 +16,7 @@ from trading.backtesting.domain.simulation_math import (
     update_on_sell,
 )
 from trading.backtesting.domain.windowing import shift_months
-from trading.domain.strategy_signals import evaluate_signal, resolve_strategy
+from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty

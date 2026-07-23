@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.rotation import dump_rotation_schedule, parse_rotation_schedule
-from trading.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import default_book_id
