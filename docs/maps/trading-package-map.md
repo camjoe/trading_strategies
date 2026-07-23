@@ -159,6 +159,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
+| `execution/risk_audit.py` | Repository wiring that persists one book run's normalized risk decisions and account risk snapshot |
 | `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
 | `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`, `run_multi_book_mode_for_account`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
@@ -187,6 +188,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/helpers.py` | Shared book service helpers (window math) |
+| `books/rotation/account_rotation.py` | Account-level coordinator for enumerating and applying each book's rotation decision |
 | `books/rotation/engine.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
 | `books/rotation/metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `books/rotation/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
