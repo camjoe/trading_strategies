@@ -179,12 +179,17 @@ class TestBacktestRunFlow:
 
         call_count = {"n": 0}
 
-        def fake_signal(_strategy_name: str, _history: pd.Series) -> str:
+        def fake_signal(
+            _strategy_name: str,
+            _history: pd.Series,
+            _params: dict[str, object],
+            _feature_history: pd.DataFrame | None = None,
+        ) -> str:
             call_count["n"] += 1
             return "hold"
 
         bt_market_data(["AAPL"], [100.0, 101.0])
-        monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
+        monkeypatch.setattr(execution_service, "evaluate_signal", fake_signal)
 
         backtest_module.run_backtest(
             conn,

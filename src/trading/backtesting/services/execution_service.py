@@ -15,7 +15,7 @@ from trading.backtesting.domain.simulation_math import (
     update_on_buy,
     update_on_sell,
 )
-from trading.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.domain.strategy_signals import evaluate_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
@@ -72,6 +72,14 @@ def run_backtest(
         else active_strategy_for_account(conn, account_id)
     )
     strategy_spec = resolve_strategy(strategy_name)
+    # A param override (walk-forward optimizer candidates) is merged over the
+    # strategy's catalog defaults for this run only; the catalog is never mutated.
+    param_override = getattr(cfg, "param_override", None)
+    effective_params = (
+        strategy_spec.default_params
+        if not param_override
+        else {**strategy_spec.default_params, **param_override}
+    )
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
 
@@ -132,10 +140,7 @@ def run_backtest(
                 feature_history = (
                     None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
                 )
-                if feature_history is None:
-                    signal = resolve_signal(strategy_name, history)
-                else:
-                    signal = resolve_signal(strategy_name, history, feature_history=feature_history)
+                signal = evaluate_signal(strategy_name, history, effective_params, feature_history)
 
                 if signal == "buy" and ticker not in active_tickers:
                     continue
@@ -267,6 +272,7 @@ def run_backtest(
         benchmark_return_pct=benchmark_return,
         alpha_pct=alpha_pct,
         max_drawdown_pct=max_drawdown_pct(equity_curve),
+        annualized_return_pct=performance.annualized_return_pct,
         sharpe_ratio=performance.sharpe_ratio,
         sortino_ratio=performance.sortino_ratio,
         calmar_ratio=performance.calmar_ratio,

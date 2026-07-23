@@ -18,6 +18,7 @@ MIN_RETURN_OBSERVATIONS = 2
 
 @dataclass(frozen=True)
 class BacktestPerformanceMetrics:
+    annualized_return_pct: float | None = None
     sharpe_ratio: float | None = None
     sortino_ratio: float | None = None
     calmar_ratio: float | None = None
@@ -198,6 +199,7 @@ def summarize_backtest_performance(
     win_count = sum(1 for value in pnl_values if value > 0)
     closed_trade_count = len(pnl_values)
     return BacktestPerformanceMetrics(
+        annualized_return_pct=annualized_return,
         sharpe_ratio=sharpe_ratio(returns, risk_free_rate=risk_free_rate),
         sortino_ratio=sortino_ratio(returns, risk_free_rate=risk_free_rate),
         calmar_ratio=calmar_ratio(

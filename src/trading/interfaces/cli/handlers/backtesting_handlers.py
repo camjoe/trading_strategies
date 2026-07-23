@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 
@@ -252,6 +253,83 @@ def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any]) ->
     if len(summary.run_ids) > 10:
         run_ids_preview += ", ..."
     print(f"Generated run ids: {run_ids_preview}")
+
+
+def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    try:
+        search_space = json.loads(args.search_space)
+    except json.JSONDecodeError as error:
+        parser.error(f"--search-space must be valid JSON: {error}")
+        return
+    if not isinstance(search_space, dict):
+        parser.error("--search-space must be a JSON object mapping parameter -> list of values")
+        return
+
+    try:
+        summary = deps["run_walk_forward_optimization"](
+            conn,
+            deps["OptimizerConfig"](
+                account_name=args.account,
+                tickers_file=args.tickers_file,
+                universe_history_dir=args.universe_history_dir,
+                strategy=args.strategy,
+                search_space=search_space,
+                start=args.start,
+                end=args.end,
+                lookback_months=args.lookback_months,
+                slippage_bps=args.slippage_bps,
+                fee_per_trade=args.fee,
+                allow_approximate_leaps=bool(args.allow_approximate_leaps),
+                train_months=args.train_months,
+                test_months=args.test_months,
+                step_months=args.step_months,
+                holdout_months=args.holdout_months,
+                candidate_budget=args.candidate_budget,
+            ),
+            run_metrics_only_fn=deps["run_backtest_metrics_only"],
+            run_persisted_fn=deps["run_backtest"],
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+
+    _print_optimization_summary(summary)
+
+
+def _print_optimization_summary(summary: Any) -> None:
+    print(
+        f"Walk-forward optimization: account={summary.account_name} strategy={summary.strategy} "
+        f"objective={summary.objective_name}"
+    )
+    print(f"Default params: {summary.default_params}")
+    print(f"Windows: {len(summary.windows)}")
+    for window in summary.windows:
+        print(
+            f"  W{window.window_index:02d} test {window.split.test_start}..{window.split.test_end} "
+            f"winner={window.winner.params} "
+            f"OOS winner={_format_metric(window.winner_oos.total_return_pct, suffix='%')} "
+            f"vs default={_format_metric(window.baseline_oos.total_return_pct, suffix='%')} "
+            f"(run {window.winner_oos.run_id})"
+        )
+    if summary.windows:
+        window_count = len(summary.windows)
+        avg_winner = sum(w.winner_oos.total_return_pct for w in summary.windows) / window_count
+        avg_default = sum(w.baseline_oos.total_return_pct for w in summary.windows) / window_count
+        beats = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
+        print(
+            f"OOS mean total return: winner={avg_winner:.2f}% vs default={avg_default:.2f}% "
+            f"| winner beat default in {beats}/{window_count} windows"
+        )
+    if summary.holdout is None:
+        print("Holdout: disabled")
+    else:
+        holdout = summary.holdout
+        print(
+            f"Holdout {holdout.holdout_start}..{holdout.holdout_end} params={holdout.winner_params} "
+            f"winner={_format_metric(holdout.winner.total_return_pct, suffix='%')} "
+            f"vs default={_format_metric(holdout.baseline.total_return_pct, suffix='%')} "
+            f"(run {holdout.winner.run_id})"
+        )
 
 
 def handle_backtest_walk_forward_report(

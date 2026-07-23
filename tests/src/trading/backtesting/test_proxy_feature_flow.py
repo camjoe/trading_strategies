@@ -82,14 +82,19 @@ class TestBacktestProxyFeatureFlow:
 
         call_count = {"n": 0}
 
-        def fake_signal(_strategy_name: str, _history: pd.Series, feature_history: pd.DataFrame | None = None) -> str:
+        def fake_signal(
+            _strategy_name: str,
+            _history: pd.Series,
+            _params: dict[str, object],
+            feature_history: pd.DataFrame | None = None,
+        ) -> str:
             call_count["n"] += 1
             assert feature_history is not None
             assert "topic_proxy_rel_strength" in feature_history.columns
             return "hold"
 
         monkeypatch.setattr(backtest_module, "build_feature_provider", lambda **_kwargs: StubFeatureProvider())
-        monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
+        monkeypatch.setattr(execution_service, "evaluate_signal", fake_signal)
 
         backtest_module.run_backtest(
             conn,

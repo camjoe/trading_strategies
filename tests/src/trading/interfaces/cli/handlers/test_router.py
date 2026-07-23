@@ -39,6 +39,7 @@ _EXPECTED_COMMANDS = {
     "backtest-report",
     "backtest-leaderboard",
     "backtest-batch",
+    "backtest-optimize",
     "backtest-walk-forward",
     "backtest-walk-forward-report",
 }

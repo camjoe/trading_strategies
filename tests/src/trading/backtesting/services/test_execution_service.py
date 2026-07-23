@@ -59,7 +59,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend"),
+            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
         ),
         patch.object(
             execution_service,
@@ -116,7 +116,7 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda name: (resolved.append(name), SimpleNamespace(required_features=(), strategy_id=name))[1],
+            lambda name: (resolved.append(name), SimpleNamespace(required_features=(), strategy_id=name, default_params={}))[1],
         ),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
@@ -193,9 +193,9 @@ def _patched_run_backtest(
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend"),
+            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
         ),
-        patch.object(execution_service, "resolve_signal", resolve_signal_fn),
+        patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
     ):

@@ -7,8 +7,13 @@ from trading.backtesting.backtest import (
     backtest_report,
     run_backtest,
     run_backtest_batch,
+    run_backtest_metrics_only,
     walk_forward_report,
     run_walk_forward_backtest,
+)
+from trading.backtesting.optimizer_models import OptimizerConfig
+from trading.backtesting.services.walk_forward_optimizer_service import (
+    run_walk_forward_optimization,
 )
 from infrastructure.database.connection import db_session
 from infrastructure.database.config import get_db_path
@@ -67,13 +72,16 @@ def _handler_deps() -> dict[str, object]:
         "BacktestBatchConfig": BacktestBatchConfig,
         "BacktestConfig": BacktestConfig,
         "WalkForwardConfig": WalkForwardConfig,
+        "OptimizerConfig": OptimizerConfig,
         "backtest_leaderboard_entries": backtest_leaderboard_entries,
         "backtest_report": backtest_report,
         "walk_forward_report": walk_forward_report,
         "run_backtest": run_backtest,
+        "run_backtest_metrics_only": run_backtest_metrics_only,
         "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,
+        "run_walk_forward_optimization": run_walk_forward_optimization,
         "load_account_profiles": load_account_profiles,
         "apply_account_profiles": apply_account_profiles,
         "account_report": partial(account_report, provider=provider),
