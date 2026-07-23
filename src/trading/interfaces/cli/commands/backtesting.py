@@ -128,6 +128,48 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     )
     p_walk_forward.add_argument("--run-name-prefix", default=None, help="Optional prefix for generated run names")
 
+    p_optimize = sub.add_parser(
+        "backtest-optimize",
+        help=(
+            "Walk-forward parameter optimization for one strategy: grid-search on each"
+            " training window, freeze the winner, then report out-of-sample and holdout"
+            " evidence against the strategy's default parameters."
+        ),
+    )
+    p_optimize.add_argument("--account", required=True, help="Account name")
+    p_optimize.add_argument("--strategy", required=True, help="Strategy to optimize (catalog key or alias)")
+    p_optimize.add_argument(
+        "--search-space",
+        required=True,
+        help=(
+            "JSON object of parameter -> candidate values, e.g. "
+            '\'{"fast_window": [5, 10, 15], "slow_window": [20, 30]}\'. '
+            "Keys must be parameters of the strategy."
+        ),
+    )
+    _add_shared_backtest_args(p_optimize)
+    p_optimize.add_argument("--train-months", type=int, default=12, help="Training window length in months")
+    p_optimize.add_argument("--test-months", type=int, default=1, help="Out-of-sample test window length in months")
+    p_optimize.add_argument("--step-months", type=int, default=1, help="Months to roll forward between windows")
+    p_optimize.add_argument(
+        "--holdout-months",
+        type=int,
+        default=6,
+        help="Untouched final holdout length in months (0 to disable)",
+    )
+    p_optimize.add_argument(
+        "--candidate-budget",
+        type=int,
+        default=256,
+        help="Maximum grid size; a larger Cartesian product is rejected, not truncated",
+    )
+    p_optimize.add_argument(
+        "--warmup-months",
+        type=int,
+        default=6,
+        help="Indicator warm-up history loaded before each window (default: 6); raise for large window params",
+    )
+
     p_walk_forward_report = sub.add_parser(
         "backtest-walk-forward-report",
         help="Show persisted walk-forward group details and per-window backtest summaries.",

@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-07-22
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -279,6 +279,7 @@ Self-contained backtest subsystem with its own layered sub-packages.
 |---|---|
 | `backtest.py` | Backtest execution engine |
 | `models.py` | Backtest input/output models |
+| `optimizer_models.py` | Walk-forward optimizer defaults, experiment configuration, and selection/outcome models |
 | `report_models.py` | Backtest report models |
 | `domain/` | Backtesting-specific domain logic |
 | `repositories/` | Backtest result persistence |

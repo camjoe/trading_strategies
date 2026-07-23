@@ -15,7 +15,8 @@ from trading.backtesting.domain.simulation_math import (
     update_on_buy,
     update_on_sell,
 )
-from trading.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.domain.windowing import shift_months
+from trading.domain.strategy_signals import evaluate_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
@@ -23,6 +24,15 @@ from trading.repositories.unit_of_work import unit_of_work
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]
+
+
+def _first_scoring_index(dates: list, scoring_start: date) -> int:
+    """Index of the first loaded bar that falls on/after the scoring window start.
+    Earlier bars are warm-up history. With no warm-up this is 0 (bar zero)."""
+    for index, timestamp in enumerate(dates):
+        if timestamp.date() >= scoring_start:
+            return index
+    raise ValueError("No trading days fall within the scoring window.")
 
 
 def run_backtest(
@@ -49,6 +59,12 @@ def run_backtest(
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
     warnings = warnings_for_config_fn(default_book, cfg.allow_approximate_leaps)
 
+    # Optional indicator warm-up: pull extra history before the scoring window so
+    # signals are warm at the window start. Only price history reaches back this far;
+    # scoring (returns/trades/snapshots) still starts at start_date.
+    warmup_months = getattr(cfg, "warmup_months", 0) or 0
+    data_start_date = shift_months(start_date, -warmup_months) if warmup_months > 0 else start_date
+
     default_tickers, month_to_tickers, all_tickers, universe_warnings = resolve_universe_fn(
         cfg,
         start_date,
@@ -56,7 +72,7 @@ def run_backtest(
     )
     warnings.extend(universe_warnings)
 
-    close = cast(Any, fetch_close_history_fn(all_tickers, start_date, end_date))
+    close = cast(Any, fetch_close_history_fn(all_tickers, data_start_date, end_date))
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
@@ -72,6 +88,12 @@ def run_backtest(
         else active_strategy_for_account(conn, account_id)
     )
     strategy_spec = resolve_strategy(strategy_name)
+    # A param override (walk-forward optimizer candidates) is merged over the
+    # strategy's catalog defaults for this run only; the catalog is never mutated.
+    param_override = getattr(cfg, "param_override", None)
+    effective_params = (
+        strategy_spec.default_params if not param_override else {**strategy_spec.default_params, **param_override}
+    )
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
 
@@ -102,13 +124,23 @@ def run_backtest(
         trade_count = 0
 
         dates = list(close.index)
-        first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in all_tickers}
+        # Warm-up bars (before start_date) only initialize indicator history; scoring
+        # begins at the first bar within the window so returns exclude the lead-in.
+        # With no warm-up, scoring starts at bar zero — identical to the original path.
+        if warmup_months > 0:
+            scoring_idx = _first_scoring_index(dates, start_date)
+            if len(dates) - scoring_idx < 2:
+                raise ValueError("Not enough trading days in the scoring window after warm-up.")
+        else:
+            scoring_idx = 0
+
+        first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in all_tickers}
         first_mv = compute_market_value(positions, first_prices)
         first_equity = cash + first_mv
         insert_snapshot_fn(
             conn,
             run_id,
-            dates[0].date().isoformat(),
+            dates[scoring_idx].date().isoformat(),
             cash,
             first_mv,
             first_equity,
@@ -117,7 +149,7 @@ def run_backtest(
         )
         equity_curve.append(first_equity)
 
-        for idx in range(1, len(dates)):
+        for idx in range(scoring_idx + 1, len(dates)):
             signal_date = dates[idx - 1]
             trade_date = dates[idx]
 
@@ -132,10 +164,7 @@ def run_backtest(
                 feature_history = (
                     None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
                 )
-                if feature_history is None:
-                    signal = resolve_signal(strategy_name, history)
-                else:
-                    signal = resolve_signal(strategy_name, history, feature_history=feature_history)
+                signal = evaluate_signal(strategy_name, history, effective_params, feature_history)
 
                 if signal == "buy" and ticker not in active_tickers:
                     continue
@@ -267,6 +296,7 @@ def run_backtest(
         benchmark_return_pct=benchmark_return,
         alpha_pct=alpha_pct,
         max_drawdown_pct=max_drawdown_pct(equity_curve),
+        annualized_return_pct=performance.annualized_return_pct,
         sharpe_ratio=performance.sharpe_ratio,
         sortino_ratio=performance.sortino_ratio,
         calmar_ratio=performance.calmar_ratio,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 # backtest_runs.purpose vocabulary: what kind of evidence a run represents.
 # standalone and rolling_window are produced today; walk_forward_oos and
@@ -30,6 +30,16 @@ class BacktestConfig:
     # Evidence kind persisted on the run; the walk-forward path overrides this
     # to rolling_window so its window runs are distinguishable from standalone.
     purpose: str = BACKTEST_PURPOSE_STANDALONE
+    # Optional per-run parameter override for the resolved strategy. Used by the
+    # walk-forward optimizer to evaluate grid candidates without mutating the
+    # strategy catalog's params_json. Merged over the strategy's default params;
+    # None runs the strategy's default (catalog) parameters.
+    param_override: dict[str, Any] | None = None
+    # Indicator warm-up lead-in: load this many months of price history *before*
+    # the scoring window so signals are warm at the window start. These bars only
+    # initialize indicators — returns, trades, and snapshots are measured from the
+    # window start. 0 (default) preserves the original single-range behavior.
+    warmup_months: int = 0
 
 
 @dataclass
@@ -46,6 +56,7 @@ class BacktestResult:
     alpha_pct: float | None
     max_drawdown_pct: float
     warnings: list[str]
+    annualized_return_pct: float | None = None
     sharpe_ratio: float | None = None
     sortino_ratio: float | None = None
     calmar_ratio: float | None = None
@@ -70,6 +81,7 @@ class BacktestResult:
             "benchmarkReturnPct": self.benchmark_return_pct,
             "alphaPct": self.alpha_pct,
             "maxDrawdownPct": self.max_drawdown_pct,
+            "annualizedReturnPct": self.annualized_return_pct,
             "sharpeRatio": self.sharpe_ratio,
             "sortinoRatio": self.sortino_ratio,
             "calmarRatio": self.calmar_ratio,

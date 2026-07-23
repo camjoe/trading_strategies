@@ -164,9 +164,23 @@ def _insert_snapshot(
     )
 
 
-def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
+def _noop_insert_run(*_args: object, **_kwargs: object) -> int:
+    return 0
+
+
+def _noop_insert_trade(*_args: object, **_kwargs: object) -> None:
+    return None
+
+
+def _noop_insert_snapshot(*_args: object, **_kwargs: object) -> None:
+    return None
+
+
+def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: bool) -> BacktestResult:
     # Composition seam: build the market-data + feature providers once for the
     # run and inject them down the data path (no global access inside services).
+    # When persist is False the run computes metrics only (no run/trade/snapshot
+    # rows) — used by the walk-forward optimizer for training-candidate trials.
     provider = build_provider()
     feature_provider = build_feature_provider(market_data_provider=provider)
     return run_backtest_impl(
@@ -182,12 +196,23 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
             benchmark_ticker, start_date, end_date, provider=provider
         ),
-        insert_run_fn=_insert_run,
-        insert_trade_fn=_insert_trade,
-        insert_snapshot_fn=_insert_snapshot,
+        insert_run_fn=_insert_run if persist else _noop_insert_run,
+        insert_trade_fn=_insert_trade if persist else _noop_insert_trade,
+        insert_snapshot_fn=_insert_snapshot if persist else _noop_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,
         feature_provider=feature_provider,
     )
+
+
+def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
+    return _run_backtest(conn, cfg, persist=True)
+
+
+def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
+    """Run a simulation and return its metrics without persisting any run, trade, or
+    snapshot rows. Lets the walk-forward optimizer evaluate grid candidates on training
+    windows without polluting stored backtest evidence."""
+    return _run_backtest(conn, cfg, persist=False)
 
 
 def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
