@@ -9,7 +9,7 @@ import type {
   RiskSummary,
 } from "../../types/autonomy-monitor";
 
-// Import the actual render functions from the component
+// Import the actual render functions from the panels module
 import {
   renderAccountOverview,
   renderBooksPanel,
@@ -18,7 +18,7 @@ import {
   renderBurnInPanel,
   renderRotationsPanel,
   renderRiskSummaryPanel,
-} from "../../components/autonomy-monitor";
+} from "../../components/autonomy-monitor-panels";
 
 describe("Autonomy Monitor render functions", () => {
   describe("renderAccountOverview", () => {
