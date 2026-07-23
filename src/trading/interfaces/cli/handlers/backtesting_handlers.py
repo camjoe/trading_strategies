@@ -297,39 +297,50 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
     _print_optimization_summary(summary)
 
 
+def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:
+    """Format a winner/default metric pair for the optimizer summary."""
+    return f"{_format_metric(winner, suffix=suffix)}/{_format_metric(default, suffix=suffix)}"
+
+
 def _print_optimization_summary(summary: Any) -> None:
     print(
         f"Walk-forward optimization: account={summary.account_name} strategy={summary.strategy} "
         f"objective={summary.objective_name}"
     )
     print(f"Default params: {summary.default_params}")
-    print(f"Windows: {len(summary.windows)}")
+    print(f"Windows: {len(summary.windows)} (metrics shown as winner/default)")
     for window in summary.windows:
+        winner, default = window.winner_oos, window.baseline_oos
         print(
-            f"  W{window.window_index:02d} test {window.split.test_start}..{window.split.test_end} "
-            f"winner={window.winner.params} "
-            f"OOS winner={_format_metric(window.winner_oos.total_return_pct, suffix='%')} "
-            f"vs default={_format_metric(window.baseline_oos.total_return_pct, suffix='%')} "
-            f"(run {window.winner_oos.run_id})"
+            f"  W{window.window_index:02d} {window.split.test_start}..{window.split.test_end} "
+            f"win={window.winner.params} | "
+            f"return {_pair(winner.total_return_pct, default.total_return_pct)} | "
+            f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} (run {winner.run_id})"
         )
     if summary.windows:
-        window_count = len(summary.windows)
-        avg_winner = sum(w.winner_oos.total_return_pct for w in summary.windows) / window_count
-        avg_default = sum(w.baseline_oos.total_return_pct for w in summary.windows) / window_count
+        count = len(summary.windows)
+        avg_win_return = sum(w.winner_oos.total_return_pct for w in summary.windows) / count
+        avg_def_return = sum(w.baseline_oos.total_return_pct for w in summary.windows) / count
+        avg_win_dd = sum(w.winner_oos.max_drawdown_pct for w in summary.windows) / count
+        avg_def_dd = sum(w.baseline_oos.max_drawdown_pct for w in summary.windows) / count
         beats = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
         print(
-            f"OOS mean total return: winner={avg_winner:.2f}% vs default={avg_default:.2f}% "
-            f"| winner beat default in {beats}/{window_count} windows"
+            f"OOS means: return {_pair(avg_win_return, avg_def_return)} | maxDD {_pair(avg_win_dd, avg_def_dd)} "
+            f"| winner beat default on return in {beats}/{count} windows"
         )
     if summary.holdout is None:
         print("Holdout: disabled")
     else:
         holdout = summary.holdout
+        winner, default = holdout.winner, holdout.baseline
         print(
-            f"Holdout {holdout.holdout_start}..{holdout.holdout_end} params={holdout.winner_params} "
-            f"winner={_format_metric(holdout.winner.total_return_pct, suffix='%')} "
-            f"vs default={_format_metric(holdout.baseline.total_return_pct, suffix='%')} "
-            f"(run {holdout.winner.run_id})"
+            f"Holdout {holdout.holdout_start}..{holdout.holdout_end} params={holdout.winner_params} (run {winner.run_id})"
+        )
+        print(
+            f"  return {_pair(winner.total_return_pct, default.total_return_pct)} | "
+            f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} | "
+            f"annualized {_pair(winner.annualized_return_pct, default.annualized_return_pct)} | "
+            f"calmar {_pair(winner.calmar_ratio, default.calmar_ratio, suffix='')}"
         )
 
 

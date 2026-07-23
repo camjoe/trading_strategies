@@ -250,6 +250,7 @@ def _run_outcome(result: BacktestResult) -> RunOutcome:
         total_return_pct=result.total_return_pct,
         annualized_return_pct=result.annualized_return_pct,
         max_drawdown_pct=result.max_drawdown_pct,
+        calmar_ratio=result.calmar_ratio,
         trade_count=result.trade_count,
         benchmark_return_pct=result.benchmark_return_pct,
     )

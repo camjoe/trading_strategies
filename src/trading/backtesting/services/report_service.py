@@ -172,6 +172,4 @@ def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
 
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
-    from trading.backtesting.backtest import backtest_report_summary  # deferred to avoid circular import
-
-    return backtest_report_summary(conn, run_id)
+    return fetch_backtest_report_data(conn, run_id=run_id).summary
