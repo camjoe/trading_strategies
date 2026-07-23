@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from tests.support.account_records import make_account_record, make_book_record
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.accounts.account_state import AccountState
+from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.models.orders.broker_order import OrderStatus
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
@@ -78,6 +79,33 @@ class FakeBroker:
         return order
 
 
+def make_book_trade_candidate(
+    *,
+    book_id: int,
+    account_id: int = 1,
+    symbol: str = "AAPL",
+    side: str = "buy",
+    qty: int = 1,
+    requested_price: float = 100.0,
+    strategy_name: str = "trend",
+    forced_sell: str | None = None,
+    delta_est: float | None = None,
+    iv_est: float | None = None,
+) -> BookTradeCandidate:
+    return BookTradeCandidate(
+        account_id=account_id,
+        book_id=book_id,
+        strategy_name=strategy_name,
+        side=side,
+        symbol=symbol,
+        qty=qty,
+        requested_price=requested_price,
+        forced_sell=forced_sell,
+        delta_est=delta_est,
+        iv_est=iv_est,
+    )
+
+
 def make_account_state(
     *,
     cash: float = 1000.0,
@@ -99,6 +127,7 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "make_account_state",
     "make_auto_trading_account",
+    "make_book_trade_candidate",
     "make_option_settings",
     "make_feature_bundle",
     "make_feature_fetcher",
