@@ -12,7 +12,7 @@ from infrastructure.brokers.ib_web_adapter import (
     _select_ledger_row,
     _summary_amount,
 )
-from infrastructure.brokers.ib_web_client import IbWebApiContract
+from infrastructure.brokers.ib_web import IbWebApiContract
 from trading.models.orders.broker_order import OrderStatus, OrderType
 from tests.support.brokers import make_broker_order
 
