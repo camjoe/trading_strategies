@@ -99,7 +99,7 @@ class TestFetchLatest:
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z", decision_reason="middle")
         row = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_id)
         assert row is not None
-        assert row["decision_reason"] == "latest"
+        assert row.decision_reason == "latest"
 
     def test_isolated_per_book(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -129,7 +129,7 @@ class TestFetchForBook:
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T09:00:00Z")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T11:00:00Z")
         rows = RotationDecisionRepository(conn).fetch_for_book(book_id=bk_id, limit=10)
-        times = [r["decision_time"] for r in rows]
+        times = [r.decision_time for r in rows]
         assert times == sorted(times, reverse=True)
 
 
@@ -142,7 +142,7 @@ class TestFetchForBookOnDate:
         _insert(conn, book_id=bk_id, decision_time="2026-01-03T00:00:00Z", decision_reason="after")
         rows = RotationDecisionRepository(conn).fetch_for_book_on_date(book_id=bk_id, report_date="2026-01-02")
         assert len(rows) == 1
-        assert rows[0]["decision_reason"] == "on_date"
+        assert rows[0].decision_reason == "on_date"
 
     def test_date_boundary_is_exclusive_at_end(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -151,7 +151,7 @@ class TestFetchForBookOnDate:
         _insert(conn, book_id=bk_id, decision_time="2026-01-03T00:00:00Z", decision_reason="next_day")
         rows = RotationDecisionRepository(conn).fetch_for_book_on_date(book_id=bk_id, report_date="2026-01-02")
         assert len(rows) == 1
-        assert rows[0]["decision_reason"] == "last_second"
+        assert rows[0].decision_reason == "last_second"
 
     def test_ordered_by_decision_time_asc(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -159,7 +159,7 @@ class TestFetchForBookOnDate:
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T11:00:00Z")
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T09:00:00Z")
         rows = RotationDecisionRepository(conn).fetch_for_book_on_date(book_id=bk_id, report_date="2026-01-02")
-        times = [r["decision_time"] for r in rows]
+        times = [r.decision_time for r in rows]
         assert times == sorted(times)
 
 

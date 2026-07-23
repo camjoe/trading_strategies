@@ -131,8 +131,8 @@ def test_run_for_account_book_mode_applies_rotation_before_intent_generation(
     assert captured["active_strategy"] == "meanrev"
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
-    assert latest_decision["rotation_action"] == "rotate"
-    assert latest_decision["selected_strategy"] == "meanrev"
+    assert latest_decision.rotation_action == "rotate"
+    assert latest_decision.selected_strategy == "meanrev"
 
 
 def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env, conn, monkeypatch) -> None:
@@ -180,9 +180,9 @@ def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env,
     assert captured["active_strategy"] == "trend"
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
-    assert latest_decision["rotation_action"] == "hold"
-    assert latest_decision["decision_reason"] == "cooldown_active"
-    assert int(latest_decision["cooldown_active"]) == 1
+    assert latest_decision.rotation_action == "hold"
+    assert latest_decision.decision_reason == "cooldown_active"
+    assert latest_decision.cooldown_active == 1
 
 
 def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, monkeypatch) -> None:

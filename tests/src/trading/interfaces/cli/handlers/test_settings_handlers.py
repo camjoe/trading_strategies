@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
+from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
     handle_configure_book_rotation,
     handle_configure_book_rotation_policy,

@@ -21,7 +21,7 @@ class BookRotationConfig:
 
         The list-valued ``rotation_schedule`` column is returned as a raw
         list; JSON encoding is applied by the writer via
-        ``trading.domain.rotation.dump_rotation_schedule``.
+        ``trading.domain.rotation.schedule.dump_rotation_schedule``.
         """
         return {
             "rotation_enabled": self.enabled,

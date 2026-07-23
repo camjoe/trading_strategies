@@ -2,9 +2,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-import trading.domain.rotation as rotation
+import trading.domain.rotation.schedule as rotation
 from common.time import as_utc_iso
-from trading.domain.rotation import (
+from trading.domain.rotation.schedule import (
     parse_rotation_schedule,
 )
 

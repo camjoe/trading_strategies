@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-23
 Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
 
@@ -42,7 +42,7 @@ The maps and this guide serve different questions:
 | Change account snapshot logic | `src/trading/services/accounts/queries.py` + `src/trading/repositories/accounts.py` |
 | Change auto-trading execution flow | `src/trading/services/auto_trading/` |
 | Change shared book order submission, fill handling, reconciliation, or pre-submit gates | `src/trading/services/execution/` |
-| Change rotation logic | `src/trading/services/books/rotation/engine.py` + `src/trading/domain/rotation.py` |
+| Change rotation logic | `src/trading/services/books/rotation/engine.py` + `src/trading/domain/rotation/` |
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |

@@ -8,7 +8,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.services.reporting.daily_report import (
+from trading.services.analysis.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
     build_account_daily_report,
@@ -174,6 +174,28 @@ def test_build_report_kill_switch_from_snapshot(conn) -> None:
     report = build_account_daily_report(conn, account_id=account_id, account_name="acct_ks", report_date=REPORT_DATE)
 
     assert report.risk_violations.kill_switch_triggered is True
+
+
+def test_build_report_kill_switch_ignores_snapshots_after_report_date(conn) -> None:
+    # A kill-switch snapshot recorded after the report date must not leak into a
+    # historical report — the snapshot read is scoped to report_date.
+    account_id = insert_repository_account(conn, name="acct_ks_future")
+    RiskSnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time="2026-05-20T15:00:00Z",
+        gross_exposure=50000.0,
+        net_exposure=45000.0,
+        max_symbol_concentration_pct=10.0,
+        max_sector_concentration_pct=20.0,
+        kill_switch_triggered=1,
+        risk_payload_json="{}",
+    )
+
+    report = build_account_daily_report(
+        conn, account_id=account_id, account_name="acct_ks_future", report_date=REPORT_DATE
+    )
+
+    assert report.risk_violations.kill_switch_triggered is False
 
 
 def test_build_report_rotation_decisions(conn, report_env) -> None:

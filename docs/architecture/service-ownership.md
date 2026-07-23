@@ -20,7 +20,7 @@ where it goes.
 |---|---|---|
 | `auto_trading/` | Scheduled paper/live run **orchestration** only (`inputs`, `market`, `runtime`). | Order selection, submission, reconciliation, risk → `execution/`. |
 | `execution/` | The full **order lifecycle**: `selection/` (what to trade), `ledger/` (trade/cash accounting), `submission`, pre-submit `gate`/`pre_submit_gate`, `risk`, `nav`, `reconciliation`, `open_order_reconciliation`. | Rotation policy → `books/rotation/`. Presentation → `reporting/`. |
-| `books/` | The **execution primitive**: book state (`book_assignments`, `sector_config`, `helpers`) plus the `rotation/` sub-package. | Intent generation → `execution/selection/`. Daily report → `reporting/`. |
+| `books/` | The **execution primitive**: book state (`book_assignments`, `sector_config`, `helpers`) plus the `rotation/` sub-package. | Intent generation → `execution/selection/`. Daily report assembly → `analysis/daily_report.py`. |
 | `evaluation/` | Strategy **evidence + decision-score math**. | Report formatting → `reporting/`. Portfolio analytics → `analysis/`. |
 | `analysis/` | Portfolio/benchmark/performance/risk-snapshot/**concentration/exposure analytics math**. | Presentation → `reporting/`. |
 | `reporting/` | **Read-only presentation** payloads and printed operator output (thin views over `analysis`/`evaluation`). | Any analytics or evaluation **math** — it stays in `analysis`/`evaluation`. |

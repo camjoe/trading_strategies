@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.backtest_freshness import (
+from trading.domain.evaluation.backtest_freshness import (
     DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
     assess_backtest_freshness,
 )

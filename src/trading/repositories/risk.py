@@ -71,6 +71,21 @@ class RiskSnapshotRepository:
         ).fetchone()
         return RiskSnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
+    def fetch_latest_as_of(self, *, account_id: int, report_date: str) -> RiskSnapshotRecord | None:
+        """Latest snapshot on or before ``report_date`` — kill-switch state as of that day.
+
+        Date-scoped counterpart to ``fetch_latest`` for historical/backfilled
+        reports, so a report for a past date reflects that day's state rather
+        than the current one.
+        """
+        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        row = self._conn.execute(
+            "SELECT * FROM risk_snapshots WHERE account_id = ? AND snapshot_time < ? "
+            "ORDER BY snapshot_time DESC LIMIT 1",
+            (int(account_id), next_date),
+        ).fetchone()
+        return RiskSnapshotRecord.from_mapping(dict(row)) if row is not None else None
+
 
 class RiskDecisionRepository:
     """SQL access for the clean-schema risk_decisions table."""
