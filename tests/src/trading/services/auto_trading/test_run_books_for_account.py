@@ -18,7 +18,6 @@ from tests.src.trading.services.auto_trading.factories import (
     FakeBroker,
     make_auto_trading_account,
     make_book_trade_candidate,
-    make_feature_fetchers,
 )
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution.book_trade_intent import BookTradeIntent
@@ -85,15 +84,15 @@ def _install(
 
     monkeypatch.setattr(runtime_service, "BookPreSubmitGate", _FakeGate)
 
-    def _persist(_conn, *, account_id, snapshot_time, risk_decisions, kill_switch_reasons, summary):
+    def _persist(_conn, *, account_id, snapshot_time, audit):
         recorder.calls.append("persist_audit")
         recorder.persisted.append(
             SimpleNamespace(
                 account_id=account_id,
                 snapshot_time=snapshot_time,
-                risk_decisions=risk_decisions,
-                kill_switch_reasons=list(kill_switch_reasons),
-                summary=summary,
+                risk_decisions=list(audit.risk_decisions),
+                kill_switch_reasons=list(audit.kill_switch_reasons),
+                summary=audit.summary(),
             )
         )
 
@@ -127,7 +126,6 @@ def _install(
 def _run(recorder, *, prices=None):
     return runtime_service._run_books_for_account(
         object(),
-        account_name="acct",
         account=make_auto_trading_account(id=ACCOUNT_ID),
         universe=["AAPL"],
         prices=prices if prices is not None else {"AAPL": 100.0},
@@ -135,7 +133,6 @@ def _run(recorder, *, prices=None):
         max_trades=5,
         fee=0.0,
         broker_factory=recorder.broker_factory,
-        feature_fetchers=make_feature_fetchers(),
     )
 
 

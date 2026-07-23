@@ -17,6 +17,7 @@ from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
+from trading.models.execution.book_run_audit import BookRunAudit
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.risk_gate_config import RiskGateConfig
@@ -88,7 +89,6 @@ def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[st
 def _run_books_for_account(
     conn: sqlite3.Connection,
     *,
-    account_name: str,
     account: AccountRecord,
     universe: list[str],
     prices: dict[str, float],
@@ -96,12 +96,12 @@ def _run_books_for_account(
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-    feature_fetchers: FeatureFetcherSet,
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
+    audit = BookRunAudit()
     # Universes are book-owned and required (revision 0008): each book resolves
     # its own names; the global list is only the guard for malformed data.
     run_account_book_rotations(conn, account=account, decision_time=snapshot_time)
@@ -117,14 +117,7 @@ def _run_books_for_account(
         feature_history_fn=feature_history_fn,
     )
     if not intents:
-        persist_book_run_audit(
-            conn,
-            account_id=account_id,
-            snapshot_time=snapshot_time,
-            risk_decisions=[],
-            kill_switch_reasons=[],
-            summary={"submitted_count": 0, "blocked_count": 0, "rescaled_count": 0, "allowed_count": 0},
-        )
+        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
         return 0
 
     # Intents are book-keyed; keep the book → intent context for the audit
@@ -159,28 +152,18 @@ def _run_books_for_account(
     )
     gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
 
-    risk_decisions = _risk_decisions_from_gate(gate_result.decisions)
-    kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
-    for reason in kill_switch_reasons:
-        risk_decisions.append({"action": "block", "reason_code": reason})
-    allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
-    summary_counts: dict[str, object] = {
-        "blocked_count": len(gate_result.blocked_intents),
-        "rescaled_count": len(gate_result.rescaled_intents),
-        "allowed_count": allowed_count,
-    }
+    audit.risk_decisions = _risk_decisions_from_gate(gate_result.decisions)
+    audit.kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
+    for reason in audit.kill_switch_reasons:
+        audit.record_block(reason)
+    audit.blocked_count = len(gate_result.blocked_intents)
+    audit.rescaled_count = len(gate_result.rescaled_intents)
+    audit.allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
 
     # A kill switch (stale-price or reconciliation) holds the whole run.
-    approved_intents = [] if kill_switch_reasons else gate_result.approved_intents
+    approved_intents = [] if audit.kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
-        persist_book_run_audit(
-            conn,
-            account_id=account_id,
-            snapshot_time=snapshot_time,
-            risk_decisions=risk_decisions,
-            kill_switch_reasons=kill_switch_reasons,
-            summary={"submitted_count": 0, **summary_counts},
-        )
+        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
         return 0
 
     approved_by_book: dict[int, list[BookTradeIntent]] = defaultdict(list)
@@ -189,7 +172,6 @@ def _run_books_for_account(
 
     broker = broker_factory(account)
     try:
-        submitted_count = 0
         for book_id, book_intents_for_book in approved_by_book.items():
             candidate = candidate_by_book[book_id]
 
@@ -198,13 +180,7 @@ def _run_books_for_account(
             try:
                 enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso())
             except RuntimeTradeThrottleExceededError:
-                risk_decisions.append(
-                    {
-                        "action": "block",
-                        "reason_code": RISK_REASON_TRADE_THROTTLE_EXCEEDED,
-                        "book_id": candidate.book_id,
-                    }
-                )
+                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=candidate.book_id)
                 break
 
             result = submit_book_intents(
@@ -216,27 +192,14 @@ def _run_books_for_account(
                 gate=AllowAllGate(),  # gating already ran once above for the whole batch
                 fee=fee,
             )
-            submitted_count += result.submitted_count
+            audit.submitted_count += result.submitted_count
             if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
-                kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
-                risk_decisions.append(
-                    {
-                        "action": "block",
-                        "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
-                        "book_id": candidate.book_id,
-                    }
-                )
+                audit.kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
+                audit.record_block(KILL_SWITCH_REASON_BROKER_API_ANOMALY, book_id=candidate.book_id)
                 break
 
-        persist_book_run_audit(
-            conn,
-            account_id=account_id,
-            snapshot_time=snapshot_time,
-            risk_decisions=risk_decisions,
-            kill_switch_reasons=kill_switch_reasons,
-            summary={"submitted_count": submitted_count, **summary_counts},
-        )
-        return submitted_count
+        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
+        return audit.submitted_count
     finally:
         broker.disconnect()
 
@@ -267,7 +230,6 @@ def run_for_account(
     account = get_account(conn, account_name)
     return _run_books_for_account(
         conn,
-        account_name=account_name,
         account=account,
         universe=universe,
         prices=prices,
@@ -275,7 +237,6 @@ def run_for_account(
         max_trades=max_trades,
         fee=fee,
         broker_factory=broker_factory,
-        feature_fetchers=feature_fetchers,
         histories=histories,
         feature_history_fn=feature_history_fn,
     )

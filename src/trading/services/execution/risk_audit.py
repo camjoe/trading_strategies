@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models.execution.book_run_audit import BookRunAudit
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
@@ -25,16 +26,14 @@ def persist_book_run_audit(
     *,
     account_id: int,
     snapshot_time: str,
-    risk_decisions: list[dict[str, object]],
-    kill_switch_reasons: list[str],
-    summary: dict[str, object],
+    audit: BookRunAudit,
 ) -> None:
     """Persist one book run's risk audit: normalized decisions, then the snapshot."""
     persist_normalized_risk_decisions(
         conn,
         account_id=account_id,
         decision_time=snapshot_time,
-        risk_decisions=risk_decisions,
+        risk_decisions=audit.risk_decisions,
         insert_risk_decision_fn=lambda c, **kwargs: RiskDecisionRepository(c).insert(**kwargs),
     )
     # Exposure is sourced from the clean book positions/equity (the submission path's
@@ -43,11 +42,11 @@ def persist_book_run_audit(
         conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
-        kill_switch_triggered=bool(kill_switch_reasons),
+        kill_switch_triggered=bool(audit.kill_switch_reasons),
         payload={
-            "kill_switch_reasons": kill_switch_reasons,
-            "risk_decisions": risk_decisions,
-            "summary": summary,
+            "kill_switch_reasons": audit.kill_switch_reasons,
+            "risk_decisions": audit.risk_decisions,
+            "summary": audit.summary(),
         },
         fetch_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
             account_id=account_id
