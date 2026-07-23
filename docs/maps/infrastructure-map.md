@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-23
 Purpose: Inventory the `src/infrastructure/` package — the concrete adapters and external-dependency boundaries that the trading domain depends on only through ports, plus the database backend and static config assets.
 Related: [Trading Package Map](trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Broker Integration](../reference/broker-integration.md)
 
@@ -44,7 +44,9 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
 | `ib_web_adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
-| `ib_web/` | IBKR Web API package: `settings.py` (config loading), `pacing.py` (rate-limit guard), `client.py` (HTTP client) used by the web adapter |
+| `ib_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
+| `ib_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |
+| `ib_web/settings.py` | Operator-managed IBKR Web API settings loaded from environment variables or ignored local configuration |
 
 ### `src/infrastructure/brokers/legacy/`
 
