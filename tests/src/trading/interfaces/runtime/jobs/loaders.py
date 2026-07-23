@@ -12,6 +12,7 @@ RUN_ALL_ACCOUNTS_ARGS: tuple[str, ...] = ("--accounts", "all")
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reporting"
+DAILY_PAPER_TRADING_WORKFLOW_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.workflow"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.scheduling.manage_job_schedules"

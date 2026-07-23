@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
+import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow_module
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
@@ -17,6 +19,8 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
+
+WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
 
 _STUB_OPERATOR_REPORT = {
     "report_date": "2026-01-01",
@@ -31,7 +35,7 @@ _STUB_OPERATOR_REPORT = {
 def _stub_build_daily_operator_report(monkeypatch):
     """Stub _build_daily_operator_report for all tests that don't need real DB access in step 10."""
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
+        f"{WORKFLOW_MODULE}._build_daily_operator_report",
         lambda *_args, **_kwargs: dict(_STUB_OPERATOR_REPORT),
     )
 
@@ -57,9 +61,9 @@ def _runtime_harness(monkeypatch):
         f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
         lambda: list(state.accounts),
     )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _stream)
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.stream_command", _stream)
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_runtime_event",
+        f"{WORKFLOW_MODULE}.notify_runtime_event",
         lambda **kwargs: state.notifications.append(kwargs) or True,
     )
     return state
@@ -296,7 +300,7 @@ def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_h
         "daily_paper_trading_*.json",
     )
     ordered_steps = [step["step"] for step in payload["step_results"]]
-    assert ordered_steps == [step_id for step_id, _name in module.DAILY_DAG_STEPS]
+    assert ordered_steps == [step_id for step_id, _name in dag_module.DAILY_DAG_STEPS]
 
 
 def test_success_notification_requires_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -377,7 +381,7 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
         ],
     }
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
+        f"{WORKFLOW_MODULE}._build_daily_operator_report",
         lambda *_args, **_kwargs: fake_report,
     )
 
@@ -412,8 +416,10 @@ def test_run_auto_trader_group_skips_empty_groups(monkeypatch, tmp_path: Path) -
     stream = pytest.MonkeyPatch()
     try:
         called: list[tuple[str, list[str]]] = []
-        stream.setattr(module, "stream_command", lambda log_path, label, args, repo_root: called.append((label, args)))
-        module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 1, 5, 0.0, None)
+        stream.setattr(
+            workflow_module, "stream_command", lambda log_path, label, args, repo_root: called.append((label, args))
+        )
+        workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 1, 5, 0.0, None)
     finally:
         stream.undo()
 
@@ -422,9 +428,9 @@ def test_run_auto_trader_group_skips_empty_groups(monkeypatch, tmp_path: Path) -
 
 def test_run_auto_trader_group_includes_seed_when_present(monkeypatch, tmp_path: Path) -> None:
     called: list[list[str]] = []
-    monkeypatch.setattr(module, "stream_command", lambda _log, _label, args, _root: called.append(args))
+    monkeypatch.setattr(workflow_module, "stream_command", lambda _log, _label, args, _root: called.append(args))
 
-    module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 1, 5, 0.0, 7)
+    workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 1, 5, 0.0, 7)
 
     assert "--seed" in called[0]
     assert called[0][called[0].index("--seed") + 1] == "7"
