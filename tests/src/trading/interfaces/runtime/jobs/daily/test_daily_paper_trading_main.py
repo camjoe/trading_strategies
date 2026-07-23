@@ -549,7 +549,10 @@ def test_main_resolves_relative_trade_caps_config_from_repo_root(
         captured["path"] = path
         return None, {}
 
-    monkeypatch.setattr(module, "load_trade_caps_config", _capture_config_path)
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}.run_context.load_trade_caps_config",
+        _capture_config_path,
+    )
 
     code = run_runtime_job_main(
         monkeypatch,

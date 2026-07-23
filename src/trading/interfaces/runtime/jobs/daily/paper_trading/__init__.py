@@ -17,9 +17,6 @@ from trading.interfaces.runtime.job_status import (
 from trading.interfaces.runtime.jobs.daily.paper_trading.arguments import parse_args
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     group_accounts_by_caps,
-    load_trade_caps_config,
-    parse_account_trade_caps,
-    resolve_trade_caps,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
     DAILY_DAG_STEPS as _DAILY_DAG_STEPS,
@@ -35,9 +32,9 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     latest_shadow_eval_summary,
     maybe_send_notification,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.validation import (
-    validate_account_trade_cap_overrides,
-    validate_trade_count_args,
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import (
+    RunContextError,
+    build_run_context,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,
@@ -45,7 +42,6 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     RUN_AUTO_TRADES_MODULE,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
-    resolve_accounts,
     resolve_email_config_from_env,
     stream_command,
     tee_line,
@@ -145,82 +141,26 @@ def main() -> int:
             print(f"Daily paper trading already completed for {as_of_date}; skipping. Use --force-run to override.")
             return 0
 
-    date_prefix = as_of_date.strftime("%Y%m%d") if as_of_date else dt.datetime.now().strftime("%Y%m%d")
-    time_suffix = dt.datetime.now().strftime("%H%M%S")
-    timestamp = f"{date_prefix}_{time_suffix}"
-    log_path = logs_dir / f"daily_paper_trading_{timestamp}.log"
-    artifact_path = repo_root / "local" / "exports" / "daily_paper_trading" / f"daily_paper_trading_{timestamp}.json"
-    _startup_log(f"RUN log_path={log_path}", logs_dir)
-
     all_accounts = load_runtime_eligible_account_names()
     try:
-        accounts = resolve_accounts(args.accounts, all_accounts)
-    except ValueError as exc:
+        context = build_run_context(
+            args,
+            all_accounts=all_accounts,
+            as_of_date=as_of_date,
+            repo_root=repo_root,
+            logs_dir=logs_dir,
+        )
+    except RunContextError as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    if not accounts:
-        print("No accounts specified.", file=sys.stderr)
-        return 1
-
-    trade_count_error = validate_trade_count_args(args)
-    if trade_count_error:
-        print(trade_count_error, file=sys.stderr)
-        return 1
-
-    primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
-    caps_config_path = Path(args.trade_caps_config)
-    if not caps_config_path.is_absolute():
-        caps_config_path = repo_root / caps_config_path
-
-    try:
-        configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
-    except ValueError as exc:
-        print(f"Invalid trade caps config: {exc}", file=sys.stderr)
-        return 1
-
-    try:
-        account_trade_cap_overrides = parse_account_trade_caps(args.account_trade_caps)
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    override_error = validate_account_trade_cap_overrides(account_trade_cap_overrides, all_accounts)
-    if override_error:
-        print(override_error, file=sys.stderr)
-        return 1
-
-    account_trade_caps = resolve_trade_caps(
-        accounts,
-        configured_default_caps,
-        configured_account_caps,
-        primary_accounts,
-        args.primary_min_trades,
-        args.primary_max_trades,
-        args.other_min_trades,
-        args.other_max_trades,
-        account_trade_cap_overrides,
-    )
-    caps_summary = ",".join(f"{name}:{limits[0]}-{limits[1]}" for name, limits in account_trade_caps.items())
-
-    tee_line(
-        log_path,
-        f"[{ts()}] RUN META: "
-        f"source={args.run_source} force={bool(args.force_run)} "
-        f"accounts={','.join(accounts)} caps={caps_summary}",
-    )
-    run_meta = {
-        "job": "daily_paper_trading",
-        "run_source": args.run_source,
-        "force_run": bool(args.force_run),
-        "as_of_date": str(as_of_date) if as_of_date else None,
-        "accounts": accounts,
-        "account_count": len(accounts),
-        "caps_summary": caps_summary,
-        "log_path": str(log_path.relative_to(repo_root)),
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
-        "started_at": ts(),
-    }
+    log_path = context.log_path
+    artifact_path = context.artifact_path
+    accounts = context.accounts
+    account_trade_caps = context.account_trade_caps
+    caps_summary = context.caps_summary
+    run_meta = context.run_meta
+    _startup_log(f"RUN log_path={log_path}", logs_dir)
     step_results = new_step_results()
 
     try:

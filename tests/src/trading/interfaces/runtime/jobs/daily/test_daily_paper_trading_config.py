@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.src.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
+from trading.interfaces.runtime.jobs.daily.paper_trading import caps as module
 
 
 def test_parse_account_trade_caps_empty_string_returns_empty_dict() -> None:
