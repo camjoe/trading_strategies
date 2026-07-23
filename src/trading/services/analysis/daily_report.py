@@ -10,9 +10,8 @@ Consumed by: trading.interfaces.runtime.jobs.daily.paper_trading (step 10)
 
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
@@ -20,10 +19,6 @@ from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import list_report_books
-
-
-def _next_date(report_date: str) -> str:
-    return (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,43 +173,6 @@ def build_account_daily_report(
 
 
 def account_daily_report_as_dict(report: AccountDailyReport) -> dict[str, object]:
-    return {
-        "account_id": report.account_id,
-        "account_name": report.account_name,
-        "report_date": report.report_date,
-        "book_performance": [
-            {
-                "book_id": row.book_id,
-                "book_name": row.book_name,
-                "strategy_name": row.strategy_name,
-                "return_pct": row.return_pct,
-                "drawdown_pct": row.drawdown_pct,
-                "hit_rate": row.hit_rate,
-                "trade_count": row.trade_count,
-                "fees_total": row.fees_total,
-                "risk_adjusted_score": row.risk_adjusted_score,
-                "current_equity": row.current_equity,
-                "start_equity": row.start_equity,
-            }
-            for row in report.book_performance
-        ],
-        "risk_violations": {
-            "total_decisions": report.risk_violations.total_decisions,
-            "block_count": report.risk_violations.block_count,
-            "rescale_count": report.risk_violations.rescale_count,
-            "allow_count": report.risk_violations.allow_count,
-            "kill_switch_triggered": report.risk_violations.kill_switch_triggered,
-            "top_reason_codes": report.risk_violations.top_reason_codes,
-        },
-        "rotation_decisions": [
-            {
-                "book_id": row.book_id,
-                "book_name": row.book_name,
-                "incumbent_strategy": row.incumbent_strategy,
-                "challenger_strategy": row.challenger_strategy,
-                "rotation_action": row.rotation_action,
-                "decision_reason": row.decision_reason,
-            }
-            for row in report.rotation_decisions
-        ],
-    }
+    # The dataclasses' field names are the JSON artifact's keys, so asdict()
+    # recurses into the nested row/summary dataclasses to build the payload.
+    return asdict(report)
