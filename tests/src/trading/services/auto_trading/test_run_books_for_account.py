@@ -54,7 +54,7 @@ def _install(
     def _rotation(_conn, *, account, decision_time):
         recorder.calls.append("rotation")
 
-    monkeypatch.setattr(runtime_service, "_run_book_rotation_decisions", _rotation)
+    monkeypatch.setattr(runtime_service, "run_account_book_rotations", _rotation)
 
     def _generate(_conn, **_kwargs):
         recorder.calls.append("generate_intents")
@@ -97,7 +97,7 @@ def _install(
             )
         )
 
-    monkeypatch.setattr(runtime_service, "_persist_book_run_audit", _persist)
+    monkeypatch.setattr(runtime_service, "persist_book_run_audit", _persist)
 
     def _throttle(_conn, *, trade_time_iso):
         recorder.throttle_count += 1

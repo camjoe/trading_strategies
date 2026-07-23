@@ -22,15 +22,8 @@ from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.models.orders.broker_order import OrderFill
-from trading.repositories.books import BookRepository
-from trading.repositories.positions import PositionRepository
-from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.services.accounts import get_account
-from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
-from trading.services.books.rotation.engine import (
-    evaluate_and_apply_book_rotation,
-    resolve_rotation_policy_config,
-)
+from trading.services.books.rotation.account_rotation import run_account_book_rotations
 from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
@@ -40,10 +33,7 @@ from trading.services.execution.open_order_reconciliation import (
 )
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.reconciliation import reconcile_book_equity
-from trading.services.execution.risk import (
-    persist_book_risk_snapshot,
-    persist_normalized_risk_decisions,
-)
+from trading.services.execution.risk_audit import persist_book_run_audit
 from trading.services.execution.selection.book_intents import generate_book_trade_intents
 from trading.services.execution.selection.selection import (
     FeatureHistoryFn,
@@ -90,110 +80,9 @@ def _resolve_reconciliation_exec_id(
     )
 
 
-def _persist_book_risk_snapshot(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    snapshot_time: str,
-    kill_switch_triggered: bool,
-    payload: dict[str, object],
-) -> None:
-    # Exposure is sourced from the clean book positions/equity (the submission path's
-    # source of truth); persisted to the account-keyed risk_snapshots table.
-    persist_book_risk_snapshot(
-        conn,
-        account_id=account_id,
-        snapshot_time=snapshot_time,
-        kill_switch_triggered=kill_switch_triggered,
-        payload=payload,
-        fetch_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
-            account_id=account_id
-        ),
-        fetch_books_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(account_id=account_id),
-        insert_risk_snapshot_fn=RiskSnapshotRepository(conn).insert,
-        symbol_sector_map=load_symbol_sector_map(),
-    )
-
-
-def _persist_normalized_risk_decisions(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    decision_time: str,
-    risk_decisions: list[dict[str, object]],
-) -> None:
-    persist_normalized_risk_decisions(
-        conn,
-        account_id=account_id,
-        decision_time=decision_time,
-        risk_decisions=risk_decisions,
-        insert_risk_decision_fn=lambda c, **kwargs: RiskDecisionRepository(c).insert(**kwargs),
-    )
-
-
-def _run_book_rotation_decisions(
-    conn: sqlite3.Connection,
-    *,
-    account: AccountRecord,
-    decision_time: str,
-) -> None:
-    # Scheduling is book-owned (ADR 014): the evaluation resolves each book's
-    # enabled gate, challenger schedule, and lookback from its settings row.
-    shadow_eval = build_book_challenger_evaluations(
-        conn,
-        account=account,
-        as_of_iso=decision_time,
-    )
-    for book_eval in shadow_eval.books:
-        # Per-book effective policy: book_rotation_settings overrides with
-        # code-default fallback.
-        config = resolve_rotation_policy_config(
-            conn,
-            book_id=book_eval.book_id,
-            rolling_window_days=book_eval.rolling_window_days,
-            config_version=f"book-rotation:{decision_time[:10]}",
-        )
-        evaluate_and_apply_book_rotation(
-            conn,
-            book_id=book_eval.book_id,
-            incumbent=book_eval.incumbent,
-            challengers=book_eval.challengers,
-            config=config,
-            decision_time=decision_time,
-        )
-
-
 def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
     """Convert the gate's book-keyed decisions into audit dicts."""
     return [asdict(decision) for decision in decisions]
-
-
-def _persist_book_run_audit(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    snapshot_time: str,
-    risk_decisions: list[dict[str, object]],
-    kill_switch_reasons: list[str],
-    summary: dict[str, object],
-) -> None:
-    _persist_normalized_risk_decisions(
-        conn,
-        account_id=account_id,
-        decision_time=snapshot_time,
-        risk_decisions=risk_decisions,
-    )
-    _persist_book_risk_snapshot(
-        conn,
-        account_id=account_id,
-        snapshot_time=snapshot_time,
-        kill_switch_triggered=bool(kill_switch_reasons),
-        payload={
-            "kill_switch_reasons": kill_switch_reasons,
-            "risk_decisions": risk_decisions,
-            "summary": summary,
-        },
-    )
 
 
 def _run_books_for_account(
@@ -215,7 +104,7 @@ def _run_books_for_account(
     snapshot_time = utc_now_iso()
     # Universes are book-owned and required (revision 0008): each book resolves
     # its own names; the global list is only the guard for malformed data.
-    _run_book_rotation_decisions(conn, account=account, decision_time=snapshot_time)
+    run_account_book_rotations(conn, account=account, decision_time=snapshot_time)
     intents = generate_book_trade_intents(
         conn,
         account=account,
@@ -228,7 +117,7 @@ def _run_books_for_account(
         feature_history_fn=feature_history_fn,
     )
     if not intents:
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
@@ -284,7 +173,7 @@ def _run_books_for_account(
     # A kill switch (stale-price or reconciliation) holds the whole run.
     approved_intents = [] if kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
@@ -339,7 +228,7 @@ def _run_books_for_account(
                 )
                 break
 
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
