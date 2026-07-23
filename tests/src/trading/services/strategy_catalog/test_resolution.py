@@ -90,7 +90,7 @@ def test_alias_primitive_resolves_to_canonical_primitive(conn) -> None:
 def test_variant_key_runs_its_primitives_signal_fn(conn) -> None:
     # A data variant: distinct key, same trend primitive, tuned knob. It exposes
     # the trend primitive's signal function so execution runs the right code.
-    from trading.domain.strategy_signals import PRIMITIVE_CATALOG
+    from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 
     _insert_strategy(
         conn,

@@ -15,11 +15,9 @@ from infrastructure.feature_providers.policy_provider import (
     _ALL_ETFS,
     POLICY_MIN_OBSERVATIONS,
 )
-from trading.domain.strategy_signals import (
-    STRATEGY_REGISTRY,
-    resolve_strategy,
-    _policy_regime_signal,
-)
+from trading.domain.strategies.registry import STRATEGY_REGISTRY
+from trading.domain.strategies.resolution import resolve_strategy
+from trading.domain.strategies.signals.alternative import _policy_regime_signal
 
 
 # ---------------------------------------------------------------------------

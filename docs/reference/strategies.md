@@ -16,8 +16,8 @@ checklist for research/backtesting flows.
 
 A strategy is a **code primitive plus data knobs**, split across two sources:
 
-- **Signal primitives (code)** — `src/trading/domain/strategy_signals.py`
-  (`PRIMITIVE_CATALOG`): the tested signal functions and their knob schemas. Adding genuinely new
+- **Signal primitives (code)** — `src/trading/domain/strategies/` (`registry.PRIMITIVE_CATALOG`,
+  signal functions in `signals/`): the tested signal functions and their knob schemas. Adding genuinely new
   signal *logic* is still a code change. `STRATEGY_REGISTRY` seeds the primitive catalog and remains
   the alias-compat source for legacy labels.
 - **Strategy definitions (data)** — the `strategies` catalog table: each row binds a primitive to a
@@ -73,8 +73,8 @@ At runtime a book's assigned `strategy_key` resolves through the catalog row's `
 (`resolve_catalog_strategy` → `resolve_primitive`), so data variants run the correct signal function.
 
 Label compatibility for legacy/alias inputs is still handled by `resolve_strategy(...)` in
-`src/trading/domain/strategy_signals.py` (used by the catalog resolver's alias fallback, the label
-bridge, and backtesting).
+`src/trading/domain/strategies/resolution.py` (used by the catalog resolver's alias fallback, the
+label bridge, and backtesting).
 
 Order of resolution:
 

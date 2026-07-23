@@ -41,8 +41,9 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 1. Caller invokes the supported function in `backtest.py`.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
-4. Strategy signal dispatch uses `trading.domain.strategy_signals`; alternative strategies receive
-   `ExternalFeatureBundle` values from `src/infrastructure/feature_providers/` providers.
+4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
+   alternative strategies receive `ExternalFeatureBundle` values from
+   `src/infrastructure/feature_providers/` providers.
 5. Backtesting-local models live in `models.py` and `report_models.py`; shared cross-runtime
    contracts remain in `src/trading/models/`.
 

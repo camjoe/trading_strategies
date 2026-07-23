@@ -245,7 +245,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
-| `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
+| `strategies/` | Strategy signal package: `contracts`, `signals/` (technical/alternative), `registry` (`StrategySpec`/`PRIMITIVE_CATALOG`), `parameter_validation`, `resolution` (DI: holds signal callables) |
 
 ---
 
