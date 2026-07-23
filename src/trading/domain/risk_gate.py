@@ -6,7 +6,7 @@ notional cap, or blocked.  The service layer
 (``trading.services.books.risk_gate``) owns the repository reads that build the
 inputs.
 
-This mirrors ``trading.domain.rotation_policy.evaluate_champion_challenger_rotation``:
+This mirrors ``trading.domain.rotation.policy.evaluate_champion_challenger_rotation``:
 the side-effect-free gate logic lives here and returns a passive
 ``RiskGateResult`` value object; the orchestration lives in services.
 """

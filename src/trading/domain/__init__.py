@@ -18,7 +18,7 @@ from trading.domain.book_accounting import (
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.returns import safe_return_pct
-from trading.domain.rotation import (
+from trading.domain.rotation.schedule import (
     dump_rotation_schedule,
     parse_rotation_schedule,
 )
