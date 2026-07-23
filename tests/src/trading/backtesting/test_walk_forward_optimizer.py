@@ -39,9 +39,7 @@ GOOD_PARAMS = {"fast_window": 5, "slow_window": 20}
 
 class TestGridSearch:
     def test_generates_canonical_ordered_product(self) -> None:
-        candidates = generate_candidates(
-            {"fast_window": [5, 10], "slow_window": [20, 30]}, budget=256
-        )
+        candidates = generate_candidates({"fast_window": [5, 10], "slow_window": [20, 30]}, budget=256)
         assert candidates == [
             {"fast_window": 5, "slow_window": 20},
             {"fast_window": 5, "slow_window": 30},
@@ -102,9 +100,15 @@ class TestObjective:
 
     def test_select_winner_ranks_by_score_then_tiebreaks(self) -> None:
         results = [
-            evaluate_candidate(index=0, params={"n": 0}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8),
-            evaluate_candidate(index=1, params={"n": 1}, annualized_return_pct=30.0, max_drawdown_pct=-5.0, trade_count=12),
-            evaluate_candidate(index=2, params={"n": 2}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8),
+            evaluate_candidate(
+                index=0, params={"n": 0}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8
+            ),
+            evaluate_candidate(
+                index=1, params={"n": 1}, annualized_return_pct=30.0, max_drawdown_pct=-5.0, trade_count=12
+            ),
+            evaluate_candidate(
+                index=2, params={"n": 2}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8
+            ),
         ]
         assert select_winner(results).params == {"n": 1}
 
