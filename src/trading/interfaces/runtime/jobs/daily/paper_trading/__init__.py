@@ -3,9 +3,7 @@
 
 from __future__ import annotations
 
-import argparse
 import datetime as dt
-import os
 import sys
 import traceback
 from pathlib import Path
@@ -16,6 +14,7 @@ from trading.interfaces.runtime.job_status import (
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.arguments import parse_args
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     group_accounts_by_caps,
     load_trade_caps_config,
@@ -36,11 +35,14 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     latest_shadow_eval_summary,
     maybe_send_notification,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.validation import (
+    validate_account_trade_cap_overrides,
+    validate_trade_count_args,
+)
 from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     RUN_AUTO_TRADES_MODULE,
-    RUNTIME_ALERT_WEBHOOK_ENV,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
@@ -54,7 +56,6 @@ from trading.interfaces.runtime.notifications import notify_runtime_event
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-DEFAULT_TRADE_CAPS_CONFIG = REPO_ROOT / "trading" / "config" / "account_trade_caps.json"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
@@ -78,81 +79,6 @@ except Exception as exc:
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 DAILY_DAG_STEPS = _DAILY_DAG_STEPS
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the daily paper-trading workflow.")
-    parser.add_argument(
-        "--accounts",
-        default="all",
-        help="Comma-separated account names, or 'all' for every account in DB (default: all)",
-    )
-    parser.add_argument(
-        "--primary-accounts",
-        default="momentum_5k,meanrev_5k",
-        help="Accounts that keep strict legacy limits (default: momentum_5k,meanrev_5k)",
-    )
-    parser.add_argument("--primary-min-trades", type=int, default=1)
-    parser.add_argument("--primary-max-trades", type=int, default=5)
-    parser.add_argument("--other-min-trades", type=int, default=1)
-    parser.add_argument("--other-max-trades", type=int, default=11)
-    parser.add_argument(
-        "--account-trade-caps",
-        default="",
-        help=(
-            "Optional per-account overrides in the form "
-            "account:min-max,account:min-max (example: momentum_5k:1-5,core_growth_20k:1-8)"
-        ),
-    )
-    parser.add_argument(
-        "--trade-caps-config",
-        default=DEFAULT_TRADE_CAPS_CONFIG,
-        help=(f"Path to JSON file with default and per-account trade caps (default: {DEFAULT_TRADE_CAPS_CONFIG})"),
-    )
-    parser.add_argument("--fee", type=float, default=0.0)
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument(
-        "--run-challenger-shadow-eval",
-        action="store_true",
-        help="Run challenger shadow evaluation before auto-trading.",
-    )
-    parser.add_argument(
-        "--shadow-eval-rolling-window-days",
-        type=int,
-        default=None,
-        help=(
-            "Override the challenger shadow-eval lookback window in days"
-            " (default: each book's own configured lookback)."
-        ),
-    )
-    parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
-    parser.add_argument(
-        "--as-of-date",
-        default="",
-        help=(
-            "Override the trading date for this run (YYYY-MM-DD). "
-            "Used by replay/backfill tooling to re-run a missed date. "
-            "Affects dedup guard key and log/artifact file name prefix. "
-            "Implies --force-run for the dedup guard."
-        ),
-    )
-    parser.add_argument("--run-source", default="scheduled-daily")
-    parser.add_argument(
-        "--notify-webhook-url",
-        default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
-        help=(f"Optional webhook URL for runtime notifications (default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"),
-    )
-    parser.add_argument(
-        "--notify-on-success",
-        action="store_true",
-        help="Also send a webhook notification when the run completes successfully",
-    )
-    parser.add_argument(
-        "--repo-root",
-        default=str(REPO_ROOT),
-        help="Repository root path (default: inferred from script location)",
-    )
-    return parser.parse_args()
 
 
 def already_completed_today(log_dir: Path, *, today: dt.date | None = None) -> bool:
@@ -237,20 +163,9 @@ def main() -> int:
         print("No accounts specified.", file=sys.stderr)
         return 1
 
-    if args.primary_min_trades < 1:
-        print("--primary-min-trades must be >= 1", file=sys.stderr)
-        return 1
-    if args.shadow_eval_rolling_window_days is not None and args.shadow_eval_rolling_window_days < 1:
-        print("--shadow-eval-rolling-window-days must be >= 1", file=sys.stderr)
-        return 1
-    if args.primary_max_trades < args.primary_min_trades:
-        print("--primary-max-trades must be >= --primary-min-trades", file=sys.stderr)
-        return 1
-    if args.other_min_trades < 1:
-        print("--other-min-trades must be >= 1", file=sys.stderr)
-        return 1
-    if args.other_max_trades < args.other_min_trades:
-        print("--other-max-trades must be >= --other-min-trades", file=sys.stderr)
+    trade_count_error = validate_trade_count_args(args)
+    if trade_count_error:
+        print(trade_count_error, file=sys.stderr)
         return 1
 
     primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
@@ -270,13 +185,9 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    known_accounts = set(all_accounts)
-    unknown_override_accounts = [name for name in account_trade_cap_overrides if name not in known_accounts]
-    if unknown_override_accounts:
-        print(
-            f"Unknown account(s) in --account-trade-caps: {', '.join(unknown_override_accounts)}",
-            file=sys.stderr,
-        )
+    override_error = validate_account_trade_cap_overrides(account_trade_cap_overrides, all_accounts)
+    if override_error:
+        print(override_error, file=sys.stderr)
         return 1
 
     account_trade_caps = resolve_trade_caps(
