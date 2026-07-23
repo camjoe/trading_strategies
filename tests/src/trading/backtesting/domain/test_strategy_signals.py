@@ -8,6 +8,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from trading.domain import strategy_signals
+from trading.domain.strategies.signals import technical
 
 
 def _series_range(start: int, stop: int) -> pd.Series:
@@ -81,14 +82,14 @@ def test_rsi_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
 
     history = _series_range(1, 50)
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([80.0] * len(history))),
     )
     _assert_signal("rsi", history, "sell")
 
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([float("nan")] * len(history))),
     )
@@ -101,7 +102,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_buy = pd.Series([0.0] * 48 + [1.0])
     macd_signal_buy = pd.Series([0.0] * 47 + [0.5, 0.2])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_buy, macd_signal_buy, macd_buy - macd_signal_buy),
     )
@@ -110,7 +111,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_sell = pd.Series([0.0] * 47 + [0.5, 0.4, 0.1])
     macd_signal_sell = pd.Series([0.0] * 47 + [0.2, 0.3, 0.2])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_sell, macd_signal_sell, macd_sell - macd_signal_sell),
     )
@@ -119,7 +120,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_nan = pd.Series([0.0] * 48 + [float("nan"), 1.0])
     macd_signal_nan = pd.Series([0.0] * 48 + [0.0, 0.5])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_nan, macd_signal_nan, macd_nan - macd_signal_nan),
     )
