@@ -1,5 +1,17 @@
 line-length = 119
 
+[lint]
+# Add import sorting (I) on top of Ruff's default E/F rules. extend-select keeps
+# the defaults; a bare `select` would replace them and silently drop E/F.
+extend-select = ["I"]
+
+[lint.isort]
+# Keep aliased members on their existing shared `from` line instead of splitting
+# them onto their own statement, e.g. preserve
+#   from x import a, b as c
+# rather than emitting a separate `from x import b as c` line.
+combine-as-imports = true
+
 [lint.per-file-ignores]
 # Pydantic schema fields use camelCase to match the JSON/frontend API contract.
 "apps/paper_trading_web/backend/schemas/*.py" = ["N815"]
