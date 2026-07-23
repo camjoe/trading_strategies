@@ -84,6 +84,7 @@ class RunOutcome:
     total_return_pct: float
     annualized_return_pct: float | None
     max_drawdown_pct: float
+    calmar_ratio: float | None
     trade_count: int
     benchmark_return_pct: float | None
 

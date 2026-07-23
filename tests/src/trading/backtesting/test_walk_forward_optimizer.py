@@ -164,6 +164,7 @@ def _fake_result(cfg: BacktestConfig, *, annualized: float, drawdown: float, tra
         max_drawdown_pct=drawdown,
         warnings=[],
         annualized_return_pct=annualized,
+        calmar_ratio=(annualized / abs(drawdown) if drawdown else None),
     )
 
 
@@ -223,6 +224,15 @@ class TestOptimizerOrchestration:
         # The tuned winner differs from the strategy default and beats the baseline OOS.
         assert summary.default_params == {"fast_window": 10, "slow_window": 20}
         assert all(w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct for w in summary.windows)
+
+    def test_risk_metrics_propagate_into_outcomes(self) -> None:
+        # Drawdown and calmar reach the reported OOS outcomes so the summary can judge
+        # risk-adjusted performance, not just total return.
+        _cfg, summary, _persisted, _metrics = self._run()
+        winner_oos = summary.windows[0].winner_oos
+        assert winner_oos.max_drawdown_pct == -5.0  # GOOD_PARAMS drawdown
+        assert winner_oos.calmar_ratio == 30.0 / 5.0
+        assert summary.windows[0].baseline_oos.max_drawdown_pct == -10.0  # default baseline
 
     def test_selection_uses_training_data_only(self) -> None:
         _cfg, summary, persisted, metrics_only = self._run()
