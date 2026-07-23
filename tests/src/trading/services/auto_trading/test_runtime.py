@@ -61,22 +61,6 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     broker_factory.assert_not_called()
 
 
-def test_reconcile_open_ib_orders_delegates_to_broker_reconciliation(monkeypatch) -> None:
-    reconcile = Mock(return_value=3)
-    monkeypatch.setattr(runtime_service, "reconcile_open_broker_orders", reconcile)
-
-    count = runtime_service.reconcile_open_ib_orders(
-        conn=object(),
-        account_name="acct",
-        account=make_auto_trading_account(id=1),
-        fee=1.5,
-        broker_factory=Mock(),
-    )
-
-    assert count == 3
-    reconcile.assert_called_once()
-
-
 def test_runtime_wrapper_delegates(monkeypatch) -> None:
     resolved_exec = Mock(return_value="exec-id")
     monkeypatch.setattr(runtime_service, "resolve_reconciliation_exec_id", resolved_exec)

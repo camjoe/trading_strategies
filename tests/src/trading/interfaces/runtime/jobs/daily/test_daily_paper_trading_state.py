@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import trading.interfaces.runtime.jobs.daily.paper_trading.caps as caps_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
@@ -36,25 +37,25 @@ def test_already_completed_today_uses_todays_date_tag_by_default(tmp_path: Path)
 
 def test_group_accounts_by_caps_single_group() -> None:
     caps = {"a": (1, 5), "b": (1, 5)}
-    result = module.group_accounts_by_caps(["a", "b"], caps)
+    result = caps_module.group_accounts_by_caps(["a", "b"], caps)
     assert result == {(1, 5): ["a", "b"]}
 
 
 def test_group_accounts_by_caps_multiple_groups() -> None:
     caps = {"a": (1, 5), "b": (1, 11), "c": (1, 5)}
-    result = module.group_accounts_by_caps(["a", "b", "c"], caps)
+    result = caps_module.group_accounts_by_caps(["a", "b", "c"], caps)
     assert result[(1, 5)] == ["a", "c"]
     assert result[(1, 11)] == ["b"]
 
 
 def test_group_accounts_by_caps_preserves_insertion_order_within_group() -> None:
     caps = {"z": (1, 5), "a": (1, 5), "m": (1, 5)}
-    result = module.group_accounts_by_caps(["z", "a", "m"], caps)
+    result = caps_module.group_accounts_by_caps(["z", "a", "m"], caps)
     assert result[(1, 5)] == ["z", "a", "m"]
 
 
 def test_group_accounts_by_caps_empty_accounts_returns_empty() -> None:
-    assert module.group_accounts_by_caps([], {}) == {}
+    assert caps_module.group_accounts_by_caps([], {}) == {}
 
 
 def test_step_result_raises_for_unknown_step_id() -> None:

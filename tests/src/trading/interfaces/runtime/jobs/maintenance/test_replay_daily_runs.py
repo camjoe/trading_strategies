@@ -11,6 +11,7 @@ from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
     DAILY_PAPER_TRADING_REPORTING_MODULE,
+    DAILY_PAPER_TRADING_WORKFLOW_MODULE,
     daily_paper_trading as daily_module,
     load_single_artifact_json,
     run_runtime_job_main,
@@ -26,7 +27,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
 @pytest.fixture(autouse=True)
 def _stub_operator_report(monkeypatch):
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
+        f"{DAILY_PAPER_TRADING_WORKFLOW_MODULE}._build_daily_operator_report",
         lambda *_a, **_k: {
             "report_date": "2020-01-15",
             "account_count": 0,

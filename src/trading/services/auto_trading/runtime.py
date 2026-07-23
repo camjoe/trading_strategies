@@ -420,15 +420,3 @@ def reconcile_open_broker_orders(
         account,
         get_broker_for_account_fn=broker_factory,
     )
-
-
-def reconcile_open_ib_orders(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    fee: float,
-    *,
-    broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> int:
-    """Compatibility alias for the old broker reconciliation name."""
-    return reconcile_open_broker_orders(conn, account_name, account, fee, broker_factory=broker_factory)
