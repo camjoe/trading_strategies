@@ -116,7 +116,10 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda name: (resolved.append(name), SimpleNamespace(required_features=(), strategy_id=name, default_params={}))[1],
+            lambda name: (
+                resolved.append(name),
+                SimpleNamespace(required_features=(), strategy_id=name, default_params={}),
+            )[1],
         ),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
@@ -262,3 +265,71 @@ def test_execution_service_sell_skip_when_price_is_zero() -> None:
     )
     # The buy on day 1 executed; the sell on day 2 was skipped.
     assert result.trade_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Warm-up: history before the scoring window initializes indicators, but returns
+# and trades are measured only from the window start.
+# ---------------------------------------------------------------------------
+
+
+def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx, series: pd.Series):
+    account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
+    cfg = SimpleNamespace(
+        account_name="acct_warmup",
+        tickers_file="t.txt",
+        universe_history_dir=None,
+        start=scoring_start.isoformat(),
+        end=end.isoformat(),
+        lookback_months=None,
+        slippage_bps=0.0,
+        fee_per_trade=0.0,
+        run_name=None,
+        allow_approximate_leaps=False,
+        strategy="trend",
+        purpose="standalone",
+        param_override=None,
+        warmup_months=warmup_months,
+    )
+    frame = pd.DataFrame({"AAPL": series})
+
+    # Realistic fetch: return only the bars within the requested [start, end] range.
+    def fetch_close(_tickers, start, end_):
+        return frame.loc[pd.Timestamp(start) : pd.Timestamp(end_)]
+
+    return execution_service.run_backtest(
+        SimpleNamespace(commit=lambda: None),
+        cfg,
+        get_account_fn=lambda _conn, _name: account,
+        resolve_backtest_dates_fn=lambda _s, _e, _l: (scoring_start, end),
+        warnings_for_config_fn=lambda _account, _allow: [],
+        resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {}, ["AAPL"], []),
+        fetch_close_history_fn=fetch_close,
+        fetch_benchmark_close_fn=lambda _t, _s, _e: pd.Series([100.0] * len(idx), index=idx),
+        insert_run_fn=lambda *_args, **_kwargs: 1,
+        insert_trade_fn=lambda *_args, **_kwargs: None,
+        insert_snapshot_fn=lambda *_args, **_kwargs: None,
+        choose_buy_qty_fn=lambda *_args, **_kwargs: 2,
+        get_default_book_fn=lambda _conn, *, account_id: None,
+    )
+
+
+def test_warmup_enables_signals_in_a_short_window() -> None:
+    # A rising series over ~160 business days; the scoring window is only ~21 bars —
+    # shorter than the trend strategy's 30-bar warm-up requirement.
+    idx = pd.date_range("2026-01-01", periods=160, freq="B")
+    series = pd.Series([50.0 + i for i in range(len(idx))], index=idx)
+    scoring_start = idx[-21].date()
+    end = idx[-1].date()
+
+    cold = _run_with_warmup(warmup_months=0, scoring_start=scoring_start, end=end, idx=idx, series=series)
+    warm = _run_with_warmup(warmup_months=3, scoring_start=scoring_start, end=end, idx=idx, series=series)
+
+    # Without warm-up the strategy never accumulates enough history to signal → flat.
+    assert cold.trade_count == 0
+    assert cold.total_return_pct == 0.0
+    # With warm-up it is warm at the window start and trades within the window.
+    assert warm.trade_count > 0
+    # Either way, the reported period is the scoring window, not the warm-up lead-in.
+    assert cold.start_date == scoring_start.isoformat()
+    assert warm.start_date == scoring_start.isoformat()

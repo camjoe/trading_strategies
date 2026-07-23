@@ -285,6 +285,7 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
                 step_months=args.step_months,
                 holdout_months=args.holdout_months,
                 candidate_budget=args.candidate_budget,
+                warmup_months=args.warmup_months,
             ),
             run_metrics_only_fn=deps["run_backtest_metrics_only"],
             run_persisted_fn=deps["run_backtest"],

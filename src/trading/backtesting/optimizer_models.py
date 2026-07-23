@@ -20,6 +20,11 @@ DEFAULT_HOLDOUT_MONTHS = 6
 # rejected rather than silently truncated, so a run always evaluates every candidate.
 DEFAULT_CANDIDATE_BUDGET = 256
 
+# Indicator warm-up applied to every window backtest (~126 trading days). Comfortably
+# covers the technical strategies' warm-up needs (max(30, slow_window) bars) so short
+# out-of-sample windows are valid; raise it for grids with very large window params.
+DEFAULT_WARMUP_MONTHS = 6
+
 
 @dataclass(frozen=True)
 class WalkForwardSplit:
@@ -53,6 +58,7 @@ class OptimizerConfig:
     step_months: int = DEFAULT_STEP_MONTHS
     holdout_months: int = DEFAULT_HOLDOUT_MONTHS
     candidate_budget: int = DEFAULT_CANDIDATE_BUDGET
+    warmup_months: int = DEFAULT_WARMUP_MONTHS
     objective_name: str = CALMAR_V1_OBJECTIVE
 
 

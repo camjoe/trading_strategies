@@ -142,7 +142,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         "--search-space",
         required=True,
         help=(
-            'JSON object of parameter -> candidate values, e.g. '
+            "JSON object of parameter -> candidate values, e.g. "
             '\'{"fast_window": [5, 10, 15], "slow_window": [20, 30]}\'. '
             "Keys must be parameters of the strategy."
         ),
@@ -162,6 +162,12 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         type=int,
         default=256,
         help="Maximum grid size; a larger Cartesian product is rejected, not truncated",
+    )
+    p_optimize.add_argument(
+        "--warmup-months",
+        type=int,
+        default=6,
+        help="Indicator warm-up history loaded before each window (default: 6); raise for large window params",
     )
 
     p_walk_forward_report = sub.add_parser(

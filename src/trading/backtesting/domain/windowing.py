@@ -7,7 +7,7 @@ from trading.backtesting.optimizer_models import WalkForwardSplit
 from trading.domain.exceptions import ValidationError
 
 
-def _shift_months(base: date, months: int) -> date:
+def shift_months(base: date, months: int) -> date:
     """Shift a date by a signed number of months, clamping the day to the target month."""
     month_index = (base.year * 12 + (base.month - 1)) + months
     target_year = month_index // 12
@@ -19,7 +19,7 @@ def _shift_months(base: date, months: int) -> date:
 def add_months(base: date, months: int) -> date:
     if months < 0:
         raise ValidationError("months must be >= 0")
-    return _shift_months(base, months)
+    return shift_months(base, months)
 
 
 def build_walk_forward_windows(
@@ -81,7 +81,7 @@ def build_walk_forward_optimization_splits(
     optimization_end = end_date
     if holdout_months > 0:
         end_month_first = date(end_date.year, end_date.month, 1)
-        holdout_start = _shift_months(end_month_first, 1 - holdout_months)
+        holdout_start = shift_months(end_month_first, 1 - holdout_months)
         if holdout_start <= start_date:
             raise ValidationError("holdout_months leaves no room for any training/test window")
         holdout = (holdout_start, end_date)
@@ -94,7 +94,7 @@ def build_walk_forward_optimization_splits(
         test_end = add_months(test_cursor, test_months) - timedelta(days=1)
         if test_end > optimization_end:
             break
-        train_start = max(_shift_months(test_cursor, -train_months), start_date)
+        train_start = max(shift_months(test_cursor, -train_months), start_date)
         train_end = test_cursor - timedelta(days=1)
         test_start = max(test_cursor, start_date)
         if train_start < train_end and test_start < test_end:

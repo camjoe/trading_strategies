@@ -35,6 +35,11 @@ class BacktestConfig:
     # strategy catalog's params_json. Merged over the strategy's default params;
     # None runs the strategy's default (catalog) parameters.
     param_override: dict[str, Any] | None = None
+    # Indicator warm-up lead-in: load this many months of price history *before*
+    # the scoring window so signals are warm at the window start. These bars only
+    # initialize indicators — returns, trades, and snapshots are measured from the
+    # window start. 0 (default) preserves the original single-range behavior.
+    warmup_months: int = 0
 
 
 @dataclass

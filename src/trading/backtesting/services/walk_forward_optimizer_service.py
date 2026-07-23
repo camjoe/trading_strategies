@@ -240,6 +240,7 @@ def _config(
         strategy=cfg.strategy,
         purpose=purpose,
         param_override=param_override,
+        warmup_months=cfg.warmup_months,
     )
 
 
