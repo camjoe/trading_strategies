@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Rotation is the one remaining 1:1 settings table (large, coherent, sparse).
 # A missing row means "use code defaults"; a per-row change-audit stays
@@ -55,7 +56,7 @@ class BookRotationSettingsRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def upsert_rotation_policy(
         self,
@@ -108,4 +109,4 @@ class BookRotationSettingsRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)

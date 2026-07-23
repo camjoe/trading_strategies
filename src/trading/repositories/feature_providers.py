@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.strategy.feature_provider_record import FeatureProviderRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class FeatureProviderRepository:
@@ -34,7 +35,7 @@ class FeatureProviderRepository:
             """,
             (provider_key, int(enabled), config_json, created_at, updated_at),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def fetch_by_key(self, *, provider_key: str) -> FeatureProviderRecord | None:
         row = self._conn.execute(

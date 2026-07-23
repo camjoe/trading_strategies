@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.strategy.strategy_record import StrategyRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class StrategyImmutableError(ValueError):
@@ -54,7 +55,7 @@ class StrategyRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def fetch_by_id(self, *, strategy_id: int) -> StrategyRecord | None:
@@ -103,7 +104,7 @@ class StrategyRepository:
             raise StrategyImmutableError(
                 f"Strategy {strategy_id} is frozen or missing; tuning requires a new strategy row."
             )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def freeze(self, *, strategy_id: int, updated_at: str) -> None:
         """Mark a strategy frozen (one-way; called once it has evidence or goes live)."""
@@ -111,11 +112,11 @@ class StrategyRepository:
             "UPDATE strategies SET status = 'frozen', updated_at = ? WHERE id = ? AND status = 'draft'",
             (updated_at, int(strategy_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def set_enabled(self, *, strategy_id: int, enabled: int, updated_at: str) -> None:
         self._conn.execute(
             "UPDATE strategies SET enabled = ?, updated_at = ? WHERE id = ?",
             (int(enabled), updated_at, int(strategy_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)

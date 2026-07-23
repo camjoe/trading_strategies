@@ -4,6 +4,7 @@ import sqlite3
 
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
 # summed balances. Degenerates to the raw row while an account has only its
@@ -104,7 +105,7 @@ class EquitySnapshotRepository:
             """,
             (int(book_id), snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def fetch_recent_equity(self, *, account_id: int, limit: int) -> list[float]:
         rows = self._conn.execute(

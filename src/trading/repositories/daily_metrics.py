@@ -4,6 +4,7 @@ import sqlite3
 
 from trading.models.portfolio.daily_metric_record import DailyMetricRecord
 from trading.repositories.book_bridge import default_book_id
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 _METRIC_COLUMNS = (
     "return_pct",
@@ -86,7 +87,7 @@ class DailyMetricsRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         row = self._conn.execute(
             "SELECT id FROM daily_metrics WHERE book_id = ? AND metric_date = ?",
             (int(resolved_book_id), metric_date),
