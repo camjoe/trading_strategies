@@ -252,12 +252,17 @@ Domain naming:
 
 1. Prefer direct imports from concrete implementation modules.
 2. Avoid adding import-only facades unless they are deliberate public entrypoints.
-3. Keep compatibility shims temporary and explicit.
+3. Keep compatibility shims temporary and explicit. Retire one by migrating
+   internal callers first, then removing the export only after a repository-wide
+   reference search and targeted tests prove it is unused.
 4. When a service module is the public entrypoint, do not mirror repository APIs
    with one-line passthrough helpers. Service exports should add validation,
    not-found behavior, orchestration, or caller-facing semantics.
 5. See `docs/architecture/service-repository-boundary.md` for the repeatable
    service-vs-repository split used during refactors.
+6. Treat file moves and behavior changes as separate reviewable steps whenever
+   practical — a move that also changes behavior hides the behavior change in a
+   large diff.
 
 ## Abstraction and API Consistency
 
