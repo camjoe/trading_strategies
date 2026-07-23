@@ -5,16 +5,16 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-import infrastructure.brokers.ib_web_client as ib_web_client_module
-from infrastructure.brokers.ib_web_client import (
-    IbWebApiPacingLimiter,
-    IbWebApiSettings,
+import infrastructure.brokers.ib_web.client as ib_web_client_module
+import infrastructure.brokers.ib_web.settings as ib_web_settings_module
+from infrastructure.brokers.ib_web.client import (
     InteractiveBrokersWebClient,
     _is_marketdata_preflight_only,
     _is_order_reply_message,
     _truthy_flag,
-    load_ib_web_api_settings,
 )
+from infrastructure.brokers.ib_web.pacing import IbWebApiPacingLimiter
+from infrastructure.brokers.ib_web.settings import IbWebApiSettings, load_ib_web_api_settings
 
 
 class TestLoadIbWebApiSettings:
@@ -103,18 +103,18 @@ class TestLoadIbWebApiSettings:
         ],
     )
     def test_invalid_payload_values_raise_value_error(self, monkeypatch, payload, message):
-        monkeypatch.setattr(ib_web_client_module, "_file_payload", lambda _path: payload)
+        monkeypatch.setattr(ib_web_settings_module, "_file_payload", lambda _path: payload)
 
         with pytest.raises(ValueError, match=message):
             load_ib_web_api_settings()
 
     def test_verify_ssl_and_keepalive_enabled_reject_none_from_bool_coercion(self, monkeypatch):
-        monkeypatch.setattr(ib_web_client_module, "_file_payload", lambda _path: {"account_id": "U1234567"})
+        monkeypatch.setattr(ib_web_settings_module, "_file_payload", lambda _path: {"account_id": "U1234567"})
         monkeypatch.setenv("TRADING_IBKR_WEB_API_VERIFY_SSL", "forced-none")
         monkeypatch.setenv("TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED", "forced-none")
-        original_coerce_bool = ib_web_client_module.coerce_bool
+        original_coerce_bool = ib_web_settings_module.coerce_bool
         monkeypatch.setattr(
-            ib_web_client_module,
+            ib_web_settings_module,
             "coerce_bool",
             lambda value: None if value == "forced-none" else original_coerce_bool(value),
         )
@@ -150,16 +150,16 @@ class TestLoadIbWebApiSettingsHelpers:
                 return "fake-config.json"
 
         with pytest.raises(ValueError, match="JSON object"):
-            ib_web_client_module._file_payload(_FakePath())
+            ib_web_settings_module._file_payload(_FakePath())
 
     @pytest.mark.parametrize("value", ['["x"]', '"token"'])
     def test_coerce_headers_rejects_string_payloads_that_do_not_decode_to_dict(self, value):
         with pytest.raises(ValueError, match="JSON object"):
-            ib_web_client_module._coerce_headers(value)
+            ib_web_settings_module._coerce_headers(value)
 
     def test_coerce_headers_rejects_non_mapping_values(self):
         with pytest.raises(ValueError, match="mapping"):
-            ib_web_client_module._coerce_headers([("Authorization", "secret")])
+            ib_web_settings_module._coerce_headers([("Authorization", "secret")])
 
 
 class TestInteractiveBrokersWebClient:

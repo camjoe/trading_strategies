@@ -1,42 +1,24 @@
-"""Interactive Brokers Web API client utilities.
+"""IBKR Client Portal / Web API HTTP client.
 
 The Web API path is kept separate from the existing TWS / Gateway socket client.
 All HTTP transport details, session handling, and account identifier lookup stay
-inside ``brokers/`` so higher layers continue to depend only on
-``BrokerConnection``.
+inside ``brokers/`` so higher layers continue to depend only on ``BrokerConnection``.
 """
 
 from __future__ import annotations
 
-import json
-import os
 import threading
-import time
-from collections import deque
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import httpx
 
-from common.coercion import coerce_bool, coerce_float, coerce_str
-from common.paths.project_paths import LOCAL_DIR
-
-# Default local Client Portal Gateway base URL.
-_DEFAULT_WEB_API_BASE_URL = "https://localhost:5000/v1/api"
-
-# Default timeout for individual Web API requests in seconds.
-_DEFAULT_TIMEOUT_SECONDS = 10.0
-
-# Default ignored local config file for operator-managed Web API settings.
-_DEFAULT_WEB_API_CONFIG_PATH = LOCAL_DIR / "ibkr_web_api_config.json"
-
-# IBKR's documented global Client Portal pacing limit is 10 requests per second.
-_GLOBAL_REQUEST_LIMIT = 10
-
-# The global pacing window is one second.
-_GLOBAL_REQUEST_WINDOW_SECONDS = 1.0
+from common.coercion import coerce_str
+from infrastructure.brokers.ib_web.pacing import (
+    _DEFAULT_IB_WEB_API_PACING_LIMITER,
+    IbWebApiPacingLimiter,
+)
+from infrastructure.brokers.ib_web.settings import IbWebApiSettings
 
 # Session reply confirmations are interactive notices; cap automated confirms.
 _MAX_ORDER_REPLY_CONFIRMATIONS = 5
@@ -47,30 +29,6 @@ _MARKETDATA_SNAPSHOT_FIELDS = "31,84,86"
 # The first page of the portfolio positions endpoint.
 _POSITIONS_PAGE = 0
 
-# Endpoint-specific minimum spacing from the IBKR Client Portal pacing table.
-_ENDPOINT_MIN_INTERVAL_SECONDS: dict[tuple[str, str], float] = {
-    ("GET", "/portfolio/accounts"): 5.0,
-    ("GET", "/portfolio/subaccounts"): 5.0,
-    ("GET", "/iserver/account/orders"): 5.0,
-    ("GET", "/iserver/account/pnl/partitioned"): 5.0,
-    ("GET", "/iserver/account/trades"): 5.0,
-    ("GET", "/sso/validate"): 60.0,
-    ("GET", "/tickle"): 1.0,
-}
-
-
-@dataclass(frozen=True)
-class IbWebApiSettings:
-    """Operator-managed Web API settings loaded from env or ignored local config."""
-
-    base_url: str
-    account_id: str
-    headers: dict[str, str]
-    verify_ssl: bool = False
-    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS
-    keepalive_enabled: bool = True
-    keepalive_interval_seconds: float = 60.0
-
 
 @dataclass(frozen=True)
 class IbWebApiContract:
@@ -80,177 +38,6 @@ class IbWebApiContract:
     ticker: str
     sec_type: str
     listing_exchange: str
-
-
-class IbWebApiPacingLimiter:
-    """Process-local pacing guard for IBKR Client Portal API limits."""
-
-    def __init__(
-        self,
-        *,
-        time_fn: Callable[[], float] | None = None,
-        sleep_fn: Callable[[float], None] | None = None,
-    ) -> None:
-        self._time_fn = time_fn or time.monotonic
-        self._sleep_fn = sleep_fn or time.sleep
-        self._lock = threading.Lock()
-        self._recent_request_times: deque[float] = deque()
-        self._endpoint_last_request_times: dict[tuple[str, str], float] = {}
-
-    def wait_for_slot(self, method: str, path: str) -> None:
-        endpoint_key = (method.strip().upper(), path)
-        while True:
-            wait_seconds = 0.0
-            with self._lock:
-                now = float(self._time_fn())
-                self._evict_global_window(now)
-
-                if len(self._recent_request_times) >= _GLOBAL_REQUEST_LIMIT:
-                    oldest = self._recent_request_times[0]
-                    wait_seconds = max(
-                        wait_seconds,
-                        oldest + _GLOBAL_REQUEST_WINDOW_SECONDS - now,
-                    )
-
-                min_interval = _ENDPOINT_MIN_INTERVAL_SECONDS.get(endpoint_key)
-                if min_interval is not None:
-                    last_request_at = self._endpoint_last_request_times.get(endpoint_key)
-                    if last_request_at is not None:
-                        wait_seconds = max(wait_seconds, last_request_at + min_interval - now)
-
-                if wait_seconds <= 0:
-                    self._recent_request_times.append(now)
-                    if min_interval is not None:
-                        self._endpoint_last_request_times[endpoint_key] = now
-                    return
-
-            self._sleep_fn(wait_seconds)
-
-    def _evict_global_window(self, now: float) -> None:
-        cutoff = now - _GLOBAL_REQUEST_WINDOW_SECONDS
-        while self._recent_request_times and self._recent_request_times[0] <= cutoff:
-            self._recent_request_times.popleft()
-
-
-_DEFAULT_IB_WEB_API_PACING_LIMITER = IbWebApiPacingLimiter()
-
-
-def _config_path() -> Path:
-    raw = str(os.getenv("TRADING_IBKR_WEB_API_CONFIG", "")).strip()
-    if raw:
-        return Path(raw).expanduser().resolve()
-    return _DEFAULT_WEB_API_CONFIG_PATH
-
-
-def _file_payload(config_path: Path) -> dict[str, object]:
-    if not config_path.exists():
-        return {}
-    payload = json.loads(config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError(f"IBKR Web API config must be a JSON object: {config_path}")
-    return payload
-
-
-def _coerce_headers(value: object | None) -> dict[str, str]:
-    if value in (None, ""):
-        return {}
-    if isinstance(value, str):
-        parsed = json.loads(value)
-        if not isinstance(parsed, dict):
-            raise ValueError("IBKR Web API headers must decode to a JSON object.")
-        value = parsed
-    if not isinstance(value, Mapping):
-        raise ValueError("IBKR Web API headers must be a mapping of header names to values.")
-    return {str(key): str(raw_value) for key, raw_value in value.items() if str(raw_value).strip()}
-
-
-def _config_value(
-    env_name: str,
-    payload: Mapping[str, object],
-    field_name: str,
-) -> object | None:
-    raw_env = os.getenv(env_name)
-    if raw_env is not None and str(raw_env).strip():
-        return raw_env
-    return payload.get(field_name)
-
-
-def load_ib_web_api_settings() -> IbWebApiSettings:
-    """Load operator-managed Web API settings from env or ignored local config.
-
-    Precedence is env first, then ``local/ibkr_web_api_config.json``.
-    Sensitive account IDs and session headers stay outside the tracked repo state.
-    """
-
-    payload = _file_payload(_config_path())
-
-    base_url_raw = _config_value("TRADING_IBKR_WEB_API_BASE_URL", payload, "base_url")
-    account_id_raw = _config_value("TRADING_IBKR_WEB_API_ACCOUNT_ID", payload, "account_id")
-    headers_raw = _config_value("TRADING_IBKR_WEB_API_HEADERS_JSON", payload, "headers")
-    session_token_raw = _config_value("TRADING_IBKR_WEB_API_SESSION_TOKEN", payload, "session_token")
-    verify_ssl_raw = _config_value("TRADING_IBKR_WEB_API_VERIFY_SSL", payload, "verify_ssl")
-    timeout_raw = _config_value("TRADING_IBKR_WEB_API_TIMEOUT_SECONDS", payload, "timeout_seconds")
-    keepalive_enabled_raw = _config_value(
-        "TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED",
-        payload,
-        "keepalive_enabled",
-    )
-    keepalive_interval_raw = _config_value(
-        "TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS",
-        payload,
-        "keepalive_interval_seconds",
-    )
-
-    base_url = str(base_url_raw or _DEFAULT_WEB_API_BASE_URL).strip().rstrip("/")
-    account_id = str(account_id_raw or "").strip()
-    if not account_id:
-        raise ValueError(
-            "IBKR Web API account_id is required. Set TRADING_IBKR_WEB_API_ACCOUNT_ID "
-            "or add account_id to local/ibkr_web_api_config.json."
-        )
-
-    headers = _coerce_headers(headers_raw)
-    session_token = str(session_token_raw or "").strip()
-    if session_token and "Cookie" not in headers:
-        headers["Cookie"] = f"api={session_token}"
-
-    verify_ssl = base_url != _DEFAULT_WEB_API_BASE_URL
-    if verify_ssl_raw is not None:
-        coerced_verify = coerce_bool(verify_ssl_raw)
-        if coerced_verify is None:
-            raise ValueError("IBKR Web API verify_ssl must be a boolean value.")
-        verify_ssl = bool(coerced_verify)
-
-    timeout_seconds = _DEFAULT_TIMEOUT_SECONDS
-    if timeout_raw is not None:
-        coerced_timeout = coerce_float(timeout_raw)
-        if coerced_timeout is None or coerced_timeout <= 0:
-            raise ValueError("IBKR Web API timeout_seconds must be a positive number.")
-        timeout_seconds = float(coerced_timeout)
-
-    keepalive_enabled = True
-    if keepalive_enabled_raw is not None:
-        coerced_keepalive_enabled = coerce_bool(keepalive_enabled_raw)
-        if coerced_keepalive_enabled is None:
-            raise ValueError("IBKR Web API keepalive_enabled must be a boolean value.")
-        keepalive_enabled = bool(coerced_keepalive_enabled)
-
-    keepalive_interval_seconds = 60.0
-    if keepalive_interval_raw is not None:
-        coerced_keepalive_interval = coerce_float(keepalive_interval_raw)
-        if coerced_keepalive_interval is None or coerced_keepalive_interval <= 0:
-            raise ValueError("IBKR Web API keepalive_interval_seconds must be a positive number.")
-        keepalive_interval_seconds = float(coerced_keepalive_interval)
-
-    return IbWebApiSettings(
-        base_url=base_url,
-        account_id=account_id,
-        headers=headers,
-        verify_ssl=verify_ssl,
-        timeout_seconds=timeout_seconds,
-        keepalive_enabled=keepalive_enabled,
-        keepalive_interval_seconds=keepalive_interval_seconds,
-    )
 
 
 class InteractiveBrokersWebClient:

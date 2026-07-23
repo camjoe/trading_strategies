@@ -3,7 +3,7 @@
 This module exists for the older TWS / IB Gateway socket-based integration used
 by ``trading.brokers.legacy.ib_adapter``. The current active IBKR integration
 path in this repository is the Client Portal / Web API implementation in
-``trading.brokers.ib_web_client``.
+``infrastructure.brokers.ib_web``.
 
 The code remains in place so the socket-based path can be revisited later
 without rebuilding it from scratch, but it should be treated as legacy support.

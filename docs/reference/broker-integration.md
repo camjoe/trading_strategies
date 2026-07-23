@@ -37,7 +37,7 @@ Key files:
 
 - `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/orders/broker_order.py`)
 - `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
-- `src/infrastructure/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
+- `src/infrastructure/brokers/ib_web/`: IBKR Web API package — `client.py` (HTTP client), `settings.py` (settings loader), `pacing.py` (pacing guard)
 - `src/infrastructure/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
 - `src/infrastructure/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
 - `src/infrastructure/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
@@ -89,7 +89,7 @@ Primary integration path: `interactive_brokers_web`.
 
 Settings loader:
 
-- `src/infrastructure/brokers/ib_web_client.py::load_ib_web_api_settings`
+- `src/infrastructure/brokers/ib_web/settings.py::load_ib_web_api_settings`
 
 Resolution behavior:
 

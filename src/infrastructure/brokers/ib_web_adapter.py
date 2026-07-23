@@ -12,7 +12,7 @@ import time
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType
-from infrastructure.brokers.ib_web_client import InteractiveBrokersWebClient
+from infrastructure.brokers.ib_web import InteractiveBrokersWebClient
 from common.coercion import coerce_bool, coerce_float
 
 # Account summary fields expected by the service layer.

@@ -44,7 +44,7 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
 | `ib_web_adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
-| `ib_web_client.py` | Low-level IBKR Web API HTTP client used by the web adapter |
+| `ib_web/` | IBKR Web API package: `settings.py` (config loading), `pacing.py` (rate-limit guard), `client.py` (HTTP client) used by the web adapter |
 
 ### `src/infrastructure/brokers/legacy/`
 

@@ -5,7 +5,7 @@ Legacy status
 This module supports the older Interactive Brokers socket/TWS or IB Gateway
 flow. The repository's current local-gateway path is the Client Portal / Web
 API implementation in ``brokers.ib_web_adapter`` and
-``brokers.ib_web_client``.
+``infrastructure.brokers.ib_web``.
 
 This module is retained so the older socket-based flow remains available if the
 team decides to return to it, but it is no longer the primary IBKR integration
