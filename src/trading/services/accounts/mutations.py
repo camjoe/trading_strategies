@@ -60,7 +60,7 @@ def _apply_book_settings_to_default_book(
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
-    from trading.domain.strategy_signals import validate_strategy_name
+    from trading.domain.strategies.resolution import validate_strategy_name
 
     normalized_strategy = strategy.strip()
     if not normalized_strategy:
@@ -85,7 +85,7 @@ def _create_account(
     benchmark_ticker: str,
     config: AccountConfig | None = None,
 ) -> None:
-    from trading.domain.strategy_signals import validate_strategy_name
+    from trading.domain.strategies.resolution import validate_strategy_name
 
     cfg = config or AccountConfig()
     if initial_cash <= 0:

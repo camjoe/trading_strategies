@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-22
+Last Reviewed: 2026-07-23
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -245,7 +245,12 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
-| `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
+| `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
+| `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
+| `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
+| `strategies/resolution.py` | Strategy label/alias resolution and shared signal evaluation entrypoints |
+| `strategies/signals/alternative.py` | Feature-driven topic, macro, policy, news, and social buy/sell/hold signal models |
+| `strategies/signals/technical.py` | Price-history technical signal models for trend, mean-reversion, RSI, MACD, breakout, pullback, Bollinger, MA-crossover, and volatility-filtered strategies |
 
 ---
 

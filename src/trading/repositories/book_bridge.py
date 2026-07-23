@@ -90,7 +90,7 @@ def _draft_primitive(key: str) -> str:
     catalog resolver reports as unresolvable at read time. Style and required
     features are code-owned (``PrimitiveSpec``) and no longer stored.
     """
-    from trading.domain.strategy_signals import resolve_strategy
+    from trading.domain.strategies.resolution import resolve_strategy
 
     try:
         return resolve_strategy(key).strategy_id

@@ -99,7 +99,7 @@ inside `src/trading/services/` (who owns what, and what each explicitly does not
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
     - Owns third-party external-data SDK imports and network calls.
     - Shared contracts and signal keys live in `src/trading/domain/feature_provider.py`.
-    - Signal functions in `src/trading/domain/strategy_signals.py` must
+    - Signal functions in `src/trading/domain/strategies/signals/` must
       consume feature bundles via injected callables.
 
 12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory

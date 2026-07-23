@@ -13,11 +13,9 @@ from infrastructure.feature_providers.social_provider import (
     SOCIAL_TREND_SCORE,
     SocialFeatureProvider,
 )
-from trading.domain.strategy_signals import (
-    STRATEGY_REGISTRY,
-    _social_trend_rotation_signal,
-    resolve_strategy,
-)
+from trading.domain.strategies.registry import STRATEGY_REGISTRY
+from trading.domain.strategies.resolution import resolve_strategy
+from trading.domain.strategies.signals.alternative import _social_trend_rotation_signal
 
 
 # ---------------------------------------------------------------------------

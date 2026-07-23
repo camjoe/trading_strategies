@@ -25,7 +25,7 @@ from trading.backtesting.optimizer_models import (
 )
 from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
 from trading.domain.exceptions import ValidationError
-from trading.domain.strategy_signals import resolve_strategy
+from trading.domain.strategies.resolution import resolve_strategy
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).

@@ -13,11 +13,9 @@ from infrastructure.feature_providers.news_provider import (
     _MIN_HEADLINE_THRESHOLD,
     _MAX_TOTAL_RSS_HEADLINES,
 )
-from trading.domain.strategy_signals import (
-    STRATEGY_REGISTRY,
-    _news_sentiment_signal,
-    resolve_strategy,
-)
+from trading.domain.strategies.registry import STRATEGY_REGISTRY
+from trading.domain.strategies.resolution import resolve_strategy
+from trading.domain.strategies.signals.alternative import _news_sentiment_signal
 
 
 # ---------------------------------------------------------------------------

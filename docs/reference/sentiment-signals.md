@@ -32,8 +32,8 @@ Strategy catalog details (all strategy families) live in:
 
 Signal dispatch and registration:
 
-- `src/trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
-  `resolve_signal()` dispatch.
+- `src/trading/domain/strategies/` owns `STRATEGY_REGISTRY` (`registry.py`) and
+  `resolve_signal()` dispatch (`resolution.py`).
 - The three alternative strategies above are registered with
   `strategy_style="alternative"`.
 

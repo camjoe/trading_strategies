@@ -8,7 +8,7 @@ import pytest
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
-from trading.domain.strategy_signals import PRIMITIVE_CATALOG
+from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_assignments import BookAssignmentRepository

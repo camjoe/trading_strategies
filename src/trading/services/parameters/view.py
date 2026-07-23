@@ -13,7 +13,7 @@ from dataclasses import fields
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
-from trading.domain.strategy_signals import resolve_primitive
+from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.models.books.book_record import BookRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT

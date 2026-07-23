@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.domain.strategy_signals import validate_params_against_primitive
+from trading.domain.strategies.parameter_validation import validate_params_against_primitive
 
 
 def test_accepts_and_coerces_known_knobs_from_strings() -> None:

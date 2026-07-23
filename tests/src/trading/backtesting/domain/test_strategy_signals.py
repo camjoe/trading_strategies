@@ -7,7 +7,9 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from trading.domain import strategy_signals
+from trading.domain.strategies import resolution
+from trading.domain.strategies.registry import available_strategy_ids
+from trading.domain.strategies.signals import technical
 
 
 def _series_range(start: int, stop: int) -> pd.Series:
@@ -33,11 +35,11 @@ def _assert_signal(
     expected: str,
     feature_history: pd.DataFrame | None = None,
 ) -> None:
-    assert strategy_signals.resolve_signal(strategy_name, history, feature_history) == expected
+    assert resolution.resolve_signal(strategy_name, history, feature_history) == expected
 
 
 def test_available_strategy_ids_include_expanded_families() -> None:
-    ids = set(strategy_signals.available_strategy_ids())
+    ids = set(available_strategy_ids())
     assert "breakout" in ids
     assert "pullback_trend" in ids
     assert "bollinger_mean_reversion" in ids
@@ -48,19 +50,19 @@ def test_available_strategy_ids_include_expanded_families() -> None:
 
 
 def test_resolve_strategy_exact_and_keyword_aliases() -> None:
-    assert strategy_signals.resolve_strategy("breakout").strategy_id == "breakout"
-    assert strategy_signals.resolve_strategy("donchian_push").strategy_id == "breakout"
-    assert strategy_signals.resolve_strategy("bollinger_band_v1").strategy_id == "bollinger_mean_reversion"
-    assert strategy_signals.resolve_strategy("sector_rotation_proxy").strategy_id == "topic_proxy_rotation"
-    assert strategy_signals.resolve_strategy("policy_proxy").strategy_id == "macro_proxy_regime"
+    assert resolution.resolve_strategy("breakout").strategy_id == "breakout"
+    assert resolution.resolve_strategy("donchian_push").strategy_id == "breakout"
+    assert resolution.resolve_strategy("bollinger_band_v1").strategy_id == "bollinger_mean_reversion"
+    assert resolution.resolve_strategy("sector_rotation_proxy").strategy_id == "topic_proxy_rotation"
+    assert resolution.resolve_strategy("policy_proxy").strategy_id == "macro_proxy_regime"
 
     with pytest.raises(ValueError, match="Unknown strategy 'unknown'"):
-        strategy_signals.resolve_strategy("unknown")
+        resolution.resolve_strategy("unknown")
 
 
 def test_resolve_strategy_trims_and_uses_aliases() -> None:
-    assert strategy_signals.resolve_strategy("  MA  ").strategy_id == "ma_crossover"
-    assert strategy_signals.resolve_strategy("VOL_FILTER_TREND").strategy_id == "volatility_filtered_trend"
+    assert resolution.resolve_strategy("  MA  ").strategy_id == "ma_crossover"
+    assert resolution.resolve_strategy("VOL_FILTER_TREND").strategy_id == "volatility_filtered_trend"
 
 
 def test_trend_buy_sell_hold() -> None:
@@ -81,14 +83,14 @@ def test_rsi_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
 
     history = _series_range(1, 50)
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([80.0] * len(history))),
     )
     _assert_signal("rsi", history, "sell")
 
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([float("nan")] * len(history))),
     )
@@ -101,7 +103,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_buy = pd.Series([0.0] * 48 + [1.0])
     macd_signal_buy = pd.Series([0.0] * 47 + [0.5, 0.2])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_buy, macd_signal_buy, macd_buy - macd_signal_buy),
     )
@@ -110,7 +112,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_sell = pd.Series([0.0] * 47 + [0.5, 0.4, 0.1])
     macd_signal_sell = pd.Series([0.0] * 47 + [0.2, 0.3, 0.2])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_sell, macd_signal_sell, macd_sell - macd_signal_sell),
     )
@@ -119,7 +121,7 @@ def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     macd_nan = pd.Series([0.0] * 48 + [float("nan"), 1.0])
     macd_signal_nan = pd.Series([0.0] * 48 + [0.0, 0.5])
     monkeypatch.setattr(
-        strategy_signals,
+        technical,
         "calculate_macd",
         lambda _history: (macd_nan, macd_signal_nan, macd_nan - macd_signal_nan),
     )
@@ -203,29 +205,29 @@ def test_default_hold_when_short_history() -> None:
 
 def test_resolve_signal_rejects_unknown_strategy_name() -> None:
     with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
-        strategy_signals.resolve_signal("unknown_strategy", _series_range(1, 40))
+        resolution.resolve_signal("unknown_strategy", _series_range(1, 40))
 
 
 def test_evaluate_signal_explicit_params_override_defaults() -> None:
     history = _series_range(1, 40)
-    spec = strategy_signals.resolve_strategy("trend")
+    spec = resolution.resolve_strategy("trend")
 
-    default_signal = strategy_signals.evaluate_signal("trend", history, spec.default_params)
-    assert default_signal == strategy_signals.resolve_signal("trend", history) == "buy"
+    default_signal = resolution.evaluate_signal("trend", history, spec.default_params)
+    assert default_signal == resolution.resolve_signal("trend", history) == "buy"
 
     # Swapping the windows inverts the SMA relationship, so explicit params flip buy → hold.
-    overridden = strategy_signals.evaluate_signal("trend", history, {"fast_window": 20, "slow_window": 10})
+    overridden = resolution.evaluate_signal("trend", history, {"fast_window": 20, "slow_window": 10})
     assert overridden == "hold"
 
 
 def test_evaluate_signal_rejects_unknown_strategy_name() -> None:
     with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
-        strategy_signals.evaluate_signal("unknown_strategy", _series_range(1, 40), {})
+        resolution.evaluate_signal("unknown_strategy", _series_range(1, 40), {})
 
 
 def test_fuzz_resolve_signal_outputs_known_actions() -> None:
     rng = random.Random(42)
-    strategies = strategy_signals.available_strategy_ids()
+    strategies = available_strategy_ids()
 
     for strategy_id in strategies:
         for _ in range(25):
@@ -246,7 +248,7 @@ def test_fuzz_resolve_signal_outputs_known_actions() -> None:
                 macro_equity_bond_spread=[rng.uniform(-0.2, 0.2) for _ in range(length)],
             )
 
-            signal = strategy_signals.resolve_signal(strategy_id, history, features)
+            signal = resolution.resolve_signal(strategy_id, history, features)
             assert signal in {"buy", "sell", "hold"}
 
 
@@ -288,7 +290,7 @@ def test_hypothesis_resolve_signal_outputs_known_actions(
         macro_equity_bond_spread=[0.0] * length,
     )
 
-    signal = strategy_signals.resolve_signal(strategy_id, history, features)
+    signal = resolution.resolve_signal(strategy_id, history, features)
     assert signal in {"buy", "sell", "hold"}
 
 
@@ -321,7 +323,7 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady()
         history.iloc[-1] = float("inf")
 
-        signal = strategy_signals.resolve_signal(strategy_id, history)
+        signal = resolution.resolve_signal(strategy_id, history)
 
         assert signal == "hold"
 
@@ -333,7 +335,7 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady()
         history.iloc[-1] = float("-inf")
 
-        signal = strategy_signals.resolve_signal(strategy_id, history)
+        signal = resolution.resolve_signal(strategy_id, history)
 
         assert signal == "hold"
 
@@ -341,33 +343,33 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert strategy_signals.resolve_signal("pullback_trend", history) == "hold"
+        assert resolution.resolve_signal("pullback_trend", history) == "hold"
 
     def test_inf_close_returns_hold_for_ma_crossover(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert strategy_signals.resolve_signal("ma_crossover", history) == "hold"
+        assert resolution.resolve_signal("ma_crossover", history) == "hold"
 
     def test_inf_close_returns_hold_for_volatility_filtered_trend(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert strategy_signals.resolve_signal("volatility_filtered_trend", history) == "hold"
+        assert resolution.resolve_signal("volatility_filtered_trend", history) == "hold"
 
     def test_inf_close_returns_hold_for_topic_proxy_rotation(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
         features = _full_features(80)
 
-        assert strategy_signals.resolve_signal("topic_proxy_rotation", history, features) == "hold"
+        assert resolution.resolve_signal("topic_proxy_rotation", history, features) == "hold"
 
     def test_inf_close_returns_hold_for_macro_proxy_regime(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
         features = _full_features(80)
 
-        assert strategy_signals.resolve_signal("macro_proxy_regime", history, features) == "hold"
+        assert resolution.resolve_signal("macro_proxy_regime", history, features) == "hold"
 
 
 class TestSignalInfInSmaWindowReturnsHold:
@@ -379,26 +381,26 @@ class TestSignalInfInSmaWindowReturnsHold:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-5] = float("inf")
 
-        assert strategy_signals.resolve_signal("trend", history) == "hold"
+        assert resolution.resolve_signal("trend", history) == "hold"
 
     def test_inf_in_mean_reversion_sma_window_returns_hold(self) -> None:
         # Without the sma_mid guard: sma_mid = inf → close < inf → spurious "buy".
         history = pd.Series([100.0] * 79 + [80.0])
         history.iloc[-15] = float("inf")
 
-        assert strategy_signals.resolve_signal("mean_reversion", history) == "hold"
+        assert resolution.resolve_signal("mean_reversion", history) == "hold"
 
     def test_inf_in_breakout_prior_window_returns_hold(self) -> None:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-10] = float("inf")
 
-        assert strategy_signals.resolve_signal("breakout", history) == "hold"
+        assert resolution.resolve_signal("breakout", history) == "hold"
 
     def test_inf_in_ma_crossover_window_returns_hold(self) -> None:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-10] = float("inf")
 
-        assert strategy_signals.resolve_signal("ma_crossover", history) == "hold"
+        assert resolution.resolve_signal("ma_crossover", history) == "hold"
 
 
 class TestFeatureValueInfGuard:
@@ -413,7 +415,7 @@ class TestFeatureValueInfGuard:
         )
 
         # proxy_available = inf → treated as None → "hold"
-        assert strategy_signals.resolve_signal("topic_proxy_rotation", history, features) == "hold"
+        assert resolution.resolve_signal("topic_proxy_rotation", history, features) == "hold"
 
     def test_inf_macro_feature_treated_as_missing(self) -> None:
         history = _series_steady(length=80, base=100.0, step=0.5)
@@ -424,7 +426,7 @@ class TestFeatureValueInfGuard:
         )
 
         # risk_on_score = inf → treated as None → "hold"
-        assert strategy_signals.resolve_signal("macro_proxy_regime", history, features) == "hold"
+        assert resolution.resolve_signal("macro_proxy_regime", history, features) == "hold"
 
 
 # ---------------------------------------------------------------------------
@@ -465,7 +467,7 @@ def test_hypothesis_inf_in_history_never_raises(
             history.iloc[pos] = float("inf")
 
     # Must not raise; output must be a valid signal token.
-    signal = strategy_signals.resolve_signal(strategy_id, history)
+    signal = resolution.resolve_signal(strategy_id, history)
     assert signal in {"buy", "sell", "hold"}
 
 
@@ -648,35 +650,35 @@ class TestResolveByKeyword:
     Use names that contain the keyword but are not registered aliases."""
 
     def test_pullback_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("pullback_v2").strategy_id == "pullback_trend"
+        assert resolution.resolve_strategy("pullback_v2").strategy_id == "pullback_trend"
 
     def test_vol_trend_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("vol_trend_v2").strategy_id == "volatility_filtered_trend"
+        assert resolution.resolve_strategy("vol_trend_v2").strategy_id == "volatility_filtered_trend"
 
     def test_policy_regime_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("my_policy_regime_v2").strategy_id == "policy_regime"
+        assert resolution.resolve_strategy("my_policy_regime_v2").strategy_id == "policy_regime"
 
     def test_macro_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("macro_system_v1").strategy_id == "macro_proxy_regime"
+        assert resolution.resolve_strategy("macro_system_v1").strategy_id == "macro_proxy_regime"
 
     def test_news_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("custom_news_model").strategy_id == "news_sentiment"
+        assert resolution.resolve_strategy("custom_news_model").strategy_id == "news_sentiment"
 
     def test_social_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("reddit_v2").strategy_id == "social_trend_rotation"
+        assert resolution.resolve_strategy("reddit_v2").strategy_id == "social_trend_rotation"
 
     def test_cross_ma_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("cross_ma_v3").strategy_id == "ma_crossover"
+        assert resolution.resolve_strategy("cross_ma_v3").strategy_id == "ma_crossover"
 
     def test_rsi_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("custom_rsi_v2").strategy_id == "rsi"
+        assert resolution.resolve_strategy("custom_rsi_v2").strategy_id == "rsi"
 
     def test_mean_reversion_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("mean_custom_v2").strategy_id == "mean_reversion"
+        assert resolution.resolve_strategy("mean_custom_v2").strategy_id == "mean_reversion"
 
     def test_trend_keyword_resolves(self) -> None:
-        assert strategy_signals.resolve_strategy("fast_trend_v3").strategy_id == "trend"
+        assert resolution.resolve_strategy("fast_trend_v3").strategy_id == "trend"
 
     def test_unknown_keyword_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="Unknown strategy"):
-            strategy_signals.resolve_strategy("unknown_xyz_v99")
+            resolution.resolve_strategy("unknown_xyz_v99")
