@@ -17,6 +17,8 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_batch,
     handle_backtest_leaderboard,
     handle_backtest_optimize,
+    handle_backtest_optimize_promote,
+    handle_backtest_optimize_show,
     handle_backtest_report,
     handle_backtest_walk_forward,
     handle_backtest_walk_forward_report,
@@ -82,6 +84,8 @@ COMMAND_HANDLERS = {
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,
     "backtest-optimize": handle_backtest_optimize,
+    "backtest-optimize-show": handle_backtest_optimize_show,
+    "backtest-optimize-promote": handle_backtest_optimize_promote,
     "backtest-walk-forward": handle_backtest_walk_forward,
     "backtest-walk-forward-report": handle_backtest_walk_forward_report,
 }

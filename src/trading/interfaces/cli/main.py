@@ -16,9 +16,10 @@ from trading.backtesting.backtest import (
 )
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
+from trading.backtesting.repositories.optimization_repository import fetch_experiment_by_id
 from trading.backtesting.services import find_stale_backtests
 from trading.backtesting.services.walk_forward_optimizer_service import (
-    run_walk_forward_optimization,
+    run_and_persist_optimization,
 )
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
@@ -56,6 +57,7 @@ from trading.services.strategy_catalog import (
     configure_strategy,
     create_strategy_variant,
     freeze_strategy,
+    promote_optimization_experiment,
 )
 
 
@@ -83,7 +85,9 @@ def _handler_deps() -> dict[str, object]:
         "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,
-        "run_walk_forward_optimization": run_walk_forward_optimization,
+        "run_walk_forward_optimization": run_and_persist_optimization,
+        "fetch_optimization_experiment": fetch_experiment_by_id,
+        "promote_optimization_experiment": promote_optimization_experiment,
         "load_account_profiles": load_account_profiles,
         "apply_account_profiles": apply_account_profiles,
         "account_report": partial(account_report, provider=provider),

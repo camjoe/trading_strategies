@@ -136,6 +136,33 @@ reset account equity values. Model fees and slippage on every candidate and disc
 high-churn parameter set is not selected on gross returns, and compare a tuned winner against the
 strategy's existing default parameters, not only the benchmark.
 
+## Optimize → Promote Loop
+
+The `backtest-optimize` command runs the full walk-forward optimization (grid search per training
+window → freeze the winner → OOS + untouched holdout) and **persists one `optimization_experiments`
+row** per run, printing its id. That row is Tier-1 persistence: the run config, the forward-carried
+winner parameters (the promotion candidate), a small OOS aggregate (mean winner/baseline return and
+how many windows the winner beat the default), the untouched-holdout summary, and — once promoted —
+the link to the resulting catalog variant. Per-window and per-candidate detail are intentionally not
+stored (see revision `0021`).
+
+Two follow-on commands operate on a stored experiment:
+
+- `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
+  holdout evidence, and promotion status.
+- `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
+  `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
+  are validated against the base primitive), stamp provenance into its description, and record the
+  audit link back to the experiment. The variant is **frozen by default** (evidence-backed →
+  immutable); `--no-freeze` leaves it an editable draft. Being enabled, it is immediately a
+  first-class catalog strategy available to rotation/assignment — no extra wiring closes the loop.
+
+Promotion's gate is **operational completeness only**: the experiment must exist and not already be
+promoted (one promotion per experiment keeps the link 1:1). It does **not** require an out-of-sample
+edge — a tuned winner that failed to beat its own default is still promotable, with its recorded
+OOS/holdout evidence left for the operator to judge. This makes the machinery exercisable end to end
+(including on a deliberately weak strategy) before any real edge exists.
+
 ## Safeguards and Approximation Notes
 
 - Signals use prior-day data and execute on the next bar to reduce look-ahead bias.

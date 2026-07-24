@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 19:42 21-07-2026 PST. Tables: 24.</div>
+      <div class="meta">Source: fresh code schema. Generated: 14:29 24-07-2026 PST. Tables: 25.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -408,7 +408,8 @@
         "backtest_executions",
         "backtest_equity_snapshots",
         "walk_forward_experiments",
-        "walk_forward_windows"
+        "walk_forward_windows",
+        "optimization_experiments"
       ]
     },
     {
@@ -446,7 +447,7 @@
       ]
     }
   ],
-  "generatedAt": "19:42 21-07-2026 PST",
+  "generatedAt": "14:29 24-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -496,7 +497,8 @@
         "backtest_executions",
         "backtest_equity_snapshots",
         "walk_forward_experiments",
-        "walk_forward_windows"
+        "walk_forward_windows",
+        "optimization_experiments"
       ]
     },
     {
@@ -565,7 +567,8 @@
         "backtest_executions",
         "backtest_equity_snapshots",
         "walk_forward_experiments",
-        "walk_forward_windows"
+        "walk_forward_windows",
+        "optimization_experiments"
       ]
     },
     {
@@ -2396,6 +2399,266 @@
         },
         {
           "default": null,
+          "name": "account_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#2563eb",
+            "id": "accounts",
+            "label": "Accounts"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "strategy_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#64748b",
+            "id": "catalogs",
+            "label": "Catalogs and settings"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "primitive",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "objective_name",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "search_space_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "candidate_budget",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "train_months",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "test_months",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "step_months",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "holdout_months",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "warmup_months",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "start_date",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "end_date",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "window_count",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "winner_params_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "oos_mean_winner_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "oos_mean_baseline_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "oos_windows_beat_baseline",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "holdout_run_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "holdout_winner_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "holdout_baseline_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "promoted_strategy_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#64748b",
+            "id": "catalogs",
+            "label": "Catalogs and settings"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "promoted_strategy_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "strategies"
+        },
+        {
+          "column": "holdout_run_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        },
+        {
+          "column": "strategy_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "strategies"
+        },
+        {
+          "column": "account_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "accounts"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "account_id",
+            "strategy_id",
+            "created_at"
+          ],
+          "name": "idx_optimization_experiments_account_strategy_created",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "optimization_experiments",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "order_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -2651,6 +2914,14 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "realized_pnl_delta",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
         }
       ],
       "foreignKeys": [
@@ -4055,6 +4326,7 @@
         "feature_providers",
         "global_settings",
         "ledger",
+        "optimization_experiments",
         "order_fills",
         "orders",
         "positions",
@@ -4088,6 +4360,7 @@
         "backtest_equity_snapshots",
         "walk_forward_experiments",
         "walk_forward_windows",
+        "optimization_experiments",
         "promotion_reviews",
         "promotion_review_events",
         "risk_snapshots",
@@ -4125,7 +4398,8 @@
         "backtest_executions",
         "backtest_equity_snapshots",
         "walk_forward_experiments",
-        "walk_forward_windows"
+        "walk_forward_windows",
+        "optimization_experiments"
       ]
     },
     {

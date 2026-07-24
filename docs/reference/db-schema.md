@@ -53,6 +53,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run (renamed from `backtest_trades`, revision `0016`) | → `backtest_runs` |
 | `walk_forward_experiments` | A walk-forward experiment: methodology and its chronological window membership for an account/strategy (renamed from `walk_forward_groups`, revision `0016`) | → `accounts`, `strategies` |
 | `walk_forward_windows` | One chronological OOS window of a walk-forward experiment, linked to its backtest run (renamed from `walk_forward_group_runs`, revision `0016`) | → `walk_forward_experiments`, `backtest_runs` |
+| `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link (revision `0021`) | → `accounts`, `strategies`, `backtest_runs` |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 

@@ -60,6 +60,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_equity_snapshots",
             "walk_forward_experiments",
             "walk_forward_windows",
+            "optimization_experiments",
         ),
     },
     {
@@ -114,6 +115,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_equity_snapshots",
             "walk_forward_experiments",
             "walk_forward_windows",
+            "optimization_experiments",
             "promotion_reviews",
             "promotion_review_events",
             "risk_snapshots",
@@ -152,6 +154,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_equity_snapshots",
             "walk_forward_experiments",
             "walk_forward_windows",
+            "optimization_experiments",
         ),
     },
     {
@@ -262,6 +265,7 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_equity_snapshots",
             "walk_forward_experiments",
             "walk_forward_windows",
+            "optimization_experiments",
         ),
     },
     {

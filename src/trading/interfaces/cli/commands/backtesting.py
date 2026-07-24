@@ -170,6 +170,27 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         help="Indicator warm-up history loaded before each window (default: 6); raise for large window params",
     )
 
+    p_optimize_show = sub.add_parser(
+        "backtest-optimize-show",
+        help="Show a persisted optimization experiment: config, winner params, OOS/holdout evidence, promotion status.",
+    )
+    p_optimize_show.add_argument("experiment_id", type=int, help="optimization_experiments row id")
+
+    p_optimize_promote = sub.add_parser(
+        "backtest-optimize-promote",
+        help=(
+            "Promote an optimization experiment's winner into a new tradeable strategy variant"
+            " (frozen by default) and link it back to the experiment."
+        ),
+    )
+    p_optimize_promote.add_argument("experiment_id", type=int, help="optimization_experiments row id")
+    p_optimize_promote.add_argument("--key", required=True, help="Strategy key for the new variant")
+    p_optimize_promote.add_argument(
+        "--no-freeze",
+        action="store_true",
+        help="Leave the new variant as an editable draft instead of freezing it (default: freeze)",
+    )
+
     p_walk_forward_report = sub.add_parser(
         "backtest-walk-forward-report",
         help="Show persisted walk-forward group details and per-window backtest summaries.",

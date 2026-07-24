@@ -295,6 +295,64 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         return
 
     _print_optimization_summary(summary)
+    if summary.experiment_id is not None:
+        print(f"Persisted optimization experiment #{summary.experiment_id}")
+        print(f"Promote its winner with: backtest-optimize-promote {summary.experiment_id} --key <new_key>")
+
+
+def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    experiment = deps["fetch_optimization_experiment"](conn, experiment_id=args.experiment_id)
+    if experiment is None:
+        parser.error(f"Optimization experiment not found: {args.experiment_id}")
+        return
+    _print_experiment(experiment)
+
+
+def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    try:
+        variant = deps["promote_optimization_experiment"](
+            conn,
+            experiment_id=args.experiment_id,
+            new_strategy_key=args.key,
+            freeze=not args.no_freeze,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+    print(
+        f"Promoted experiment #{args.experiment_id} -> strategy {variant.strategy_key} "
+        f"(primitive={variant.primitive} status={variant.status} params={variant.params_json})"
+    )
+
+
+def _print_experiment(experiment: Any) -> None:
+    print(
+        f"Optimization experiment #{experiment.id} | account_id={experiment.account_id} "
+        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at}"
+    )
+    print(
+        f"Range {experiment.start_date}..{experiment.end_date} | windows={experiment.window_count} "
+        f"| train/test/step/holdout(mo)={experiment.train_months}/{experiment.test_months}/"
+        f"{experiment.step_months}/{experiment.holdout_months} warmup={experiment.warmup_months}"
+    )
+    print(f"Search space: {experiment.search_space_json} (budget {experiment.candidate_budget})")
+    print(f"Winner params: {experiment.winner_params_json}")
+    if experiment.oos_mean_winner_return_pct is not None:
+        print(
+            f"OOS means: return {_pair(experiment.oos_mean_winner_return_pct, experiment.oos_mean_baseline_return_pct)} "
+            f"| winner beat default in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
+        )
+    if experiment.holdout_run_id is None:
+        print("Holdout: none")
+    else:
+        print(
+            f"Holdout (run {experiment.holdout_run_id}): "
+            f"return {_pair(experiment.holdout_winner_return_pct, experiment.holdout_baseline_return_pct)}"
+        )
+    if experiment.promoted_strategy_id is None:
+        print("Promotion: not promoted")
+    else:
+        print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
 
 
 def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:
