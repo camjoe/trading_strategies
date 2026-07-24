@@ -11,6 +11,11 @@ from __future__ import annotations
 import sqlite3
 
 from trading.domain.evaluation.decision_score import derive_decision_score
+from trading.domain.rotation.score_components import (
+    NEUTRAL_COMPONENT,
+    drawdown_penalty_from_max_drawdown,
+    stability_from_window_returns,
+)
 from trading.models import AccountRecord
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 
@@ -24,10 +29,22 @@ def build_rotation_strategy_metrics(
     """Build rotation metrics for one strategy from the canonical evaluation artifact.
 
     Both the incumbent and each challenger are scored through the same source — the
-    strategy evaluation artifact's decision score — so champion/challenger comparison
-    is apples-to-apples. The multi-component ``RotationStrategyMetrics`` collapses onto
-    the single blended decision score for now; the richer component decomposition is a
-    later refinement.
+    strategy evaluation artifact — so champion/challenger comparison is
+    apples-to-apples. Every component is in percentage points (see
+    ``domain/rotation/score_components``).
+
+    Two components are deliberately left at ``NEUTRAL_COMPONENT`` because no honest
+    input exists for them:
+
+    - ``cost_penalty``: the backtest simulation already deducts per-trade fees, so
+      ``total_return_pct`` — and therefore ``risk_adjusted_return`` and
+      ``drawdown_penalty`` — are net of modeled costs. Adding a turnover-based
+      penalty on top would double-count the same cost.
+    - ``regime_fit``: the repository has no market-regime detector, and the
+      regime→strategy mapping columns were dropped as dead in migration ``0014``.
+      There is nothing to fit against.
+
+    Their weights remain configurable, so tuning either currently has no effect.
     """
     # The one deliberate deferred import in the books/evaluation/accounts trio:
     # this call is the single back-edge (books -> evaluation) in an otherwise
@@ -39,12 +56,17 @@ def build_rotation_strategy_metrics(
     artifact = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_name)
     decision = derive_decision_score(artifact)
     comparable_score = decision.score if decision.score is not None else 0.0
+    walk_forward = artifact.walk_forward
     return RotationStrategyMetrics(
         strategy_name=strategy_name,
         trade_count=artifact.backtest.trade_count or 0,
         risk_adjusted_return=comparable_score,
-        stability=0.0,
-        drawdown_penalty=0.0,
-        cost_penalty=0.0,
-        regime_fit=0.0,
+        stability=stability_from_window_returns(
+            best_return_pct=walk_forward.best_return_pct,
+            worst_return_pct=walk_forward.worst_return_pct,
+            window_count=len(walk_forward.run_ids),
+        ),
+        drawdown_penalty=drawdown_penalty_from_max_drawdown(artifact.backtest.max_drawdown_pct),
+        cost_penalty=NEUTRAL_COMPONENT,
+        regime_fit=NEUTRAL_COMPONENT,
     )

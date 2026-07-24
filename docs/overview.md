@@ -90,8 +90,13 @@ These limitations describe current behavior and maturity; they are not hidden by
   + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
 - **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per
   settings row.
-- **Rotation scoring currently uses only risk-adjusted return.** The stability, drawdown-penalty,
-  cost-penalty, and regime-fit components are persisted as zero.
+- **Two rotation score components have no data source.** Rotation now scores on risk-adjusted
+  return, **stability** (spread of walk-forward window returns) and **drawdown penalty** (backtest
+  max drawdown). The remaining two stay zero for stated reasons: `cost_penalty` would double-count,
+  because backtest returns are already net of modeled per-trade fees; and `regime_fit` has nothing to
+  fit against, as there is no market-regime detector and the regime→strategy mapping columns were
+  dropped in migration `0014`. Both weights remain operator-configurable, so tuning either currently
+  has no effect.
 - **Daily performance metrics have no production writer.** Reporting can read `daily_metrics`, but
   runtime workflows do not populate it. See
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import pytest
+
 from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
+    EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
 from trading.services.accounts import get_account
@@ -12,9 +15,32 @@ from trading.services.books.rotation.metrics import build_rotation_strategy_metr
 _FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
 
 
-def _artifact(*, blended_score: float | None, trade_count: int, available: bool = True) -> StrategyEvaluationArtifact:
+def _artifact(
+    *,
+    blended_score: float | None,
+    trade_count: int,
+    available: bool = True,
+    max_drawdown_pct: float | None = None,
+    window_returns: tuple[float, float] | None = None,
+    window_count: int = 0,
+) -> StrategyEvaluationArtifact:
+    walk_forward = EvaluationWalkForwardEvidence()
+    if window_returns is not None:
+        best, worst = window_returns
+        walk_forward = EvaluationWalkForwardEvidence(
+            available=True,
+            grouped=True,
+            run_ids=list(range(window_count)),
+            best_return_pct=best,
+            worst_return_pct=worst,
+        )
     return StrategyEvaluationArtifact(
-        backtest=EvaluationBacktestEvidence(available=available, trade_count=trade_count),
+        backtest=EvaluationBacktestEvidence(
+            available=available,
+            trade_count=trade_count,
+            max_drawdown_pct=max_drawdown_pct,
+        ),
+        walk_forward=walk_forward,
         confidence=EvaluationConfidence(blended_score=blended_score, overall_confidence=0.3),
     )
 
@@ -37,6 +63,7 @@ def test_build_rotation_strategy_metrics_maps_decision_score(conn, monkeypatch) 
     assert metrics.strategy_name == "meanrev"
     assert metrics.trade_count == 18
     assert metrics.risk_adjusted_return == 4.5
+    # No walk-forward or drawdown evidence in this artifact, so both stay neutral.
     assert metrics.stability == 0.0
     assert metrics.drawdown_penalty == 0.0
 
@@ -57,3 +84,46 @@ def test_build_rotation_strategy_metrics_defaults_missing_score(conn, monkeypatc
 
     assert metrics.risk_adjusted_return == 0.0
     assert metrics.trade_count == 0
+
+
+def test_build_rotation_strategy_metrics_derives_risk_components(conn, monkeypatch) -> None:
+    insert_repository_account(conn, name="acct_metrics_components")
+    account = get_account(conn, "acct_metrics_components")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(
+            blended_score=4.5,
+            trade_count=18,
+            max_drawdown_pct=-12.0,
+            window_returns=(6.0, -2.0),
+            window_count=4,
+        ),
+    )
+
+    metrics = build_rotation_strategy_metrics(conn, account=account, strategy_name="meanrev")
+
+    # Drawdown is stored negative but SUBTRACTED by the policy, so it must be a magnitude.
+    assert metrics.drawdown_penalty == pytest.approx(12.0)
+    # Stability is the negative spread of the walk-forward window returns.
+    assert metrics.stability == pytest.approx(-8.0)
+    # No honest input exists for these two — see the builder docstring.
+    assert metrics.cost_penalty == 0.0
+    assert metrics.regime_fit == 0.0
+
+
+def test_build_rotation_strategy_metrics_ignores_single_window_stability(conn, monkeypatch) -> None:
+    insert_repository_account(conn, name="acct_metrics_one_window")
+    account = get_account(conn, "acct_metrics_one_window")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(
+            blended_score=4.5,
+            trade_count=18,
+            window_returns=(5.0, 5.0),
+            window_count=1,
+        ),
+    )
+
+    metrics = build_rotation_strategy_metrics(conn, account=account, strategy_name="meanrev")
+
+    assert metrics.stability == 0.0
