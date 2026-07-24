@@ -101,8 +101,9 @@ These limitations describe current behavior and maturity; they are not hidden by
   [Rotation Scoring](reference/rotation-scoring.md).
 - **Daily performance metrics are partially populated.** The daily-metrics writer runs from the
   snapshot step and derives `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`,
-  and `hit_rate`/`expectancy` (from each closing order's realized P&L). Two columns stay `NULL`:
-  `drawdown_pct` (no intraday equity) and `risk_adjusted_score` (needs a trailing return series). See
+  `hit_rate`/`expectancy` (from each closing order's realized P&L), and `risk_adjusted_score` (a
+  trailing annualized Sharpe over the book's recent daily returns, `NULL` until enough history
+  accrues). One column stays `NULL`: `drawdown_pct` (no intraday equity). See
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.
 - **Broker status explanations are not yet captured.** The order contract and `orders.status_reason`
   can persist a broker explanation, but the current IBKR adapters do not populate it.

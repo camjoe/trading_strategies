@@ -12,7 +12,11 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.domain.daily_metrics import DailyTrade, compute_daily_book_metrics
+from trading.domain.daily_metrics import (
+    RISK_ADJUSTED_WINDOW_SESSIONS,
+    DailyTrade,
+    compute_daily_book_metrics,
+)
 from trading.models import AccountRecord
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
@@ -57,10 +61,19 @@ def write_daily_metrics_for_account(
                 )
                 for order in orders.fetch_filled_for_book_on_date(book_id=book.id, date_str=metric_date)
             ]
+            # The current day plus its trailing sessions form the risk-adjusted
+            # score's window; fetch the priors that come before it (limit leaves
+            # one slot for the day being written).
+            prior_returns = metrics.fetch_recent_returns_for_book(
+                book_id=book.id,
+                before_date=metric_date,
+                limit=RISK_ADJUSTED_WINDOW_SESSIONS - 1,
+            )
             computed = compute_daily_book_metrics(
                 prev_equity=prev_snapshot.equity if prev_snapshot is not None else None,
                 end_equity=end_snapshot.equity,
                 trades=trades,
+                prior_returns=prior_returns,
             )
             metrics.upsert(
                 account_id=account.id,

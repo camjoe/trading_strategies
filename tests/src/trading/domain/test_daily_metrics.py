@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from trading.domain.daily_metrics import DailyTrade, compute_daily_book_metrics
+from common.constants import ANNUALIZATION_FACTOR
+from trading.domain.daily_metrics import (
+    RISK_ADJUSTED_MIN_SESSIONS,
+    DailyTrade,
+    compute_daily_book_metrics,
+)
 
 
 def _buy(qty=10.0, fill=100.0, requested=100.0, commission=0.0) -> DailyTrade:
@@ -109,8 +114,58 @@ class TestClosingTradeStats:
 
 
 class TestUnavailableColumns:
-    def test_columns_without_a_data_source_stay_none(self) -> None:
-        # These still require intraday equity / a return series — neither stored.
+    def test_drawdown_stays_none_without_intraday_equity(self) -> None:
+        # drawdown_pct needs intraday equity, which is not stored at this grain.
         m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[_buy()])
         assert m.drawdown_pct is None
+
+
+class TestRiskAdjustedScore:
+    def _priors(self, *values: float) -> list[float]:
+        return list(values)
+
+    def test_none_without_enough_history(self) -> None:
+        # Today's return plus two priors is 3 sessions — below the minimum sample.
+        m = compute_daily_book_metrics(
+            prev_equity=1000.0, end_equity=1010.0, trades=[], prior_returns=self._priors(2.0, -1.0)
+        )
         assert m.risk_adjusted_score is None
+
+    def test_none_when_no_prior_returns_supplied(self) -> None:
+        # The writer omits priors on a book's early days; one point is not a series.
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[])
+        assert m.risk_adjusted_score is None
+
+    def test_zero_dispersion_is_none(self) -> None:
+        # A genuinely flat return series (a book whose equity doesn't move) has
+        # zero volatility → Sharpe is undefined, not 0.
+        priors = self._priors(*([0.0] * (RISK_ADJUSTED_MIN_SESSIONS - 1)))
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1000.0, trades=[], prior_returns=priors)
+        assert m.return_pct == pytest.approx(0.0)  # today is also flat → all equal
+        assert m.risk_adjusted_score is None
+
+    def test_zero_mean_series_scores_zero(self) -> None:
+        # Five +1% and five -1% returns → mean 0 → Sharpe 0.0 (dispersion is nonzero).
+        priors = self._priors(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0)  # 9 priors
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[], prior_returns=priors)
+        assert m.risk_adjusted_score == pytest.approx(0.0)
+
+    def test_annualized_sharpe_matches_convention(self) -> None:
+        # Window of five 2.0 and five 0.0 → mean 1.0, population std 1.0 →
+        # Sharpe == 1.0 / 1.0 * ANNUALIZATION_FACTOR.
+        priors = self._priors(2.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)  # 9 priors
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1020.0, trades=[], prior_returns=priors)
+        assert m.return_pct == pytest.approx(2.0)  # today is +2.0, the tenth value
+        assert m.risk_adjusted_score == pytest.approx(ANNUALIZATION_FACTOR)
+
+    def test_window_caps_to_recent_sessions(self) -> None:
+        # Priors beyond the trailing window are dropped: only the most recent
+        # RISK_ADJUSTED_WINDOW_SESSIONS - 1 (plus today) count. An old, wild value
+        # far past the cap must not move the score off the recent flat run — if it
+        # leaked in, the huge dispersion would produce a (non-None) score.
+        recent_flat = [0.0] * 30  # far more than the window; today is flat too
+        old_outlier = [999.0]
+        m = compute_daily_book_metrics(
+            prev_equity=1000.0, end_equity=1000.0, trades=[], prior_returns=recent_flat + old_outlier
+        )
+        assert m.risk_adjusted_score is None  # recent window is flat → zero dispersion
