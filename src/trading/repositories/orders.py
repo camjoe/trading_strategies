@@ -183,6 +183,21 @@ class OrderRepository:
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
+        """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD).
+
+        Compares on the ISO timestamp's date prefix so it is robust to whether the
+        stored ``submitted_at`` carries a timezone suffix.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM orders "
+            "WHERE book_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "AND status IN ('filled', 'partially_filled') "
+            "ORDER BY submitted_at ASC, id ASC",
+            (int(book_id), date_str),
+        ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def update_status(
         self,
         *,
