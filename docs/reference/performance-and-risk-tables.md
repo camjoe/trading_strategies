@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-21
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-07-24
 Purpose: Provide the current table contract for performance snapshots, daily metrics, risk snapshots, risk decisions, and similarly named book exit thresholds.
 Related: [Database Transactions](database-transactions.md), [DB Migration System](db-migration-system.md), [Book-Keyed Execution Model](../adr/010-book-keyed-execution-model.md)
 
@@ -80,9 +80,9 @@ and Implementation gaps).
 | `drawdown_pct` | REAL | 1 day | Peak-to-trough decline over the day, in percent. Distinct from `risk_snapshots.drawdown_pct` (account grain, point-in-time). |
 | `turnover_pct` | REAL | 1 day | Traded notional relative to equity, in percent. |
 | `slippage_bps` | REAL | 1 day | Average execution slippage, in **basis points**. Same concept as `orders`/`backtest_*` slippage; keep the computation consistent. |
-| `hit_rate` | REAL | 1 day | Fraction of winning trades, `0.0–1.0` (not a percent). |
-| `expectancy` | REAL | 1 day | Average P&L per trade, in account currency. Writer-defined; formula not yet pinned in a shared helper. |
-| `risk_adjusted_score` | REAL | 1 day | Composite risk-adjusted performance score. **Which** measure (Sharpe/Sortino/custom) is writer-defined and not yet pinned — see open items. |
+| `hit_rate` | REAL | 1 day | Fraction of winning **closing** trades, `0.0–1.0` (not a percent). Over sells (which realize P&L); NULL on a day with no closes. |
+| `expectancy` | REAL | 1 day | Average realized P&L per closing trade, in account currency. From `orders.realized_pnl_delta`. |
+| `risk_adjusted_score` | REAL | trailing | Trailing **annualized Sharpe ratio** over the book's recent daily `return_pct` series (`mean / population-std × √252`, risk-free 0 — the same convention as `backtesting/domain/metrics.py::sharpe_ratio`). Computed over the last ≤20 scored sessions including the day; `NULL` until at least 10 returns exist or when the returns have zero dispersion. |
 | `trade_count` | INT | 1 day | Number of trades that day. |
 | `fees_total` | REAL | 1 day | Total commissions/fees for the day, in account currency. |
 
@@ -139,13 +139,13 @@ the option pair is configurable and persisted but has no production execution co
 ## Implementation gaps
 
 - `daily_metrics` is populated by the production writer for the columns derivable from stored daily
-  activity — `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`. The remaining
-  four are written `NULL` because their inputs are not stored at this grain: `drawdown_pct` needs
-  intraday equity; `hit_rate` and `expectancy` need **per-trade** realized P&L (fills store only
-  qty/price/commission, and realized P&L is stored per-book/cumulative); `risk_adjusted_score` needs a
-  return series (a trailing-window writer could add it later). Populating `hit_rate`/`expectancy` would
-  most cleanly come from persisting a per-fill `realized_pnl_delta` (as `rotation_decisions` already
-  does), a schema change.
+  activity — `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`, `hit_rate` /
+  `expectancy` (since revision `0020`, from each closing order's `orders.realized_pnl_delta`), and
+  `risk_adjusted_score` (a trailing annualized Sharpe over the persisted `return_pct` history — see
+  the column note above; `NULL` until enough trailing sessions exist). One column remains `NULL`
+  because its input is not stored at this grain: `drawdown_pct` needs intraday equity. `hit_rate` /
+  `expectancy` are populated only for orders created after `0020`, and `risk_adjusted_score` only
+  fills in once a book has accumulated enough daily rows (neither backfills historical rows).
 - `risk_snapshots.drawdown_pct`, `leverage_proxy`, and `daily_loss_pct` are
   columns without a populating writer (recorded `NULL` today).
 - `books.option_profit_take_pct` and `option_max_loss_pct` have configuration and persistence

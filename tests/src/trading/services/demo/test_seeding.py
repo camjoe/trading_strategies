@@ -8,7 +8,7 @@ def test_demo_seed_derives_daily_metrics_through_the_real_writer(conn) -> None:
 
     Guards the "demo consumes real code" property: the metrics come from the seeded
     equity curve + fills, so the demo can never display values the live system
-    cannot compute — and the honestly-unavailable columns stay NULL.
+    cannot compute — and the honestly-unavailable column stays NULL.
     """
     seed_demo_database(conn)
 
@@ -21,7 +21,11 @@ def test_demo_seed_derives_daily_metrics_through_the_real_writer(conn) -> None:
     assert any(row[0] is not None for row in rows)
     # The seeded fills mean some days record trades.
     assert any((row[1] or 0) > 0 for row in rows)
-    # Columns with no honest data source must be NULL, not fabricated (the old demo hardcoded them).
+    # risk_adjusted_score is a real derived column: the trailing writer fills it in
+    # once the seeded equity curve has accumulated enough daily returns.
+    assert any(row[4] is not None for row in rows), "risk_adjusted_score should be derived"
+    # hit_rate is NULL because the seeded fills include no closing trades that realize
+    # P&L; drawdown_pct is NULL because it has no honest data source at this grain.
+    # Neither is fabricated (the old demo hardcoded both).
     assert all(row[2] is None for row in rows), "hit_rate must be NULL"
     assert all(row[3] is None for row in rows), "drawdown_pct must be NULL"
-    assert all(row[4] is None for row in rows), "risk_adjusted_score must be NULL"

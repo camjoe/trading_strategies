@@ -131,6 +131,28 @@ class DailyMetricsRepository:
         ).fetchall()
         return [self._record(row) for row in rows]
 
+    def fetch_recent_returns_for_book(self, *, book_id: int, before_date: str, limit: int) -> list[float]:
+        """Most-recent-first non-null daily returns strictly before ``before_date``.
+
+        Feeds the trailing risk-adjusted score: the prior sessions whose
+        ``return_pct`` values combine with the current day to form its window.
+        Days with no return (``return_pct IS NULL`` — e.g. a book's first day)
+        are excluded so the score is computed over actual return observations.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT return_pct
+            FROM daily_metrics
+            WHERE book_id = ?
+              AND metric_date < ?
+              AND return_pct IS NOT NULL
+            ORDER BY metric_date DESC, id DESC
+            LIMIT ?
+            """,
+            (int(book_id), before_date, int(limit)),
+        ).fetchall()
+        return [float(row[0]) for row in rows]
+
     def fetch_for_book_window(
         self,
         *,

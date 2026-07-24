@@ -143,6 +143,15 @@ def apply_book_fill(
             updated_at=fill_time,
         )
 
+        # A sell realizes P&L against the position's average cost; persist it on the
+        # order so daily-metrics can derive hit_rate/expectancy. Buys realize nothing
+        # (delta is 0.0) and are left NULL, so NOT NULL marks a closing trade.
+        if transition.side == "sell":
+            OrderRepository(conn).add_realized_pnl_delta(
+                order_id=order_id,
+                realized_pnl_delta=transition.realized_pnl_delta,
+            )
+
 
 def submit_book_intents(
     conn: sqlite3.Connection,

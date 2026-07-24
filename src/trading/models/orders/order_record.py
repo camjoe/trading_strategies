@@ -29,6 +29,9 @@ class OrderRecord:
     submitted_at: str
     updated_at: str
     status_reason: str | None = None
+    # Realized P&L for a closing order (sell), net of commission. NULL for opening
+    # orders (buys realize nothing) — so NOT NULL identifies a closing trade.
+    realized_pnl_delta: float | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> OrderRecord:
@@ -52,4 +55,5 @@ class OrderRecord:
             submitted_at=row_expect_str(values, "submitted_at"),
             updated_at=row_expect_str(values, "updated_at"),
             status_reason=row_str(values, "status_reason"),
+            realized_pnl_delta=row_float(values, "realized_pnl_delta"),
         )
