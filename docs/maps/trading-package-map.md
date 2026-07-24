@@ -259,6 +259,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation/policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
+| `rotation/score_components.py` | Pure stability and drawdown-penalty derivations for rotation scoring |
 | `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
 | `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
 | `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
