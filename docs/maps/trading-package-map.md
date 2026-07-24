@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-23
+Last Reviewed: 2026-07-24
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -137,6 +137,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
+| `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |
 | `analysis/performance.py` | Book performance window queries (reads daily metrics) |
 | `analysis/risk_snapshots.py` | Latest account risk snapshot access (clean risk_snapshots) |
 | `analysis/exposure.py` | Cross-account exposure rollup over latest equity snapshots + open positions |
@@ -242,6 +243,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 |---|---|
 | `accounting.py` | Cash and equity accounting rules |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
