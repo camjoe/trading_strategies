@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
+
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int
 
 # Objective identifier persisted/reported with an optimization run. Versioned so a
 # future objective (calmar_v2, sharpe_v1, …) is a new name, never a silent redefinition.
@@ -118,7 +121,10 @@ class HoldoutOutcome:
 class OptimizationSummary:
     """Full result of one optimization experiment: per-window selections, holdout
     evidence, and the strategy's default params for side-by-side comparison. Training,
-    OOS, and holdout evidence are kept distinct and never blended."""
+    OOS, and holdout evidence are kept distinct and never blended.
+
+    ``experiment_id`` is the persisted ``optimization_experiments`` row id — the handle
+    a later promotion (``backtest-optimize-promote``) resolves the winner from."""
 
     strategy: str
     account_name: str
@@ -126,3 +132,98 @@ class OptimizationSummary:
     default_params: dict[str, Any]
     windows: list[WindowSelection] = field(default_factory=list)
     holdout: HoldoutOutcome | None = None
+    experiment_id: int | None = None
+
+
+@dataclass(frozen=True)
+class OptimizationExperimentInsert:
+    """Tier-1 persistence payload for one ``backtest-optimize`` run.
+
+    Carries the run config, the forward-carried winner (the promotion candidate),
+    a small OOS aggregate, and the untouched-holdout summary. Baseline numbers are
+    summarized here because the optimizer runs the default-parameter baseline
+    metrics-only (it is never persisted as a ``backtest_runs`` row)."""
+
+    account_id: int
+    strategy_id: int | None
+    primitive: str
+    objective_name: str
+    search_space_json: str
+    candidate_budget: int
+    train_months: int
+    test_months: int
+    step_months: int
+    holdout_months: int
+    warmup_months: int
+    start_date: str
+    end_date: str
+    window_count: int
+    winner_params_json: str
+    oos_mean_winner_return_pct: float | None
+    oos_mean_baseline_return_pct: float | None
+    oos_windows_beat_baseline: int | None
+    holdout_run_id: int | None
+    holdout_winner_return_pct: float | None
+    holdout_baseline_return_pct: float | None
+
+
+@dataclass(frozen=True)
+class OptimizationExperimentRecord:
+    """Persisted ``optimization_experiments`` row (read model).
+
+    ``promoted_strategy_id`` is the audit link to the tradeable variant minted from
+    ``winner_params_json``; ``None`` until the experiment is promoted."""
+
+    id: int
+    account_id: int
+    strategy_id: int | None
+    primitive: str
+    objective_name: str
+    search_space_json: str
+    candidate_budget: int
+    train_months: int
+    test_months: int
+    step_months: int
+    holdout_months: int
+    warmup_months: int
+    start_date: str
+    end_date: str
+    window_count: int
+    winner_params_json: str
+    oos_mean_winner_return_pct: float | None
+    oos_mean_baseline_return_pct: float | None
+    oos_windows_beat_baseline: int | None
+    holdout_run_id: int | None
+    holdout_winner_return_pct: float | None
+    holdout_baseline_return_pct: float | None
+    promoted_strategy_id: int | None
+    created_at: str
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationExperimentRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            account_id=row_expect_int(values, "account_id"),
+            strategy_id=row_int(values, "strategy_id"),
+            primitive=row_expect_str(values, "primitive"),
+            objective_name=row_expect_str(values, "objective_name"),
+            search_space_json=row_expect_str(values, "search_space_json"),
+            candidate_budget=row_expect_int(values, "candidate_budget"),
+            train_months=row_expect_int(values, "train_months"),
+            test_months=row_expect_int(values, "test_months"),
+            step_months=row_expect_int(values, "step_months"),
+            holdout_months=row_expect_int(values, "holdout_months"),
+            warmup_months=row_expect_int(values, "warmup_months"),
+            start_date=row_expect_str(values, "start_date"),
+            end_date=row_expect_str(values, "end_date"),
+            window_count=row_expect_int(values, "window_count"),
+            winner_params_json=row_expect_str(values, "winner_params_json"),
+            oos_mean_winner_return_pct=row_float(values, "oos_mean_winner_return_pct"),
+            oos_mean_baseline_return_pct=row_float(values, "oos_mean_baseline_return_pct"),
+            oos_windows_beat_baseline=row_int(values, "oos_windows_beat_baseline"),
+            holdout_run_id=row_int(values, "holdout_run_id"),
+            holdout_winner_return_pct=row_float(values, "holdout_winner_return_pct"),
+            holdout_baseline_return_pct=row_float(values, "holdout_baseline_return_pct"),
+            promoted_strategy_id=row_int(values, "promoted_strategy_id"),
+            created_at=row_expect_str(values, "created_at"),
+        )

@@ -5,6 +5,9 @@ from trading.services.strategy_catalog.mutations import (
     create_strategy_variant,
     freeze_strategy,
 )
+from trading.services.strategy_catalog.optimizer_promotion import (
+    promote_optimization_experiment,
+)
 from trading.services.strategy_catalog.resolution import (
     ResolvedStrategy,
     UnknownCatalogStrategyError,
@@ -23,6 +26,7 @@ __all__ = [
     "create_strategy_variant",
     "ensure_default_books",
     "freeze_strategy",
+    "promote_optimization_experiment",
     "resolve_catalog_params",
     "resolve_catalog_strategy",
     "seed_strategy_catalog",

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import sqlite3
+from dataclasses import replace
 from datetime import date
 from typing import Any, Callable
 
+from common.time import utc_now_iso
 from trading.backtesting.domain.optimization.objective import evaluate_candidate, select_winner
 from trading.backtesting.domain.optimization.search import generate_candidates
 from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
@@ -17,15 +20,20 @@ from trading.backtesting.models import (
 from trading.backtesting.optimizer_models import (
     CandidateResult,
     HoldoutOutcome,
+    OptimizationExperimentInsert,
     OptimizationSummary,
     OptimizerConfig,
     RunOutcome,
     WalkForwardSplit,
     WindowSelection,
 )
+from trading.backtesting.repositories.optimization_repository import insert_experiment
 from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
-from trading.domain.exceptions import ValidationError
+from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).
@@ -130,6 +138,77 @@ def run_walk_forward_optimization(
         windows=window_selections,
         holdout=holdout_outcome,
     )
+
+
+def run_and_persist_optimization(
+    conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    *,
+    run_metrics_only_fn: RunFn,
+    run_persisted_fn: RunFn,
+) -> OptimizationSummary:
+    """Run one optimization experiment and persist its Tier-1 record.
+
+    Runs the pure orchestration, then writes one ``optimization_experiments`` row
+    (config + forward-carried winner + OOS aggregate + holdout summary) and returns
+    the summary with its ``experiment_id`` set — the handle a later promotion uses.
+    """
+    summary = run_walk_forward_optimization(
+        conn,
+        cfg,
+        run_metrics_only_fn=run_metrics_only_fn,
+        run_persisted_fn=run_persisted_fn,
+    )
+    experiment_id = _persist_experiment(conn, cfg, summary)
+    return replace(summary, experiment_id=experiment_id)
+
+
+def _persist_experiment(conn: sqlite3.Connection, cfg: OptimizerConfig, summary: OptimizationSummary) -> int:
+    if not summary.windows:
+        raise ValidationError("Optimization produced no windows; nothing to persist or promote.")
+
+    now = utc_now_iso()
+    account = AccountRepository(conn).fetch_by_name(cfg.account_name)
+    if account is None:
+        raise NotFoundError(f"Account not found: {cfg.account_name}")
+    strategy_id = strategy_id_for_label(conn, cfg.strategy, now_iso=now)
+    strategy_row = StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id) if strategy_id is not None else None
+    if strategy_row is None:
+        raise NotFoundError(f"Strategy not found for optimizer target: {cfg.strategy}")
+
+    winner_params = summary.windows[-1].winner.params
+    winner_returns = [w.winner_oos.total_return_pct for w in summary.windows]
+    baseline_returns = [w.baseline_oos.total_return_pct for w in summary.windows]
+    beat_baseline = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
+    start_date = summary.windows[0].split.train_start
+    end_date = summary.holdout.holdout_end if summary.holdout is not None else summary.windows[-1].split.test_end
+
+    payload = OptimizationExperimentInsert(
+        account_id=account.id,
+        strategy_id=strategy_id,
+        primitive=strategy_row.primitive,
+        objective_name=cfg.objective_name,
+        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        candidate_budget=cfg.candidate_budget,
+        train_months=cfg.train_months,
+        test_months=cfg.test_months,
+        step_months=cfg.step_months,
+        holdout_months=cfg.holdout_months,
+        warmup_months=cfg.warmup_months,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        window_count=len(summary.windows),
+        winner_params_json=json.dumps(winner_params, sort_keys=True),
+        oos_mean_winner_return_pct=sum(winner_returns) / len(winner_returns),
+        oos_mean_baseline_return_pct=sum(baseline_returns) / len(baseline_returns),
+        oos_windows_beat_baseline=beat_baseline,
+        holdout_run_id=summary.holdout.winner.run_id if summary.holdout is not None else None,
+        holdout_winner_return_pct=summary.holdout.winner.total_return_pct if summary.holdout is not None else None,
+        holdout_baseline_return_pct=(
+            summary.holdout.baseline.total_return_pct if summary.holdout is not None else None
+        ),
+    )
+    return insert_experiment(conn, payload, created_at=now)
 
 
 def _select_window_winner(
