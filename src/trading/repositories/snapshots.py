@@ -168,6 +168,36 @@ class EquitySnapshotRepository:
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
+    def fetch_last_for_book_on_or_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
+        """Latest raw snapshot for one book whose calendar date is <= ``date_str``.
+
+        Per-book (no account roll-up), and compares on the timestamp's date prefix
+        so it is robust to whether stored times carry a timezone suffix.
+        """
+        return self._fetch_book_snapshot_by_date(book_id=book_id, date_str=date_str, operator="<=")
+
+    def fetch_last_for_book_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
+        """Latest raw snapshot for one book whose calendar date is strictly < ``date_str``."""
+        return self._fetch_book_snapshot_by_date(book_id=book_id, date_str=date_str, operator="<")
+
+    def _fetch_book_snapshot_by_date(
+        self, *, book_id: int, date_str: str, operator: str
+    ) -> EquitySnapshotRecord | None:
+        row = self._conn.execute(
+            f"""
+            SELECT s.id AS id, b.account_id AS account_id, s.book_id AS book_id, s.snapshot_time AS snapshot_time,
+                   s.cash AS cash, s.market_value AS market_value, s.equity AS equity,
+                   s.realized_pnl AS realized_pnl, s.unrealized_pnl AS unrealized_pnl
+            FROM equity_snapshots s
+            JOIN books b ON b.id = s.book_id
+            WHERE s.book_id = ? AND substr(s.snapshot_time, 1, 10) {operator} ?
+            ORDER BY s.snapshot_time DESC, s.id DESC
+            LIMIT 1
+            """,
+            (int(book_id), date_str),
+        ).fetchone()
+        return self._row_to_record(row) if row is not None else None
+
     def fetch_last_at_or_before(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
         row = self._conn.execute(
             _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",

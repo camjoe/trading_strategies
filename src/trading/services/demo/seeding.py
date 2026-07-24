@@ -10,7 +10,8 @@ import pandas as pd
 from trading.models import AccountConfig
 from trading.repositories.demo_seed import DemoSeedRepository
 from trading.repositories.unit_of_work import unit_of_work
-from trading.services.accounts import create_account
+from trading.services.accounts import create_account, get_account
+from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 
 TREND_ACCOUNT = "demo_trend"
 MOMENTUM_ACCOUNT = "demo_momentum"
@@ -86,20 +87,15 @@ def seed_demo_database(conn: sqlite3.Connection, *, anchor_date: date | None = N
                 equity=momentum_equity,
                 realized=-12,
             )
-            repo.insert_daily_metric(
-                book_id=trend_book,
-                metric_date=date_text,
-                return_pct=0.20 + (index % 4) * 0.04,
-                drawdown_pct=-0.6,
-                now_iso=now_iso,
-            )
-            repo.insert_daily_metric(
-                book_id=momentum_book,
-                metric_date=date_text,
-                return_pct=-0.08 + (index % 5) * 0.05,
-                drawdown_pct=-2.1,
-                now_iso=now_iso,
-            )
+
+        # Derive daily_metrics through the real production writer over the seeded
+        # snapshots and fills, so the demo exercises the same code path as runtime
+        # and can never show numbers the live system cannot produce.
+        trend_account = get_account(conn, TREND_ACCOUNT)
+        momentum_account = get_account(conn, MOMENTUM_ACCOUNT)
+        for date_text, _equity in trend_curve:
+            write_daily_metrics_for_account(conn, trend_account, metric_date=date_text, now_iso=now_iso)
+            write_daily_metrics_for_account(conn, momentum_account, metric_date=date_text, now_iso=now_iso)
 
         repo.insert_backtest(
             account_id=trend_id,
