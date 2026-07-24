@@ -61,7 +61,7 @@ class AccountRepository:
             "UPDATE accounts SET benchmark_ticker = ?, updated_at = ? WHERE id = ?",
             (benchmark_ticker, updated_at, account_id),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def delete_by_name(self, account_name: str) -> AccountRecord | None:
         """Delete one account and return it; database cascades remove owned rows."""
@@ -69,5 +69,5 @@ class AccountRepository:
             "DELETE FROM accounts WHERE name = ? RETURNING *",
             (account_name,),
         ).fetchone()
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return self._row_to_record(row) if row is not None else None

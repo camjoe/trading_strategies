@@ -18,10 +18,17 @@ follow to participate.
 
 ## How It Works
 
-Repositories in this codebase self-commit: each write method ends with a commit
-so a single mutation is durable on its own. That is correct for one statement
+Repository writes are durable on their own: each write method ends with a commit
+so a single mutation lands without ceremony. That is correct for one statement
 but wrong for a sequence — a crash between two writes leaves the persisted state
 inconsistent, and no amount of retry logic fixes an already-committed partial.
+
+Every repository write in `trading/repositories/` therefore commits through
+`commit_unit_of_work` rather than `conn.commit()`. Standalone that behaves
+identically to a direct commit; inside a scope it defers, so any write can be
+composed into a larger atomic sequence without the caller auditing which
+repository it came from. `unit_of_work` itself is the only place that calls
+`conn.commit()` directly.
 
 Two functions solve this:
 
@@ -76,10 +83,17 @@ The broker/network call that produces the data must stay **outside** the
 
 ## Boundaries
 
-- **Every write that may run inside a scope must use `commit_unit_of_work`.** A
-  write that hard-commits (`conn.commit()`) inside a scope ends the transaction
-  early and silently defeats the rollback guarantee. When adding a new
-  repository write to a path that participates in a `unit_of_work`, convert it.
+- **Every repository write must use `commit_unit_of_work`.** A write that
+  hard-commits (`conn.commit()`) inside a scope ends the transaction early and
+  silently defeats the rollback guarantee. This is now uniform across
+  `trading/repositories/`, so a new write should follow suit rather than
+  hard-committing and waiting to be converted when some caller later needs
+  atomicity. `tests/src/trading/repositories/test_repository_transaction_participation.py`
+  guards the rule.
+- **A few repositories intentionally do not commit at all** — `book_bridge`,
+  `promotion`, and `book_assignments` leave the commit to their caller. That is a
+  deliberate caller-owned boundary, not an oversight; do not "fix" them by adding
+  a commit without checking the callers.
 - **The primitive lives in the repository layer** (`trading/repositories/`), not
   `infrastructure/database/`, so services can import it without crossing the
   `trading/services → no direct database imports` boundary enforced by

@@ -5,6 +5,7 @@ import sqlite3
 
 from trading.models.books.risk_decision_record import RiskDecisionRecord
 from trading.models.books.risk_snapshot_record import RiskSnapshotRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class RiskSnapshotRepository:
@@ -61,7 +62,7 @@ class RiskSnapshotRepository:
                 risk_payload_json,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def fetch_latest(self, *, account_id: int) -> RiskSnapshotRecord | None:
@@ -135,7 +136,7 @@ class RiskDecisionRepository:
                 created_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
     def fetch_recent(self, *, account_id: int, limit: int = 50) -> list[RiskDecisionRecord]:

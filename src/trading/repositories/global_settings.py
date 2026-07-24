@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 class GlobalSettingsRepository:
@@ -41,7 +42,7 @@ class GlobalSettingsRepository:
             """,
             (runtime_max_trades_per_day, runtime_max_trades_per_minute, updated_at),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def upsert_evaluation_settings(
         self,
@@ -93,7 +94,7 @@ class GlobalSettingsRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def upsert_promotion_settings(
         self,
@@ -143,4 +144,4 @@ class GlobalSettingsRepository:
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)

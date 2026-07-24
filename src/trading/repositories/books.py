@@ -175,7 +175,7 @@ class BookRepository:
             "UPDATE books SET status = ?, updated_at = ? WHERE id = ?",
             (status, updated_at, int(book_id)),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def update_trade_universes(self, *, book_id: int, trade_universes: str, updated_at: str) -> None:
         """Set the book's universes and record the change in the history table."""

@@ -208,6 +208,9 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 SQL persistence adapters only. Each file owns one logical data area. Builds SQL internally; callers pass plain data, not SQL fragments.
 
+For these modules grouped by ownership, the transaction rules, and the usage pattern, see
+[`src/trading/repositories/README.md`](../../src/trading/repositories/README.md).
+
 | Module | Responsibility |
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
