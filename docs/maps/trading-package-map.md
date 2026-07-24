@@ -201,6 +201,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
+| `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
 | `universe/resolver.py` | Trade-universe name resolution |
 
 ---
@@ -299,7 +300,7 @@ Self-contained backtest subsystem with its own layered sub-packages.
 |---|---|
 | `backtest.py` | Backtest execution engine |
 | `models.py` | Backtest input/output models |
-| `optimizer_models.py` | Walk-forward optimizer defaults, experiment configuration, and selection/outcome models |
+| `optimizer_models.py` | Walk-forward optimizer defaults, experiment configuration, selection/outcome models, and the persisted experiment insert/record models |
 | `report_models.py` | Backtest report models |
 | `domain/` | Backtesting-specific domain logic |
 | `repositories/` | Backtest result persistence |
