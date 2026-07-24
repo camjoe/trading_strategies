@@ -175,9 +175,11 @@ Reconciliation behavior:
 - applies fills through shared book accounting (`apply_book_fill`); account-level
   history derives from the fill rows — the `trades` table was retired in revision `0006`
 
-The shared order contract and `orders.status_reason` can retain a broker-provided explanation for
-an order state. The current IBKR Web and legacy adapters leave that value unset, so operators should
-not yet expect rejection or cancellation explanations to survive reconciliation.
+The shared order contract and `orders.status_reason` retain broker-provided rejection and
+cancellation explanations when IBKR supplies one. The Web adapter reads
+`order_status_description`; the legacy `ib_async` adapter reads the advanced rejection payload or
+the latest structured order error. Later reconciliation polls without an explanation do not erase
+a previously persisted reason.
 
 ## Legacy Socket/TWS Path
 

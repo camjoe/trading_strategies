@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import infrastructure.brokers.ib_web_adapter as ib_web_adapter_module
-from infrastructure.brokers.ib_web import IbWebApiContract
+from infrastructure.brokers.ib_web import IbWebApiContract, IbWebOrderStatusUnavailableError
 from infrastructure.brokers.ib_web_adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
@@ -79,6 +79,29 @@ class TestInteractiveBrokersWebAdapter:
         submitted_payload = client.submit_order.call_args.args[0]
         assert submitted_payload["price"] == 150.0
         assert isinstance(submitted_payload["manualOrderTime"], int)
+
+    def test_place_order_fetches_documented_rejection_description(self):
+        client = self._make_client()
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="265598",
+            ticker="AAPL",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {}
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Inactive"}
+        client.fetch_order_status.return_value = {
+            "order_status": "Inactive",
+            "order_status_description": "Order rejected: insufficient buying power",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.place_order(make_broker_order())
+
+        assert result.status == OrderStatus.REJECTED
+        assert result.status_reason == "Order rejected: insufficient buying power"
+        client.fetch_order_status.assert_called_once_with("123")
 
     def test_get_account_info_maps_ledger_and_summary(self):
         client = self._make_client()
@@ -211,6 +234,69 @@ class TestInteractiveBrokersWebAdapter:
         assert len(result) == 1
         assert result[0].status == OrderStatus.PARTIALLY_FILLED
         assert result[0].fills == []
+
+    def test_get_open_trades_fetches_documented_cancellation_description(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "order_id": "77",
+                "ticker": "MSFT",
+                "side": "SELL",
+                "quantity": "10",
+                "order_status": "Cancelled",
+            },
+        ]
+        client.fetch_order_status.return_value = {
+            "order_status": "Cancelled",
+            "order_status_description": "Order cancelled by exchange",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert result[0].status == OrderStatus.CANCELLED
+        assert result[0].status_reason == "Order cancelled by exchange"
+        client.fetch_order_status.assert_called_once_with("77")
+
+    def test_get_open_trades_keeps_terminal_status_when_description_is_unavailable(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "order_id": "77",
+                "ticker": "MSFT",
+                "side": "SELL",
+                "quantity": "10",
+                "order_status": "Cancelled",
+            },
+        ]
+        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError(
+            "503 order no longer cached"
+        )
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert result[0].status == OrderStatus.CANCELLED
+        assert result[0].status_reason is None
+
+    def test_get_open_trades_does_not_fetch_description_for_active_order(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "order_id": "77",
+                "ticker": "MSFT",
+                "side": "SELL",
+                "quantity": "10",
+                "order_status": "Submitted",
+            },
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert result[0].status == OrderStatus.SUBMITTED
+        assert result[0].status_reason is None
+        client.fetch_order_status.assert_not_called()
 
     def test_get_positions_skips_blank_symbols_and_unparseable_quantities(self):
         client = self._make_client()
