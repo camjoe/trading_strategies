@@ -96,7 +96,9 @@ These limitations describe current behavior and maturity; they are not hidden by
   because backtest returns are already net of modeled per-trade fees; and `regime_fit` has nothing to
   fit against, as there is no market-regime detector and the regime→strategy mapping columns were
   dropped in migration `0014`. Both weights remain operator-configurable, so tuning either currently
-  has no effect.
+  has no effect. What `regime_fit` would need to become real — including the
+  ETF-based regime signal that already exists — is documented in
+  [Rotation Scoring](reference/rotation-scoring.md).
 - **Daily performance metrics have no production writer.** Reporting can read `daily_metrics`, but
   runtime workflows do not populate it. See
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.

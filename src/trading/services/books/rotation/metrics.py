@@ -40,11 +40,16 @@ def build_rotation_strategy_metrics(
       ``total_return_pct`` — and therefore ``risk_adjusted_return`` and
       ``drawdown_penalty`` — are net of modeled costs. Adding a turnover-based
       penalty on top would double-count the same cost.
-    - ``regime_fit``: the repository has no market-regime detector, and the
-      regime→strategy mapping columns were dropped as dead in migration ``0014``.
-      There is nothing to fit against.
+    - ``regime_fit``: rotation has no current-regime read or per-strategy regime
+      affinity, and the regime→strategy mapping columns were dropped as dead in
+      migration ``0014``. A market regime *signal* does exist
+      (``policy_provider.policy_risk_on_score``) but is wired only to strategy
+      signals. See ``docs/reference/rotation-scoring.md`` for what a real
+      implementation would need.
 
-    Their weights remain configurable, so tuning either currently has no effect.
+    These two are also no longer operator-settable (removed from
+    ``ROTATION_POLICY_FIELDS``); their columns are retained for a future
+    ``regime_fit`` implementation.
     """
     # The one deliberate deferred import in the books/evaluation/accounts trio:
     # this call is the single back-edge (books -> evaluation) in an otherwise
