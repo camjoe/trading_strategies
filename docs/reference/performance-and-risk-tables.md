@@ -65,9 +65,13 @@ account's default book).
 ## daily_metrics
 
 Book-keyed per-day performance metrics, upserted on `(book_id, metric_date)`
-via `DailyMetricsRepository.upsert`. The schema, repository, readers, and tests are implemented.
-Every metric column is nullable (a day may record only some metrics), but no production service or
-runtime job calls the writer, so runtime workflows do not currently populate this table.
+via `DailyMetricsRepository.upsert`. The production writer is
+`services/analysis/daily_metrics.py::write_daily_metrics_for_account`, run from
+`snapshot_account` right after the day's equity snapshot is written (so it lands
+in the daily paper-trading workflow's snapshot step and on any manual `snapshot`).
+Every metric column is nullable; the writer populates the columns derivable from
+stored daily activity and leaves the rest `NULL` on purpose (see the column notes
+and Implementation gaps).
 
 | Column | Type | Period | Meaning |
 |---|---|---|---|
@@ -134,8 +138,14 @@ the option pair is configurable and persisted but has no production execution co
 
 ## Implementation gaps
 
-- `daily_metrics` has no production writer. Its existing readers therefore have no runtime rows to
-  consume, and `risk_adjusted_score` and `expectancy` do not yet have a shared formula/helper.
+- `daily_metrics` is populated by the production writer for the columns derivable from stored daily
+  activity — `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`. The remaining
+  four are written `NULL` because their inputs are not stored at this grain: `drawdown_pct` needs
+  intraday equity; `hit_rate` and `expectancy` need **per-trade** realized P&L (fills store only
+  qty/price/commission, and realized P&L is stored per-book/cumulative); `risk_adjusted_score` needs a
+  return series (a trailing-window writer could add it later). Populating `hit_rate`/`expectancy` would
+  most cleanly come from persisting a per-fill `realized_pnl_delta` (as `rotation_decisions` already
+  does), a schema change.
 - `risk_snapshots.drawdown_pct`, `leverage_proxy`, and `daily_loss_pct` are
   columns without a populating writer (recorded `NULL` today).
 - `books.option_profit_take_pct` and `option_max_loss_pct` have configuration and persistence

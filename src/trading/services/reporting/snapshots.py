@@ -12,6 +12,7 @@ import sqlite3
 from common.time import utc_now_iso
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import get_account, list_account_snapshots
+from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.market_data import MarketDataProvider
 from trading.services.reporting.account import account_report
 
@@ -25,15 +26,18 @@ def snapshot_account(
 ) -> None:
     account = get_account(conn, account_name)
     stats, _ = account_report(conn, account_name, provider=provider)
+    resolved_time = snapshot_time or utc_now_iso()
     EquitySnapshotRepository(conn).insert(
         account_id=account.id,
-        snapshot_time=snapshot_time or utc_now_iso(),
+        snapshot_time=resolved_time,
         cash=stats["cash"],
         market_value=stats["market_value"],
         equity=stats["equity"],
         realized_pnl=stats["realized_pnl"],
         unrealized_pnl=stats["unrealized_pnl"],
     )
+    # The snapshot just written is the end-of-day equity the metrics derive return from.
+    write_daily_metrics_for_account(conn, account, metric_date=resolved_time[:10], now_iso=resolved_time)
     print("Snapshot saved.")
 
 

@@ -72,17 +72,6 @@ class DemoSeedRepository:
             (book_id, time_iso, cash, market_value, equity, realized, equity - cash - market_value),
         )
 
-    def insert_daily_metric(
-        self, *, book_id: int, metric_date: str, return_pct: float, drawdown_pct: float, now_iso: str
-    ) -> None:
-        self._conn.execute(
-            """INSERT INTO daily_metrics
-               (book_id, metric_date, return_pct, drawdown_pct, turnover_pct, slippage_bps,
-                hit_rate, expectancy, risk_adjusted_score, trade_count, fees_total, created_at, updated_at)
-               VALUES (?, ?, ?, ?, 0.08, 2.5, 0.58, 0.42, 0.71, 2, 0, ?, ?)""",
-            (book_id, metric_date, return_pct, drawdown_pct, now_iso, now_iso),
-        )
-
     def insert_backtest(
         self,
         *,
