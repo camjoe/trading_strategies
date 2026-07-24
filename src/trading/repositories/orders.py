@@ -183,6 +183,19 @@ class OrderRepository:
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: float) -> None:
+        """Accumulate a closing fill's realized P&L onto its order.
+
+        Additive so an order filled in several closing executions (partial fills
+        across reconciliation polls) accrues its total realized P&L. Leaves the
+        column NULL for orders this is never called for (opening/buy orders).
+        """
+        self._conn.execute(
+            "UPDATE orders SET realized_pnl_delta = COALESCE(realized_pnl_delta, 0) + ? WHERE id = ?",
+            (float(realized_pnl_delta), int(order_id)),
+        )
+        commit_unit_of_work(self._conn)
+
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
         """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD).
 

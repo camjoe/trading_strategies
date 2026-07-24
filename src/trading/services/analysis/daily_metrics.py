@@ -53,6 +53,7 @@ def write_daily_metrics_for_account(
                     avg_fill_price=order.avg_fill_price if order.avg_fill_price is not None else 0.0,
                     requested_price=order.requested_price,
                     commission=order.commission,
+                    realized_pnl_delta=order.realized_pnl_delta,
                 )
                 for order in orders.fetch_filled_for_book_on_date(book_id=book.id, date_str=metric_date)
             ]

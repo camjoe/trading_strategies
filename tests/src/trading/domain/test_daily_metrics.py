@@ -11,9 +11,14 @@ def _buy(qty=10.0, fill=100.0, requested=100.0, commission=0.0) -> DailyTrade:
     )
 
 
-def _sell(qty=10.0, fill=100.0, requested=100.0, commission=0.0) -> DailyTrade:
+def _sell(qty=10.0, fill=100.0, requested=100.0, commission=0.0, pnl=None) -> DailyTrade:
     return DailyTrade(
-        side="sell", filled_qty=qty, avg_fill_price=fill, requested_price=requested, commission=commission
+        side="sell",
+        filled_qty=qty,
+        avg_fill_price=fill,
+        requested_price=requested,
+        commission=commission,
+        realized_pnl_delta=pnl,
     )
 
 
@@ -75,11 +80,37 @@ class TestSlippage:
         assert m.slippage_bps is None
 
 
-class TestUnavailableColumns:
-    def test_columns_without_a_data_source_stay_none(self) -> None:
-        # These require intraday equity / per-trade P&L / a return series — none stored.
-        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[_buy()])
-        assert m.drawdown_pct is None
+class TestClosingTradeStats:
+    def test_hit_rate_and_expectancy_over_closing_trades(self) -> None:
+        # Two winners (+30, +10) and one loser (-20) → hit_rate 2/3, expectancy +20/3.
+        m = compute_daily_book_metrics(
+            prev_equity=1000.0,
+            end_equity=1000.0,
+            trades=[_sell(pnl=30.0), _sell(pnl=-20.0), _sell(pnl=10.0)],
+        )
+        assert m.hit_rate == pytest.approx(2 / 3)
+        assert m.expectancy == pytest.approx(20.0 / 3)
+
+    def test_opening_only_day_is_none_not_zero(self) -> None:
+        # Buys realize nothing (delta None), so a no-close day must not read as 0% hit rate.
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[_buy(), _buy()])
         assert m.hit_rate is None
         assert m.expectancy is None
+
+    def test_break_even_close_is_not_a_win(self) -> None:
+        m = compute_daily_book_metrics(prev_equity=1.0, end_equity=1.0, trades=[_sell(pnl=0.0), _sell(pnl=5.0)])
+        assert m.hit_rate == pytest.approx(0.5)  # only the +5 counts as a win
+
+    def test_only_closing_trades_count_toward_hit_rate(self) -> None:
+        # A buy (opening) alongside a winning sell → hit_rate is over the one close.
+        m = compute_daily_book_metrics(prev_equity=1.0, end_equity=1.0, trades=[_buy(), _sell(pnl=7.0)])
+        assert m.hit_rate == pytest.approx(1.0)
+        assert m.expectancy == pytest.approx(7.0)
+
+
+class TestUnavailableColumns:
+    def test_columns_without_a_data_source_stay_none(self) -> None:
+        # These still require intraday equity / a return series — neither stored.
+        m = compute_daily_book_metrics(prev_equity=1000.0, end_equity=1010.0, trades=[_buy()])
+        assert m.drawdown_pct is None
         assert m.risk_adjusted_score is None
