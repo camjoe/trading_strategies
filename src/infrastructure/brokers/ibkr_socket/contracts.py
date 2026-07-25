@@ -69,3 +69,13 @@ class IbkrQuote:
     bid: float
     ask: float
     last: float
+
+
+@dataclass(frozen=True)
+class IbkrApiError:
+    """Error delivered by the native IBKR socket callback."""
+
+    request_id: int
+    code: int
+    message: str
+    advanced_rejection: str | None = None

@@ -154,4 +154,5 @@ These limitations describe current behavior and maturity; they are not hidden by
 - **Alternative data** — current policy signals use ETF-proxy feature providers rather than direct
   non-proxy policy datasets.
 - **IBKR connectivity** — the Client Portal / Web API is the primary integration. The TWS/IB
-  Gateway socket integration supports `ib_async`; its native `ibapi` client remains a stub.
+  Gateway socket integration supports `ib_async`; its native `ibapi` client has connection,
+  readiness, error-state, and shutdown handling, while trading/data callbacks remain incomplete.

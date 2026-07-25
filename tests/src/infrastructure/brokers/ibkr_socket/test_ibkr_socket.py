@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
@@ -19,7 +20,7 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrTrade,
 )
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
-from infrastructure.brokers.ibkr_socket.ibapi_client import IbApiClient
+from infrastructure.brokers.ibkr_socket.ibapi_client import IbApiClient, _parse_error_callback
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from tests.support.account_records import make_account_record
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
@@ -368,8 +369,116 @@ class TestIbAsyncClient:
 
 
 class TestIbApiClient:
-    def test_all_methods_raise_not_implemented(self):
-        client = IbApiClient()
+    def test_connect_waits_for_readiness_and_reserves_monotonic_order_ids(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=100)
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+
+        client.connect("127.0.0.1", 7497, client_id=7)
+
+        assert client.is_connected() is True
+        assert client._reserve_order_id() == 100
+        assert client._reserve_order_id() == 101
+        app = app_holder["app"]
+        assert app.connect_args == ("127.0.0.1", 7497, 7)
+
+        client.disconnect()
+
+        assert client.is_connected() is False
+        assert app.disconnect_calls == 1
+
+    def test_connect_times_out_without_next_valid_id(self):
+        client = IbApiClient(
+            app_factory=lambda callbacks: _FakeNativeApp(callbacks),
+            connection_timeout_seconds=0.01,
+        )
+
+        with pytest.raises(TimeoutError, match="nextValidId"):
+            client.connect("127.0.0.1", 7497, client_id=1)
+
+        assert client.is_connected() is False
+
+    def test_message_loop_failure_propagates_from_connect(self):
+        client = IbApiClient(
+            app_factory=lambda callbacks: _FakeNativeApp(
+                callbacks,
+                run_error=ValueError("decoder failed"),
+            )
+        )
+
+        with pytest.raises(RuntimeError, match="decoder failed"):
+            client.connect("127.0.0.1", 7497, client_id=1)
+
+    def test_callback_errors_are_immutable_snapshots(self):
+        callback_holder = {}
+
+        def app_factory(callbacks):
+            callback_holder["callbacks"] = callbacks
+            return _FakeNativeApp(callbacks, ready_order_id=1)
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+        callbacks = callback_holder["callbacks"]
+        callbacks.record_error(42, 201, "Order rejected", '{"reason":"margin"}')
+
+        errors = client.callback_errors()
+
+        assert len(errors) == 1
+        assert errors[0].request_id == 42
+        assert errors[0].code == 201
+        assert errors[0].advanced_rejection == '{"reason":"margin"}'
+        assert isinstance(errors, tuple)
+        client.disconnect()
+
+    def test_unexpected_connection_close_blocks_future_order_ids(self):
+        callback_holder = {}
+
+        def app_factory(callbacks):
+            callback_holder["callbacks"] = callbacks
+            return _FakeNativeApp(callbacks, ready_order_id=10)
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        callback_holder["callbacks"].record_connection_closed()
+
+        with pytest.raises(RuntimeError, match="closed unexpectedly"):
+            client._reserve_order_id()
+        client.disconnect()
+
+    def test_requested_disconnect_does_not_record_connection_failure(self):
+        callback_holder = {}
+
+        def app_factory(callbacks):
+            callback_holder["callbacks"] = callbacks
+            return _FakeNativeApp(callbacks, ready_order_id=10)
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+        client.disconnect()
+
+        callback_holder["callbacks"].record_connection_closed()
+
+        assert client.callback_errors() == ()
+
+    @pytest.mark.parametrize(
+        "args,expected",
+        [
+            ((201, "Rejected"), (201, "Rejected", None)),
+            ((201, "Rejected", '{"reason":"margin"}'), (201, "Rejected", '{"reason":"margin"}')),
+            ((123456789, 201, "Rejected", ""), (201, "Rejected", None)),
+        ],
+    )
+    def test_parse_error_callback_supports_native_signatures(self, args, expected):
+        assert _parse_error_callback(args) == expected
+
+    def test_unimplemented_data_operations_remain_explicit(self):
+        client = IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks))
         order_request = IbkrOrderRequest(
             symbol="AAPL",
             action="BUY",
@@ -378,12 +487,6 @@ class TestIbApiClient:
             limit_price=0.0,
             time_in_force="DAY",
         )
-        with pytest.raises(NotImplementedError):
-            client.connect("127.0.0.1", 7497, client_id=1)
-        with pytest.raises(NotImplementedError):
-            client.disconnect()
-        with pytest.raises(NotImplementedError):
-            client.is_connected()
         with pytest.raises(NotImplementedError):
             client.place_order(order_request)
         with pytest.raises(NotImplementedError):
@@ -398,7 +501,40 @@ class TestIbApiClient:
             client.quotes(["AAPL"])
 
     def test_isinstance_check_passes_with_all_stubs(self):
-        assert isinstance(IbApiClient(), IbkrSocketClient)
+        assert isinstance(
+            IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks)),
+            IbkrSocketClient,
+        )
+
+
+class _FakeNativeApp:
+    def __init__(self, callbacks, ready_order_id=None, run_error=None):
+        self.callbacks = callbacks
+        self.ready_order_id = ready_order_id
+        self.run_error = run_error
+        self.connected = False
+        self.connect_args = None
+        self.disconnect_calls = 0
+        self._stop = threading.Event()
+
+    def connect(self, host, port, clientId):
+        self.connected = True
+        self.connect_args = (host, port, clientId)
+        if self.ready_order_id is not None:
+            self.callbacks.record_next_order_id(self.ready_order_id)
+
+    def disconnect(self):
+        self.disconnect_calls += 1
+        self.connected = False
+        self._stop.set()
+
+    def isConnected(self):
+        return self.connected
+
+    def run(self):
+        if self.run_error is not None:
+            raise self.run_error
+        self._stop.wait()
 
 
 class TestIbkrSocketStatusMap:
