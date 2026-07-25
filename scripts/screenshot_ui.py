@@ -14,6 +14,7 @@ python -m scripts.screenshot_ui --tab backtesting
 python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab autonomy-monitor
+python -m scripts.screenshot_ui --tab strategy-lab
 python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
@@ -30,7 +31,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, compare, portfolio, backtesting, autonomy-monitor,
+  accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
   alt-strategies, docs, admin
 """
 
@@ -97,7 +98,8 @@ def capture(
         page = browser.new_page(viewport={"width": width, "height": height})
 
         print(f"→ Opening {url} ...")
-        page.goto(url, wait_until="networkidle")
+        page.goto(url, wait_until="domcontentloaded")
+        page.locator(".tab-nav").wait_for()
 
         # Click the target tab
         tab_btn = page.locator(f'[data-tab="{tab}"]')
@@ -162,7 +164,8 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-        "compare, portfolio, backtesting, autonomy-monitor, alt-strategies, docs, admin",
+        "compare, portfolio, backtesting, strategy-lab, autonomy-monitor, "
+        "alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",

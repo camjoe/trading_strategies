@@ -21,6 +21,10 @@
   margin-top: 0.95rem;
 }
 
+#tab-strategy-lab > .card {
+  grid-column: span 12;
+}
+
 .bt-stack {
   display: grid;
   gap: 1.1rem;

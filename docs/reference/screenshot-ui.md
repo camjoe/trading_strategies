@@ -44,6 +44,7 @@ python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab backtesting
+python -m scripts.screenshot_ui --tab strategy-lab
 python -m scripts.screenshot_ui --tab autonomy-monitor
 python -m scripts.screenshot_ui --tab alt-strategies
 python -m scripts.screenshot_ui --tab admin
@@ -76,6 +77,7 @@ compare         admin
 portfolio       docs
 autonomy-monitor
 backtesting
+strategy-lab
 ```
 
 Tab names match the `data-tab` attributes in
