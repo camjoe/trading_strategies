@@ -247,11 +247,7 @@ class _IbApiCallbackState:
             if state is None:
                 return
             existing = state.fills.get(exec_id)
-            commission = (
-                existing.commission
-                if existing is not None
-                else self._pending_commissions.pop(exec_id, 0.0)
-            )
+            commission = existing.commission if existing is not None else self._pending_commissions.pop(exec_id, 0.0)
             state.fills[exec_id] = _NativeFillState(
                 shares=shares,
                 price=price,
@@ -486,9 +482,7 @@ class IbApiClient:
             self._callbacks.begin_positions()
             app.request_positions()
             try:
-                completed = self._callbacks.positions_complete.wait(
-                    self._request_timeout_seconds
-                )
+                completed = self._callbacks.positions_complete.wait(self._request_timeout_seconds)
                 self._callbacks.raise_if_background_error()
                 if not completed:
                     raise TimeoutError("Timed out waiting for IBKR native positionEnd callback.")
@@ -507,14 +501,10 @@ class IbApiClient:
                 _ACCOUNT_SUMMARY_TAGS,
             )
             try:
-                completed = self._callbacks.account_summary_complete.wait(
-                    self._request_timeout_seconds
-                )
+                completed = self._callbacks.account_summary_complete.wait(self._request_timeout_seconds)
                 self._callbacks.raise_if_background_error()
                 if not completed:
-                    raise TimeoutError(
-                        "Timed out waiting for IBKR native accountSummaryEnd callback."
-                    )
+                    raise TimeoutError("Timed out waiting for IBKR native accountSummaryEnd callback.")
                 return self._callbacks.account_values()
             finally:
                 app.cancel_account_summary(request_id)
@@ -559,9 +549,7 @@ class IbApiClient:
         try:
             app.run()
         except Exception as exc:
-            self._callbacks.record_background_error(
-                RuntimeError(f"IBKR native message loop failed: {exc}")
-            )
+            self._callbacks.record_background_error(RuntimeError(f"IBKR native message loop failed: {exc}"))
 
 
 def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
@@ -573,9 +561,7 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
         from ibapi.order_cancel import OrderCancel  # type: ignore[import-not-found]
         from ibapi.wrapper import EWrapper  # type: ignore[import-not-found]
     except ImportError as exc:
-        raise RuntimeError(
-            "The official IBKR Python API is required for the ibapi socket backend."
-        ) from exc
+        raise RuntimeError("The official IBKR Python API is required for the ibapi socket backend.") from exc
 
     class _App(EWrapper, EClient):  # type: ignore[misc, valid-type]
         def __init__(self) -> None:

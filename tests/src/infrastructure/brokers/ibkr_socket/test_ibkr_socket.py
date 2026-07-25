@@ -244,9 +244,7 @@ class TestIbkrSocketAdapter:
 
     def test_get_quotes_returns_bid_ask_last(self):
         adapter, client = _adapter_with_mock_client()
-        client.quotes.return_value = [
-            IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)
-        ]
+        client.quotes.return_value = [IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)]
 
         result = adapter.get_quotes(["AAPL"])
         assert result == {"AAPL": {"bid": 149.0, "ask": 150.0, "last": 149.5}}
@@ -288,9 +286,7 @@ class TestIbkrSocketAdapter:
         result = adapter.get_open_trades()
 
         assert result[0].status == OrderStatus.REJECTED
-        assert result[0].status_reason == (
-            '{"errorCode":"IBDBUYTX","errorMessage":"Trading restricted"}'
-        )
+        assert result[0].status_reason == ('{"errorCode":"IBDBUYTX","errorMessage":"Trading restricted"}')
 
     def test_get_open_trades_captures_latest_structured_order_error(self):
         adapter, client = _adapter_with_mock_client()
@@ -322,12 +318,8 @@ class TestIbAsyncClient:
         )
         backend.placeOrder.return_value = sdk_trade
         backend.trades.return_value = [sdk_trade]
-        backend.positions.return_value = [
-            SimpleNamespace(contract=SimpleNamespace(symbol="AAPL"), position=3.0)
-        ]
-        backend.accountSummary.return_value = [
-            SimpleNamespace(tag="NetLiquidation", value="1000", currency="USD")
-        ]
+        backend.positions.return_value = [SimpleNamespace(contract=SimpleNamespace(symbol="AAPL"), position=3.0)]
+        backend.accountSummary.return_value = [SimpleNamespace(tag="NetLiquidation", value="1000", currency="USD")]
         backend.reqTickers.return_value = [
             SimpleNamespace(
                 contract=SimpleNamespace(symbol="AAPL"),
@@ -359,12 +351,8 @@ class TestIbAsyncClient:
         client.cancel_order(42)
         assert client.trades()[0].symbol == "AAPL"
         assert client.positions() == [IbkrPosition(symbol="AAPL", quantity=3.0)]
-        assert client.account_summary() == [
-            IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")
-        ]
-        assert client.quotes(["AAPL"]) == [
-            IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)
-        ]
+        assert client.account_summary() == [IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")]
+        assert client.quotes(["AAPL"]) == [IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)]
         client.disconnect()
 
         backend.connect.assert_called_once_with("127.0.0.1", 7497, clientId=7)
@@ -552,9 +540,7 @@ class TestIbApiClient:
         assert trade.status == "Filled"
         assert trade.fills[0].commission == 1.25
         assert callbacks.positions() == [IbkrPosition(symbol="AAPL", quantity=3.0)]
-        assert callbacks.account_values() == [
-            IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")
-        ]
+        assert callbacks.account_values() == [IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")]
         assert callbacks.quote(8) == IbkrQuote(
             symbol="MSFT",
             bid=149.0,

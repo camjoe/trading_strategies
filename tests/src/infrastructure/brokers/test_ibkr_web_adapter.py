@@ -269,9 +269,7 @@ class TestInteractiveBrokersWebAdapter:
                 "order_status": "Cancelled",
             },
         ]
-        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError(
-            "503 order no longer cached"
-        )
+        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError("503 order no longer cached")
         adapter = InteractiveBrokersWebAdapter(client=client)
 
         result = adapter.get_open_trades()
