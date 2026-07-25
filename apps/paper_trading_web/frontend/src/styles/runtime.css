@@ -146,14 +146,6 @@
   }
 }
 
-@media (max-width: 900px) {
-  .docs-nav-menu {
-    left: auto;
-    right: 0;
-    width: min(82vw, 320px);
-  }
-}
-
 .latest-backtest-section {
   margin-top: 1.5rem;
 }
