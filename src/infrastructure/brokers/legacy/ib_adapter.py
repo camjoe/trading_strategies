@@ -42,6 +42,7 @@ Async fill note:
 from __future__ import annotations
 
 from common.time import utc_now_iso
+from infrastructure.brokers.legacy.client_models import LegacyOrderRequest
 from infrastructure.brokers.legacy.ib_client import IBClientProtocol
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import (
@@ -106,17 +107,17 @@ class InteractiveBrokersAdapter(BrokerConnection):
         SUBMITTED order and later reconcile fills via ``get_open_trades``.
         """
         self._require_connected()
-        contract = self._make_stock(order.ticker)
-        ib_order = self._client.make_order(
+        request = LegacyOrderRequest(
+            symbol=order.ticker,
             action=order.side.upper(),
-            totalQuantity=order.qty,
-            orderType="MKT" if order.order_type == OrderType.MARKET else "LMT",
-            lmtPrice=order.price if order.order_type == OrderType.LIMIT else 0.0,
-            tif=order.time_in_force.value.upper(),
+            total_quantity=order.qty,
+            order_type="MKT" if order.order_type == OrderType.MARKET else "LMT",
+            limit_price=order.price if order.order_type == OrderType.LIMIT else 0.0,
+            time_in_force=order.time_in_force.value.upper(),
         )
-        trade = self._client.place_order(contract, ib_order)
+        trade = self._client.place_order(request)
         now = utc_now_iso()
-        order.broker_order_id = str(trade.order.orderId)
+        order.broker_order_id = str(trade.order_id)
         order.status = OrderStatus.SUBMITTED
         order.submitted_at = now
         order.updated_at = now
@@ -125,12 +126,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
     def cancel_order(self, broker_order_id: str) -> None:
         """Request cancellation of an open order by its IB order ID."""
         self._require_connected()
-        target_id = int(broker_order_id)
-        for trade in self._client.trades():
-            if trade.order.orderId == target_id:
-                self._client.cancel_order(trade.order)
-                return
-        raise ValueError(f"No open IB order found with id {broker_order_id!r}")
+        self._client.cancel_order(int(broker_order_id))
 
     def get_open_trades(self) -> list[BrokerOrder]:
         """Return all currently open IB trades as :class:`BrokerOrder` objects.
@@ -141,35 +137,29 @@ class InteractiveBrokersAdapter(BrokerConnection):
         self._require_connected()
         result: list[BrokerOrder] = []
         for trade in self._client.trades():
-            ib_order = trade.order
-            ib_status = trade.orderStatus
             fills = [
                 OrderFill(
-                    filled_qty=f.execution.shares,
-                    fill_price=f.execution.avgPrice,
-                    fill_time=(
-                        f.execution.time.isoformat()
-                        if hasattr(f.execution.time, "isoformat")
-                        else str(f.execution.time)
-                    ),
-                    commission=f.commissionReport.commission if f.commissionReport else 0.0,
-                    exec_id=getattr(f.execution, "execId", None),
+                    filled_qty=fill.shares,
+                    fill_price=fill.price,
+                    fill_time=fill.time,
+                    commission=fill.commission,
+                    exec_id=fill.exec_id,
                 )
-                for f in trade.fills
+                for fill in trade.fills
             ]
             broker_order = BrokerOrder(
                 account_id=0,  # caller sets from their account context
-                ticker=trade.contract.symbol,
-                side=ib_order.action.lower(),
-                qty=ib_order.totalQuantity,
-                price=ib_order.lmtPrice or 0.0,
-                broker_order_id=str(ib_order.orderId),
-                status=_map_ib_status(ib_status.status),
-                filled_qty=ib_status.filled,
-                avg_fill_price=ib_status.avgFillPrice if ib_status.avgFillPrice is not None else None,
+                ticker=trade.symbol,
+                side=trade.action.lower(),
+                qty=trade.total_quantity,
+                price=trade.limit_price,
+                broker_order_id=str(trade.order_id),
+                status=_map_ib_status(trade.status),
+                filled_qty=trade.filled,
+                avg_fill_price=trade.avg_fill_price,
                 commission=sum(f.commission for f in fills),
                 fills=fills,
-                status_reason=_extract_terminal_status_reason(trade, _map_ib_status(ib_status.status)),
+                status_reason=trade.status_reason,
             )
             result.append(broker_order)
         return result
@@ -181,7 +171,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
     def get_positions(self) -> dict[str, float]:
         """Return current live positions as ``{ticker: qty}``."""
         self._require_connected()
-        return {p.contract.symbol: p.position for p in self._client.positions()}
+        return {position.symbol: position.quantity for position in self._client.positions()}
 
     def get_account_info(self) -> dict[str, float]:
         """Return account summary: ``TotalCashValue``, ``BuyingPower``,
@@ -197,18 +187,14 @@ class InteractiveBrokersAdapter(BrokerConnection):
     def get_quotes(self, tickers: list[str]) -> dict[str, dict[str, float]]:
         """Return real-time bid/ask/last quotes for *tickers*."""
         self._require_connected()
-        contracts = [self._make_stock(t) for t in tickers]
-        self._client.qualify_contracts(*contracts)
-        ticker_data = self._client.req_tickers(*contracts)
-        return {t.contract.symbol: {"bid": t.bid, "ask": t.ask, "last": t.last} for t in ticker_data}
+        return {
+            quote.symbol: {"bid": quote.bid, "ask": quote.ask, "last": quote.last}
+            for quote in self._client.quotes(tickers)
+        }
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-
-    def _make_stock(self, symbol: str):
-        """Create an IB Stock contract via the injected client."""
-        return self._client.make_stock(symbol)
 
     def _require_connected(self) -> None:
         if not self._client.is_connected():
@@ -232,32 +218,3 @@ _IB_STATUS_MAP: dict[str, OrderStatus] = {
 
 def _map_ib_status(ib_status: str) -> OrderStatus:
     return _IB_STATUS_MAP.get(ib_status, OrderStatus.SUBMITTED)
-
-
-_TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJECTED))
-
-
-def _extract_terminal_status_reason(trade: object, status: OrderStatus) -> str | None:
-    """Return the IB rejection payload or latest structured order error."""
-    if status not in _TERMINAL_NON_FILL_STATUSES:
-        return None
-
-    advanced_error = _clean_status_reason(getattr(trade, "advancedError", None))
-    if advanced_error is not None:
-        return advanced_error
-
-    log_entries = getattr(trade, "log", ())
-    if not isinstance(log_entries, (list, tuple)):
-        return None
-    for entry in reversed(log_entries):
-        error_code = getattr(entry, "errorCode", 0)
-        message = _clean_status_reason(getattr(entry, "message", None))
-        if isinstance(error_code, int) and error_code != 0 and message is not None:
-            return f"IBKR {error_code}: {message}"
-    return None
-
-
-def _clean_status_reason(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    return value.strip() or None

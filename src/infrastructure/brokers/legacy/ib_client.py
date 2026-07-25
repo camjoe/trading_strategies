@@ -28,6 +28,16 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from common.coercion import coerce_float
+from infrastructure.brokers.legacy.client_models import (
+    LegacyAccountValue,
+    LegacyFill,
+    LegacyOrderRequest,
+    LegacyPosition,
+    LegacyQuote,
+    LegacyTrade,
+)
+
 
 @runtime_checkable
 class IBClientProtocol(Protocol):
@@ -49,40 +59,28 @@ class IBClientProtocol(Protocol):
         """Return True if currently connected."""
         ...
 
-    def place_order(self, contract: Any, order: Any) -> Any:
-        """Submit an order and return the trade object."""
+    def place_order(self, order: LegacyOrderRequest) -> LegacyTrade:
+        """Submit an order and return normalized trade state."""
         ...
 
-    def cancel_order(self, order: Any) -> None:
-        """Request cancellation of an open order."""
+    def cancel_order(self, order_id: int) -> None:
+        """Request cancellation by broker order ID."""
         ...
 
-    def trades(self) -> list[Any]:
-        """Return all currently tracked trade objects."""
+    def trades(self) -> list[LegacyTrade]:
+        """Return all currently tracked normalized trades."""
         ...
 
-    def positions(self) -> list[Any]:
-        """Return all account positions."""
+    def positions(self) -> list[LegacyPosition]:
+        """Return normalized account positions."""
         ...
 
-    def account_summary(self) -> list[Any]:
-        """Return account summary value objects."""
+    def account_summary(self) -> list[LegacyAccountValue]:
+        """Return normalized account summary values."""
         ...
 
-    def make_stock(self, symbol: str, exchange: str = "SMART", currency: str = "USD") -> Any:
-        """Create a Stock contract for the given symbol."""
-        ...
-
-    def make_order(self, **kwargs: Any) -> Any:
-        """Create a broker order object with the given parameters."""
-        ...
-
-    def qualify_contracts(self, *contracts: Any) -> list[Any]:
-        """Qualify contracts by fetching full details from IB."""
-        ...
-
-    def req_tickers(self, *contracts: Any) -> list[Any]:
-        """Request real-time ticker snapshots for contracts."""
+    def quotes(self, symbols: list[str]) -> list[LegacyQuote]:
+        """Return normalized quote snapshots for symbols."""
         ...
 
 
@@ -115,36 +113,113 @@ class IbAsyncClient:
     def is_connected(self) -> bool:
         return self._ib.isConnected()
 
-    def place_order(self, contract: Any, order: Any) -> Any:
-        return self._ib.placeOrder(contract, order)
-
-    def cancel_order(self, order: Any) -> None:
-        self._ib.cancelOrder(order)
-
-    def trades(self) -> list[Any]:
-        return self._ib.trades()
-
-    def positions(self) -> list[Any]:
-        return self._ib.positions()
-
-    def account_summary(self) -> list[Any]:
-        return self._ib.accountSummary()
-
-    def qualify_contracts(self, *contracts: Any) -> list[Any]:
-        return self._ib.qualifyContracts(*contracts)
-
-    def req_tickers(self, *contracts: Any) -> list[Any]:
-        return self._ib.reqTickers(*contracts)
-
-    def make_stock(self, symbol: str, exchange: str = "SMART", currency: str = "USD") -> Any:
+    def place_order(self, order: LegacyOrderRequest) -> LegacyTrade:
         import ib_async  # noqa: PLC0415
 
-        return ib_async.Stock(symbol, exchange, currency)
+        contract = ib_async.Stock(order.symbol, "SMART", "USD")
+        ib_order = ib_async.Order(
+            action=order.action,
+            totalQuantity=order.total_quantity,
+            orderType=order.order_type,
+            lmtPrice=order.limit_price,
+            tif=order.time_in_force,
+        )
+        return _normalize_ib_async_trade(self._ib.placeOrder(contract, ib_order))
 
-    def make_order(self, **kwargs: Any) -> Any:
+    def cancel_order(self, order_id: int) -> None:
+        for trade in self._ib.trades():
+            if int(trade.order.orderId) == order_id:
+                self._ib.cancelOrder(trade.order)
+                return
+        raise ValueError(f"No open IB order found with id {order_id!r}")
+
+    def trades(self) -> list[LegacyTrade]:
+        return [_normalize_ib_async_trade(trade) for trade in self._ib.trades()]
+
+    def positions(self) -> list[LegacyPosition]:
+        return [
+            LegacyPosition(symbol=str(position.contract.symbol), quantity=float(position.position))
+            for position in self._ib.positions()
+        ]
+
+    def account_summary(self) -> list[LegacyAccountValue]:
+        return [
+            LegacyAccountValue(
+                tag=str(value.tag),
+                value=str(value.value),
+                currency=str(value.currency),
+            )
+            for value in self._ib.accountSummary()
+        ]
+
+    def quotes(self, symbols: list[str]) -> list[LegacyQuote]:
         import ib_async  # noqa: PLC0415
 
-        return ib_async.Order(**kwargs)
+        contracts = [ib_async.Stock(symbol, "SMART", "USD") for symbol in symbols]
+        self._ib.qualifyContracts(*contracts)
+        return [
+            LegacyQuote(
+                symbol=str(ticker.contract.symbol),
+                bid=float(ticker.bid),
+                ask=float(ticker.ask),
+                last=float(ticker.last),
+            )
+            for ticker in self._ib.reqTickers(*contracts)
+        ]
+
+
+def _normalize_ib_async_trade(trade: Any) -> LegacyTrade:
+    status = str(trade.orderStatus.status)
+    return LegacyTrade(
+        order_id=int(trade.order.orderId),
+        symbol=str(trade.contract.symbol),
+        action=str(trade.order.action),
+        total_quantity=float(trade.order.totalQuantity),
+        limit_price=float(trade.order.lmtPrice or 0.0),
+        status=status,
+        filled=float(trade.orderStatus.filled),
+        avg_fill_price=_optional_float(trade.orderStatus.avgFillPrice),
+        fills=tuple(_normalize_ib_async_fill(fill) for fill in trade.fills),
+        status_reason=_ib_async_status_reason(trade, status),
+    )
+
+
+def _normalize_ib_async_fill(fill: Any) -> LegacyFill:
+    execution = fill.execution
+    fill_time = execution.time
+    return LegacyFill(
+        shares=float(execution.shares),
+        price=float(execution.avgPrice),
+        time=fill_time.isoformat() if hasattr(fill_time, "isoformat") else str(fill_time),
+        commission=(
+            float(fill.commissionReport.commission) if fill.commissionReport is not None else 0.0
+        ),
+        exec_id=str(execution.execId) if getattr(execution, "execId", None) else None,
+    )
+
+
+def _optional_float(value: object) -> float | None:
+    return coerce_float(value)
+
+
+def _ib_async_status_reason(trade: Any, status: str) -> str | None:
+    if status not in {"ApiCancelled", "Cancelled", "Inactive"}:
+        return None
+    advanced_error = _clean_text(getattr(trade, "advancedError", None))
+    if advanced_error is not None:
+        return advanced_error
+    for entry in reversed(getattr(trade, "log", ())):
+        error_code = getattr(entry, "errorCode", 0)
+        message = _clean_text(getattr(entry, "message", None))
+        if isinstance(error_code, int) and error_code != 0 and message is not None:
+            return f"IBKR {error_code}: {message}"
+    return None
+
+
+def _clean_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
 
 
 # ---------------------------------------------------------------------------
@@ -206,29 +281,20 @@ class IbApiClient:
     def is_connected(self) -> bool:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def place_order(self, contract: Any, order: Any) -> Any:
+    def place_order(self, order: LegacyOrderRequest) -> LegacyTrade:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def cancel_order(self, order: Any) -> None:
+    def cancel_order(self, order_id: int) -> None:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def trades(self) -> list[Any]:
+    def trades(self) -> list[LegacyTrade]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def positions(self) -> list[Any]:
+    def positions(self) -> list[LegacyPosition]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def account_summary(self) -> list[Any]:
+    def account_summary(self) -> list[LegacyAccountValue]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
-    def make_stock(self, symbol: str, exchange: str = "SMART", currency: str = "USD") -> Any:
-        raise NotImplementedError("IbApiClient is not yet implemented.")
-
-    def make_order(self, **kwargs: Any) -> Any:
-        raise NotImplementedError("IbApiClient is not yet implemented.")
-
-    def qualify_contracts(self, *contracts: Any) -> list[Any]:
-        raise NotImplementedError("IbApiClient is not yet implemented.")
-
-    def req_tickers(self, *contracts: Any) -> list[Any]:
+    def quotes(self, symbols: list[str]) -> list[LegacyQuote]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
