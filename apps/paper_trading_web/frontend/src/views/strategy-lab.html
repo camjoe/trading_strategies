@@ -1,0 +1,40 @@
+<div id="tab-strategy-lab" class="tab-panel layout" hidden>
+  <section class="card">
+    <div class="section-heading"><div><p class="section-kicker">Research lifecycle</p><h2>Strategy Lab</h2>
+      <p class="section-copy">Create validated variants, manage drafts, run bounded optimizations, and promote evidence-backed winners.</p></div>
+      <button id="strategyLabRefreshBtn" class="icon-button" type="button" aria-label="Refresh Strategy Lab">↻</button>
+    </div>
+    <div class="bt-grid">
+      <article>
+        <h3>Create Draft Variant</h3>
+        <form id="createStrategyForm" class="bt-form">
+          <label class="bt-field"><span>Strategy key</span><input name="strategyKey" required /></label>
+          <label class="bt-field"><span>Primitive</span><select id="strategyPrimitiveSelect" name="primitive" required></select></label>
+          <label class="bt-field"><span>Knob overrides (JSON)</span><textarea name="params" rows="5">{}</textarea></label>
+          <label class="bt-field"><span>Description</span><input name="description" /></label>
+          <button type="submit">Create draft</button><div id="createStrategyMessage"></div>
+        </form>
+      </article>
+      <article><h3>Catalog</h3><div id="strategyCatalogOutput" class="empty">Loading catalog…</div></article>
+    </div>
+  </section>
+  <section class="card">
+    <div class="bt-grid">
+      <article>
+        <h3>Run Walk-Forward Optimization</h3>
+        <form id="runOptimizationForm" class="bt-form">
+          <label class="bt-field"><span>Account</span><select id="optimizationAccountSelect" name="account" required></select></label>
+          <label class="bt-field"><span>Strategy</span><select id="optimizationStrategySelect" name="strategy" required></select></label>
+          <label class="bt-field"><span>Search space (JSON)</span><textarea name="searchSpace" rows="6" required>{"fast_window":[5,10],"slow_window":[20,30]}</textarea></label>
+          <div class="bt-row">
+            <label class="bt-field"><span>Lookback months</span><input name="lookbackMonths" type="number" min="20" value="24" /></label>
+            <label class="bt-field"><span>Candidate budget</span><input name="candidateBudget" type="number" min="1" value="256" /></label>
+            <label class="bt-field"><span>Holdout months</span><input name="holdoutMonths" type="number" min="0" value="6" /></label>
+          </div>
+          <button type="submit">Run optimization</button><div id="optimizationMessage"></div>
+        </form>
+      </article>
+      <article><h3>Optimization Experiments</h3><div id="optimizationHistoryOutput" class="empty">Loading experiments…</div></article>
+    </div>
+  </section>
+</div>

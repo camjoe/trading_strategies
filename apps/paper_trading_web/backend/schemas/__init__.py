@@ -11,6 +11,12 @@ from .backtests import (
     WalkForwardRunRequest,
 )
 from .features import FeatureSignalsRequest
+from .strategy_lab import (
+    ConfigureStrategyRequest,
+    CreateStrategyVariantRequest,
+    PromoteOptimizationRequest,
+    RunOptimizationRequest,
+)
 
 __all__ = [
     "AccountParamsRequest",
@@ -21,5 +27,9 @@ __all__ = [
     "BacktestPreflightRequest",
     "BacktestRunRequest",
     "FeatureSignalsRequest",
+    "ConfigureStrategyRequest",
+    "CreateStrategyVariantRequest",
+    "PromoteOptimizationRequest",
+    "RunOptimizationRequest",
     "WalkForwardRunRequest",
 ]

@@ -266,6 +266,38 @@
       "module": "backtests",
       "group": "Backtesting Endpoints",
       "description": "Execute rolling walk-forward windows and return aggregate summary metrics."
+    },
+    {
+      "method": "GET",
+      "path": "/api/strategy-lab/catalog",
+      "handler": "api_strategy_catalog",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "List strategy variants and public primitive schemas for the Strategy Lab."
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/catalog",
+      "handler": "api_create_strategy",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Create a validated draft strategy variant from a public primitive."
+    },
+    {
+      "method": "GET",
+      "path": "/api/strategy-lab/optimizations",
+      "handler": "api_optimizations",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "List persisted walk-forward optimization evidence and promotion state."
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/optimizations",
+      "handler": "api_run_optimization",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Run a bounded walk-forward optimization with out-of-sample and holdout evidence."
     }
   ]
 }

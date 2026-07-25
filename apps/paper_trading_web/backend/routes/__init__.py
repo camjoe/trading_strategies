@@ -10,6 +10,7 @@ from .features import router as features_router
 from .health import router as health_router
 from .logs import router as logs_router
 from .portfolio import router as portfolio_router
+from .strategy_lab import router as strategy_lab_router
 
 __all__ = [
     "actions_router",
@@ -22,4 +23,5 @@ __all__ = [
     "autonomy_monitor_router",
     "logs_router",
     "portfolio_router",
+    "strategy_lab_router",
 ]

@@ -27,6 +27,8 @@ import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
 import autonomyMonitorTemplate from "./views/autonomy-monitor.html?raw";
+import strategyLabTemplate from "./views/strategy-lab.html?raw";
+import { createStrategyLabFeature } from "./features/strategy-lab";
 import { errorMessage } from "./lib/http";
 
 const appRoot = find<HTMLDivElement>("#app");
@@ -65,6 +67,7 @@ function renderShell(): void {
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
+    .replace("<!-- STRATEGY_LAB_TAB_PARTIAL -->", strategyLabTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
   const demoBanner = find<HTMLElement>("#demoModeBanner");
   if (demoBanner && import.meta.env.VITE_DEMO_MODE === "1") {
@@ -95,6 +98,7 @@ const adminFeature = createAdminFeature({
 const portfolioFeature = createPortfolioFeature();
 const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
+const strategyLabFeature = createStrategyLabFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
@@ -108,6 +112,7 @@ async function bootstrap(): Promise<void> {
   portfolioFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
+  strategyLabFeature.wireActions();
   initAutonomyMonitor();
 
   try {
@@ -125,6 +130,7 @@ async function bootstrap(): Promise<void> {
   await backtestingFeature.loadBacktestRuns();
   // Background fetch so the provider health badge is visible before the Alt Strategies tab is first opened
   void altStrategiesFeature.fetchProviderHealth();
+  void strategyLabFeature.load();
 }
 
 function initTabs(): void {
