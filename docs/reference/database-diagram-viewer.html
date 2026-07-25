@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 14:29 24-07-2026 PST. Tables: 25.</div>
+      <div class="meta">Source: fresh code schema. Generated: 14:06 25-07-2026 PST. Tables: 27.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -409,7 +409,9 @@
         "backtest_equity_snapshots",
         "walk_forward_experiments",
         "walk_forward_windows",
-        "optimization_experiments"
+        "optimization_experiments",
+        "optimization_windows",
+        "optimization_trials"
       ]
     },
     {
@@ -447,7 +449,7 @@
       ]
     }
   ],
-  "generatedAt": "14:29 24-07-2026 PST",
+  "generatedAt": "14:06 25-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -498,7 +500,9 @@
         "backtest_equity_snapshots",
         "walk_forward_experiments",
         "walk_forward_windows",
-        "optimization_experiments"
+        "optimization_experiments",
+        "optimization_windows",
+        "optimization_trials"
       ]
     },
     {
@@ -568,7 +572,9 @@
         "backtest_equity_snapshots",
         "walk_forward_experiments",
         "walk_forward_windows",
-        "optimization_experiments"
+        "optimization_experiments",
+        "optimization_windows",
+        "optimization_trials"
       ]
     },
     {
@@ -2659,6 +2665,253 @@
         },
         {
           "default": null,
+          "name": "window_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "candidate_index",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "params_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "params_hash",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "objective_value",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "annualized_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "max_drawdown_pct",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "trade_count",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "eligible",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "rejection_reason",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "0",
+          "name": "selected",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "window_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "optimization_windows"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "window_id"
+          ],
+          "name": "idx_optimization_trials_selected_per_window",
+          "origin": "c",
+          "unique": true
+        },
+        {
+          "columns": [
+            "window_id",
+            "params_hash"
+          ],
+          "name": "idx_optimization_trials_window_hash",
+          "origin": "c",
+          "unique": true
+        }
+      ],
+      "name": "optimization_trials",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "experiment_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "window_index",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "train_start",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "train_end",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "test_start",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "test_end",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "oos_run_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "oos_run_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "backtest_runs"
+        },
+        {
+          "column": "experiment_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "optimization_experiments"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "experiment_id",
+            "window_index"
+          ],
+          "name": "idx_optimization_windows_experiment_window",
+          "origin": "c",
+          "unique": true
+        }
+      ],
+      "name": "optimization_windows",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "order_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4327,6 +4580,8 @@
         "global_settings",
         "ledger",
         "optimization_experiments",
+        "optimization_trials",
+        "optimization_windows",
         "order_fills",
         "orders",
         "positions",
@@ -4361,6 +4616,8 @@
         "walk_forward_experiments",
         "walk_forward_windows",
         "optimization_experiments",
+        "optimization_windows",
+        "optimization_trials",
         "promotion_reviews",
         "promotion_review_events",
         "risk_snapshots",
@@ -4399,7 +4656,9 @@
         "backtest_equity_snapshots",
         "walk_forward_experiments",
         "walk_forward_windows",
-        "optimization_experiments"
+        "optimization_experiments",
+        "optimization_windows",
+        "optimization_trials"
       ]
     },
     {

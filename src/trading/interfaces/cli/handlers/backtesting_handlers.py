@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from typing import Any
 
 
@@ -306,6 +307,9 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
     _print_experiment(experiment)
+    windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
+    trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
+    _print_window_audit(windows, trials)
 
 
 def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -353,6 +357,44 @@ def _print_experiment(experiment: Any) -> None:
         print("Promotion: not promoted")
     else:
         print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
+
+
+def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
+    """Print the persisted per-window / per-candidate audit trail.
+
+    The multiple-testing record: every window's train/test boundaries plus each
+    evaluated candidate's objective and eligibility — not just the winner."""
+    if not windows:
+        print("Windows: none persisted (experiment predates per-window audit)")
+        return
+    trials_by_window: dict[int, list[Any]] = {}
+    for trial in trials:
+        trials_by_window.setdefault(trial.window_id, []).append(trial)
+    print(f"Windows ({len(windows)}) with per-candidate trials:")
+    for window in windows:
+        window_trials = trials_by_window.get(window.id, [])
+        eligible = sum(1 for trial in window_trials if trial.eligible)
+        winner = next((trial for trial in window_trials if trial.selected), None)
+        winner_label = (
+            f"win #{winner.candidate_index} score {_format_metric(winner.objective_value, suffix='')}"
+            if winner is not None
+            else "no winner recorded"
+        )
+        print(
+            f"  W{window.window_index:02d} train {window.train_start}..{window.train_end} "
+            f"test {window.test_start}..{window.test_end} (oos run {window.oos_run_id}) | "
+            f"{len(window_trials)} candidates, {eligible} eligible | {winner_label}"
+        )
+        for reason, count in _rejection_tally(window_trials):
+            print(f"       rejected: {reason} x{count}")
+
+
+def _rejection_tally(window_trials: list[Any]) -> list[tuple[str, int]]:
+    """Count ineligible candidates by rejection-reason family (prefix before any detail)."""
+    tally = Counter(
+        (trial.rejection_reason or "unknown").split(" (")[0] for trial in window_trials if not trial.eligible
+    )
+    return sorted(tally.items())
 
 
 def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:

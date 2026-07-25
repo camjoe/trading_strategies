@@ -6,6 +6,7 @@ import pytest
 
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
+    handle_backtest_optimize_show,
     handle_backtest_report,
     handle_backtest_walk_forward_report,
 )
@@ -189,3 +190,93 @@ def test_handle_backtest_walk_forward_report_records_parser_error_without_printi
 
     assert parser.message == "bad report"
     assert "window,range,run_id" not in capsys.readouterr().out
+
+
+def _experiment_stub():
+    return types.SimpleNamespace(
+        id=5,
+        account_id=1,
+        primitive="trend",
+        objective_name="calmar_v1",
+        created_at="2026-07-25T00:00:00Z",
+        start_date="2022-01-01",
+        end_date="2023-12-31",
+        window_count=1,
+        train_months=6,
+        test_months=1,
+        step_months=1,
+        holdout_months=3,
+        warmup_months=6,
+        search_space_json='{"slow_window": [20, 40]}',
+        candidate_budget=256,
+        winner_params_json='{"slow_window": 40}',
+        oos_mean_winner_return_pct=None,
+        holdout_run_id=None,
+        promoted_strategy_id=None,
+    )
+
+
+def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
+    window = types.SimpleNamespace(
+        id=11,
+        window_index=1,
+        train_start="2022-01-01",
+        train_end="2022-06-30",
+        test_start="2022-07-01",
+        test_end="2022-07-31",
+        oos_run_id=101,
+    )
+    trials = [
+        types.SimpleNamespace(
+            window_id=11,
+            candidate_index=0,
+            eligible=True,
+            selected=True,
+            objective_value=1.5,
+            rejection_reason=None,
+        ),
+        types.SimpleNamespace(
+            window_id=11,
+            candidate_index=1,
+            eligible=False,
+            selected=False,
+            objective_value=None,
+            rejection_reason="too_few_trades (1 < 3)",
+        ),
+    ]
+    deps = {
+        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
+        "fetch_optimization_windows": lambda _conn, *, experiment_id: [window],
+        "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
+    }
+
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+
+    out = capsys.readouterr().out
+    assert "Windows (1) with per-candidate trials:" in out
+    assert "W01 train 2022-01-01..2022-06-30 test 2022-07-01..2022-07-31 (oos run 101)" in out
+    assert "2 candidates, 1 eligible | win #0" in out
+    assert "rejected: too_few_trades x1" in out
+
+
+def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -> None:
+    deps = {
+        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
+        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
+        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
+    }
+
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+
+    assert "Windows: none persisted" in capsys.readouterr().out
+
+
+def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:
+    deps = {
+        "fetch_optimization_experiment": lambda _conn, *, experiment_id: None,
+        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
+        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
+    }
+
+    with pytest.raises(SystemExit, match="Optimization experiment not found: 5"):
+        handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)

@@ -8,7 +8,11 @@ from typing import Any, Callable
 
 from common.time import utc_now_iso
 from trading.backtesting.domain.optimization.objective import evaluate_candidate, select_winner
-from trading.backtesting.domain.optimization.search import generate_candidates
+from trading.backtesting.domain.optimization.search import (
+    canonical_params_json,
+    generate_candidates,
+    params_fingerprint,
+)
 from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
 from trading.backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
@@ -22,18 +26,25 @@ from trading.backtesting.optimizer_models import (
     HoldoutOutcome,
     OptimizationExperimentInsert,
     OptimizationSummary,
+    OptimizationTrialInsert,
+    OptimizationWindowInsert,
     OptimizerConfig,
     RunOutcome,
     WalkForwardSplit,
     WindowSelection,
 )
-from trading.backtesting.repositories.optimization_repository import insert_experiment
+from trading.backtesting.repositories.optimization_repository import (
+    insert_experiment,
+    insert_trial,
+    insert_window,
+)
 from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.strategies import StrategyRepository
+from trading.repositories.unit_of_work import unit_of_work
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).
@@ -81,7 +92,7 @@ def run_walk_forward_optimization(
 
     window_selections: list[WindowSelection] = []
     for window_index, split in enumerate(splits, start=1):
-        winner = _select_window_winner(
+        winner, candidate_results = _select_window_winner(
             conn,
             cfg,
             split=split,
@@ -118,6 +129,7 @@ def run_walk_forward_optimization(
                 winner=winner,
                 winner_oos=_run_outcome(winner_oos),
                 baseline_oos=_run_outcome(baseline_oos),
+                candidates=candidate_results,
             )
         )
 
@@ -208,7 +220,51 @@ def _persist_experiment(conn: sqlite3.Connection, cfg: OptimizerConfig, summary:
             summary.holdout.baseline.total_return_pct if summary.holdout is not None else None
         ),
     )
-    return insert_experiment(conn, payload, created_at=now)
+    # Experiment row + its per-window/per-candidate audit tree land atomically.
+    with unit_of_work(conn):
+        experiment_id = insert_experiment(conn, payload, created_at=now)
+        _persist_windows_and_trials(conn, experiment_id, summary)
+    return experiment_id
+
+
+def _persist_windows_and_trials(conn: sqlite3.Connection, experiment_id: int, summary: OptimizationSummary) -> None:
+    """Persist one ``optimization_windows`` row per window and one
+    ``optimization_trials`` row per evaluated candidate.
+
+    The window links its winner's persisted OOS run (``oos_run_id``); each trial
+    records a candidate's objective evidence, and the window winner is flagged
+    ``selected``. Runs inside the experiment's ``unit_of_work``.
+    """
+    for window in summary.windows:
+        window_id = insert_window(
+            conn,
+            OptimizationWindowInsert(
+                experiment_id=experiment_id,
+                window_index=window.window_index,
+                train_start=window.split.train_start.isoformat(),
+                train_end=window.split.train_end.isoformat(),
+                test_start=window.split.test_start.isoformat(),
+                test_end=window.split.test_end.isoformat(),
+                oos_run_id=window.winner_oos.run_id,
+            ),
+        )
+        for candidate in window.candidates:
+            insert_trial(
+                conn,
+                OptimizationTrialInsert(
+                    window_id=window_id,
+                    candidate_index=candidate.index,
+                    params_json=canonical_params_json(candidate.params),
+                    params_hash=params_fingerprint(candidate.params),
+                    objective_value=candidate.score,
+                    annualized_return_pct=candidate.annualized_return_pct,
+                    max_drawdown_pct=candidate.max_drawdown_pct,
+                    trade_count=candidate.trade_count,
+                    eligible=candidate.eligible,
+                    rejection_reason=candidate.rejection_reason,
+                    selected=candidate.index == window.winner.index,
+                ),
+            )
 
 
 def _select_window_winner(
@@ -218,7 +274,12 @@ def _select_window_winner(
     split: WalkForwardSplit,
     candidates: list[dict[str, Any]],
     run_metrics_only_fn: RunFn,
-) -> CandidateResult:
+) -> tuple[CandidateResult, list[CandidateResult]]:
+    """Return the window's winner and every evaluated candidate.
+
+    The full candidate list is carried out (not just the winner) so the attempted
+    search can be persisted as the per-window multiple-testing audit record.
+    """
     results: list[CandidateResult] = []
     for index, params in enumerate(candidates):
         train_result = run_metrics_only_fn(
@@ -242,7 +303,7 @@ def _select_window_winner(
             )
         )
     try:
-        return select_winner(results)
+        return select_winner(results), results
     except ValidationError as error:
         raise ValidationError(
             f"Training window {split.train_start.isoformat()}..{split.train_end.isoformat()}: {error}"

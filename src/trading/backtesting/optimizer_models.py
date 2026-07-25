@@ -5,7 +5,14 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from common.coercion import row_expect_int, row_expect_str, row_float, row_int
+from common.coercion import (
+    row_expect_float,
+    row_expect_int,
+    row_expect_str,
+    row_float,
+    row_int,
+    row_str,
+)
 
 # Objective identifier persisted/reported with an optimization run. Versioned so a
 # future objective (calmar_v2, sharpe_v1, …) is a new name, never a silent redefinition.
@@ -95,7 +102,11 @@ class RunOutcome:
 @dataclass(frozen=True)
 class WindowSelection:
     """The winner chosen on a window's training interval, plus its OOS evidence and
-    the default-parameter baseline over the same OOS interval."""
+    the default-parameter baseline over the same OOS interval.
+
+    ``candidates`` holds every evaluated candidate for the window (the winner among
+    them), so the full attempted search — not just the winner — can be persisted as
+    the per-window multiple-testing audit record."""
 
     window_index: int
     split: WalkForwardSplit
@@ -103,6 +114,7 @@ class WindowSelection:
     winner: CandidateResult
     winner_oos: RunOutcome
     baseline_oos: RunOutcome
+    candidates: list[CandidateResult] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -226,4 +238,105 @@ class OptimizationExperimentRecord:
             holdout_baseline_return_pct=row_float(values, "holdout_baseline_return_pct"),
             promoted_strategy_id=row_int(values, "promoted_strategy_id"),
             created_at=row_expect_str(values, "created_at"),
+        )
+
+
+@dataclass(frozen=True)
+class OptimizationWindowInsert:
+    """Persistence payload for one ``optimization_windows`` row.
+
+    Records a window's train/test boundaries and links its persisted winner OOS
+    ``backtest_runs`` row via ``oos_run_id`` — OOS metrics are read from that run,
+    never copied here."""
+
+    experiment_id: int
+    window_index: int
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    oos_run_id: int
+
+
+@dataclass(frozen=True)
+class OptimizationWindowRecord:
+    """Persisted ``optimization_windows`` row (read model)."""
+
+    id: int
+    experiment_id: int
+    window_index: int
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    oos_run_id: int
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationWindowRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            experiment_id=row_expect_int(values, "experiment_id"),
+            window_index=row_expect_int(values, "window_index"),
+            train_start=row_expect_str(values, "train_start"),
+            train_end=row_expect_str(values, "train_end"),
+            test_start=row_expect_str(values, "test_start"),
+            test_end=row_expect_str(values, "test_end"),
+            oos_run_id=row_expect_int(values, "oos_run_id"),
+        )
+
+
+@dataclass(frozen=True)
+class OptimizationTrialInsert:
+    """Persistence payload for one ``optimization_trials`` row.
+
+    One evaluated grid candidate on a window's training interval — the
+    multiple-testing audit record. Training candidates are metrics-only (never a
+    ``backtest_runs`` row), so the objective value and its components are stored
+    here directly. ``selected`` marks the window's forward-carried winner."""
+
+    window_id: int
+    candidate_index: int
+    params_json: str
+    params_hash: str
+    objective_value: float | None
+    annualized_return_pct: float | None
+    max_drawdown_pct: float
+    trade_count: int
+    eligible: bool
+    rejection_reason: str | None
+    selected: bool
+
+
+@dataclass(frozen=True)
+class OptimizationTrialRecord:
+    """Persisted ``optimization_trials`` row (read model)."""
+
+    id: int
+    window_id: int
+    candidate_index: int
+    params_json: str
+    params_hash: str
+    objective_value: float | None
+    annualized_return_pct: float | None
+    max_drawdown_pct: float
+    trade_count: int
+    eligible: bool
+    rejection_reason: str | None
+    selected: bool
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationTrialRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            window_id=row_expect_int(values, "window_id"),
+            candidate_index=row_expect_int(values, "candidate_index"),
+            params_json=row_expect_str(values, "params_json"),
+            params_hash=row_expect_str(values, "params_hash"),
+            objective_value=row_float(values, "objective_value"),
+            annualized_return_pct=row_float(values, "annualized_return_pct"),
+            max_drawdown_pct=row_expect_float(values, "max_drawdown_pct"),
+            trade_count=row_expect_int(values, "trade_count"),
+            eligible=bool(row_expect_int(values, "eligible")),
+            rejection_reason=row_str(values, "rejection_reason"),
+            selected=bool(row_expect_int(values, "selected")),
         )

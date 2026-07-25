@@ -143,13 +143,22 @@ window → freeze the winner → OOS + untouched holdout) and **persists one `op
 row** per run, printing its id. That row is Tier-1 persistence: the run config, the forward-carried
 winner parameters (the promotion candidate), a small OOS aggregate (mean winner/baseline return and
 how many windows the winner beat the default), the untouched-holdout summary, and — once promoted —
-the link to the resulting catalog variant. Per-window and per-candidate detail are intentionally not
-stored (see revision `0021`).
+the link to the resulting catalog variant.
+
+Each run also persists the **per-window and per-candidate audit trail** (revision `0022`): one
+`optimization_windows` row per walk-forward window (its train/test boundaries and a link to the
+window's persisted winner OOS `backtest_runs` row) and one `optimization_trials` row per evaluated
+grid candidate (canonical params + hash, objective value/components, eligibility + rejection reason,
+and the `selected` winner flag). This is the multiple-testing control — every attempted candidate is
+recorded, not just the winner — and the window link also closes the earlier gap where per-window OOS
+runs were written but not tied back to their experiment. Experiment, windows, and trials are written
+in one transaction, and deleting an experiment cascades to its windows and trials.
 
 Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
-  holdout evidence, and promotion status.
+  holdout evidence, promotion status, and the per-window audit (each window's boundaries + OOS run,
+  its candidate/eligible counts, the selected winner, and a rejection tally).
 - `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
   `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
   are validated against the base primitive), stamp provenance into its description, and record the

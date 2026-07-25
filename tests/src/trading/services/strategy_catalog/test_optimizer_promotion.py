@@ -14,11 +14,14 @@ from datetime import date
 import pytest
 
 from tests.support.repositories import insert_repository_account
+from trading.backtesting.domain.optimization.search import params_fingerprint
 from trading.backtesting.models import BacktestConfig, BacktestResult
 from trading.backtesting.optimizer_models import OptimizationExperimentInsert, OptimizerConfig
 from trading.backtesting.repositories.backtest_repository import insert_backtest_run
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
+    fetch_trials_for_experiment,
+    fetch_windows_for_experiment,
     insert_experiment,
 )
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
@@ -119,6 +122,35 @@ class TestPersistence:
         assert record.oos_mean_winner_return_pct == pytest.approx(30.0)
         assert record.holdout_run_id is not None  # real persisted holdout run
         assert record.promoted_strategy_id is None
+
+    def test_run_persists_per_window_and_per_candidate_audit(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_audit")
+        experiment_id = _run_and_persist(conn, account_id, account_name="opt_audit")
+
+        record = fetch_experiment_by_id(conn, experiment_id=experiment_id)
+        windows = fetch_windows_for_experiment(conn, experiment_id=experiment_id)
+        trials = fetch_trials_for_experiment(conn, experiment_id=experiment_id)
+        assert record is not None
+
+        # One window row per walk-forward window, in order, each linked to a real OOS run.
+        assert len(windows) == record.window_count
+        assert [w.window_index for w in windows] == list(range(1, record.window_count + 1))
+        assert all(w.oos_run_id is not None for w in windows)
+
+        # Every grid candidate (the 2-point slow_window grid) is persisted per window —
+        # the multiple-testing record, not just the winner.
+        trials_by_window: dict[int, list] = {}
+        for trial in trials:
+            trials_by_window.setdefault(trial.window_id, []).append(trial)
+        for window in windows:
+            window_trials = trials_by_window[window.id]
+            assert len(window_trials) == 2
+            selected = [t for t in window_trials if t.selected]
+            assert len(selected) == 1  # exactly one winner per window
+            assert json.loads(selected[0].params_json) == WINNER
+            assert selected[0].params_hash == params_fingerprint(WINNER)
+            # Hashes are distinct per candidate (the one-hash-per-window invariant).
+            assert len({t.params_hash for t in window_trials}) == len(window_trials)
 
 
 class TestPromotion:

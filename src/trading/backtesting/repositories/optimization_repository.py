@@ -1,10 +1,16 @@
-"""Persistence for walk-forward optimizer experiments (Tier-1).
+"""Persistence for walk-forward optimizer experiments.
 
 One row per ``backtest-optimize`` run in ``optimization_experiments``: the run
 config, the forward-carried winner parameters (the promotion candidate), a small
 OOS aggregate, the untouched-holdout summary, and the promoted-variant link. This
-is the auditable basis a later promotion resolves the winner from. Per-window and
-per-candidate detail are intentionally not stored (see revision ``0021``).
+is the auditable basis a later promotion resolves the winner from.
+
+Per-window and per-candidate audit detail live in ``optimization_windows`` and
+``optimization_trials`` (revision ``0022``): one window row per walk-forward
+window (train/test boundaries + the linked OOS ``backtest_runs`` row) and one
+trial row per evaluated grid candidate (the multiple-testing record). Windows and
+trials are written inside the experiment's ``unit_of_work`` so the whole audit
+tree lands atomically.
 """
 
 from __future__ import annotations
@@ -15,6 +21,10 @@ from common.time import utc_now_iso
 from trading.backtesting.optimizer_models import (
     OptimizationExperimentInsert,
     OptimizationExperimentRecord,
+    OptimizationTrialInsert,
+    OptimizationTrialRecord,
+    OptimizationWindowInsert,
+    OptimizationWindowRecord,
 )
 from trading.repositories.unit_of_work import commit_unit_of_work
 
@@ -95,3 +105,101 @@ def set_promoted_strategy(conn: sqlite3.Connection, *, experiment_id: int, strat
         (int(strategy_id), int(experiment_id)),
     )
     commit_unit_of_work(conn)
+
+
+def insert_window(conn: sqlite3.Connection, payload: OptimizationWindowInsert) -> int:
+    """Insert one ``optimization_windows`` row and return its id.
+
+    Meant to run inside the experiment's ``unit_of_work`` so it lands atomically
+    with the experiment row and the window's trials.
+    """
+    cursor = conn.execute(
+        """
+        INSERT INTO optimization_windows (
+            experiment_id, window_index, train_start, train_end, test_start, test_end, oos_run_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(payload.experiment_id),
+            int(payload.window_index),
+            payload.train_start,
+            payload.train_end,
+            payload.test_start,
+            payload.test_end,
+            int(payload.oos_run_id),
+        ),
+    )
+    commit_unit_of_work(conn)
+    assert cursor.lastrowid is not None
+    return int(cursor.lastrowid)
+
+
+def insert_trial(conn: sqlite3.Connection, payload: OptimizationTrialInsert) -> int:
+    """Insert one ``optimization_trials`` row and return its id.
+
+    Meant to run inside the experiment's ``unit_of_work`` (see :func:`insert_window`).
+    """
+    cursor = conn.execute(
+        """
+        INSERT INTO optimization_trials (
+            window_id, candidate_index, params_json, params_hash, objective_value,
+            annualized_return_pct, max_drawdown_pct, trade_count, eligible,
+            rejection_reason, selected
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(payload.window_id),
+            int(payload.candidate_index),
+            payload.params_json,
+            payload.params_hash,
+            payload.objective_value,
+            payload.annualized_return_pct,
+            float(payload.max_drawdown_pct),
+            int(payload.trade_count),
+            int(payload.eligible),
+            payload.rejection_reason,
+            int(payload.selected),
+        ),
+    )
+    commit_unit_of_work(conn)
+    assert cursor.lastrowid is not None
+    return int(cursor.lastrowid)
+
+
+def fetch_windows_for_experiment(conn: sqlite3.Connection, *, experiment_id: int) -> list[OptimizationWindowRecord]:
+    """Return an experiment's windows in walk-forward (chronological) order."""
+    rows = conn.execute(
+        "SELECT * FROM optimization_windows WHERE experiment_id = ? ORDER BY window_index ASC",
+        (int(experiment_id),),
+    ).fetchall()
+    return [OptimizationWindowRecord.from_mapping(dict(row)) for row in rows]
+
+
+def fetch_trials_for_window(conn: sqlite3.Connection, *, window_id: int) -> list[OptimizationTrialRecord]:
+    """Return a window's evaluated candidates in canonical candidate order."""
+    rows = conn.execute(
+        "SELECT * FROM optimization_trials WHERE window_id = ? ORDER BY candidate_index ASC",
+        (int(window_id),),
+    ).fetchall()
+    return [OptimizationTrialRecord.from_mapping(dict(row)) for row in rows]
+
+
+def fetch_trials_for_experiment(conn: sqlite3.Connection, *, experiment_id: int) -> list[OptimizationTrialRecord]:
+    """Return every candidate across an experiment's windows (window then candidate order).
+
+    Reached by join through ``optimization_windows`` — trials carry only ``window_id``,
+    so the experiment is resolved via its windows.
+    """
+    rows = conn.execute(
+        """
+        SELECT t.*
+        FROM optimization_trials t
+        JOIN optimization_windows w ON w.id = t.window_id
+        WHERE w.experiment_id = ?
+        ORDER BY w.window_index ASC, t.candidate_index ASC
+        """,
+        (int(experiment_id),),
+    ).fetchall()
+    return [OptimizationTrialRecord.from_mapping(dict(row)) for row in rows]
