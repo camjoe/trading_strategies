@@ -124,6 +124,8 @@ export type AccountDetail = {
   latestBacktestMetrics?: LatestBacktestMetrics | null;
   liveBenchmarkOverlay?: LiveBenchmarkOverlay | null;
   snapshots: Array<{
+    bookId?: number;
+    bookName?: string;
     time: string;
     cash: number;
     marketValue: number;
@@ -132,6 +134,8 @@ export type AccountDetail = {
     unrealizedPnl: number;
   }>;
   trades: Array<{
+    bookId?: number | null;
+    bookName?: string | null;
     ticker: string;
     side: string;
     qty: number;
@@ -141,12 +145,56 @@ export type AccountDetail = {
     note: string | null;
   }>;
   positions: Array<{
+    bookId?: number;
+    bookName?: string;
     ticker: string;
     qty: number;
     avgCost: number;
     marketPrice: number;
     marketValue: number;
     unrealizedPnl: number;
+  }>;
+  bookPositions?: Array<{
+    bookId: number;
+    bookName: string;
+    ticker: string;
+    qty: number;
+    avgCost: number;
+    marketPrice: number;
+    marketValue: number;
+    unrealizedPnl: number;
+  }>;
+  bookSnapshots?: Array<{
+    bookId: number;
+    bookName: string;
+    time: string;
+    cash: number;
+    marketValue: number;
+    equity: number;
+    realizedPnl: number;
+    unrealizedPnl: number;
+  }>;
+  bookMetrics?: Array<{
+    bookId: number;
+    bookName: string;
+    metricDate: string;
+    returnPct: number | null;
+    drawdownPct: number | null;
+    hitRate: number | null;
+    riskAdjustedScore: number | null;
+    tradeCount: number | null;
+    feesTotal: number | null;
+  }>;
+  riskDecisions?: Array<{
+    bookId: number | null;
+    bookName: string | null;
+    decisionTime: string;
+    symbol: string | null;
+    side: string | null;
+    action: string;
+    reason: string;
+    requestedNotional: number | null;
+    approvedNotional: number | null;
   }>;
 };
 

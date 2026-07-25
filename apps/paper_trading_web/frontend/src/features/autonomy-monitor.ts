@@ -28,6 +28,14 @@ const state: AutonomyMonitorState = {
   lastRefresh: null,
 };
 
+interface AutonomyMonitorOptions {
+  onOpenAccount?: (accountName: string, bookName?: string) => Promise<void> | void;
+  onOpenStrategyLab?: (strategyName: string) => void;
+  onOpenParameters?: () => void;
+}
+
+let featureOptions: AutonomyMonitorOptions = {};
+
 async function fetchAccounts(): Promise<void> {
   try {
     const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; book_count: number }> }>("/api/autonomy/accounts");
@@ -125,9 +133,32 @@ function attachEventListeners(): void {
   if (refreshBtn && state.selectedAccount) {
     refreshBtn.addEventListener("click", () => fetchAccountData(state.selectedAccount!));
   }
+
+  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".governance-result-toggle"))) {
+    button.addEventListener("click", () => {
+      const key = button.dataset.governanceKey;
+      const panel = key ? document.querySelector<HTMLElement>(`[data-governance-result="${key}"]`) : null;
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      button.textContent = panel.hidden ? "View results" : "Hide results";
+    });
+  }
+  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".governance-account-link"))) {
+    button.addEventListener("click", () => {
+      const accountName = button.dataset.account;
+      if (accountName) void featureOptions.onOpenAccount?.(accountName, button.dataset.book);
+    });
+  }
+  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".governance-strategy-link"))) {
+    button.addEventListener("click", () => featureOptions.onOpenStrategyLab?.(button.dataset.strategy ?? ""));
+  }
+  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".governance-parameters-link"))) {
+    button.addEventListener("click", () => featureOptions.onOpenParameters?.());
+  }
 }
 
-export function init(): void {
+export function init(options: AutonomyMonitorOptions = {}): void {
+  featureOptions = options;
   attachEventListeners();
   fetchAccounts();
 }

@@ -115,6 +115,13 @@ export function renderCurrentDetail(
     activeSection: state.currentDetailSection,
     tradePage: state.currentTradePage,
     tradePageSize: state.tradePageSize,
+    bookName: state.currentBookFilter,
+  });
+
+  find<HTMLSelectElement>("#accountBookFilter")?.addEventListener("change", event => {
+    state.currentBookFilter = (event.currentTarget as HTMLSelectElement).value || null;
+    state.currentTradePage = 1;
+    renderCurrentDetail(state, options, handlers);
   });
 
   bindClick<HTMLButtonElement>("#snapshotOneBtn", async (button) => {

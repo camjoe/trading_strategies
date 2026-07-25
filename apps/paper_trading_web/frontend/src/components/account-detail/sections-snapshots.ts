@@ -89,8 +89,8 @@ export function renderSnapshotsSection(
       ${detail.liveBenchmarkOverlay ? renderBenchmarkOverlaySparkline(detail.liveBenchmarkOverlay) : ""}
       ${renderEquitySparkline(detail.snapshots, { title: "Live Equity Curve" })}
       <table>
-        <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
-        <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
+        <thead><tr><th>Time</th><th>Book</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
+        <tbody>${snapRows || `<tr><td colspan="5">No snapshots yet.</td></tr>`}</tbody>
       </table>
     </article>
   `;

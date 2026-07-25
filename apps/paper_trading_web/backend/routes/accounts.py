@@ -12,6 +12,7 @@ from trading.services.books.configuration import (
     configure_book,
     fetch_account_book_configurations,
 )
+from trading.services.books.operations import fetch_book_operational_data
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.execution.ledger import list_account_trades
 
@@ -151,19 +152,78 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         trades = list_account_trades(conn, account.id)
         latest_backtest = fetch_latest_backtest_summary(conn, account.name)
         latest_backtest_metrics = fetch_latest_backtest_metrics(conn, account.name)
+        book_views = fetch_account_book_configurations(conn, account_name=account_name)
+        book_names = {view.book.id: view.book.name for view in book_views}
+        operations = fetch_book_operational_data(conn, account_name=account_name)
 
         return {
             "account": summary,
             "books": [
                 _book_payload(view)
-                for view in fetch_account_book_configurations(conn, account_name=account_name)
+                for view in book_views
             ],
             "positions": positions,
             "latestBacktest": latest_backtest,
             "latestBacktestMetrics": latest_backtest_metrics,
             "liveBenchmarkOverlay": overlay,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
-            "trades": [build_trade_payload(trade) for trade in trades[-100:]],
+            "trades": [
+                build_trade_payload(trade, book_names=book_names)
+                for trade in trades[-100:]
+            ],
+            "bookPositions": [
+                {
+                    "bookId": row["book_id"],
+                    "bookName": row["book_name"],
+                    "ticker": row["ticker"],
+                    "qty": row["qty"],
+                    "avgCost": row["avg_cost"],
+                    "marketPrice": (
+                        float(row["market_value"]) / float(row["qty"])
+                        if float(row["qty"]) != 0.0
+                        else 0.0
+                    ),
+                    "marketValue": row["market_value"],
+                    "unrealizedPnl": row["unrealized_pnl"],
+                }
+                for row in operations["positions"]
+            ],
+            "bookSnapshots": [
+                {
+                    "bookId": row["book_id"],
+                    "bookName": row["book_name"],
+                    **build_snapshot_payload(row["snapshot"]),
+                }
+                for row in operations["snapshots"]
+            ],
+            "bookMetrics": [
+                {
+                    "bookId": row["book_id"],
+                    "bookName": row["book_name"],
+                    "metricDate": row["metric"].metric_date,
+                    "returnPct": row["metric"].return_pct,
+                    "drawdownPct": row["metric"].drawdown_pct,
+                    "hitRate": row["metric"].hit_rate,
+                    "riskAdjustedScore": row["metric"].risk_adjusted_score,
+                    "tradeCount": row["metric"].trade_count,
+                    "feesTotal": row["metric"].fees_total,
+                }
+                for row in operations["metrics"]
+            ],
+            "riskDecisions": [
+                {
+                    "bookId": row["book_id"],
+                    "bookName": row["book_name"],
+                    "decisionTime": row["decision"].decision_time,
+                    "symbol": row["decision"].symbol,
+                    "side": row["decision"].side,
+                    "action": row["decision"].action,
+                    "reason": row["decision"].reason_code,
+                    "requestedNotional": row["decision"].requested_notional,
+                    "approvedNotional": row["decision"].approved_notional,
+                }
+                for row in operations["risk_decisions"]
+            ],
         }
 
 

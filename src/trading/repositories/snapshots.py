@@ -121,6 +121,21 @@ class EquitySnapshotRepository:
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def fetch_history_for_book(self, *, book_id: int, limit: int) -> list[EquitySnapshotRecord]:
+        rows = self._conn.execute(
+            """
+            SELECT s.id, b.account_id, s.book_id, s.snapshot_time, s.cash,
+                   s.market_value, s.equity, s.realized_pnl, s.unrealized_pnl
+            FROM equity_snapshots s
+            JOIN books b ON b.id = s.book_id
+            WHERE s.book_id = ?
+            ORDER BY s.snapshot_time DESC, s.id DESC
+            LIMIT ?
+            """,
+            (int(book_id), int(limit)),
+        ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def fetch_count_between(self, *, account_id: int, start_iso: str, end_iso: str) -> int:
         row = self._conn.execute(
             """

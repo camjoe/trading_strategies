@@ -9,6 +9,7 @@ export type DetailSection = "summary" | "books" | "analysis" | "positions" | "tr
 
 export interface LoadAccountDetailOptions {
   section?: DetailSection;
+  bookName?: string | null;
 }
 
 export interface AccountsFeature {
@@ -26,6 +27,7 @@ export interface AccountsState {
   currentTradePage: number;
   currentAnalysis: AccountAnalysis | null;
   currentDetailSection: DetailSection;
+  currentBookFilter: string | null;
   accountBrowserOpen: boolean;
   tradePageSize: number;
 }

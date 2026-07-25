@@ -132,7 +132,7 @@ class OrderRepository:
         """
         return self._conn.execute(
             """
-            SELECT o.symbol AS ticker, o.side AS side, f.filled_qty AS qty,
+            SELECT o.book_id AS book_id, o.symbol AS ticker, o.side AS side, f.filled_qty AS qty,
                    f.fill_price AS price, f.commission AS fee,
                    f.fill_time AS trade_time, f.order_id AS order_id
             FROM order_fills f

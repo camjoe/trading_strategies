@@ -30,8 +30,15 @@ def build_snapshot_payload(snapshot: EquitySnapshotRecord) -> dict[str, object]:
     }
 
 
-def build_trade_payload(trade: dict[str, object]) -> dict[str, object]:
+def build_trade_payload(
+    trade: dict[str, object],
+    *,
+    book_names: dict[int, str] | None = None,
+) -> dict[str, object]:
+    book_id = int(trade["book_id"]) if trade.get("book_id") is not None else None
     return {
+        "bookId": book_id,
+        "bookName": book_names.get(book_id) if book_names is not None and book_id is not None else None,
         "ticker": trade["ticker"],
         "side": trade["side"],
         "qty": trade["qty"],

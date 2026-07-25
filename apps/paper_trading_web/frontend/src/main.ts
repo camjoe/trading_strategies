@@ -113,7 +113,17 @@ async function bootstrap(): Promise<void> {
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
   strategyLabFeature.wireActions();
-  initAutonomyMonitor();
+  initAutonomyMonitor({
+    onOpenAccount: async (accountName, bookName) => {
+      openTab("accounts");
+      await accountsFeature.loadAccountDetail(accountName, { section: "books", bookName });
+    },
+    onOpenStrategyLab: () => openTab("strategy-lab"),
+    onOpenParameters: () => {
+      openTab("admin");
+      document.querySelector<HTMLButtonElement>('[data-admin-section-target="parameters"]')?.click();
+    },
+  });
 
   try {
     await loadAccountConfigOptions();

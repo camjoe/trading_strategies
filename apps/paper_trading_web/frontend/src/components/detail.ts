@@ -20,6 +20,7 @@ export interface DetailRenderOptions {
   activeSection?: DetailSectionName;
   showActions?: boolean;
   showBacktest?: boolean;
+  bookName?: string | null;
 }
 
 function tradeTypeBadge(note: string | null): string {
@@ -34,8 +35,22 @@ function metricValue(value: number | null | undefined, suffix = "", digits = 2):
 }
 
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
+  const selectedBook = options.bookName ?? null;
+  const filteredDetail: AccountDetail = selectedBook
+    ? {
+        ...detail,
+        positions: (detail.bookPositions ?? []).filter(row => row.bookName === selectedBook),
+        trades: detail.trades.filter(row => row.bookName === selectedBook),
+        snapshots: (detail.bookSnapshots ?? []).filter(row => row.bookName === selectedBook),
+        bookMetrics: (detail.bookMetrics ?? []).filter(row => row.bookName === selectedBook),
+        riskDecisions: (detail.riskDecisions ?? []).filter(row => row.bookName === selectedBook),
+      }
+    : {
+        ...detail,
+        positions: detail.bookPositions?.length ? detail.bookPositions : detail.positions,
+      };
   const tradePageSize = Math.max(1, options.tradePageSize ?? 20);
-  const totalTrades = detail.trades.length;
+  const totalTrades = filteredDetail.trades.length;
   const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
   const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
   const showActions = options.showActions !== false;
@@ -43,12 +58,13 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const activeSection = options.activeSection ?? "summary";
   const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
   const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
-  const snapRows = detail.snapshots
+  const snapRows = filteredDetail.snapshots
     .slice(0, 25)
     .map(
       (s) => `
       <tr>
         <td>${new Date(s.time).toLocaleString()}</td>
+        <td>${esc(s.bookName ?? (selectedBook || "Account aggregate"))}</td>
         <td>${currency.format(s.equity)}</td>
         <td>${currency.format(s.cash)}</td>
         <td>${currency.format(s.marketValue)}</td>
@@ -62,7 +78,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   let previousDayKey = "";
   let dayBand = 0;
 
-  const tradeRows = detail.trades
+  const tradeRows = filteredDetail.trades
     .slice(tradeStart, tradeEnd)
     .reverse()
     .map((t) => {
@@ -77,6 +93,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       return `
       <tr class="trade-row${dayClass}">
         <td>${tradeDate.toLocaleString()}</td>
+        <td>${esc(t.bookName ?? "Account")}</td>
         <td>${esc(t.ticker)}</td>
         <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
         <td>${tradeTypeBadge(t.note)}</td>
@@ -118,10 +135,11 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   return `
     ${renderDetailHeader(detail, { benchmarkSummary })}
     ${renderSectionTabs(activeSection, { showActions, accountName: detail.account.name })}
-    ${renderSummarySection(activeSection, detail, { showBacktest, latestBacktest })}
+    ${renderBookFilter(detail, selectedBook)}
+    ${renderSummarySection(activeSection, filteredDetail, { showBacktest, latestBacktest })}
     ${renderBooksSection(activeSection, detail)}
     ${renderAnalysisSection(activeSection)}
-    ${renderPositionsSection(detail, activeSection)}
+    ${renderPositionsSection(filteredDetail, activeSection)}
     ${renderTradesSection(tradeRows, {
       activeSection,
       tradePage,
@@ -130,9 +148,20 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       totalTrades,
       totalTradePages,
     })}
-    ${renderSnapshotsSection(detail, activeSection, snapRows)}
+    ${renderSnapshotsSection(filteredDetail, activeSection, snapRows)}
     ${renderConfigSection(detail, { activeSection, showActions })}
   `;
+}
+
+function renderBookFilter(detail: AccountDetail, selectedBook: string | null): string {
+  const books = detail.books ?? [];
+  if (books.length < 2) return "";
+  return `<div class="account-book-filter">
+    <label class="bt-field"><span>Operational scope</span><select id="accountBookFilter">
+      <option value=""${selectedBook ? "" : " selected"}>Account aggregate</option>
+      ${books.map(book => `<option value="${esc(book.name)}"${book.name === selectedBook ? " selected" : ""}>${esc(book.name)}</option>`).join("")}
+    </select></label>
+  </div>`;
 }
 
 export { renderAnalysisPanel };

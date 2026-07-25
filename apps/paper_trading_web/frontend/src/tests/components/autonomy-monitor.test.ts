@@ -234,6 +234,34 @@ describe("Autonomy Monitor render functions", () => {
       const html = renderGovernancePanel(governance);
       expect(html).toContain("status-not_run");
     });
+
+    it("renders structured governance results with cross-navigation controls", () => {
+      const html = renderGovernancePanel({
+        w1_leaderboard: {
+          status: "success",
+          last_run: "2026-05-09T00:00:00Z",
+          has_results: true,
+          result: {
+            week: "2026-W19",
+            accounts: [{
+              account_name: "alpha",
+              books: [{
+                book_name: "growth",
+                strategy_name: "trend",
+                rank: 1,
+                avg_return_pct: 2.5,
+              }],
+            }],
+          },
+        },
+      });
+      expect(html).toContain("View results");
+      expect(html).toContain('data-governance-result="w1_leaderboard"');
+      expect(html).toContain('data-account="alpha"');
+      expect(html).toContain('data-book="growth"');
+      expect(html).toContain('data-strategy="trend"');
+      expect(html).toContain("Avg Return Pct");
+    });
   });
 
   describe("renderBurnInPanel", () => {
