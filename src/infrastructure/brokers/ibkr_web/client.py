@@ -14,11 +14,11 @@ from typing import Any
 import httpx
 
 from common.coercion import coerce_str
-from infrastructure.brokers.ib_web.pacing import (
+from infrastructure.brokers.ibkr_web.pacing import (
     _DEFAULT_IB_WEB_API_PACING_LIMITER,
     IbWebApiPacingLimiter,
 )
-from infrastructure.brokers.ib_web.settings import IbWebApiSettings
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings
 
 # Session reply confirmations are interactive notices; cap automated confirms.
 _MAX_ORDER_REPLY_CONFIRMATIONS = 5
@@ -38,6 +38,10 @@ class IbWebApiContract:
     ticker: str
     sec_type: str
     listing_exchange: str
+
+
+class IbWebOrderStatusUnavailableError(RuntimeError):
+    """Raised when IBKR no longer has a completed order in its status cache."""
 
 
 class InteractiveBrokersWebClient:
@@ -186,7 +190,13 @@ class InteractiveBrokersWebClient:
         raise RuntimeError("IBKR Web API account orders response must contain an orders list.")
 
     def fetch_order_status(self, order_id: str) -> dict[str, object]:
-        payload = self._request_json("GET", f"/iserver/account/order/status/{order_id}")
+        try:
+            payload = self._request_json("GET", f"/iserver/account/order/status/{order_id}")
+        except RuntimeError as exc:
+            cause = exc.__cause__
+            if isinstance(cause, httpx.HTTPStatusError) and cause.response.status_code == 503:
+                raise IbWebOrderStatusUnavailableError(str(exc)) from exc
+            raise
         if not isinstance(payload, dict):
             raise RuntimeError("IBKR Web API order status response must be an object.")
         return payload

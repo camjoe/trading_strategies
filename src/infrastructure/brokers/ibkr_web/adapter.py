@@ -11,7 +11,10 @@ import time
 
 from common.coercion import coerce_bool, coerce_float
 from common.time import utc_now_iso
-from infrastructure.brokers.ib_web import InteractiveBrokersWebClient
+from infrastructure.brokers.ibkr_web import (
+    IbWebOrderStatusUnavailableError,
+    InteractiveBrokersWebClient,
+)
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType
 
@@ -64,6 +67,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
         now = utc_now_iso()
         order.broker_order_id = str(response["order_id"])
         order.status = _map_ib_web_status(str(response.get("order_status", "Submitted")))
+        order.status_reason = self._fetch_terminal_status_reason(order.broker_order_id, order.status)
         order.submitted_at = now
         order.updated_at = now
         return order
@@ -89,6 +93,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
             order_status = _map_ib_web_status(str(row.get("status") or row.get("order_status") or "Submitted"))
             if order_status == OrderStatus.SUBMITTED and 0.0 < filled_qty < qty:
                 order_status = OrderStatus.PARTIALLY_FILLED
+            status_reason = self._fetch_terminal_status_reason(broker_order_id, order_status)
 
             fills: list[OrderFill] = []
             fill_time = _normalize_fill_time(row.get("lastExecutionTime") or row.get("lastExecutionTime_r"))
@@ -116,6 +121,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                     avg_fill_price=avg_fill_price,
                     commission=_coerce_number(row.get("commission")) or 0.0,
                     fills=fills,
+                    status_reason=status_reason,
                 )
             )
         return result
@@ -177,6 +183,23 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
         if not self._client.is_connected():
             raise RuntimeError("InteractiveBrokersWebAdapter is not connected. Call connect() first.")
 
+    def _fetch_terminal_status_reason(
+        self,
+        broker_order_id: str,
+        status: OrderStatus,
+    ) -> str | None:
+        if status not in _TERMINAL_NON_FILL_STATUSES:
+            return None
+        try:
+            payload = self._client.fetch_order_status(broker_order_id)
+        except IbWebOrderStatusUnavailableError:
+            # IBKR documents that completed orders may disappear from its status cache.
+            return None
+        reason = payload.get("order_status_description")
+        if not isinstance(reason, str):
+            return None
+        return reason.strip() or None
+
 
 _IB_WEB_STATUS_MAP: dict[str, OrderStatus] = {
     "pendingsubmit": OrderStatus.PENDING,
@@ -191,6 +214,8 @@ _IB_WEB_STATUS_MAP: dict[str, OrderStatus] = {
     "partiallyfilled": OrderStatus.PARTIALLY_FILLED,
     "inactive": OrderStatus.REJECTED,
 }
+
+_TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJECTED))
 
 
 def _map_ib_web_status(status: str) -> OrderStatus:

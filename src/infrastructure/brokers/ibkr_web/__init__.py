@@ -6,14 +6,19 @@ client (`client`) are separate modules; the public surface is re-exported here.
 
 from __future__ import annotations
 
-from infrastructure.brokers.ib_web.client import IbWebApiContract, InteractiveBrokersWebClient
-from infrastructure.brokers.ib_web.pacing import IbWebApiPacingLimiter
-from infrastructure.brokers.ib_web.settings import IbWebApiSettings, load_ib_web_api_settings
+from infrastructure.brokers.ibkr_web.client import (
+    IbWebApiContract,
+    IbWebOrderStatusUnavailableError,
+    InteractiveBrokersWebClient,
+)
+from infrastructure.brokers.ibkr_web.pacing import IbWebApiPacingLimiter
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings, load_ib_web_api_settings
 
 __all__ = [
     "IbWebApiContract",
     "IbWebApiPacingLimiter",
     "IbWebApiSettings",
+    "IbWebOrderStatusUnavailableError",
     "InteractiveBrokersWebClient",
     "load_ib_web_api_settings",
 ]

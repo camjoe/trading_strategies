@@ -5,16 +5,17 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-import infrastructure.brokers.ib_web.client as ib_web_client_module
-import infrastructure.brokers.ib_web.settings as ib_web_settings_module
-from infrastructure.brokers.ib_web.client import (
+import infrastructure.brokers.ibkr_web.client as ib_web_client_module
+import infrastructure.brokers.ibkr_web.settings as ib_web_settings_module
+from infrastructure.brokers.ibkr_web.client import (
+    IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
     _is_marketdata_preflight_only,
     _is_order_reply_message,
     _truthy_flag,
 )
-from infrastructure.brokers.ib_web.pacing import IbWebApiPacingLimiter
-from infrastructure.brokers.ib_web.settings import IbWebApiSettings, load_ib_web_api_settings
+from infrastructure.brokers.ibkr_web.pacing import IbWebApiPacingLimiter
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings, load_ib_web_api_settings
 
 
 class TestLoadIbWebApiSettings:
@@ -692,6 +693,36 @@ class TestInteractiveBrokersWebClient:
 
         with pytest.raises(RuntimeError, match="request failed"):
             client._request_json("GET", "/iserver/auth/status")
+
+    def test_fetch_order_status_classifies_documented_cache_miss(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(503, text="order status unavailable", request=request)
+
+        client = InteractiveBrokersWebClient(
+            settings=_make_settings(),
+            http_client=httpx.Client(
+                transport=httpx.MockTransport(handler),
+                base_url="https://example.test",
+            ),
+        )
+
+        with pytest.raises(IbWebOrderStatusUnavailableError, match="503"):
+            client.fetch_order_status("42")
+
+    def test_fetch_order_status_preserves_other_transport_failures(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(401, text="unauthorized", request=request)
+
+        client = InteractiveBrokersWebClient(
+            settings=_make_settings(),
+            http_client=httpx.Client(
+                transport=httpx.MockTransport(handler),
+                base_url="https://example.test",
+            ),
+        )
+
+        with pytest.raises(RuntimeError, match="401"):
+            client.fetch_order_status("42")
 
     def test_request_json_returns_empty_dict_for_empty_body(self):
         def handler(request: httpx.Request) -> httpx.Response:

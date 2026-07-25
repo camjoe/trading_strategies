@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from infrastructure.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
-from infrastructure.brokers.ib_web import IbWebApiSettings
-from infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from infrastructure.brokers.ibkr_web import IbWebApiSettings
+from infrastructure.brokers.ibkr_web.adapter import InteractiveBrokersWebAdapter
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 

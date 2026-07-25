@@ -7,17 +7,17 @@ Current IBKR path
 The active local-gateway integration is ``interactive_brokers_web`` via the
 Client Portal / Web API.
 
-Legacy IB path
---------------
-``interactive_brokers`` remains wired as a legacy socket/TWS alternative. It is
-kept available, but it is not the primary IBKR path for current development.
+IBKR socket path
+----------------
+``interactive_brokers`` remains the persisted compatibility value for the
+socket/TWS integration until a later migration renames it.
 """
 
 from __future__ import annotations
 
-from infrastructure.brokers.ib_web import InteractiveBrokersWebClient, load_ib_web_api_settings
-from infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
-from infrastructure.brokers.legacy.factory import build_legacy_ib_broker
+from infrastructure.brokers.ibkr_socket.factory import build_ibkr_socket_broker
+from infrastructure.brokers.ibkr_web import InteractiveBrokersWebClient, load_ib_web_api_settings
+from infrastructure.brokers.ibkr_web.adapter import InteractiveBrokersWebAdapter
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from trading.domain.broker_connection import BrokerConnection
 from trading.models import AccountRecord
@@ -34,7 +34,7 @@ def get_broker_for_account(account: AccountRecord) -> BrokerConnection:
     Defaults to :class:`PaperBrokerAdapter` when ``broker_type`` is absent or
     set to ``'paper'``.
 
-    For live brokers (current: ``'interactive_brokers_web'``; legacy:
+    For live brokers (current: ``'interactive_brokers_web'``; socket compatibility:
     ``'interactive_brokers'``), the account row must have
     ``live_trading_enabled = 1`` or a :class:`LiveTradingNotEnabledError`
     is raised. This guard prevents accidental live order submission.
@@ -47,9 +47,9 @@ def get_broker_for_account(account: AccountRecord) -> BrokerConnection:
     broker_type = str(account.broker_type or _BROKER_TYPE_PAPER).strip().lower()
 
     if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS:
-        # Legacy socket/TWS IBKR path retained for possible future reuse.
+        # Socket/TWS path; broker_type keeps its compatibility value until migration.
         _require_live_trading_enabled(account)
-        return build_legacy_ib_broker(account)
+        return build_ibkr_socket_broker(account)
 
     if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS_WEB:
         # Current IBKR integration path: Client Portal / Web API.
@@ -70,7 +70,7 @@ def _require_live_trading_enabled(account: AccountRecord) -> None:
     set to 1 via a direct DB update before live orders can be submitted.
 
     This is a hard runtime gate — even if the broker_type is
-    ``'interactive_brokers_web'`` or legacy ``'interactive_brokers'``,
+    ``'interactive_brokers_web'`` or socket-compatible ``'interactive_brokers'``,
     orders will never reach the wire without this flag.
     """
     if not account.live_trading_enabled:

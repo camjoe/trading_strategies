@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-22
+Last Reviewed: 2026-07-24
 Purpose: Explain the project's current capabilities, concepts, architecture, limitations, and scope.
 Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
@@ -44,7 +44,7 @@ Design goals:
 - **Feature provider** — an external-data source (news, social, policy/ETF-proxy) that influences
   *trade signals* for "alternative" strategies. Feature providers are signal inputs, not evaluation
   evidence.
-- **Broker / environment** — paper simulator, IBKR Web API, or legacy socket, all behind one
+- **Broker / environment** — paper simulator, IBKR Web API, or IBKR socket API, all behind one
   `BrokerConnection` port and factory. Paper vs. IBKR-paper vs. live differ by adapter + the
   `live_trading_enabled` guard, not by separate code paths.
 
@@ -65,7 +65,7 @@ Design goals:
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
 - **Multi-book accounts** — one broker account hosting multiple strategy books, with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
-- **Broker abstraction** — paper adapter, IBKR Web API adapter, legacy socket adapter, behind one
+- **Broker abstraction** — paper, IBKR Web API, and IBKR socket adapters behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
 - **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
 - **Runtime scheduler jobs** (daily backtest refresh, challenger shadow evaluation, governance,
@@ -105,8 +105,6 @@ These limitations describe current behavior and maturity; they are not hidden by
   trailing annualized Sharpe over the book's recent daily returns, `NULL` until enough history
   accrues). One column stays `NULL`: `drawdown_pct` (no intraday equity). See
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.
-- **Broker status explanations are not yet captured.** The order contract and `orders.status_reason`
-  can persist a broker explanation, but the current IBKR adapters do not populate it.
 - **Promotion approval does not gate rotation eligibility.** Promotion is an operator-governance
   outcome, while rotation follows each book's champion/challenger policy.
 
@@ -155,5 +153,7 @@ These limitations describe current behavior and maturity; they are not hidden by
 - **Trends workflow** — `apps/trends/` is a standalone CLI and is not integrated into the API or UI.
 - **Alternative data** — current policy signals use ETF-proxy feature providers rather than direct
   non-proxy policy datasets.
-- **IBKR connectivity** — the Client Portal / Web API client is the active integration; the legacy
-  socket path remains documented stubs.
+- **IBKR connectivity** — the Client Portal / Web API is the primary integration. The TWS/IB
+  Gateway socket integration supports `ib_async`; its native `ibapi` client has connection,
+  order submission/cancellation, open-order refresh, status, execution, commission, rejection,
+  positions, account summaries, snapshot quotes, and shutdown handling.
