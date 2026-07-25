@@ -1,4 +1,4 @@
-"""Backend-neutral records for the legacy IBKR socket client boundary."""
+"""Backend-neutral records for the IBKR socket client boundary."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
-class LegacyOrderRequest:
-    """Order fields required by either legacy socket backend."""
+class IbkrOrderRequest:
+    """Order fields required by either socket backend."""
 
     symbol: str
     action: str
@@ -18,7 +18,7 @@ class LegacyOrderRequest:
 
 
 @dataclass(frozen=True)
-class LegacyFill:
+class IbkrFill:
     """Normalized IBKR execution and commission details."""
 
     shares: float
@@ -29,8 +29,8 @@ class LegacyFill:
 
 
 @dataclass(frozen=True)
-class LegacyTrade:
-    """Normalized order state returned by a legacy socket backend."""
+class IbkrTrade:
+    """Normalized order state returned by a socket backend."""
 
     order_id: int
     symbol: str
@@ -40,12 +40,12 @@ class LegacyTrade:
     status: str
     filled: float
     avg_fill_price: float | None
-    fills: tuple[LegacyFill, ...] = field(default_factory=tuple)
+    fills: tuple[IbkrFill, ...] = field(default_factory=tuple)
     status_reason: str | None = None
 
 
 @dataclass(frozen=True)
-class LegacyPosition:
+class IbkrPosition:
     """Normalized broker position."""
 
     symbol: str
@@ -53,7 +53,7 @@ class LegacyPosition:
 
 
 @dataclass(frozen=True)
-class LegacyAccountValue:
+class IbkrAccountValue:
     """Normalized account-summary value."""
 
     tag: str
@@ -62,7 +62,7 @@ class LegacyAccountValue:
 
 
 @dataclass(frozen=True)
-class LegacyQuote:
+class IbkrQuote:
     """Normalized real-time quote snapshot."""
 
     symbol: str

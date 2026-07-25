@@ -5,17 +5,17 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-import infrastructure.brokers.ib_web.client as ib_web_client_module
-import infrastructure.brokers.ib_web.settings as ib_web_settings_module
-from infrastructure.brokers.ib_web.client import (
+import infrastructure.brokers.ibkr_web.client as ib_web_client_module
+import infrastructure.brokers.ibkr_web.settings as ib_web_settings_module
+from infrastructure.brokers.ibkr_web.client import (
     IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
     _is_marketdata_preflight_only,
     _is_order_reply_message,
     _truthy_flag,
 )
-from infrastructure.brokers.ib_web.pacing import IbWebApiPacingLimiter
-from infrastructure.brokers.ib_web.settings import IbWebApiSettings, load_ib_web_api_settings
+from infrastructure.brokers.ibkr_web.pacing import IbWebApiPacingLimiter
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings, load_ib_web_api_settings
 
 
 class TestLoadIbWebApiSettings:

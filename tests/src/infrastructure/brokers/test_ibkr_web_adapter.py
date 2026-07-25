@@ -2,9 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import infrastructure.brokers.ib_web_adapter as ib_web_adapter_module
-from infrastructure.brokers.ib_web import IbWebApiContract, IbWebOrderStatusUnavailableError
-from infrastructure.brokers.ib_web_adapter import (
+import infrastructure.brokers.ibkr_web.adapter as ib_web_adapter_module
+from infrastructure.brokers.ibkr_web import IbWebApiContract, IbWebOrderStatusUnavailableError
+from infrastructure.brokers.ibkr_web.adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
     _coerce_number,

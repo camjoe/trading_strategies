@@ -1,22 +1,15 @@
-"""Legacy Interactive Brokers socket/TWS adapter.
+"""Interactive Brokers socket/TWS adapter.
 
-Legacy status
--------------
-This module supports the older Interactive Brokers socket/TWS or IB Gateway
-flow. The repository's current local-gateway path is the Client Portal / Web
-API implementation in ``brokers.ib_web_adapter`` and
-``infrastructure.brokers.ib_web``.
-
-This module is retained so the older socket-based flow remains available if the
-team decides to return to it, but it is no longer the primary IBKR integration
-surface for active development.
+This module supports TWS and IB Gateway through either ``ib_async`` or native
+``ibapi``. The Client Portal / Web API implementation lives in
+``infrastructure.brokers.ibkr_web``.
 
 Requires TWS or IB Gateway to be running with the API enabled.
 
-The adapter itself is backend-agnostic — it depends on :class:`IBClientProtocol`
-from ``brokers.legacy.ib_client``. The concrete client
+The adapter itself is backend-agnostic — it depends on :class:`IbkrSocketClient`
+from ``brokers.ibkr_socket.protocol``. The concrete client
 (``IbAsyncClient`` or ``IbApiClient``) is injected by the factory. To switch
-backends, change ``IB_CLIENT_BACKEND`` in ``brokers/legacy/factory.py``.
+backends, change ``IBKR_SOCKET_CLIENT_BACKEND`` in ``brokers/ibkr_socket/factory.py``.
 
 Prerequisites:
     1. Install the chosen client backend:
@@ -42,8 +35,8 @@ Async fill note:
 from __future__ import annotations
 
 from common.time import utc_now_iso
-from infrastructure.brokers.legacy.client_models import LegacyOrderRequest
-from infrastructure.brokers.legacy.ib_client import IBClientProtocol
+from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
+from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders.broker_order import (
     BrokerOrder,
@@ -61,23 +54,23 @@ _IB_DEFAULT_CLIENT_ID = 1
 _ACCOUNT_TAGS = frozenset(("TotalCashValue", "BuyingPower", "GrossPositionValue", "NetLiquidation"))
 
 
-class InteractiveBrokersAdapter(BrokerConnection):
-    """Legacy live broker adapter for Interactive Brokers socket/TWS flows.
+class IbkrSocketAdapter(BrokerConnection):
+    """Broker adapter for Interactive Brokers socket/TWS flows.
 
-    Depends on :class:`~brokers.legacy.ib_client.IBClientProtocol` — the
+    Depends on :class:`~brokers.ibkr_socket.protocol.IbkrSocketClient` — the
     concrete backend (``IbAsyncClient`` or ``IbApiClient``) is injected by
     :func:`brokers.factory.get_broker_for_account`.
 
     Instantiated only when ``broker_type = 'interactive_brokers'`` and
     ``live_trading_enabled = 1`` on the account row.
 
-    This broker type is treated as a legacy alternative to the current
-    ``interactive_brokers_web`` path.
+    The persisted ``interactive_brokers`` value remains a compatibility name
+    until a later migration introduces ``interactive_brokers_socket``.
     """
 
     def __init__(
         self,
-        client: IBClientProtocol,
+        client: IbkrSocketClient,
         host: str = _IB_DEFAULT_HOST,
         port: int = _IB_DEFAULT_PORT,
         client_id: int = _IB_DEFAULT_CLIENT_ID,
@@ -107,7 +100,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
         SUBMITTED order and later reconcile fills via ``get_open_trades``.
         """
         self._require_connected()
-        request = LegacyOrderRequest(
+        request = IbkrOrderRequest(
             symbol=order.ticker,
             action=order.side.upper(),
             total_quantity=order.qty,
@@ -198,7 +191,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
 
     def _require_connected(self) -> None:
         if not self._client.is_connected():
-            raise RuntimeError("InteractiveBrokersAdapter is not connected. Call connect() first.")
+            raise RuntimeError("IbkrSocketAdapter is not connected. Call connect() first.")
 
 
 # IB order status strings → our OrderStatus enum.

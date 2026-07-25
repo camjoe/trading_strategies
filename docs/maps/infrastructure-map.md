@@ -43,20 +43,23 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 |---|---|
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
-| `ib_web_adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
-| `ib_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
-| `ib_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |
-| `ib_web/settings.py` | Operator-managed IBKR Web API settings loaded from environment variables or ignored local configuration |
+| `ibkr_web/adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
+| `ibkr_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
+| `ibkr_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |
+| `ibkr_web/settings.py` | Operator-managed IBKR Web API settings loaded from environment variables or ignored local configuration |
 
-### `src/infrastructure/brokers/legacy/`
+### `src/infrastructure/brokers/ibkr_socket/`
 
-Legacy TWS/socket broker support (ib_async / TWS), retained behind the same factory.
+TWS/IB Gateway socket support with interchangeable `ib_async` and native `ibapi` clients.
 
 | Module | Responsibility |
 |---|---|
-| `factory.py` | Legacy TWS/socket broker construction |
-| `ib_adapter.py` | Legacy ib_async/TWS `BrokerConnection` adapter |
-| `ib_client.py` | Legacy TWS socket client |
+| `adapter.py` | Backend-neutral socket `BrokerConnection` adapter |
+| `contracts.py` | Project-owned normalized socket client records |
+| `protocol.py` | Backend-neutral socket client protocol |
+| `ib_async_client.py` | Working `ib_async` socket client |
+| `ibapi_client.py` | Native `ibapi` socket client placeholder |
+| `factory.py` | Socket backend selection and broker construction |
 
 ### `src/infrastructure/feature_providers/`
 
