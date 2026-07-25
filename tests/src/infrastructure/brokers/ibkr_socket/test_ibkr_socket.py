@@ -385,6 +385,10 @@ class TestIbApiClient:
                 self.placed = None
                 self.cancelled = None
                 self.open_orders_requested = False
+                self.positions_requested = False
+                self.positions_cancelled = False
+                self.account_summary_requested = None
+                self.account_summary_cancelled = None
 
             def placeOrder(self, order_id, contract, order):
                 self.placed = (order_id, contract, order)
@@ -394,6 +398,18 @@ class TestIbApiClient:
 
             def reqOpenOrders(self):
                 self.open_orders_requested = True
+
+            def reqPositions(self):
+                self.positions_requested = True
+
+            def cancelPositions(self):
+                self.positions_cancelled = True
+
+            def reqAccountSummary(self, request_id, group, tags):
+                self.account_summary_requested = (request_id, group, tags)
+
+            def cancelAccountSummary(self, request_id):
+                self.account_summary_cancelled = request_id
 
         class FakeContract:
             pass
@@ -428,6 +444,10 @@ class TestIbApiClient:
         app.place_order(42, request)
         app.cancel_order(42)
         app.request_open_orders()
+        app.request_positions()
+        app.cancel_positions()
+        app.request_account_summary(7, "All", "NetLiquidation")
+        app.cancel_account_summary(7)
         app.openOrder(
             42,
             SimpleNamespace(symbol="AAPL"),
@@ -447,6 +467,16 @@ class TestIbApiClient:
             ),
         )
         app.commissionReport(SimpleNamespace(execId="exec-1", commission=1.25))
+        app.position(
+            "U1",
+            SimpleNamespace(symbol="AAPL"),
+            3.0,
+            149.5,
+        )
+        app.positionEnd()
+        callbacks.begin_account_summary(7)
+        app.accountSummary(7, "U1", "NetLiquidation", "1000", "USD")
+        app.accountSummaryEnd(7)
 
         order_id, contract, native_order = app.placed
         assert order_id == 42
@@ -464,9 +494,17 @@ class TestIbApiClient:
         assert app.cancelled[0] == 42
         assert isinstance(app.cancelled[1], FakeOrderCancel)
         assert app.open_orders_requested is True
+        assert app.positions_requested is True
+        assert app.positions_cancelled is True
+        assert app.account_summary_requested == (7, "All", "NetLiquidation")
+        assert app.account_summary_cancelled == 7
         trade = callbacks.trades()[0]
         assert trade.status == "Filled"
         assert trade.fills[0].commission == 1.25
+        assert callbacks.positions() == [IbkrPosition(symbol="AAPL", quantity=3.0)]
+        assert callbacks.account_values() == [
+            IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")
+        ]
 
     def test_connect_waits_for_readiness_and_reserves_monotonic_order_ids(self):
         app_holder = {}
@@ -699,12 +737,133 @@ class TestIbApiClient:
             client.trades()
         client.disconnect()
 
+    def test_positions_returns_sorted_deduplicated_records_and_cancels_subscription(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app.positions_to_emit = [
+                ("MSFT", 2.0),
+                ("AAPL", 1.0),
+                ("AAPL", 3.0),
+            ]
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        positions = client.positions()
+
+        assert positions == [
+            IbkrPosition(symbol="AAPL", quantity=3.0),
+            IbkrPosition(symbol="MSFT", quantity=2.0),
+        ]
+        assert app_holder["app"].position_requests == 1
+        assert app_holder["app"].position_cancellations == 1
+        client.disconnect()
+
+    def test_positions_timeout_still_cancels_subscription(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(
+                callbacks,
+                ready_order_id=1,
+                complete_positions=False,
+            )
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(
+            app_factory=app_factory,
+            request_timeout_seconds=0.01,
+        )
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(TimeoutError, match="positionEnd"):
+            client.positions()
+
+        assert app_holder["app"].position_cancellations == 1
+        client.disconnect()
+
+    def test_background_failure_wakes_position_request_and_cancels_subscription(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(
+                callbacks,
+                ready_order_id=1,
+                complete_positions=False,
+                request_error=RuntimeError("socket reader failed"),
+            )
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(RuntimeError, match="socket reader failed"):
+            client.positions()
+
+        assert app_holder["app"].position_cancellations == 1
+        client.disconnect()
+
+    def test_account_summary_returns_records_and_uses_monotonic_request_ids(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app.account_values_to_emit = [
+                ("U1", "NetLiquidation", "1000", "USD"),
+                ("U1", "BuyingPower", "2000", "USD"),
+                ("U1", "BuyingPower", "2500", "USD"),
+            ]
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        first = client.account_summary()
+        second = client.account_summary()
+
+        assert first == second
+        assert first == [
+            IbkrAccountValue(tag="BuyingPower", value="2500", currency="USD"),
+            IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD"),
+        ]
+        app = app_holder["app"]
+        assert [request[0] for request in app.account_summary_requests] == [1, 2]
+        assert app.account_summary_cancellations == [1, 2]
+        client.disconnect()
+
+    def test_account_summary_timeout_still_cancels_request(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(
+                callbacks,
+                ready_order_id=1,
+                complete_account_summary=False,
+            )
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(
+            app_factory=app_factory,
+            request_timeout_seconds=0.01,
+        )
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(TimeoutError, match="accountSummaryEnd"):
+            client.account_summary()
+
+        assert app_holder["app"].account_summary_cancellations == [1]
+        client.disconnect()
+
     def test_unimplemented_data_operations_remain_explicit(self):
         client = IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks))
-        with pytest.raises(NotImplementedError):
-            client.positions()
-        with pytest.raises(NotImplementedError):
-            client.account_summary()
         with pytest.raises(NotImplementedError):
             client.quotes(["AAPL"])
 
@@ -722,17 +881,29 @@ class _FakeNativeApp:
         ready_order_id=None,
         run_error=None,
         complete_open_orders=True,
+        complete_positions=True,
+        complete_account_summary=True,
+        request_error=None,
     ):
         self.callbacks = callbacks
         self.ready_order_id = ready_order_id
         self.run_error = run_error
         self.complete_open_orders = complete_open_orders
+        self.complete_positions = complete_positions
+        self.complete_account_summary = complete_account_summary
+        self.request_error = request_error
         self.connected = False
         self.connect_args = None
         self.disconnect_calls = 0
         self.place_order_calls = []
         self.cancel_order_calls = []
         self.open_order_requests = 0
+        self.position_requests = 0
+        self.position_cancellations = 0
+        self.account_summary_requests = []
+        self.account_summary_cancellations = []
+        self.positions_to_emit = []
+        self.account_values_to_emit = []
         self._stop = threading.Event()
 
     def connect(self, host, port, clientId):
@@ -764,6 +935,29 @@ class _FakeNativeApp:
         self.open_order_requests += 1
         if self.complete_open_orders:
             self.callbacks.finish_open_order_refresh()
+
+    def request_positions(self):
+        self.position_requests += 1
+        if self.request_error is not None:
+            self.callbacks.record_background_error(self.request_error)
+            return
+        for symbol, quantity in self.positions_to_emit:
+            self.callbacks.record_position(symbol, quantity)
+        if self.complete_positions:
+            self.callbacks.finish_positions()
+
+    def cancel_positions(self):
+        self.position_cancellations += 1
+
+    def request_account_summary(self, request_id, group, tags):
+        self.account_summary_requests.append((request_id, group, tags))
+        for account, tag, value, currency in self.account_values_to_emit:
+            self.callbacks.record_account_value(request_id, account, tag, value, currency)
+        if self.complete_account_summary:
+            self.callbacks.finish_account_summary(request_id)
+
+    def cancel_account_summary(self, request_id):
+        self.account_summary_cancellations.append(request_id)
 
 
 class TestIbkrSocketStatusMap:

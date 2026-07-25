@@ -27,6 +27,12 @@ _MESSAGE_LOOP_JOIN_TIMEOUT_SECONDS = 2.0
 # Maximum time to wait for the openOrderEnd callback during an order refresh.
 _OPEN_ORDER_REFRESH_TIMEOUT_SECONDS = 5.0
 
+# Native account-summary tags required by the shared broker contract.
+_ACCOUNT_SUMMARY_TAGS = "TotalCashValue,BuyingPower,GrossPositionValue,NetLiquidation"
+
+# Native account-summary group that includes every account visible to the session.
+_ACCOUNT_SUMMARY_GROUP = "All"
+
 
 class _NativeIbApp(Protocol):
     def connect(self, host: str, port: int, clientId: int) -> object: ...
@@ -42,6 +48,14 @@ class _NativeIbApp(Protocol):
     def cancel_order(self, order_id: int) -> None: ...
 
     def request_open_orders(self) -> None: ...
+
+    def request_positions(self) -> None: ...
+
+    def cancel_positions(self) -> None: ...
+
+    def request_account_summary(self, request_id: int, group: str, tags: str) -> None: ...
+
+    def cancel_account_summary(self, request_id: int) -> None: ...
 
 
 @dataclass
@@ -74,10 +88,16 @@ class _IbApiCallbackState:
         self.ready = threading.Event()
         self._lock = threading.Lock()
         self._next_order_id: int | None = None
+        self._next_request_id = 1
         self._errors: list[IbkrApiError] = []
         self._trades: dict[int, _NativeTradeState] = {}
         self._pending_commissions: dict[str, float] = {}
         self.open_orders_complete = threading.Event()
+        self.positions_complete = threading.Event()
+        self.account_summary_complete = threading.Event()
+        self._positions: dict[str, IbkrPosition] = {}
+        self._account_values: dict[tuple[str, str, str], IbkrAccountValue] = {}
+        self._account_summary_request_id: int | None = None
         self._background_error: RuntimeError | None = None
         self._disconnect_requested = False
 
@@ -93,6 +113,12 @@ class _IbApiCallbackState:
             order_id = self._next_order_id
             self._next_order_id += 1
             return order_id
+
+    def reserve_request_id(self) -> int:
+        with self._lock:
+            request_id = self._next_request_id
+            self._next_request_id += 1
+            return request_id
 
     def record_error(
         self,
@@ -224,10 +250,63 @@ class _IbApiCallbackState:
         with self._lock:
             return [_trade_snapshot(state) for _, state in sorted(self._trades.items())]
 
+    def begin_positions(self) -> None:
+        with self._lock:
+            self._positions.clear()
+            self.positions_complete.clear()
+
+    def record_position(self, symbol: str, quantity: float) -> None:
+        if not symbol:
+            return
+        with self._lock:
+            self._positions[symbol] = IbkrPosition(symbol=symbol, quantity=quantity)
+
+    def finish_positions(self) -> None:
+        self.positions_complete.set()
+
+    def positions(self) -> list[IbkrPosition]:
+        with self._lock:
+            return [self._positions[symbol] for symbol in sorted(self._positions)]
+
+    def begin_account_summary(self, request_id: int) -> None:
+        with self._lock:
+            self._account_values.clear()
+            self._account_summary_request_id = request_id
+            self.account_summary_complete.clear()
+
+    def record_account_value(
+        self,
+        request_id: int,
+        account: str,
+        tag: str,
+        value: str,
+        currency: str,
+    ) -> None:
+        with self._lock:
+            if request_id != self._account_summary_request_id:
+                return
+            self._account_values[(account, tag, currency)] = IbkrAccountValue(
+                tag=tag,
+                value=value,
+                currency=currency,
+            )
+
+    def finish_account_summary(self, request_id: int) -> None:
+        with self._lock:
+            if request_id == self._account_summary_request_id:
+                self.account_summary_complete.set()
+
+    def account_values(self) -> list[IbkrAccountValue]:
+        with self._lock:
+            return [self._account_values[key] for key in sorted(self._account_values)]
+
     def record_background_error(self, error: RuntimeError) -> None:
         with self._lock:
             self._background_error = error
             self.ready.set()
+            self.open_orders_complete.set()
+            self.positions_complete.set()
+            self.account_summary_complete.set()
 
     def raise_if_background_error(self) -> None:
         with self._lock:
@@ -245,6 +324,9 @@ class _IbApiCallbackState:
                 return
             self._background_error = RuntimeError("IBKR native socket connection closed unexpectedly.")
             self.ready.set()
+            self.open_orders_complete.set()
+            self.positions_complete.set()
+            self.account_summary_complete.set()
 
 
 _NativeAppFactory = Callable[[_IbApiCallbackState], _NativeIbApp]
@@ -265,6 +347,7 @@ class IbApiClient:
         self._callbacks = _IbApiCallbackState()
         self._app: _NativeIbApp | None = None
         self._message_loop_thread: threading.Thread | None = None
+        self._request_lock = threading.Lock()
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
         if self.is_connected():
@@ -322,10 +405,43 @@ class IbApiClient:
         return self._callbacks.trades()
 
     def positions(self) -> list[IbkrPosition]:
-        raise NotImplementedError("Native IBKR position requests are not yet implemented.")
+        app = self._require_connected()
+        with self._request_lock:
+            self._callbacks.begin_positions()
+            app.request_positions()
+            try:
+                completed = self._callbacks.positions_complete.wait(
+                    self._request_timeout_seconds
+                )
+                self._callbacks.raise_if_background_error()
+                if not completed:
+                    raise TimeoutError("Timed out waiting for IBKR native positionEnd callback.")
+                return self._callbacks.positions()
+            finally:
+                app.cancel_positions()
 
     def account_summary(self) -> list[IbkrAccountValue]:
-        raise NotImplementedError("Native IBKR account summary requests are not yet implemented.")
+        app = self._require_connected()
+        with self._request_lock:
+            request_id = self._callbacks.reserve_request_id()
+            self._callbacks.begin_account_summary(request_id)
+            app.request_account_summary(
+                request_id,
+                _ACCOUNT_SUMMARY_GROUP,
+                _ACCOUNT_SUMMARY_TAGS,
+            )
+            try:
+                completed = self._callbacks.account_summary_complete.wait(
+                    self._request_timeout_seconds
+                )
+                self._callbacks.raise_if_background_error()
+                if not completed:
+                    raise TimeoutError(
+                        "Timed out waiting for IBKR native accountSummaryEnd callback."
+                    )
+                return self._callbacks.account_values()
+            finally:
+                app.cancel_account_summary(request_id)
 
     def quotes(self, symbols: list[str]) -> list[IbkrQuote]:
         raise NotImplementedError("Native IBKR quote snapshots are not yet implemented.")
@@ -402,6 +518,18 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
         def request_open_orders(self) -> None:
             self.reqOpenOrders()
 
+        def request_positions(self) -> None:
+            self.reqPositions()
+
+        def cancel_positions(self) -> None:
+            self.cancelPositions()
+
+        def request_account_summary(self, request_id: int, group: str, tags: str) -> None:
+            self.reqAccountSummary(request_id, group, tags)
+
+        def cancel_account_summary(self, request_id: int) -> None:
+            self.cancelAccountSummary(request_id)
+
         def openOrder(self, orderId: int, contract: object, order: object, orderState: object) -> None:  # noqa: N802
             callbacks.record_open_order(
                 order_id=int(orderId),
@@ -452,6 +580,41 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
                 exec_id=str(getattr(commissionReport, "execId")),
                 commission=_required_float(getattr(commissionReport, "commission")),
             )
+
+        def position(  # noqa: N802
+            self,
+            account: str,
+            contract: object,
+            position: object,
+            avgCost: float,
+        ) -> None:
+            del account, avgCost
+            callbacks.record_position(
+                symbol=str(getattr(contract, "symbol", "")),
+                quantity=_required_float(position),
+            )
+
+        def positionEnd(self) -> None:  # noqa: N802
+            callbacks.finish_positions()
+
+        def accountSummary(  # noqa: N802
+            self,
+            requestId: int,
+            account: str,
+            tag: str,
+            value: str,
+            currency: str,
+        ) -> None:
+            callbacks.record_account_value(
+                request_id=requestId,
+                account=account,
+                tag=tag,
+                value=value,
+                currency=currency,
+            )
+
+        def accountSummaryEnd(self, requestId: int) -> None:  # noqa: N802
+            callbacks.finish_account_summary(requestId)
 
     return _App()
 
