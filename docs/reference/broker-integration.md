@@ -43,8 +43,8 @@ Key files:
 - `src/infrastructure/brokers/ibkr_socket/protocol.py`: socket client protocol
 - `src/infrastructure/brokers/ibkr_socket/ib_async_client.py`: working `ib_async` backend
 - `src/infrastructure/brokers/ibkr_socket/ibapi_client.py`: native `ibapi` connection, order,
-  execution, commission, rejection, open-order, position, and account-summary callback state;
-  quotes remain incomplete
+  execution, commission, rejection, open-order, position, account-summary, and snapshot-quote
+  callback state
 - `src/infrastructure/brokers/ibkr_socket/factory.py`: socket backend selector
 - `src/trading/repositories/orders.py`: persisted order state (clean book-keyed `orders`/`order_fills`; the submission + reconciliation paths write here — the legacy `broker_orders` repository was retired)
 
@@ -190,9 +190,10 @@ a previously persisted reason.
 The socket path remains available via `broker_type = 'interactive_brokers'`.
 
 - default backend: `ib_async`
-- optional backend: `ibapi` (orders, positions, and account summaries implemented; quotes remain
-  incomplete)
-- backend switch lives in `src/infrastructure/brokers/ibkr_socket/factory.py`
+- optional backend: `ibapi` (orders, positions, account summaries, and snapshot quotes implemented)
+- set `TRADING_IBKR_SOCKET_CLIENT_BACKEND=ibapi` to select the native client; unset or set it to
+  `ib_async` for the default community client
+- invalid backend values fail during broker construction instead of silently selecting a client
 
 Default socket ports:
 

@@ -9,7 +9,7 @@ Requires TWS or IB Gateway to be running with the API enabled.
 The adapter itself is backend-agnostic — it depends on :class:`IbkrSocketClient`
 from ``brokers.ibkr_socket.protocol``. The concrete client
 (``IbAsyncClient`` or ``IbApiClient``) is injected by the factory. To switch
-backends, change ``IBKR_SOCKET_CLIENT_BACKEND`` in ``brokers/ibkr_socket/factory.py``.
+backends, set ``TRADING_IBKR_SOCKET_CLIENT_BACKEND`` to ``ib_async`` or ``ibapi``.
 
 Prerequisites:
     1. Install the chosen client backend:

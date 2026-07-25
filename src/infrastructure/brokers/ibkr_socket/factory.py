@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from infrastructure.brokers.ibkr_socket.adapter import (
     _IB_DEFAULT_CLIENT_ID,
     _IB_DEFAULT_HOST,
@@ -17,21 +19,30 @@ from trading.models import AccountRecord
 _SOCKET_BACKEND_IB_ASYNC = "ib_async"
 _SOCKET_BACKEND_IBAPI = "ibapi"
 
-# Switch this to _SOCKET_BACKEND_IBAPI to use the native IBKR API client.
-IBKR_SOCKET_CLIENT_BACKEND: str = _SOCKET_BACKEND_IB_ASYNC
+# Environment variable controlling the socket/TWS client implementation.
+_SOCKET_BACKEND_ENV_NAME = "TRADING_IBKR_SOCKET_CLIENT_BACKEND"
+
+
+def resolve_ibkr_socket_client_backend() -> str:
+    """Resolve and validate the configured IBKR socket client backend."""
+    backend = os.getenv(_SOCKET_BACKEND_ENV_NAME, "").strip().lower()
+    if not backend:
+        return _SOCKET_BACKEND_IB_ASYNC
+    if backend not in {_SOCKET_BACKEND_IB_ASYNC, _SOCKET_BACKEND_IBAPI}:
+        raise ValueError(
+            f"Unknown {_SOCKET_BACKEND_ENV_NAME} value {backend!r}. "
+            f"Expected {_SOCKET_BACKEND_IB_ASYNC!r} or {_SOCKET_BACKEND_IBAPI!r}."
+        )
+    return backend
 
 
 def build_ibkr_socket_broker(account: AccountRecord) -> BrokerConnection:
     """Build the socket/TWS Interactive Brokers adapter for *account*."""
-    if IBKR_SOCKET_CLIENT_BACKEND == _SOCKET_BACKEND_IBAPI:
+    backend = resolve_ibkr_socket_client_backend()
+    if backend == _SOCKET_BACKEND_IBAPI:
         client = IbApiClient()
-    elif IBKR_SOCKET_CLIENT_BACKEND == _SOCKET_BACKEND_IB_ASYNC:
-        client = IbAsyncClient()
     else:
-        raise ValueError(
-            f"Unknown IBKR_SOCKET_CLIENT_BACKEND value {IBKR_SOCKET_CLIENT_BACKEND!r}. "
-            f"Expected {_SOCKET_BACKEND_IB_ASYNC!r} or {_SOCKET_BACKEND_IBAPI!r}."
-        )
+        client = IbAsyncClient()
 
     host = account.broker_host or _IB_DEFAULT_HOST
     port = account.broker_port or _IB_DEFAULT_PORT

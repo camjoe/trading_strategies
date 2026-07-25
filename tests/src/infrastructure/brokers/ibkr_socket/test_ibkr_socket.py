@@ -113,9 +113,7 @@ class TestIbkrSocketFactoryRouting:
             broker = get_broker_for_account(account)
         assert isinstance(broker, IbkrSocketAdapter)
 
-    def test_ibapi_backend_uses_ib_api_client(self):
-        import infrastructure.brokers.ibkr_socket.factory as socket_factory_module
-
+    def test_ibapi_backend_uses_ib_api_client(self, monkeypatch):
         account = _make_account(
             broker_type="interactive_brokers",
             broker_host="127.0.0.1",
@@ -123,30 +121,42 @@ class TestIbkrSocketFactoryRouting:
             broker_client_id=1,
         )
         mock_client = _mock_ib_client()
-        original = socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND
-        try:
-            socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND = "ibapi"
-            with (
-                patch("infrastructure.brokers.factory._require_live_trading_enabled"),
-                patch("infrastructure.brokers.ibkr_socket.factory.IbApiClient", return_value=mock_client),
-            ):
-                broker = get_broker_for_account(account)
-            assert isinstance(broker, IbkrSocketAdapter)
-        finally:
-            socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND = original
+        monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "ibapi")
+        with (
+            patch("infrastructure.brokers.factory._require_live_trading_enabled"),
+            patch("infrastructure.brokers.ibkr_socket.factory.IbApiClient", return_value=mock_client),
+        ):
+            broker = get_broker_for_account(account)
+        assert isinstance(broker, IbkrSocketAdapter)
 
-    def test_unknown_ib_backend_raises_value_error(self):
-        import infrastructure.brokers.ibkr_socket.factory as socket_factory_module
-
+    def test_default_backend_uses_ib_async_when_environment_is_blank(self, monkeypatch):
         account = _make_account(broker_type="interactive_brokers")
-        original = socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND
-        try:
-            socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND = "not_a_real_backend"
-            with patch("infrastructure.brokers.factory._require_live_trading_enabled"):
-                with pytest.raises(ValueError, match="Unknown IBKR_SOCKET_CLIENT_BACKEND"):
-                    get_broker_for_account(account)
-        finally:
-            socket_factory_module.IBKR_SOCKET_CLIENT_BACKEND = original
+        mock_client = _mock_ib_client()
+        monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "  ")
+        with (
+            patch("infrastructure.brokers.factory._require_live_trading_enabled"),
+            patch("infrastructure.brokers.ibkr_socket.factory.IbAsyncClient", return_value=mock_client),
+        ):
+            broker = get_broker_for_account(account)
+        assert isinstance(broker, IbkrSocketAdapter)
+
+    def test_backend_environment_value_is_case_and_whitespace_insensitive(self, monkeypatch):
+        account = _make_account(broker_type="interactive_brokers")
+        mock_client = _mock_ib_client()
+        monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", " IBAPI ")
+        with (
+            patch("infrastructure.brokers.factory._require_live_trading_enabled"),
+            patch("infrastructure.brokers.ibkr_socket.factory.IbApiClient", return_value=mock_client),
+        ):
+            broker = get_broker_for_account(account)
+        assert isinstance(broker, IbkrSocketAdapter)
+
+    def test_unknown_ib_backend_raises_value_error(self, monkeypatch):
+        account = _make_account(broker_type="interactive_brokers")
+        monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "not_a_real_backend")
+        with patch("infrastructure.brokers.factory._require_live_trading_enabled"):
+            with pytest.raises(ValueError, match="TRADING_IBKR_SOCKET_CLIENT_BACKEND"):
+                get_broker_for_account(account)
 
 
 class TestIbkrSocketAdapter:
@@ -389,6 +399,8 @@ class TestIbApiClient:
                 self.positions_cancelled = False
                 self.account_summary_requested = None
                 self.account_summary_cancelled = None
+                self.market_data_requested = None
+                self.market_data_cancelled = None
 
             def placeOrder(self, order_id, contract, order):
                 self.placed = (order_id, contract, order)
@@ -410,6 +422,27 @@ class TestIbApiClient:
 
             def cancelAccountSummary(self, request_id):
                 self.account_summary_cancelled = request_id
+
+            def reqMktData(
+                self,
+                request_id,
+                contract,
+                generic_ticks,
+                snapshot,
+                regulatory_snapshot,
+                options,
+            ):
+                self.market_data_requested = (
+                    request_id,
+                    contract,
+                    generic_ticks,
+                    snapshot,
+                    regulatory_snapshot,
+                    options,
+                )
+
+            def cancelMktData(self, request_id):
+                self.market_data_cancelled = request_id
 
         class FakeContract:
             pass
@@ -448,6 +481,9 @@ class TestIbApiClient:
         app.cancel_positions()
         app.request_account_summary(7, "All", "NetLiquidation")
         app.cancel_account_summary(7)
+        callbacks.begin_quote(8, "MSFT")
+        app.request_market_data(8, "MSFT")
+        app.cancel_market_data(8)
         app.openOrder(
             42,
             SimpleNamespace(symbol="AAPL"),
@@ -477,6 +513,10 @@ class TestIbApiClient:
         callbacks.begin_account_summary(7)
         app.accountSummary(7, "U1", "NetLiquidation", "1000", "USD")
         app.accountSummaryEnd(7)
+        app.tickPrice(8, 1, 149.0, SimpleNamespace())
+        app.tickPrice(8, 2, 150.0, SimpleNamespace())
+        app.tickPrice(8, 4, 149.5, SimpleNamespace())
+        app.tickSnapshotEnd(8)
 
         order_id, contract, native_order = app.placed
         assert order_id == 42
@@ -498,6 +538,16 @@ class TestIbApiClient:
         assert app.positions_cancelled is True
         assert app.account_summary_requested == (7, "All", "NetLiquidation")
         assert app.account_summary_cancelled == 7
+        quote_request_id, quote_contract, generic_ticks, snapshot, regulatory, options = app.market_data_requested
+        assert quote_request_id == 8
+        assert (
+            quote_contract.symbol,
+            quote_contract.secType,
+            quote_contract.exchange,
+            quote_contract.currency,
+        ) == ("MSFT", "STK", "SMART", "USD")
+        assert (generic_ticks, snapshot, regulatory, options) == ("", True, False, [])
+        assert app.market_data_cancelled == 8
         trade = callbacks.trades()[0]
         assert trade.status == "Filled"
         assert trade.fills[0].commission == 1.25
@@ -505,6 +555,12 @@ class TestIbApiClient:
         assert callbacks.account_values() == [
             IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")
         ]
+        assert callbacks.quote(8) == IbkrQuote(
+            symbol="MSFT",
+            bid=149.0,
+            ask=150.0,
+            last=149.5,
+        )
 
     def test_connect_waits_for_readiness_and_reserves_monotonic_order_ids(self):
         app_holder = {}
@@ -862,10 +918,87 @@ class TestIbApiClient:
         assert app_holder["app"].account_summary_cancellations == [1]
         client.disconnect()
 
-    def test_unimplemented_data_operations_remain_explicit(self):
-        client = IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks))
-        with pytest.raises(NotImplementedError):
+    def test_quotes_return_live_and_delayed_ticks_in_request_order(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app.quotes_to_emit = {
+                "AAPL": [(1, 149.0), (2, 150.0), (4, 149.5)],
+                "MSFT": [(66, 499.0), (67, 500.0), (68, 499.5)],
+            }
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        quotes = client.quotes(["MSFT", "AAPL"])
+
+        assert quotes == [
+            IbkrQuote(symbol="MSFT", bid=499.0, ask=500.0, last=499.5),
+            IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5),
+        ]
+        assert app_holder["app"].market_data_cancellations == [1, 2]
+        client.disconnect()
+
+    def test_quote_snapshot_missing_field_is_nan(self):
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app.quotes_to_emit = {"AAPL": [(1, -1.0), (4, 149.5)]}
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        quote = client.quotes(["AAPL"])[0]
+
+        assert quote.last == 149.5
+        assert quote.bid != quote.bid
+        assert quote.ask != quote.ask
+        client.disconnect()
+
+    def test_quote_error_wakes_request_and_cancels_market_data(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app.quote_error = (354, "Requested market data is not subscribed")
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(RuntimeError, match="354"):
             client.quotes(["AAPL"])
+
+        assert app_holder["app"].market_data_cancellations == [1]
+        client.disconnect()
+
+    def test_quote_timeout_cancels_market_data(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(
+                callbacks,
+                ready_order_id=1,
+                complete_quotes=False,
+            )
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(
+            app_factory=app_factory,
+            request_timeout_seconds=0.01,
+        )
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(TimeoutError, match="AAPL"):
+            client.quotes(["AAPL"])
+
+        assert app_holder["app"].market_data_cancellations == [1]
+        client.disconnect()
 
     def test_isinstance_check_passes_with_all_stubs(self):
         assert isinstance(
@@ -883,6 +1016,7 @@ class _FakeNativeApp:
         complete_open_orders=True,
         complete_positions=True,
         complete_account_summary=True,
+        complete_quotes=True,
         request_error=None,
     ):
         self.callbacks = callbacks
@@ -891,6 +1025,7 @@ class _FakeNativeApp:
         self.complete_open_orders = complete_open_orders
         self.complete_positions = complete_positions
         self.complete_account_summary = complete_account_summary
+        self.complete_quotes = complete_quotes
         self.request_error = request_error
         self.connected = False
         self.connect_args = None
@@ -904,6 +1039,10 @@ class _FakeNativeApp:
         self.account_summary_cancellations = []
         self.positions_to_emit = []
         self.account_values_to_emit = []
+        self.market_data_requests = []
+        self.market_data_cancellations = []
+        self.quotes_to_emit = {}
+        self.quote_error = None
         self._stop = threading.Event()
 
     def connect(self, host, port, clientId):
@@ -958,6 +1097,20 @@ class _FakeNativeApp:
 
     def cancel_account_summary(self, request_id):
         self.account_summary_cancellations.append(request_id)
+
+    def request_market_data(self, request_id, symbol):
+        self.market_data_requests.append((request_id, symbol))
+        if self.quote_error is not None:
+            code, message = self.quote_error
+            self.callbacks.record_error(request_id, code, message, None)
+            return
+        for tick_type, price in self.quotes_to_emit.get(symbol, []):
+            self.callbacks.record_tick_price(request_id, tick_type, price)
+        if self.complete_quotes:
+            self.callbacks.finish_quote(request_id)
+
+    def cancel_market_data(self, request_id):
+        self.market_data_cancellations.append(request_id)
 
 
 class TestIbkrSocketStatusMap:

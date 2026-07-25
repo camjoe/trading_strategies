@@ -33,6 +33,17 @@ _ACCOUNT_SUMMARY_TAGS = "TotalCashValue,BuyingPower,GrossPositionValue,NetLiquid
 # Native account-summary group that includes every account visible to the session.
 _ACCOUNT_SUMMARY_GROUP = "All"
 
+# Native live and delayed tick types for bid, ask, and last prices.
+_BID_TICK_TYPES = frozenset({1, 66})
+_ASK_TICK_TYPES = frozenset({2, 67})
+_LAST_TICK_TYPES = frozenset({4, 68})
+
+# IBKR snapshots can complete without every requested field.
+_MISSING_QUOTE_VALUE = float("nan")
+
+# IBKR uses -1 to report that a tick price is unavailable.
+_UNAVAILABLE_TICK_PRICE = -1.0
+
 
 class _NativeIbApp(Protocol):
     def connect(self, host: str, port: int, clientId: int) -> object: ...
@@ -56,6 +67,10 @@ class _NativeIbApp(Protocol):
     def request_account_summary(self, request_id: int, group: str, tags: str) -> None: ...
 
     def cancel_account_summary(self, request_id: int) -> None: ...
+
+    def request_market_data(self, request_id: int, symbol: str) -> None: ...
+
+    def cancel_market_data(self, request_id: int) -> None: ...
 
 
 @dataclass
@@ -81,6 +96,16 @@ class _NativeTradeState:
     status_reason: str | None = None
 
 
+@dataclass
+class _NativeQuoteState:
+    symbol: str
+    complete: threading.Event = field(default_factory=threading.Event)
+    bid: float | None = None
+    ask: float | None = None
+    last: float | None = None
+    error: RuntimeError | None = None
+
+
 class _IbApiCallbackState:
     """Thread-safe state shared by native callbacks and synchronous callers."""
 
@@ -98,6 +123,7 @@ class _IbApiCallbackState:
         self._positions: dict[str, IbkrPosition] = {}
         self._account_values: dict[tuple[str, str, str], IbkrAccountValue] = {}
         self._account_summary_request_id: int | None = None
+        self._quotes: dict[int, _NativeQuoteState] = {}
         self._background_error: RuntimeError | None = None
         self._disconnect_requested = False
 
@@ -139,6 +165,10 @@ class _IbApiCallbackState:
             trade = self._trades.get(request_id)
             if trade is not None:
                 trade.status_reason = advanced_rejection or f"IBKR {code}: {message}"
+            quote = self._quotes.get(request_id)
+            if quote is not None:
+                quote.error = RuntimeError(f"IBKR quote request failed ({code}): {message}")
+                quote.complete.set()
 
     def errors(self) -> tuple[IbkrApiError, ...]:
         with self._lock:
@@ -300,6 +330,48 @@ class _IbApiCallbackState:
         with self._lock:
             return [self._account_values[key] for key in sorted(self._account_values)]
 
+    def begin_quote(self, request_id: int, symbol: str) -> threading.Event:
+        with self._lock:
+            state = _NativeQuoteState(symbol=symbol)
+            self._quotes[request_id] = state
+            return state.complete
+
+    def record_tick_price(self, request_id: int, tick_type: int, price: float) -> None:
+        with self._lock:
+            state = self._quotes.get(request_id)
+            if state is None or price == _UNAVAILABLE_TICK_PRICE:
+                return
+            if tick_type in _BID_TICK_TYPES:
+                state.bid = price
+            elif tick_type in _ASK_TICK_TYPES:
+                state.ask = price
+            elif tick_type in _LAST_TICK_TYPES:
+                state.last = price
+
+    def finish_quote(self, request_id: int) -> None:
+        with self._lock:
+            state = self._quotes.get(request_id)
+            if state is not None:
+                state.complete.set()
+
+    def quote(self, request_id: int) -> IbkrQuote:
+        with self._lock:
+            state = self._quotes.get(request_id)
+            if state is None:
+                raise KeyError(f"Unknown IBKR native quote request id {request_id}.")
+            if state.error is not None:
+                raise state.error
+            return IbkrQuote(
+                symbol=state.symbol,
+                bid=state.bid if state.bid is not None else _MISSING_QUOTE_VALUE,
+                ask=state.ask if state.ask is not None else _MISSING_QUOTE_VALUE,
+                last=state.last if state.last is not None else _MISSING_QUOTE_VALUE,
+            )
+
+    def discard_quote(self, request_id: int) -> None:
+        with self._lock:
+            self._quotes.pop(request_id, None)
+
     def record_background_error(self, error: RuntimeError) -> None:
         with self._lock:
             self._background_error = error
@@ -307,6 +379,8 @@ class _IbApiCallbackState:
             self.open_orders_complete.set()
             self.positions_complete.set()
             self.account_summary_complete.set()
+            for quote in self._quotes.values():
+                quote.complete.set()
 
     def raise_if_background_error(self) -> None:
         with self._lock:
@@ -327,6 +401,8 @@ class _IbApiCallbackState:
             self.open_orders_complete.set()
             self.positions_complete.set()
             self.account_summary_complete.set()
+            for quote in self._quotes.values():
+                quote.complete.set()
 
 
 _NativeAppFactory = Callable[[_IbApiCallbackState], _NativeIbApp]
@@ -444,7 +520,26 @@ class IbApiClient:
                 app.cancel_account_summary(request_id)
 
     def quotes(self, symbols: list[str]) -> list[IbkrQuote]:
-        raise NotImplementedError("Native IBKR quote snapshots are not yet implemented.")
+        app = self._require_connected()
+        with self._request_lock:
+            requests = [(self._callbacks.reserve_request_id(), symbol) for symbol in symbols]
+            completions = {
+                request_id: self._callbacks.begin_quote(request_id, symbol) for request_id, symbol in requests
+            }
+            try:
+                for request_id, symbol in requests:
+                    app.request_market_data(request_id, symbol)
+                quotes: list[IbkrQuote] = []
+                for request_id, symbol in requests:
+                    if not completions[request_id].wait(self._request_timeout_seconds):
+                        raise TimeoutError(f"Timed out waiting for IBKR native market-data snapshot for {symbol!r}.")
+                    self._callbacks.raise_if_background_error()
+                    quotes.append(self._callbacks.quote(request_id))
+                return quotes
+            finally:
+                for request_id, _ in requests:
+                    app.cancel_market_data(request_id)
+                    self._callbacks.discard_quote(request_id)
 
     def _reserve_order_id(self) -> int:
         self._callbacks.raise_if_background_error()
@@ -529,6 +624,17 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
 
         def cancel_account_summary(self, request_id: int) -> None:
             self.cancelAccountSummary(request_id)
+
+        def request_market_data(self, request_id: int, symbol: str) -> None:
+            contract = Contract()
+            contract.symbol = symbol
+            contract.secType = "STK"
+            contract.exchange = "SMART"
+            contract.currency = "USD"
+            self.reqMktData(request_id, contract, "", True, False, [])
+
+        def cancel_market_data(self, request_id: int) -> None:
+            self.cancelMktData(request_id)
 
         def openOrder(self, orderId: int, contract: object, order: object, orderState: object) -> None:  # noqa: N802
             callbacks.record_open_order(
@@ -615,6 +721,19 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
 
         def accountSummaryEnd(self, requestId: int) -> None:  # noqa: N802
             callbacks.finish_account_summary(requestId)
+
+        def tickPrice(  # noqa: N802
+            self,
+            requestId: int,
+            tickType: int,
+            price: float,
+            attrib: object,
+        ) -> None:
+            del attrib
+            callbacks.record_tick_price(requestId, tickType, price)
+
+        def tickSnapshotEnd(self, requestId: int) -> None:  # noqa: N802
+            callbacks.finish_quote(requestId)
 
     return _App()
 
