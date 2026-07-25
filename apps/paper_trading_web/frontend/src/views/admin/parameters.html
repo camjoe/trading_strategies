@@ -1,0 +1,33 @@
+<div class="admin-section-page" data-admin-section-panel="parameters" hidden>
+  <section class="card admin-card">
+    <div class="section-heading">
+      <div>
+        <h2>Parameter Governance</h2>
+        <p class="admin-note">Effective global, book, and strategy values with their owning source.</p>
+      </div>
+      <button id="parameterRefreshBtn" class="icon-button" type="button" aria-label="Refresh parameters">↻</button>
+    </div>
+    <div class="bt-row">
+      <label class="bt-field">
+        <span>Account filter</span>
+        <select id="parameterAccountSelect"><option value="">All accounts</option></select>
+      </label>
+      <label class="bt-field">
+        <span>Search scope or parameter</span>
+        <input id="parameterSearchInput" type="search" placeholder="rotation, throttle, strategy..." />
+      </label>
+      <label class="bt-field">
+        <span>Value source</span>
+        <select id="parameterSourceSelect">
+          <option value="">All sources</option>
+          <option value="db">Database</option>
+          <option value="default">Code default</option>
+        </select>
+      </label>
+    </div>
+    <div id="parameterViewMeta" class="admin-note">No parameter view loaded yet.</div>
+    <div id="parameterViewOutput" class="config-summary-stack">
+      <div class="empty">Load the unified parameter source.</div>
+    </div>
+  </section>
+</div>

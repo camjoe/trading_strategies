@@ -19,6 +19,7 @@ import adminAccountsTemplate from "./views/admin/accounts.html?raw";
 import adminJobsTemplate from "./views/admin/jobs.html?raw";
 import adminOverviewTemplate from "./views/admin/overview.html?raw";
 import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
+import adminParametersTemplate from "./views/admin/parameters.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
@@ -52,6 +53,7 @@ function renderShell(): void {
     .replace("<!-- ADMIN_JOBS_PARTIAL -->", adminJobsTemplate)
     .replace("<!-- ADMIN_ACCOUNTS_PARTIAL -->", adminAccountsTemplate)
     .replace("<!-- ADMIN_PROMOTIONS_PARTIAL -->", adminPromotionsTemplate)
+    .replace("<!-- ADMIN_PARAMETERS_PARTIAL -->", adminParametersTemplate)
     .replace("<!-- ADMIN_ARTIFACTS_PARTIAL -->", adminArtifactsTemplate);
   app.innerHTML = appLayoutTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)

@@ -197,6 +197,14 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/parameters",
+      "handler": "api_parameter_source",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return effective global, per-book, and strategy parameters with database/default source attribution."
+    },
+    {
+      "method": "GET",
       "path": "/api/logs/files",
       "handler": "api_log_files",
       "module": "logs",
