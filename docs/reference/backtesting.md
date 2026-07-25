@@ -131,7 +131,7 @@ does not correct revised or forward-looking data.
 Optimization must not mutate canonical strategy parameters. Candidate search spaces, attempted
 candidates, assumptions, effective parameters, universe membership, provider/as-of metadata, and
 engine versions should be recorded well enough to audit how a winner was selected. Reports should
-compare window stability and chronologically chain-linked OOS returns rather than summing independently
+compare window stability and chronologically compounded OOS returns rather than summing independently
 reset account equity values. Model fees and slippage on every candidate and disclose turnover so a
 high-churn parameter set is not selected on gross returns, and compare a tuned winner against the
 strategy's existing default parameters, not only the benchmark.
@@ -158,7 +158,7 @@ Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
   holdout evidence, promotion status, the per-window audit (each window's boundaries + OOS run, its
-  candidate/eligible counts, the selected winner, and a rejection tally), and the **chain-linked OOS
+  candidate/eligible counts, the selected winner, and a rejection tally), and the **compounded OOS
   series** (the per-window OOS returns compounded into one chronological series, since each window runs
   on an independently reset account; windows following a time gap — a step longer than the test window —
   are flagged, and the series is derived on read from the window rows, never stored).

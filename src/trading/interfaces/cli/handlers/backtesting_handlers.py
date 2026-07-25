@@ -310,8 +310,8 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
     windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
     trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
     _print_window_audit(windows, trials)
-    chain_linked = deps["fetch_chain_linked_oos"](conn, experiment_id=args.experiment_id)
-    _print_chain_linked_oos(chain_linked)
+    compounded = deps["fetch_compounded_oos"](conn, experiment_id=args.experiment_id)
+    _print_compounded_oos(compounded)
 
 
 def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -391,20 +391,17 @@ def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
             print(f"       rejected: {reason} x{count}")
 
 
-def _print_chain_linked_oos(series: Any) -> None:
+def _print_compounded_oos(series: Any) -> None:
     """Print the compounded chronological OOS series across the experiment's windows.
 
-    Each OOS window is an independently reset account, so returns are chain-linked
-    (compounded), never summed; a window with a preceding time gap is marked."""
+    Each OOS window is an independently reset account, so returns are compounded
+    (geometrically linked), never summed; a window with a preceding time gap is marked."""
     if series is None or not series.points:
-        print("Chain-linked OOS: unavailable (no persisted windows or missing OOS equity)")
+        print("Compounded OOS: unavailable (no persisted windows or missing OOS equity)")
         return
     gap_count = sum(1 for point in series.points if point.gap_before)
     gap_note = f", {gap_count} gap(s)" if series.has_gaps else ""
-    print(
-        f"Chain-linked OOS (compounded across {len(series.points)} windows{gap_note}): "
-        f"{series.chain_linked_return_pct:.2f}%"
-    )
+    print(f"Compounded OOS (across {len(series.points)} windows{gap_note}): {series.compounded_return_pct:.2f}%")
     for point in series.points:
         marker = " [GAP]" if point.gap_before else ""
         print(

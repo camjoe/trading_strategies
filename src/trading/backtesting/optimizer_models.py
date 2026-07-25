@@ -242,8 +242,8 @@ class OptimizationExperimentRecord:
 
 
 @dataclass(frozen=True)
-class ChainLinkSegment:
-    """One window's contribution to the chain-linked OOS series: its out-of-sample
+class OOSReturnSegment:
+    """One window's contribution to the compounded OOS series: its out-of-sample
     interval and the return realized over it.
 
     Each OOS window is an independently reset account, so segments are *compounded*
@@ -256,8 +256,8 @@ class ChainLinkSegment:
 
 
 @dataclass(frozen=True)
-class ChainLinkedOOSPoint:
-    """One window in the chain-linked OOS series: its period return and the running
+class CompoundedOOSPoint:
+    """One window in the compounded OOS series: its period return and the running
     compounded return through this window. ``gap_before`` marks a time discontinuity
     from the previous window (a step longer than the test window)."""
 
@@ -270,12 +270,12 @@ class ChainLinkedOOSPoint:
 
 
 @dataclass(frozen=True)
-class ChainLinkedOOSSeries:
+class CompoundedOOSSeries:
     """The compounded chronological OOS series across an experiment's non-overlapping
-    windows, plus the overall chain-linked return and whether any gaps were spanned."""
+    windows, plus the overall compounded return and whether any gaps were spanned."""
 
-    points: list[ChainLinkedOOSPoint]
-    chain_linked_return_pct: float
+    points: list[CompoundedOOSPoint]
+    compounded_return_pct: float
     has_gaps: bool
 
 

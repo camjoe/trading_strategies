@@ -1,4 +1,4 @@
-"""Chain-linked OOS aggregation service: reads persisted windows + their OOS run
+"""Compounded OOS aggregation service: reads persisted windows + their OOS run
 equity marks and compounds them, returning None when a segment is missing."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from tests.support.repositories import insert_repository_account
 from trading.backtesting.optimizer_models import OptimizationExperimentInsert, OptimizationWindowInsert
 from trading.backtesting.repositories.backtest_repository import insert_backtest_snapshot
 from trading.backtesting.repositories.optimization_repository import insert_experiment, insert_window
-from trading.backtesting.services.optimizer_aggregation_service import fetch_chain_linked_oos
+from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 
 
 def _experiment(conn: sqlite3.Connection, account_id: int) -> int:
@@ -93,7 +93,7 @@ def _window(conn, experiment_id, run_id, *, index, test_start, test_end) -> None
     )
 
 
-def test_chain_links_contiguous_windows(conn) -> None:
+def test_compounds_contiguous_windows(conn) -> None:
     account_id = insert_repository_account(conn, name="chain_ok")
     experiment_id = _experiment(conn, account_id)
     run1 = _oos_run(conn, account_id, first_equity=10_000.0, last_equity=11_000.0)  # +10%
@@ -101,10 +101,10 @@ def test_chain_links_contiguous_windows(conn) -> None:
     _window(conn, experiment_id, run1, index=1, test_start="2023-01-01", test_end="2023-01-31")
     _window(conn, experiment_id, run2, index=2, test_start="2023-02-01", test_end="2023-02-28")
 
-    series = fetch_chain_linked_oos(conn, experiment_id=experiment_id)
+    series = fetch_compounded_oos(conn, experiment_id=experiment_id)
 
     assert series is not None
-    assert series.chain_linked_return_pct == pytest.approx(21.0)  # compounded, not 20
+    assert series.compounded_return_pct == pytest.approx(21.0)  # compounded, not 20
     assert [p.cumulative_return_pct for p in series.points] == pytest.approx([10.0, 21.0])
     assert not series.has_gaps
 
@@ -118,7 +118,7 @@ def test_flags_gap_between_non_contiguous_windows(conn) -> None:
     # March start after a January end — a step longer than the test window.
     _window(conn, experiment_id, run2, index=2, test_start="2023-03-01", test_end="2023-03-31")
 
-    series = fetch_chain_linked_oos(conn, experiment_id=experiment_id)
+    series = fetch_compounded_oos(conn, experiment_id=experiment_id)
 
     assert series is not None
     assert series.has_gaps
@@ -139,11 +139,11 @@ def test_returns_none_when_a_window_oos_run_has_no_snapshots(conn) -> None:
     conn.commit()
     _window(conn, experiment_id, int(empty_run.lastrowid), index=1, test_start="2023-01-01", test_end="2023-01-31")
 
-    assert fetch_chain_linked_oos(conn, experiment_id=experiment_id) is None
+    assert fetch_compounded_oos(conn, experiment_id=experiment_id) is None
 
 
 def test_returns_none_when_no_windows_persisted(conn) -> None:
     account_id = insert_repository_account(conn, name="chain_nowindows")
     experiment_id = _experiment(conn, account_id)
 
-    assert fetch_chain_linked_oos(conn, experiment_id=experiment_id) is None
+    assert fetch_compounded_oos(conn, experiment_id=experiment_id) is None
