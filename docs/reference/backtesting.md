@@ -157,8 +157,11 @@ in one transaction, and deleting an experiment cascades to its windows and trial
 Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
-  holdout evidence, promotion status, and the per-window audit (each window's boundaries + OOS run,
-  its candidate/eligible counts, the selected winner, and a rejection tally).
+  holdout evidence, promotion status, the per-window audit (each window's boundaries + OOS run, its
+  candidate/eligible counts, the selected winner, and a rejection tally), and the **chain-linked OOS
+  series** (the per-window OOS returns compounded into one chronological series, since each window runs
+  on an independently reset account; windows following a time gap — a step longer than the test window —
+  are flagged, and the series is derived on read from the window rows, never stored).
 - `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
   `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
   are validated against the base primitive), stamp provenance into its description, and record the

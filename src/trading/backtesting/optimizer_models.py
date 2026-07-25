@@ -242,6 +242,44 @@ class OptimizationExperimentRecord:
 
 
 @dataclass(frozen=True)
+class ChainLinkSegment:
+    """One window's contribution to the chain-linked OOS series: its out-of-sample
+    interval and the return realized over it.
+
+    Each OOS window is an independently reset account, so segments are *compounded*
+    into a chronological series, never summed on equity."""
+
+    window_index: int
+    test_start: date
+    test_end: date
+    return_pct: float
+
+
+@dataclass(frozen=True)
+class ChainLinkedOOSPoint:
+    """One window in the chain-linked OOS series: its period return and the running
+    compounded return through this window. ``gap_before`` marks a time discontinuity
+    from the previous window (a step longer than the test window)."""
+
+    window_index: int
+    test_start: str
+    test_end: str
+    period_return_pct: float
+    cumulative_return_pct: float
+    gap_before: bool
+
+
+@dataclass(frozen=True)
+class ChainLinkedOOSSeries:
+    """The compounded chronological OOS series across an experiment's non-overlapping
+    windows, plus the overall chain-linked return and whether any gaps were spanned."""
+
+    points: list[ChainLinkedOOSPoint]
+    chain_linked_return_pct: float
+    has_gaps: bool
+
+
+@dataclass(frozen=True)
 class OptimizationWindowInsert:
     """Persistence payload for one ``optimization_windows`` row.
 

@@ -244,10 +244,33 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
             rejection_reason="too_few_trades (1 < 3)",
         ),
     ]
+    series = types.SimpleNamespace(
+        points=[
+            types.SimpleNamespace(
+                window_index=1,
+                test_start="2022-07-01",
+                test_end="2022-07-31",
+                period_return_pct=2.0,
+                cumulative_return_pct=2.0,
+                gap_before=False,
+            ),
+            types.SimpleNamespace(
+                window_index=2,
+                test_start="2022-09-01",
+                test_end="2022-09-30",
+                period_return_pct=3.0,
+                cumulative_return_pct=5.06,
+                gap_before=True,
+            ),
+        ],
+        chain_linked_return_pct=5.06,
+        has_gaps=True,
+    )
     deps = {
         "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
         "fetch_optimization_windows": lambda _conn, *, experiment_id: [window],
         "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
+        "fetch_chain_linked_oos": lambda _conn, *, experiment_id: series,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -257,6 +280,8 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
     assert "W01 train 2022-01-01..2022-06-30 test 2022-07-01..2022-07-31 (oos run 101)" in out
     assert "2 candidates, 1 eligible | win #0" in out
     assert "rejected: too_few_trades x1" in out
+    assert "Chain-linked OOS (compounded across 2 windows, 1 gap(s)): 5.06%" in out
+    assert "W02 2022-09-01..2022-09-30 [GAP] period 3.00% | cumulative 5.06%" in out
 
 
 def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -> None:
@@ -264,11 +289,14 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
         "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
         "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
         "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
+        "fetch_chain_linked_oos": lambda _conn, *, experiment_id: None,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
 
-    assert "Windows: none persisted" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Windows: none persisted" in out
+    assert "Chain-linked OOS: unavailable" in out
 
 
 def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:
