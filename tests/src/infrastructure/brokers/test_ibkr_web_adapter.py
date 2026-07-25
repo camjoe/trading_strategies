@@ -2,9 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import infrastructure.brokers.ib_web_adapter as ib_web_adapter_module
-from infrastructure.brokers.ib_web import IbWebApiContract, IbWebOrderStatusUnavailableError
-from infrastructure.brokers.ib_web_adapter import (
+import infrastructure.brokers.ibkr_web.adapter as ib_web_adapter_module
+from infrastructure.brokers.ibkr_web import IbWebApiContract, IbWebOrderStatusUnavailableError
+from infrastructure.brokers.ibkr_web.adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
     _coerce_number,
@@ -269,9 +269,7 @@ class TestInteractiveBrokersWebAdapter:
                 "order_status": "Cancelled",
             },
         ]
-        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError(
-            "503 order no longer cached"
-        )
+        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError("503 order no longer cached")
         adapter = InteractiveBrokersWebAdapter(client=client)
 
         result = adapter.get_open_trades()

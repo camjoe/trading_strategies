@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-07-24
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -19,7 +19,7 @@ This document covers:
 - broker-resolution behavior in runtime
 - account fields that affect broker routing and live safety
 - IBKR Web API private configuration and smoke-test workflow
-- legacy socket/TWS support boundaries
+- socket/TWS support boundaries
 
 ## Current Broker Paths
 
@@ -31,17 +31,21 @@ Supported `accounts.broker_type` values:
 
 - `paper` (default)
 - `interactive_brokers_web` (current/default live IBKR path)
-- `interactive_brokers` (legacy socket/TWS path)
+- `interactive_brokers` (current compatibility value for the socket/TWS path)
 
 Key files:
 
 - `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/orders/broker_order.py`)
 - `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
-- `src/infrastructure/brokers/ib_web/`: IBKR Web API package — `client.py` (HTTP client), `settings.py` (settings loader), `pacing.py` (pacing guard)
-- `src/infrastructure/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
-- `src/infrastructure/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
-- `src/infrastructure/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
-- `src/infrastructure/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
+- `src/infrastructure/brokers/ibkr_web/`: Web API adapter, HTTP client, settings, and pacing
+- `src/infrastructure/brokers/ibkr_socket/adapter.py`: backend-neutral socket/TWS adapter
+- `src/infrastructure/brokers/ibkr_socket/contracts.py`: project-owned normalized client records
+- `src/infrastructure/brokers/ibkr_socket/protocol.py`: socket client protocol
+- `src/infrastructure/brokers/ibkr_socket/ib_async_client.py`: working `ib_async` backend
+- `src/infrastructure/brokers/ibkr_socket/ibapi_client.py`: native `ibapi` connection, order,
+  execution, commission, rejection, open-order, position, account-summary, and snapshot-quote
+  callback state
+- `src/infrastructure/brokers/ibkr_socket/factory.py`: socket backend selector
 - `src/trading/repositories/orders.py`: persisted order state (clean book-keyed `orders`/`order_fills`; the submission + reconciliation paths write here — the legacy `broker_orders` repository was retired)
 
 ## Account Fields and Routing
@@ -52,9 +56,9 @@ Broker-related account fields:
 |---|---|
 | `account_kind` | account visibility/role (`managed`, `local`) |
 | `broker_type` | execution backend selection |
-| `broker_host` | legacy socket/TWS host |
-| `broker_port` | legacy socket/TWS port |
-| `broker_client_id` | legacy socket/TWS client id |
+| `broker_host` | socket/TWS host |
+| `broker_port` | socket/TWS port |
+| `broker_client_id` | socket/TWS client id |
 | `live_trading_enabled` | hard gate required for live broker adapters |
 
 `account_kind` and `broker_type` are orthogonal:
@@ -89,7 +93,7 @@ Primary integration path: `interactive_brokers_web`.
 
 Settings loader:
 
-- `src/infrastructure/brokers/ib_web/settings.py::load_ib_web_api_settings`
+- `src/infrastructure/brokers/ibkr_web/settings.py::load_ib_web_api_settings`
 
 Resolution behavior:
 
@@ -177,24 +181,37 @@ Reconciliation behavior:
 
 The shared order contract and `orders.status_reason` retain broker-provided rejection and
 cancellation explanations when IBKR supplies one. The Web adapter reads
-`order_status_description`; the legacy `ib_async` adapter reads the advanced rejection payload or
+`order_status_description`; the socket `ib_async` client reads the advanced rejection payload or
 the latest structured order error. Later reconciliation polls without an explanation do not erase
 a previously persisted reason.
 
-## Legacy Socket/TWS Path
+## Socket/TWS Path
 
-Legacy path remains available via `broker_type = 'interactive_brokers'`.
+The socket path remains available via `broker_type = 'interactive_brokers'`.
 
 - default backend: `ib_async`
-- optional backend: `ibapi` (native client stub currently not implemented)
-- backend switch lives in `src/infrastructure/brokers/legacy/factory.py`
+- optional backend: `ibapi` (orders, positions, account summaries, and snapshot quotes implemented)
+- set `TRADING_IBKR_SOCKET_CLIENT_BACKEND=ibapi` to select the native client; unset or set it to
+  `ib_async` for the default community client
+- invalid backend values fail during broker construction instead of silently selecting a client
 
-Legacy default socket ports:
+Default socket ports:
 
 - TWS paper: `7497`
 - TWS live: `7496`
 - IB Gateway paper: `4002`
 - IB Gateway live: `4001`
+
+### Deferred persisted-name migration
+
+Code and package names use `ibkr_socket`; the database still stores
+`broker_type = 'interactive_brokers'` for compatibility. A later migration should:
+
+1. add `interactive_brokers_socket` to the account constraint;
+2. rewrite existing `interactive_brokers` rows to `interactive_brokers_socket`;
+3. accept the old value temporarily as a factory alias if external configuration still uses it;
+4. update account-profile fixtures and operator configuration;
+5. remove the compatibility alias only after a repository-wide usage check and migration validation.
 
 ## Extending Broker Support
 

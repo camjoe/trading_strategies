@@ -11,7 +11,7 @@ import time
 
 from common.coercion import coerce_bool, coerce_float
 from common.time import utc_now_iso
-from infrastructure.brokers.ib_web import (
+from infrastructure.brokers.ibkr_web import (
     IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
 )

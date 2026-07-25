@@ -14,11 +14,11 @@ from typing import Any
 import httpx
 
 from common.coercion import coerce_str
-from infrastructure.brokers.ib_web.pacing import (
+from infrastructure.brokers.ibkr_web.pacing import (
     _DEFAULT_IB_WEB_API_PACING_LIMITER,
     IbWebApiPacingLimiter,
 )
-from infrastructure.brokers.ib_web.settings import IbWebApiSettings
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings
 
 # Session reply confirmations are interactive notices; cap automated confirms.
 _MAX_ORDER_REPLY_CONFIRMATIONS = 5
