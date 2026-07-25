@@ -33,3 +33,18 @@ class AccountParamsRequest(BaseModel):
     optionProfitTakePct: float | None = None
     optionMaxLossPct: float | None = None
     rotation: RotationSettingsPayload | None = None
+
+
+class RotationPolicyRequest(BaseModel):
+    minTradesInWindow: int | None = None
+    outperformanceThresholdBps: float | None = None
+    cooldownDays: int | None = None
+    riskAdjustedReturnWeight: float | None = None
+    stabilityWeight: float | None = None
+    drawdownPenaltyWeight: float | None = None
+
+
+class BookParamsRequest(AccountParamsRequest):
+    tradeUniverses: list[str] | None = None
+    maxTradesPerRun: int | None = None
+    rotationPolicy: RotationPolicyRequest | None = None

@@ -48,6 +48,29 @@ export interface RotationSettings {
   lookbackDays?: number | null;
 }
 
+export interface RotationPolicySettings {
+  minTradesInWindow: number;
+  outperformanceThresholdBps: number;
+  cooldownDays: number;
+  riskAdjustedReturnWeight: number;
+  stabilityWeight: number;
+  drawdownPenaltyWeight: number;
+}
+
+export interface BookConfiguration extends AccountConfigFields {
+  name: string;
+  status: string;
+  isDefault: boolean;
+  strategy: string;
+  startEquity: number;
+  currentCash: number;
+  currentEquity: number;
+  tradeUniverses: string[];
+  maxTradesPerRun: number | null;
+  rotation: RotationSettings;
+  rotationPolicy: RotationPolicySettings;
+}
+
 export interface AccountMutableIdentityFields {
   strategy: string;
   descriptiveName: string;
@@ -96,6 +119,7 @@ export type LiveBenchmarkOverlay = {
 
 export type AccountDetail = {
   account: AccountSummary;
+  books?: BookConfiguration[];
   latestBacktest: BacktestRunSummary | null;
   latestBacktestMetrics?: LatestBacktestMetrics | null;
   liveBenchmarkOverlay?: LiveBenchmarkOverlay | null;
@@ -152,3 +176,9 @@ export type AccountAnalysis = {
 };
 
 export type AccountParamsUpdate = Partial<AccountConfigFields> & Partial<AccountMutableIdentityFields>;
+
+export type BookParamsUpdate = AccountParamsUpdate & {
+  tradeUniverses?: string[];
+  maxTradesPerRun?: number;
+  rotationPolicy?: Partial<RotationPolicySettings>;
+};

@@ -12,6 +12,7 @@ import {
 } from "./account-detail/sections";
 import type { DetailSectionName } from "./account-detail/types";
 import type { AccountDetail } from "../types/accounts";
+import { renderBooksSection } from "./account-detail/sections-books";
 
 export interface DetailRenderOptions {
   tradePage?: number;
@@ -118,6 +119,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
     ${renderDetailHeader(detail, { benchmarkSummary })}
     ${renderSectionTabs(activeSection, { showActions, accountName: detail.account.name })}
     ${renderSummarySection(activeSection, detail, { showBacktest, latestBacktest })}
+    ${renderBooksSection(activeSection, detail)}
     ${renderAnalysisSection(activeSection)}
     ${renderPositionsSection(detail, activeSection)}
     ${renderTradesSection(tradeRows, {

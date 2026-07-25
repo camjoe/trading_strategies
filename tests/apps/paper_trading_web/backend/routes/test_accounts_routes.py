@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Callable
 
 import pytest
@@ -47,6 +48,54 @@ def test_account_detail_known_account(api_client: TestClient, seed_account: Call
     assert payload["account"]["name"] == "acct_detail"
     assert isinstance(payload["trades"], list)
     assert isinstance(payload["snapshots"], list)
+    assert len(payload["books"]) == 1
+    assert payload["books"][0]["isDefault"] is True
+    assert payload["books"][0]["strategy"] == "trend_v1"
+
+
+def test_book_params_endpoint_updates_named_book(
+    api_client: TestClient,
+    api_conn: sqlite3.Connection,
+    seed_account: Callable[..., None],
+) -> None:
+    seed_account("acct_book_params")
+    book_name = api_conn.execute(
+        """
+        SELECT b.name
+        FROM books b
+        JOIN accounts a ON a.id = b.account_id
+        WHERE a.name = ? AND b.is_default = 1
+        """,
+        ("acct_book_params",),
+    ).fetchone()["name"]
+
+    response = api_client.patch(
+        f"/api/accounts/acct_book_params/books/{book_name}/params",
+        json={
+            "strategy": "mean_reversion",
+            "riskPolicy": "fixed_stop",
+            "tradeUniverses": ["large_cap", "technology"],
+            "rotation": {
+                "enabled": True,
+                "schedule": ["trend", "mean_reversion"],
+                "lookbackDays": 30,
+            },
+            "rotationPolicy": {
+                "minTradesInWindow": 8,
+                "cooldownDays": 14,
+            },
+        },
+    )
+    assert response.status_code == 200
+
+    detail = api_client.get("/api/accounts/acct_book_params").json()
+    book = detail["books"][0]
+    assert book["strategy"] == "mean_reversion"
+    assert book["riskPolicy"] == "fixed_stop"
+    assert book["tradeUniverses"] == ["large_cap", "technology"]
+    assert book["rotation"]["lookbackDays"] == 30
+    assert book["rotationPolicy"]["minTradesInWindow"] == 8
+    assert book["rotationPolicy"]["cooldownDays"] == 14
 
 
 def test_account_detail_exposes_latest_backtest_summary(

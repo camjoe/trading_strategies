@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .accounts import AccountParamsRequest
+from .accounts import AccountParamsRequest, BookParamsRequest
 from .admin import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from .backtests import (
     BacktestBaseRequest,
@@ -14,6 +14,7 @@ from .features import FeatureSignalsRequest
 
 __all__ = [
     "AccountParamsRequest",
+    "BookParamsRequest",
     "AdminCreateAccountRequest",
     "AdminDeleteAccountRequest",
     "BacktestBaseRequest",

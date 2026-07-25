@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException
 
 from infrastructure.market_data.factory import build_provider
 from trading.domain.exceptions import ValidationError
 from trading.services.accounts import list_account_snapshots
+from trading.services.books.configuration import (
+    BookConfigurationView,
+    configure_book,
+    fetch_account_book_configurations,
+)
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.execution.ledger import list_account_trades
 
 from ..account_contract import build_account_params_update_command
 from ..account_options import get_account_config_options
-from ..schemas import AccountParamsRequest
+from ..schemas import AccountParamsRequest, BookParamsRequest
 from ..services.accounts.backtests import (
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
@@ -36,6 +43,58 @@ from ..services.db import db_conn
 from ..services.evaluation import build_evaluation_summary_payload
 
 router = APIRouter()
+
+
+def _book_payload(view: BookConfigurationView) -> dict[str, object]:
+    book = view.book
+    policy = view.rotation_policy
+    return {
+        "name": book.name,
+        "status": book.status,
+        "isDefault": bool(book.is_default),
+        "strategy": view.strategy,
+        "startEquity": book.start_equity,
+        "currentCash": book.current_cash,
+        "currentEquity": book.current_equity,
+        "tradeUniverses": json.loads(book.trade_universes),
+        "goalMinReturnPct": book.goal_min_return_pct,
+        "goalMaxReturnPct": book.goal_max_return_pct,
+        "goalPeriod": book.goal_period,
+        "learningEnabled": bool(book.learning_enabled),
+        "riskPolicy": book.risk_policy,
+        "stopLossPct": book.stop_loss_pct,
+        "takeProfitPct": book.take_profit_pct,
+        "tradeSizePct": book.trade_size_pct,
+        "maxPositionPct": book.max_position_pct,
+        "maxTradesPerRun": book.max_trades_per_run,
+        "instrumentMode": book.instrument_mode,
+        "optionStrikeOffsetPct": book.option_strike_offset_pct,
+        "optionMinDte": book.option_min_dte,
+        "optionMaxDte": book.option_max_dte,
+        "optionType": book.option_type,
+        "targetDeltaMin": book.target_delta_min,
+        "targetDeltaMax": book.target_delta_max,
+        "maxPremiumPerTrade": book.max_premium_per_trade,
+        "maxContractsPerTrade": book.max_contracts_per_trade,
+        "ivRankMin": book.iv_rank_min,
+        "ivRankMax": book.iv_rank_max,
+        "rollDteThreshold": book.roll_dte_threshold,
+        "optionProfitTakePct": book.option_profit_take_pct,
+        "optionMaxLossPct": book.option_max_loss_pct,
+        "rotation": {
+            "enabled": view.rotation_enabled,
+            "schedule": list(view.rotation_schedule),
+            "lookbackDays": view.rotation_lookback_days,
+        },
+        "rotationPolicy": {
+            "minTradesInWindow": policy.min_trades_in_window,
+            "outperformanceThresholdBps": policy.outperformance_threshold_bps,
+            "cooldownDays": policy.cooldown_days,
+            "riskAdjustedReturnWeight": policy.risk_adjusted_return_weight,
+            "stabilityWeight": policy.stability_weight,
+            "drawdownPenaltyWeight": policy.drawdown_penalty_weight,
+        },
+    }
 
 
 @router.get("/api/accounts/config/options")
@@ -95,6 +154,10 @@ def api_account_detail(account_name: str) -> dict[str, object]:
 
         return {
             "account": summary,
+            "books": [
+                _book_payload(view)
+                for view in fetch_account_book_configurations(conn, account_name=account_name)
+            ],
             "positions": positions,
             "latestBacktest": latest_backtest,
             "latestBacktestMetrics": latest_backtest_metrics,
@@ -127,5 +190,49 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
             # (422) — a route-specific status choice, so it stays a direct mapping
             # here rather than the app-level 400. An unexpected ValueError surfaces
             # as 500. See docs/adr/007-ui-error-mapping.md.
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"status": "ok"}
+
+
+@router.patch("/api/accounts/{account_name}/books/{book_name}/params")
+def api_update_book_params(
+    account_name: str,
+    book_name: str,
+    body: BookParamsRequest,
+) -> dict[str, str]:
+    with db_conn() as conn:
+        command = build_account_params_update_command(body)
+        raw_policy = body.rotationPolicy.model_dump(exclude_none=True) if body.rotationPolicy else {}
+        policy_names = {
+            "minTradesInWindow": "min_trades_in_window",
+            "outperformanceThresholdBps": "outperformance_threshold_bps",
+            "cooldownDays": "cooldown_days",
+            "riskAdjustedReturnWeight": "risk_adjusted_return_weight",
+            "stabilityWeight": "stability_weight",
+            "drawdownPenaltyWeight": "drawdown_penalty_weight",
+        }
+        scheduling_names = {
+            "enabled": "rotation_enabled",
+            "schedule": "rotation_schedule",
+            "lookback_days": "rotation_lookback_days",
+        }
+        try:
+            configure_book(
+                conn,
+                account_name=account_name,
+                book_name=book_name,
+                strategy=command.strategy,
+                config=command.config,
+                config_values=command.config_values,
+                rotation_scheduling={
+                    scheduling_names[name]: value
+                    for name, value in command.rotation_settings.items()
+                },
+                rotation_policy={
+                    policy_names[name]: value
+                    for name, value in raw_policy.items()
+                },
+            )
+        except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "ok"}

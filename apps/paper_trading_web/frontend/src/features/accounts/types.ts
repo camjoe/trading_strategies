@@ -5,7 +5,7 @@ export interface AccountsFeatureOptions {
   onOpenRunReport?: (runId: number) => Promise<void> | void;
 }
 
-export type DetailSection = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
+export type DetailSection = "summary" | "books" | "analysis" | "positions" | "trades" | "snapshots" | "config";
 
 export interface LoadAccountDetailOptions {
   section?: DetailSection;
