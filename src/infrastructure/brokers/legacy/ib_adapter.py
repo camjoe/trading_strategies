@@ -169,6 +169,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
                 avg_fill_price=ib_status.avgFillPrice if ib_status.avgFillPrice is not None else None,
                 commission=sum(f.commission for f in fills),
                 fills=fills,
+                status_reason=_extract_terminal_status_reason(trade, _map_ib_status(ib_status.status)),
             )
             result.append(broker_order)
         return result
@@ -231,3 +232,32 @@ _IB_STATUS_MAP: dict[str, OrderStatus] = {
 
 def _map_ib_status(ib_status: str) -> OrderStatus:
     return _IB_STATUS_MAP.get(ib_status, OrderStatus.SUBMITTED)
+
+
+_TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJECTED))
+
+
+def _extract_terminal_status_reason(trade: object, status: OrderStatus) -> str | None:
+    """Return the IB rejection payload or latest structured order error."""
+    if status not in _TERMINAL_NON_FILL_STATUSES:
+        return None
+
+    advanced_error = _clean_status_reason(getattr(trade, "advancedError", None))
+    if advanced_error is not None:
+        return advanced_error
+
+    log_entries = getattr(trade, "log", ())
+    if not isinstance(log_entries, (list, tuple)):
+        return None
+    for entry in reversed(log_entries):
+        error_code = getattr(entry, "errorCode", 0)
+        message = _clean_status_reason(getattr(entry, "message", None))
+        if isinstance(error_code, int) and error_code != 0 and message is not None:
+            return f"IBKR {error_code}: {message}"
+    return None
+
+
+def _clean_status_reason(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None

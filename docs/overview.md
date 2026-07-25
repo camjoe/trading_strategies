@@ -105,8 +105,6 @@ These limitations describe current behavior and maturity; they are not hidden by
   trailing annualized Sharpe over the book's recent daily returns, `NULL` until enough history
   accrues). One column stays `NULL`: `drawdown_pct` (no intraday equity). See
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.
-- **Broker status explanations are not yet captured.** The order contract and `orders.status_reason`
-  can persist a broker explanation, but the current IBKR adapters do not populate it.
 - **Promotion approval does not gate rotation eligibility.** Promotion is an operator-governance
   outcome, while rotation follows each book's champion/challenger policy.
 

@@ -266,6 +266,45 @@ class TestLegacyInteractiveBrokersAdapter:
         assert result[0].status == OrderStatus.SUBMITTED
         assert len(result[0].fills) == 1
 
+    def test_get_open_trades_captures_advanced_rejection_payload(self):
+        adapter, client = _adapter_with_mock_client()
+        mock_trade = SimpleNamespace(
+            order=SimpleNamespace(orderId=55, action="BUY", totalQuantity=10.0, lmtPrice=0.0),
+            orderStatus=SimpleNamespace(status="Inactive", filled=0.0, avgFillPrice=0.0),
+            contract=SimpleNamespace(symbol="AAPL"),
+            fills=[],
+            advancedError='{"errorCode":"IBDBUYTX","errorMessage":"Trading restricted"}',
+            log=[],
+        )
+        client.trades.return_value = [mock_trade]
+
+        result = adapter.get_open_trades()
+
+        assert result[0].status == OrderStatus.REJECTED
+        assert result[0].status_reason == (
+            '{"errorCode":"IBDBUYTX","errorMessage":"Trading restricted"}'
+        )
+
+    def test_get_open_trades_captures_latest_structured_order_error(self):
+        adapter, client = _adapter_with_mock_client()
+        mock_trade = SimpleNamespace(
+            order=SimpleNamespace(orderId=55, action="BUY", totalQuantity=10.0, lmtPrice=0.0),
+            orderStatus=SimpleNamespace(status="Cancelled", filled=0.0, avgFillPrice=0.0),
+            contract=SimpleNamespace(symbol="AAPL"),
+            fills=[],
+            advancedError="",
+            log=[
+                SimpleNamespace(errorCode=0, message="Submitted"),
+                SimpleNamespace(errorCode=201, message="Order rejected"),
+            ],
+        )
+        client.trades.return_value = [mock_trade]
+
+        result = adapter.get_open_trades()
+
+        assert result[0].status == OrderStatus.CANCELLED
+        assert result[0].status_reason == "IBKR 201: Order rejected"
+
 
 class TestLegacyIbAsyncClient:
     def test_async_client_delegates_to_ib_async_backend(self, monkeypatch):
