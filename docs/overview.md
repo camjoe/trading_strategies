@@ -155,4 +155,5 @@ These limitations describe current behavior and maturity; they are not hidden by
   non-proxy policy datasets.
 - **IBKR connectivity** — the Client Portal / Web API is the primary integration. The TWS/IB
   Gateway socket integration supports `ib_async`; its native `ibapi` client has connection,
-  readiness, error-state, and shutdown handling, while trading/data callbacks remain incomplete.
+  order submission/cancellation, open-order refresh, status, execution, commission, rejection,
+  and shutdown handling. Native positions, account summaries, and quotes remain incomplete.

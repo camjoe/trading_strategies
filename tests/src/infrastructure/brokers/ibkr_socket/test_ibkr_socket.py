@@ -20,7 +20,12 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrTrade,
 )
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
-from infrastructure.brokers.ibkr_socket.ibapi_client import IbApiClient, _parse_error_callback
+from infrastructure.brokers.ibkr_socket.ibapi_client import (
+    IbApiClient,
+    _build_native_app,
+    _IbApiCallbackState,
+    _parse_error_callback,
+)
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from tests.support.account_records import make_account_record
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
@@ -369,6 +374,100 @@ class TestIbAsyncClient:
 
 
 class TestIbApiClient:
+    def test_native_app_builds_stock_order_and_binds_callbacks(self, monkeypatch):
+        class FakeWrapper:
+            def __init__(self):
+                pass
+
+        class FakeClient:
+            def __init__(self, wrapper):
+                self.wrapper = wrapper
+                self.placed = None
+                self.cancelled = None
+                self.open_orders_requested = False
+
+            def placeOrder(self, order_id, contract, order):
+                self.placed = (order_id, contract, order)
+
+            def cancelOrder(self, order_id, cancel):
+                self.cancelled = (order_id, cancel)
+
+            def reqOpenOrders(self):
+                self.open_orders_requested = True
+
+        class FakeContract:
+            pass
+
+        class FakeOrder:
+            pass
+
+        class FakeOrderCancel:
+            pass
+
+        monkeypatch.setitem(sys.modules, "ibapi", SimpleNamespace())
+        monkeypatch.setitem(sys.modules, "ibapi.client", SimpleNamespace(EClient=FakeClient))
+        monkeypatch.setitem(sys.modules, "ibapi.wrapper", SimpleNamespace(EWrapper=FakeWrapper))
+        monkeypatch.setitem(sys.modules, "ibapi.contract", SimpleNamespace(Contract=FakeContract))
+        monkeypatch.setitem(sys.modules, "ibapi.order", SimpleNamespace(Order=FakeOrder))
+        monkeypatch.setitem(
+            sys.modules,
+            "ibapi.order_cancel",
+            SimpleNamespace(OrderCancel=FakeOrderCancel),
+        )
+        callbacks = _IbApiCallbackState()
+        app = _build_native_app(callbacks)
+        request = IbkrOrderRequest(
+            symbol="AAPL",
+            action="BUY",
+            total_quantity=10.0,
+            order_type="LMT",
+            limit_price=150.0,
+            time_in_force="DAY",
+        )
+
+        app.place_order(42, request)
+        app.cancel_order(42)
+        app.request_open_orders()
+        app.openOrder(
+            42,
+            SimpleNamespace(symbol="AAPL"),
+            SimpleNamespace(action="BUY", totalQuantity=10.0, lmtPrice=150.0),
+            SimpleNamespace(status="Submitted"),
+        )
+        app.orderStatus(42, "Filled", 10.0, 0.0, 149.5, 1, 0, 149.5, 1, "")
+        app.execDetails(
+            1,
+            SimpleNamespace(symbol="AAPL"),
+            SimpleNamespace(
+                orderId=42,
+                execId="exec-1",
+                shares=10.0,
+                price=149.5,
+                time="2026-07-24T12:00:00Z",
+            ),
+        )
+        app.commissionReport(SimpleNamespace(execId="exec-1", commission=1.25))
+
+        order_id, contract, native_order = app.placed
+        assert order_id == 42
+        assert (contract.symbol, contract.secType, contract.exchange, contract.currency) == (
+            "AAPL",
+            "STK",
+            "SMART",
+            "USD",
+        )
+        assert native_order.action == "BUY"
+        assert native_order.totalQuantity == 10.0
+        assert native_order.orderType == "LMT"
+        assert native_order.lmtPrice == 150.0
+        assert native_order.tif == "DAY"
+        assert app.cancelled[0] == 42
+        assert isinstance(app.cancelled[1], FakeOrderCancel)
+        assert app.open_orders_requested is True
+        trade = callbacks.trades()[0]
+        assert trade.status == "Filled"
+        assert trade.fills[0].commission == 1.25
+
     def test_connect_waits_for_readiness_and_reserves_monotonic_order_ids(self):
         app_holder = {}
 
@@ -477,8 +576,16 @@ class TestIbApiClient:
     def test_parse_error_callback_supports_native_signatures(self, args, expected):
         assert _parse_error_callback(args) == expected
 
-    def test_unimplemented_data_operations_remain_explicit(self):
-        client = IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks))
+    def test_place_order_reserves_id_and_returns_pending_trade(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=50)
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
         order_request = IbkrOrderRequest(
             symbol="AAPL",
             action="BUY",
@@ -487,12 +594,113 @@ class TestIbApiClient:
             limit_price=0.0,
             time_in_force="DAY",
         )
-        with pytest.raises(NotImplementedError):
-            client.place_order(order_request)
-        with pytest.raises(NotImplementedError):
-            client.cancel_order(1)
-        with pytest.raises(NotImplementedError):
+
+        trade = client.place_order(order_request)
+
+        assert trade.order_id == 50
+        assert trade.symbol == "AAPL"
+        assert trade.status == "PendingSubmit"
+        assert app_holder["app"].place_order_calls == [(50, order_request)]
+        client.disconnect()
+
+    def test_order_callbacks_produce_deduplicated_fill_and_commission(self):
+        callback_holder = {}
+
+        def app_factory(callbacks):
+            callback_holder["callbacks"] = callbacks
+            return _FakeNativeApp(callbacks, ready_order_id=50)
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+        client.place_order(
+            IbkrOrderRequest(
+                symbol="AAPL",
+                action="BUY",
+                total_quantity=10.0,
+                order_type="LMT",
+                limit_price=150.0,
+                time_in_force="DAY",
+            )
+        )
+        callbacks = callback_holder["callbacks"]
+        callbacks.record_order_status(50, "PartiallyFilled", 5.0, 149.5)
+        callbacks.record_commission("exec-1", 1.25)
+        callbacks.record_execution(50, "exec-1", 5.0, 149.5, "2026-07-24T12:00:00Z")
+        callbacks.record_execution(50, "exec-1", 5.0, 149.5, "2026-07-24T12:00:00Z")
+
+        trades = client.trades()
+
+        assert len(trades) == 1
+        assert trades[0].status == "PartiallyFilled"
+        assert trades[0].filled == 5.0
+        assert trades[0].avg_fill_price == 149.5
+        assert len(trades[0].fills) == 1
+        assert trades[0].fills[0].exec_id == "exec-1"
+        assert trades[0].fills[0].commission == 1.25
+        client.disconnect()
+
+    def test_rejection_error_is_associated_with_order(self):
+        callback_holder = {}
+
+        def app_factory(callbacks):
+            callback_holder["callbacks"] = callbacks
+            return _FakeNativeApp(callbacks, ready_order_id=50)
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+        client.place_order(
+            IbkrOrderRequest(
+                symbol="AAPL",
+                action="BUY",
+                total_quantity=10.0,
+                order_type="MKT",
+                limit_price=0.0,
+                time_in_force="DAY",
+            )
+        )
+        callbacks = callback_holder["callbacks"]
+        callbacks.record_error(50, 201, "Order rejected", '{"reason":"margin"}')
+        callbacks.record_order_status(50, "Inactive", 0.0, None)
+
+        trade = client.trades()[0]
+
+        assert trade.status == "Inactive"
+        assert trade.status_reason == '{"reason":"margin"}'
+        client.disconnect()
+
+    def test_cancel_order_delegates_by_order_id(self):
+        app_holder = {}
+
+        def app_factory(callbacks):
+            app = _FakeNativeApp(callbacks, ready_order_id=1)
+            app_holder["app"] = app
+            return app
+
+        client = IbApiClient(app_factory=app_factory)
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        client.cancel_order(99)
+
+        assert app_holder["app"].cancel_order_calls == [99]
+        client.disconnect()
+
+    def test_trade_refresh_times_out_without_open_order_end(self):
+        client = IbApiClient(
+            app_factory=lambda callbacks: _FakeNativeApp(
+                callbacks,
+                ready_order_id=1,
+                complete_open_orders=False,
+            ),
+            request_timeout_seconds=0.01,
+        )
+        client.connect("127.0.0.1", 7497, client_id=1)
+
+        with pytest.raises(TimeoutError, match="openOrderEnd"):
             client.trades()
+        client.disconnect()
+
+    def test_unimplemented_data_operations_remain_explicit(self):
+        client = IbApiClient(app_factory=lambda callbacks: _FakeNativeApp(callbacks))
         with pytest.raises(NotImplementedError):
             client.positions()
         with pytest.raises(NotImplementedError):
@@ -508,13 +716,23 @@ class TestIbApiClient:
 
 
 class _FakeNativeApp:
-    def __init__(self, callbacks, ready_order_id=None, run_error=None):
+    def __init__(
+        self,
+        callbacks,
+        ready_order_id=None,
+        run_error=None,
+        complete_open_orders=True,
+    ):
         self.callbacks = callbacks
         self.ready_order_id = ready_order_id
         self.run_error = run_error
+        self.complete_open_orders = complete_open_orders
         self.connected = False
         self.connect_args = None
         self.disconnect_calls = 0
+        self.place_order_calls = []
+        self.cancel_order_calls = []
+        self.open_order_requests = 0
         self._stop = threading.Event()
 
     def connect(self, host, port, clientId):
@@ -535,6 +753,17 @@ class _FakeNativeApp:
         if self.run_error is not None:
             raise self.run_error
         self._stop.wait()
+
+    def place_order(self, order_id, order):
+        self.place_order_calls.append((order_id, order))
+
+    def cancel_order(self, order_id):
+        self.cancel_order_calls.append(order_id)
+
+    def request_open_orders(self):
+        self.open_order_requests += 1
+        if self.complete_open_orders:
+            self.callbacks.finish_open_order_refresh()
 
 
 class TestIbkrSocketStatusMap:

@@ -58,7 +58,7 @@ TWS/IB Gateway socket support with interchangeable `ib_async` and native `ibapi`
 | `contracts.py` | Project-owned normalized socket client records |
 | `protocol.py` | Backend-neutral socket client protocol |
 | `ib_async_client.py` | Working `ib_async` socket client |
-| `ibapi_client.py` | Native `ibapi` connection/callback-state core; trading/data operations are incomplete |
+| `ibapi_client.py` | Native `ibapi` connection and order-lifecycle callbacks; positions, account summaries, and quotes are incomplete |
 | `factory.py` | Socket backend selection and broker construction |
 
 ### `src/infrastructure/feature_providers/`
