@@ -307,6 +307,8 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
     _print_experiment(experiment)
+    if experiment.status == "failed":
+        return
     windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
     trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
     _print_window_audit(windows, trials)
@@ -336,8 +338,15 @@ def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]
 def _print_experiment(experiment: Any) -> None:
     print(
         f"Optimization experiment #{experiment.id} | account_id={experiment.account_id} "
-        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at}"
+        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at} "
+        f"status={experiment.status}"
     )
+    if experiment.status == "failed":
+        print(
+            f"Failed during {experiment.failure_stage} after {experiment.window_count} window(s): "
+            f"{experiment.failure_message}"
+        )
+        return
     print(
         f"Range {experiment.start_date}..{experiment.end_date} | windows={experiment.window_count} "
         f"| train/test/step/holdout(mo)={experiment.train_months}/{experiment.test_months}/"

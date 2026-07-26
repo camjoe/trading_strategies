@@ -15,18 +15,24 @@ import pytest
 
 from tests.support.repositories import insert_repository_account
 from trading.backtesting.domain.optimization.search import params_fingerprint
-from trading.backtesting.models import BacktestConfig, BacktestResult
-from trading.backtesting.optimizer_models import OptimizationExperimentInsert, OptimizerConfig
+from trading.backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
+from trading.backtesting.optimizer_models import (
+    ExperimentStatus,
+    FailureStage,
+    OptimizationExperimentInsert,
+    OptimizerConfig,
+)
 from trading.backtesting.repositories.backtest_repository import insert_backtest_run
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
+    fetch_latest_for_account,
     fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
     insert_experiment,
 )
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
-from trading.domain.exceptions import NotFoundError
+from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
@@ -65,8 +71,8 @@ def _metrics_for(cfg: BacktestConfig) -> tuple[float, float, int]:
     return (8.0, -12.0, 8)  # the other grid candidate
 
 
-def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
-    cfg = OptimizerConfig(
+def _optimizer_cfg(account_name: str) -> OptimizerConfig:
+    return OptimizerConfig(
         account_name=account_name,
         # A real universe file so the run manifest's universe resolution succeeds
         # (the fake run functions never read it, but manifest capture does).
@@ -85,6 +91,10 @@ def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
         step_months=1,
         holdout_months=3,
     )
+
+
+def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
+    cfg = _optimizer_cfg(account_name)
 
     def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
         ann, dd, trades = _metrics_for(run_cfg)
@@ -126,6 +136,9 @@ class TestPersistence:
         assert record.oos_mean_winner_return_pct == pytest.approx(30.0)
         assert record.holdout_run_id is not None  # real persisted holdout run
         assert record.promoted_strategy_id is None
+        assert record.status == ExperimentStatus.COMPLETED
+        assert record.failure_stage is None
+        assert record.failure_message is None
 
     def test_run_persists_per_window_and_per_candidate_audit(self, conn) -> None:
         account_id = insert_repository_account(conn, name="opt_audit")
@@ -169,6 +182,96 @@ class TestPersistence:
         # The composition root binds the provider name; the default fake path records "unknown".
         assert manifest.market_data_provider == "unknown"
         assert manifest.manifest_version == "manifest_v1"
+
+
+class TestFailFast:
+    def test_unknown_account_fails_before_any_backtest_runs(self, conn) -> None:
+        cfg = _optimizer_cfg("does_not_exist")
+        calls: list[BacktestConfig] = []
+
+        def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            calls.append(run_cfg)
+            return _fake_result(run_cfg, run_id=0, annualized=5.0, drawdown=-5.0, trades=10)
+
+        with pytest.raises(NotFoundError, match="Account not found"):
+            run_and_persist_optimization(conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=fake_metrics)
+        assert calls == []  # account resolution fails before the optimization loop ever runs
+
+    def test_window_search_failure_persists_failed_experiment(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_fail_window")
+        cfg = _optimizer_cfg("opt_fail_window")
+        oos_calls = 0
+
+        def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, run_id=0, annualized=ann, drawdown=dd, trades=trades)
+
+        def failing_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            nonlocal oos_calls
+            oos_calls += 1
+            if oos_calls == 2:
+                raise RuntimeError("simulated market-data outage")
+            run_id = insert_backtest_run(
+                run_conn,
+                account_id=account_id,
+                strategy_name=run_cfg.strategy,
+                start_date=date.fromisoformat(str(run_cfg.start)),
+                end_date=date.fromisoformat(str(run_cfg.end)),
+                cfg=run_cfg,
+                warnings=[],
+            )
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
+
+        with pytest.raises(ValidationError, match=r"Persisted failed experiment #\d+"):
+            run_and_persist_optimization(
+                conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
+            )
+
+        record = fetch_latest_for_account(conn, account_id=account_id)
+        assert record is not None
+        assert record.status == ExperimentStatus.FAILED
+        assert record.failure_stage == FailureStage.WINDOW_SEARCH
+        assert record.window_count == 1  # the first window completed before the second failed
+        assert "simulated market-data outage" in (record.failure_message or "")
+        assert json.loads(record.winner_params_json) is None
+        # No partial audit tree for a failed experiment.
+        assert fetch_windows_for_experiment(conn, experiment_id=record.id) == []
+
+    def test_holdout_failure_persists_failed_experiment(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_fail_holdout")
+        cfg = _optimizer_cfg("opt_fail_holdout")
+
+        def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, run_id=0, annualized=ann, drawdown=dd, trades=trades)
+
+        def failing_on_holdout_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            if run_cfg.purpose == BACKTEST_PURPOSE_FINAL_HOLDOUT:
+                raise RuntimeError("simulated holdout failure")
+            run_id = insert_backtest_run(
+                run_conn,
+                account_id=account_id,
+                strategy_name=run_cfg.strategy,
+                start_date=date.fromisoformat(str(run_cfg.start)),
+                end_date=date.fromisoformat(str(run_cfg.end)),
+                cfg=run_cfg,
+                warnings=[],
+            )
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
+
+        with pytest.raises(ValidationError, match=r"Persisted failed experiment #\d+"):
+            run_and_persist_optimization(
+                conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
+            )
+
+        record = fetch_latest_for_account(conn, account_id=account_id)
+        assert record is not None
+        assert record.status == ExperimentStatus.FAILED
+        assert record.failure_stage == FailureStage.HOLDOUT
+        assert record.window_count > 0  # every window completed before the holdout ran
+        assert "simulated holdout failure" in (record.failure_message or "")
 
 
 class TestPromotion:
@@ -246,3 +349,39 @@ class TestPromotion:
         )
         assert variant.status == "frozen"
         assert json.loads(variant.params_json) == WINNER
+
+    def test_failed_experiment_cannot_be_promoted(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_failed")
+        experiment_id = insert_experiment(
+            conn,
+            OptimizationExperimentInsert(
+                account_id=account_id,
+                strategy_id=None,
+                primitive="trend",
+                objective_name="calmar_v1",
+                search_space_json='{"slow_window": [20, 40]}',
+                candidate_budget=256,
+                train_months=6,
+                test_months=1,
+                step_months=1,
+                holdout_months=3,
+                warmup_months=6,
+                start_date="2022-01-01",
+                end_date="2023-06-30",
+                window_count=1,
+                winner_params_json=json.dumps(None),
+                oos_mean_winner_return_pct=None,
+                oos_mean_baseline_return_pct=None,
+                oos_windows_beat_baseline=None,
+                holdout_run_id=None,
+                holdout_winner_return_pct=None,
+                holdout_baseline_return_pct=None,
+                status=ExperimentStatus.FAILED,
+                failure_stage=FailureStage.WINDOW_SEARCH,
+                failure_message="No eligible candidate: too_few_trades",
+            ),
+            created_at="2026-07-26T00:00:00Z",
+        )
+
+        with pytest.raises(ValidationError, match="failed"):
+            promote_optimization_experiment(conn, experiment_id=experiment_id, new_strategy_key="trend_failed")

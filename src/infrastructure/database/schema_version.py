@@ -14,7 +14,7 @@ from typing import Any
 
 # The single head revision of src/infrastructure/database/alembic/versions/.
 # Update this in the same commit that adds a new migration revision.
-EXPECTED_HEAD_REVISION = "0023"
+EXPECTED_HEAD_REVISION = "0024"
 
 # Table Alembic uses to record the applied revision.
 ALEMBIC_VERSION_TABLE = "alembic_version"

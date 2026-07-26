@@ -19,12 +19,12 @@ import json
 import sqlite3
 from typing import Any
 
-from trading.backtesting.optimizer_models import OptimizationExperimentRecord
+from trading.backtesting.optimizer_models import ExperimentStatus, OptimizationExperimentRecord
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     set_promoted_strategy,
 )
-from trading.domain.exceptions import NotFoundError
+from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.strategy.strategy_record import StrategyRecord
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.strategy_catalog.mutations import create_strategy_variant, freeze_strategy
@@ -41,13 +41,16 @@ def promote_optimization_experiment(
     """Mint a tradeable variant from an experiment's winner and link it back.
 
     Raises ``NotFoundError`` if the experiment is unknown, and ``ValueError`` if it
-    was already promoted (one promotion per experiment keeps the audit link 1:1) or
-    if the target key already exists. Variant creation, the optional freeze, and the
-    promoted-link write land atomically.
+    failed (no winner to promote), was already promoted (one promotion per
+    experiment keeps the audit link 1:1), or if the target key already exists.
+    Variant creation, the optional freeze, and the promoted-link write land
+    atomically.
     """
     experiment = fetch_experiment_by_id(conn, experiment_id=experiment_id)
     if experiment is None:
         raise NotFoundError(f"Optimization experiment not found: {experiment_id}")
+    if experiment.status == ExperimentStatus.FAILED:
+        raise ValidationError(f"Experiment {experiment_id} failed ({experiment.failure_stage}); nothing to promote.")
     if experiment.promoted_strategy_id is not None:
         raise ValueError(
             f"Experiment {experiment_id} is already promoted (strategy id {experiment.promoted_strategy_id})."

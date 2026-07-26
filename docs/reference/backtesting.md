@@ -163,6 +163,17 @@ deliberately *freezes* (copies) the effective values rather than linking, so lat
 account cannot rewrite what a past run assumed. It is written in the same transaction and cascades with
 the experiment.
 
+**Fail-fast experiment state (revision `0024`):** the account and strategy are resolved *before* any
+backtest runs, so an unknown account/strategy fails immediately rather than after a full optimization
+run. If the window-search or holdout stage raises instead — a market-data/DB error, or the *expected*
+"no eligible candidate" outcome for a training window — the run persists exactly one
+`optimization_experiments` row with `status='failed'`, `failure_stage` (`window_search` or `holdout`),
+`failure_message`, and `window_count` set to however many windows completed first. This is deliberately
+minimal: no `optimization_windows`/`optimization_trials`/manifest rows are written for a failed
+experiment (no partial audit tree), and any `backtest_runs` rows the completed windows already wrote
+remain unlinked, same as any other historical run. The CLI error message references the persisted
+experiment id so the attempt can be inspected via `backtest-optimize-show`.
+
 Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
@@ -172,7 +183,8 @@ Two follow-on commands operate on a stored experiment:
   on an independently reset account; windows following a time gap — a step longer than the test window —
   are flagged, and the series is derived on read from the window rows, never stored), and the
   **provenance manifest** (effective economics, book execution knobs, universe membership + lineage,
-  provider/as-of, engine revision).
+  provider/as-of, engine revision). For a failed experiment, it instead prints the status, stage, and
+  failure message — there is no winner/OOS/holdout/audit data to show.
 - `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
   `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
   are validated against the base primitive), stamp provenance into its description, and record the
@@ -180,11 +192,12 @@ Two follow-on commands operate on a stored experiment:
   immutable); `--no-freeze` leaves it an editable draft. Being enabled, it is immediately a
   first-class catalog strategy available to rotation/assignment — no extra wiring closes the loop.
 
-Promotion's gate is **operational completeness only**: the experiment must exist and not already be
-promoted (one promotion per experiment keeps the link 1:1). It does **not** require an out-of-sample
-edge — a tuned winner that failed to beat its own default is still promotable, with its recorded
-OOS/holdout evidence left for the operator to judge. This makes the machinery exercisable end to end
-(including on a deliberately weak strategy) before any real edge exists.
+Promotion's gate is **operational completeness only**: the experiment must exist, must not have
+`status='failed'` (a failed run has no winner to promote), and must not already be promoted (one
+promotion per experiment keeps the link 1:1). It does **not** require an out-of-sample edge — a tuned
+winner that failed to beat its own default is still promotable, with its recorded OOS/holdout evidence
+left for the operator to judge. This makes the machinery exercisable end to end (including on a
+deliberately weak strategy) before any real edge exists.
 
 ## Safeguards and Approximation Notes
 
