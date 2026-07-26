@@ -54,10 +54,6 @@ class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
 
 
-# Backward-compatible alias for older call sites and type hints.
-AccountConfig = AccountPolicyInput
-
-
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
     if value is None:
         return default
