@@ -13,7 +13,6 @@ from ..services.admin import (
     delete_managed_account,
 )
 from ..services.db import db_conn
-from ..services.exports import list_csv_exports, preview_csv_export
 from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
 
@@ -49,11 +48,6 @@ def api_admin_delete_account_preview(accountName: str = Query(..., min_length=1)
     return {"status": "ok", "preview": build_account_deletion_preview(accountName)}
 
 
-@router.get("/api/admin/exports/csv")
-def api_csv_exports() -> dict[str, object]:
-    return list_csv_exports()
-
-
 @router.get("/api/admin/operations/overview")
 def api_operations_overview() -> dict[str, object]:
     """Return current runtime job health, recent artifacts, and backup visibility."""
@@ -77,12 +71,3 @@ def api_promotion_overview(
             strategy_name=strategyName,
             limit=limit,
         )
-
-
-@router.get("/api/admin/exports/csv/preview")
-def api_csv_export_preview(
-    exportName: str = Query(..., min_length=1),  # noqa: N803
-    fileName: str = Query(..., min_length=1),  # noqa: N803
-    limit: int = Query(default=200, ge=1, le=2000),
-) -> dict[str, object]:
-    return preview_csv_export(exportName, fileName, limit)

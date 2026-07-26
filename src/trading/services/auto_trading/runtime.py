@@ -26,6 +26,7 @@ from trading.models.orders.broker_order import OrderFill
 from trading.services.accounts import get_account
 from trading.services.books.rotation.account_rotation import run_account_book_rotations
 from trading.services.books.sector_config import load_symbol_sector_map
+from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.open_order_reconciliation import (
@@ -45,20 +46,6 @@ from trading.services.market_data import MarketDataProvider
 from trading.services.operational_settings import enforce_runtime_trade_throttles
 
 logger = logging.getLogger(__name__)
-
-# Kill-switch reason when required price marks are unavailable or invalid.
-KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
-# Kill-switch reason when book/account equity reconciliation is out of tolerance.
-KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
-# Kill-switch reason when no account snapshot exists for reconciliation guard.
-KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
-# Kill-switch reason when latest account snapshot is older than freshness threshold.
-KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT = "stale_reconciliation_snapshot"
-# Kill-switch reason when broker submission raises an exception.
-KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
-
-# Maximum allowed age for account snapshot freshness validation (seconds).
-MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
 
 # Risk-decision reason when the global trade throttle blocks further submissions.
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"

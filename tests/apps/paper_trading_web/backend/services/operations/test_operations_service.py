@@ -81,7 +81,7 @@ class _FakeHistoryEntry:
 def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch) -> None:
     monkeypatch.setattr(
         services_promotion,
-        "fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda *_args, **_kwargs: (
             StrategyEvaluationArtifact(),
             _FakePayload(

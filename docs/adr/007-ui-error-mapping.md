@@ -31,9 +31,9 @@ Current state (measured):
   **bare `ValueError`**.
 - A single app instance (`apps/paper_trading_web/backend/main.py`) with **no**
   exception handlers registered today.
-- `services/exports.py` raises `HTTPException` *directly* as path-validation
-  guard clauses — that is route-specific transport logic, a different concern
-  from mapping a domain error.
+- Route-specific validation (e.g. a preflight `FileNotFoundError -> 400` for a
+  missing input file) raises `HTTPException` *directly* — that is route-specific
+  transport logic, a different concern from mapping a domain error.
 
 Per the **UI Backend Boundary Rule**, this mapping legitimately belongs to the UI
 transport layer — the issue is only that it is duplicated per route rather than
@@ -67,8 +67,8 @@ raise those typed exceptions instead of bare `ValueError`.
 `ValidationError`/`ConflictError`) to `src/trading/domain/exceptions.py`; (2)
 register app-level handlers mapping those types → 404/400/409; (3) migrate the
 heuristic and per-route catches as their underlying services adopt the typed
-exceptions; (4) leave genuinely route-specific `HTTPException` guards (e.g.
-`exports.py` path validation) in place.
+exceptions; (4) leave genuinely route-specific `HTTPException` guards (e.g. the
+preflight missing-file check) in place.
 
 ## Decision
 
@@ -149,8 +149,7 @@ domain-math invariants (`backtesting/domain/metrics.py`,
 checks, and the generic `domain/rotation.py` list parser (also used on
 DB-sourced data, where a failure is an integrity error, not user input).
 Route-specific transport guards stay direct `HTTPException`: the preflight
-`FileNotFoundError -> 400` (missing tickers file) and `services/exports.py`
-path validation.
+`FileNotFoundError -> 400` (missing tickers file).
 
 **Deferred.** No `ConflictError`/409 was introduced — a duplicate account
 stays 400, preserving the prior client contract. It can be added later if a

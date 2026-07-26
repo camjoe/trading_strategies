@@ -46,7 +46,7 @@ def test_show_promotion_status_prints_read_only_summary(
 ) -> None:
     monkeypatch.setattr(
         promotion_presentation,
-        "fetch_current_promotion_assessment",
+        "fetch_promotion_assessment",
         lambda _conn, *, account_name, strategy_name=None: make_observing_assessment(
             account_name=account_name,
             strategy_name=strategy_name,
@@ -153,7 +153,7 @@ def test_render_promotion_review_history_lines_includes_closure_event_note(
 
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "_fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             promotion_actions.PromotionAssessment(

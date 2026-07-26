@@ -52,7 +52,6 @@ def run_auto_trader_group(
     repo_root: Path,
     label: str,
     group_accounts: list[str],
-    min_trades: int,
     max_trades: int,
     fee: float,
     seed: int | None,
@@ -64,8 +63,6 @@ def run_auto_trader_group(
         RUN_AUTO_TRADES_MODULE,
         "--accounts",
         ",".join(group_accounts),
-        "--min-trades",
-        str(min_trades),
         "--max-trades",
         str(max_trades),
         "--fee",
@@ -176,23 +173,21 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         def _run_all_auto_trader_groups() -> dict[str, object]:
             for limits, group_accounts in sorted(
                 grouped_accounts.items(),
-                key=lambda item: (item[0][0], item[0][1], item[1]),
+                key=lambda item: (item[0], item[1]),
             ):
                 run_auto_trader_group(
                     log_path,
                     repo_root,
-                    f"Auto Trader ({limits[0]}-{limits[1]} trades)",
+                    f"Auto Trader (up to {limits} trades)",
                     group_accounts,
-                    limits[0],
-                    limits[1],
+                    limits,
                     args.fee,
                     args.seed,
                 )
                 auto_trader_groups.append(
                     {
                         "accounts": group_accounts,
-                        "min_trades": limits[0],
-                        "max_trades": limits[1],
+                        "max_trades": limits,
                     }
                 )
             return {

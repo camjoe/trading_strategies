@@ -20,7 +20,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import list_report_books
-from trading.services.promotion.assessment import fetch_current_promotion_assessment
+from trading.services.promotion.assessment import fetch_promotion_assessment
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -53,7 +53,7 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        assessment = fetch_current_promotion_assessment(ctx.conn, account_name=account_name)
+        assessment = fetch_promotion_assessment(ctx.conn, account_name=account_name)
 
         book_rows: list[WeeklyPromotionBookPayload] = []
         for book, assignment in list_report_books(ctx.conn, account_id=account.id):

@@ -62,7 +62,9 @@ python -m scripts.launch_demo
 ```
 
 The demo uses deterministic synthetic market data, disables network-backed feature providers, and
-rebuilds its writable `local/demo.db` on each launch. It does not install frontend packages.
+rebuilds its writable `local/demo.db` on each launch. It does not install frontend packages. It runs
+on its own ports (backend `http://127.0.0.1:8001`, frontend `http://127.0.0.1:5174`, see
+`scripts/ui_config.py`) so it can run alongside a `launch_ui` session without a port conflict.
 
 ## Manual Startup
 

@@ -246,7 +246,7 @@ def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--primary-min-trades", "5", "--primary-max-trades", "2"],
+        ["--accounts", "acct_a", "--primary-max-trades", "0"],
     )
 
     assert code == 1
@@ -419,7 +419,7 @@ def test_run_auto_trader_group_skips_empty_groups(monkeypatch, tmp_path: Path) -
         stream.setattr(
             workflow_module, "stream_command", lambda log_path, label, args, repo_root: called.append((label, args))
         )
-        workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 1, 5, 0.0, None)
+        workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 5, 0.0, None)
     finally:
         stream.undo()
 
@@ -430,7 +430,7 @@ def test_run_auto_trader_group_includes_seed_when_present(monkeypatch, tmp_path:
     called: list[list[str]] = []
     monkeypatch.setattr(workflow_module, "stream_command", lambda _log, _label, args, _root: called.append(args))
 
-    workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 1, 5, 0.0, 7)
+    workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 5, 0.0, 7)
 
     assert "--seed" in called[0]
     assert called[0][called[0].index("--seed") + 1] == "7"
@@ -441,16 +441,7 @@ def test_main_validates_other_trade_ranges(monkeypatch, tmp_path: Path, capsys, 
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--other-min-trades", "0"],
-    )
-    assert code == 1
-    assert "other-min-trades" in capsys.readouterr().err
-
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--other-min-trades", "2", "--other-max-trades", "1"],
+        ["--accounts", "acct_a", "--other-max-trades", "0"],
     )
     assert code == 1
     assert "other-max-trades" in capsys.readouterr().err
@@ -478,11 +469,11 @@ def test_main_rejects_invalid_account_trade_caps_override(
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--account-trade-caps", "acct_a:bad"],
+        ["--accounts", "acct_a", "--account-trade-caps", "acct_a"],
     )
 
     assert code == 1
-    assert "account:min-max" in capsys.readouterr().err
+    assert "account:max" in capsys.readouterr().err
 
 
 def test_main_rejects_unknown_account_trade_cap_overrides(
@@ -492,7 +483,7 @@ def test_main_rejects_unknown_account_trade_cap_overrides(
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--account-trade-caps", "ghost:1-2"],
+        ["--accounts", "acct_a", "--account-trade-caps", "ghost:2"],
     )
 
     assert code == 1
@@ -525,25 +516,13 @@ def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, conn,
     monkeypatch.setattr(
         sys,
         "argv",
-        ["daily_paper_trading", "--accounts", "acct_a", "--primary-min-trades", "0", "--repo-root", str(tmp_path)],
+        ["daily_paper_trading", "--accounts", "acct_a", "--primary-max-trades", "0", "--repo-root", str(tmp_path)],
     )
 
     with pytest.raises(SystemExit) as excinfo:
         run_module_as_main(module.__name__ + ".__main__")
 
     assert excinfo.value.code == 1
-
-
-def test_main_rejects_non_positive_primary_min_trades(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--primary-min-trades", "0"],
-    )
-
-    assert code == 1
-    assert "--primary-min-trades must be >= 1" in capsys.readouterr().err
 
 
 def test_main_resolves_relative_trade_caps_config_from_repo_root(

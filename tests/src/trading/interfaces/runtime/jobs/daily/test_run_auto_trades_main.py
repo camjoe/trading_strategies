@@ -25,9 +25,9 @@ def install_main_args(monkeypatch, **overrides):
 
 
 def test_main_validation_errors(monkeypatch) -> None:
-    install_main_args(monkeypatch, min_trades=0, max_trades=1)
+    install_main_args(monkeypatch, max_trades=0)
 
-    with pytest.raises(ValueError, match="min-trades"):
+    with pytest.raises(ValueError, match="max-trades"):
         module.main()
 
 
@@ -35,7 +35,6 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     conn = FakeConn()
     install_main_args(
         monkeypatch,
-        min_trades=1,
         max_trades=2,
         seed=123,
         accounts="acct1,acct2",
@@ -59,12 +58,7 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
 
 
 def test_main_additional_validation_paths(monkeypatch) -> None:
-    install_main_args(monkeypatch, min_trades=2, max_trades=1)
-
-    with pytest.raises(ValueError, match="max-trades"):
-        module.main()
-
-    install_main_args(monkeypatch, min_trades=2, max_trades=2, accounts="  ,   ")
+    install_main_args(monkeypatch, max_trades=2, accounts="  ,   ")
 
     with pytest.raises(ValueError, match="No accounts"):
         module.main()

@@ -123,7 +123,7 @@ def sync_default_book_assignment(
     """Ensure the account's default book openly runs ``strategy_name``.
 
     Explicit account strategy edits call this so the assignment record —
-    which is what actually trades — follows the account's strategy column.
+    which is what actually trades — reflects the requested strategy.
     A no-op when the open assignment already matches, keeping the
     ``effective_from``/``effective_to`` history free of same-strategy churn.
     """

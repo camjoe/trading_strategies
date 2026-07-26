@@ -135,7 +135,6 @@ def make_daily_snapshot_args(**overrides):
 
 def make_run_auto_trades_args(**overrides):
     defaults = {
-        "min_trades": 1,
         "max_trades": 1,
         "seed": None,
         "accounts": "acct1",

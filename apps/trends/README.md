@@ -75,4 +75,3 @@ python -m trends --list-categories
 - Category names are case-insensitive.
 - Lines starting with `#` in ticker files are ignored.
 - Tickers can be written one per line or comma-separated.
-- `--debug-columns` prints dataframe column shape before and after normalization.
