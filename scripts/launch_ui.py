@@ -21,7 +21,9 @@ def npm_command() -> str:
     return "npm.cmd" if sys.platform.startswith("win") else "npm"
 
 
-def build_commands(backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT) -> tuple[list[str], list[str]]:
+def build_commands(
+    backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT
+) -> tuple[list[str], list[str]]:
     backend_command = [
         sys.executable,
         "-m",

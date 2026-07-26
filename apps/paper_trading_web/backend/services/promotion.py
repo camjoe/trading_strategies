@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from trading.services.promotion import (
-    fetch_promotion_snapshot,
     fetch_promotion_review_history,
+    fetch_promotion_snapshot,
 )
 
 from .evaluation import build_evaluation_detail_payload

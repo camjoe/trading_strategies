@@ -44,6 +44,8 @@ def fetch_promotion_assessment(
         strategy_name=strategy_name,
     )
     return assessment
+
+
 __all__ = [
     "fetch_promotion_assessment",
     "fetch_promotion_snapshot",

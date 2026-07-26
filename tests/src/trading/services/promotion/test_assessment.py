@@ -1,7 +1,6 @@
 import pytest
 
 from tests.support.promotion import make_ready_evaluation
-from trading.models.promotion import PromotionAssessment
 from trading.services.promotion import (
     assessment as promotion_assessment,
     fetch_promotion_assessment,

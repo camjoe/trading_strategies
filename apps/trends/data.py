@@ -12,6 +12,5 @@ def fetch_data(
     *,
     provider: MarketDataProvider,
 ) -> pd.DataFrame:
-    """Fetch normalised OHLCV data for *ticker* via *provider*.
-    """
+    """Fetch normalised OHLCV data for *ticker* via *provider*."""
     return provider.fetch_ohlcv(ticker, period, interval)
