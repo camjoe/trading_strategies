@@ -311,11 +311,10 @@ class TestPromotion:
         with pytest.raises(NotFoundError, match="not found"):
             promote_optimization_experiment(conn, experiment_id=999, new_strategy_key="nope")
 
-    def test_promotion_gate_is_operational_not_edge(self, conn) -> None:
-        # An experiment whose winner UNDERPERFORMED the default (beat 0 windows,
-        # holdout winner < baseline) is still promotable — the gate is operational
-        # completeness, not out-of-sample edge.
-        account_id = insert_repository_account(conn, name="opt_noedge")
+    def _insert_underperforming_experiment(self, conn, *, account_name: str) -> tuple[int, int]:
+        # An experiment whose winner UNDERPERFORMED the default (beat 0/3 windows,
+        # holdout winner < baseline) — fails the promotion quality bar on every measure.
+        account_id = insert_repository_account(conn, name=account_name)
         experiment_id = insert_experiment(
             conn,
             OptimizationExperimentInsert(
@@ -343,9 +342,22 @@ class TestPromotion:
             ),
             created_at="2026-07-24T00:00:00Z",
         )
+        return account_id, experiment_id
+
+    def test_promotion_gate_blocks_underperforming_winner_by_default(self, conn) -> None:
+        _account_id, experiment_id = self._insert_underperforming_experiment(conn, account_name="opt_noedge")
+
+        with pytest.raises(ValidationError, match="does not clear the promotion quality bar"):
+            promote_optimization_experiment(conn, experiment_id=experiment_id, new_strategy_key="trend_underperformer")
+
+        record = fetch_experiment_by_id(conn, experiment_id=experiment_id)
+        assert record is not None and record.promoted_strategy_id is None
+
+    def test_allow_no_edge_overrides_the_gate(self, conn) -> None:
+        _account_id, experiment_id = self._insert_underperforming_experiment(conn, account_name="opt_noedge_forced")
 
         variant = promote_optimization_experiment(
-            conn, experiment_id=experiment_id, new_strategy_key="trend_underperformer"
+            conn, experiment_id=experiment_id, new_strategy_key="trend_underperformer", allow_no_edge=True
         )
         assert variant.status == "frozen"
         assert json.loads(variant.params_json) == WINNER

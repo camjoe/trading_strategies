@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,
@@ -211,7 +212,11 @@ def _experiment_stub(*, status="completed", failure_stage=None, failure_message=
         candidate_budget=256,
         winner_params_json='{"slow_window": 40}',
         oos_mean_winner_return_pct=None,
+        oos_mean_baseline_return_pct=None,
+        oos_windows_beat_baseline=None,
         holdout_run_id=None,
+        holdout_winner_return_pct=None,
+        holdout_baseline_return_pct=None,
         promoted_strategy_id=None,
         status=status,
         failure_stage=failure_stage,
@@ -294,6 +299,7 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
         "fetch_compounded_oos": lambda _conn, *, experiment_id: series,
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: _manifest_stub(),
+        "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -317,6 +323,7 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
         "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
         "fetch_compounded_oos": lambda _conn, *, experiment_id: None,
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: None,
+        "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -336,6 +343,7 @@ def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(ca
         "fetch_optimization_windows": lambda _conn, *, experiment_id: calls.append("windows"),
         "fetch_optimization_trials": lambda _conn, *, experiment_id: calls.append("trials"),
         "fetch_compounded_oos": lambda _conn, *, experiment_id: calls.append("compounded"),
+        "evaluate_promotion_gate": evaluate_promotion_gate,
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: calls.append("manifest"),
     }
 

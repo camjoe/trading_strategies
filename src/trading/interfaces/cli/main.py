@@ -14,6 +14,7 @@ from trading.backtesting.backtest import (
     run_walk_forward_backtest,
     walk_forward_report,
 )
+from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
 from trading.backtesting.repositories.optimization_repository import (
@@ -99,6 +100,7 @@ def _handler_deps() -> dict[str, object]:
         "fetch_optimization_trials": fetch_trials_for_experiment,
         "fetch_compounded_oos": fetch_compounded_oos,
         "fetch_optimization_manifest": fetch_manifest_for_experiment,
+        "evaluate_promotion_gate": evaluate_promotion_gate,
         "promote_optimization_experiment": promote_optimization_experiment,
         "load_account_profiles": load_account_profiles,
         "apply_account_profiles": apply_account_profiles,
