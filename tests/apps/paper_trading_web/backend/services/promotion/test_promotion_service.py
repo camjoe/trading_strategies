@@ -91,7 +91,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             lambda *_a, **_kw: (self._make_evaluation(), assessment),
         )
         monkeypatch.setattr(
@@ -120,7 +120,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             _capture_snapshot,
         )
         monkeypatch.setattr(
@@ -145,7 +145,7 @@ class TestBuildPromotionOverview:
             history_calls.append(strategy_name)
             return []
 
-        monkeypatch.setattr(promotion_module, "fetch_current_promotion_snapshot", _capture_snapshot)
+        monkeypatch.setattr(promotion_module, "fetch_promotion_snapshot", _capture_snapshot)
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)
 
         build_promotion_overview(conn, account_name="acct_test", strategy_name="  trend_v1  ")
@@ -162,7 +162,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             lambda *_a, **_kw: (self._make_evaluation(), self._make_assessment()),
         )
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from typing import Any
 
 
@@ -306,6 +307,13 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
     _print_experiment(experiment)
+    windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
+    trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
+    _print_window_audit(windows, trials)
+    compounded = deps["fetch_compounded_oos"](conn, experiment_id=args.experiment_id)
+    _print_compounded_oos(compounded)
+    manifest = deps["fetch_optimization_manifest"](conn, experiment_id=args.experiment_id)
+    _print_manifest(manifest)
 
 
 def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -353,6 +361,80 @@ def _print_experiment(experiment: Any) -> None:
         print("Promotion: not promoted")
     else:
         print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
+
+
+def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
+    """Print the persisted per-window / per-candidate audit trail.
+
+    The multiple-testing record: every window's train/test boundaries plus each
+    evaluated candidate's objective and eligibility — not just the winner."""
+    if not windows:
+        print("Windows: none persisted (experiment predates per-window audit)")
+        return
+    trials_by_window: dict[int, list[Any]] = {}
+    for trial in trials:
+        trials_by_window.setdefault(trial.window_id, []).append(trial)
+    print(f"Windows ({len(windows)}) with per-candidate trials:")
+    for window in windows:
+        window_trials = trials_by_window.get(window.id, [])
+        eligible = sum(1 for trial in window_trials if trial.eligible)
+        winner = next((trial for trial in window_trials if trial.selected), None)
+        winner_label = (
+            f"win #{winner.candidate_index} score {_format_metric(winner.objective_value, suffix='')}"
+            if winner is not None
+            else "no winner recorded"
+        )
+        print(
+            f"  W{window.window_index:02d} train {window.train_start}..{window.train_end} "
+            f"test {window.test_start}..{window.test_end} (oos run {window.oos_run_id}) | "
+            f"{len(window_trials)} candidates, {eligible} eligible | {winner_label}"
+        )
+        for reason, count in _rejection_tally(window_trials):
+            print(f"       rejected: {reason} x{count}")
+
+
+def _print_manifest(manifest: Any) -> None:
+    """Print the frozen provenance manifest: the assumptions the run executed under."""
+    if manifest is None:
+        print("Provenance: unavailable (experiment predates run manifests)")
+        return
+    print(f"Provenance ({manifest.manifest_version}) | account={manifest.account_name} book_id={manifest.book_id}")
+    print(
+        f"  economics: initial_cash={manifest.initial_cash:.2f} benchmark={manifest.benchmark_ticker} "
+        f"slippage_bps={manifest.slippage_bps:.2f} fee={manifest.fee_per_trade:.2f}"
+    )
+    print(f"  execution: {manifest.effective_execution_json}")
+    lineage = manifest.universe_history_dir or manifest.tickers_file or "n/a"
+    print(f"  universe: {manifest.universe_size} tickers | lineage={lineage}")
+    revision = manifest.engine_revision or "unknown"
+    print(f"  data: provider={manifest.market_data_provider} as_of={manifest.data_as_of} | engine={revision}")
+
+
+def _print_compounded_oos(series: Any) -> None:
+    """Print the compounded chronological OOS series across the experiment's windows.
+
+    Each OOS window is an independently reset account, so returns are compounded
+    (geometrically linked), never summed; a window with a preceding time gap is marked."""
+    if series is None or not series.points:
+        print("Compounded OOS: unavailable (no persisted windows or missing OOS equity)")
+        return
+    gap_count = sum(1 for point in series.points if point.gap_before)
+    gap_note = f", {gap_count} gap(s)" if series.has_gaps else ""
+    print(f"Compounded OOS (across {len(series.points)} windows{gap_note}): {series.compounded_return_pct:.2f}%")
+    for point in series.points:
+        marker = " [GAP]" if point.gap_before else ""
+        print(
+            f"  W{point.window_index:02d} {point.test_start}..{point.test_end}{marker} "
+            f"period {point.period_return_pct:.2f}% | cumulative {point.cumulative_return_pct:.2f}%"
+        )
+
+
+def _rejection_tally(window_trials: list[Any]) -> list[tuple[str, int]]:
+    """Count ineligible candidates by rejection-reason family (prefix before any detail)."""
+    tally = Counter(
+        (trial.rejection_reason or "unknown").split(" (")[0] for trial in window_trials if not trial.eligible
+    )
+    return sorted(tally.items())
 
 
 def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:

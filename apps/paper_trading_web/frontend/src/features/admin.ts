@@ -1,6 +1,5 @@
 import { applyAccountConfigOptionsToAdminForm } from "../lib/account-config-options";
 import { createAdminAccountsController } from "./admin/accounts";
-import { createAdminArtifactsController } from "./admin/artifacts";
 import { createAdminOperationsController } from "./admin/operations";
 import { createAdminPromotionsController } from "./admin/promotions";
 import { createAdminParametersController } from "./admin/parameters";
@@ -15,7 +14,6 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
   const sectionsController = createAdminSectionsController();
   const operationsController = createAdminOperationsController();
   const promotionsController = createAdminPromotionsController();
-  const artifactsController = createAdminArtifactsController();
   const parametersController = createAdminParametersController();
   const accountsController = createAdminAccountsController(options, {
     loadOperationsOverview: operationsController.loadOperationsOverview,
@@ -27,13 +25,11 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     accountsController.wireActions();
     operationsController.wireActions();
     promotionsController.wireActions();
-    artifactsController.wireActions();
     parametersController.wireActions();
 
     sectionsController.initialize();
     accountsController.initialize();
     applyAccountConfigOptionsToAdminForm();
-    void artifactsController.loadCsvExports();
     void operationsController.loadOperationsOverview();
     void parametersController.initialize();
   }

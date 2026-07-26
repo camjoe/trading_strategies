@@ -10,8 +10,6 @@ from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, 
 
 _CREATE_ACCOUNT = "paper_trading_web.backend.routes.admin.create_account_with_rotation"
 _INNER_CREATE_ACCOUNT = "paper_trading_web.backend.services.admin.create_account"
-_LIST_CSV_EXPORTS = "paper_trading_web.backend.routes.admin.list_csv_exports"
-_PREVIEW_CSV_EXPORT = "paper_trading_web.backend.routes.admin.preview_csv_export"
 _BUILD_PROMOTION_OVERVIEW = "paper_trading_web.backend.routes.admin.build_promotion_overview"
 _LIST_OPERATIONS_OVERVIEW = "paper_trading_web.backend.routes.admin.list_operations_overview"
 
@@ -169,33 +167,6 @@ class TestAdminRoutes:
                     },
                 )
         create_mock.assert_called_once()
-
-    def test_admin_exports_endpoints_delegate_to_services(self, api_client: TestClient) -> None:
-        list_exports_mock = Mock(return_value={"exports": [{"name": "db_csv_1", "files": []}]})
-        preview_export_mock = Mock(
-            return_value={
-                "exportName": "db_csv_1",
-                "fileName": "accounts.csv",
-                "returned": 0,
-                "header": [],
-                "rows": [],
-                "truncated": False,
-            },
-        )
-        with patch(_LIST_CSV_EXPORTS, list_exports_mock), patch(_PREVIEW_CSV_EXPORT, preview_export_mock):
-            exports_response = api_client.get("/api/admin/exports/csv")
-            assert exports_response.status_code == 200
-            assert exports_response.json()["exports"][0]["name"] == "db_csv_1"
-
-            preview_response = api_client.get(
-                "/api/admin/exports/csv/preview",
-                params={"exportName": "db_csv_1", "fileName": "accounts.csv", "limit": 10},
-            )
-            assert preview_response.status_code == 200
-            assert preview_response.json()["exportName"] == "db_csv_1"
-
-        list_exports_mock.assert_called_once_with()
-        preview_export_mock.assert_called_once_with("db_csv_1", "accounts.csv", 10)
 
     def test_operations_overview_delegates_to_service(self, api_client: TestClient) -> None:
         expected = {"jobs": [], "artifacts": [], "backups": []}

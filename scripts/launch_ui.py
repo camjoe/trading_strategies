@@ -21,7 +21,9 @@ def npm_command() -> str:
     return "npm.cmd" if sys.platform.startswith("win") else "npm"
 
 
-def build_commands() -> tuple[list[str], list[str]]:
+def build_commands(
+    backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT
+) -> tuple[list[str], list[str]]:
     backend_command = [
         sys.executable,
         "-m",
@@ -31,7 +33,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         "--host",
         UI_HOST,
         "--port",
-        BACKEND_PORT,
+        backend_port,
     ]
     frontend_command = [
         npm_command(),
@@ -41,7 +43,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         "--host",
         UI_HOST,
         "--port",
-        FRONTEND_PORT,
+        frontend_port,
         "--strictPort",
     ]
     return backend_command, frontend_command
@@ -74,14 +76,14 @@ def _exit_code_or_zero(*exit_codes: int | None) -> int:
     return 0
 
 
-def main() -> int:
+def main(backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT) -> int:
     scripts_dir = Path(__file__).resolve().parent
     repo_root = scripts_dir.parent
     ui_dir = repo_root / "apps" / "paper_trading_web"
-    backend_command, frontend_command = build_commands()
+    backend_command, frontend_command = build_commands(backend_port, frontend_port)
     env = {
         **os.environ,
-        "VITE_API_BASE": _service_url(BACKEND_PORT),
+        "VITE_API_BASE": _service_url(backend_port),
     }
 
     if shutil.which(frontend_command[0]) is None:
@@ -100,8 +102,8 @@ def main() -> int:
     )
 
     print("Launched backend and frontend.")
-    print(f"Backend:  {_service_url(BACKEND_PORT)}")
-    print(f"Frontend: {_service_url(FRONTEND_PORT)}")
+    print(f"Backend:  {_service_url(backend_port)}")
+    print(f"Frontend: {_service_url(frontend_port)}")
     print("Press Ctrl+C to stop both services.")
 
     stop_requested = False

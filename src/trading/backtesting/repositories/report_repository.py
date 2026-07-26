@@ -114,6 +114,27 @@ def fetch_backtest_report_snapshots(conn: sqlite3.Connection, run_id: int) -> li
     ).fetchall()
 
 
+def fetch_backtest_run_equity_bounds(conn: sqlite3.Connection, *, run_id: int) -> tuple[float, float] | None:
+    """Return a run's ``(first_equity, last_equity)`` by snapshot date, or ``None``.
+
+    The two equity marks needed to derive a run's total return without loading its
+    whole equity curve. ``None`` when the run has no equity snapshots.
+    """
+    row = conn.execute(
+        """
+        SELECT
+            (SELECT equity FROM backtest_equity_snapshots
+             WHERE run_id = ? ORDER BY snapshot_date ASC, id ASC LIMIT 1) AS first_equity,
+            (SELECT equity FROM backtest_equity_snapshots
+             WHERE run_id = ? ORDER BY snapshot_date DESC, id DESC LIMIT 1) AS last_equity
+        """,
+        (int(run_id), int(run_id)),
+    ).fetchone()
+    if row is None or row["first_equity"] is None or row["last_equity"] is None:
+        return None
+    return (float(row["first_equity"]), float(row["last_equity"]))
+
+
 def fetch_backtest_report_trades(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """

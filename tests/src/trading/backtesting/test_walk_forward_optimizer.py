@@ -16,7 +16,11 @@ from trading.backtesting.domain.optimization.objective import (
     evaluate_candidate,
     select_winner,
 )
-from trading.backtesting.domain.optimization.search import generate_candidates
+from trading.backtesting.domain.optimization.search import (
+    canonical_params_json,
+    generate_candidates,
+    params_fingerprint,
+)
 from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
 from trading.backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
@@ -56,6 +60,23 @@ class TestGridSearch:
             generate_candidates({}, budget=8)
         with pytest.raises(ValidationError):
             generate_candidates({"a": []}, budget=8)
+
+
+class TestParamsFingerprint:
+    def test_hash_is_key_order_independent(self) -> None:
+        # Equal parameter sets collide regardless of insertion order — the basis for
+        # the one-candidate-per-window uniqueness constraint on trials.
+        assert params_fingerprint({"fast_window": 5, "slow_window": 20}) == params_fingerprint(
+            {"slow_window": 20, "fast_window": 5}
+        )
+
+    def test_different_params_hash_differently(self) -> None:
+        assert params_fingerprint({"slow_window": 20}) != params_fingerprint({"slow_window": 40})
+
+    def test_canonical_json_sorts_keys(self) -> None:
+        assert canonical_params_json({"slow_window": 20, "fast_window": 5}) == (
+            '{"fast_window": 5, "slow_window": 20}'
+        )
 
 
 class TestObjective:
@@ -224,6 +245,16 @@ class TestOptimizerOrchestration:
         # The tuned winner differs from the strategy default and beats the baseline OOS.
         assert summary.default_params == {"fast_window": 10, "slow_window": 20}
         assert all(w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct for w in summary.windows)
+
+    def test_windows_carry_every_evaluated_candidate(self) -> None:
+        # The full attempted search is carried on each window (not just the winner) so
+        # it can be persisted as the per-window multiple-testing audit record.
+        _cfg, summary, _persisted, _metrics = self._run()
+        candidate_count = 4  # 2 x 2 grid
+        for window in summary.windows:
+            assert len(window.candidates) == candidate_count
+            assert sum(1 for c in window.candidates if c.params == GOOD_PARAMS) == 1
+            assert window.winner in window.candidates
 
     def test_risk_metrics_propagate_into_outcomes(self) -> None:
         # Drawdown and calmar reach the reported OOS outcomes so the summary can judge

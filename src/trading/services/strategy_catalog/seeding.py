@@ -1,13 +1,12 @@
-"""Seed the catalog tables from code and legacy account config.
+"""Seed catalog rows and repair missing default books.
 
 Two idempotent bootstrap passes:
 
 - `seed_strategy_catalog` re-creates the code registry's strategies as
   `strategies` rows (primitive + default knobs) so nothing is lost when
   strategies go data.
-- `ensure_default_books` gives every account its real default book and copies
-  the account's legacy settings columns into the per-concern book settings
-  tables so book-keyed reads have data to stand on.
+- `ensure_default_books` gives every account a default book with the current
+  schema defaults and disabled rotation scheduling.
 """
 
 from __future__ import annotations

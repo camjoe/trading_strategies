@@ -16,7 +16,6 @@ from trading.services.auto_trading import (
     resolve_market_inputs,
     run_accounts,
     run_for_account,
-    validate_trade_count_range,
 )
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 
@@ -38,12 +37,6 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_TICKERS_FILE,
         help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
-    parser.add_argument(
-        "--min-trades",
-        type=int,
-        default=1,
-        help="Retained for compatibility; no longer forces a minimum (trades happen only on signals)",
-    )
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")
     parser.add_argument("--fee", type=float, default=0.0, help="Per-trade fee")
     parser.add_argument("--seed", type=int, default=None, help="Optional random seed")
@@ -52,7 +45,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    validate_trade_count_range(args.min_trades, args.max_trades)
+    if args.max_trades < 1:
+        raise ValueError("--max-trades must be >= 1")
 
     if args.seed is not None:
         random.seed(args.seed)

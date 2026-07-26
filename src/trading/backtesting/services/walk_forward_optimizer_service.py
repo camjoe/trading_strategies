@@ -6,9 +6,15 @@ from dataclasses import replace
 from datetime import date
 from typing import Any, Callable
 
+from common.revision import git_head_revision
+from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 from trading.backtesting.domain.optimization.objective import evaluate_candidate, select_winner
-from trading.backtesting.domain.optimization.search import generate_candidates
+from trading.backtesting.domain.optimization.search import (
+    canonical_params_json,
+    generate_candidates,
+    params_fingerprint,
+)
 from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
 from trading.backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
@@ -18,22 +24,34 @@ from trading.backtesting.models import (
     BacktestResult,
 )
 from trading.backtesting.optimizer_models import (
+    MANIFEST_V1,
     CandidateResult,
     HoldoutOutcome,
     OptimizationExperimentInsert,
+    OptimizationManifestInsert,
     OptimizationSummary,
+    OptimizationTrialInsert,
+    OptimizationWindowInsert,
     OptimizerConfig,
     RunOutcome,
     WalkForwardSplit,
     WindowSelection,
 )
-from trading.backtesting.repositories.optimization_repository import insert_experiment
-from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
+from trading.backtesting.repositories.optimization_repository import (
+    insert_experiment,
+    insert_manifest,
+    insert_trial,
+    insert_window,
+)
+from trading.backtesting.services.backtest_data_service import build_monthly_universe, resolve_backtest_dates
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
+from trading.models import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.repositories.unit_of_work import unit_of_work
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).
@@ -81,7 +99,7 @@ def run_walk_forward_optimization(
 
     window_selections: list[WindowSelection] = []
     for window_index, split in enumerate(splits, start=1):
-        winner = _select_window_winner(
+        winner, candidate_results = _select_window_winner(
             conn,
             cfg,
             split=split,
@@ -118,6 +136,7 @@ def run_walk_forward_optimization(
                 winner=winner,
                 winner_oos=_run_outcome(winner_oos),
                 baseline_oos=_run_outcome(baseline_oos),
+                candidates=candidate_results,
             )
         )
 
@@ -146,12 +165,18 @@ def run_and_persist_optimization(
     *,
     run_metrics_only_fn: RunFn,
     run_persisted_fn: RunFn,
+    market_data_provider: str = "unknown",
 ) -> OptimizationSummary:
     """Run one optimization experiment and persist its Tier-1 record.
 
     Runs the pure orchestration, then writes one ``optimization_experiments`` row
-    (config + forward-carried winner + OOS aggregate + holdout summary) and returns
-    the summary with its ``experiment_id`` set — the handle a later promotion uses.
+    (config + forward-carried winner + OOS aggregate + holdout summary) plus the
+    per-window/candidate audit and the frozen provenance manifest, and returns the
+    summary with its ``experiment_id`` set — the handle a later promotion uses.
+
+    ``market_data_provider`` is the resolved provider name recorded on the manifest;
+    the composition root binds it (it is infrastructure knowledge the service must
+    not resolve itself).
     """
     summary = run_walk_forward_optimization(
         conn,
@@ -159,11 +184,17 @@ def run_and_persist_optimization(
         run_metrics_only_fn=run_metrics_only_fn,
         run_persisted_fn=run_persisted_fn,
     )
-    experiment_id = _persist_experiment(conn, cfg, summary)
+    experiment_id = _persist_experiment(conn, cfg, summary, market_data_provider=market_data_provider)
     return replace(summary, experiment_id=experiment_id)
 
 
-def _persist_experiment(conn: sqlite3.Connection, cfg: OptimizerConfig, summary: OptimizationSummary) -> int:
+def _persist_experiment(
+    conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    summary: OptimizationSummary,
+    *,
+    market_data_provider: str,
+) -> int:
     if not summary.windows:
         raise ValidationError("Optimization produced no windows; nothing to persist or promote.")
 
@@ -208,7 +239,118 @@ def _persist_experiment(conn: sqlite3.Connection, cfg: OptimizerConfig, summary:
             summary.holdout.baseline.total_return_pct if summary.holdout is not None else None
         ),
     )
-    return insert_experiment(conn, payload, created_at=now)
+    # Experiment row + its per-window/per-candidate audit tree + the frozen
+    # provenance manifest land atomically.
+    with unit_of_work(conn):
+        experiment_id = insert_experiment(conn, payload, created_at=now)
+        _persist_windows_and_trials(conn, experiment_id, summary)
+        _persist_manifest(
+            conn,
+            experiment_id=experiment_id,
+            cfg=cfg,
+            account=account,
+            start_date=start_date,
+            end_date=end_date,
+            market_data_provider=market_data_provider,
+            now=now,
+        )
+    return experiment_id
+
+
+def _persist_manifest(
+    conn: sqlite3.Connection,
+    *,
+    experiment_id: int,
+    cfg: OptimizerConfig,
+    account: AccountRecord,
+    start_date: date,
+    end_date: date,
+    market_data_provider: str,
+    now: str,
+) -> None:
+    """Freeze one provenance manifest for the run (see ``OptimizationManifestInsert``).
+
+    Snapshots the effective economics, the default book's risk/sizing knobs, the exact
+    resolved universe membership + lineage, the configured provider, and the engine
+    revision — the assumptions every candidate in this experiment shared.
+    """
+    book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+    effective_execution = {
+        "risk_policy": book.risk_policy if book is not None else None,
+        "instrument_mode": book.instrument_mode if book is not None else None,
+        "trade_size_pct": book.trade_size_pct if book is not None else None,
+        "max_position_pct": book.max_position_pct if book is not None else None,
+        "max_trades_per_run": book.max_trades_per_run if book is not None else None,
+    }
+
+    default_tickers = load_tickers_from_file(cfg.tickers_file)
+    _month_to_tickers, all_tickers, _warnings = build_monthly_universe(
+        default_tickers, start_date, end_date, cfg.universe_history_dir
+    )
+    universe = sorted(set(all_tickers))
+
+    insert_manifest(
+        conn,
+        OptimizationManifestInsert(
+            experiment_id=experiment_id,
+            manifest_version=MANIFEST_V1,
+            account_name=account.name,
+            book_id=book.id if book is not None else None,
+            initial_cash=account.initial_cash,
+            benchmark_ticker=account.benchmark_ticker,
+            slippage_bps=cfg.slippage_bps,
+            fee_per_trade=cfg.fee_per_trade,
+            effective_execution_json=json.dumps(effective_execution, sort_keys=True),
+            tickers_file=cfg.tickers_file,
+            universe_history_dir=cfg.universe_history_dir,
+            universe_tickers_json=json.dumps(universe),
+            universe_size=len(universe),
+            market_data_provider=market_data_provider,
+            data_as_of=now,
+            engine_revision=git_head_revision(),
+        ),
+        created_at=now,
+    )
+
+
+def _persist_windows_and_trials(conn: sqlite3.Connection, experiment_id: int, summary: OptimizationSummary) -> None:
+    """Persist one ``optimization_windows`` row per window and one
+    ``optimization_trials`` row per evaluated candidate.
+
+    The window links its winner's persisted OOS run (``oos_run_id``); each trial
+    records a candidate's objective evidence, and the window winner is flagged
+    ``selected``. Runs inside the experiment's ``unit_of_work``.
+    """
+    for window in summary.windows:
+        window_id = insert_window(
+            conn,
+            OptimizationWindowInsert(
+                experiment_id=experiment_id,
+                window_index=window.window_index,
+                train_start=window.split.train_start.isoformat(),
+                train_end=window.split.train_end.isoformat(),
+                test_start=window.split.test_start.isoformat(),
+                test_end=window.split.test_end.isoformat(),
+                oos_run_id=window.winner_oos.run_id,
+            ),
+        )
+        for candidate in window.candidates:
+            insert_trial(
+                conn,
+                OptimizationTrialInsert(
+                    window_id=window_id,
+                    candidate_index=candidate.index,
+                    params_json=canonical_params_json(candidate.params),
+                    params_hash=params_fingerprint(candidate.params),
+                    objective_value=candidate.score,
+                    annualized_return_pct=candidate.annualized_return_pct,
+                    max_drawdown_pct=candidate.max_drawdown_pct,
+                    trade_count=candidate.trade_count,
+                    eligible=candidate.eligible,
+                    rejection_reason=candidate.rejection_reason,
+                    selected=candidate.index == window.winner.index,
+                ),
+            )
 
 
 def _select_window_winner(
@@ -218,7 +360,12 @@ def _select_window_winner(
     split: WalkForwardSplit,
     candidates: list[dict[str, Any]],
     run_metrics_only_fn: RunFn,
-) -> CandidateResult:
+) -> tuple[CandidateResult, list[CandidateResult]]:
+    """Return the window's winner and every evaluated candidate.
+
+    The full candidate list is carried out (not just the winner) so the attempted
+    search can be persisted as the per-window multiple-testing audit record.
+    """
     results: list[CandidateResult] = []
     for index, params in enumerate(candidates):
         train_result = run_metrics_only_fn(
@@ -242,7 +389,7 @@ def _select_window_winner(
             )
         )
     try:
-        return select_winner(results)
+        return select_winner(results), results
     except ValidationError as error:
         raise ValidationError(
             f"Training window {split.train_start.isoformat()}..{split.train_end.isoformat()}: {error}"

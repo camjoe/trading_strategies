@@ -35,7 +35,7 @@ class DailyRunContext:
     log_path: Path
     artifact_path: Path
     accounts: list[str]
-    account_trade_caps: dict[str, tuple[int, int]]
+    account_trade_caps: dict[str, int]
     caps_summary: str
     run_meta: dict[str, object]
 
@@ -89,13 +89,11 @@ def build_run_context(
         configured_default_caps,
         configured_account_caps,
         primary_accounts,
-        args.primary_min_trades,
         args.primary_max_trades,
-        args.other_min_trades,
         args.other_max_trades,
         account_trade_cap_overrides,
     )
-    caps_summary = ",".join(f"{name}:{limits[0]}-{limits[1]}" for name, limits in account_trade_caps.items())
+    caps_summary = ",".join(f"{name}:{max_trades}" for name, max_trades in account_trade_caps.items())
 
     tee_line(
         log_path,

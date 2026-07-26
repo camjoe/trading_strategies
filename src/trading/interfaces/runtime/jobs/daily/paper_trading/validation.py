@@ -12,16 +12,12 @@ from collections.abc import Iterable, Mapping
 
 
 def validate_trade_count_args(args: argparse.Namespace) -> str | None:
-    if args.primary_min_trades < 1:
-        return "--primary-min-trades must be >= 1"
     if args.shadow_eval_rolling_window_days is not None and args.shadow_eval_rolling_window_days < 1:
         return "--shadow-eval-rolling-window-days must be >= 1"
-    if args.primary_max_trades < args.primary_min_trades:
-        return "--primary-max-trades must be >= --primary-min-trades"
-    if args.other_min_trades < 1:
-        return "--other-min-trades must be >= 1"
-    if args.other_max_trades < args.other_min_trades:
-        return "--other-max-trades must be >= --other-min-trades"
+    if args.primary_max_trades < 1:
+        return "--primary-max-trades must be >= 1"
+    if args.other_max_trades < 1:
+        return "--other-max-trades must be >= 1"
     return None
 
 

@@ -85,6 +85,7 @@ These belong to no single context and stay at the root deliberately.
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
 | `demo_seed.py` | Writes the synthetic offline demo story across nine tables in one boundary |
 | `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
+| `table_export.py` | Generic read-only table row/CSV-cursor access for the operator export/preview feature — not scoped to one business context by design |
 
 ## Usage
 

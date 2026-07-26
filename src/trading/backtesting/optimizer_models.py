@@ -5,7 +5,14 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from common.coercion import row_expect_int, row_expect_str, row_float, row_int
+from common.coercion import (
+    row_expect_float,
+    row_expect_int,
+    row_expect_str,
+    row_float,
+    row_int,
+    row_str,
+)
 
 # Objective identifier persisted/reported with an optimization run. Versioned so a
 # future objective (calmar_v2, sharpe_v1, …) is a new name, never a silent redefinition.
@@ -95,7 +102,11 @@ class RunOutcome:
 @dataclass(frozen=True)
 class WindowSelection:
     """The winner chosen on a window's training interval, plus its OOS evidence and
-    the default-parameter baseline over the same OOS interval."""
+    the default-parameter baseline over the same OOS interval.
+
+    ``candidates`` holds every evaluated candidate for the window (the winner among
+    them), so the full attempted search — not just the winner — can be persisted as
+    the per-window multiple-testing audit record."""
 
     window_index: int
     split: WalkForwardSplit
@@ -103,6 +114,7 @@ class WindowSelection:
     winner: CandidateResult
     winner_oos: RunOutcome
     baseline_oos: RunOutcome
+    candidates: list[CandidateResult] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -225,5 +237,224 @@ class OptimizationExperimentRecord:
             holdout_winner_return_pct=row_float(values, "holdout_winner_return_pct"),
             holdout_baseline_return_pct=row_float(values, "holdout_baseline_return_pct"),
             promoted_strategy_id=row_int(values, "promoted_strategy_id"),
+            created_at=row_expect_str(values, "created_at"),
+        )
+
+
+@dataclass(frozen=True)
+class OOSReturnSegment:
+    """One window's contribution to the compounded OOS series: its out-of-sample
+    interval and the return realized over it.
+
+    Each OOS window is an independently reset account, so segments are *compounded*
+    into a chronological series, never summed on equity."""
+
+    window_index: int
+    test_start: date
+    test_end: date
+    return_pct: float
+
+
+@dataclass(frozen=True)
+class CompoundedOOSPoint:
+    """One window in the compounded OOS series: its period return and the running
+    compounded return through this window. ``gap_before`` marks a time discontinuity
+    from the previous window (a step longer than the test window)."""
+
+    window_index: int
+    test_start: str
+    test_end: str
+    period_return_pct: float
+    cumulative_return_pct: float
+    gap_before: bool
+
+
+@dataclass(frozen=True)
+class CompoundedOOSSeries:
+    """The compounded chronological OOS series across an experiment's non-overlapping
+    windows, plus the overall compounded return and whether any gaps were spanned."""
+
+    points: list[CompoundedOOSPoint]
+    compounded_return_pct: float
+    has_gaps: bool
+
+
+@dataclass(frozen=True)
+class OptimizationWindowInsert:
+    """Persistence payload for one ``optimization_windows`` row.
+
+    Records a window's train/test boundaries and links its persisted winner OOS
+    ``backtest_runs`` row via ``oos_run_id`` — OOS metrics are read from that run,
+    never copied here."""
+
+    experiment_id: int
+    window_index: int
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    oos_run_id: int
+
+
+@dataclass(frozen=True)
+class OptimizationWindowRecord:
+    """Persisted ``optimization_windows`` row (read model)."""
+
+    id: int
+    experiment_id: int
+    window_index: int
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    oos_run_id: int
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationWindowRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            experiment_id=row_expect_int(values, "experiment_id"),
+            window_index=row_expect_int(values, "window_index"),
+            train_start=row_expect_str(values, "train_start"),
+            train_end=row_expect_str(values, "train_end"),
+            test_start=row_expect_str(values, "test_start"),
+            test_end=row_expect_str(values, "test_end"),
+            oos_run_id=row_expect_int(values, "oos_run_id"),
+        )
+
+
+@dataclass(frozen=True)
+class OptimizationTrialInsert:
+    """Persistence payload for one ``optimization_trials`` row.
+
+    One evaluated grid candidate on a window's training interval — the
+    multiple-testing audit record. Training candidates are metrics-only (never a
+    ``backtest_runs`` row), so the objective value and its components are stored
+    here directly. ``selected`` marks the window's forward-carried winner."""
+
+    window_id: int
+    candidate_index: int
+    params_json: str
+    params_hash: str
+    objective_value: float | None
+    annualized_return_pct: float | None
+    max_drawdown_pct: float
+    trade_count: int
+    eligible: bool
+    rejection_reason: str | None
+    selected: bool
+
+
+@dataclass(frozen=True)
+class OptimizationTrialRecord:
+    """Persisted ``optimization_trials`` row (read model)."""
+
+    id: int
+    window_id: int
+    candidate_index: int
+    params_json: str
+    params_hash: str
+    objective_value: float | None
+    annualized_return_pct: float | None
+    max_drawdown_pct: float
+    trade_count: int
+    eligible: bool
+    rejection_reason: str | None
+    selected: bool
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationTrialRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            window_id=row_expect_int(values, "window_id"),
+            candidate_index=row_expect_int(values, "candidate_index"),
+            params_json=row_expect_str(values, "params_json"),
+            params_hash=row_expect_str(values, "params_hash"),
+            objective_value=row_float(values, "objective_value"),
+            annualized_return_pct=row_float(values, "annualized_return_pct"),
+            max_drawdown_pct=row_expect_float(values, "max_drawdown_pct"),
+            trade_count=row_expect_int(values, "trade_count"),
+            eligible=bool(row_expect_int(values, "eligible")),
+            rejection_reason=row_str(values, "rejection_reason"),
+            selected=bool(row_expect_int(values, "selected")),
+        )
+
+
+# Manifest schema version. Bump (never redefine) when the frozen provenance field
+# set changes, so an old manifest keeps its original meaning.
+MANIFEST_V1 = "manifest_v1"
+
+
+@dataclass(frozen=True)
+class OptimizationManifestInsert:
+    """Persistence payload for one ``optimization_run_manifests`` row.
+
+    The frozen provenance snapshot of a ``backtest-optimize`` run: the effective
+    economics, the book's effective risk/sizing knobs (``effective_execution_json``),
+    exact universe membership + lineage, the data provider + as-of timestamp, and
+    the engine revision. Values are copied (frozen), not linked — the snapshot is the
+    audit record. Not a replay guarantee; no input price payloads are stored."""
+
+    experiment_id: int
+    manifest_version: str
+    account_name: str
+    book_id: int | None
+    initial_cash: float
+    benchmark_ticker: str
+    slippage_bps: float
+    fee_per_trade: float
+    effective_execution_json: str
+    tickers_file: str | None
+    universe_history_dir: str | None
+    universe_tickers_json: str
+    universe_size: int
+    market_data_provider: str
+    data_as_of: str
+    engine_revision: str | None
+
+
+@dataclass(frozen=True)
+class OptimizationManifestRecord:
+    """Persisted ``optimization_run_manifests`` row (read model)."""
+
+    id: int
+    experiment_id: int
+    manifest_version: str
+    account_name: str
+    book_id: int | None
+    initial_cash: float
+    benchmark_ticker: str
+    slippage_bps: float
+    fee_per_trade: float
+    effective_execution_json: str
+    tickers_file: str | None
+    universe_history_dir: str | None
+    universe_tickers_json: str
+    universe_size: int
+    market_data_provider: str
+    data_as_of: str
+    engine_revision: str | None
+    created_at: str
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationManifestRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            experiment_id=row_expect_int(values, "experiment_id"),
+            manifest_version=row_expect_str(values, "manifest_version"),
+            account_name=row_expect_str(values, "account_name"),
+            book_id=row_int(values, "book_id"),
+            initial_cash=row_expect_float(values, "initial_cash"),
+            benchmark_ticker=row_expect_str(values, "benchmark_ticker"),
+            slippage_bps=row_expect_float(values, "slippage_bps"),
+            fee_per_trade=row_expect_float(values, "fee_per_trade"),
+            effective_execution_json=row_expect_str(values, "effective_execution_json"),
+            tickers_file=row_str(values, "tickers_file"),
+            universe_history_dir=row_str(values, "universe_history_dir"),
+            universe_tickers_json=row_expect_str(values, "universe_tickers_json"),
+            universe_size=row_expect_int(values, "universe_size"),
+            market_data_provider=row_expect_str(values, "market_data_provider"),
+            data_as_of=row_expect_str(values, "data_as_of"),
+            engine_revision=row_str(values, "engine_revision"),
             created_at=row_expect_str(values, "created_at"),
         )

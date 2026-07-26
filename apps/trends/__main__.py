@@ -38,7 +38,7 @@ def main() -> None:
     provider = build_provider()
     for ticker in tickers:
         try:
-            data = fetch_data(ticker, args.period, args.interval, provider=provider, debug_columns=args.debug_columns)
+            data = fetch_data(ticker, args.period, args.interval, provider=provider)
             data = add_trend_features(data)
 
             print(f"\nTicker: {ticker}")

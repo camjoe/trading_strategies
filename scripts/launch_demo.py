@@ -12,6 +12,7 @@ from pathlib import Path
 
 from infrastructure.database.migration_runner import upgrade
 from scripts import launch_ui
+from scripts.ui_config import DEMO_BACKEND_PORT, DEMO_FRONTEND_PORT
 from trading.services.demo import seed_demo_database
 
 DEMO_DATABASE_NAME = "demo.db"
@@ -95,7 +96,7 @@ def main() -> int:
         }
     )
     print(f"Prepared fresh offline demo database: {database_path}")
-    return launch_ui.main()
+    return launch_ui.main(backend_port=DEMO_BACKEND_PORT, frontend_port=DEMO_FRONTEND_PORT)
 
 
 if __name__ == "__main__":
