@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-07-26
 Purpose: Explain the project's current capabilities, concepts, architecture, limitations, and scope.
 Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
@@ -88,12 +88,10 @@ These limitations describe current behavior and maturity; they are not hidden by
   strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
   runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
   + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
-- **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per
-  settings row.
 - **One rotation score component has no data source.** Rotation scores on risk-adjusted return,
   **stability** (spread of walk-forward window returns), **drawdown penalty** (backtest max
-  drawdown), and — as of 2026-07-26 — **regime fit** (a live ETF-based market-regime read compared
-  against each strategy's primitive family; see [Rotation Scoring](reference/rotation-scoring.md)).
+  drawdown), and **regime fit** (a live ETF-based market-regime read compared against each strategy's
+  primitive family; see [Rotation Scoring](reference/rotation-scoring.md)).
   `cost_penalty` stays zero: a separate penalty would double-count, since backtest returns are
   already net of modeled per-trade fees. Its weight is not operator-configurable (tuning it would
   have no effect); `regime_fit`'s weight is.

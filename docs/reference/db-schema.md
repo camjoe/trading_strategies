@@ -57,6 +57,8 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied; revision `0022`) | → `optimization_experiments`, `backtest_runs` |
 | `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag (revision `0022`) | → `optimization_windows` |
 | `optimization_run_manifests` | Frozen provenance snapshot per optimizer run (1:1): effective economics, the book's risk/sizing knobs, exact universe membership + lineage, provider + as-of, and engine revision — audit record, not a replay guarantee (revision `0023`) | → `optimization_experiments`, `books` |
+| `book_rotation_settings_change_events` | Change-audit event log for `book_rotation_settings` edits: which fields changed, their old/new values (JSON), when (revision `0025`) | → `books` |
+| `global_settings_change_events` | Change-audit event log for `global_settings` edits: which fields changed, their old/new values (JSON), when (revision `0025`) | — |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 

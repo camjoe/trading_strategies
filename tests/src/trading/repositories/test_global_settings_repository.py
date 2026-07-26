@@ -134,3 +134,94 @@ class TestRuntimeThrottleAndPromotionPolicySettings:
         assert record.promotion_min_research_walk_forward_average_return_pct == pytest.approx(3.5)
         assert record.promotion_min_live_overall_confidence == pytest.approx(0.8)
         assert record.updated_at == "2026-04-19T01:00:00Z"
+
+
+class TestGlobalSettingsChangeAudit:
+    def test_first_write_records_a_change_event_with_null_old_values(self, conn) -> None:
+        repo = GlobalSettingsRepository(conn)
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=5,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T00:00:00Z",
+        )
+
+        events = repo.fetch_change_events()
+
+        assert len(events) == 1
+        assert events[0].settings_group == "throttle"
+        assert events[0].created_at == "2026-07-26T00:00:00Z"
+        assert events[0].changed_fields == {
+            "runtime_max_trades_per_day": {"old": None, "new": 5},
+            "runtime_max_trades_per_minute": {"old": None, "new": 2},
+        }
+
+    def test_second_write_only_records_fields_that_actually_changed(self, conn) -> None:
+        repo = GlobalSettingsRepository(conn)
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=5,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T00:00:00Z",
+        )
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=7,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T01:00:00Z",
+        )
+
+        events = repo.fetch_change_events()
+
+        assert len(events) == 2
+        latest = events[0]
+        assert latest.changed_fields == {"runtime_max_trades_per_day": {"old": 5, "new": 7}}
+
+    def test_no_op_write_records_no_change_event(self, conn) -> None:
+        repo = GlobalSettingsRepository(conn)
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=5,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T00:00:00Z",
+        )
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=5,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T01:00:00Z",
+        )
+
+        events = repo.fetch_change_events()
+
+        assert len(events) == 1
+
+    def test_change_events_are_scoped_per_settings_group(self, conn) -> None:
+        repo = GlobalSettingsRepository(conn)
+        repo.upsert_throttle_settings(
+            runtime_max_trades_per_day=5,
+            runtime_max_trades_per_minute=2,
+            updated_at="2026-07-26T00:00:00Z",
+        )
+        repo.upsert_promotion_settings(
+            min_research_backtest_trade_count=20,
+            min_research_backtest_snapshot_count=40,
+            min_research_backtest_return_pct=5.0,
+            min_research_max_drawdown_pct=-8.5,
+            min_research_walk_forward_average_return_pct=2.5,
+            min_live_paper_snapshot_count=15,
+            min_live_overall_confidence=0.7,
+            updated_at="2026-07-26T01:00:00Z",
+        )
+
+        events = repo.fetch_change_events()
+
+        assert [event.settings_group for event in events] == ["promotion", "throttle"]
+
+    def test_fetch_change_events_respects_limit(self, conn) -> None:
+        repo = GlobalSettingsRepository(conn)
+        for day in range(1, 4):
+            repo.upsert_throttle_settings(
+                runtime_max_trades_per_day=day,
+                runtime_max_trades_per_minute=None,
+                updated_at=f"2026-07-2{day}T00:00:00Z",
+            )
+
+        events = repo.fetch_change_events(limit=2)
+
+        assert len(events) == 2
