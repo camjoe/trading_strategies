@@ -82,6 +82,7 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
     p_rotation_policy.add_argument("--risk-adjusted-return-weight", type=float_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--stability-weight", type=float_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--drawdown-penalty-weight", type=float_or_none, default=argparse.SUPPRESS)
+    p_rotation_policy.add_argument("--regime-fit-weight", type=float_or_none, default=argparse.SUPPRESS)
 
     p_rotation = sub.add_parser(
         "configure-book-rotation",

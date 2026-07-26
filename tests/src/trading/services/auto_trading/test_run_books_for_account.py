@@ -55,7 +55,7 @@ def _install(
     monkeypatch.setattr(runtime_service, "row_expect_int", lambda _account, _key: ACCOUNT_ID)
     monkeypatch.setattr(runtime_service, "load_symbol_sector_map", lambda: {})
 
-    def _rotation(_conn, *, account, decision_time):
+    def _rotation(_conn, *, account, decision_time, fetch_regime=None):
         recorder.calls.append("rotation")
 
     monkeypatch.setattr(runtime_service, "run_account_book_rotations", _rotation)

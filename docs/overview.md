@@ -90,15 +90,13 @@ These limitations describe current behavior and maturity; they are not hidden by
   + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
 - **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per
   settings row.
-- **Two rotation score components have no data source.** Rotation now scores on risk-adjusted
-  return, **stability** (spread of walk-forward window returns) and **drawdown penalty** (backtest
-  max drawdown). The remaining two stay zero for stated reasons: `cost_penalty` would double-count,
-  because backtest returns are already net of modeled per-trade fees; and `regime_fit` has nothing to
-  fit against, as there is no market-regime detector and the regime→strategy mapping columns were
-  dropped in migration `0014`. Both weights remain operator-configurable, so tuning either currently
-  has no effect. What `regime_fit` would need to become real — including the
-  ETF-based regime signal that already exists — is documented in
-  [Rotation Scoring](reference/rotation-scoring.md).
+- **One rotation score component has no data source.** Rotation scores on risk-adjusted return,
+  **stability** (spread of walk-forward window returns), **drawdown penalty** (backtest max
+  drawdown), and — as of 2026-07-26 — **regime fit** (a live ETF-based market-regime read compared
+  against each strategy's primitive family; see [Rotation Scoring](reference/rotation-scoring.md)).
+  `cost_penalty` stays zero: a separate penalty would double-count, since backtest returns are
+  already net of modeled per-trade fees. Its weight is not operator-configurable (tuning it would
+  have no effect); `regime_fit`'s weight is.
 - **Daily performance metrics are partially populated.** The daily-metrics writer runs from the
   snapshot step and derives `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`,
   `hit_rate`/`expectancy` (from each closing order's realized P&L), and `risk_adjusted_score` (a

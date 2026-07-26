@@ -93,7 +93,7 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         module,
         "run_shadow_eval_for_account",
-        lambda _conn, *, account_name, rolling_window_days, as_of_iso: _sample_run(account_name),
+        lambda _conn, *, account_name, rolling_window_days, as_of_iso, fetch_regime=None: _sample_run(account_name),
     )
 
     assert _run(monkeypatch, tmp_path, ["--accounts", "acct1", "--enable-run"]) == 0
@@ -156,7 +156,7 @@ def test_run_shadow_eval_for_account_uses_account_lookup_and_builder(monkeypatch
 
     monkeypatch.setattr(module, "get_account", lambda _conn, name: {"name": name})
 
-    def _fake_builder(_conn, *, account, as_of_iso, rolling_window_days):
+    def _fake_builder(_conn, *, account, as_of_iso, rolling_window_days, fetch_regime=None):
         captured["account"] = account
         captured["as_of_iso"] = as_of_iso
         captured["rolling_window_days"] = rolling_window_days

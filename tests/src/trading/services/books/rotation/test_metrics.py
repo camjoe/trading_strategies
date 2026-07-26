@@ -3,12 +3,15 @@ from __future__ import annotations
 import pytest
 
 from tests.support.repositories import insert_repository_account
+from trading.domain.feature_provider import POLICY_RISK_ON_SCORE, ExternalFeatureBundle
+from trading.domain.rotation.score_components import NEUTRAL_COMPONENT, REGIME_FIT_MATCH_BONUS_PCT
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
     EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
+from trading.repositories.book_bridge import strategy_id_for_label
 from trading.services.accounts import get_account
 from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
@@ -127,3 +130,86 @@ def test_build_rotation_strategy_metrics_ignores_single_window_stability(conn, m
     metrics = build_rotation_strategy_metrics(conn, account=account, strategy_name="meanrev")
 
     assert metrics.stability == 0.0
+
+
+def _bundle(risk_on_score: float | None) -> ExternalFeatureBundle:
+    if risk_on_score is None:
+        return ExternalFeatureBundle.unavailable(source="test")
+    return ExternalFeatureBundle(features={POLICY_RISK_ON_SCORE: risk_on_score}, available=True, source="test")
+
+
+def test_build_rotation_strategy_metrics_computes_regime_fit_on_match(conn, monkeypatch) -> None:
+    insert_repository_account(conn, name="acct_metrics_regime_match")
+    account = get_account(conn, "acct_metrics_regime_match")
+    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
+    )
+
+    metrics = build_rotation_strategy_metrics(
+        conn,
+        account=account,
+        strategy_name="trend",
+        fetch_regime=lambda _ticker: _bundle(0.90),  # well above the risk-on threshold
+    )
+
+    assert metrics.regime_fit == REGIME_FIT_MATCH_BONUS_PCT
+
+
+def test_build_rotation_strategy_metrics_regime_fit_neutral_on_mismatch(conn, monkeypatch) -> None:
+    insert_repository_account(conn, name="acct_metrics_regime_mismatch")
+    account = get_account(conn, "acct_metrics_regime_mismatch")
+    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
+    )
+
+    metrics = build_rotation_strategy_metrics(
+        conn,
+        account=account,
+        strategy_name="trend",
+        fetch_regime=lambda _ticker: _bundle(0.10),  # well below the risk-off threshold: risk-off, trend wants risk-on
+    )
+
+    assert metrics.regime_fit == NEUTRAL_COMPONENT
+
+
+def test_build_rotation_strategy_metrics_regime_fit_neutral_when_unavailable(conn, monkeypatch) -> None:
+    insert_repository_account(conn, name="acct_metrics_regime_unavailable")
+    account = get_account(conn, "acct_metrics_regime_unavailable")
+    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
+    )
+
+    metrics = build_rotation_strategy_metrics(
+        conn,
+        account=account,
+        strategy_name="trend",
+        fetch_regime=lambda _ticker: _bundle(None),  # a failed/stale live fetch
+    )
+
+    assert metrics.regime_fit == NEUTRAL_COMPONENT
+
+
+def test_build_rotation_strategy_metrics_regime_fit_neutral_for_unknown_strategy(conn, monkeypatch) -> None:
+    # No catalog row exists for "meanrev" in this test — resolving its style
+    # must degrade to neutral, not raise.
+    insert_repository_account(conn, name="acct_metrics_regime_unknown")
+    account = get_account(conn, "acct_metrics_regime_unknown")
+    monkeypatch.setattr(
+        _FETCH_TARGET,
+        lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
+    )
+
+    metrics = build_rotation_strategy_metrics(
+        conn,
+        account=account,
+        strategy_name="meanrev",
+        fetch_regime=lambda _ticker: _bundle(0.90),
+    )
+
+    assert metrics.regime_fit == NEUTRAL_COMPONENT

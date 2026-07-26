@@ -58,13 +58,13 @@ def test_second_update_merges_and_none_clears(conn: sqlite3.Connection, account_
     assert saved.drawdown_penalty_weight == 0.2
 
 
-@pytest.mark.parametrize("field", ["cost_penalty_weight", "regime_fit_weight"])
+@pytest.mark.parametrize("field", ["cost_penalty_weight"])
 def test_inert_weights_are_not_operator_settable(
     conn: sqlite3.Connection, account_with_book: tuple[str, int], field: str
 ) -> None:
-    # cost_penalty_weight and regime_fit_weight have no data source, so they are
-    # not exposed as tunable — an attempt to set one is rejected rather than
-    # silently written to a column that never affects a score.
+    # cost_penalty_weight has no data source, so it is not exposed as tunable —
+    # an attempt to set it is rejected rather than silently written to a column
+    # that never affects a score.
     account_name, _ = account_with_book
     with pytest.raises(ValueError, match=field):
         update_book_rotation_policy(
@@ -73,6 +73,19 @@ def test_inert_weights_are_not_operator_settable(
             book_name="book_a",
             updates={field: 0.2},
         )
+
+
+def test_regime_fit_weight_is_operator_settable(conn: sqlite3.Connection, account_with_book: tuple[str, int]) -> None:
+    # regime_fit now computes a real value, so its weight is tunable like the
+    # other live components.
+    account_name, _ = account_with_book
+    saved = update_book_rotation_policy(
+        conn,
+        account_name=account_name,
+        book_name="book_a",
+        updates={"regime_fit_weight": 0.15},
+    )
+    assert saved.regime_fit_weight == 0.15
 
 
 def test_inert_weight_columns_are_preserved_across_a_policy_update(

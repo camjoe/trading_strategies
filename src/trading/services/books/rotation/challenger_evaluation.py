@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 
+from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.models import AccountRecord
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.services.books.book_assignments import enumerate_trading_books
@@ -37,6 +39,7 @@ def build_book_challenger_evaluations(
     account: AccountRecord,
     as_of_iso: str,
     rolling_window_days: int | None = None,
+    fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> ChallengerEvaluationRun:
     """Evaluate champion vs challengers for the account's rotation-enabled books.
 
@@ -44,7 +47,10 @@ def build_book_challenger_evaluations(
     ``book_rotation_settings`` supply the enabled gate, the challenger
     schedule, and the evidence lookback. Books with rotation disabled are
     skipped. ``rolling_window_days`` overrides every book's lookback when
-    given (the shadow-eval job's explicit window).
+    given (the shadow-eval job's explicit window). ``fetch_regime``, when given,
+    is passed through to every incumbent/challenger metrics build so
+    ``regime_fit`` reflects the live market regime (see
+    ``build_rotation_strategy_metrics``); omitted, ``regime_fit`` stays neutral.
     """
     account_id = account.id
     books: list[BookChallengerEvaluation] = []
@@ -62,6 +68,7 @@ def build_book_challenger_evaluations(
             conn,
             account=account,
             strategy_name=incumbent_strategy,
+            fetch_regime=fetch_regime,
         )
         challengers: list[RotationStrategyMetrics] = []
         for strategy_name in schedule_config.schedule:
@@ -72,6 +79,7 @@ def build_book_challenger_evaluations(
                     conn,
                     account=account,
                     strategy_name=strategy_name,
+                    fetch_regime=fetch_regime,
                 )
             )
         books.append(

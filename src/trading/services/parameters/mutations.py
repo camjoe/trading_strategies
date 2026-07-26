@@ -22,12 +22,13 @@ from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 
 # The book rotation-policy fields an operator may set; None clears a field back
-# to the RotationPolicyConfig code default. cost_penalty_weight and
-# regime_fit_weight are deliberately excluded: their score components have no
-# honest data source (backtest returns are already net of per-trade fees, and
-# there is no market-regime detector — see docs/overview.md), so tuning them
-# would have no effect. Their columns are still persisted for a possible future
-# regime-fit implementation, but are not exposed as tunable.
+# to the RotationPolicyConfig code default. cost_penalty_weight is deliberately
+# excluded: its score component has no honest data source (backtest returns are
+# already net of per-trade fees, so a separate penalty would double-count), so
+# tuning it would have no effect. Its column is still persisted for a possible
+# future un-modeled-cost implementation, but is not exposed as tunable.
+# regime_fit_weight is settable: regime_fit now computes a real value (see
+# docs/reference/rotation-scoring.md).
 ROTATION_POLICY_FIELDS = (
     "min_trades_in_window",
     "outperformance_threshold_bps",
@@ -35,15 +36,15 @@ ROTATION_POLICY_FIELDS = (
     "risk_adjusted_return_weight",
     "stability_weight",
     "drawdown_penalty_weight",
+    "regime_fit_weight",
 )
 
 # Every rotation-policy column persisted on book_rotation_settings. The merge
-# that feeds the repository upsert must supply all of them, including the two
-# inert weights above (carried through from the existing row rather than set).
+# that feeds the repository upsert must supply all of them, including the inert
+# weight above (carried through from the existing row rather than set).
 _PERSISTED_ROTATION_POLICY_FIELDS = (
     *ROTATION_POLICY_FIELDS,
     "cost_penalty_weight",
-    "regime_fit_weight",
 )
 
 # The book rotation-scheduling fields the edit command may touch (book-owned,
