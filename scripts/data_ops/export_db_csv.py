@@ -1,53 +1,48 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.data_ops.csv_export import (
-    DEFAULT_EXPORT_TABLES,
-    export_tables_to_csv,
-    print_export_summary,
-)
-
-REPO_ROOT = get_repo_root(__file__)
+from trading.interfaces.runtime.data_ops.csv_export import open_db_connection
+from trading.services.table_export import DEFAULT_EXPORT_TABLES, stream_table_csv
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Export selected SQLite tables to timestamped CSV files.",
+        description="Print or save one SQLite table as CSV, generated on demand from the current database.",
     )
     parser.add_argument(
-        "--tables",
-        default=",".join(DEFAULT_EXPORT_TABLES),
-        help=f"Comma-separated table list. Default: {','.join(DEFAULT_EXPORT_TABLES)}",
+        "--table",
+        required=True,
+        help=f"Table to export. Commonly one of: {','.join(DEFAULT_EXPORT_TABLES)}.",
     )
     parser.add_argument(
-        "--output-dir",
-        default=str(REPO_ROOT / "local" / "exports"),
-        help="Base output directory where timestamped export folders are created.",
+        "--out",
+        default=None,
+        help="Output file path. Defaults to stdout.",
     )
     return parser.parse_args()
 
 
-def _parse_table_list(raw: str) -> list[str]:
-    tables = [part.strip() for part in raw.split(",") if part.strip()]
-    if not tables:
-        raise ValueError("At least one table must be provided.")
-    return tables
-
-
 def main() -> int:
     args = parse_args()
-    tables = _parse_table_list(args.tables)
-    output_dir = Path(args.output_dir).expanduser()
 
-    result = export_tables_to_csv(
-        tables=tables,
-        output_base_dir=output_dir,
-    )
-
-    print_export_summary(result)
+    conn, db_path = open_db_connection()
+    try:
+        chunks = stream_table_csv(conn, args.table)
+        if args.out:
+            output_path = Path(args.out).expanduser()
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open("w", newline="", encoding="utf-8") as fh:
+                for chunk in chunks:
+                    fh.write(chunk)
+            print(f"[export] {db_path} -> {output_path} ({args.table})", file=sys.stderr)
+        else:
+            for chunk in chunks:
+                sys.stdout.write(chunk)
+    finally:
+        conn.close()
 
     return 0
 

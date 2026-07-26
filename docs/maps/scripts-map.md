@@ -97,8 +97,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `check_cash_invariant.py` | Read-only reconciliation report: each book's `current_cash` vs `start_equity` + ledger sum, within a float tolerance |
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
-| `export_db_csv.py` | Export all DB tables to individual CSV files |
-| `export_db_csv_zip.py` | Export all DB tables to a single zipped CSV archive |
+| `export_db_csv.py` | Generate one DB table as CSV on demand (stdout or `--out` file); no persisted export directory |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
 
 ## Database Diagrams (`scripts/database_diagrams/`)

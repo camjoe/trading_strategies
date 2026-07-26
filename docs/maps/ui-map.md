@@ -60,7 +60,6 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `admin.py` | Admin operation service |
 | `backtests.py` | Backtesting service (delegates to `src/trading/backtesting/`) |
 | `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
-| `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
 | `autonomy_monitor.py` | Autonomy monitor artifact assembly |
 | `operations/` | Runtime operation services (job triggers, etc.) |

@@ -88,8 +88,7 @@ Data operation scripts (`scripts/data_ops/`):
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
 - `build_database_diagram_viewer.py`: Trading Strategies adapter that builds the checked-in interactive HTML database diagram viewer in `docs/reference/database-diagram-viewer.html` for table and FK relationship review.
 - `describe_db_schema.py`: prints the current database schema from either an in-memory database built from the Alembic migration chain or the configured live SQLite database.
-- `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
-- `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
+- `export_db_csv.py`: convenience wrapper for the canonical on-demand CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`. Generates CSV directly from the live database for one table per invocation; nothing is persisted unless `--out` is given.
 
 Reusable database diagram scripts (`scripts/database_diagrams/`):
 
@@ -103,7 +102,6 @@ Reusable database diagram scripts (`scripts/database_diagrams/`):
 ```sh
 # Canonical operator-facing entrypoints
 python -m trading.interfaces.runtime.data_ops.admin backup-db
-python -m trading.interfaces.runtime.data_ops.csv_export
 
 # Convenience wrappers
 python -m scripts.data_ops.backup_db
@@ -112,8 +110,8 @@ python -m scripts.database_diagrams.sqlite --database local/example.db --output-
 python -m scripts.database_diagrams.render_html --schema-json local/schema.json --output local/database-diagram.html
 python -m scripts.data_ops.describe_db_schema
 python -m scripts.data_ops.describe_db_schema --source live
-python -m scripts.data_ops.export_db_csv --tables accounts,trades
-python -m scripts.data_ops.export_db_csv_zip
+python -m scripts.data_ops.export_db_csv --table accounts
+python -m scripts.data_ops.export_db_csv --table accounts --out local/accounts.csv
 ```
 
 Treat `src/trading/interfaces/runtime/data_ops/` as the canonical home for backup,
