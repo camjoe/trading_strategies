@@ -14,15 +14,20 @@ from datetime import date
 import pytest
 
 from tests.support.repositories import insert_repository_account
+from trading.backtesting.domain.optimization.search import params_fingerprint
 from trading.backtesting.models import BacktestConfig, BacktestResult
 from trading.backtesting.optimizer_models import OptimizationExperimentInsert, OptimizerConfig
 from trading.backtesting.repositories.backtest_repository import insert_backtest_run
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
+    fetch_manifest_for_experiment,
+    fetch_trials_for_experiment,
+    fetch_windows_for_experiment,
     insert_experiment,
 )
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from trading.domain.exceptions import NotFoundError
+from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
 # The winning candidate (differs from trend's default fast/slow, so the promoted
@@ -63,7 +68,9 @@ def _metrics_for(cfg: BacktestConfig) -> tuple[float, float, int]:
 def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
     cfg = OptimizerConfig(
         account_name=account_name,
-        tickers_file="tickers.txt",
+        # A real universe file so the run manifest's universe resolution succeeds
+        # (the fake run functions never read it, but manifest capture does).
+        tickers_file=DEFAULT_TICKERS_FILE,
         universe_history_dir=None,
         strategy="trend",
         search_space={"slow_window": [20, 40]},
@@ -119,6 +126,49 @@ class TestPersistence:
         assert record.oos_mean_winner_return_pct == pytest.approx(30.0)
         assert record.holdout_run_id is not None  # real persisted holdout run
         assert record.promoted_strategy_id is None
+
+    def test_run_persists_per_window_and_per_candidate_audit(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_audit")
+        experiment_id = _run_and_persist(conn, account_id, account_name="opt_audit")
+
+        record = fetch_experiment_by_id(conn, experiment_id=experiment_id)
+        windows = fetch_windows_for_experiment(conn, experiment_id=experiment_id)
+        trials = fetch_trials_for_experiment(conn, experiment_id=experiment_id)
+        assert record is not None
+
+        # One window row per walk-forward window, in order, each linked to a real OOS run.
+        assert len(windows) == record.window_count
+        assert [w.window_index for w in windows] == list(range(1, record.window_count + 1))
+        assert all(w.oos_run_id is not None for w in windows)
+
+        # Every grid candidate (the 2-point slow_window grid) is persisted per window —
+        # the multiple-testing record, not just the winner.
+        trials_by_window: dict[int, list] = {}
+        for trial in trials:
+            trials_by_window.setdefault(trial.window_id, []).append(trial)
+        for window in windows:
+            window_trials = trials_by_window[window.id]
+            assert len(window_trials) == 2
+            selected = [t for t in window_trials if t.selected]
+            assert len(selected) == 1  # exactly one winner per window
+            assert json.loads(selected[0].params_json) == WINNER
+            assert selected[0].params_hash == params_fingerprint(WINNER)
+            # Hashes are distinct per candidate (the one-hash-per-window invariant).
+            assert len({t.params_hash for t in window_trials}) == len(window_trials)
+
+    def test_run_persists_frozen_provenance_manifest(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_manifest_e2e")
+        experiment_id = _run_and_persist(conn, account_id, account_name="opt_manifest_e2e")
+
+        manifest = fetch_manifest_for_experiment(conn, experiment_id=experiment_id)
+        assert manifest is not None
+        assert manifest.account_name == "opt_manifest_e2e"
+        # Resolved from the real default universe file threaded into the run config.
+        assert manifest.universe_size == 12
+        assert '"AAPL"' in manifest.universe_tickers_json
+        # The composition root binds the provider name; the default fake path records "unknown".
+        assert manifest.market_data_provider == "unknown"
+        assert manifest.manifest_version == "manifest_v1"
 
 
 class TestPromotion:

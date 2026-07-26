@@ -4,7 +4,7 @@ from functools import partial
 
 from infrastructure.database.config import get_db_path
 from infrastructure.database.connection import db_session
-from infrastructure.market_data.factory import build_provider
+from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.backtesting.backtest import (
     backtest_leaderboard_entries,
     backtest_report,
@@ -16,8 +16,14 @@ from trading.backtesting.backtest import (
 )
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
-from trading.backtesting.repositories.optimization_repository import fetch_experiment_by_id
+from trading.backtesting.repositories.optimization_repository import (
+    fetch_experiment_by_id,
+    fetch_manifest_for_experiment,
+    fetch_trials_for_experiment,
+    fetch_windows_for_experiment,
+)
 from trading.backtesting.services import find_stale_backtests
+from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from trading.backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
 )
@@ -85,8 +91,14 @@ def _handler_deps() -> dict[str, object]:
         "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,
-        "run_walk_forward_optimization": run_and_persist_optimization,
+        "run_walk_forward_optimization": partial(
+            run_and_persist_optimization, market_data_provider=resolve_provider_name()
+        ),
         "fetch_optimization_experiment": fetch_experiment_by_id,
+        "fetch_optimization_windows": fetch_windows_for_experiment,
+        "fetch_optimization_trials": fetch_trials_for_experiment,
+        "fetch_compounded_oos": fetch_compounded_oos,
+        "fetch_optimization_manifest": fetch_manifest_for_experiment,
         "promote_optimization_experiment": promote_optimization_experiment,
         "load_account_profiles": load_account_profiles,
         "apply_account_profiles": apply_account_profiles,
