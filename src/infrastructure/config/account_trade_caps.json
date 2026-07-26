@@ -1,36 +1,12 @@
 {
-  "default": {
-    "min": 1,
-    "max": 11
-  },
+  "default": 11,
   "accounts": {
-    "momentum_5k": {
-      "min": 1,
-      "max": 5
-    },
-    "meanrev_5k": {
-      "min": 1,
-      "max": 5
-    },
-    "balanced_rotation_25k": {
-      "min": 1,
-      "max": 11
-    },
-    "core_growth_20k": {
-      "min": 1,
-      "max": 11
-    },
-    "income_defensive_15k": {
-      "min": 1,
-      "max": 11
-    },
-    "rotation_optimal_5k": {
-      "min": 1,
-      "max": 11
-    },
-    "rotation_time_5k": {
-      "min": 1,
-      "max": 11
-    }
+    "momentum_5k": 5,
+    "meanrev_5k": 5,
+    "balanced_rotation_25k": 11,
+    "core_growth_20k": 11,
+    "income_defensive_15k": 11,
+    "rotation_optimal_5k": 11,
+    "rotation_time_5k": 11
   }
 }
