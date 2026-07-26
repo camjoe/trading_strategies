@@ -72,7 +72,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
         monkeypatch.setattr(
             module,
-            "fetch_current_promotion_assessment",
+            "fetch_promotion_assessment",
             lambda conn, *, account_name: _make_assessment(),
         )
 
@@ -103,7 +103,7 @@ class TestArtifactStructure:
         )
         monkeypatch.setattr(
             module,
-            "fetch_current_promotion_assessment",
+            "fetch_promotion_assessment",
             lambda conn, *, account_name: _make_assessment(ready_for_live=False, blockers=["missing_data"]),
         )
 
@@ -145,7 +145,7 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 def test_main_returns_1_when_assessment_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module)
     monkeypatch.setattr(
-        module, "fetch_current_promotion_assessment", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+        module, "fetch_promotion_assessment", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
     )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1

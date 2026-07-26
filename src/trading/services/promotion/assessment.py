@@ -15,7 +15,7 @@ from trading.services.evaluation import fetch_strategy_evaluation
 from trading.services.operational_settings import fetch_promotion_policy_settings
 
 
-def fetch_current_promotion_snapshot(
+def fetch_promotion_snapshot(
     conn: sqlite3.Connection,
     *,
     account_name: str,
@@ -32,36 +32,19 @@ def fetch_current_promotion_snapshot(
     )
 
 
-def fetch_current_promotion_assessment(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> PromotionAssessment:
-    _, assessment = fetch_current_promotion_snapshot(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    )
-    return assessment
-
-
 def fetch_promotion_assessment(
     conn: sqlite3.Connection,
     *,
     account_name: str,
     strategy_name: str | None = None,
 ) -> PromotionAssessment:
-    """Compatibility wrapper for the current computed promotion assessment."""
-    return fetch_current_promotion_assessment(
+    _, assessment = fetch_promotion_snapshot(
         conn,
         account_name=account_name,
         strategy_name=strategy_name,
     )
-
-
+    return assessment
 __all__ = [
-    "fetch_current_promotion_assessment",
-    "fetch_current_promotion_snapshot",
     "fetch_promotion_assessment",
+    "fetch_promotion_snapshot",
 ]
