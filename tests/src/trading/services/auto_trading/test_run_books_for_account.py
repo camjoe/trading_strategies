@@ -23,6 +23,11 @@ from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
 from trading.models.execution.submission_result import SubmissionResult
+from trading.services.execution.constants import (
+    KILL_SWITCH_REASON_BROKER_API_ANOMALY,
+    KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
+    KILL_SWITCH_REASON_STALE_PRICE_DATA,
+)
 
 SNAPSHOT_TIME = "2026-03-14T14:00:00Z"
 ACCOUNT_ID = 1
@@ -178,7 +183,7 @@ def test_reconciliation_mismatch_holds_run_before_broker(monkeypatch) -> None:
     recorder = _install(
         monkeypatch,
         intents=[make_book_trade_candidate(book_id=10)],
-        reconciliation_reasons=[runtime_service.KILL_SWITCH_REASON_RECONCILIATION_MISMATCH],
+        reconciliation_reasons=[KILL_SWITCH_REASON_RECONCILIATION_MISMATCH],
     )
 
     submitted = _run(recorder)
@@ -189,7 +194,7 @@ def test_reconciliation_mismatch_holds_run_before_broker(monkeypatch) -> None:
     assert "gate.evaluate" in recorder.calls
     assert not any(c.startswith("submit:") for c in recorder.calls)
     recorder.broker_factory.assert_not_called()
-    assert runtime_service.KILL_SWITCH_REASON_RECONCILIATION_MISMATCH in recorder.persisted[-1].kill_switch_reasons
+    assert KILL_SWITCH_REASON_RECONCILIATION_MISMATCH in recorder.persisted[-1].kill_switch_reasons
 
 
 def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
@@ -209,7 +214,7 @@ def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
         intents=[make_book_trade_candidate(book_id=10)],
         gate_result=GateResult(
             approved_intents=approved,
-            kill_switch_reasons=[runtime_service.KILL_SWITCH_REASON_STALE_PRICE_DATA],
+            kill_switch_reasons=[KILL_SWITCH_REASON_STALE_PRICE_DATA],
         ),
     )
 
@@ -220,7 +225,7 @@ def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
     assert submitted == 0
     assert not any(c.startswith("submit:") for c in recorder.calls)
     recorder.broker_factory.assert_not_called()
-    assert runtime_service.KILL_SWITCH_REASON_STALE_PRICE_DATA in recorder.persisted[-1].kill_switch_reasons
+    assert KILL_SWITCH_REASON_STALE_PRICE_DATA in recorder.persisted[-1].kill_switch_reasons
 
 
 def test_trade_throttle_stops_after_first_book(monkeypatch) -> None:
@@ -250,7 +255,7 @@ def test_broker_anomaly_stops_further_submission(monkeypatch) -> None:
         ],
         submit_results=[
             SubmissionResult(submitted_count=1),
-            SubmissionResult(kill_switch_reasons=[runtime_service.KILL_SWITCH_REASON_BROKER_API_ANOMALY]),
+            SubmissionResult(kill_switch_reasons=[KILL_SWITCH_REASON_BROKER_API_ANOMALY]),
         ],
     )
 
@@ -260,7 +265,7 @@ def test_broker_anomaly_stops_further_submission(monkeypatch) -> None:
     # the third book is never reached.
     assert submitted == 1
     assert recorder.submit_book_ids == [10, 20]
-    assert runtime_service.KILL_SWITCH_REASON_BROKER_API_ANOMALY in recorder.persisted[-1].kill_switch_reasons
+    assert KILL_SWITCH_REASON_BROKER_API_ANOMALY in recorder.persisted[-1].kill_switch_reasons
     recorder.broker.disconnect.assert_called_once()
 
 

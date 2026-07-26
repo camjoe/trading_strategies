@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--primary-accounts",
         default="momentum_5k,meanrev_5k",
-        help="Accounts that keep strict legacy limits (default: momentum_5k,meanrev_5k)",
+        help="Accounts that use the stricter primary trade caps (default: momentum_5k,meanrev_5k)",
     )
     parser.add_argument("--primary-min-trades", type=int, default=1)
     parser.add_argument("--primary-max-trades", type=int, default=5)
