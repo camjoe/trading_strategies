@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-26 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
 `strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
@@ -56,6 +56,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link (revision `0021`) | → `accounts`, `strategies`, `backtest_runs` |
 | `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied; revision `0022`) | → `optimization_experiments`, `backtest_runs` |
 | `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag (revision `0022`) | → `optimization_windows` |
+| `optimization_run_manifests` | Frozen provenance snapshot per optimizer run (1:1): effective economics, the book's risk/sizing knobs, exact universe membership + lineage, provider + as-of, and engine revision — audit record, not a replay guarantee (revision `0023`) | → `optimization_experiments`, `books` |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 

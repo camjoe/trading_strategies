@@ -6,17 +6,21 @@ import pytest
 
 from tests.support.repositories import insert_repository_account
 from trading.backtesting.optimizer_models import (
+    MANIFEST_V1,
     OptimizationExperimentInsert,
+    OptimizationManifestInsert,
     OptimizationTrialInsert,
     OptimizationWindowInsert,
 )
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     fetch_latest_for_account,
+    fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
     fetch_trials_for_window,
     fetch_windows_for_experiment,
     insert_experiment,
+    insert_manifest,
     insert_trial,
     insert_window,
     set_promoted_strategy,
@@ -215,3 +219,60 @@ def test_deleting_experiment_cascades_windows_and_trials(conn) -> None:
 
     assert fetch_windows_for_experiment(conn, experiment_id=experiment_id) == []
     assert fetch_trials_for_experiment(conn, experiment_id=experiment_id) == []
+
+
+def _manifest(experiment_id: int, **overrides) -> OptimizationManifestInsert:
+    base = dict(
+        experiment_id=experiment_id,
+        manifest_version=MANIFEST_V1,
+        account_name="opt_acct",
+        book_id=None,
+        initial_cash=25_000.0,
+        benchmark_ticker="SPY",
+        slippage_bps=5.0,
+        fee_per_trade=0.0,
+        effective_execution_json='{"risk_policy": "none"}',
+        tickers_file="universe.txt",
+        universe_history_dir=None,
+        universe_tickers_json='["AAPL", "MSFT"]',
+        universe_size=2,
+        market_data_provider="yfinance",
+        data_as_of="2026-07-25T00:00:00Z",
+        engine_revision="abc123",
+    )
+    base.update(overrides)
+    return OptimizationManifestInsert(**base)
+
+
+def test_manifest_round_trips_fields(conn) -> None:
+    account_id = insert_repository_account(conn, name="opt_manifest")
+    experiment_id = insert_experiment(conn, _payload(account_id), created_at="2026-07-24T00:00:00Z")
+
+    insert_manifest(conn, _manifest(experiment_id), created_at="2026-07-25T00:00:00Z")
+
+    record = fetch_manifest_for_experiment(conn, experiment_id=experiment_id)
+    assert record is not None
+    assert record.manifest_version == MANIFEST_V1
+    assert record.initial_cash == pytest.approx(25_000.0)
+    assert record.benchmark_ticker == "SPY"
+    assert record.universe_size == 2
+    assert record.market_data_provider == "yfinance"
+    assert record.engine_revision == "abc123"
+    assert record.book_id is None
+
+
+def test_fetch_manifest_missing_returns_none(conn) -> None:
+    account_id = insert_repository_account(conn, name="opt_no_manifest")
+    experiment_id = insert_experiment(conn, _payload(account_id), created_at="2026-07-24T00:00:00Z")
+    assert fetch_manifest_for_experiment(conn, experiment_id=experiment_id) is None
+
+
+def test_deleting_experiment_cascades_manifest(conn) -> None:
+    account_id = insert_repository_account(conn, name="opt_manifest_cascade")
+    experiment_id = insert_experiment(conn, _payload(account_id), created_at="2026-07-24T00:00:00Z")
+    insert_manifest(conn, _manifest(experiment_id), created_at="2026-07-25T00:00:00Z")
+
+    conn.execute("DELETE FROM optimization_experiments WHERE id = ?", (experiment_id,))
+    conn.commit()
+
+    assert fetch_manifest_for_experiment(conn, experiment_id=experiment_id) is None

@@ -216,6 +216,25 @@ def _experiment_stub():
     )
 
 
+def _manifest_stub():
+    return types.SimpleNamespace(
+        manifest_version="manifest_v1",
+        account_name="acct",
+        book_id=3,
+        initial_cash=25_000.0,
+        benchmark_ticker="SPY",
+        slippage_bps=5.0,
+        fee_per_trade=0.0,
+        effective_execution_json='{"risk_policy": "none"}',
+        tickers_file="universe.txt",
+        universe_history_dir=None,
+        universe_size=12,
+        market_data_provider="yfinance",
+        data_as_of="2026-07-25T00:00:00Z",
+        engine_revision="abc123",
+    )
+
+
 def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
     window = types.SimpleNamespace(
         id=11,
@@ -271,6 +290,7 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         "fetch_optimization_windows": lambda _conn, *, experiment_id: [window],
         "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
         "fetch_compounded_oos": lambda _conn, *, experiment_id: series,
+        "fetch_optimization_manifest": lambda _conn, *, experiment_id: _manifest_stub(),
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -282,6 +302,9 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
     assert "rejected: too_few_trades x1" in out
     assert "Compounded OOS (across 2 windows, 1 gap(s)): 5.06%" in out
     assert "W02 2022-09-01..2022-09-30 [GAP] period 3.00% | cumulative 5.06%" in out
+    assert "Provenance (manifest_v1) | account=acct book_id=3" in out
+    assert "universe: 12 tickers | lineage=universe.txt" in out
+    assert "provider=yfinance" in out
 
 
 def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -> None:
@@ -290,6 +313,7 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
         "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
         "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
         "fetch_compounded_oos": lambda _conn, *, experiment_id: None,
+        "fetch_optimization_manifest": lambda _conn, *, experiment_id: None,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -297,6 +321,7 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
     out = capsys.readouterr().out
     assert "Windows: none persisted" in out
     assert "Compounded OOS: unavailable" in out
+    assert "Provenance: unavailable" in out
 
 
 def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:

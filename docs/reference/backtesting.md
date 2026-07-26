@@ -154,6 +154,15 @@ recorded, not just the winner — and the window link also closes the earlier ga
 runs were written but not tied back to their experiment. Experiment, windows, and trials are written
 in one transaction, and deleting an experiment cascades to its windows and trials.
 
+Each run also freezes one **provenance manifest** (`optimization_run_manifests`, 1:1, revision `0023`):
+the effective economics (initial cash, benchmark, slippage, fee), the book's effective risk/sizing
+knobs, the exact resolved universe membership + lineage, the market-data provider + an as-of timestamp,
+and the engine/source revision — the assumptions every candidate in the experiment shared. It is a
+**provenance and audit record, not a replay guarantee** (no input price payloads are stored), and it
+deliberately *freezes* (copies) the effective values rather than linking, so later edits to the book or
+account cannot rewrite what a past run assumed. It is written in the same transaction and cascades with
+the experiment.
+
 Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
@@ -161,7 +170,9 @@ Two follow-on commands operate on a stored experiment:
   candidate/eligible counts, the selected winner, and a rejection tally), and the **compounded OOS
   series** (the per-window OOS returns compounded into one chronological series, since each window runs
   on an independently reset account; windows following a time gap — a step longer than the test window —
-  are flagged, and the series is derived on read from the window rows, never stored).
+  are flagged, and the series is derived on read from the window rows, never stored), and the
+  **provenance manifest** (effective economics, book execution knobs, universe membership + lineage,
+  provider/as-of, engine revision).
 - `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
   `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
   are validated against the base primitive), stamp provenance into its description, and record the

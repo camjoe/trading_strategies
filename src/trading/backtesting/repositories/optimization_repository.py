@@ -21,6 +21,8 @@ from common.time import utc_now_iso
 from trading.backtesting.optimizer_models import (
     OptimizationExperimentInsert,
     OptimizationExperimentRecord,
+    OptimizationManifestInsert,
+    OptimizationManifestRecord,
     OptimizationTrialInsert,
     OptimizationTrialRecord,
     OptimizationWindowInsert,
@@ -203,3 +205,58 @@ def fetch_trials_for_experiment(conn: sqlite3.Connection, *, experiment_id: int)
         (int(experiment_id),),
     ).fetchall()
     return [OptimizationTrialRecord.from_mapping(dict(row)) for row in rows]
+
+
+def insert_manifest(
+    conn: sqlite3.Connection, payload: OptimizationManifestInsert, *, created_at: str | None = None
+) -> int:
+    """Insert one ``optimization_run_manifests`` row and return its id.
+
+    Meant to run inside the experiment's ``unit_of_work`` so the frozen provenance
+    snapshot lands atomically with the experiment it describes.
+    """
+    now = created_at or utc_now_iso()
+    cursor = conn.execute(
+        """
+        INSERT INTO optimization_run_manifests (
+            experiment_id, manifest_version, account_name, book_id, initial_cash,
+            benchmark_ticker, slippage_bps, fee_per_trade, effective_execution_json,
+            tickers_file, universe_history_dir, universe_tickers_json, universe_size,
+            market_data_provider, data_as_of, engine_revision, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(payload.experiment_id),
+            payload.manifest_version,
+            payload.account_name,
+            payload.book_id if payload.book_id is None else int(payload.book_id),
+            float(payload.initial_cash),
+            payload.benchmark_ticker,
+            float(payload.slippage_bps),
+            float(payload.fee_per_trade),
+            payload.effective_execution_json,
+            payload.tickers_file,
+            payload.universe_history_dir,
+            payload.universe_tickers_json,
+            int(payload.universe_size),
+            payload.market_data_provider,
+            payload.data_as_of,
+            payload.engine_revision,
+            now,
+        ),
+    )
+    commit_unit_of_work(conn)
+    assert cursor.lastrowid is not None
+    return int(cursor.lastrowid)
+
+
+def fetch_manifest_for_experiment(
+    conn: sqlite3.Connection, *, experiment_id: int
+) -> OptimizationManifestRecord | None:
+    """Return the experiment's frozen provenance manifest, or ``None`` if not stored."""
+    row = conn.execute(
+        "SELECT * FROM optimization_run_manifests WHERE experiment_id = ?",
+        (int(experiment_id),),
+    ).fetchone()
+    return OptimizationManifestRecord.from_mapping(dict(row)) if row is not None else None

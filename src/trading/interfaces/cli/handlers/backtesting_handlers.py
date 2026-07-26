@@ -312,6 +312,8 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
     _print_window_audit(windows, trials)
     compounded = deps["fetch_compounded_oos"](conn, experiment_id=args.experiment_id)
     _print_compounded_oos(compounded)
+    manifest = deps["fetch_optimization_manifest"](conn, experiment_id=args.experiment_id)
+    _print_manifest(manifest)
 
 
 def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -389,6 +391,23 @@ def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
         )
         for reason, count in _rejection_tally(window_trials):
             print(f"       rejected: {reason} x{count}")
+
+
+def _print_manifest(manifest: Any) -> None:
+    """Print the frozen provenance manifest: the assumptions the run executed under."""
+    if manifest is None:
+        print("Provenance: unavailable (experiment predates run manifests)")
+        return
+    print(f"Provenance ({manifest.manifest_version}) | account={manifest.account_name} book_id={manifest.book_id}")
+    print(
+        f"  economics: initial_cash={manifest.initial_cash:.2f} benchmark={manifest.benchmark_ticker} "
+        f"slippage_bps={manifest.slippage_bps:.2f} fee={manifest.fee_per_trade:.2f}"
+    )
+    print(f"  execution: {manifest.effective_execution_json}")
+    lineage = manifest.universe_history_dir or manifest.tickers_file or "n/a"
+    print(f"  universe: {manifest.universe_size} tickers | lineage={lineage}")
+    revision = manifest.engine_revision or "unknown"
+    print(f"  data: provider={manifest.market_data_provider} as_of={manifest.data_as_of} | engine={revision}")
 
 
 def _print_compounded_oos(series: Any) -> None:

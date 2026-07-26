@@ -63,6 +63,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
+            "optimization_run_manifests",
         ),
     },
     {
@@ -120,6 +121,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
+            "optimization_run_manifests",
             "promotion_reviews",
             "promotion_review_events",
             "risk_snapshots",
@@ -161,6 +163,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
+            "optimization_run_manifests",
         ),
     },
     {
@@ -274,6 +277,7 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
+            "optimization_run_manifests",
         ),
     },
     {

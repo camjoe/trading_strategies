@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 14:06 25-07-2026 PST. Tables: 27.</div>
+      <div class="meta">Source: fresh code schema. Generated: 16:03 25-07-2026 PST. Tables: 28.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -411,7 +411,8 @@
         "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
-        "optimization_trials"
+        "optimization_trials",
+        "optimization_run_manifests"
       ]
     },
     {
@@ -449,7 +450,7 @@
       ]
     }
   ],
-  "generatedAt": "14:06 25-07-2026 PST",
+  "generatedAt": "16:03 25-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -502,7 +503,8 @@
         "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
-        "optimization_trials"
+        "optimization_trials",
+        "optimization_run_manifests"
       ]
     },
     {
@@ -574,7 +576,8 @@
         "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
-        "optimization_trials"
+        "optimization_trials",
+        "optimization_run_manifests"
       ]
     },
     {
@@ -2665,6 +2668,194 @@
         },
         {
           "default": null,
+          "name": "experiment_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#7c3aed",
+            "id": "research",
+            "label": "Research"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "manifest_version",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "account_name",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "book_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "initial_cash",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "benchmark_ticker",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "slippage_bps",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "fee_per_trade",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "effective_execution_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "tickers_file",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "universe_history_dir",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "universe_tickers_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "universe_size",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "market_data_provider",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "data_as_of",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "engine_revision",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "book_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "experiment_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "optimization_experiments"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "experiment_id"
+          ],
+          "name": "idx_optimization_run_manifests_experiment",
+          "origin": "c",
+          "unique": true
+        }
+      ],
+      "name": "optimization_run_manifests",
+      "section": {
+        "color": "#7c3aed",
+        "id": "research",
+        "label": "Research"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "window_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -4580,6 +4771,7 @@
         "global_settings",
         "ledger",
         "optimization_experiments",
+        "optimization_run_manifests",
         "optimization_trials",
         "optimization_windows",
         "order_fills",
@@ -4618,6 +4810,7 @@
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
+        "optimization_run_manifests",
         "promotion_reviews",
         "promotion_review_events",
         "risk_snapshots",
@@ -4658,7 +4851,8 @@
         "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
-        "optimization_trials"
+        "optimization_trials",
+        "optimization_run_manifests"
       ]
     },
     {

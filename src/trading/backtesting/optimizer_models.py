@@ -378,3 +378,83 @@ class OptimizationTrialRecord:
             rejection_reason=row_str(values, "rejection_reason"),
             selected=bool(row_expect_int(values, "selected")),
         )
+
+
+# Manifest schema version. Bump (never redefine) when the frozen provenance field
+# set changes, so an old manifest keeps its original meaning.
+MANIFEST_V1 = "manifest_v1"
+
+
+@dataclass(frozen=True)
+class OptimizationManifestInsert:
+    """Persistence payload for one ``optimization_run_manifests`` row.
+
+    The frozen provenance snapshot of a ``backtest-optimize`` run: the effective
+    economics, the book's effective risk/sizing knobs (``effective_execution_json``),
+    exact universe membership + lineage, the data provider + as-of timestamp, and
+    the engine revision. Values are copied (frozen), not linked — the snapshot is the
+    audit record. Not a replay guarantee; no input price payloads are stored."""
+
+    experiment_id: int
+    manifest_version: str
+    account_name: str
+    book_id: int | None
+    initial_cash: float
+    benchmark_ticker: str
+    slippage_bps: float
+    fee_per_trade: float
+    effective_execution_json: str
+    tickers_file: str | None
+    universe_history_dir: str | None
+    universe_tickers_json: str
+    universe_size: int
+    market_data_provider: str
+    data_as_of: str
+    engine_revision: str | None
+
+
+@dataclass(frozen=True)
+class OptimizationManifestRecord:
+    """Persisted ``optimization_run_manifests`` row (read model)."""
+
+    id: int
+    experiment_id: int
+    manifest_version: str
+    account_name: str
+    book_id: int | None
+    initial_cash: float
+    benchmark_ticker: str
+    slippage_bps: float
+    fee_per_trade: float
+    effective_execution_json: str
+    tickers_file: str | None
+    universe_history_dir: str | None
+    universe_tickers_json: str
+    universe_size: int
+    market_data_provider: str
+    data_as_of: str
+    engine_revision: str | None
+    created_at: str
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> OptimizationManifestRecord:
+        return cls(
+            id=row_expect_int(values, "id"),
+            experiment_id=row_expect_int(values, "experiment_id"),
+            manifest_version=row_expect_str(values, "manifest_version"),
+            account_name=row_expect_str(values, "account_name"),
+            book_id=row_int(values, "book_id"),
+            initial_cash=row_expect_float(values, "initial_cash"),
+            benchmark_ticker=row_expect_str(values, "benchmark_ticker"),
+            slippage_bps=row_expect_float(values, "slippage_bps"),
+            fee_per_trade=row_expect_float(values, "fee_per_trade"),
+            effective_execution_json=row_expect_str(values, "effective_execution_json"),
+            tickers_file=row_str(values, "tickers_file"),
+            universe_history_dir=row_str(values, "universe_history_dir"),
+            universe_tickers_json=row_expect_str(values, "universe_tickers_json"),
+            universe_size=row_expect_int(values, "universe_size"),
+            market_data_provider=row_expect_str(values, "market_data_provider"),
+            data_as_of=row_expect_str(values, "data_as_of"),
+            engine_revision=row_str(values, "engine_revision"),
+            created_at=row_expect_str(values, "created_at"),
+        )

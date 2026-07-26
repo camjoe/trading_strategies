@@ -20,12 +20,14 @@ from trading.backtesting.optimizer_models import OptimizationExperimentInsert, O
 from trading.backtesting.repositories.backtest_repository import insert_backtest_run
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
+    fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
     insert_experiment,
 )
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from trading.domain.exceptions import NotFoundError
+from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
 # The winning candidate (differs from trend's default fast/slow, so the promoted
@@ -66,7 +68,9 @@ def _metrics_for(cfg: BacktestConfig) -> tuple[float, float, int]:
 def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
     cfg = OptimizerConfig(
         account_name=account_name,
-        tickers_file="tickers.txt",
+        # A real universe file so the run manifest's universe resolution succeeds
+        # (the fake run functions never read it, but manifest capture does).
+        tickers_file=DEFAULT_TICKERS_FILE,
         universe_history_dir=None,
         strategy="trend",
         search_space={"slow_window": [20, 40]},
@@ -151,6 +155,20 @@ class TestPersistence:
             assert selected[0].params_hash == params_fingerprint(WINNER)
             # Hashes are distinct per candidate (the one-hash-per-window invariant).
             assert len({t.params_hash for t in window_trials}) == len(window_trials)
+
+    def test_run_persists_frozen_provenance_manifest(self, conn) -> None:
+        account_id = insert_repository_account(conn, name="opt_manifest_e2e")
+        experiment_id = _run_and_persist(conn, account_id, account_name="opt_manifest_e2e")
+
+        manifest = fetch_manifest_for_experiment(conn, experiment_id=experiment_id)
+        assert manifest is not None
+        assert manifest.account_name == "opt_manifest_e2e"
+        # Resolved from the real default universe file threaded into the run config.
+        assert manifest.universe_size == 12
+        assert '"AAPL"' in manifest.universe_tickers_json
+        # The composition root binds the provider name; the default fake path records "unknown".
+        assert manifest.market_data_provider == "unknown"
+        assert manifest.manifest_version == "manifest_v1"
 
 
 class TestPromotion:

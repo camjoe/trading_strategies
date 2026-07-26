@@ -92,8 +92,7 @@ def upgrade() -> None:
     # One candidate (by canonical params hash) per window. Leading column window_id
     # also covers the window cascade FK.
     op.execute(
-        "CREATE UNIQUE INDEX idx_optimization_trials_window_hash "
-        "ON optimization_trials(window_id, params_hash)"
+        "CREATE UNIQUE INDEX idx_optimization_trials_window_hash ON optimization_trials(window_id, params_hash)"
     )
     # At most one selected winner per window (partial unique index).
     op.execute(
