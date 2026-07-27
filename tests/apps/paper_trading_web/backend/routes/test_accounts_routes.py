@@ -5,6 +5,10 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from paper_trading_web.backend.routes.accounts import ROTATION_POLICY_REQUEST_NAMES
+from paper_trading_web.backend.schemas.accounts import RotationPolicyRequest
+
+from trading.services.parameters.mutations import ROTATION_POLICY_FIELDS
 
 
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:
@@ -268,3 +272,42 @@ class TestAccountParamsEndpoint:
             "schedule": ["trend", "ma_crossover", "mean_reversion"],
             "lookbackDays": 30,
         }
+
+
+def _camel_to_snake(name: str) -> str:
+    return "".join(f"_{char.lower()}" if char.isupper() else char for char in name)
+
+
+class TestRotationPolicyContract:
+    """The API's rotation-policy surface must expose exactly the domain's knobs.
+
+    Four parallel lists describe the same policy: ``ROTATION_POLICY_FIELDS``
+    (the owning edit surface), the GET payload, the request schema, and the
+    write mapping. They have drifted in both directions before — a knob dropped
+    from the domain was left behind in the read path and raised AttributeError,
+    and a knob added to the domain was never exposed, leaving a live scoring
+    weight silently un-editable. These assertions fail on either kind of drift.
+    """
+
+    def test_get_payload_exposes_every_policy_field(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_policy_contract")
+
+        detail = api_client.get("/api/accounts/acct_policy_contract").json()
+        payload_fields = {_camel_to_snake(name) for name in detail["books"][0]["rotationPolicy"]}
+
+        assert payload_fields == set(ROTATION_POLICY_FIELDS)
+
+    def test_request_schema_accepts_every_policy_field(self) -> None:
+        schema_fields = {_camel_to_snake(name) for name in RotationPolicyRequest.model_fields}
+
+        assert schema_fields == set(ROTATION_POLICY_FIELDS)
+
+    def test_write_mapping_covers_every_policy_field(self) -> None:
+        assert set(ROTATION_POLICY_REQUEST_NAMES.values()) == set(ROTATION_POLICY_FIELDS)
+        # Every request name must also convert cleanly, so the schema and the
+        # mapping cannot disagree about casing.
+        assert all(_camel_to_snake(name) == field for name, field in ROTATION_POLICY_REQUEST_NAMES.items())

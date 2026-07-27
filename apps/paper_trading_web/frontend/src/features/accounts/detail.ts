@@ -248,6 +248,7 @@ export function renderCurrentDetail(
           riskAdjustedReturnWeight: number("riskAdjustedReturnWeight"),
           stabilityWeight: number("stabilityWeight"),
           drawdownPenaltyWeight: number("drawdownPenaltyWeight"),
+          regimeFitWeight: number("regimeFitWeight"),
         },
       };
       const message = form.querySelector<HTMLElement>(".book-config-message");

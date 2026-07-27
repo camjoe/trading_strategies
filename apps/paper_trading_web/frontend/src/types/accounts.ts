@@ -55,6 +55,7 @@ export interface RotationPolicySettings {
   riskAdjustedReturnWeight: number;
   stabilityWeight: number;
   drawdownPenaltyWeight: number;
+  regimeFitWeight: number;
 }
 
 export interface BookConfiguration extends AccountConfigFields {

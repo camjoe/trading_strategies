@@ -77,6 +77,7 @@ function bookEditor(book: BookConfiguration): string {
           ${input("riskAdjustedReturnWeight", "Return weight", policy.riskAdjustedReturnWeight)}
           ${input("stabilityWeight", "Stability weight", policy.stabilityWeight)}
           ${input("drawdownPenaltyWeight", "Drawdown weight", policy.drawdownPenaltyWeight)}
+          ${input("regimeFitWeight", "Regime fit weight", policy.regimeFitWeight)}
         </div>
         <div class="edit-params-actions">
           <button class="book-config-save" data-book="${esc(book.name)}" type="button">Save book</button>

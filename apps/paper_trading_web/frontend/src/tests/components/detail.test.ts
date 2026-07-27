@@ -250,6 +250,7 @@ describe("renderDetail", () => {
           riskAdjustedReturnWeight: 1,
           stabilityWeight: 0.25,
           drawdownPenaltyWeight: 0.2,
+          regimeFitWeight: 0.1,
         },
       }],
       latestBacktest: null,

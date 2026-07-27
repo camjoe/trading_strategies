@@ -42,6 +42,7 @@ class RotationPolicyRequest(BaseModel):
     riskAdjustedReturnWeight: float | None = None
     stabilityWeight: float | None = None
     drawdownPenaltyWeight: float | None = None
+    regimeFitWeight: float | None = None
 
 
 class BookParamsRequest(AccountParamsRequest):

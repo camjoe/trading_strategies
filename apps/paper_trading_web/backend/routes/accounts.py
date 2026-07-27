@@ -45,6 +45,20 @@ from ..services.evaluation import build_evaluation_summary_payload
 
 router = APIRouter()
 
+# Request-field name → rotation policy field, for the book params write path.
+# Must stay in step with ``ROTATION_POLICY_FIELDS``; a test asserts it does,
+# because a knob that is added or dropped in the domain and missed here is
+# silently un-editable rather than a visible error.
+ROTATION_POLICY_REQUEST_NAMES = {
+    "minTradesInWindow": "min_trades_in_window",
+    "outperformanceThresholdBps": "outperformance_threshold_bps",
+    "cooldownDays": "cooldown_days",
+    "riskAdjustedReturnWeight": "risk_adjusted_return_weight",
+    "stabilityWeight": "stability_weight",
+    "drawdownPenaltyWeight": "drawdown_penalty_weight",
+    "regimeFitWeight": "regime_fit_weight",
+}
+
 
 def _book_payload(view: BookConfigurationView) -> dict[str, object]:
     book = view.book
@@ -94,6 +108,7 @@ def _book_payload(view: BookConfigurationView) -> dict[str, object]:
             "riskAdjustedReturnWeight": policy.risk_adjusted_return_weight,
             "stabilityWeight": policy.stability_weight,
             "drawdownPenaltyWeight": policy.drawdown_penalty_weight,
+            "regimeFitWeight": policy.regime_fit_weight,
         },
     }
 
@@ -255,14 +270,7 @@ def api_update_book_params(
     with db_conn() as conn:
         command = build_account_params_update_command(body)
         raw_policy = body.rotationPolicy.model_dump(exclude_none=True) if body.rotationPolicy else {}
-        policy_names = {
-            "minTradesInWindow": "min_trades_in_window",
-            "outperformanceThresholdBps": "outperformance_threshold_bps",
-            "cooldownDays": "cooldown_days",
-            "riskAdjustedReturnWeight": "risk_adjusted_return_weight",
-            "stabilityWeight": "stability_weight",
-            "drawdownPenaltyWeight": "drawdown_penalty_weight",
-        }
+        policy_names = ROTATION_POLICY_REQUEST_NAMES
         scheduling_names = {
             "enabled": "rotation_enabled",
             "schedule": "rotation_schedule",
