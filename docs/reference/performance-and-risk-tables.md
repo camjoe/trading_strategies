@@ -100,9 +100,9 @@ over the account's positions and books; concentration caps themselves live in
 | `net_exposure` | REAL | Σ `market_value` (signed: long − short), in account currency. |
 | `max_symbol_concentration_pct` | REAL | Largest single-symbol exposure ÷ total book equity. **A fraction (0–1), despite the `_pct` suffix.** |
 | `max_sector_concentration_pct` | REAL | Largest single-sector exposure ÷ total book equity. **A fraction (0–1), despite the `_pct` suffix.** |
-| `drawdown_pct` | REAL, nullable | Reserved. The auto-trading writer currently records `NULL`. |
-| `leverage_proxy` | REAL, nullable | Reserved leverage approximation (hence "proxy"). Auto-trading writer currently records `NULL`. |
-| `daily_loss_pct` | REAL, nullable | Reserved day-loss figure (a 1-day drawdown). Auto-trading writer currently records `NULL`. |
+| `drawdown_pct` | REAL, nullable | Account-grain, **point-in-time**: `current_equity / peak_equity - 1`, in percent (<= 0). `peak_equity` is the account's highest equity ever recorded (`EquitySnapshotRepository.fetch_max_equity`), including today. Distinct from `daily_metrics.drawdown_pct` (book grain, single-day peak-to-trough). `NULL` only when the account has no equity history yet. |
+| `leverage_proxy` | REAL, nullable | `gross_exposure / total_equity`. `NULL` when equity is zero. |
+| `daily_loss_pct` | REAL, nullable | Reserved day-loss figure (single-day peak-to-trough). Still needs intraday equity ticks this codebase does not persist — unlike `drawdown_pct` above, a trailing-history peak cannot stand in for a single day's figure. Auto-trading writer currently records `NULL`. |
 | `kill_switch_triggered` | INT (0/1) | Whether the risk kill-switch fired at this snapshot. |
 | `risk_payload_json` | TEXT (JSON) | **Supplementary** detail only. The typed columns above are canonical; the JSON carries extra context and must not be the sole source for a value that has a column. |
 
@@ -146,8 +146,10 @@ the option pair is configurable and persisted but has no production execution co
   because its input is not stored at this grain: `drawdown_pct` needs intraday equity. `hit_rate` /
   `expectancy` are populated only for orders created after `0020`, and `risk_adjusted_score` only
   fills in once a book has accumulated enough daily rows (neither backfills historical rows).
-- `risk_snapshots.drawdown_pct`, `leverage_proxy`, and `daily_loss_pct` are
-  columns without a populating writer (recorded `NULL` today).
+- `risk_snapshots.drawdown_pct` and `leverage_proxy` are populated by
+  `persist_book_risk_snapshot`. `daily_loss_pct` remains a column without a
+  populating writer (recorded `NULL` today) — same single-day-grain gap as
+  `daily_metrics.drawdown_pct`.
 - `books.option_profit_take_pct` and `option_max_loss_pct` have configuration and persistence
   surfaces but no production options-execution consumer.
 
