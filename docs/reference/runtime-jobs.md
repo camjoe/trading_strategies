@@ -26,7 +26,6 @@ entries are installed only when their time flag is provided.
 | Daily paper trading fallback | `python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source scheduled-daily-fallback` | `Trading\DailyPaperTradingFallback` | Daily at `--daily-paper-trading-fallback-time` | Second duplicate-guarded attempt in case the primary daily run missed or failed before completion. |
 | Challenger shadow evaluation | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily at `--daily-challenger-shadow-eval-time`, or auto-derived before paper trading with `--auto-shadow-eval-from-daily-paper` | Scores challenger strategies against incumbents for runtime-eligible accounts and writes account-level shadow-evaluation artifacts. Disabled unless `--enable-run` or the matching environment enable is set. |
 | Daily snapshot | `python -m trading.interfaces.runtime.jobs.daily.snapshot` | `Trading\DailySnapshot` | Daily at `--daily-snapshot-time` | Runs account snapshots with duplicate-run guard and retry handling. Disabled unless `--enable-run` or the matching environment enable is set. |
-| Daily backtest refresh | `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh` | `Trading\DailyBacktestRefresh` | Daily at `--daily-backtest-refresh-time` | Refreshes only the backtests that have drifted: for each account it re-runs the strategies rotation could promote (each active book's incumbent plus its challenger schedule) whose newest backtest is stale or missing, per the backtest freshness threshold (`--stale-threshold-days`, default 3). Captures run IDs, retries transient failures, writes JSON artifacts under `local/exports/daily_backtest_refresh/`. Disabled unless `--enable-run` or the matching environment enable is set. |
 | Daily trader health check | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Daily at `--health-check-time` | Checks that the latest daily paper-trading log is recent and contains the success sentinel; can notify on failure. |
 | Weekly DB backup | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly at `--weekly-db-backup-time` on `--weekly-db-backup-day-of-week` | Runs the database backup command with a same-week duplicate guard. |
 
@@ -65,8 +64,6 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manua
 # Daily snapshot
 python -m trading.interfaces.runtime.jobs.daily.snapshot --run-source manual --enable-run
 
-# Daily backtest refresh
-python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
 python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
@@ -119,7 +116,7 @@ On Windows, the same registration commands apply with the PowerShell path form
 - On Linux with systemd, the installer generates `local/install_trading_timers.sh` (requires `sudo bash` to apply). Each timer includes `WakeSystem=yes` so the machine wakes from sleep before the job fires. Pass `--no-wake-system` to disable this.
 - Pass `--env-file /path/to/.env` to inject secrets via `EnvironmentFile=` in each service unit (systemd only). The file is treated as optional — a missing file does not fail the job. For cron setups, the production runbook documents an equivalent `run-job.sh` wrapper you create on the host.
 - `--python` defaults to the venv's python when running inside a venv; override explicitly if needed.
-- Snapshot, daily backtest refresh, and challenger shadow-evaluation entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh` / `--enable-daily-challenger-shadow-eval`) or the matching environment variable is set. The `--auto-shadow-eval-from-daily-paper` form enables the shadow-eval run automatically.
+- Snapshot and challenger shadow-evaluation entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-challenger-shadow-eval`) or the matching environment variable is set. The `--auto-shadow-eval-from-daily-paper` form enables the shadow-eval run automatically.
 - Windows Task Scheduler task names default to the `Trading\*` names in the scheduled-jobs table above.
 
 ## Configuration

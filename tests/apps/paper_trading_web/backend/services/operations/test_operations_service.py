@@ -32,10 +32,6 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
         f"header\n{services_operations.WEEKLY_DB_BACKUP_SENTINEL}\n",
     )
     _write(
-        exports_dir / "daily_backtest_refresh" / f"daily_backtest_refresh_{today_tag}_131800.json",
-        "{}\n",
-    )
-    _write(
         exports_dir / "daily_snapshots" / f"daily_snapshot_{today_tag}_132000.json",
         "{}\n",
     )
@@ -47,14 +43,12 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
 
     payload = services_operations.list_operations_overview()
 
-    assert payload["dailyBacktestRefreshArtifacts"][0]["name"].endswith(".json")
     assert payload["dailySnapshotArtifacts"][0]["name"].endswith(".json")
     assert payload["databaseBackups"][0]["name"].endswith(".db")
 
     jobs = {job["key"]: job for job in payload["jobs"]}
     assert jobs["daily_paper_trading"]["status"] == "ok"
     assert jobs["daily_snapshot"]["status"] == "warning"
-    assert jobs["daily_backtest_refresh"]["status"] == "missing"
     assert jobs["weekly_db_backup"]["status"] == "ok"
     assert all(job["runHint"].startswith("python -m ") for job in jobs.values())
 

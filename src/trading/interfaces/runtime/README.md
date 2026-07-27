@@ -27,7 +27,7 @@ imported. There are four categories:
 run unattended on the host:
 
 - `jobs/daily/paper_trading` (package), `jobs/daily/snapshot`,
-  `jobs/daily/backtest_refresh`, `jobs/daily/challenger_shadow_eval`,
+  `jobs/daily/challenger_shadow_eval`,
   `jobs/daily/trader_health`, `jobs/maintenance/weekly_db_backup`
 
 **Operator entrypoints** — run by hand or on a manual cadence:

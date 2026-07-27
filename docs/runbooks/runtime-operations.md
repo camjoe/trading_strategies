@@ -27,7 +27,7 @@ running from a Windows dev machine.
 
 **Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
 
-**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, backtest-refresh, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
+**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
 
 ---
 
@@ -129,7 +129,7 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
    ```bash
    python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
    ```
-3. The combined daily paper-trading, daily snapshot, daily backtest-refresh, and weekly backup status is summarized by:
+3. The combined daily paper-trading, daily snapshot, and weekly backup status is summarized by:
    ```bash
    python -m scripts.check_jobs
    ```
@@ -145,7 +145,6 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
 | Startup log | `local/logs/daily_paper_trading_startup_{YYYYMMDD}.log` |
 | Scheduler logs | `local/logs/*_scheduler.log` |
 | Daily snapshot artifacts | `local/exports/daily_snapshots/daily_snapshot_{YYYYMMDD}_{HHMMSS}.json` |
-| Daily backtest refresh artifacts | `local/exports/daily_backtest_refresh/daily_backtest_refresh_{YYYYMMDD}_{HHMMSS}.json` |
 | Governance artifacts | `local/artifacts/{job}_{tag}_{YYYYMMDD}_{HHMMSS}.json` |
 | Burn-in status artifacts | `local/artifacts/check_burn_in_status_{YYYYMMDD}_{HHMMSS}.json` |
 

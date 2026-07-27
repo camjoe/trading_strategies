@@ -9,7 +9,7 @@ Related: [Production Runtime Host Runbook](../runbooks/production-runtime-host.m
 
 ## Context
 
-The scheduled runtime jobs (daily paper-trading DAG, daily snapshot/health/backtest-refresh,
+The scheduled runtime jobs (daily paper-trading DAG, daily snapshot/health,
 weekly/monthly governance, weekly DB backup) must run reliably and unattended. Running them from the
 same workstation used for development produced two recurring failure modes:
 

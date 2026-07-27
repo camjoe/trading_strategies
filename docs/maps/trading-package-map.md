@@ -80,7 +80,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
 | `daily/paper_trading/workflow.py` | Daily DAG orchestration, artifact writing, notifications, and success/failure handling |
 | `daily/snapshot.py` | Daily equity snapshot job |
-| `daily/backtest_refresh.py` | Daily job that re-runs only stale/missing backtests across each account's rotation candidates (incumbent + challengers) |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
 | `governance/weekly/w1_leaderboard.py` | Weekly leaderboard governance job |

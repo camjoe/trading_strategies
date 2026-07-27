@@ -88,11 +88,6 @@ export function renderOperationsOverview(data: OperationsOverviewResponse): stri
     </div>
     <div class="ops-artifact-grid">
       ${renderArtifactPanel(
-        "Daily Backtest Refresh Artifacts",
-        "No daily backtest refresh artifacts found in local/exports/daily_backtest_refresh yet.",
-        data.dailyBacktestRefreshArtifacts,
-      )}
-      ${renderArtifactPanel(
         "Daily Snapshot Artifacts",
         "No daily snapshot artifacts found in local/exports/daily_snapshots yet.",
         data.dailySnapshotArtifacts,

@@ -70,7 +70,7 @@ Design goals:
 - **Broker abstraction** — paper, IBKR Web API, and IBKR socket adapters behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
 - **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
-- **Runtime scheduler jobs** (daily backtest refresh, challenger shadow evaluation, governance,
+- **Runtime scheduler jobs** (challenger shadow evaluation, governance,
   health checks, reporting) plus a **CLI** and an optional **web UI** (`apps/paper_trading_web`).
 - **Operational settings** (evaluation confidence, promotion policy, trade throttles) and
   **account profiles** for configuration, plus a **unified parameter source**: one `parameters`

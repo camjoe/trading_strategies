@@ -34,7 +34,6 @@ export interface OperationArtifact {
 
 export interface OperationsOverviewResponse {
   jobs: OperationJobStatus[];
-  dailyBacktestRefreshArtifacts: OperationArtifact[];
   dailySnapshotArtifacts: OperationArtifact[];
   databaseBackups: OperationArtifact[];
 }

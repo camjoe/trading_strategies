@@ -36,7 +36,7 @@ def test_diagnostics_report_fresh_backtest() -> None:
 
 def test_diagnostics_report_stale_backtest() -> None:
     diagnostics = build_diagnostics(
-        backtest=_backtest("2026-03-01T00:00:00Z"),
+        backtest=_backtest("2026-01-15T00:00:00Z"),
         paper_live=_PAPER,
         walk_forward=_WALK,
         generated_at="2026-03-16T00:00:00Z",
@@ -44,7 +44,7 @@ def test_diagnostics_report_stale_backtest() -> None:
 
     freshness = diagnostics.backtest_freshness
     assert freshness is not None
-    assert freshness.age_days == 15.0
+    assert freshness.age_days == 60.0
     assert freshness.is_stale is True
 
 

@@ -20,7 +20,6 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_optimize_promote,
     handle_backtest_optimize_show,
     handle_backtest_report,
-    handle_refresh_stale_backtests,
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
@@ -81,7 +80,6 @@ COMMAND_HANDLERS = {
     "configure-strategy": handle_configure_strategy,
     "freeze-strategy": handle_freeze_strategy,
     "backtest": handle_backtest,
-    "refresh-stale-backtests": handle_refresh_stale_backtests,
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,

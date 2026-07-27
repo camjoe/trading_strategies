@@ -172,7 +172,6 @@ Review requests freeze the current evaluation evidence into a durable record and
 - `python -m trading.interfaces.cli.main backtest-optimize-show <experiment_id>`
   shows a stored optimization experiment: winner params, OOS/holdout evidence, the per-window and
   per-candidate audit trail, and the promotion-gate preview.
-- Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
 

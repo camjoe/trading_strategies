@@ -21,7 +21,6 @@ from trading.backtesting.repositories.optimization_repository import (
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
 )
-from trading.backtesting.services import find_stale_backtests
 from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from trading.backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
@@ -87,7 +86,6 @@ def _handler_deps() -> dict[str, object]:
         "backtest_report": backtest_report,
         "run_backtest": run_backtest,
         "run_backtest_metrics_only": run_backtest_metrics_only,
-        "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_optimization": partial(
             run_and_persist_optimization, market_data_provider=resolve_provider_name()

@@ -41,35 +41,17 @@ python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,mean
 python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
 ```
 
-## Scheduled Refresh
-
-Recurring refreshes for persisted account backtests are handled by:
-
-- `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh`
-
-Key behavior:
-
-- **targeted, not blind** — refreshes only the stale or missing backtests across each account's
-  rotation candidate strategies (incumbent + challenger schedule), driven by the freshness signal
-  below (`--stale-threshold-days`, default 3)
-- explicit opt-in via `--enable-run` or `DAILY_BACKTEST_REFRESH_ENABLED=1`
-- duplicate same-day run guard unless `--force-run` is supplied
-- transient retry handling for market-data failures
-- machine-readable JSON artifacts under `local/exports/daily_backtest_refresh/`
-
-For schedule/install details, see [runtime-jobs.md](runtime-jobs.md).
-
-### Freshness cadence (advisory)
+## Backtest Freshness (advisory)
 
 Every strategy evaluation carries an advisory **backtest freshness** diagnostic:
-the age of the newest backtest run (`backtest_runs.created_at`) measured
+the age of the experiment's holdout run (`backtest_runs.created_at`) measured
 against the evaluation's generation time. When that age exceeds the stale
-threshold (default **3 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
+threshold (default **30 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
 `trading.domain.backtest_freshness`) the diagnostic is flagged stale.
 
 It is **advisory only** — it never blocks rotation or promotion and never
 changes confidence or the blended score. It surfaces so operators can spot
-evidence that has drifted (e.g. the refresh job is disabled or failing):
+evidence that has drifted far enough that re-running the optimizer is worth considering:
 
 - CLI `report` / `compare-strategies`: a `backtest_age=<n>d (fresh|stale)`
   fragment on the evaluation summary line.
@@ -80,27 +62,12 @@ evidence that has drifted (e.g. the refresh job is disabled or failing):
 If stale evidence is later proven to skew decisions, this advisory is the hook
 to tighten into confidence decay or a hard gate.
 
-### Remediation
-
-The freshness signal drives remediation — refreshing stale or missing backtests
-across each account's rotation candidate strategies (incumbent + challenger
-schedule), not just the active one:
-
-- On demand: `python -m trading.interfaces.cli.main refresh-stale-backtests`
-  (`--account` filter, `--dry-run` to list targets, `--limit` to cap a batch).
-- Scheduled: the `Trading\DailyBacktestRefresh` job re-runs only the drifted
-  backtests each day.
-
-Candidate strategy names are canonicalized through the strategy catalog, so an
-aliased challenger (e.g. `macd_trend` → `macd`) matches its stored backtest and
-is not re-run once fresh.
-
 ## Strategy Notes
 
 - The full strategy catalog and its ids are documented in `docs/reference/strategies.md`.
 - By default a backtest runs the account's active strategy — the default book's open assignment
   (ADR 014). Pass `--strategy` to backtest a specific strategy instead (e.g. a rotation challenger);
-  the remediation flows use this to refresh challenger evidence.
+  rotation scores challengers through the same evidence path.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
 

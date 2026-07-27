@@ -48,27 +48,6 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     )
     p_backtest.add_argument("--run-name", default=None, help="Optional run label")
 
-    p_refresh_stale = sub.add_parser(
-        "refresh-stale-backtests",
-        help=(
-            "Re-run backtests whose evidence is stale or missing, across each account's"
-            " rotation candidate strategies (incumbent + challengers)."
-        ),
-    )
-    p_refresh_stale.add_argument("--account", default=None, help="Optional account filter")
-    p_refresh_stale.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="List the stale/missing (account, strategy) targets without running backtests",
-    )
-    p_refresh_stale.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Cap the number of backtests run in one invocation (default: no cap)",
-    )
-    _add_shared_backtest_args(p_refresh_stale)
-
     p_backtest_report = sub.add_parser(
         "backtest-report",
         help="Show summary metrics for a previous backtest run tied to an account configuration.",

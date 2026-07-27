@@ -16,7 +16,6 @@ from pathlib import Path
 
 from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.daily.backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
 from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
 from trading.interfaces.runtime.jobs.daily.snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
@@ -27,7 +26,6 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
 DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily.snapshot"
-DAILY_BACKTEST_REFRESH_SCRIPT = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
 WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
@@ -117,16 +115,6 @@ def _check_daily_snapshot() -> dict:
         pattern="daily_snapshot_[0-9]*_[0-9]*.log",
         sentinel=DAILY_SNAPSHOT_SENTINEL,
         run_cmd=[sys.executable, "-m", DAILY_SNAPSHOT_SCRIPT, "--enable-run"],
-    )
-
-
-def _check_daily_backtest_refresh() -> dict:
-    """Return status dict for the daily backtest refresh job."""
-    return _check_daily_job(
-        job="Daily Backtest Refresh",
-        pattern="daily_backtest_refresh_[0-9]*_[0-9]*.log",
-        sentinel=DAILY_BACKTEST_REFRESH_SENTINEL,
-        run_cmd=[sys.executable, "-m", DAILY_BACKTEST_REFRESH_SCRIPT, "--accounts", "all", "--enable-run"],
     )
 
 
@@ -282,7 +270,6 @@ def main() -> int:
     daily_jobs = [
         _check_daily(),
         _check_daily_snapshot(),
-        _check_daily_backtest_refresh(),
     ]
     weekly = _check_weekly()
 
@@ -303,7 +290,6 @@ def main() -> int:
             (
                 _check_daily()["today_complete"],
                 _check_daily_snapshot()["today_complete"],
-                _check_daily_backtest_refresh()["today_complete"],
             )
         )
         weekly_ok = _check_weekly()["this_week_complete"]
