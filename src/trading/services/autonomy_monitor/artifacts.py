@@ -34,6 +34,23 @@ def _find_latest_artifact(pattern: str, search_dir: Path) -> dict[str, Any] | No
         return None
 
 
+def _governance_result(pattern: str, export_dir: Path) -> dict[str, Any]:
+    artifact = _find_latest_artifact(pattern, export_dir)
+    if not artifact:
+        return {
+            "status": "not_run",
+            "last_run": None,
+            "has_results": False,
+            "result": None,
+        }
+    return {
+        "status": "success" if artifact.get("success", True) else "failed",
+        "last_run": artifact.get("run_timestamp") or artifact.get("generated_at"),
+        "has_results": True,
+        "result": artifact,
+    }
+
+
 def fetch_daily_workflow_status(repo_root: Path | None = None) -> dict[str, Any]:
     """Fetch latest daily paper trading run artifact.
 
@@ -75,60 +92,14 @@ def fetch_governance_checks_status(repo_root: Path | None = None) -> dict[str, A
 
     export_dir = repo_root / "local" / "exports"
 
-    checks = {
-        "w1_leaderboard": {"status": "not_run", "last_run": None},
-        "w2_promotion": {"status": "not_run", "last_run": None},
-        "w3_allocation": {"status": "not_run", "last_run": None},
-        "m1_risk_rebaseline": {"status": "not_run", "last_run": None},
-        "m2_parameter_governance": {"status": "not_run", "last_run": None},
-        "m3_performance_audit": {"status": "not_run", "last_run": None},
+    return {
+        "w1_leaderboard": _governance_result("weekly_governance_*/w1_leaderboard_*.json", export_dir),
+        "w2_promotion": _governance_result("weekly_governance_*/w2_promotion_*.json", export_dir),
+        "w3_allocation": _governance_result("weekly_governance_*/w3_allocation_*.json", export_dir),
+        "m1_risk_rebaseline": _governance_result("monthly_governance_*/m1_risk_*.json", export_dir),
+        "m2_parameter_governance": _governance_result("monthly_governance_*/m2_parameter_*.json", export_dir),
+        "m3_performance_audit": _governance_result("monthly_governance_*/m3_performance_*.json", export_dir),
     }
-
-    # Try to find weekly artifacts
-    w1_artifact = _find_latest_artifact("weekly_governance_*/w1_leaderboard_*.json", export_dir)
-    if w1_artifact:
-        checks["w1_leaderboard"] = {
-            "status": "success" if w1_artifact.get("success") else "failed",
-            "last_run": w1_artifact.get("run_timestamp"),
-        }
-
-    w2_artifact = _find_latest_artifact("weekly_governance_*/w2_promotion_*.json", export_dir)
-    if w2_artifact:
-        checks["w2_promotion"] = {
-            "status": "success" if w2_artifact.get("success") else "failed",
-            "last_run": w2_artifact.get("run_timestamp"),
-        }
-
-    w3_artifact = _find_latest_artifact("weekly_governance_*/w3_allocation_*.json", export_dir)
-    if w3_artifact:
-        checks["w3_allocation"] = {
-            "status": "success" if w3_artifact.get("success") else "failed",
-            "last_run": w3_artifact.get("run_timestamp"),
-        }
-
-    # Try to find monthly artifacts
-    m1_artifact = _find_latest_artifact("monthly_governance_*/m1_risk_*.json", export_dir)
-    if m1_artifact:
-        checks["m1_risk_rebaseline"] = {
-            "status": "success" if m1_artifact.get("success") else "failed",
-            "last_run": m1_artifact.get("run_timestamp"),
-        }
-
-    m2_artifact = _find_latest_artifact("monthly_governance_*/m2_parameter_*.json", export_dir)
-    if m2_artifact:
-        checks["m2_parameter_governance"] = {
-            "status": "success" if m2_artifact.get("success") else "failed",
-            "last_run": m2_artifact.get("run_timestamp"),
-        }
-
-    m3_artifact = _find_latest_artifact("monthly_governance_*/m3_performance_*.json", export_dir)
-    if m3_artifact:
-        checks["m3_performance_audit"] = {
-            "status": "success" if m3_artifact.get("success") else "failed",
-            "last_run": m3_artifact.get("run_timestamp"),
-        }
-
-    return checks
 
 
 def fetch_burn_in_status(repo_root: Path | None = None) -> dict[str, Any]:

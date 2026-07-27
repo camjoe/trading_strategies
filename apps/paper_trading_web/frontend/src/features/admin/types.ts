@@ -36,4 +36,20 @@ export interface AdminFeature {
 }
 
 
-export type AdminSection = "jobs" | "accounts" | "promotions" | "artifacts";
+export type AdminSection = "jobs" | "accounts" | "promotions" | "parameters" | "artifacts";
+
+export interface ParameterEntry {
+  name: string;
+  value: string;
+  source: string;
+}
+
+export interface ParameterGroup {
+  scope: string;
+  note: string | null;
+  entries: ParameterEntry[];
+}
+
+export interface ParameterSourceResponse {
+  groups: ParameterGroup[];
+}

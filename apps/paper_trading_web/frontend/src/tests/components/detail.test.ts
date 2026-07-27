@@ -156,6 +156,7 @@ describe("renderDetail", () => {
     expect(html).toContain('data-detail-panel="analysis" hidden');
     expect(html).toContain('data-detail-panel="trades" hidden');
     expect(html).toContain('data-detail-panel="config" hidden');
+    expect(html).toContain('data-detail-panel="books" hidden');
     expect(html).toContain("Rotation Settings");
     expect(html).toContain("editRotationEnabledSelect");
     expect(html).toContain("editRotationScheduleInput");
@@ -163,6 +164,109 @@ describe("renderDetail", () => {
     expect(html).toContain("AAPL");
     expect(html).not.toContain("addTradeBtn");
     expect(html).not.toContain("addTradePanel");
+  });
+
+  it("renders book-owned configuration and editing controls", () => {
+    const detail = {
+      account: {
+        name: "multi",
+        displayName: "Multi Book",
+        strategy: "trend",
+        instrumentMode: "equity",
+        riskPolicy: "none",
+        benchmark: "SPY",
+        initialCash: 10000,
+        equity: 10000,
+        settlementCash: 10000,
+        totalChange: 0,
+        totalChangePct: 0,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
+        changeSinceLastSnapshot: null,
+        latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
+        stopLossPct: null,
+        takeProfitPct: null,
+        goalMinReturnPct: null,
+        goalMaxReturnPct: null,
+        goalPeriod: "monthly",
+        learningEnabled: false,
+        optionStrikeOffsetPct: null,
+        optionMinDte: null,
+        optionMaxDte: null,
+        optionType: null,
+        targetDeltaMin: null,
+        targetDeltaMax: null,
+        maxPremiumPerTrade: null,
+        maxContractsPerTrade: null,
+        ivRankMin: null,
+        ivRankMax: null,
+        rollDteThreshold: null,
+        optionProfitTakePct: null,
+        optionMaxLossPct: null,
+      },
+      books: [{
+        name: "growth",
+        status: "active",
+        isDefault: false,
+        strategy: "mean_reversion",
+        startEquity: 5000,
+        currentCash: 4200,
+        currentEquity: 5100,
+        tradeUniverses: ["technology"],
+        maxTradesPerRun: 3,
+        instrumentMode: "equity",
+        riskPolicy: "fixed_stop",
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
+        stopLossPct: 5,
+        takeProfitPct: 12,
+        goalMinReturnPct: 2,
+        goalMaxReturnPct: 8,
+        goalPeriod: "monthly",
+        learningEnabled: true,
+        optionStrikeOffsetPct: null,
+        optionMinDte: null,
+        optionMaxDte: null,
+        optionType: null,
+        targetDeltaMin: null,
+        targetDeltaMax: null,
+        maxPremiumPerTrade: null,
+        maxContractsPerTrade: null,
+        ivRankMin: null,
+        ivRankMax: null,
+        rollDteThreshold: null,
+        optionProfitTakePct: null,
+        optionMaxLossPct: null,
+        rotation: { enabled: true, schedule: ["trend"], lookbackDays: 30 },
+        rotationPolicy: {
+          minTradesInWindow: 8,
+          outperformanceThresholdBps: 50,
+          cooldownDays: 14,
+          riskAdjustedReturnWeight: 1,
+          stabilityWeight: 0.25,
+          drawdownPenaltyWeight: 0.2,
+          regimeFitWeight: 0.1,
+        },
+      }],
+      latestBacktest: null,
+      latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
+      snapshots: [],
+      trades: [],
+      positions: [],
+    } satisfies AccountDetail;
+
+    const html = renderDetail(detail, { activeSection: "books" });
+    expect(html).toContain("Strategy Books");
+    expect(html).toContain("growth");
+    expect(html).toContain("technology");
+    expect(html).toContain('class="book-config-save"');
+    expect(html).toContain('data-book="growth"');
   });
 
   it("renders empty states when latest backtest/snapshots/trades are absent", () => {

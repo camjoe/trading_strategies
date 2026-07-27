@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 
 
 def parse_utc_iso(value: str) -> datetime:
@@ -19,6 +19,17 @@ def as_utc_iso(value: datetime) -> str:
 
 def utc_now_iso() -> str:
     return as_utc_iso(datetime.now(timezone.utc))
+
+
+def utc_today() -> date:
+    """Today's date in UTC.
+
+    Persisted timestamps are stamped in UTC (``utc_now_iso``), so any date range
+    bounded by one must take its other bound from UTC too. ``date.today()`` is
+    local, and west of UTC it is a day behind for part of every evening — which
+    silently inverts a range whose start came from a stored timestamp.
+    """
+    return datetime.now(timezone.utc).date()
 
 
 def days_between(earlier_iso: str, later_iso: str) -> float:

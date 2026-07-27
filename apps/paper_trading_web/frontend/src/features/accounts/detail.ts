@@ -2,7 +2,7 @@ import { find, findAll } from "../../lib/dom";
 import { errorMessage, patchJson, postJson } from "../../lib/http";
 import { parseRunId } from "../../lib/parse";
 import { renderAnalysisPanel, renderDetail } from "../../components/detail";
-import type { AccountParamsUpdate } from "../../types/accounts";
+import type { AccountParamsUpdate, BookParamsUpdate } from "../../types/accounts";
 import type { AccountsFeatureOptions, AccountsState, DetailSection, LoadAccountDetailOptions } from "./types";
 
 function bindClick<T extends Element>(selector: string, handler: (element: T) => Promise<void> | void): void {
@@ -82,6 +82,7 @@ function buildParamsPayload(): AccountParamsUpdate {
 
 function isDetailSection(section: string | undefined): section is DetailSection {
   return section === "summary"
+    || section === "books"
     || section === "analysis"
     || section === "positions"
     || section === "trades"
@@ -114,6 +115,13 @@ export function renderCurrentDetail(
     activeSection: state.currentDetailSection,
     tradePage: state.currentTradePage,
     tradePageSize: state.tradePageSize,
+    bookName: state.currentBookFilter,
+  });
+
+  find<HTMLSelectElement>("#accountBookFilter")?.addEventListener("change", event => {
+    state.currentBookFilter = (event.currentTarget as HTMLSelectElement).value || null;
+    state.currentTradePage = 1;
+    renderCurrentDetail(state, options, handlers);
   });
 
   bindClick<HTMLButtonElement>("#snapshotOneBtn", async (button) => {
@@ -184,6 +192,81 @@ export function renderCurrentDetail(
       }
     }
   });
+
+  for (const button of findAll<HTMLButtonElement>(".book-config-save")) {
+    button.addEventListener("click", async () => {
+      const form = button.closest<HTMLFormElement>(".book-config-form");
+      const bookName = button.dataset.book;
+      if (!form || !bookName || !state.currentDetail) return;
+      const data = new FormData(form);
+      const number = (name: string): number | undefined => {
+        const raw = String(data.get(name) ?? "").trim();
+        if (!raw) return undefined;
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+      const csv = (name: string): string[] => String(data.get(name) ?? "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const payload: BookParamsUpdate = {
+        strategy: String(data.get("strategy") ?? "").trim() || undefined,
+        riskPolicy: String(data.get("riskPolicy") ?? "") || undefined,
+        instrumentMode: String(data.get("instrumentMode") ?? "") || undefined,
+        learningEnabled: data.get("learningEnabled") === "true",
+        tradeSizePct: number("tradeSizePct"),
+        maxPositionPct: number("maxPositionPct"),
+        stopLossPct: number("stopLossPct"),
+        takeProfitPct: number("takeProfitPct"),
+        goalMinReturnPct: number("goalMinReturnPct"),
+        goalMaxReturnPct: number("goalMaxReturnPct"),
+        goalPeriod: String(data.get("goalPeriod") ?? "").trim() || undefined,
+        tradeUniverses: csv("tradeUniverses"),
+        maxTradesPerRun: number("maxTradesPerRun"),
+        optionType: String(data.get("optionType") ?? "").trim() || undefined,
+        optionStrikeOffsetPct: number("optionStrikeOffsetPct"),
+        optionMinDte: number("optionMinDte"),
+        optionMaxDte: number("optionMaxDte"),
+        targetDeltaMin: number("targetDeltaMin"),
+        targetDeltaMax: number("targetDeltaMax"),
+        maxPremiumPerTrade: number("maxPremiumPerTrade"),
+        maxContractsPerTrade: number("maxContractsPerTrade"),
+        ivRankMin: number("ivRankMin"),
+        ivRankMax: number("ivRankMax"),
+        rollDteThreshold: number("rollDteThreshold"),
+        optionProfitTakePct: number("optionProfitTakePct"),
+        optionMaxLossPct: number("optionMaxLossPct"),
+        rotation: {
+          enabled: data.get("rotationEnabled") === "true",
+          schedule: csv("rotationSchedule"),
+          lookbackDays: number("rotationLookbackDays"),
+        },
+        rotationPolicy: {
+          minTradesInWindow: number("minTradesInWindow"),
+          outperformanceThresholdBps: number("outperformanceThresholdBps"),
+          cooldownDays: number("cooldownDays"),
+          riskAdjustedReturnWeight: number("riskAdjustedReturnWeight"),
+          stabilityWeight: number("stabilityWeight"),
+          drawdownPenaltyWeight: number("drawdownPenaltyWeight"),
+          regimeFitWeight: number("regimeFitWeight"),
+        },
+      };
+      const message = form.querySelector<HTMLElement>(".book-config-message");
+      try {
+        await patchJson(
+          `/api/accounts/${encodeURIComponent(state.currentDetail.account.name)}/books/${encodeURIComponent(bookName)}/params`,
+          payload,
+        );
+        if (message) message.textContent = "Saved.";
+        await handlers.loadAccountDetail(state.currentDetail.account.name, { section: "books" });
+      } catch (err) {
+        if (message) {
+          message.className = "book-config-message error";
+          message.textContent = errorMessage(err, "Save failed.");
+        }
+      }
+    });
+  }
 
   applyCachedAnalysis(state);
 

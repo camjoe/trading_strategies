@@ -7,6 +7,7 @@ from datetime import date
 
 import pandas as pd
 
+from common.time import utc_today
 from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,10 @@ def benchmark_stats(
     start = date.fromisoformat(created_at[:10])
     try:
         active_provider = require_provider(provider)
-        close_history = active_provider.fetch_close_history([ticker], start, date.today())
+        # ``start`` comes from a UTC-stamped created_at, so the end bound must be
+        # UTC too — a local "today" is a day behind west of UTC each evening and
+        # would invert the range for an account created that day.
+        close_history = active_provider.fetch_close_history([ticker], start, utc_today())
         close = _extract_close_series(close_history, ticker)
     except Exception as exc:
         logger.warning("Failed to fetch benchmark data for %s: %s", benchmark_ticker, exc, exc_info=True)

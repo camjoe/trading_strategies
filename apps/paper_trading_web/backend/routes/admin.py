@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from trading.services.parameters.view import fetch_parameter_source_view
+
 from ..account_contract import build_admin_create_account_command
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services.accounts.benchmark import attach_live_benchmark_summary
@@ -17,6 +19,35 @@ from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
 
 router = APIRouter()
+
+
+@router.get("/api/admin/parameters")
+def api_parameter_source(
+    accountName: str | None = Query(default=None),  # noqa: N803
+) -> dict[str, object]:
+    """Return the unified effective parameter view for operator inspection."""
+    with db_conn() as conn:
+        view = fetch_parameter_source_view(
+            conn,
+            account_name=accountName.strip() if accountName else None,
+        )
+    return {
+        "groups": [
+            {
+                "scope": group.scope,
+                "note": group.note,
+                "entries": [
+                    {
+                        "name": entry.name,
+                        "value": entry.value,
+                        "source": entry.source,
+                    }
+                    for entry in group.entries
+                ],
+            }
+            for group in view.groups
+        ]
+    }
 
 
 @router.post("/api/admin/accounts/create")

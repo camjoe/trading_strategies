@@ -1,4 +1,4 @@
-import { currency, num, pct } from "../lib/format";
+import { currency, esc, num, pct } from "../lib/format";
 import type {
   AutonomyAccountOverview,
   AutonomyBook,
@@ -158,13 +158,16 @@ export function renderGovernancePanel(governance: Record<string, GovernanceCheck
     const statusClass = govData.status === "success" ? "success" : govData.status === "failed" ? "failed" : "not_run";
     const lastRun = govData.last_run ? new Date(govData.last_run).toLocaleDateString() : "Never";
 
+    const details = govData.result ? renderGovernanceResult(job.key, govData.result) : "";
     return `
       <div class="governance-card status-${statusClass}">
         <div class="gov-title">${job.label}</div>
         <div class="gov-freq">${job.freq}</div>
         <div class="gov-status badge status-${statusClass}">${govData.status}</div>
         <div class="gov-lastrun">Last: ${lastRun}</div>
+        ${govData.has_results ? `<button class="governance-result-toggle" type="button" data-governance-key="${job.key}">View results</button>` : ""}
       </div>
+      ${details}
     `;
   }).join("");
 
@@ -178,6 +181,63 @@ export function renderGovernancePanel(governance: Record<string, GovernanceCheck
       </div>
     </section>
   `;
+}
+
+function governanceValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  if (Array.isArray(value)) return value.map(item => String(item)).join(", ") || "—";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function governanceLabel(value: string): string {
+  return value.replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function renderGovernanceResult(key: string, result: GovernanceCheckStatus["result"]): string {
+  if (!result) return "";
+  const summaryFields = Object.entries(result)
+    .filter(([name, value]) => !["accounts", "generated_at", "run_timestamp", "week", "month"].includes(name) && typeof value !== "object")
+    .map(([name, value]) => `<div class="analysis-stat"><span class="label">${esc(governanceLabel(name))}</span><span>${esc(governanceValue(value))}</span></div>`)
+    .join("");
+  const accounts = result.accounts ?? [];
+  const accountHtml = accounts.map(account => {
+    const accountName = account.account_name ?? "";
+    const accountFields = Object.entries(account)
+      .filter(([name]) => name !== "account_name" && name !== "books")
+      .map(([name, value]) => `<div class="analysis-stat"><span class="label">${esc(governanceLabel(name))}</span><span>${esc(governanceValue(value))}</span></div>`)
+      .join("");
+    const books = (account.books ?? []).map(book => {
+      const bookName = book.book_name ?? "";
+      const strategyName = book.strategy_name ?? "";
+      const fields = Object.entries(book)
+        .filter(([name]) => name !== "book_name" && name !== "strategy_name")
+        .map(([name, value]) => `<td><span class="label">${esc(governanceLabel(name))}</span><br>${esc(governanceValue(value))}</td>`)
+        .join("");
+      return `<tr>
+        <td><button class="governance-account-link" data-account="${esc(accountName)}" data-book="${esc(bookName)}" type="button">${esc(bookName || "Book")}</button></td>
+        <td>${strategyName ? `<button class="governance-strategy-link" data-strategy="${esc(strategyName)}" type="button">${esc(strategyName)}</button>` : "—"}</td>
+        ${fields}
+      </tr>`;
+    }).join("");
+    return `<section class="promotion-section">
+      <div class="ops-card-head">
+        <h4>${esc(accountName || "Account")}</h4>
+        ${accountName ? `<button class="governance-account-link" data-account="${esc(accountName)}" type="button">Open account</button>` : ""}
+      </div>
+      ${accountFields ? `<div class="promotion-summary-grid">${accountFields}</div>` : ""}
+      ${books ? `<div class="table-scroll"><table class="ref-table"><tbody>${books}</tbody></table></div>` : ""}
+    </section>`;
+  }).join("");
+  const period = result.week ?? result.month ?? result.generated_at ?? result.run_timestamp ?? "";
+  return `<div class="governance-result-panel" data-governance-result="${key}" hidden>
+    <div class="ops-card-head"><strong>${esc(governanceLabel(key))}</strong><span>${esc(period)}</span></div>
+    ${key === "m2_parameter_governance" ? '<button class="governance-parameters-link" type="button">Open Parameter Governance</button>' : ""}
+    ${summaryFields ? `<div class="promotion-summary-grid">${summaryFields}</div>` : ""}
+    ${accountHtml || (summaryFields ? "" : '<div class="empty">The artifact contains no structured results.</div>')}
+  </div>`;
 }
 
 export function renderBurnInPanel(burnIn: BurnInStatus): string {

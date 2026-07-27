@@ -28,6 +28,8 @@ ACCOUNT_CONFIG_API_FIELDS = (
     ApiFieldMapping("rollDteThreshold", "roll_dte_threshold"),
     ApiFieldMapping("optionProfitTakePct", "option_profit_take_pct"),
     ApiFieldMapping("optionMaxLossPct", "option_max_loss_pct"),
+    ApiFieldMapping("tradeUniverses", "trade_universes"),
+    ApiFieldMapping("maxTradesPerRun", "max_trades_per_run"),
 )
 
 # The nested `rotation` object (book-owned scheduling, ADR 014); storage names

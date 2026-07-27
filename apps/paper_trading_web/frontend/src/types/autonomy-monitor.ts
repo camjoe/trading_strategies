@@ -67,6 +67,24 @@ export interface GovernanceCheckStatus {
   last_run: string | null;
   status: "success" | "failed" | "not_run" | "unknown";
   has_results: boolean;
+  result?: GovernanceArtifact | null;
+}
+
+export interface GovernanceArtifact {
+  generated_at?: string;
+  run_timestamp?: string;
+  week?: string;
+  month?: string;
+  window_days?: number;
+  audit_window_days?: number;
+  drift_threshold_pct?: number;
+  accounts?: Array<Record<string, unknown> & {
+    account_name?: string;
+    books?: Array<Record<string, unknown> & {
+      book_name?: string;
+      strategy_name?: string | null;
+    }>;
+  }>;
 }
 
 export interface BurnInStatus {

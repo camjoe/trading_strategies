@@ -103,6 +103,18 @@ def fetch_latest_for_account(conn: sqlite3.Connection, *, account_id: int) -> Op
     return OptimizationExperimentRecord.from_mapping(dict(row)) if row is not None else None
 
 
+def fetch_recent_experiments(
+    conn: sqlite3.Connection,
+    *,
+    limit: int = 50,
+) -> list[OptimizationExperimentRecord]:
+    rows = conn.execute(
+        _SELECT + " ORDER BY created_at DESC, id DESC LIMIT ?",
+        (int(limit),),
+    ).fetchall()
+    return [OptimizationExperimentRecord.from_mapping(dict(row)) for row in rows]
+
+
 def set_promoted_strategy(conn: sqlite3.Connection, *, experiment_id: int, strategy_id: int) -> None:
     """Record the tradeable variant an experiment's winner was promoted into."""
     conn.execute(

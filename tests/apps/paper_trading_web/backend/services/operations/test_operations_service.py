@@ -56,6 +56,7 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
     assert jobs["daily_snapshot"]["status"] == "warning"
     assert jobs["daily_backtest_refresh"]["status"] == "missing"
     assert jobs["weekly_db_backup"]["status"] == "ok"
+    assert all(job["runHint"].startswith("python -m ") for job in jobs.values())
 
 
 class _FakePayload:

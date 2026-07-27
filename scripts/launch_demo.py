@@ -3,9 +3,7 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
-import shutil
 import sys
 from pathlib import Path
 
@@ -16,23 +14,6 @@ from trading.services.fixtures import DEMO_PROFILE
 
 DEMO_DATABASE_NAME = "demo.db"
 PREPARING_DATABASE_NAME = "demo.preparing.db"
-
-
-def _preflight(repo_root: Path) -> str | None:
-    npm = launch_ui.npm_command()
-    if shutil.which(npm) is None:
-        return (
-            "npm was not found in PATH. Install Node.js 24, then run: npm ci --prefix apps/paper_trading_web/frontend"
-        )
-    frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
-    if not (frontend_dir / "node_modules").is_dir():
-        return "Frontend dependencies are missing. Run: npm ci --prefix apps/paper_trading_web/frontend"
-    missing = [
-        name for name in ("alembic", "pandas", "sqlalchemy", "uvicorn") if importlib.util.find_spec(name) is None
-    ]
-    if missing:
-        return f"Python dependencies are missing ({', '.join(missing)}). Run: {sys.executable} -m pip install -r requirements-dev.txt"
-    return None
 
 
 def prepare_demo_database(repo_root: Path) -> Path:
@@ -47,7 +28,7 @@ def prepare_demo_database(repo_root: Path) -> Path:
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
-    preflight_error = _preflight(repo_root)
+    preflight_error = launch_ui.preflight(repo_root)
     if preflight_error:
         print(f"Error: {preflight_error}", file=sys.stderr)
         return 1

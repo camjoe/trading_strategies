@@ -203,7 +203,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
 | `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
+| `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`) — merges persisted rotation settings over code defaults |
+| `books/operations.py` | Book-attributed operational reads for interface consumers (`fetch_book_operational_data`) |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
+| `strategy_catalog/queries.py` | Read-side contracts for the catalog operator surfaces (catalog + primitive listings, optimization history, strategy payload shaping) |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |

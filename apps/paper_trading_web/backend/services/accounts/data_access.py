@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.coercion import coerce_int
 from trading.models import AccountRecord
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.services.accounts import (
@@ -30,8 +31,15 @@ def build_snapshot_payload(snapshot: EquitySnapshotRecord) -> dict[str, object]:
     }
 
 
-def build_trade_payload(trade: dict[str, object]) -> dict[str, object]:
+def build_trade_payload(
+    trade: dict[str, object],
+    *,
+    book_names: dict[int, str] | None = None,
+) -> dict[str, object]:
+    book_id = coerce_int(trade.get("book_id"))
     return {
+        "bookId": book_id,
+        "bookName": book_names.get(book_id) if book_names is not None and book_id is not None else None,
         "ticker": trade["ticker"],
         "side": trade["side"],
         "qty": trade["qty"],

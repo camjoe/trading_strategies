@@ -15,6 +15,7 @@ export function createAccountsController(options: AccountsFeatureOptions = {}): 
     currentTradePage: 1,
     currentAnalysis: null,
     currentDetailSection: "summary",
+    currentBookFilter: null,
     accountBrowserOpen: false,
     tradePageSize: 20,
   };
@@ -94,6 +95,7 @@ export function createAccountsController(options: AccountsFeatureOptions = {}): 
     state.currentTradePage = 1;
     state.currentAnalysis = null;
     state.currentDetailSection = detailOptions.section ?? "summary";
+    state.currentBookFilter = detailOptions.bookName ?? null;
     renderCurrentDetail(state, options, { loadAccounts, loadAccountDetail });
     void loadAccountAnalysis(accountName);
   }

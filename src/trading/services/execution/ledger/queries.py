@@ -12,6 +12,7 @@ from trading.repositories.orders import OrderRepository
 def _fill_events(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
     return [
         {
+            "book_id": int(row["book_id"]),
             "ticker": str(row["ticker"]),
             "side": str(row["side"]),
             "qty": float(row["qty"]),
@@ -33,6 +34,7 @@ def _cash_events(conn: sqlite3.Connection, account_id: int) -> list[dict[str, ob
         amount = float(entry.amount)
         events.append(
             {
+                "book_id": entry.book_id,
                 "ticker": SETTLEMENT_TICKER,
                 "side": "buy" if entry.entry_type == "deposit" else "sell",
                 "qty": abs(amount),

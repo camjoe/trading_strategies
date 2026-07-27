@@ -19,6 +19,7 @@ import adminAccountsTemplate from "./views/admin/accounts.html?raw";
 import adminJobsTemplate from "./views/admin/jobs.html?raw";
 import adminOverviewTemplate from "./views/admin/overview.html?raw";
 import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
+import adminParametersTemplate from "./views/admin/parameters.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
@@ -26,6 +27,8 @@ import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
 import autonomyMonitorTemplate from "./views/autonomy-monitor.html?raw";
+import strategyLabTemplate from "./views/strategy-lab.html?raw";
+import { createStrategyLabFeature } from "./features/strategy-lab";
 import { errorMessage } from "./lib/http";
 
 const appRoot = find<HTMLDivElement>("#app");
@@ -52,6 +55,7 @@ function renderShell(): void {
     .replace("<!-- ADMIN_JOBS_PARTIAL -->", adminJobsTemplate)
     .replace("<!-- ADMIN_ACCOUNTS_PARTIAL -->", adminAccountsTemplate)
     .replace("<!-- ADMIN_PROMOTIONS_PARTIAL -->", adminPromotionsTemplate)
+    .replace("<!-- ADMIN_PARAMETERS_PARTIAL -->", adminParametersTemplate)
     .replace("<!-- ADMIN_ARTIFACTS_PARTIAL -->", adminArtifactsTemplate);
   app.innerHTML = appLayoutTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)
@@ -63,6 +67,7 @@ function renderShell(): void {
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
+    .replace("<!-- STRATEGY_LAB_TAB_PARTIAL -->", strategyLabTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
   const demoBanner = find<HTMLElement>("#demoModeBanner");
   if (demoBanner && import.meta.env.VITE_DEMO_MODE === "1") {
@@ -93,6 +98,7 @@ const adminFeature = createAdminFeature({
 const portfolioFeature = createPortfolioFeature();
 const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
+const strategyLabFeature = createStrategyLabFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
@@ -106,7 +112,18 @@ async function bootstrap(): Promise<void> {
   portfolioFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
-  initAutonomyMonitor();
+  strategyLabFeature.wireActions();
+  initAutonomyMonitor({
+    onOpenAccount: async (accountName, bookName) => {
+      openTab("accounts");
+      await accountsFeature.loadAccountDetail(accountName, { section: "books", bookName });
+    },
+    onOpenStrategyLab: () => openTab("strategy-lab"),
+    onOpenParameters: () => {
+      openTab("admin");
+      document.querySelector<HTMLButtonElement>('[data-admin-section-target="parameters"]')?.click();
+    },
+  });
 
   try {
     await loadAccountConfigOptions();
@@ -123,6 +140,7 @@ async function bootstrap(): Promise<void> {
   await backtestingFeature.loadBacktestRuns();
   // Background fetch so the provider health badge is visible before the Alt Strategies tab is first opened
   void altStrategiesFeature.fetchProviderHealth();
+  void strategyLabFeature.load();
 }
 
 function initTabs(): void {

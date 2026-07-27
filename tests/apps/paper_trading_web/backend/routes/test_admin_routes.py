@@ -15,6 +15,27 @@ _LIST_OPERATIONS_OVERVIEW = "paper_trading_web.backend.routes.admin.list_operati
 
 
 class TestAdminRoutes:
+    def test_parameter_source_returns_effective_groups(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_parameter_view")
+
+        response = api_client.get(
+            "/api/admin/parameters",
+            params={"accountName": "acct_parameter_view"},
+        )
+
+        assert response.status_code == 200
+        groups = response.json()["groups"]
+        scopes = [group["scope"] for group in groups]
+        assert "global / trade throttle" in scopes
+        assert any("account acct_parameter_view / book" in scope for scope in scopes)
+        assert any(scope.startswith("strategy ") for scope in scopes)
+        entry = groups[0]["entries"][0]
+        assert set(entry) == {"name", "value", "source"}
+
     def test_admin_create_account_happy_path(self, api_client: TestClient) -> None:
         response = api_client.post(
             "/api/admin/accounts/create",
