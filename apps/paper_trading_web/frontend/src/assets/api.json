@@ -61,6 +61,14 @@
     },
     {
       "method": "PATCH",
+      "path": "/api/accounts/{account_name}/books/{book_name}/params",
+      "handler": "api_update_book_params",
+      "module": "accounts",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": ""
+    },
+    {
+      "method": "PATCH",
       "path": "/api/accounts/{account_name}/params",
       "handler": "api_update_account_params",
       "module": "accounts",
@@ -98,6 +106,30 @@
       "module": "autonomy_monitor",
       "group": "Accounts & Snapshots Endpoints",
       "description": "Return comprehensive autonomy dashboard data for a managed account. Includes: - Account overview (total equity, cash, positions) - Book status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/strategy-lab/catalog/{strategy_key}",
+      "handler": "api_configure_strategy",
+      "module": "strategy_lab",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/catalog/{strategy_key}/freeze",
+      "handler": "api_freeze_strategy",
+      "module": "strategy_lab",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/optimizations/{experiment_id}/promote",
+      "handler": "api_promote_optimization",
+      "module": "strategy_lab",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": ""
     },
     {
       "method": "GET",
@@ -173,19 +205,19 @@
     },
     {
       "method": "GET",
-      "path": "/api/admin/promotion/overview",
-      "handler": "api_promotion_overview",
-      "module": "admin",
-      "group": "Admin Endpoints",
-      "description": "Return promotion readiness plus persisted review history for one account."
-    },
-    {
-      "method": "GET",
       "path": "/api/admin/parameters",
       "handler": "api_parameter_source",
       "module": "admin",
       "group": "Admin Endpoints",
       "description": "Return effective global, per-book, and strategy parameters with database/default source attribution."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/promotion/overview",
+      "handler": "api_promotion_overview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return promotion readiness plus persisted review history for one account."
     },
     {
       "method": "GET",

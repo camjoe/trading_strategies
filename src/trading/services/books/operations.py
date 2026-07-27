@@ -63,9 +63,7 @@ def fetch_book_operational_data(
         {
             "book_id": decision.book_id,
             "book_name": (
-                book_names.get(decision.book_id, f"book #{decision.book_id}")
-                if decision.book_id is not None
-                else None
+                book_names.get(decision.book_id, f"book #{decision.book_id}") if decision.book_id is not None else None
             ),
             "decision": decision,
         }

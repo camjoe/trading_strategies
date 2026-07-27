@@ -158,19 +158,13 @@ def api_account_detail(account_name: str) -> dict[str, object]:
 
         return {
             "account": summary,
-            "books": [
-                _book_payload(view)
-                for view in book_views
-            ],
+            "books": [_book_payload(view) for view in book_views],
             "positions": positions,
             "latestBacktest": latest_backtest,
             "latestBacktestMetrics": latest_backtest_metrics,
             "liveBenchmarkOverlay": overlay,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
-            "trades": [
-                build_trade_payload(trade, book_names=book_names)
-                for trade in trades[-100:]
-            ],
+            "trades": [build_trade_payload(trade, book_names=book_names) for trade in trades[-100:]],
             "bookPositions": [
                 {
                     "bookId": row["book_id"],
@@ -179,9 +173,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
                     "qty": row["qty"],
                     "avgCost": row["avg_cost"],
                     "marketPrice": (
-                        float(row["market_value"]) / float(row["qty"])
-                        if float(row["qty"]) != 0.0
-                        else 0.0
+                        float(row["market_value"]) / float(row["qty"]) if float(row["qty"]) != 0.0 else 0.0
                     ),
                     "marketValue": row["market_value"],
                     "unrealizedPnl": row["unrealized_pnl"],
@@ -285,13 +277,9 @@ def api_update_book_params(
                 config=command.config,
                 config_values=command.config_values,
                 rotation_scheduling={
-                    scheduling_names[name]: value
-                    for name, value in command.rotation_settings.items()
+                    scheduling_names[name]: value for name, value in command.rotation_settings.items()
                 },
-                rotation_policy={
-                    policy_names[name]: value
-                    for name, value in raw_policy.items()
-                },
+                rotation_policy={policy_names[name]: value for name, value in raw_policy.items()},
             )
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -14,9 +14,7 @@ from ...config import EXPORTS_DIR, LOGS_DIR
 from ._artifacts import list_artifacts
 from ._jobs import build_job_status
 
-DAILY_PAPER_TRADING_RUN_HINT = (
-    "python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual"
-)
+DAILY_PAPER_TRADING_RUN_HINT = "python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual"
 DAILY_SNAPSHOT_RUN_HINT = "python -m trading.interfaces.runtime.jobs.daily.snapshot --enable-run"
 DAILY_BACKTEST_REFRESH_RUN_HINT = (
     "python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run"
