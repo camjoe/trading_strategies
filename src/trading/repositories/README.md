@@ -83,7 +83,7 @@ These belong to no single context and stay at the root deliberately.
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope + `commit_unit_of_work` helper |
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
-| `demo_seed.py` | Writes the synthetic offline demo story across nine tables in one boundary |
+| `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
 | `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
 | `table_export.py` | Generic read-only table row/CSV-cursor access for the operator export/preview feature — not scoped to one business context by design |
 

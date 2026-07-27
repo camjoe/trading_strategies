@@ -33,7 +33,7 @@ where it goes.
 | `strategy_catalog/` | Strategy primitive + `params_json` resolution and catalog edits. | — |
 | `universe/` | Trade-universe resolution. | — |
 | `autonomy_monitor/` | Autonomy / paper-account operator monitoring (artifacts, queries). | — |
-| `demo/` | Deterministic synthetic data seeding for the offline web demo. | — |
+| `fixtures/` | Deterministic synthetic data seeding for generated databases (the offline demo story and the sandbox test bed). | Does not own production writes — it drives the owning service for every derived record. |
 
 Stale-backtest remediation lives in the backtesting bounded context
 (`trading.backtesting.services`), not a service here.

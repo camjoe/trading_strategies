@@ -150,7 +150,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
-| `demo/seeding.py` | Atomic application-owned synthetic account, trading, backtest, and promotion demo story |
+| `fixtures/profiles.py` | Named fixture profiles (`demo`, `sandbox`) describing the synthetic story each generated database tells |
+| `fixtures/seeding.py` | Builds a generated database from a profile, routing every derived record through its production writer |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission |
 | `execution/ledger/mutations.py` | Cash/equity accounting write operations (record trades to the book/account ledger) |
@@ -222,7 +223,7 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
-| `demo_seed.py` | Persistence operations for the synthetic offline demo story |
+| `fixture_seed.py` | Fixture-only writes with no production writer to route through (research records, review records, book bootstrap) |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
