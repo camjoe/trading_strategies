@@ -6,11 +6,13 @@ import pytest
 
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_book_rotation_history,
     handle_configure_book_rotation,
     handle_configure_book_rotation_policy,
     handle_configure_evaluation,
     handle_configure_promotion,
     handle_configure_throttle,
+    handle_settings_history,
 )
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 
@@ -152,3 +154,30 @@ def test_handle_configure_book_rotation_requires_a_flag() -> None:
             _parser(),
             deps={},
         )
+
+
+def test_handle_settings_history_passes_limit() -> None:
+    calls: dict = {}
+    deps = {"show_global_settings_history": lambda _conn, *, limit: calls.update({"limit": limit})}
+
+    handle_settings_history(object(), types.SimpleNamespace(limit=5), _parser(), deps=deps)
+
+    assert calls["limit"] == 5
+
+
+def test_handle_book_rotation_history_passes_account_book_and_limit() -> None:
+    calls: dict = {}
+
+    def fake_show(_conn, *, account_name, book_name, limit):
+        calls.update({"account_name": account_name, "book_name": book_name, "limit": limit})
+
+    deps = {"show_book_rotation_history": fake_show}
+
+    handle_book_rotation_history(
+        object(),
+        types.SimpleNamespace(account="acct1", book="core", limit=10),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == {"account_name": "acct1", "book_name": "core", "limit": 10}

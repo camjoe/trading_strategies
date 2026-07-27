@@ -48,7 +48,12 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "rotations",
         "label": "Rotations",
         "color": "#d97706",
-        "tables": ("book_rotation_settings", "book_strategy_history", "rotation_decisions"),
+        "tables": (
+            "book_rotation_settings",
+            "book_rotation_settings_change_events",
+            "book_strategy_history",
+            "rotation_decisions",
+        ),
     },
     {
         "id": "research",
@@ -82,7 +87,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "catalogs",
         "label": "Catalogs and settings",
         "color": "#64748b",
-        "tables": ("strategies", "feature_providers", "global_settings"),
+        "tables": ("strategies", "feature_providers", "global_settings", "global_settings_change_events"),
     },
 )
 
@@ -137,6 +142,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "books",
             "book_universe_history",
             "book_rotation_settings",
+            "book_rotation_settings_change_events",
             "book_strategy_history",
             "strategies",
             "orders",
@@ -196,7 +202,9 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "strategies",
             "feature_providers",
             "global_settings",
+            "global_settings_change_events",
             "book_rotation_settings",
+            "book_rotation_settings_change_events",
             "book_strategy_history",
             "orders",
             "rotation_decisions",
@@ -256,6 +264,8 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "rotation_decisions",
             "risk_decisions",
             "promotion_review_events",
+            "global_settings_change_events",
+            "book_rotation_settings_change_events",
         ),
     },
     {

@@ -123,3 +123,19 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
     p_promotion.add_argument("--min-research-walk-forward-average-return-pct", type=float, default=argparse.SUPPRESS)
     p_promotion.add_argument("--min-live-paper-snapshot-count", type=int, default=argparse.SUPPRESS)
     p_promotion.add_argument("--min-live-overall-confidence", type=float, default=argparse.SUPPRESS)
+
+    p_settings_history = sub.add_parser(
+        "settings-history",
+        help="Show the global settings change-audit history (throttle, evaluation, promotion edits).",
+    )
+    p_settings_history.add_argument("--limit", type=int, default=20, help="Number of change events to show")
+
+    p_book_rotation_history = sub.add_parser(
+        "book-rotation-history",
+        help="Show a book's rotation settings change-audit history (scheduling and policy edits).",
+    )
+    p_book_rotation_history.add_argument("--account", required=True, help="Account name")
+    p_book_rotation_history.add_argument(
+        "--book", default=None, help="Book name (default: the account's default book)"
+    )
+    p_book_rotation_history.add_argument("--limit", type=int, default=20, help="Number of change events to show")

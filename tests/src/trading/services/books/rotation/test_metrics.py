@@ -109,8 +109,7 @@ def test_build_rotation_strategy_metrics_derives_risk_components(conn, monkeypat
     assert metrics.drawdown_penalty == pytest.approx(12.0)
     # Stability is the negative spread of the walk-forward window returns.
     assert metrics.stability == pytest.approx(-8.0)
-    # No honest input exists for these two — see the builder docstring.
-    assert metrics.cost_penalty == 0.0
+    # No honest input exists for regime_fit without fetch_regime — see the builder docstring.
     assert metrics.regime_fit == 0.0
 
 

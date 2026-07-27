@@ -42,6 +42,21 @@ class TestInsert:
         assert rows[0].realized_pnl == pytest.approx(100.0)
 
 
+class TestFetchMaxEquity:
+    def test_returns_the_highest_recorded_equity(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert(conn, acct_id, snapshot_time="2026-01-01T00:00:00", equity=1000.0)
+        _insert(conn, acct_id, snapshot_time="2026-01-02T00:00:00", equity=1500.0)
+        _insert(conn, acct_id, snapshot_time="2026-01-03T00:00:00", equity=1200.0)
+
+        assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=acct_id) == pytest.approx(1500.0)
+
+    def test_returns_none_with_no_snapshots(self, conn) -> None:
+        acct_id = _account_id(conn)
+
+        assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=acct_id) is None
+
+
 class TestFetchRecentEquity:
     def test_returns_newest_first(self, conn) -> None:
         acct_id = _account_id(conn)

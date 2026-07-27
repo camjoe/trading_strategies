@@ -31,6 +31,8 @@ _EXPECTED_COMMANDS = {
     "configure-promotion",
     "configure-book-rotation",
     "configure-book-rotation-policy",
+    "settings-history",
+    "book-rotation-history",
     "create-strategy-variant",
     "configure-strategy",
     "freeze-strategy",

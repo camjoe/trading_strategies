@@ -21,7 +21,7 @@ def compute_current_exposure_snapshot(
     fetch_positions_for_account_fn: Callable[..., list[Any]],
     fetch_books_for_account_fn: Callable[..., list[Any]],
     symbol_sector_map: dict[str, str],
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     position_rows = fetch_positions_for_account_fn(conn, account_id=account_id)
     gross_exposure = 0.0
     net_exposure = 0.0
@@ -46,7 +46,27 @@ def compute_current_exposure_snapshot(
         max_symbol_concentration_pct = max(symbol_exposure.values()) / total_equity
     if total_equity > 0 and sector_exposure:
         max_sector_concentration_pct = max(sector_exposure.values()) / total_equity
-    return gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct
+    return gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct, total_equity
+
+
+def _compute_leverage_proxy(*, gross_exposure: float, total_equity: float) -> float | None:
+    return gross_exposure / total_equity if total_equity > 0 else None
+
+
+def _compute_point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None) -> float | None:
+    """Distance below the account's historical peak equity, in percent (<= 0).
+
+    Account-grain, point-in-time (contrast ``daily_metrics.drawdown_pct``, a
+    single-day peak-to-trough figure that needs intraday equity ticks this
+    codebase does not persist). ``peak_equity`` includes today's equity so a
+    new all-time high reads as 0.0, not a positive number.
+    """
+    if total_equity <= 0:
+        return None
+    effective_peak = max(peak_equity, total_equity) if peak_equity is not None else total_equity
+    if effective_peak <= 0:
+        return None
+    return (total_equity / effective_peak - 1.0) * 100.0
 
 
 def persist_book_risk_snapshot(
@@ -58,10 +78,11 @@ def persist_book_risk_snapshot(
     payload: dict[str, object],
     fetch_positions_for_account_fn: Callable[..., list[Any]],
     fetch_books_for_account_fn: Callable[..., list[Any]],
+    fetch_max_equity_fn: Callable[..., float | None],
     insert_risk_snapshot_fn: Callable[..., object],
     symbol_sector_map: dict[str, str],
 ) -> None:
-    gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = (
+    gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct, total_equity = (
         compute_current_exposure_snapshot(
             conn,
             account_id=account_id,
@@ -70,6 +91,7 @@ def persist_book_risk_snapshot(
             symbol_sector_map=symbol_sector_map,
         )
     )
+    peak_equity = fetch_max_equity_fn(conn, account_id=account_id)
     insert_risk_snapshot_fn(
         account_id=account_id,
         snapshot_time=snapshot_time,
@@ -77,8 +99,11 @@ def persist_book_risk_snapshot(
         net_exposure=net_exposure,
         max_symbol_concentration_pct=max_symbol_concentration_pct,
         max_sector_concentration_pct=max_sector_concentration_pct,
-        drawdown_pct=None,
-        leverage_proxy=None,
+        drawdown_pct=_compute_point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
+        leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
+        # daily_loss_pct is a single-day peak-to-trough figure; still needs
+        # intraday equity ticks this codebase does not persist (unlike
+        # drawdown_pct above, a trailing-history peak can't stand in for it).
         daily_loss_pct=None,
         kill_switch_triggered=1 if kill_switch_triggered else 0,
         risk_payload_json=json.dumps(payload, sort_keys=True),

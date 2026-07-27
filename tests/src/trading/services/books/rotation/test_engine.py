@@ -32,7 +32,6 @@ def _incumbent_metrics(*, strategy_name: str) -> RotationStrategyMetrics:
         risk_adjusted_return=0.9,
         stability=0.5,
         drawdown_penalty=0.2,
-        cost_penalty=0.05,
         regime_fit=0.0,
     )
 
@@ -48,7 +47,6 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
         risk_adjusted_return=1.4,
         stability=0.62,
         drawdown_penalty=0.25,
-        cost_penalty=0.04,
         regime_fit=0.03,
     )
     result = evaluate_and_apply_book_rotation(
@@ -109,7 +107,6 @@ def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> No
         risk_adjusted_return=2.0,
         stability=0.70,
         drawdown_penalty=0.10,
-        cost_penalty=0.01,
         regime_fit=0.05,
     )
     result = evaluate_and_apply_book_rotation(
@@ -142,7 +139,6 @@ def test_rotation_rolls_back_decision_when_assignment_fails(conn, monkeypatch) -
         risk_adjusted_return=1.4,
         stability=0.62,
         drawdown_penalty=0.25,
-        cost_penalty=0.04,
         regime_fit=0.03,
     )
 

@@ -125,3 +125,11 @@ def handle_configure_promotion(conn, args, parser, *, deps: dict[str, Any]) -> N
     deps["set_promotion_policy_settings"](conn, updated_at=utc_now_iso(), **values)
     rendered = " ".join(f"{name}={value}" for name, value in values.items())
     print(f"Updated global promotion policy settings: {rendered}")
+
+
+def handle_settings_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    deps["show_global_settings_history"](conn, limit=args.limit)
+
+
+def handle_book_rotation_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    deps["show_book_rotation_history"](conn, account_name=args.account, book_name=args.book, limit=args.limit)

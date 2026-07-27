@@ -39,8 +39,10 @@ from trading.services.operational_settings import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
     set_runtime_throttle_settings,
+    show_global_settings_history,
 )
 from trading.services.parameters import (
+    show_book_rotation_history,
     show_parameters,
     update_book_rotation_policy,
     update_book_rotation_scheduling,
@@ -119,6 +121,8 @@ def _handler_deps() -> dict[str, object]:
         "set_promotion_policy_settings": set_promotion_policy_settings,
         "update_book_rotation_policy": update_book_rotation_policy,
         "update_book_rotation_scheduling": update_book_rotation_scheduling,
+        "show_global_settings_history": show_global_settings_history,
+        "show_book_rotation_history": show_book_rotation_history,
         "configure_strategy": configure_strategy,
         "create_strategy_variant": create_strategy_variant,
         "freeze_strategy": freeze_strategy,

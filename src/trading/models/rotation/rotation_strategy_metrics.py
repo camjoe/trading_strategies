@@ -10,5 +10,4 @@ class RotationStrategyMetrics:
     risk_adjusted_return: float
     stability: float
     drawdown_penalty: float
-    cost_penalty: float
     regime_fit: float

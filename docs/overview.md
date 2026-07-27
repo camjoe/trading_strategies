@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-07-26
 Purpose: Explain the project's current capabilities, concepts, architecture, limitations, and scope.
 Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
@@ -39,7 +39,9 @@ Design goals:
 - **Evaluation** — the canonical `StrategyEvaluationArtifact`: backtest + walk-forward + paper/live
   evidence fused into confidence and a blended decision score.
 - **Rotation** — book-keyed switching of the active strategy through a champion/challenger policy
-  using the decision-score contract.
+  using the decision-score contract. For a live-trading account, a challenger must have an approved
+  promotion review before it is eligible to be rotated in; paper accounts rotate unrestricted, since
+  that is how promotion evidence gets gathered.
 - **Promotion** — the human-gated lifecycle (research → paper → live-review) with audit history.
 - **Feature provider** — an external-data source (news, social, policy/ETF-proxy) that influences
   *trade signals* for "alternative" strategies. Feature providers are signal inputs, not evaluation
@@ -88,23 +90,13 @@ These limitations describe current behavior and maturity; they are not hidden by
   strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
   runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
   + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
-- **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per
-  settings row.
-- **One rotation score component has no data source.** Rotation scores on risk-adjusted return,
-  **stability** (spread of walk-forward window returns), **drawdown penalty** (backtest max
-  drawdown), and — as of 2026-07-26 — **regime fit** (a live ETF-based market-regime read compared
-  against each strategy's primitive family; see [Rotation Scoring](reference/rotation-scoring.md)).
-  `cost_penalty` stays zero: a separate penalty would double-count, since backtest returns are
-  already net of modeled per-trade fees. Its weight is not operator-configurable (tuning it would
-  have no effect); `regime_fit`'s weight is.
 - **Daily performance metrics are partially populated.** The daily-metrics writer runs from the
   snapshot step and derives `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`,
   `hit_rate`/`expectancy` (from each closing order's realized P&L), and `risk_adjusted_score` (a
   trailing annualized Sharpe over the book's recent daily returns, `NULL` until enough history
-  accrues). One column stays `NULL`: `drawdown_pct` (no intraday equity). See
-  [Performance and Risk Tables](reference/performance-and-risk-tables.md) for the table contract.
-- **Promotion approval does not gate rotation eligibility.** Promotion is an operator-governance
-  outcome, while rotation follows each book's champion/challenger policy.
+  accrues). One column stays `NULL`: `drawdown_pct` (single-day peak-to-trough needs intraday equity
+  this codebase does not persist). See [Performance and Risk Tables](reference/performance-and-risk-tables.md)
+  for the table contract.
 
 ## How it works (architecture)
 
