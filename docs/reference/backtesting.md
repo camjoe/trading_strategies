@@ -163,28 +163,46 @@ deliberately *freezes* (copies) the effective values rather than linking, so lat
 account cannot rewrite what a past run assumed. It is written in the same transaction and cascades with
 the experiment.
 
+**Fail-fast experiment state (revision `0024`):** the account and strategy are resolved *before* any
+backtest runs, so an unknown account/strategy fails immediately rather than after a full optimization
+run. If the window-search or holdout stage raises instead — a market-data/DB error, or the *expected*
+"no eligible candidate" outcome for a training window — the run persists exactly one
+`optimization_experiments` row with `status='failed'`, `failure_stage` (`window_search` or `holdout`),
+`failure_message`, and `window_count` set to however many windows completed first. This is deliberately
+minimal: no `optimization_windows`/`optimization_trials`/manifest rows are written for a failed
+experiment (no partial audit tree), and any `backtest_runs` rows the completed windows already wrote
+remain unlinked, same as any other historical run. The CLI error message references the persisted
+experiment id so the attempt can be inspected via `backtest-optimize-show`.
+
 Two follow-on commands operate on a stored experiment:
 
 - `backtest-optimize-show <experiment_id>` — print the stored config, winner params, OOS aggregate,
   holdout evidence, promotion status, the per-window audit (each window's boundaries + OOS run, its
-  candidate/eligible counts, the selected winner, and a rejection tally), and the **compounded OOS
+  candidate/eligible counts, the selected winner, and a rejection tally), the **compounded OOS
   series** (the per-window OOS returns compounded into one chronological series, since each window runs
   on an independently reset account; windows following a time gap — a step longer than the test window —
-  are flagged, and the series is derived on read from the window rows, never stored), and the
+  are flagged, and the series is derived on read from the window rows, never stored), the
   **provenance manifest** (effective economics, book execution knobs, universe membership + lineage,
-  provider/as-of, engine revision).
-- `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze]` — mint a new tradeable
-  `strategies` variant from the experiment's winner via `create_strategy_variant` (the winner params
-  are validated against the base primitive), stamp provenance into its description, and record the
-  audit link back to the experiment. The variant is **frozen by default** (evidence-backed →
+  provider/as-of, engine revision), and a **`Promotion gate: PASS`/`FAIL (<reasons>)` preview** (see
+  below — computed by the same function `backtest-optimize-promote` checks, so the preview always
+  matches what an actual promotion attempt will do). For a failed experiment, it instead prints the
+  status, stage, and failure message — there is no winner/OOS/holdout/audit data to show.
+- `backtest-optimize-promote <experiment_id> --key <new_key> [--no-freeze] [--allow-no-edge]` — mint a
+  new tradeable `strategies` variant from the experiment's winner via `create_strategy_variant` (the
+  winner params are validated against the base primitive), stamp provenance into its description, and
+  record the audit link back to the experiment. The variant is **frozen by default** (evidence-backed →
   immutable); `--no-freeze` leaves it an editable draft. Being enabled, it is immediately a
   first-class catalog strategy available to rotation/assignment — no extra wiring closes the loop.
 
-Promotion's gate is **operational completeness only**: the experiment must exist and not already be
-promoted (one promotion per experiment keeps the link 1:1). It does **not** require an out-of-sample
-edge — a tuned winner that failed to beat its own default is still promotable, with its recorded
-OOS/holdout evidence left for the operator to judge. This makes the machinery exercisable end to end
-(including on a deliberately weak strategy) before any real edge exists.
+Promotion is **quality-gated by default** (`evaluate_promotion_gate` in
+`backtesting/domain/optimization/promotion_gate.py`): beyond the existence/not-failed/not-already-promoted
+checks, the winner must beat its own default on **all three** of — mean OOS return, a strict majority
+of OOS windows (`oos_windows_beat_baseline > window_count / 2`; a good mean can mask a coin-flip
+per-window record), and the untouched holdout return. Missing evidence on either side of any comparison
+fails that condition — no evidence is not a pass. A failing gate raises with the specific reasons it
+failed; `--allow-no-edge` bypasses the bar entirely (e.g. to prove the promotion mechanism works, or to
+promote a deliberately weak strategy for testing) — the same escape hatch the machinery relied on before
+this gate existed.
 
 ## Safeguards and Approximation Notes
 

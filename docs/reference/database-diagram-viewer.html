@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 16:03 25-07-2026 PST. Tables: 28.</div>
+      <div class="meta">Source: fresh code schema. Generated: 16:44 26-07-2026 PST. Tables: 30.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -393,6 +393,7 @@
         "accounts",
         "books",
         "book_rotation_settings",
+        "book_rotation_settings_change_events",
         "book_strategy_history",
         "rotation_decisions"
       ]
@@ -446,11 +447,12 @@
         "books",
         "strategies",
         "feature_providers",
-        "global_settings"
+        "global_settings",
+        "global_settings_change_events"
       ]
     }
   ],
-  "generatedAt": "16:03 25-07-2026 PST",
+  "generatedAt": "16:44 26-07-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -485,7 +487,9 @@
         "ledger",
         "rotation_decisions",
         "risk_decisions",
-        "promotion_review_events"
+        "promotion_review_events",
+        "global_settings_change_events",
+        "book_rotation_settings_change_events"
       ]
     },
     {
@@ -560,6 +564,7 @@
       "label": "Rotations",
       "tables": [
         "book_rotation_settings",
+        "book_rotation_settings_change_events",
         "book_strategy_history",
         "rotation_decisions"
       ]
@@ -605,7 +610,8 @@
       "tables": [
         "strategies",
         "feature_providers",
-        "global_settings"
+        "global_settings",
+        "global_settings_change_events"
       ]
     }
   ],
@@ -1214,14 +1220,6 @@
         },
         {
           "default": null,
-          "name": "cost_penalty_weight",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        },
-        {
-          "default": null,
           "name": "regime_fit_weight",
           "notNull": false,
           "primaryKeyPosition": 0,
@@ -1256,6 +1254,80 @@
       ],
       "indexes": [],
       "name": "book_rotation_settings",
+      "section": {
+        "color": "#d97706",
+        "id": "rotations",
+        "label": "Rotations"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "book_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "settings_group",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "changed_fields",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "book_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "book_id",
+            "created_at"
+          ],
+          "name": "idx_book_rotation_settings_change_events_book_created",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "book_rotation_settings_change_events",
       "section": {
         "color": "#d97706",
         "id": "rotations",
@@ -2301,6 +2373,59 @@
         },
         {
           "default": null,
+          "name": "settings_group",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "changed_fields",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [],
+      "indexes": [
+        {
+          "columns": [
+            "created_at"
+          ],
+          "name": "idx_global_settings_change_events_created",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "global_settings_change_events",
+      "section": {
+        "color": "#64748b",
+        "id": "catalogs",
+        "label": "Catalogs and settings"
+      }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
           "name": "book_id",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -2602,6 +2727,30 @@
           "default": null,
           "name": "created_at",
           "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "'completed'",
+          "name": "status",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "failure_stage",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "failure_message",
+          "notNull": false,
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
@@ -4762,6 +4911,7 @@
         "backtest_executions",
         "backtest_runs",
         "book_rotation_settings",
+        "book_rotation_settings_change_events",
         "book_strategy_history",
         "book_universe_history",
         "books",
@@ -4769,6 +4919,7 @@
         "equity_snapshots",
         "feature_providers",
         "global_settings",
+        "global_settings_change_events",
         "ledger",
         "optimization_experiments",
         "optimization_run_manifests",
@@ -4826,6 +4977,7 @@
         "books",
         "book_universe_history",
         "book_rotation_settings",
+        "book_rotation_settings_change_events",
         "book_strategy_history",
         "strategies",
         "orders",
@@ -4885,7 +5037,9 @@
         "strategies",
         "feature_providers",
         "global_settings",
+        "global_settings_change_events",
         "book_rotation_settings",
+        "book_rotation_settings_change_events",
         "book_strategy_history",
         "orders",
         "rotation_decisions",

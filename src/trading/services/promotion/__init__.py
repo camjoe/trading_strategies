@@ -17,6 +17,7 @@ from trading.services.promotion.assessment import (
     fetch_promotion_assessment,
     fetch_promotion_snapshot,
 )
+from trading.services.promotion.eligibility import is_strategy_approved_for_live
 from trading.services.promotion.history import (
     PromotionReviewHistoryEntry,
     fetch_promotion_review_history,
@@ -38,6 +39,7 @@ __all__ = [
     "fetch_promotion_assessment",
     "fetch_promotion_snapshot",
     "fetch_promotion_review_history",
+    "is_strategy_approved_for_live",
     "render_promotion_review_history_lines",
     "render_promotion_status_lines",
     "show_promotion_review_history",

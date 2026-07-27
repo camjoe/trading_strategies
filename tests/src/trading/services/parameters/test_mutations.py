@@ -58,53 +58,17 @@ def test_second_update_merges_and_none_clears(conn: sqlite3.Connection, account_
     assert saved.drawdown_penalty_weight == 0.2
 
 
-@pytest.mark.parametrize("field", ["cost_penalty_weight", "regime_fit_weight"])
-def test_inert_weights_are_not_operator_settable(
-    conn: sqlite3.Connection, account_with_book: tuple[str, int], field: str
-) -> None:
-    # cost_penalty_weight and regime_fit_weight have no data source, so they are
-    # not exposed as tunable — an attempt to set one is rejected rather than
-    # silently written to a column that never affects a score.
+def test_regime_fit_weight_is_operator_settable(conn: sqlite3.Connection, account_with_book: tuple[str, int]) -> None:
+    # regime_fit now computes a real value, so its weight is tunable like the
+    # other live components.
     account_name, _ = account_with_book
-    with pytest.raises(ValueError, match=field):
-        update_book_rotation_policy(
-            conn,
-            account_name=account_name,
-            book_name="book_a",
-            updates={field: 0.2},
-        )
-
-
-def test_inert_weight_columns_are_preserved_across_a_policy_update(
-    conn: sqlite3.Connection, account_with_book: tuple[str, int]
-) -> None:
-    # The columns still exist and must survive an unrelated policy edit (the merge
-    # carries them through from the persisted row).
-    account_name, book_id = account_with_book
-    BookRotationSettingsRepository(conn).upsert_rotation_policy(
-        book_id=book_id,
-        min_trades_in_window=None,
-        outperformance_threshold_bps=None,
-        cooldown_days=None,
-        risk_adjusted_return_weight=None,
-        stability_weight=None,
-        drawdown_penalty_weight=None,
-        cost_penalty_weight=0.33,
-        regime_fit_weight=0.44,
-        created_at="2026-01-01T00:00:00Z",
-        updated_at="2026-01-01T00:00:00Z",
-    )
-
     saved = update_book_rotation_policy(
         conn,
         account_name=account_name,
         book_name="book_a",
-        updates={"cooldown_days": 9},
+        updates={"regime_fit_weight": 0.15},
     )
-
-    assert saved.cooldown_days == 9
-    assert saved.cost_penalty_weight == 0.33
-    assert saved.regime_fit_weight == 0.44
+    assert saved.regime_fit_weight == 0.15
 
 
 def test_policy_write_preserves_scheduling_fields(

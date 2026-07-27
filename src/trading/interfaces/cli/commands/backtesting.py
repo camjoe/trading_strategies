@@ -190,6 +190,14 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         action="store_true",
         help="Leave the new variant as an editable draft instead of freezing it (default: freeze)",
     )
+    p_optimize_promote.add_argument(
+        "--allow-no-edge",
+        action="store_true",
+        help=(
+            "Bypass the promotion quality bar (winner must beat its own default on OOS and holdout"
+            " evidence) and promote anyway"
+        ),
+    )
 
     p_walk_forward_report = sub.add_parser(
         "backtest-walk-forward-report",

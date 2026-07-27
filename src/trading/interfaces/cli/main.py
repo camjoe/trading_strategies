@@ -14,6 +14,7 @@ from trading.backtesting.backtest import (
     run_walk_forward_backtest,
     walk_forward_report,
 )
+from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
 from trading.backtesting.repositories.optimization_repository import (
@@ -38,8 +39,10 @@ from trading.services.operational_settings import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
     set_runtime_throttle_settings,
+    show_global_settings_history,
 )
 from trading.services.parameters import (
+    show_book_rotation_history,
     show_parameters,
     update_book_rotation_policy,
     update_book_rotation_scheduling,
@@ -99,6 +102,7 @@ def _handler_deps() -> dict[str, object]:
         "fetch_optimization_trials": fetch_trials_for_experiment,
         "fetch_compounded_oos": fetch_compounded_oos,
         "fetch_optimization_manifest": fetch_manifest_for_experiment,
+        "evaluate_promotion_gate": evaluate_promotion_gate,
         "promote_optimization_experiment": promote_optimization_experiment,
         "load_account_profiles": load_account_profiles,
         "apply_account_profiles": apply_account_profiles,
@@ -117,6 +121,8 @@ def _handler_deps() -> dict[str, object]:
         "set_promotion_policy_settings": set_promotion_policy_settings,
         "update_book_rotation_policy": update_book_rotation_policy,
         "update_book_rotation_scheduling": update_book_rotation_scheduling,
+        "show_global_settings_history": show_global_settings_history,
+        "show_book_rotation_history": show_book_rotation_history,
         "configure_strategy": configure_strategy,
         "create_strategy_variant": create_strategy_variant,
         "freeze_strategy": freeze_strategy,

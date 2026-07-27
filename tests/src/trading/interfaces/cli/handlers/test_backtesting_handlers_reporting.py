@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,
@@ -192,7 +193,7 @@ def test_handle_backtest_walk_forward_report_records_parser_error_without_printi
     assert "window,range,run_id" not in capsys.readouterr().out
 
 
-def _experiment_stub():
+def _experiment_stub(*, status="completed", failure_stage=None, failure_message=None):
     return types.SimpleNamespace(
         id=5,
         account_id=1,
@@ -211,8 +212,15 @@ def _experiment_stub():
         candidate_budget=256,
         winner_params_json='{"slow_window": 40}',
         oos_mean_winner_return_pct=None,
+        oos_mean_baseline_return_pct=None,
+        oos_windows_beat_baseline=None,
         holdout_run_id=None,
+        holdout_winner_return_pct=None,
+        holdout_baseline_return_pct=None,
         promoted_strategy_id=None,
+        status=status,
+        failure_stage=failure_stage,
+        failure_message=failure_message,
     )
 
 
@@ -291,6 +299,7 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
         "fetch_compounded_oos": lambda _conn, *, experiment_id: series,
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: _manifest_stub(),
+        "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -314,6 +323,7 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
         "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
         "fetch_compounded_oos": lambda _conn, *, experiment_id: None,
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: None,
+        "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
@@ -322,6 +332,27 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
     assert "Windows: none persisted" in out
     assert "Compounded OOS: unavailable" in out
     assert "Provenance: unavailable" in out
+
+
+def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(capsys) -> None:
+    calls: list[str] = []
+    deps = {
+        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(
+            status="failed", failure_stage="window_search", failure_message="No eligible candidate: too_few_trades"
+        ),
+        "fetch_optimization_windows": lambda _conn, *, experiment_id: calls.append("windows"),
+        "fetch_optimization_trials": lambda _conn, *, experiment_id: calls.append("trials"),
+        "fetch_compounded_oos": lambda _conn, *, experiment_id: calls.append("compounded"),
+        "evaluate_promotion_gate": evaluate_promotion_gate,
+        "fetch_optimization_manifest": lambda _conn, *, experiment_id: calls.append("manifest"),
+    }
+
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+
+    out = capsys.readouterr().out
+    assert "status=failed" in out
+    assert "Failed during window_search after 1 window(s): No eligible candidate: too_few_trades" in out
+    assert calls == []  # a failed experiment has no audit tree — those lookups are skipped
 
 
 def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:

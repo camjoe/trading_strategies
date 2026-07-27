@@ -306,7 +306,9 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
     if experiment is None:
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
-    _print_experiment(experiment)
+    _print_experiment(experiment, evaluate_promotion_gate=deps["evaluate_promotion_gate"])
+    if experiment.status == "failed":
+        return
     windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
     trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
     _print_window_audit(windows, trials)
@@ -323,6 +325,7 @@ def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]
             experiment_id=args.experiment_id,
             new_strategy_key=args.key,
             freeze=not args.no_freeze,
+            allow_no_edge=args.allow_no_edge,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -333,11 +336,18 @@ def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]
     )
 
 
-def _print_experiment(experiment: Any) -> None:
+def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
     print(
         f"Optimization experiment #{experiment.id} | account_id={experiment.account_id} "
-        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at}"
+        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at} "
+        f"status={experiment.status}"
     )
+    if experiment.status == "failed":
+        print(
+            f"Failed during {experiment.failure_stage} after {experiment.window_count} window(s): "
+            f"{experiment.failure_message}"
+        )
+        return
     print(
         f"Range {experiment.start_date}..{experiment.end_date} | windows={experiment.window_count} "
         f"| train/test/step/holdout(mo)={experiment.train_months}/{experiment.test_months}/"
@@ -357,6 +367,18 @@ def _print_experiment(experiment: Any) -> None:
             f"Holdout (run {experiment.holdout_run_id}): "
             f"return {_pair(experiment.holdout_winner_return_pct, experiment.holdout_baseline_return_pct)}"
         )
+    gate = evaluate_promotion_gate(
+        oos_mean_winner_return_pct=experiment.oos_mean_winner_return_pct,
+        oos_mean_baseline_return_pct=experiment.oos_mean_baseline_return_pct,
+        oos_windows_beat_baseline=experiment.oos_windows_beat_baseline,
+        window_count=experiment.window_count,
+        holdout_winner_return_pct=experiment.holdout_winner_return_pct,
+        holdout_baseline_return_pct=experiment.holdout_baseline_return_pct,
+    )
+    if gate.passed:
+        print("Promotion gate: PASS")
+    else:
+        print(f"Promotion gate: FAIL ({'; '.join(gate.reasons)})")
     if experiment.promoted_strategy_id is None:
         print("Promotion: not promoted")
     else:

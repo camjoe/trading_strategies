@@ -39,7 +39,9 @@ Repository workflow scripts (`scripts/`):
 - `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync, and the docs drift fixers under `scripts/fixes/`).
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
-- `launch_demo.py`: rebuilds the isolated synthetic offline demo database and launches the UI stack.
+- `launch_demo.py`: rebuilds the isolated synthetic offline demo database (`demo` fixture profile) and launches the UI stack.
+- `launch_sandbox.py`: restores the disposable sandbox database (`sandbox` fixture profile) from its cached golden build and launches the UI stack. Nothing written to the sandbox survives the next run; `--rebuild` regenerates the golden, `--no-ui` restores it without starting the UI.
+- `fixture_db.py`: shared build/publish helpers behind both launchers (migrate-and-seed, golden fingerprinting, throwaway checkout).
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
 
 Documentation page workflows:

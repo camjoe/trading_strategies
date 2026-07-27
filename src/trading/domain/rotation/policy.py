@@ -17,16 +17,9 @@ def _compute_score(
     weighted_risk_adjusted_return = weights.risk_adjusted_return_weight * float(metrics.risk_adjusted_return)
     weighted_stability = weights.stability_weight * float(metrics.stability)
     weighted_drawdown_penalty = weights.drawdown_penalty_weight * float(metrics.drawdown_penalty)
-    weighted_cost_penalty = weights.cost_penalty_weight * float(metrics.cost_penalty)
     weighted_regime_fit = weights.regime_fit_weight * float(metrics.regime_fit)
 
-    score = (
-        weighted_risk_adjusted_return
-        + weighted_stability
-        - weighted_drawdown_penalty
-        - weighted_cost_penalty
-        + weighted_regime_fit
-    )
+    score = weighted_risk_adjusted_return + weighted_stability - weighted_drawdown_penalty + weighted_regime_fit
     return RotationStrategyScore(
         strategy_name=metrics.strategy_name,
         score=score,
@@ -34,7 +27,6 @@ def _compute_score(
             "risk_adjusted_return": weighted_risk_adjusted_return,
             "stability": weighted_stability,
             "drawdown_penalty": weighted_drawdown_penalty,
-            "cost_penalty": weighted_cost_penalty,
             "regime_fit": weighted_regime_fit,
             "total_score": score,
         },

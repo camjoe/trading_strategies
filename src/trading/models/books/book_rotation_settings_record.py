@@ -28,7 +28,6 @@ class BookRotationSettingsRecord:
     risk_adjusted_return_weight: float | None
     stability_weight: float | None
     drawdown_penalty_weight: float | None
-    cost_penalty_weight: float | None
     regime_fit_weight: float | None
     created_at: str
     updated_at: str
@@ -46,7 +45,6 @@ class BookRotationSettingsRecord:
             risk_adjusted_return_weight=row_float(values, "risk_adjusted_return_weight"),
             stability_weight=row_float(values, "stability_weight"),
             drawdown_penalty_weight=row_float(values, "drawdown_penalty_weight"),
-            cost_penalty_weight=row_float(values, "cost_penalty_weight"),
             regime_fit_weight=row_float(values, "regime_fit_weight"),
             created_at=row_expect_str(values, "created_at"),
             updated_at=row_expect_str(values, "updated_at"),

@@ -9,15 +9,34 @@ scored apples-to-apples through one source.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 
 from trading.domain.evaluation.decision_score import derive_decision_score
+from trading.domain.feature_provider import POLICY_RISK_ON_SCORE, ExternalFeatureBundle
 from trading.domain.rotation.score_components import (
     NEUTRAL_COMPONENT,
     drawdown_penalty_from_max_drawdown,
+    regime_bucket_from_risk_on_score,
+    regime_fit_from_style,
     stability_from_window_returns,
 )
+from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.models import AccountRecord
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.repositories.strategies import StrategyRepository
+
+
+def _resolve_strategy_style(conn: sqlite3.Connection, strategy_name: str) -> str | None:
+    """Look up the catalog strategy's primitive family, or ``None`` if unresolvable.
+
+    Never raises — an unknown strategy/primitive degrades to no regime affinity
+    rather than blocking metrics building.
+    """
+    record = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_name)
+    if record is None:
+        return None
+    primitive_spec = PRIMITIVE_CATALOG.get(record.primitive)
+    return primitive_spec.style if primitive_spec is not None else None
 
 
 def build_rotation_strategy_metrics(
@@ -25,6 +44,7 @@ def build_rotation_strategy_metrics(
     *,
     account: AccountRecord,
     strategy_name: str,
+    fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> RotationStrategyMetrics:
     """Build rotation metrics for one strategy from the canonical evaluation artifact.
 
@@ -33,23 +53,13 @@ def build_rotation_strategy_metrics(
     apples-to-apples. Every component is in percentage points (see
     ``domain/rotation/score_components``).
 
-    Two components are deliberately left at ``NEUTRAL_COMPONENT`` because no honest
-    input exists for them:
-
-    - ``cost_penalty``: the backtest simulation already deducts per-trade fees, so
-      ``total_return_pct`` — and therefore ``risk_adjusted_return`` and
-      ``drawdown_penalty`` — are net of modeled costs. Adding a turnover-based
-      penalty on top would double-count the same cost.
-    - ``regime_fit``: rotation has no current-regime read or per-strategy regime
-      affinity, and the regime→strategy mapping columns were dropped as dead in
-      migration ``0014``. A market regime *signal* does exist
-      (``policy_provider.policy_risk_on_score``) but is wired only to strategy
-      signals. See ``docs/reference/rotation-scoring.md`` for what a real
-      implementation would need.
-
-    These two are also no longer operator-settable (removed from
-    ``ROTATION_POLICY_FIELDS``); their columns are retained for a future
-    ``regime_fit`` implementation.
+    ``regime_fit`` computes a real value when ``fetch_regime`` is given — the
+    live-regime, family-derived design in ``docs/reference/rotation-scoring.md``
+    (bucket ``policy_risk_on_score`` via ``regime_bucket_from_risk_on_score``,
+    compare against the strategy's primitive family). Callers that don't pass
+    ``fetch_regime`` (or that get an unavailable bundle) get ``NEUTRAL_COMPONENT``,
+    exactly as before this existed — a stale/unreachable regime read must never
+    block or bias the decision.
     """
     # The one deliberate deferred import in the books/evaluation/accounts trio:
     # this call is the single back-edge (books -> evaluation) in an otherwise
@@ -62,6 +72,14 @@ def build_rotation_strategy_metrics(
     decision = derive_decision_score(artifact)
     comparable_score = decision.score if decision.score is not None else 0.0
     walk_forward = artifact.walk_forward
+
+    regime_fit = NEUTRAL_COMPONENT
+    if fetch_regime is not None:
+        bundle = fetch_regime(strategy_name)
+        current_regime = regime_bucket_from_risk_on_score(bundle.get(POLICY_RISK_ON_SCORE))
+        strategy_style = _resolve_strategy_style(conn, strategy_name)
+        regime_fit = regime_fit_from_style(strategy_style=strategy_style, current_regime=current_regime)
+
     return RotationStrategyMetrics(
         strategy_name=strategy_name,
         trade_count=artifact.backtest.trade_count or 0,
@@ -72,6 +90,5 @@ def build_rotation_strategy_metrics(
             window_count=len(walk_forward.run_ids),
         ),
         drawdown_penalty=drawdown_penalty_from_max_drawdown(artifact.backtest.max_drawdown_pct),
-        cost_penalty=NEUTRAL_COMPONENT,
-        regime_fit=NEUTRAL_COMPONENT,
+        regime_fit=regime_fit,
     )

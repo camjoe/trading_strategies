@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
+from enum import StrEnum
 from typing import Any
 
 from common.coercion import (
@@ -147,6 +148,24 @@ class OptimizationSummary:
     experiment_id: int | None = None
 
 
+class ExperimentStatus(StrEnum):
+    """Outcome of an ``optimization_experiments`` row (revision ``0024``)."""
+
+    # The run reached the end of the holdout stage and its audit tree was persisted.
+    COMPLETED = "completed"
+    # The window-search or holdout stage raised; see failure_stage/failure_message.
+    FAILED = "failed"
+
+
+class FailureStage(StrEnum):
+    """Which lifecycle stage a failed experiment stopped in (revision ``0024``)."""
+
+    # Raised while evaluating training candidates or running a window's OOS backtest.
+    WINDOW_SEARCH = "window_search"
+    # Raised while running the forward-carried winner over the untouched holdout.
+    HOLDOUT = "holdout"
+
+
 @dataclass(frozen=True)
 class OptimizationExperimentInsert:
     """Tier-1 persistence payload for one ``backtest-optimize`` run.
@@ -154,7 +173,12 @@ class OptimizationExperimentInsert:
     Carries the run config, the forward-carried winner (the promotion candidate),
     a small OOS aggregate, and the untouched-holdout summary. Baseline numbers are
     summarized here because the optimizer runs the default-parameter baseline
-    metrics-only (it is never persisted as a ``backtest_runs`` row)."""
+    metrics-only (it is never persisted as a ``backtest_runs`` row).
+
+    ``status``/``failure_stage``/``failure_message`` record a failed run (see
+    ``ExperimentStatus``/``FailureStage``); for a failed row, ``winner_params_json``
+    is the literal JSON ``"null"`` (there is no winner) and the OOS/holdout
+    aggregate fields are ``None``."""
 
     account_id: int
     strategy_id: int | None
@@ -177,6 +201,9 @@ class OptimizationExperimentInsert:
     holdout_run_id: int | None
     holdout_winner_return_pct: float | None
     holdout_baseline_return_pct: float | None
+    status: ExperimentStatus = ExperimentStatus.COMPLETED
+    failure_stage: FailureStage | None = None
+    failure_message: str | None = None
 
 
 @dataclass(frozen=True)
@@ -210,9 +237,13 @@ class OptimizationExperimentRecord:
     holdout_baseline_return_pct: float | None
     promoted_strategy_id: int | None
     created_at: str
+    status: ExperimentStatus
+    failure_stage: FailureStage | None
+    failure_message: str | None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> OptimizationExperimentRecord:
+        failure_stage = row_str(values, "failure_stage")
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
@@ -238,6 +269,9 @@ class OptimizationExperimentRecord:
             holdout_baseline_return_pct=row_float(values, "holdout_baseline_return_pct"),
             promoted_strategy_id=row_int(values, "promoted_strategy_id"),
             created_at=row_expect_str(values, "created_at"),
+            status=ExperimentStatus(row_expect_str(values, "status")),
+            failure_stage=FailureStage(failure_stage) if failure_stage is not None else None,
+            failure_message=row_str(values, "failure_message"),
         )
 
 

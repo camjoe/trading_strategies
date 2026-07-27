@@ -29,8 +29,9 @@ from trading.backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from trading.backtesting.optimizer_models import OptimizerConfig
+from trading.backtesting.optimizer_models import FailureStage, OptimizerConfig
 from trading.backtesting.services.walk_forward_optimizer_service import (
+    OptimizationRunError,
     run_walk_forward_optimization,
 )
 from trading.domain.exceptions import ValidationError
@@ -198,25 +199,29 @@ def _metrics_for(cfg: BacktestConfig) -> tuple[float, float, int]:
     return (8.0, -12.0, 8)  # other grid candidates
 
 
+def _orchestration_cfg() -> OptimizerConfig:
+    return OptimizerConfig(
+        account_name="acct_opt",
+        tickers_file="tickers.txt",
+        universe_history_dir=None,
+        strategy="trend",
+        search_space={"fast_window": [5, 10], "slow_window": [20, 30]},
+        start="2022-01-01",
+        end="2023-12-31",
+        lookback_months=None,
+        slippage_bps=0.0,
+        fee_per_trade=0.0,
+        allow_approximate_leaps=False,
+        train_months=6,
+        test_months=1,
+        step_months=1,
+        holdout_months=3,
+    )
+
+
 class TestOptimizerOrchestration:
     def _run(self):
-        cfg = OptimizerConfig(
-            account_name="acct_opt",
-            tickers_file="tickers.txt",
-            universe_history_dir=None,
-            strategy="trend",
-            search_space={"fast_window": [5, 10], "slow_window": [20, 30]},
-            start="2022-01-01",
-            end="2023-12-31",
-            lookback_months=None,
-            slippage_bps=0.0,
-            fee_per_trade=0.0,
-            allow_approximate_leaps=False,
-            train_months=6,
-            test_months=1,
-            step_months=1,
-            holdout_months=3,
-        )
+        cfg = _orchestration_cfg()
         persisted: list[BacktestConfig] = []
         metrics_only: list[BacktestConfig] = []
 
@@ -310,3 +315,58 @@ class TestOptimizerOrchestration:
             run_walk_forward_optimization(
                 None, cfg, run_metrics_only_fn=lambda *_: None, run_persisted_fn=lambda *_: None
             )
+
+    def test_window_search_failure_raises_optimization_run_error_with_context(self) -> None:
+        # The second window's persisted OOS run blows up; the first window already
+        # completed. The error should say so, so a failed-experiment row can record it.
+        cfg = _orchestration_cfg()
+        oos_calls = 0
+
+        def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, annualized=ann, drawdown=dd, trades=trades)
+
+        def failing_persisted(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            nonlocal oos_calls
+            oos_calls += 1
+            if oos_calls == 2:
+                raise RuntimeError("simulated market-data outage")
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, annualized=ann, drawdown=dd, trades=trades)
+
+        with pytest.raises(OptimizationRunError) as exc_info:
+            run_walk_forward_optimization(
+                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
+            )
+        error = exc_info.value
+        assert error.stage == FailureStage.WINDOW_SEARCH
+        assert error.windows_completed == 1
+        assert "simulated market-data outage" in error.cause_message
+
+    def test_holdout_failure_raises_optimization_run_error_with_full_window_count(self) -> None:
+        cfg = _orchestration_cfg()
+
+        def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, annualized=ann, drawdown=dd, trades=trades)
+
+        def failing_on_holdout_persisted(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+            if run_cfg.purpose == BACKTEST_PURPOSE_FINAL_HOLDOUT:
+                raise RuntimeError("simulated holdout failure")
+            ann, dd, trades = _metrics_for(run_cfg)
+            return _fake_result(run_cfg, annualized=ann, drawdown=dd, trades=trades)
+
+        # Every window must complete before the holdout stage runs at all.
+        expected_window_count = len(
+            run_walk_forward_optimization(
+                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=fake_metrics
+            ).windows
+        )
+
+        with pytest.raises(OptimizationRunError) as exc_info:
+            run_walk_forward_optimization(
+                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
+            )
+        error = exc_info.value
+        assert error.stage == FailureStage.HOLDOUT
+        assert error.windows_completed == expected_window_count

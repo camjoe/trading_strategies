@@ -53,9 +53,9 @@ def insert_experiment(
             warmup_months, start_date, end_date, window_count, winner_params_json,
             oos_mean_winner_return_pct, oos_mean_baseline_return_pct, oos_windows_beat_baseline,
             holdout_run_id, holdout_winner_return_pct, holdout_baseline_return_pct,
-            created_at
+            status, failure_stage, failure_message, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             int(payload.account_id),
@@ -79,6 +79,9 @@ def insert_experiment(
             payload.holdout_run_id,
             payload.holdout_winner_return_pct,
             payload.holdout_baseline_return_pct,
+            str(payload.status),
+            None if payload.failure_stage is None else str(payload.failure_stage),
+            payload.failure_message,
             now,
         ),
     )

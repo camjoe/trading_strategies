@@ -169,6 +169,20 @@ class EquitySnapshotRepository:
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
+    def fetch_max_equity(self, *, account_id: int) -> float | None:
+        """The account's highest rolled-up equity ever recorded, or None with no snapshots.
+
+        Used as the running-peak input for point-in-time drawdown (see
+        ``risk_snapshots.drawdown_pct``): the caller compares current equity
+        against this historical peak.
+        """
+        row = self._conn.execute(
+            f"SELECT MAX(equity) AS max_equity FROM ({_ACCOUNT_VIEW_SELECT}) AS account_equity",
+            (int(account_id),),
+        ).fetchone()
+        value = row["max_equity"] if row is not None else None
+        return float(value) if value is not None else None
+
     def fetch_earliest(self, *, account_id: int) -> EquitySnapshotRecord | None:
         row = self._conn.execute(
             _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",

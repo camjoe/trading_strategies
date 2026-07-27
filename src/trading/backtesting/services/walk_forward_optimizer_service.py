@@ -26,6 +26,8 @@ from trading.backtesting.models import (
 from trading.backtesting.optimizer_models import (
     MANIFEST_V1,
     CandidateResult,
+    ExperimentStatus,
+    FailureStage,
     HoldoutOutcome,
     OptimizationExperimentInsert,
     OptimizationManifestInsert,
@@ -59,6 +61,34 @@ RunFn = Callable[[sqlite3.Connection, BacktestConfig], BacktestResult]
 
 # Run-name prefix for persisted optimizer evidence, kept short for CLI readability.
 OPTIMIZER_RUN_NAME_PREFIX = "wfo"
+
+
+class OptimizationRunError(ValueError):
+    """Internal signal that the window-search or holdout stage failed.
+
+    Never crosses this module's boundary as itself: ``run_and_persist_optimization``
+    catches it, persists a failed ``optimization_experiments`` row, and raises a
+    plain ``ValidationError`` referencing that row, so callers keep matching
+    ``except ValueError`` exactly as before. Carries the context needed to build
+    that failure row: which stage failed, how many windows completed first, and
+    the run's already-resolved date bounds.
+    """
+
+    def __init__(
+        self,
+        *,
+        stage: FailureStage,
+        windows_completed: int,
+        start_date: date,
+        end_date: date,
+        cause: Exception,
+    ) -> None:
+        self.stage = stage
+        self.windows_completed = windows_completed
+        self.start_date = start_date
+        self.end_date = end_date
+        self.cause_message = str(cause)
+        super().__init__(f"{stage} failed after {windows_completed} window(s): {cause}")
 
 
 def run_walk_forward_optimization(
@@ -98,56 +128,45 @@ def run_walk_forward_optimization(
     candidates = generate_candidates(cfg.search_space, budget=cfg.candidate_budget)
 
     window_selections: list[WindowSelection] = []
-    for window_index, split in enumerate(splits, start=1):
-        winner, candidate_results = _select_window_winner(
+    try:
+        for window_index, split in enumerate(splits, start=1):
+            window_selections.append(
+                _run_one_window(
+                    conn,
+                    cfg,
+                    window_index=window_index,
+                    split=split,
+                    candidates=candidates,
+                    run_metrics_only_fn=run_metrics_only_fn,
+                    run_persisted_fn=run_persisted_fn,
+                )
+            )
+    except Exception as error:
+        raise OptimizationRunError(
+            stage=FailureStage.WINDOW_SEARCH,
+            windows_completed=len(window_selections),
+            start_date=start_date,
+            end_date=end_date,
+            cause=error,
+        ) from error
+
+    try:
+        holdout_outcome = _run_holdout(
             conn,
             cfg,
-            split=split,
-            candidates=candidates,
+            holdout=holdout,
+            window_selections=window_selections,
             run_metrics_only_fn=run_metrics_only_fn,
+            run_persisted_fn=run_persisted_fn,
         )
-        winner_oos = run_persisted_fn(
-            conn,
-            _config(
-                cfg,
-                start=split.test_start,
-                end=split.test_end,
-                param_override=winner.params,
-                purpose=BACKTEST_PURPOSE_WALK_FORWARD_OOS,
-                run_name=f"{OPTIMIZER_RUN_NAME_PREFIX}_w{window_index:02d}",
-            ),
-        )
-        baseline_oos = run_metrics_only_fn(
-            conn,
-            _config(
-                cfg,
-                start=split.test_start,
-                end=split.test_end,
-                param_override=None,
-                purpose=BACKTEST_PURPOSE_STANDALONE,
-                run_name=None,
-            ),
-        )
-        window_selections.append(
-            WindowSelection(
-                window_index=window_index,
-                split=split,
-                candidate_count=len(candidates),
-                winner=winner,
-                winner_oos=_run_outcome(winner_oos),
-                baseline_oos=_run_outcome(baseline_oos),
-                candidates=candidate_results,
-            )
-        )
-
-    holdout_outcome = _run_holdout(
-        conn,
-        cfg,
-        holdout=holdout,
-        window_selections=window_selections,
-        run_metrics_only_fn=run_metrics_only_fn,
-        run_persisted_fn=run_persisted_fn,
-    )
+    except Exception as error:
+        raise OptimizationRunError(
+            stage=FailureStage.HOLDOUT,
+            windows_completed=len(window_selections),
+            start_date=start_date,
+            end_date=end_date,
+            cause=error,
+        ) from error
 
     return OptimizationSummary(
         strategy=cfg.strategy,
@@ -156,6 +175,58 @@ def run_walk_forward_optimization(
         default_params=default_params,
         windows=window_selections,
         holdout=holdout_outcome,
+    )
+
+
+def _run_one_window(
+    conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    *,
+    window_index: int,
+    split: WalkForwardSplit,
+    candidates: list[dict[str, Any]],
+    run_metrics_only_fn: RunFn,
+    run_persisted_fn: RunFn,
+) -> WindowSelection:
+    """Select the window's winner on training data, then run it (and the default
+    baseline) once over the out-of-sample interval."""
+    winner, candidate_results = _select_window_winner(
+        conn,
+        cfg,
+        split=split,
+        candidates=candidates,
+        run_metrics_only_fn=run_metrics_only_fn,
+    )
+    winner_oos = run_persisted_fn(
+        conn,
+        _config(
+            cfg,
+            start=split.test_start,
+            end=split.test_end,
+            param_override=winner.params,
+            purpose=BACKTEST_PURPOSE_WALK_FORWARD_OOS,
+            run_name=f"{OPTIMIZER_RUN_NAME_PREFIX}_w{window_index:02d}",
+        ),
+    )
+    baseline_oos = run_metrics_only_fn(
+        conn,
+        _config(
+            cfg,
+            start=split.test_start,
+            end=split.test_end,
+            param_override=None,
+            purpose=BACKTEST_PURPOSE_STANDALONE,
+            run_name=None,
+        ),
+    )
+    return WindowSelection(
+        window_index=window_index,
+        split=split,
+        candidate_count=len(candidates),
+        winner=winner,
+        winner_oos=_run_outcome(winner_oos),
+        baseline_oos=_run_outcome(baseline_oos),
+        candidates=candidate_results,
     )
 
 
@@ -169,35 +240,22 @@ def run_and_persist_optimization(
 ) -> OptimizationSummary:
     """Run one optimization experiment and persist its Tier-1 record.
 
-    Runs the pure orchestration, then writes one ``optimization_experiments`` row
-    (config + forward-carried winner + OOS aggregate + holdout summary) plus the
-    per-window/candidate audit and the frozen provenance manifest, and returns the
-    summary with its ``experiment_id`` set — the handle a later promotion uses.
+    Resolves the account and strategy *before* running anything — an unknown
+    account/strategy fails immediately rather than after a full (possibly
+    expensive) optimization run. Runs the pure orchestration, then writes one
+    ``optimization_experiments`` row (config + forward-carried winner + OOS
+    aggregate + holdout summary) plus the per-window/candidate audit and the
+    frozen provenance manifest, and returns the summary with its ``experiment_id``
+    set — the handle a later promotion uses.
+
+    If the window-search or holdout stage raises, persists a failed experiment row
+    (status/stage/message; see ``OptimizationRunError``) instead of losing the
+    attempt, then raises ``ValidationError`` referencing that row's id.
 
     ``market_data_provider`` is the resolved provider name recorded on the manifest;
     the composition root binds it (it is infrastructure knowledge the service must
     not resolve itself).
     """
-    summary = run_walk_forward_optimization(
-        conn,
-        cfg,
-        run_metrics_only_fn=run_metrics_only_fn,
-        run_persisted_fn=run_persisted_fn,
-    )
-    experiment_id = _persist_experiment(conn, cfg, summary, market_data_provider=market_data_provider)
-    return replace(summary, experiment_id=experiment_id)
-
-
-def _persist_experiment(
-    conn: sqlite3.Connection,
-    cfg: OptimizerConfig,
-    summary: OptimizationSummary,
-    *,
-    market_data_provider: str,
-) -> int:
-    if not summary.windows:
-        raise ValidationError("Optimization produced no windows; nothing to persist or promote.")
-
     now = utc_now_iso()
     account = AccountRepository(conn).fetch_by_name(cfg.account_name)
     if account is None:
@@ -206,6 +264,99 @@ def _persist_experiment(
     strategy_row = StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id) if strategy_id is not None else None
     if strategy_row is None:
         raise NotFoundError(f"Strategy not found for optimizer target: {cfg.strategy}")
+
+    try:
+        summary = run_walk_forward_optimization(
+            conn,
+            cfg,
+            run_metrics_only_fn=run_metrics_only_fn,
+            run_persisted_fn=run_persisted_fn,
+        )
+    except OptimizationRunError as error:
+        experiment_id = _persist_failed_experiment(
+            conn,
+            cfg,
+            account=account,
+            strategy_id=strategy_id,
+            primitive=strategy_row.primitive,
+            error=error,
+            now=now,
+        )
+        raise ValidationError(
+            f"{error} Persisted failed experiment #{experiment_id} — "
+            f"see 'backtest-optimize-show {experiment_id}' for diagnostics."
+        ) from error
+
+    experiment_id = _persist_experiment(
+        conn,
+        cfg,
+        summary,
+        account=account,
+        strategy_id=strategy_id,
+        primitive=strategy_row.primitive,
+        market_data_provider=market_data_provider,
+        now=now,
+    )
+    return replace(summary, experiment_id=experiment_id)
+
+
+def _persist_failed_experiment(
+    conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    *,
+    account: AccountRecord,
+    strategy_id: int | None,
+    primitive: str,
+    error: OptimizationRunError,
+    now: str,
+) -> int:
+    """Persist a minimal audit row for a run that failed mid-flight.
+
+    No ``optimization_windows``/``optimization_trials``/manifest rows are written —
+    a failed experiment gets exactly this one record, not a partial audit tree.
+    """
+    payload = OptimizationExperimentInsert(
+        account_id=account.id,
+        strategy_id=strategy_id,
+        primitive=primitive,
+        objective_name=cfg.objective_name,
+        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        candidate_budget=cfg.candidate_budget,
+        train_months=cfg.train_months,
+        test_months=cfg.test_months,
+        step_months=cfg.step_months,
+        holdout_months=cfg.holdout_months,
+        warmup_months=cfg.warmup_months,
+        start_date=error.start_date.isoformat(),
+        end_date=error.end_date.isoformat(),
+        window_count=error.windows_completed,
+        winner_params_json=json.dumps(None),
+        oos_mean_winner_return_pct=None,
+        oos_mean_baseline_return_pct=None,
+        oos_windows_beat_baseline=None,
+        holdout_run_id=None,
+        holdout_winner_return_pct=None,
+        holdout_baseline_return_pct=None,
+        status=ExperimentStatus.FAILED,
+        failure_stage=error.stage,
+        failure_message=error.cause_message,
+    )
+    return insert_experiment(conn, payload, created_at=now)
+
+
+def _persist_experiment(
+    conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    summary: OptimizationSummary,
+    *,
+    account: AccountRecord,
+    strategy_id: int | None,
+    primitive: str,
+    market_data_provider: str,
+    now: str,
+) -> int:
+    if not summary.windows:
+        raise ValidationError("Optimization produced no windows; nothing to persist or promote.")
 
     winner_params = summary.windows[-1].winner.params
     winner_returns = [w.winner_oos.total_return_pct for w in summary.windows]
@@ -217,7 +368,7 @@ def _persist_experiment(
     payload = OptimizationExperimentInsert(
         account_id=account.id,
         strategy_id=strategy_id,
-        primitive=strategy_row.primitive,
+        primitive=primitive,
         objective_name=cfg.objective_name,
         search_space_json=json.dumps(cfg.search_space, sort_keys=True),
         candidate_budget=cfg.candidate_budget,

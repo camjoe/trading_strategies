@@ -38,11 +38,13 @@ from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_snapshot_history,
 )
 from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_book_rotation_history,
     handle_configure_book_rotation,
     handle_configure_book_rotation_policy,
     handle_configure_evaluation,
     handle_configure_promotion,
     handle_configure_throttle,
+    handle_settings_history,
 )
 from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
     handle_configure_strategy,
@@ -75,6 +77,8 @@ COMMAND_HANDLERS = {
     "configure-promotion": handle_configure_promotion,
     "configure-book-rotation": handle_configure_book_rotation,
     "configure-book-rotation-policy": handle_configure_book_rotation_policy,
+    "settings-history": handle_settings_history,
+    "book-rotation-history": handle_book_rotation_history,
     "create-strategy-variant": handle_create_strategy_variant,
     "configure-strategy": handle_configure_strategy,
     "freeze-strategy": handle_freeze_strategy,

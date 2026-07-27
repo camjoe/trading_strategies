@@ -14,7 +14,7 @@ from common.coercion import row_expect_int
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.domain.feature_provider import FeatureFetcherSet
+from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
 from trading.models.execution.book_run_audit import BookRunAudit
@@ -85,13 +85,14 @@ def _run_books_for_account(
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
+    fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
     audit = BookRunAudit()
     # Universes are book-owned and required (revision 0008): each book resolves
     # its own names; the global list is only the guard for malformed data.
-    run_account_book_rotations(conn, account=account, decision_time=snapshot_time)
+    run_account_book_rotations(conn, account=account, decision_time=snapshot_time, fetch_regime=fetch_regime)
     intents = generate_book_trade_intents(
         conn,
         account=account,
@@ -226,6 +227,7 @@ def run_for_account(
         broker_factory=broker_factory,
         histories=histories,
         feature_history_fn=feature_history_fn,
+        fetch_regime=feature_fetchers.fetch_policy,
     )
 
 

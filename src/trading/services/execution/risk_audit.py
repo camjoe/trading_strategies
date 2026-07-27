@@ -14,6 +14,7 @@ from trading.models.execution.book_run_audit import BookRunAudit
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.execution.risk import (
     persist_book_risk_snapshot,
@@ -52,6 +53,9 @@ def persist_book_run_audit(
             account_id=account_id
         ),
         fetch_books_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(account_id=account_id),
+        fetch_max_equity_fn=lambda c, *, account_id: EquitySnapshotRepository(c).fetch_max_equity(
+            account_id=account_id
+        ),
         insert_risk_snapshot_fn=RiskSnapshotRepository(conn).insert,
         symbol_sector_map=load_symbol_sector_map(),
     )
