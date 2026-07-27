@@ -37,6 +37,7 @@ FastAPI routers. One file per logical domain. Routes call backend services; they
 | `autonomy_monitor.py` | Autonomy monitor status and artifacts |
 | `logs.py` | Log file access |
 | `portfolio.py` | Cross-account portfolio rollup (`GET /api/portfolio/rollup`) |
+| `strategy_lab.py` | Strategy catalog CRUD (create variant, configure, freeze) and walk-forward optimization runs, history, and winner promotion |
 
 ### Schemas (`schemas/`)
 
@@ -48,6 +49,7 @@ Pydantic request/response models. These define the API contract with the fronten
 | `admin.py` | Admin request/response shapes |
 | `backtests.py` | Backtest run request and result shapes |
 | `features.py` | Feature/signal response shapes |
+| `strategy_lab.py` | Strategy variant creation/configuration, optimization run, and winner-promotion request shapes |
 
 ### Services (`services/`)
 

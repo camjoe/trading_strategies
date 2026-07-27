@@ -59,6 +59,7 @@ def api_create_strategy(payload: CreateStrategyVariantRequest) -> dict[str, obje
 
 @router.patch("/api/strategy-lab/catalog/{strategy_key}")
 def api_configure_strategy(strategy_key: str, payload: ConfigureStrategyRequest) -> dict[str, object]:
+    """Edit a draft strategy variant's knobs and enabled flag (frozen variants reject edits)."""
     with db_conn() as conn:
         try:
             record = configure_strategy(
@@ -76,6 +77,7 @@ def api_configure_strategy(strategy_key: str, payload: ConfigureStrategyRequest)
 
 @router.post("/api/strategy-lab/catalog/{strategy_key}/freeze")
 def api_freeze_strategy(strategy_key: str) -> dict[str, object]:
+    """Freeze a draft strategy variant so its knobs become immutable and it is tradeable."""
     with db_conn() as conn:
         return {"status": "ok", "strategy": strategy_payload(freeze_strategy(conn, strategy_key=strategy_key))}
 
@@ -150,6 +152,7 @@ def api_promote_optimization(
     experiment_id: int,
     payload: PromoteOptimizationRequest,
 ) -> dict[str, object]:
+    """Promote an optimization run's winner into a new strategy variant, optionally frozen."""
     with db_conn() as conn:
         try:
             record = promote_optimization_experiment(

@@ -267,6 +267,11 @@ def api_update_book_params(
     book_name: str,
     body: BookParamsRequest,
 ) -> dict[str, str]:
+    """Partially update one book's execution, universe, and rotation settings.
+
+    All fields are optional — omitted fields are left unchanged. Rotation
+    scheduling and rotation policy are separate groups on the same request.
+    """
     with db_conn() as conn:
         command = build_account_params_update_command(body)
         raw_policy = body.rotationPolicy.model_dump(exclude_none=True) if body.rotationPolicy else {}

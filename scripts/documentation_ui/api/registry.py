@@ -16,6 +16,7 @@ GROUP_ORDER = [
     "Admin Endpoints",
     "Logs Endpoints",
     "Backtesting Endpoints",
+    "Strategy Lab Endpoints",
 ]
 
 GROUP_BY_MODULE = {
@@ -29,6 +30,7 @@ GROUP_BY_MODULE = {
     "admin": "Admin Endpoints",
     "logs": "Logs Endpoints",
     "backtests": "Backtesting Endpoints",
+    "strategy_lab": "Strategy Lab Endpoints",
 }
 
 

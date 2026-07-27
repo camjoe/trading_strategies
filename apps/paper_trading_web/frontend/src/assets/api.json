@@ -65,7 +65,7 @@
       "handler": "api_update_book_params",
       "module": "accounts",
       "group": "Accounts & Snapshots Endpoints",
-      "description": ""
+      "description": "Partially update one book's execution, universe, and rotation settings. All fields are optional \u2014 omitted fields are left unchanged. Rotation scheduling and rotation policy are separate groups on the same request."
     },
     {
       "method": "PATCH",
@@ -106,30 +106,6 @@
       "module": "autonomy_monitor",
       "group": "Accounts & Snapshots Endpoints",
       "description": "Return comprehensive autonomy dashboard data for a managed account. Includes: - Account overview (total equity, cash, positions) - Book status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/strategy-lab/catalog/{strategy_key}",
-      "handler": "api_configure_strategy",
-      "module": "strategy_lab",
-      "group": "Accounts & Snapshots Endpoints",
-      "description": ""
-    },
-    {
-      "method": "POST",
-      "path": "/api/strategy-lab/catalog/{strategy_key}/freeze",
-      "handler": "api_freeze_strategy",
-      "module": "strategy_lab",
-      "group": "Accounts & Snapshots Endpoints",
-      "description": ""
-    },
-    {
-      "method": "POST",
-      "path": "/api/strategy-lab/optimizations/{experiment_id}/promote",
-      "handler": "api_promote_optimization",
-      "module": "strategy_lab",
-      "group": "Accounts & Snapshots Endpoints",
-      "description": ""
     },
     {
       "method": "GET",
@@ -300,6 +276,22 @@
       "description": "Create a validated draft strategy variant from a public primitive."
     },
     {
+      "method": "PATCH",
+      "path": "/api/strategy-lab/catalog/{strategy_key}",
+      "handler": "api_configure_strategy",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Edit a draft strategy variant's knobs and enabled flag (frozen variants reject edits)."
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/catalog/{strategy_key}/freeze",
+      "handler": "api_freeze_strategy",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Freeze a draft strategy variant so its knobs become immutable and it is tradeable."
+    },
+    {
       "method": "GET",
       "path": "/api/strategy-lab/optimizations",
       "handler": "api_optimizations",
@@ -314,6 +306,14 @@
       "module": "strategy_lab",
       "group": "Strategy Lab Endpoints",
       "description": "Run a bounded walk-forward optimization with out-of-sample and holdout evidence."
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-lab/optimizations/{experiment_id}/promote",
+      "handler": "api_promote_optimization",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Promote an optimization run's winner into a new strategy variant, optionally frozen."
     }
   ]
 }
