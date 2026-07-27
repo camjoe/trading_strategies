@@ -244,23 +244,62 @@ def test_fetch_autonomy_account_detail_raises_on_missing_account(mock_conn: Magi
 
 def test_fetch_autonomy_account_detail_aggregates_all_data(mock_conn: MagicMock) -> None:
     account = _make_account(id=1, name="test_account", initial_cash=50_000.0)
+    sleeve = _make_book(id=2, name="Book 1", current_equity=55_000.0, current_cash=10_000.0)
 
-    with patch("trading.services.autonomy_monitor.queries.AccountRepository") as mock_acct_cls:
-        with patch("trading.services.autonomy_monitor.queries._fetch_account_books") as mock_fetch_books:
-            with patch("trading.services.autonomy_monitor.queries._fetch_recent_rotations") as mock_fetch_rotations:
-                with patch("trading.services.autonomy_monitor.queries._fetch_risk_summary") as mock_fetch_risk:
-                    mock_acct_cls.return_value.fetch_by_name.return_value = account
-                    mock_fetch_books.return_value = [
-                        {"book_id": 1, "name": "Book 1", "current_equity": 55_000.0, "current_cash": 10_000.0}
-                    ]
-                    mock_fetch_rotations.return_value = []
-                    mock_fetch_risk.return_value = {"kill_switch_triggered": False}
+    books_payload = [{"book_id": 2, "name": "Book 1", "current_equity": 55_000.0, "current_cash": 10_000.0}]
 
-                    result = queries.fetch_autonomy_account_detail(mock_conn, "test_account")
+    with (
+        patch("trading.services.autonomy_monitor.queries.AccountRepository") as mock_acct_cls,
+        patch("trading.services.autonomy_monitor.queries.BookRepository") as mock_book_cls,
+        patch("trading.services.autonomy_monitor.queries._fetch_account_books", return_value=books_payload),
+        patch("trading.services.autonomy_monitor.queries.list_report_books", return_value=[(sleeve, None)]),
+        patch("trading.services.autonomy_monitor.queries._fetch_recent_rotations", return_value=[]),
+        patch(
+            "trading.services.autonomy_monitor.queries._fetch_risk_summary",
+            return_value={"kill_switch_triggered": False},
+        ),
+    ):
+        mock_acct_cls.return_value.fetch_by_name.return_value = account
+        mock_book_cls.return_value.fetch_for_account.return_value = [sleeve]
 
-                    assert result["account"]["name"] == "test_account"
-                    assert result["account"]["total_equity"] == 55_000.0
-                    assert result["account"]["book_count"] == 1
-                    assert result["books"] == mock_fetch_books.return_value
-                    assert result["recent_rotations"] == []
-                    assert result["risk_summary"] == {"kill_switch_triggered": False}
+        result = queries.fetch_autonomy_account_detail(mock_conn, "test_account")
+
+    assert result["account"]["name"] == "test_account"
+    assert result["account"]["total_equity"] == 55_000.0
+    assert result["account"]["book_count"] == 1
+    assert result["books"] == books_payload
+    assert result["recent_rotations"] == []
+    assert result["risk_summary"] == {"kill_switch_triggered": False}
+
+
+def test_fetch_autonomy_account_detail_totals_include_the_default_book(mock_conn: MagicMock) -> None:
+    """Account totals span every book, so the return matches ``initial_cash``.
+
+    The books panel lists only the non-default sleeves. Rolling the headline
+    equity over that same subset would measure sleeve equity against the whole
+    account's capital — the parent account's own book holds the rest.
+    """
+    account = _make_account(id=1, name="multi_book", initial_cash=40_000.0)
+    default_book = _make_book(id=1, name="default", is_default=1, current_equity=16_000.0, current_cash=15_000.0)
+    sleeve = _make_book(id=2, name="growth_sleeve", current_equity=25_000.0, current_cash=20_000.0)
+
+    with (
+        patch("trading.services.autonomy_monitor.queries.AccountRepository") as mock_acct_cls,
+        patch("trading.services.autonomy_monitor.queries.BookRepository") as mock_book_cls,
+        patch("trading.services.autonomy_monitor.queries._fetch_account_books", return_value=[]),
+        patch("trading.services.autonomy_monitor.queries.list_report_books", return_value=[(sleeve, None)]),
+        patch("trading.services.autonomy_monitor.queries._fetch_recent_rotations", return_value=[]),
+        patch("trading.services.autonomy_monitor.queries._fetch_risk_summary", return_value={}),
+    ):
+        mock_acct_cls.return_value.fetch_by_name.return_value = account
+        mock_book_cls.return_value.fetch_for_account.return_value = [default_book, sleeve]
+
+        overview = queries.fetch_autonomy_account_detail(mock_conn, "multi_book")["account"]
+
+    assert overview["total_equity"] == 41_000.0
+    assert overview["total_cash"] == 35_000.0
+    assert overview["positions_market_value"] == 6_000.0
+    # +2.5% on 40k, not the -37.5% that sleeve-only equity would have reported.
+    assert overview["return_pct"] == 2.5
+    # The panel below the overview still lists the sleeves only.
+    assert overview["book_count"] == 1

@@ -11,6 +11,7 @@ from typing import Any
 
 from trading.domain.exceptions import NotFoundError
 from trading.domain.portfolio_math import strategy_return_pct
+from trading.models import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
@@ -32,34 +33,37 @@ def _return_pct(equity: float, basis: float) -> float:
     return round(strategy_return_pct(equity, basis), 2) if basis else 0.0
 
 
+def _build_account_overview(conn: sqlite3.Connection, account: AccountRecord) -> dict[str, Any]:
+    """The account's headline balances, measured against ``initial_cash``.
+
+    Account totals are the Σ over *every* book, default included: the default
+    book holds whatever capital was not carved out into sleeves, so summing
+    only the reported (non-default) books would compare a partial equity
+    against the whole account's capital and report a fictitious return.
+    """
+    account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
+    total_equity = sum(b.current_equity for b in account_books)
+    total_cash = sum(b.current_cash for b in account_books)
+
+    return {
+        "account_id": account.id,
+        "name": account.name,
+        "initial_cash": account.initial_cash,
+        "total_equity": round(total_equity, 2),
+        "total_cash": round(total_cash, 2),
+        "positions_market_value": round(total_equity - total_cash, 2),
+        "return_pct": _return_pct(total_equity, account.initial_cash),
+        "book_count": len(list_report_books(conn, account_id=account.id)),
+    }
+
+
 def fetch_autonomy_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Fetch list of managed accounts with book summary."""
-    all_accounts = AccountRepository(conn).fetch_all()
-
-    result = []
-    for account in all_accounts:
-        if account.account_kind != _MANAGED_ACCOUNT_KIND:
-            continue
-
-        # Account totals are the Σ over the account's book balances.
-        account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
-        total_equity = sum(b.current_equity for b in account_books)
-        total_cash = sum(b.current_cash for b in account_books)
-
-        result.append(
-            {
-                "account_id": account.id,
-                "name": account.name,
-                "initial_cash": account.initial_cash,
-                "total_equity": round(total_equity, 2),
-                "total_cash": round(total_cash, 2),
-                "positions_market_value": round(total_equity - total_cash, 2),
-                "return_pct": _return_pct(total_equity, account.initial_cash),
-                "book_count": len(list_report_books(conn, account_id=account.id)),
-            }
-        )
-
-    return result
+    return [
+        _build_account_overview(conn, account)
+        for account in AccountRepository(conn).fetch_all()
+        if account.account_kind == _MANAGED_ACCOUNT_KIND
+    ]
 
 
 def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict[str, Any]]:
@@ -172,22 +176,9 @@ def fetch_autonomy_account_detail(
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
 
-    book_list = _fetch_account_books(conn, account.id)
-    total_equity = sum(b["current_equity"] for b in book_list)
-    total_cash = sum(b["current_cash"] for b in book_list)
-
     account_data = {
-        "account": {
-            "account_id": account.id,
-            "name": account.name,
-            "initial_cash": account.initial_cash,
-            "total_equity": round(total_equity, 2),
-            "total_cash": round(total_cash, 2),
-            "positions_market_value": round(total_equity - total_cash, 2),
-            "return_pct": _return_pct(total_equity, account.initial_cash),
-            "book_count": len(book_list),
-        },
-        "books": book_list,
+        "account": _build_account_overview(conn, account),
+        "books": _fetch_account_books(conn, account.id),
         "recent_rotations": _fetch_recent_rotations(conn, account.id),
         "risk_summary": _fetch_risk_summary(conn, account.id),
     }
