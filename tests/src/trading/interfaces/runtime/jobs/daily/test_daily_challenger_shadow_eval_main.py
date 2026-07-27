@@ -57,7 +57,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                     risk_adjusted_return=0.5,
                     stability=0.0,
                     drawdown_penalty=0.0,
-                    cost_penalty=0.0,
                     regime_fit=0.0,
                 ),
                 challengers=[
@@ -67,7 +66,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                         risk_adjusted_return=0.9,
                         stability=0.58,
                         drawdown_penalty=0.4,
-                        cost_penalty=0.0,
                         regime_fit=0.0,
                     )
                 ],

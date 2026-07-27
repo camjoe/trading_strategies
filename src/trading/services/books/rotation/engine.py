@@ -34,7 +34,6 @@ class RotationPolicyConfig:
     risk_adjusted_return_weight: float = 1.0
     stability_weight: float = 0.25
     drawdown_penalty_weight: float = 0.20
-    cost_penalty_weight: float = 0.10
     regime_fit_weight: float = 0.10
 
 
@@ -138,9 +137,6 @@ def resolve_rotation_policy_config(
             if record.drawdown_penalty_weight is not None
             else defaults.drawdown_penalty_weight
         ),
-        cost_penalty_weight=(
-            record.cost_penalty_weight if record.cost_penalty_weight is not None else defaults.cost_penalty_weight
-        ),
         regime_fit_weight=(
             record.regime_fit_weight if record.regime_fit_weight is not None else defaults.regime_fit_weight
         ),
@@ -152,7 +148,6 @@ def _weights_from_config(config: RotationPolicyConfig) -> RotationScoreWeights:
         risk_adjusted_return_weight=float(config.risk_adjusted_return_weight),
         stability_weight=float(config.stability_weight),
         drawdown_penalty_weight=float(config.drawdown_penalty_weight),
-        cost_penalty_weight=float(config.cost_penalty_weight),
         regime_fit_weight=float(config.regime_fit_weight),
     )
 

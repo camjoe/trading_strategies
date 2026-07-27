@@ -90,13 +90,6 @@ These limitations describe current behavior and maturity; they are not hidden by
   strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
   runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
   + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
-- **One rotation score component has no data source.** Rotation scores on risk-adjusted return,
-  **stability** (spread of walk-forward window returns), **drawdown penalty** (backtest max
-  drawdown), and **regime fit** (a live ETF-based market-regime read compared against each strategy's
-  primitive family; see [Rotation Scoring](reference/rotation-scoring.md)).
-  `cost_penalty` stays zero: a separate penalty would double-count, since backtest returns are
-  already net of modeled per-trade fees. Its weight is not operator-configurable (tuning it would
-  have no effect); `regime_fit`'s weight is.
 - **Daily performance metrics are partially populated.** The daily-metrics writer runs from the
   snapshot step and derives `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`,
   `hit_rate`/`expectancy` (from each closing order's realized P&L), and `risk_adjusted_score` (a

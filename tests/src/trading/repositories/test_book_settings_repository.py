@@ -104,7 +104,6 @@ class TestBookRotationSettingsChangeAudit:
             risk_adjusted_return_weight=0.5,
             stability_weight=0.2,
             drawdown_penalty_weight=0.2,
-            cost_penalty_weight=0.0,
             regime_fit_weight=0.1,
             created_at="2026-07-26T00:00:00Z",
             updated_at="2026-07-26T01:00:00Z",

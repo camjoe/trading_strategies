@@ -1,18 +1,17 @@
-# Rotation Scoring — components, data sources, and deferred work
+# Rotation Scoring — components and data sources
 
 Type: notes
 Status: Active
 Created: 2026-07-24
 Last Reviewed: 2026-07-26
-Purpose: What each term in the champion/challenger rotation score means, where its value comes from, the as-built `regime_fit` design, and what remains deferred for `cost_penalty` and for a deeper `regime_fit`.
+Purpose: What each term in the champion/challenger rotation score means, where its value comes from, and the as-built `regime_fit` design.
 Related: [Backtesting](backtesting.md), [Strategies](strategies.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 ## Purpose
 
 Read this before touching rotation scoring. It records what the score measures,
-which components have an honest data source, the as-built family-derived +
-live-regime design behind `regime_fit`, and — for `cost_penalty`, still inert —
-what is missing and what a real implementation would need.
+which components have an honest data source, and the as-built family-derived +
+live-regime design behind `regime_fit`.
 
 ## The score
 
@@ -23,14 +22,13 @@ scores each strategy as:
 score = risk_adjusted_return
       + stability
       - drawdown_penalty
-      - cost_penalty
       + regime_fit
 ```
 
 Every term is expressed in **percentage points**, the same unit as the blended
 evaluation score that feeds `risk_adjusted_return`. Keeping one unit is what makes
 the operator-tunable weights (`RotationScoreWeights`, defaults 1.0 / 0.25 / 0.20 /
-0.10 / 0.10) meaningful — a component on a different scale would silently dominate.
+0.10) meaningful — a component on a different scale would silently dominate.
 
 The score only decides the **score-superiority gate**. The rotation also requires a
 cooldown gate, a minimum-sample gate, and an outperformance gate (which compares
@@ -42,27 +40,19 @@ similar-return strategies; they cannot force a rotation on their own.
 | `risk_adjusted_return` | Live | Blended evaluation decision score (`derive_decision_score`) |
 | `stability` | Live | Negative spread of walk-forward window returns |
 | `drawdown_penalty` | Live | Magnitude of backtest `max_drawdown_pct` |
-| `cost_penalty` | **Inert (0.0)** | None — see below |
 | `regime_fit` | **Live (2026-07-26)** | Family-derived affinity vs. a live ETF regime read — see below |
 
 The live derivations are in `src/trading/domain/rotation/score_components.py`; the
 metric build is `src/trading/services/books/rotation/metrics.py`.
 
-`cost_penalty_weight` is **not operator-settable** — it was removed from the CLI
-and the settable field list (`ROTATION_POLICY_FIELDS`) so nobody tunes a dial that
-does nothing. Its column remains on `book_rotation_settings` and is preserved
-across edits. `regime_fit_weight` is settable again now that the component is real.
-
-## `cost_penalty` — why it stays zero
-
-A turnover/trading-cost penalty would double-count. The backtest simulation already
-deducts per-trade fees (`pnl = (price - avg_cost) * qty - fee`), so
-`total_return_pct` — and therefore both `risk_adjusted_return` and
-`drawdown_penalty` — are already net of modeled cost. A separate penalty would only
-be non-redundant if it captured a cost the flat fee does not: slippage, market
-impact, bid/ask spread, or a deliberate bias toward low-turnover strategies. Even
-then, the natural home is the backtest cost model, not a rotation weight.
-**Recommendation: leave inert unless the fee model gains un-modeled cost dimensions.**
+A fifth component, `cost_penalty`, existed as an always-zero placeholder (revision
+`0014` onward) and was removed (revision `0026`) rather than kept reserved: a
+turnover/trading-cost penalty would have double-counted, since backtest returns are
+already net of modeled per-trade fees, and no un-modeled cost dimension was ever
+identified to justify keeping the slot. If one is identified later (slippage beyond
+the modeled fee, market impact, bid/ask spread), the natural home is the backtest
+cost model, and a rotation weight can be re-added against a real metric at that
+point.
 
 ## `regime_fit` — as-built (2026-07-26)
 
@@ -135,8 +125,7 @@ rewarded for a plausible match, never punished for its style. At the default
 
 ## Where the plumbing lives
 
-- Metric build (computes `regime_fit` when `fetch_regime` is given; leaves
-  `cost_penalty` inert): `src/trading/services/books/rotation/metrics.py`
+- Metric build (computes `regime_fit` when `fetch_regime` is given): `src/trading/services/books/rotation/metrics.py`
 - Pure derivations (`MarketRegime`, `regime_bucket_from_risk_on_score`,
   `regime_fit_from_style`, `_STYLE_AFFINITY`): `src/trading/domain/rotation/score_components.py`
 - Score arithmetic: `src/trading/domain/rotation/policy.py`

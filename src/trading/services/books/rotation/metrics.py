@@ -53,14 +53,6 @@ def build_rotation_strategy_metrics(
     apples-to-apples. Every component is in percentage points (see
     ``domain/rotation/score_components``).
 
-    ``cost_penalty`` is deliberately left at ``NEUTRAL_COMPONENT``: the backtest
-    simulation already deducts per-trade fees, so ``total_return_pct`` — and
-    therefore ``risk_adjusted_return`` and ``drawdown_penalty`` — are net of
-    modeled costs. Adding a turnover-based penalty on top would double-count the
-    same cost. It is also not operator-settable (removed from
-    ``ROTATION_POLICY_FIELDS``); its column is retained for a possible future
-    un-modeled-cost implementation.
-
     ``regime_fit`` computes a real value when ``fetch_regime`` is given — the
     live-regime, family-derived design in ``docs/reference/rotation-scoring.md``
     (bucket ``policy_risk_on_score`` via ``regime_bucket_from_risk_on_score``,
@@ -98,6 +90,5 @@ def build_rotation_strategy_metrics(
             window_count=len(walk_forward.run_ids),
         ),
         drawdown_penalty=drawdown_penalty_from_max_drawdown(artifact.backtest.max_drawdown_pct),
-        cost_penalty=NEUTRAL_COMPONENT,
         regime_fit=regime_fit,
     )

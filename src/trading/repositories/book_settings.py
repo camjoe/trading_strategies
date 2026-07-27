@@ -149,7 +149,6 @@ class BookRotationSettingsRepository:
         risk_adjusted_return_weight: float | None,
         stability_weight: float | None,
         drawdown_penalty_weight: float | None,
-        cost_penalty_weight: float | None,
         regime_fit_weight: float | None,
         created_at: str,
         updated_at: str,
@@ -162,7 +161,6 @@ class BookRotationSettingsRepository:
             "risk_adjusted_return_weight": risk_adjusted_return_weight,
             "stability_weight": stability_weight,
             "drawdown_penalty_weight": drawdown_penalty_weight,
-            "cost_penalty_weight": cost_penalty_weight,
             "regime_fit_weight": regime_fit_weight,
         }
         # Policy-only write: scheduling columns keep their values when the
@@ -172,10 +170,10 @@ class BookRotationSettingsRepository:
             INSERT INTO book_rotation_settings (
                 book_id, min_trades_in_window, outperformance_threshold_bps,
                 cooldown_days, risk_adjusted_return_weight, stability_weight,
-                drawdown_penalty_weight, cost_penalty_weight, regime_fit_weight,
+                drawdown_penalty_weight, regime_fit_weight,
                 created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(book_id) DO UPDATE SET
                 min_trades_in_window = excluded.min_trades_in_window,
                 outperformance_threshold_bps = excluded.outperformance_threshold_bps,
@@ -183,7 +181,6 @@ class BookRotationSettingsRepository:
                 risk_adjusted_return_weight = excluded.risk_adjusted_return_weight,
                 stability_weight = excluded.stability_weight,
                 drawdown_penalty_weight = excluded.drawdown_penalty_weight,
-                cost_penalty_weight = excluded.cost_penalty_weight,
                 regime_fit_weight = excluded.regime_fit_weight,
                 updated_at = excluded.updated_at
             """,
@@ -195,7 +192,6 @@ class BookRotationSettingsRepository:
                 risk_adjusted_return_weight,
                 stability_weight,
                 drawdown_penalty_weight,
-                cost_penalty_weight,
                 regime_fit_weight,
                 created_at,
                 updated_at,

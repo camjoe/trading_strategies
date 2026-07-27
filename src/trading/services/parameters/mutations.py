@@ -22,13 +22,9 @@ from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 
 # The book rotation-policy fields an operator may set; None clears a field back
-# to the RotationPolicyConfig code default. cost_penalty_weight is deliberately
-# excluded: its score component has no honest data source (backtest returns are
-# already net of per-trade fees, so a separate penalty would double-count), so
-# tuning it would have no effect. Its column is still persisted for a possible
-# future un-modeled-cost implementation, but is not exposed as tunable.
-# regime_fit_weight is settable: regime_fit now computes a real value (see
-# docs/reference/rotation-scoring.md).
+# to the RotationPolicyConfig code default. Also every rotation-policy column
+# persisted on book_rotation_settings — the merge that feeds the repository
+# upsert supplies all of them.
 ROTATION_POLICY_FIELDS = (
     "min_trades_in_window",
     "outperformance_threshold_bps",
@@ -37,14 +33,6 @@ ROTATION_POLICY_FIELDS = (
     "stability_weight",
     "drawdown_penalty_weight",
     "regime_fit_weight",
-)
-
-# Every rotation-policy column persisted on book_rotation_settings. The merge
-# that feeds the repository upsert must supply all of them, including the inert
-# weight above (carried through from the existing row rather than set).
-_PERSISTED_ROTATION_POLICY_FIELDS = (
-    *ROTATION_POLICY_FIELDS,
-    "cost_penalty_weight",
 )
 
 # The book rotation-scheduling fields the edit command may touch (book-owned,
@@ -94,7 +82,7 @@ def update_book_rotation_policy(
     current = repository.fetch(book_id=book_id)
     merged = {
         name: updates[name] if name in updates else (getattr(current, name) if current is not None else None)
-        for name in _PERSISTED_ROTATION_POLICY_FIELDS
+        for name in ROTATION_POLICY_FIELDS
     }
     now_iso = utc_now_iso()
     repository.upsert_rotation_policy(

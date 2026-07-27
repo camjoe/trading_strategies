@@ -2,7 +2,7 @@
 
 ``evaluate_champion_challenger_rotation`` scores a strategy as::
 
-    risk_adjusted_return + stability - drawdown_penalty - cost_penalty + regime_fit
+    risk_adjusted_return + stability - drawdown_penalty + regime_fit
 
 Every term is expressed in **percentage points**, the same unit as the blended
 evaluation score that feeds ``risk_adjusted_return`` (itself derived from

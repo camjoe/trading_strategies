@@ -11,7 +11,6 @@ def _incumbent() -> RotationStrategyMetrics:
         risk_adjusted_return=1.0,
         stability=0.52,
         drawdown_penalty=0.30,
-        cost_penalty=0.05,
         regime_fit=0.0,
     )
 
@@ -23,7 +22,6 @@ def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> 
         risk_adjusted_return=1.5,
         stability=0.60,
         drawdown_penalty=0.20,
-        cost_penalty=0.03,
         regime_fit=0.05,
     )
 
@@ -51,7 +49,6 @@ def test_evaluate_champion_challenger_rotation_holds_on_cooldown() -> None:
         risk_adjusted_return=1.8,
         stability=0.70,
         drawdown_penalty=0.20,
-        cost_penalty=0.02,
         regime_fit=0.06,
     )
 
@@ -76,7 +73,6 @@ def test_evaluate_champion_challenger_rotation_holds_when_threshold_not_met() ->
         risk_adjusted_return=1.05,
         stability=0.60,
         drawdown_penalty=0.30,
-        cost_penalty=0.05,
         regime_fit=0.0,
     )
 
@@ -101,7 +97,6 @@ def test_evaluate_champion_challenger_rotation_holds_when_sample_size_not_met() 
         risk_adjusted_return=2.0,
         stability=0.65,
         drawdown_penalty=0.15,
-        cost_penalty=0.01,
         regime_fit=0.05,
     )
 
@@ -135,7 +130,6 @@ def _equal_return_pair(
             risk_adjusted_return=5.0,
             stability=stability,
             drawdown_penalty=drawdown_penalty,
-            cost_penalty=0.0,
             regime_fit=0.0,
         )
 
@@ -188,7 +182,6 @@ def test_steadier_shallower_challenger_still_wins_when_returns_lead() -> None:
         risk_adjusted_return=5.0,
         stability=-10.0,
         drawdown_penalty=20.0,
-        cost_penalty=0.0,
         regime_fit=0.0,
     )
     challenger = RotationStrategyMetrics(
@@ -197,7 +190,6 @@ def test_steadier_shallower_challenger_still_wins_when_returns_lead() -> None:
         risk_adjusted_return=6.0,
         stability=-2.0,
         drawdown_penalty=5.0,
-        cost_penalty=0.0,
         regime_fit=0.0,
     )
 

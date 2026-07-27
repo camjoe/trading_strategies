@@ -53,7 +53,6 @@ def test_null_policy_fields_fall_back_per_field(conn: sqlite3.Connection, book_i
         risk_adjusted_return_weight=None,
         stability_weight=0.5,
         drawdown_penalty_weight=None,
-        cost_penalty_weight=None,
         regime_fit_weight=None,
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
@@ -77,7 +76,6 @@ def test_full_row_overrides_every_policy_field(conn: sqlite3.Connection, book_id
         risk_adjusted_return_weight=0.9,
         stability_weight=0.4,
         drawdown_penalty_weight=0.3,
-        cost_penalty_weight=0.2,
         regime_fit_weight=0.15,
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
@@ -91,5 +89,4 @@ def test_full_row_overrides_every_policy_field(conn: sqlite3.Connection, book_id
     assert config.risk_adjusted_return_weight == 0.9
     assert config.stability_weight == 0.4
     assert config.drawdown_penalty_weight == 0.3
-    assert config.cost_penalty_weight == 0.2
     assert config.regime_fit_weight == 0.15

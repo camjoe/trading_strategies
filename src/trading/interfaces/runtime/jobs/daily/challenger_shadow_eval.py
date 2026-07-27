@@ -75,7 +75,6 @@ def _serialize_shadow_run(result: ChallengerEvaluationRun) -> dict[str, object]:
                         "risk_adjusted_return": challenger.risk_adjusted_return,
                         "stability": challenger.stability,
                         "drawdown_penalty": challenger.drawdown_penalty,
-                        "cost_penalty": challenger.cost_penalty,
                         "regime_fit": challenger.regime_fit,
                     }
                     for challenger in book.challengers
