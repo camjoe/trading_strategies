@@ -4,6 +4,7 @@ from collections import Counter
 from typing import Any
 
 from trading.backtesting.optimizer_models import CandidateResult
+from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.domain.exceptions import ValidationError
 
 # calmar_v1 divides annualized return (percent) by max-drawdown magnitude (percent). A
@@ -13,9 +14,13 @@ CALMAR_V1_DRAWDOWN_FLOOR_PCT = 1.0
 
 # Eligibility gates applied before a candidate may be ranked. A candidate failing any
 # gate is recorded with a rejection reason and can never be selected.
+#
+# The trade floor is deliberately lower than the promotion gate's
+# MIN_RESEARCH_BACKTEST_TRADE_COUNT: this counts trades in a single *training window*,
+# while promotion counts them across a full backtest.
 MIN_CANDIDATE_TRADES = 3
-# Reject candidates whose training drawdown is worse (more negative) than this.
-MAX_DRAWDOWN_ELIGIBILITY_PCT = -25.0
+# Reject candidates whose training drawdown breaches the shared risk floor.
+MAX_DRAWDOWN_ELIGIBILITY_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
 
 
 def calmar_v1_score(*, annualized_return_pct: float, max_drawdown_pct: float) -> float:

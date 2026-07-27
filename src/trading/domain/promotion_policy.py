@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PromotionAssessment,
@@ -18,8 +19,9 @@ MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT = 20
 # Research validation requires a non-negative backtest return before paper observation.
 MIN_RESEARCH_BACKTEST_RETURN_PCT = 0.0
 
-# Research validation rejects backtests with drawdowns worse than this floor.
-MIN_RESEARCH_MAX_DRAWDOWN_PCT = -25.0
+# Research validation rejects backtests breaching the shared risk floor. Operator
+# settings may override the resolved value; the shared constant is the default.
+MIN_RESEARCH_MAX_DRAWDOWN_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
 
 # Grouped walk-forward evidence must also show a non-negative average return.
 MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT = 0.0

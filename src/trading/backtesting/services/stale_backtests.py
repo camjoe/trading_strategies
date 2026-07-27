@@ -1,10 +1,16 @@
-"""Enumerate strategies whose backtest evidence is stale or missing.
+"""Enumerate strategies whose standalone backtest is stale or missing.
 
-The remediation counterpart to the backtest freshness diagnostic: for each account,
-the candidate strategy set rotation could promote (each active book's incumbent
-plus its challenger schedule) is checked against the same
-``assess_backtest_freshness`` policy. A strategy is a target when it has no
-backtest at all (missing) or its newest backtest is stale.
+For each account, the candidate strategy set rotation could promote (each active
+book's incumbent plus its challenger schedule) is checked against
+``assess_backtest_freshness``. A strategy is a target when it has no standalone
+backtest at all (missing) or its newest one is stale.
+
+Scope note: this tracks the **standalone exploration corpus** — the runs behind the
+UI's backtest list and reports — not promotion evidence. Promotion, rotation, and
+the evaluation artifact read optimizer experiments (their untouched holdout run and
+per-window OOS record), so refreshing a standalone backtest does not move any
+promotion gate or rotation score. Whether an automated refresh of exploration-only
+runs still earns its keep is an open decision.
 """
 
 from __future__ import annotations
