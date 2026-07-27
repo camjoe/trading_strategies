@@ -6,33 +6,10 @@ from tests.support.backtesting import (
     create_backtest_account,
     make_backtest_config,
     make_fake_close_history,
-    make_walk_forward_config,
 )
 
 
-class TestBacktestWalkForwardAndWarnings:
-    def test_run_walk_forward_backtest_creates_multiple_runs(self, conn, bt_market_data) -> None:
-        create_backtest_account(conn, "acct_wf")
-        bt_market_data(["AAPL"], [100.0, 101.0])
-
-        summary = backtest_module.run_walk_forward_backtest(
-            conn,
-            make_walk_forward_config(
-                "acct_wf",
-                start="2026-01-01",
-                end="2026-03-31",
-                test_months=1,
-                step_months=1,
-                run_name_prefix="wf-test",
-            ),
-        )
-
-        assert summary.window_count == 3
-        assert len(summary.run_ids) == 3
-
-        rows = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()
-        assert rows is not None and int(rows["n"]) == 3
-
+class TestBacktestWarnings:
     def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(self, conn) -> None:
         create_backtest_account(
             conn,
@@ -90,19 +67,3 @@ class TestBacktestWalkForwardAndWarnings:
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings
-
-    def test_run_walk_forward_backtest_no_generated_windows_raises(self, conn) -> None:
-        create_backtest_account(conn, "acct_wf_empty")
-
-        with pytest.raises(ValueError, match="No walk-forward windows generated"):
-            backtest_module.run_walk_forward_backtest(
-                conn,
-                make_walk_forward_config(
-                    "acct_wf_empty",
-                    start="2026-01-31",
-                    end="2026-02-01",
-                    test_months=1,
-                    step_months=2,
-                    run_name_prefix="wf-empty",
-                ),
-            )

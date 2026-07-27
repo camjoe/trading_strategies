@@ -8,13 +8,10 @@ from tests.src.trading.interfaces.cli.factories import (
     make_backtest_args,
     make_backtest_batch_args,
     make_backtest_result,
-    make_walk_forward_args,
-    make_walk_forward_summary,
 )
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
-    handle_backtest_walk_forward,
 )
 
 
@@ -123,39 +120,6 @@ def test_handle_backtest_batch_routes_value_error_to_parser_error() -> None:
         handle_backtest_batch(object(), args, _parser(), deps=deps)
 
 
-def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
-    summary = make_walk_forward_summary(
-        account_name="acct",
-        average_return_pct=4.0,
-        median_return_pct=3.5,
-        best_return_pct=6.0,
-        worst_return_pct=2.0,
-        run_ids=[1, 2, 3],
-    )
-    deps = {
-        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
-        "run_walk_forward_backtest": lambda _conn, _cfg: summary,
-    }
-    args = make_walk_forward_args(account="acct", tickers_file="tickers.txt")
-
-    handle_backtest_walk_forward(object(), args, _parser(), deps=deps)
-
-    assert "windows=3" in capsys.readouterr().out
-
-
-def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> None:
-    deps = {
-        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
-        "run_walk_forward_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(
-            ValueError("Unknown strategy 'mystery_strategy'")
-        ),
-    }
-    args = make_walk_forward_args(account="acct", tickers_file="tickers.txt")
-
-    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_walk_forward(object(), args, _parser(), deps=deps)
-
-
 class _RecordingParser:
     def __init__(self) -> None:
         self.message: str | None = None
@@ -193,21 +157,3 @@ def test_handle_backtest_batch_records_parser_error_without_printing_success(cap
 
     assert parser.message == "bad batch"
     assert "Backtest batch complete" not in capsys.readouterr().out
-
-
-def test_handle_backtest_walk_forward_records_parser_error_without_printing_success(capsys) -> None:
-    parser = _RecordingParser()
-    deps = {
-        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
-        "run_walk_forward_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad walk-forward")),
-    }
-
-    handle_backtest_walk_forward(
-        object(),
-        make_walk_forward_args(account="acct", tickers_file="tickers.txt"),
-        parser,
-        deps=deps,
-    )
-
-    assert parser.message == "bad walk-forward"
-    assert "Walk-forward complete" not in capsys.readouterr().out

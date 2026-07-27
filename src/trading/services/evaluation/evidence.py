@@ -62,8 +62,8 @@ BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
 # Diagnostics key used when no strategy-safe paper/live rows are persisted.
 PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 
-# Diagnostics key used when no grouped walk-forward evidence is persisted.
-WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
+# Diagnostics key used when no walk-forward window evidence is persisted.
+WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
 
 
 def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
@@ -366,7 +366,6 @@ def build_walk_forward_evidence(
     window_returns = [segment.return_pct for segment in segments]
     return EvaluationWalkForwardEvidence(
         available=True,
-        grouped=True,
         window_returns=window_returns,
         average_return_pct=sum(window_returns) / len(window_returns),
         median_return_pct=float(median(window_returns)),

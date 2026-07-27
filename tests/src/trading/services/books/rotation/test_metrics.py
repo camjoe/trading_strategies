@@ -30,7 +30,6 @@ def _artifact(
     if window_returns is not None:
         walk_forward = EvaluationWalkForwardEvidence(
             available=True,
-            grouped=True,
             window_returns=window_returns,
             best_return_pct=max(window_returns),
             worst_return_pct=min(window_returns),

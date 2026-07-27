@@ -62,7 +62,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: true,
-          grouped: true,
+          windowCount: 3,
           averageReturnPct: 3.1,
           bestReturnPct: 6.4,
           worstReturnPct: -1.5,
@@ -160,7 +160,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: false,
-          grouped: false,
+          windowCount: 0,
           averageReturnPct: null,
           bestReturnPct: null,
           worstReturnPct: null,

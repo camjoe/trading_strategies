@@ -252,14 +252,6 @@
       "description": "Get the full backtest report payload for a single run id."
     },
     {
-      "method": "POST",
-      "path": "/api/backtests/walk-forward",
-      "handler": "api_run_walk_forward",
-      "module": "backtests",
-      "group": "Backtesting Endpoints",
-      "description": "Execute rolling walk-forward windows and return aggregate summary metrics."
-    },
-    {
       "method": "GET",
       "path": "/api/strategy-lab/catalog",
       "handler": "api_strategy_catalog",

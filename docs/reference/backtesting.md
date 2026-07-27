@@ -31,11 +31,8 @@ python -m trading.interfaces.cli.main apply-account-preset --preset default
 # Single backtest
 python -m trading.interfaces.cli.main backtest --account momentum_5k --lookback-months 12
 
-# Walk-forward
-python -m trading.interfaces.cli.main backtest-walk-forward --account momentum_5k --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
-
-# Persisted walk-forward detail report
-python -m trading.interfaces.cli.main backtest-walk-forward-report --account momentum_5k
+# Walk-forward optimization (see Optimize -> Promote Loop below)
+python -m trading.interfaces.cli.main backtest-optimize --account momentum_5k --strategy trend \n  --search-space '{"fast_window": [5, 10], "slow_window": [20, 30]}' --lookback-months 24
 
 # Batch comparison
 python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,meanrev_5k --lookback-months 12
@@ -109,12 +106,14 @@ is not re-run once fresh.
 
 ## Walk-Forward Terminology and Evaluation Standards
 
-The current `backtest-walk-forward` workflow executes a fixed strategy across chronologically shifted
-test windows and groups the persisted results. This is **rolling-window robustness testing**, not full
-walk-forward optimization: it does not train candidate parameter sets on an earlier interval, select
-and freeze a winner, or evaluate the resulting process on an untouched final holdout.
+`backtest-optimize` is the only walk-forward path. A previous `backtest-walk-forward` command ran a
+fixed strategy across chronologically shifted windows and grouped the results — **rolling-window
+robustness testing**, not walk-forward optimization, since it never trained candidates on an earlier
+interval, froze a winner, or used an untouched holdout. It was removed (revision `0027`) because
+running `backtest-optimize` with a single-candidate search space reproduces it exactly and adds a
+baseline comparison and a holdout.
 
-Use **walk-forward optimization** only for a workflow that meets all of these conditions:
+The term **walk-forward optimization** applies only to a workflow meeting all of these conditions:
 
 1. Every out-of-sample (OOS) window has a strictly earlier training interval.
 2. Candidate parameters and the selection objective are declared before examining OOS results.
@@ -215,7 +214,7 @@ this gate existed.
 ## Operating Notes
 
 - Keep assumptions explicit (slippage, fees, execution timing).
-- Prefer chronological validation with rolling or walk-forward windows.
+- Prefer chronological validation with walk-forward windows.
 - Compare against simple baselines, the strategy's existing default parameters, and benchmark returns.
 
 ## Related Docs

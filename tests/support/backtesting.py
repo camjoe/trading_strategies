@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from trading.backtesting.backtest import BacktestConfig, WalkForwardConfig
+from trading.backtesting.backtest import BacktestConfig
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.models import AccountConfig
@@ -74,34 +74,6 @@ def make_backtest_config(
         slippage_bps=slippage_bps,
         fee_per_trade=fee_per_trade,
         run_name=run_name,
-        allow_approximate_leaps=allow_approximate_leaps,
-    )
-
-
-def make_walk_forward_config(
-    account_name: str,
-    *,
-    start: str,
-    end: str,
-    test_months: int,
-    step_months: int,
-    slippage_bps: float = 5.0,
-    fee_per_trade: float = 0.0,
-    run_name_prefix: str | None = None,
-    allow_approximate_leaps: bool = False,
-) -> WalkForwardConfig:
-    return WalkForwardConfig(
-        account_name=account_name,
-        tickers_file="src/infrastructure/config/trade_universe.txt",
-        universe_history_dir=None,
-        start=start,
-        end=end,
-        lookback_months=None,
-        test_months=test_months,
-        step_months=step_months,
-        slippage_bps=slippage_bps,
-        fee_per_trade=fee_per_trade,
-        run_name_prefix=run_name_prefix,
         allow_approximate_leaps=allow_approximate_leaps,
     )
 
@@ -191,5 +163,4 @@ __all__ = [
     "make_backtest_leaderboard_entry",
     "make_backtest_result",
     "make_fake_close_history",
-    "make_walk_forward_config",
 ]

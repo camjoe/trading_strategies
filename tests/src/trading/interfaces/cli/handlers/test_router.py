@@ -44,8 +44,6 @@ _EXPECTED_COMMANDS = {
     "backtest-optimize",
     "backtest-optimize-show",
     "backtest-optimize-promote",
-    "backtest-walk-forward",
-    "backtest-walk-forward-report",
 }
 
 

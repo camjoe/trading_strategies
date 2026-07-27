@@ -43,12 +43,11 @@ def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_experime
     artifact = fetch_strategy_evaluation(conn, account_name="acct_eval_walk_forward")
 
     assert artifact.walk_forward.available is True
-    assert artifact.walk_forward.grouped is True
     assert artifact.walk_forward.window_returns == pytest.approx([1.0, 2.0])
     assert artifact.walk_forward.average_return_pct == pytest.approx(1.5)
     assert artifact.walk_forward.best_return_pct == pytest.approx(2.0)
     assert artifact.walk_forward.worst_return_pct == pytest.approx(1.0)
-    assert "walk_forward_grouping_not_persisted" not in artifact.diagnostics.data_gaps
+    assert "missing_walk_forward_evidence" not in artifact.diagnostics.data_gaps
 
 
 def test_walk_forward_evidence_is_absent_without_an_experiment(conn) -> None:
@@ -58,4 +57,4 @@ def test_walk_forward_evidence_is_absent_without_an_experiment(conn) -> None:
 
     assert artifact.walk_forward.available is False
     assert artifact.walk_forward.window_returns == []
-    assert "walk_forward_grouping_not_persisted" in artifact.diagnostics.data_gaps
+    assert "missing_walk_forward_evidence" in artifact.diagnostics.data_gaps

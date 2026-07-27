@@ -14,14 +14,6 @@ interface BacktestRunPayload extends BacktestBasePayload {
   runName: string | null;
 }
 
-interface WalkForwardPayload extends BacktestBasePayload {
-  testMonths: number;
-  stepMonths: number;
-  slippageBps: number;
-  fee: number;
-  runNamePrefix: string | null;
-}
-
 function parseOptInt(raw: string): number | null {
   const value = raw.trim();
   if (!value) return null;
@@ -62,18 +54,6 @@ export function buildBacktestRunPayload(form: HTMLFormElement): BacktestRunPaylo
     slippageBps: parseFormNumber(fd, "slippageBps", 5),
     fee: parseFormNumber(fd, "fee", 0),
     runName: parseOptStr(String(fd.get("runName") ?? "")),
-  };
-}
-
-export function buildWalkForwardPayload(form: HTMLFormElement): WalkForwardPayload {
-  const fd = new FormData(form);
-  return {
-    ...buildBacktestBasePayload(fd),
-    testMonths: parseFormNumber(fd, "testMonths", 1),
-    stepMonths: parseFormNumber(fd, "stepMonths", 1),
-    slippageBps: parseFormNumber(fd, "slippageBps", 5),
-    fee: parseFormNumber(fd, "fee", 0),
-    runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
   };
 }
 

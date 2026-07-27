@@ -13,7 +13,6 @@ class EvaluationWalkForwardEvidence:
     """
 
     available: bool = False
-    grouped: bool = False
     window_returns: list[float] = field(default_factory=list)
     average_return_pct: float | None = None
     median_return_pct: float | None = None

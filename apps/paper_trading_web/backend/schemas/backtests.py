@@ -21,13 +21,5 @@ class BacktestRunRequest(BacktestBaseRequest):
     runName: str | None = None
 
 
-class WalkForwardRunRequest(BacktestBaseRequest):
-    testMonths: int = Field(default=1, gt=0)
-    stepMonths: int = Field(default=1, gt=0)
-    slippageBps: float = 5.0
-    fee: float = 0.0
-    runNamePrefix: str | None = None
-
-
 class BacktestPreflightRequest(BacktestBaseRequest):
     """Preflight-check request — identical shape to the base request."""

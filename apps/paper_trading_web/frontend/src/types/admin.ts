@@ -81,7 +81,7 @@ export interface PromotionEvaluationDetail {
   };
   walkForward: {
     available: boolean;
-    grouped: boolean;
+    windowCount: number;
     averageReturnPct: number | null;
     bestReturnPct: number | null;
     worstReturnPct: number | null;

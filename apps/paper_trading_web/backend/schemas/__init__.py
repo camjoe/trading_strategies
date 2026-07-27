@@ -8,7 +8,6 @@ from .backtests import (
     BacktestBaseRequest,
     BacktestPreflightRequest,
     BacktestRunRequest,
-    WalkForwardRunRequest,
 )
 from .features import FeatureSignalsRequest
 from .strategy_lab import (
@@ -31,5 +30,4 @@ __all__ = [
     "CreateStrategyVariantRequest",
     "PromoteOptimizationRequest",
     "RunOptimizationRequest",
-    "WalkForwardRunRequest",
 ]

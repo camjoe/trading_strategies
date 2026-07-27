@@ -23,7 +23,6 @@ from .admin import (
 from .backtests import (
     build_backtest_config_from_preflight_request,
     build_backtest_config_from_run_request,
-    build_walk_forward_config_from_request,
 )
 from .db import db_conn
 from .features import get_provider_status, get_signals
@@ -43,7 +42,6 @@ __all__ = [
     "build_live_benchmark_overlay",
     "build_snapshot_payload",
     "build_trade_payload",
-    "build_walk_forward_config_from_request",
     "db_conn",
     "create_account_with_rotation",
     "delete_managed_account",

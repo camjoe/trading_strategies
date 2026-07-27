@@ -18,7 +18,6 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `leaderboard_repository.py`: leaderboard row/equity reads.
   - `report_repository.py`: full report run/snapshot/trade reads.
   - `report_repository.py` also exposes recent run-list reads used by backend service adapters.
-  - `walk_forward_repository.py`: walk-forward group and run persistence.
   - `optimization_repository.py`: walk-forward optimization experiment persistence (Tier-1: config, winner, holdout summary, promoted link).
 
 - `services/`: business flow, model mapping, orchestration.
@@ -26,13 +25,11 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `execution_service.py`: single-run backtest orchestration.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
   - `report_service.py`: full report assembly into typed report models.
-  - `walk_forward_report_service.py`: persisted walk-forward report assembly.
-  - `walk_forward_service.py`: walk-forward run orchestration and summary rollups.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
 
 - `domain/`: pure reusable backtesting logic.
   - `metrics.py`: drawdown and benchmark-return calculations.
-  - `windowing.py`: walk-forward date window generation.
+  - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
 

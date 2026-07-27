@@ -22,8 +22,6 @@ KNOWN_EMPTY_SANDBOX_TABLES = {
     "optimization_run_manifests": "requires a real optimizer sweep",
     "optimization_trials": "requires a real optimizer sweep",
     "optimization_windows": "requires a real optimizer sweep",
-    "walk_forward_experiments": "requires a real walk-forward run",
-    "walk_forward_windows": "requires a real walk-forward run",
     # Written by the risk and rotation runtime passes, which the seeder does not
     # yet drive. The next widening step for the sandbox profile.
     "risk_snapshots": "requires driving the risk pass",

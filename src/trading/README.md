@@ -16,7 +16,7 @@ The `src/trading/` module handles:
 - Snapshot history and reporting
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
-- Backtesting and walk-forward analysis support, including persisted per-window detail reporting
+- Backtesting and walk-forward optimization, including persisted per-window and per-candidate audit trails
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `src/infrastructure/feature_providers/` (repo root)
 
 ## Architecture Shape
@@ -169,8 +169,9 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 ## Backtesting Notes
 
-- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>`
-  shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
+- `python -m trading.interfaces.cli.main backtest-optimize-show <experiment_id>`
+  shows a stored optimization experiment: winner params, OOS/holdout evidence, the per-window and
+  per-candidate audit trail, and the promotion-gate preview.
 - Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes

@@ -219,43 +219,6 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
         )
 
 
-def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    try:
-        summary = deps["run_walk_forward_backtest"](
-            conn,
-            deps["WalkForwardConfig"](
-                account_name=args.account,
-                tickers_file=args.tickers_file,
-                universe_history_dir=args.universe_history_dir,
-                start=args.start,
-                end=args.end,
-                lookback_months=args.lookback_months,
-                test_months=args.test_months,
-                step_months=args.step_months,
-                slippage_bps=args.slippage_bps,
-                fee_per_trade=args.fee,
-                run_name_prefix=args.run_name_prefix,
-                allow_approximate_leaps=bool(args.allow_approximate_leaps),
-            ),
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-
-    print(
-        f"Walk-forward complete: account={summary.account_name} range={summary.start_date}..{summary.end_date} "
-        f"windows={summary.window_count}"
-    )
-    print(
-        f"Average Return: {summary.average_return_pct:.2f}% | Median Return: {summary.median_return_pct:.2f}% "
-        f"| Best: {summary.best_return_pct:.2f}% | Worst: {summary.worst_return_pct:.2f}%"
-    )
-    run_ids_preview = ", ".join([str(run_id) for run_id in summary.run_ids[:10]])
-    if len(summary.run_ids) > 10:
-        run_ids_preview += ", ..."
-    print(f"Generated run ids: {run_ids_preview}")
-
-
 def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
         search_space = json.loads(args.search_space)
@@ -503,44 +466,4 @@ def _print_optimization_summary(summary: Any) -> None:
             f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} | "
             f"annualized {_pair(winner.annualized_return_pct, default.annualized_return_pct)} | "
             f"calmar {_pair(winner.calmar_ratio, default.calmar_ratio, suffix='')}"
-        )
-
-
-def handle_backtest_walk_forward_report(
-    conn,
-    args,
-    parser,
-    *,
-    deps: dict[str, Any],
-) -> None:
-    try:
-        report = deps["walk_forward_report"](
-            conn,
-            group_id=args.group_id,
-            account_name=args.account,
-            strategy_name=args.strategy,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-
-    print(
-        f"Walk-forward Group {report['group_id']} | account={report['account_name']} "
-        f"strategy={report['strategy_name']}"
-    )
-    print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Windows: {report['window_count']} | Prefix: {report['run_name_prefix'] or 'n/a'}"
-    )
-    print(
-        f"Average Return: {report['average_return_pct']:.2f}% | Median Return: {report['median_return_pct']:.2f}% "
-        f"| Best: {report['best_return_pct']:.2f}% | Worst: {report['worst_return_pct']:.2f}%"
-    )
-    print("window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count")
-    for window in report["windows"]:
-        summary = window["backtest_summary"]
-        print(
-            f"{window['window_index']},{window['window_start']}..{window['window_end']},"
-            f"{summary['run_id']},{summary['run_name'] or ''},{window['total_return_pct']:.4f},"
-            f"{summary['max_drawdown_pct']:.4f},{summary['trade_count']}"
         )

@@ -56,7 +56,7 @@ def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(
     assert artifact.confidence.overall_confidence > 0.0
     assert artifact.confidence.blended_score is not None
     assert artifact.confidence.blended_score > artifact.paper_live.return_pct
-    assert "walk_forward_grouping_not_persisted" in artifact.diagnostics.data_gaps
+    assert "missing_walk_forward_evidence" in artifact.diagnostics.data_gaps
     # Backtest evidence exists, so the advisory freshness diagnostic is populated.
     assert artifact.diagnostics.backtest_freshness is not None
     assert artifact.diagnostics.backtest_freshness.available is True

@@ -159,7 +159,7 @@ function renderPromotionEvaluation(data: PromotionOverviewResponse): string {
         ${renderEvidenceStat("Backtest Snapshots", formatCount(evaluation.backtest.snapshotCount))}
         ${renderEvidenceStat("Backtest Freshness", formatBacktestFreshness(evaluation.backtestFreshness))}
         ${renderEvidenceStat("Max Drawdown", formatPctValue(evaluation.backtest.maxDrawdownPct))}
-        ${renderEvidenceStat("Walk-Forward Grouped", evaluation.walkForward.grouped ? "yes" : "no")}
+        ${renderEvidenceStat("WF Windows", formatCount(evaluation.walkForward.windowCount))}
         ${renderEvidenceStat("WF Average Return", formatPctValue(evaluation.walkForward.averageReturnPct))}
         ${renderEvidenceStat("WF Best Return", formatPctValue(evaluation.walkForward.bestReturnPct))}
         ${renderEvidenceStat("WF Worst Return", formatPctValue(evaluation.walkForward.worstReturnPct))}
