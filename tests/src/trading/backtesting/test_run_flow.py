@@ -5,6 +5,7 @@ import pytest
 
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.execution_service as execution_service
+import trading.backtesting.services.report_service as report_service
 from tests.support.backtesting import create_backtest_account, make_backtest_config
 from trading.backtesting.report_models import (
     BacktestFullReport,
@@ -119,6 +120,43 @@ class TestBacktestRunFlow:
         assert isinstance(summary, BacktestReportSummary)
         assert summary.run_id == result.run_id
         assert summary.account_name == "acct_report_model"
+
+    def test_backtest_report_full_builds_a_provider_for_the_benchmark(
+        self,
+        conn,
+        bt_market_data,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The report seam must supply the provider the benchmark leg needs.
+
+        It did not, so reading any report logged a ``require_provider``
+        traceback and returned a report with no benchmark or alpha. The summary
+        path stays provider-free on purpose — it carries no benchmark.
+        """
+        create_backtest_account(conn, "acct_report_provider_seam")
+        bt_market_data(["AAPL"], [100.0, 104.0])
+
+        result = backtest_module.run_backtest(
+            conn,
+            make_backtest_config("acct_report_provider_seam", run_name="for-provider-seam"),
+        )
+
+        providers: list[object] = []
+        monkeypatch.setattr(
+            report_service,
+            "fetch_benchmark_close",
+            lambda _t, _s, _e, *, provider=None: (providers.append(provider), pd.Series([100.0, 104.0]))[1],
+        )
+
+        report = backtest_module.backtest_report_full(conn, result.run_id)
+
+        assert providers and providers[0] is not None
+        assert report.benchmark_return_pct is not None
+        assert report.alpha_pct is not None
+
+        providers.clear()
+        backtest_module.backtest_report_summary(conn, result.run_id)
+        assert providers == []
 
     def test_backtest_report_full_returns_typed_model_and_payload(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_full")

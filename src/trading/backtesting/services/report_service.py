@@ -36,14 +36,51 @@ from trading.backtesting.repositories.report_repository import (
 )
 from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.domain.exceptions import NotFoundError
+from trading.services.market_data import MarketDataProvider
 
 logger = logging.getLogger(__name__)
+
+
+def _benchmark_and_alpha(
+    run,
+    total_return_pct: float,
+    provider: MarketDataProvider | None,
+) -> tuple[float | None, float | None]:
+    """Benchmark return and alpha for *run*, or ``(None, None)``.
+
+    The benchmark is the only part of a report that needs market data, so the
+    provider is what asks for it. Callers that want just the summary omit it
+    rather than injecting a provider they have no use for — the account list
+    reads one summary per row, and computing a benchmark series for each would
+    be a provider round trip per account.
+    """
+    if provider is None:
+        return None, None
+
+    try:
+        benchmark_series = fetch_benchmark_close(
+            row_expect_str(run, "benchmark_ticker"),
+            date.fromisoformat(row_expect_str(run, "start_date")),
+            date.fromisoformat(row_expect_str(run, "end_date")),
+            provider=provider,
+        )
+    except Exception as exc:
+        # A benchmark with no history over the run's window is a data gap, not a
+        # reason to fail the whole report.
+        logger.warning("Failed to compute benchmark return for backtest run: %s", exc, exc_info=True)
+        return None, None
+
+    benchmark_ret = benchmark_return_pct(benchmark_series, row_expect_float(run, "initial_cash"))
+    if benchmark_ret is None:
+        return None, None
+    return benchmark_ret, total_return_pct - benchmark_ret
 
 
 def fetch_backtest_report_data(
     conn,
     *,
     run_id: int,
+    provider: MarketDataProvider | None = None,
 ) -> BacktestFullReport:
     run = fetch_backtest_report_run(conn, run_id)
     if run is None:
@@ -113,21 +150,7 @@ def fetch_backtest_report_data(
         for item in trades
     ]
 
-    benchmark_ret: float | None = None
-    alpha_pct: float | None = None
-    try:
-        benchmark_series = fetch_benchmark_close(
-            row_expect_str(run, "benchmark_ticker"),
-            date.fromisoformat(row_expect_str(run, "start_date")),
-            date.fromisoformat(row_expect_str(run, "end_date")),
-        )
-        benchmark_ret = benchmark_return_pct(benchmark_series, row_expect_float(run, "initial_cash"))
-        if benchmark_ret is not None:
-            alpha_pct = summary.total_return_pct - benchmark_ret
-    except Exception as exc:
-        logger.warning("Failed to compute benchmark return for backtest run: %s", exc, exc_info=True)
-        benchmark_ret = None
-        alpha_pct = None
+    benchmark_ret, alpha_pct = _benchmark_and_alpha(run, summary.total_return_pct, provider)
 
     return BacktestFullReport(
         summary=summary,
@@ -172,4 +195,5 @@ def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
 
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
+    """The run's summary only — no benchmark, so no market-data provider needed."""
     return fetch_backtest_report_data(conn, run_id=run_id).summary
