@@ -177,6 +177,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `promotion/helpers.py` | Promotion workflow helpers |
 | `promotion/history.py` | Promotion history queries |
 | `promotion/presentation.py` | Promotion result formatting |
+| `promotion/eligibility.py` | Read-only live-approval check (`is_strategy_approved_for_live`) for other services, e.g. rotation's promotion gate |
 | `reporting/_formatting.py` | Shared pure formatting helpers for reporting output (evaluation summary line, position summary) |
 | `reporting/account.py` | Printed single-account report (state, evaluation evidence, benchmark) |
 | `reporting/comparison.py` | Printed cross-account policy/holdings comparison |
@@ -187,6 +188,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
+| `operational_settings/history.py` | Read orchestration for the global settings change-audit trail |
+| `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/helpers.py` | Shared book service helpers (window math) |
 | `books/rotation/account_rotation.py` | Account-level coordinator for enumerating and applying each book's rotation decision |
@@ -197,6 +200,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |
 | `parameters/presentation.py` | Printed view of the unified parameter source |
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
+| `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
