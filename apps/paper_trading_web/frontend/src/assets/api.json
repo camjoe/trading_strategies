@@ -308,6 +308,14 @@
       "description": "Run a bounded walk-forward optimization with out-of-sample and holdout evidence."
     },
     {
+      "method": "GET",
+      "path": "/api/strategy-lab/optimizations/{experiment_id}",
+      "handler": "api_optimization_detail",
+      "module": "strategy_lab",
+      "group": "Strategy Lab Endpoints",
+      "description": "Show one optimization run's full audit record and promotion-gate preview."
+    },
+    {
       "method": "POST",
       "path": "/api/strategy-lab/optimizations/{experiment_id}/promote",
       "handler": "api_promote_optimization",

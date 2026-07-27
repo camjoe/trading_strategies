@@ -1,3 +1,5 @@
+import type { ExperimentDetail } from "../components/strategy-lab";
+import { renderOptimizationDetail } from "../components/strategy-lab";
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
 import { errorMessage, getJson, patchJson, postJson } from "../lib/http";
@@ -58,8 +60,10 @@ export function createStrategyLabFeature() {
       <p>${esc(item.accountName)} · ${esc(item.primitive)} · ${item.windowCount} windows</p>
       <pre>${esc(JSON.stringify(item.winnerParams, null, 2))}</pre>
       <p class="admin-note">OOS winner/default: ${item.oosMeanWinnerReturnPct ?? "n/a"} / ${item.oosMeanBaselineReturnPct ?? "n/a"} · holdout: ${item.holdoutWinnerReturnPct ?? "n/a"} / ${item.holdoutBaselineReturnPct ?? "n/a"}</p>
+      <div class="bt-row"><button class="optimization-audit" data-experiment="${item.id}" type="button">View audit</button></div>
       ${item.promotedStrategyId ? "" : `<div class="bt-row"><input class="promotion-key" data-experiment="${item.id}" placeholder="new_strategy_key" /><button class="optimization-promote" data-experiment="${item.id}" type="button">Promote & freeze</button></div>`}
     </section>`).join("") : '<div class="empty">No optimization experiments yet.</div>';
+    for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".optimization-audit"))) button.addEventListener("click", () => void loadDetail(Number(button.dataset.experiment)));
     for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".optimization-promote"))) button.addEventListener("click", async () => {
       const id = Number(button.dataset.experiment);
       const key = find<HTMLInputElement>(`.promotion-key[data-experiment="${id}"]`)?.value.trim();
@@ -68,6 +72,17 @@ export function createStrategyLabFeature() {
       await postJson(`/api/strategy-lab/optimizations/${id}/promote`, { strategyKey: key, freeze: true });
       await load();
     });
+  }
+
+  async function loadDetail(experimentId: number): Promise<void> {
+    const output = find<HTMLElement>("#optimizationDetailView");
+    if (output) output.textContent = `Loading experiment #${experimentId}…`;
+    try {
+      const detail = await getJson<ExperimentDetail>(`/api/strategy-lab/optimizations/${experimentId}`);
+      if (!output) return;
+      output.classList.remove("empty");
+      output.innerHTML = renderOptimizationDetail(detail);
+    } catch (error) { if (output) output.textContent = errorMessage(error, `Could not load experiment #${experimentId}.`); }
   }
 
   function wireCatalogActions(): void {
