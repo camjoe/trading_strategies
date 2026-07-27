@@ -60,6 +60,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
+- [`reference/database-reset-plan.md`](reference/database-reset-plan.md) — planned migration-chain squash and data reset: per-table drop/preserve decisions and open questions
 - [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
 - [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
 - [`reference/rotation-scoring.md`](reference/rotation-scoring.md) — champion/challenger rotation score components and their data sources

@@ -6,32 +6,16 @@ from __future__ import annotations
 import importlib.util
 import os
 import shutil
-import sqlite3
 import sys
 from pathlib import Path
 
-from infrastructure.database.migration_runner import upgrade
 from scripts import launch_ui
+from scripts.fixture_db import build_fixture_database
 from scripts.ui_config import DEMO_BACKEND_PORT, DEMO_FRONTEND_PORT
-from trading.services.demo import seed_demo_database
+from trading.services.fixtures import DEMO_PROFILE
 
 DEMO_DATABASE_NAME = "demo.db"
 PREPARING_DATABASE_NAME = "demo.preparing.db"
-SQLITE_SIDECAR_SUFFIXES = ("", "-shm", "-wal", "-journal")
-
-
-def _exact_demo_targets(local_dir: Path, database_name: str) -> tuple[Path, ...]:
-    """Return only the named SQLite file and its recognized sidecars under local/."""
-    resolved_local = local_dir.resolve()
-    database = (resolved_local / database_name).resolve()
-    if database.parent != resolved_local or database.name != database_name:
-        raise ValueError("Demo database target must be an exact filename directly under local/.")
-    return tuple(Path(f"{database}{suffix}") for suffix in SQLITE_SIDECAR_SUFFIXES)
-
-
-def _remove_exact_targets(local_dir: Path, database_name: str) -> None:
-    for target in _exact_demo_targets(local_dir, database_name):
-        target.unlink(missing_ok=True)
 
 
 def _preflight(repo_root: Path) -> str | None:
@@ -53,26 +37,12 @@ def _preflight(repo_root: Path) -> str | None:
 
 def prepare_demo_database(repo_root: Path) -> Path:
     """Migrate and seed a temporary DB, publishing it only after success."""
-    local_dir = (repo_root / "local").resolve()
-    local_dir.mkdir(parents=True, exist_ok=True)
-    final_path = _exact_demo_targets(local_dir, DEMO_DATABASE_NAME)[0]
-    preparing_path = _exact_demo_targets(local_dir, PREPARING_DATABASE_NAME)[0]
-    _remove_exact_targets(local_dir, PREPARING_DATABASE_NAME)
-    try:
-        conn = sqlite3.connect(preparing_path)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("PRAGMA foreign_keys = ON")
-            upgrade(connection=conn)
-            seed_demo_database(conn)
-        finally:
-            conn.close()
-        _remove_exact_targets(local_dir, DEMO_DATABASE_NAME)
-        os.replace(preparing_path, final_path)
-    except BaseException:
-        _remove_exact_targets(local_dir, PREPARING_DATABASE_NAME)
-        raise
-    return final_path
+    return build_fixture_database(
+        repo_root,
+        profile=DEMO_PROFILE,
+        database_name=DEMO_DATABASE_NAME,
+        preparing_name=PREPARING_DATABASE_NAME,
+    )
 
 
 def main() -> int:

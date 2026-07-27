@@ -143,6 +143,8 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `fix_checks.py` | Deterministic local auto-fix entry point: Python lint/format drift, generated API/software reference-doc assets, and docs drift fixers under `scripts/fixes/` |
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `launch_demo.py` | Atomically rebuild `local/demo.db` with synthetic data and launch the offline demo UI |
+| `launch_sandbox.py` | Restore the disposable `local/sandbox.db` test bed from its golden build and launch the UI |
+| `fixture_db.py` | Build/publish helpers for generated fixture databases (migrate + seed, golden fingerprint, throwaway checkout) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |
 | `check_jobs.py` | Check scheduled job status (installed OS-level schedules) |

@@ -105,6 +105,17 @@ python -m scripts.launch_demo
 The command does not install packages. It rebuilds `local/demo.db` on every launch, requires no
 broker credentials or internet access after setup, and leaves the database writable for the session.
 
+For a wider, disposable database to develop and test against — several accounts and books with two
+years of history — launch the sandbox instead:
+
+```sh
+python -m scripts.launch_sandbox
+```
+
+The sandbox restores `local/sandbox.db` from a cached golden build on every run, so it is identical
+each launch and nothing written to it persists. Add `--no-ui` to restore it without starting the UI
+and point other tooling at it via `TRADING_DB_PATH`.
+
 ## Stability
 
 This is a pre-1.0 research project. It does not currently promise compatibility for an external

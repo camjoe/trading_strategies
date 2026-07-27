@@ -88,6 +88,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
 | `docs/reference/database-transactions.md` | The `unit_of_work` / `commit_unit_of_work` pattern for grouping multiple DB writes into one atomic transaction | `src/trading/repositories/unit_of_work.py` or the repository-commit convention changes |
+| `docs/reference/database-reset-plan.md` | Planned migration-chain squash and data reset: per-table drop/preserve classification, investigation items, redesign candidates | Reset decisions are made, or the reset lands (becomes a completion record) |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategies/` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
