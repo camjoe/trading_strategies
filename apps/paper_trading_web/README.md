@@ -173,6 +173,23 @@ Key account/admin and feature schemas in `apps/paper_trading_web/backend/schemas
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
 - Account existence and latest-snapshot lookups in backend DB services are routed through trading repository adapters.
 
+## Tab Grouping
+
+Tabs group by **whether a surface shows live state or produces evidence** — not by account-scoping.
+Account-scoping is a parameter that cuts across nearly everything (Backtesting, Strategy Lab, and
+Autonomy Monitor all take an account), so grouping by it would file Backtesting next to Accounts.
+
+| Group | Tabs | What they have in common |
+|---|---|---|
+| Operate | Accounts, Overview, Portfolio, Autonomy Monitor | Live state — what is happening now with real positions. Autonomy Monitor belongs here because it answers "is the automation behaving," not "should I trade this." |
+| Research | Backtesting, Strategy Lab, Sentiment | Produce evidence, touch no live state. Mirrors the `purpose` discriminator that walls research runs off from live evaluation. |
+| System | Documentation, Admin | About the app itself, not about trading. Right-aligned after `tab-nav-spacer`. |
+
+Backtesting and Strategy Lab stay separate deliberately: Backtesting is the fast debug loop, Strategy
+Lab the slow validation loop (see the capability table in
+[backtesting.md](../../docs/reference/backtesting.md)). `views/nav.html` carries these groups as
+inline comments — keep them in sync when adding a tab.
+
 ## Frontend Boundary Notes
 
 - Keep feature entrypoints thin: `apps/paper_trading_web/frontend/src/features/accounts.ts` and `apps/paper_trading_web/frontend/src/features/admin.ts` are wrapper surfaces, while feature-specific orchestration lives under `apps/paper_trading_web/frontend/src/features/accounts/` and `apps/paper_trading_web/frontend/src/features/admin/`.

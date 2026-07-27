@@ -3,9 +3,9 @@
 Type: notes
 Status: Active
 Created: 2026-03-14
-Last Reviewed: 2026-07-22
-Purpose: Reference for backtesting commands, walk-forward terminology, layering overview, and safeguards.
-Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Last Reviewed: 2026-07-27
+Purpose: Reference for backtesting commands, the backtest/optimization/walk-forward capability split, evaluation standards, and safeguards.
+Related: [ADR 016 Optimizer Experiments as Research Evidence](../adr/016-optimizer-experiments-as-research-evidence.md), [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Backtesting reuses account metadata from paper trading while storing run, trade, and equity history
 in dedicated backtest tables. Package structure and layer ownership live in
@@ -32,7 +32,7 @@ python -m trading.interfaces.cli.main apply-account-preset --preset default
 python -m trading.interfaces.cli.main backtest --account momentum_5k --lookback-months 12
 
 # Walk-forward optimization (see Optimize -> Promote Loop below)
-python -m trading.interfaces.cli.main backtest-optimize --account momentum_5k --strategy trend \n  --search-space '{"fast_window": [5, 10], "slow_window": [20, 30]}' --lookback-months 24
+python -m trading.interfaces.cli.main backtest-optimize --account momentum_5k --strategy trend --search-space '{"fast_window": [5, 10], "slow_window": [20, 30]}' --lookback-months 24
 
 # Batch comparison
 python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,meanrev_5k --lookback-months 12
@@ -70,6 +70,27 @@ to tighten into confidence decay or a hard gate.
   rotation scores challengers through the same evidence path.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
+
+## Backtest, Optimization, Walk-Forward
+
+A **backtest is the atomic unit**: a strategy over a date range, producing an equity curve and
+trades. Everything else composes it — `run_backtest` is the primitive, and the optimizer invokes it
+per training candidate, per OOS window, and once on the holdout, persisting a `backtest_runs` row for
+each run it keeps. Optimizer-written rows *are* backtests; the `purpose` discriminator is what keeps
+them distinguishable from standalone exploration.
+
+Three capabilities, and the roles they play here:
+
+| Capability | Question it answers | Role |
+|---|---|---|
+| `backtest` | Does the strategy run, fire trades, and make money over this period? | **Exploration and debugging.** The fast loop — use it to check signal logic and data before spending a sweep. Not promotion evidence (ADR 016). |
+| `backtest-optimize` | Which parameters score best, *and does the tuning generalize?* | **Validation.** The slow loop, and the only source of research evidence. |
+| Walk-forward | Does the tuning *process* hold up out-of-sample? | Not a separate command — an inherent property of `backtest-optimize`. |
+
+Two deliberate choices follow. Optimization here **always** walks forward; plain grid search with no
+out-of-sample validation is the classic overfitting generator and is not exposed. And a
+walk-forward that optimizes nothing is just a segmented backtest — the weak cell in the grid, which
+is why the rolling-window path was removed rather than kept as a cheaper option.
 
 ## Walk-Forward Terminology and Evaluation Standards
 
