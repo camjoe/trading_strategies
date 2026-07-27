@@ -140,6 +140,31 @@ class TestBenchmarkStats:
 
         assert self._stats("SPY", 10_000.0, "2024-01-01", _raise, monkeypatch=monkeypatch) == (None, None)
 
+    def test_end_bound_comes_from_utc_not_local_today(self, monkeypatch: pytest.MonkeyPatch):
+        """An account created today (UTC) must not produce an inverted range.
+
+        Regression: ``created_at`` is stamped in UTC while the end bound used
+        ``date.today()``, which is local. West of UTC the local date is a day
+        behind for part of every evening, so an account created that day gave
+        ``start > end`` and the provider rejected it — benchmark stats silently
+        vanished for a day.
+        """
+        calls: list[tuple[date, date]] = []
+
+        def _stub(tickers: list[str], start: date, end: date) -> pd.DataFrame:
+            calls.append((start, end))
+            return _close_history(tickers[0], [100.0, 110.0])
+
+        monkeypatch.setattr(pricing_helpers, "utc_today", lambda: date(2026, 7, 27))
+        provider = _StubProvider(close_history_fn=_stub)
+
+        benchmark_stats("SPY", 10_000.0, "2026-07-27T04:34:11Z", provider=provider)
+
+        start, end = calls[0]
+        assert start == date(2026, 7, 27)
+        assert end == date(2026, 7, 27)
+        assert start <= end
+
     def test_uses_created_at_date(self, monkeypatch: pytest.MonkeyPatch):
         calls: list[tuple] = []
 

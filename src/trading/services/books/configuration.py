@@ -33,6 +33,7 @@ from trading.services.books.rotation.engine import (
     RotationPolicyConfig,
 )
 from trading.services.parameters.mutations import (
+    ROTATION_POLICY_FIELDS,
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
@@ -94,16 +95,9 @@ def _view(conn: sqlite3.Connection, book: BookRecord) -> BookConfigurationView:
                     if rotation is not None and getattr(rotation, name) is not None
                     else getattr(policy_defaults, name)
                 )
-                for name in (
-                    "min_trades_in_window",
-                    "outperformance_threshold_bps",
-                    "cooldown_days",
-                    "risk_adjusted_return_weight",
-                    "stability_weight",
-                    "drawdown_penalty_weight",
-                    "cost_penalty_weight",
-                    "regime_fit_weight",
-                )
+                # The edit surface's field list is the single source of truth, so a
+                # dropped policy knob cannot leave a stale name behind here.
+                for name in ROTATION_POLICY_FIELDS
             }
         ),
     )

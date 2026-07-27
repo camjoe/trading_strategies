@@ -50,6 +50,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     repo_root = Path(__file__).resolve().parent.parent
+    # Only the UI path needs the frontend toolchain; --no-ui restores the database
+    # for CLI and test use, which npm has nothing to do with.
+    if not args.no_ui:
+        preflight_error = launch_ui.preflight(repo_root)
+        if preflight_error:
+            print(f"Error: {preflight_error}", file=sys.stderr)
+            return 1
     try:
         database_path, rebuilt = checkout_sandbox(
             repo_root,
