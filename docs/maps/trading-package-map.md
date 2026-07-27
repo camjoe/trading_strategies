@@ -258,6 +258,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
+| `evaluation/risk_limits.py` | Risk limit policy rules and validation for evaluation workflows |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
