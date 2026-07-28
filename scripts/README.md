@@ -43,6 +43,7 @@ Repository workflow scripts (`scripts/`):
 - `launch_sandbox.py`: restores the disposable sandbox database (`sandbox` fixture profile) from its cached golden build and launches the UI stack. Nothing written to the sandbox survives the next run; `--rebuild` regenerates the golden, `--no-ui` restores it without starting the UI.
 - `fixture_db.py`: shared build/publish helpers behind both launchers (migrate-and-seed, golden fingerprinting, throwaway checkout).
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
+- `ibkr_socket_smoke_test.py`: manual read-only IBKR socket/TWS connectivity check against a local TWS or IB Gateway. Takes host/port/client-id as flags, places no orders, and does not touch the database.
 
 Documentation page workflows:
 

@@ -69,24 +69,9 @@ def _runtime_harness(monkeypatch):
     return state
 
 
-def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path, capsys) -> None:
-    today = dt.date.today().strftime("%Y%m%d")
-    write_completed_runtime_log(
-        tmp_path,
-        filename_prefix="daily_paper_trading",
-        tag=today,
-        sentinel=module.COMPLETE_SENTINEL,
-        timestamp="000000",
-    )
-
-    monkeypatch.setattr(sys, "argv", ["daily_paper_trading", "--repo-root", str(tmp_path)])
-    code = module.main()
-
-    assert code == 0
-    assert "skipping duplicate run" in capsys.readouterr().out
-
-
-def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_run_proceeds_when_today_already_has_a_successful_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # No duplicate-run guard: the job is operator-driven and repeat intraday runs
+    # are the point. An earlier successful run today must not suppress this one.
     today = dt.date.today().strftime("%Y%m%d")
     write_completed_runtime_log(
         tmp_path,
@@ -100,7 +85,7 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtim
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--force-run", "--accounts", "acct_a"],
+        ["--accounts", "acct_a"],
     )
 
     assert code == 0
@@ -132,12 +117,14 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
 
     assert code == 0
     calls = _runtime_harness.stream_calls
-    assert calls
-    assert calls[0][0] == "Challenger Shadow Eval"
-    assert "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval" in calls[0][1]
+    labels = [label for label, _ in calls]
+    shadow_index = labels.index("Challenger Shadow Eval")
+    assert shadow_index < labels.index("Auto Trader (up to 11 trades)")
+    shadow_args = calls[shadow_index][1]
+    assert "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval" in shadow_args
     # An explicit operator window is forwarded to the shadow-eval job.
-    window_index = calls[0][1].index("--rolling-window-days")
-    assert calls[0][1][window_index + 1] == "45"
+    window_index = shadow_args.index("--rolling-window-days")
+    assert shadow_args[window_index + 1] == "45"
 
 
 def test_shadow_eval_defaults_to_book_owned_window(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -156,13 +143,52 @@ def test_shadow_eval_defaults_to_book_owned_window(monkeypatch, tmp_path: Path, 
     assert "--rolling-window-days" not in shadow_calls[0]
 
 
+def test_pre_trade_snapshot_runs_before_the_auto_trader(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # The pre-submit gate kills the run when the equity snapshot is missing or
+    # stale, so the run has to take its own snapshot before trading.
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+
+    assert code == 0
+    labels = [label for label, _ in _runtime_harness.stream_calls]
+    trader_index = labels.index("Auto Trader (up to 11 trades)")
+    assert labels.index("Pre-trade snapshot acct_a") < trader_index
+    # The post-trade pass still records end-state equity.
+    assert trader_index < labels.index("Post-trade snapshot acct_a")
+
+
+def test_broker_fills_are_reconciled_before_each_snapshot(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # Async brokers (the IBKR socket path) report fills after submission, so each
+    # snapshot has to be preceded by a reconciliation pass or the recorded equity
+    # ignores those fills. Paper accounts make this a no-op.
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+
+    assert code == 0
+    calls = _runtime_harness.stream_calls
+    labels = [label for label, _ in calls]
+    assert labels.index("Pre-trade reconcile fills") < labels.index("Pre-trade snapshot acct_a")
+    assert labels.index("Post-trade reconcile fills") < labels.index("Post-trade snapshot acct_a")
+    reconcile_args = calls[labels.index("Pre-trade reconcile fills")][1]
+    assert "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders" in reconcile_args
+    assert reconcile_args[reconcile_args.index("--accounts") + 1] == "acct_a"
+
+
 def test_auto_trader_argv_has_no_execution_mode_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     # The execution-mode collapse (ADR 014): one path, no flag.
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--force-run"],
+        ["--accounts", "acct_a"],
     )
 
     assert code == 0
@@ -280,10 +306,12 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtim
         "daily_paper_trading_*.json",
     )
     assert payload["status"] == "failed"
-    assert payload["failed_step"] == "05_build_position_targets_by_book"
+    # The pre-trade snapshot is the run's first streamed command, so it is where
+    # a blanket command failure surfaces.
+    assert payload["failed_step"] == "01_mark_book_nav"
     failed_steps = [step for step in payload["step_results"] if step["status"] == "failed"]
     assert len(failed_steps) == 1
-    assert failed_steps[0]["step"] == "05_build_position_targets_by_book"
+    assert failed_steps[0]["step"] == "01_mark_book_nav"
 
 
 def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

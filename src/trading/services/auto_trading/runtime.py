@@ -51,8 +51,13 @@ logger = logging.getLogger(__name__)
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
 
 
-def _is_runtime_submission_window_open(now_iso: str) -> bool:
-    return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
+def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
+    """Whether the runtime may submit orders right now (US regular equity hours).
+
+    Public so callers can report *why* a run submitted nothing instead of
+    reporting an indistinguishable zero-trade result.
+    """
+    return is_regular_us_equity_market_open(parse_utc_iso(now_iso or utc_now_iso()))
 
 
 def _resolve_reconciliation_exec_id(
@@ -212,7 +217,7 @@ def run_for_account(
     through the book flow. Books without an open assignment do not trade.
     """
     now_iso = utc_now_iso()
-    if not _is_runtime_submission_window_open(now_iso):
+    if not is_runtime_submission_window_open(now_iso):
         return 0
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)
@@ -233,9 +238,7 @@ def run_for_account(
 
 def reconcile_open_broker_orders(
     conn: sqlite3.Connection,
-    account_name: str,
     account: AccountRecord,
-    fee: float,
     *,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
@@ -246,14 +249,13 @@ def reconcile_open_broker_orders(
         (positions/ledger/balances via the shared ``apply_book_fill``)
       - Updates the ``orders`` row status/fill state
 
-    Returns the number of orders that were newly FILLED in this call.
-    ``account_name``/``fee`` are retained for call-site compatibility; fills
-    carry their own costs and account history derives from the fill rows.
+    Returns the number of orders that were newly FILLED in this call. Fills carry
+    their own costs, and account history derives from the fill rows.
 
-    Called periodically for accounts with broker-managed open orders. It is a no-op
-    for paper accounts, which fill synchronously and report no open trades.
+    Called by the daily run before each equity snapshot. It is a no-op for paper
+    accounts, which fill synchronously and report no open trades; it is what keeps
+    the books honest for async brokers such as the IBKR socket path.
     """
-    del account_name, fee
     return reconcile_open_orders_impl(
         conn,
         account,

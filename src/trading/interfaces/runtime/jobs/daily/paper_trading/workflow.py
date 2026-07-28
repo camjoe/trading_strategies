@@ -35,6 +35,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import Dail
 from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+    RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
     resolve_email_config_from_env,
     stream_command,
@@ -73,6 +74,35 @@ def run_auto_trader_group(
     stream_command(log_path, label, auto_trader_args, repo_root)
 
 
+def reconcile_and_snapshot(
+    log_path: Path,
+    repo_root: Path,
+    accounts: list[str],
+    label: str,
+) -> dict[str, object]:
+    """Apply outstanding broker fills, then snapshot every account.
+
+    Reconciliation comes first so the snapshot records equity that already
+    accounts for fills the broker reported since the last pass — a no-op for
+    paper accounts, load-bearing for the async socket path. *label* separates the
+    pre- and post-trade passes in the log.
+    """
+    stream_command(
+        log_path,
+        f"{label} reconcile fills",
+        ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
+        repo_root,
+    )
+    for account in accounts:
+        stream_command(
+            log_path,
+            f"{label} snapshot {account}",
+            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
+            repo_root,
+        )
+    return {"accounts": list(accounts), "count": len(accounts)}
+
+
 def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     repo_root = context.repo_root
     log_path = context.log_path
@@ -94,10 +124,15 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             },
             now_iso=ts,
         )
-        skip_dag_step(
+        # The pre-submit gate reconciles book equity against the latest equity
+        # snapshot and kills the run when that snapshot is missing or older than
+        # MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS. Snapshotting here — before any
+        # trading — is what lets the run stand on its own at any point the market
+        # is open; the post-trade pass at step 08 still records end-state equity.
+        run_dag_step(
             step_results,
             step_id="01_mark_book_nav",
-            reason="nav_marking_is_handled_in_runtime_snapshot_and_reconciliation",
+            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade"),
             now_iso=ts,
         )
 
@@ -215,23 +250,10 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
 
-        snapshot_accounts: list[str] = []
-
-        def _run_all_snapshots() -> dict[str, object]:
-            for account in accounts:
-                stream_command(
-                    log_path,
-                    f"Snapshot {account}",
-                    ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
-                    repo_root,
-                )
-                snapshot_accounts.append(account)
-            return {"accounts": snapshot_accounts, "count": len(snapshot_accounts)}
-
         run_dag_step(
             step_results,
             step_id="08_reconcile_fills_update_ledgers",
-            run_fn=_run_all_snapshots,
+            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Post-trade"),
             now_iso=ts,
         )
 

@@ -35,7 +35,8 @@ entries are installed only when their time flag is provided.
 |---|---|---|---|
 | Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Executes per-account signal-driven trades (only when the active strategy signals, up to `--max-trades`). The daily paper-trading job shells out to this module; operators can also run it manually. |
 | Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness (counts consecutive artifacts with top-level `status == "success"`). |
-| Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date --force-run`. |
+| Reconcile broker fills | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders` | Indirect/manual | Applies outstanding broker fills to the books for the given accounts. The daily job runs it before each snapshot pass; operators can run it on demand when an async broker fills after a run has finished. No-op for `paper` accounts. |
+| Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date`. |
 
 ## Governance jobs
 
@@ -71,6 +72,22 @@ python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
 # Health check
 python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
 ```
+
+## When the daily run trades
+
+The daily paper-trading job is self-contained and can be run by hand at any time:
+
+- **Market-hours gate.** The runtime submits orders only during US regular equity hours
+  (09:30–16:00 ET, weekdays, NYSE holidays and early closes honoured — see
+  `trading/domain/market_hours.py`). Outside that window the run still completes every other
+  step and logs `Market closed: no orders will be submitted`.
+- **Pre-trade reconcile + snapshot.** Step `01_mark_book_nav` applies any outstanding broker fills
+  and then snapshots every account before the auto-trader runs. The pre-submit gate reconciles book
+  equity against the latest equity snapshot and kills the run when that snapshot is missing or older
+  than six hours, so the run has to establish it itself rather than depend on a separately scheduled
+  snapshot job. Step `08` repeats both afterwards to record end-state equity.
+- **No duplicate guard.** Every invocation runs. Repeat runs through the trading day are the
+  intended usage — each one reconciles fills, re-snapshots, and trades if the market is open.
 
 ## Registering schedules
 

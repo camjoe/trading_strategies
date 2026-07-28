@@ -57,9 +57,7 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="paper")
         mock_factory = Mock(return_value=PaperBrokerAdapter())
 
-        result = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=mock_factory
-        )
+        result = runtime_service.reconcile_open_broker_orders(conn, account, broker_factory=mock_factory)
 
         assert result == 0
         mock_factory.assert_called_once_with(account)
@@ -100,7 +98,7 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         count = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=1.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
 
         assert count == 1
@@ -151,10 +149,10 @@ class TestReconcileOpenBrokerOrders:
 
         fake_broker = _FakeBroker()
         first = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+            conn, account, broker_factory=Mock(return_value=fake_broker)
         )
         second = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+            conn, account, broker_factory=Mock(return_value=fake_broker)
         )
 
         # Partial fill is not FILLED → newly_filled stays 0 across both polls.
@@ -182,7 +180,7 @@ class TestReconcileOpenBrokerOrders:
                 _FakeBroker._disconnect_calls += 1
 
         result = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
 
         assert result == 0
@@ -221,7 +219,7 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         count = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
         assert count == 0
 

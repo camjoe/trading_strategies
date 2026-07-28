@@ -29,6 +29,14 @@ DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily.snapshot"
 WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
+def _use_utf8_stdout() -> None:
+    """Keep the box-drawing report readable on consoles that default to cp1252."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -262,6 +270,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    _use_utf8_stdout()
     today = dt.date.today()
     print(f"\n{'=' * 50}")
     print(f"  Automation Job Status — {today}")

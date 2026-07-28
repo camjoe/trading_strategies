@@ -64,15 +64,15 @@ def _run_daily_as_of(monkeypatch, root: Path, args: list[str]) -> int:
 
 def test_as_of_date_uses_date_prefix_in_log_name(monkeypatch, job_root: Path) -> None:
     """--as-of-date YYYY-MM-DD should name log/artifact with that date prefix."""
-    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15", "--force-run"])
+    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15"])
 
     logs_dir = job_root / "local" / "logs"
     log_files = list(logs_dir.glob("daily_paper_trading_20200115_*.log"))
     assert log_files, "Expected a log file prefixed with 20200115"
 
 
-def test_as_of_date_dedup_guard_uses_override_date(monkeypatch, job_root: Path, capsys) -> None:
-    """--as-of-date dedup guard should key off the override date, not today."""
+def test_as_of_date_replays_over_an_existing_successful_run(monkeypatch, job_root: Path) -> None:
+    """An existing successful run for the override date no longer suppresses a replay."""
     write_completed_runtime_log(
         job_root,
         filename_prefix="daily_paper_trading",
@@ -81,11 +81,12 @@ def test_as_of_date_dedup_guard_uses_override_date(monkeypatch, job_root: Path, 
         timestamp="000000",
     )
 
-    code = _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15"])
+    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15"])
 
-    assert code == 0
-    out = capsys.readouterr().out
-    assert "already completed for 2020-01-15" in out
+    # The guard used to return before writing anything; the run now goes ahead
+    # and leaves its own artifact for that date.
+    export_dir = job_root / "local" / "exports" / "daily_paper_trading"
+    assert list(export_dir.glob("daily_paper_trading_20200115_*.json"))
 
 
 def test_as_of_date_invalid_value_returns_1(monkeypatch, job_root: Path, capsys) -> None:
@@ -95,7 +96,7 @@ def test_as_of_date_invalid_value_returns_1(monkeypatch, job_root: Path, capsys)
 
 def test_as_of_date_recorded_in_artifact(monkeypatch, job_root: Path) -> None:
     """as_of_date field should appear in the artifact JSON."""
-    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15", "--force-run"])
+    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15"])
 
     export_dir = job_root / "local" / "exports" / "daily_paper_trading"
     payload = load_single_artifact_json(

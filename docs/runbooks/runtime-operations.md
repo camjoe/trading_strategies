@@ -77,9 +77,9 @@ running from a Windows dev machine.
    cat local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log | grep -A 5 "ERROR\|FAIL"
    ```
 3. Fix the underlying issue (connectivity, data freshness, configuration).
-4. Re-run with `--force-run`:
+4. Re-run — the job has no duplicate guard, so an earlier run today does not block a retry:
    ```bash
-   python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
+   python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```
 
 ### Run did not execute (scheduler missed)

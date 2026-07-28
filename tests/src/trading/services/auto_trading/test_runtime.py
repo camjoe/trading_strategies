@@ -11,7 +11,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
     monkeypatch.setattr(runtime_service, "utc_now_iso", Mock(return_value=MARKET_CLOSED_TIME_ISO))
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: False)
+    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: False)
     broker_factory = Mock()
     books_runner = Mock()
     monkeypatch.setattr(runtime_service, "_run_books_for_account", books_runner)
@@ -36,7 +36,7 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
 def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     # The one execution path (ADR 014): market-window gate, then the book run.
     account = make_auto_trading_account(id=42)
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "get_account", Mock(return_value=account))
     books_runner = Mock(return_value=3)
     monkeypatch.setattr(runtime_service, "_run_books_for_account", books_runner)
@@ -81,6 +81,17 @@ def test_is_runtime_submission_window_open_parses_iso_before_market_hours_check(
     monkeypatch.setattr(runtime_service, "parse_utc_iso", parse_iso)
     monkeypatch.setattr(runtime_service, "is_regular_us_equity_market_open", market_open)
 
-    assert runtime_service._is_runtime_submission_window_open("2026-03-14T14:00:00Z") is True
+    assert runtime_service.is_runtime_submission_window_open("2026-03-14T14:00:00Z") is True
     parse_iso.assert_called_once_with("2026-03-14T14:00:00Z")
     market_open.assert_called_once_with("parsed-dt")
+
+
+def test_is_runtime_submission_window_open_defaults_to_now(monkeypatch) -> None:
+    # Callers that only want "is the market open right now" pass no argument.
+    monkeypatch.setattr(runtime_service, "utc_now_iso", Mock(return_value="2026-03-14T14:00:00Z"))
+    parse_iso = Mock(return_value="parsed-dt")
+    monkeypatch.setattr(runtime_service, "parse_utc_iso", parse_iso)
+    monkeypatch.setattr(runtime_service, "is_regular_us_equity_market_open", Mock(return_value=False))
+
+    assert runtime_service.is_runtime_submission_window_open() is False
+    parse_iso.assert_called_once_with("2026-03-14T14:00:00Z")

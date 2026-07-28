@@ -97,14 +97,11 @@ def build_run_context(
 
     tee_line(
         log_path,
-        f"[{ts()}] RUN META: "
-        f"source={args.run_source} force={bool(args.force_run)} "
-        f"accounts={','.join(accounts)} caps={caps_summary}",
+        f"[{ts()}] RUN META: source={args.run_source} accounts={','.join(accounts)} caps={caps_summary}",
     )
     run_meta: dict[str, object] = {
         "job": "daily_paper_trading",
         "run_source": args.run_source,
-        "force_run": bool(args.force_run),
         "as_of_date": str(as_of_date) if as_of_date else None,
         "accounts": accounts,
         "account_count": len(accounts),
