@@ -106,7 +106,8 @@ inside `src/trading/services/` (who owns what, and what each explicitly does not
    - Owns broker SDK imports and broker connection adapters.
    - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
-   - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+   - Both broker guards live here — the `live_trading_enabled` real-money gate and the
+     IBKR paper-account assertion. See Live Trading Safety Guard below.
 
 13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
    - Owns market-data SDK imports and concrete market-data providers.
@@ -398,6 +399,9 @@ Use this guidance for large package relocations or adapter-boundary changes:
 The `live_trading_enabled` column on the `accounts` table is a hard safety gate
 that prevents live broker orders from being submitted accidentally.
 
+**Its scope is real money, not broker connectivity.** Reaching an IBKR *paper*
+account is not gated on this flag — that path has its own guard, described below.
+
 **Rules that all agents must follow without exception:**
 
 1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
@@ -406,11 +410,13 @@ that prevents live broker orders from being submitted accidentally.
 
 2. **Never modify `broker_type`, `broker_host`, `broker_port`, or
    `broker_client_id`** to point at a live broker endpoint in any generated
-   code or automated process.
+   code or automated process.  Setting `broker_type` to
+   `interactive_brokers_paper` is not a live endpoint change, but still belongs
+   to the operator — do not switch an account's execution backend unasked.
 
-3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
-   `infrastructure.brokers.factory`).  If this error surfaces, it must propagate so
-   the operator can investigate.
+3. **Never catch or suppress `LiveTradingNotEnabledError` or
+   `PaperBrokerAccountMismatchError`** (from `infrastructure.brokers.factory`).
+   If either surfaces, it must propagate so the operator can investigate.
 
 4. **Shared test fixtures and helper factories must default to
    `live_trading_enabled = 0`**. Tests that explicitly exercise the live guard
@@ -420,6 +426,21 @@ that prevents live broker orders from being submitted accidentally.
 Rationale: `live_trading_enabled = 1` causes real money to move through a
 live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
+
+### IBKR paper accounts
+
+`broker_type = 'interactive_brokers_paper'` reaches the real IBKR Client Portal
+gateway without requiring `live_trading_enabled`, because an IBKR paper account
+risks no capital. In place of the real-money flag it carries a **positive
+assertion**: the configured Web API `account_id` must be an IBKR paper account
+(`DU` prefix), or the factory raises `PaperBrokerAccountMismatchError` and
+refuses to connect.
+
+Do not weaken that assertion, widen the accepted prefix set speculatively, or
+reintroduce `live_trading_enabled` as the way to reach a paper account. Adding a
+prefix is an operator-driven change made when a real account needs it.
+
+Rationale and rejected alternatives: `docs/adr/017-ibkr-paper-broker-type.md`.
 
 Enforcement: `python -m scripts.checks.repo.live_safety_check --enforce` blocks
 state-mutating automation surfaces from setting `live_trading_enabled` to true/1

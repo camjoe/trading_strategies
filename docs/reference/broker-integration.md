@@ -29,9 +29,18 @@ Broker resolution is handled in:
 
 Supported `accounts.broker_type` values:
 
-- `paper` (default)
-- `interactive_brokers_web` (current/default live IBKR path)
-- `interactive_brokers` (current compatibility value for the socket/TWS path)
+| Value | Adapter | Requires `live_trading_enabled` | Account assertion |
+|---|---|---|---|
+| `paper` (default) | in-process simulator | no | none |
+| `interactive_brokers_paper` | IBKR Web API | **no** | `account_id` must start with `DU` |
+| `interactive_brokers_web` | IBKR Web API | yes | none (operator-owned) |
+| `interactive_brokers` | IBKR socket/TWS | yes | none (operator-owned) |
+
+`paper` never leaves the process: `PaperBrokerAdapter` accepts every order and fills it
+in full, immediately, at the requested price, with zero commission. It produces no
+rejections, partial fills, or slippage, so its fill history is an accounting exercise
+rather than execution evidence. Use `interactive_brokers_paper` for anything intended to
+generate real operational data.
 
 Key files:
 
@@ -59,7 +68,7 @@ Broker-related account fields:
 | `broker_host` | socket/TWS host |
 | `broker_port` | socket/TWS port |
 | `broker_client_id` | socket/TWS client id |
-| `live_trading_enabled` | hard gate required for live broker adapters |
+| `live_trading_enabled` | hard gate required for real-money broker adapters; not required for `interactive_brokers_paper` |
 
 `account_kind` and `broker_type` are orthogonal:
 
@@ -68,7 +77,7 @@ Broker-related account fields:
 
 ## Live Trading Safety Guard
 
-`live_trading_enabled` is a hard runtime gate for live broker paths.
+`live_trading_enabled` is a hard runtime gate for **real-money** broker paths.
 
 - default is `0`
 - live paths raise `LiveTradingNotEnabledError` from `infrastructure.brokers.factory` unless set to `1`
@@ -86,6 +95,28 @@ The canonical guardrail rules live in
 [`docs/architecture/architecture-conventions.md`](../architecture/architecture-conventions.md#live-trading-safety-guard).
 This reference summarizes the runtime behavior; architecture conventions remain
 the source of truth for what automated processes may and may not change.
+
+### IBKR paper account guard
+
+`interactive_brokers_paper` reaches the same Client Portal gateway without
+`live_trading_enabled`, because no capital is at risk. It carries a different guard: the
+resolved `account_id` must be an IBKR paper account (`DU` prefix), or the factory raises
+`PaperBrokerAccountMismatchError` and refuses to connect.
+
+Setting up a paper-executing book:
+
+```sql
+-- No live_trading_enabled change required.
+UPDATE accounts
+SET broker_type = 'interactive_brokers_paper'
+WHERE name = 'my-paper-account';
+```
+
+Then point the Web API settings at the paper account
+(`TRADING_IBKR_WEB_API_ACCOUNT_ID=DU1234567`, or `account_id` in the private JSON
+config). A live account id configured against this broker type fails closed.
+
+Rationale: [`docs/adr/017-ibkr-paper-broker-type.md`](../adr/017-ibkr-paper-broker-type.md).
 
 ## IBKR Web API Configuration
 
@@ -179,6 +210,12 @@ Reconciliation behavior:
 - applies fills through shared book accounting (`apply_book_fill`); account-level
   history derives from the fill rows — the `trades` table was retired in revision `0006`
 
+The daily paper-trading job drives it via
+`trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders`, once before the pre-trade
+snapshot and again before the post-trade snapshot, so recorded equity always reflects the fills the
+broker has reported so far. It is a no-op for `paper` accounts (synchronous fills, no open trades)
+and load-bearing for the socket path.
+
 The shared order contract and `orders.status_reason` retain broker-provided rejection and
 cancellation explanations when IBKR supplies one. The Web adapter reads
 `order_status_description`; the socket `ib_async` client reads the advanced rejection payload or
@@ -231,3 +268,4 @@ When adding a new broker:
 - `scripts/README.md`
 - `docs/architecture/architecture-conventions.md`
 - [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup checklist
+- [`runbooks/ibkr-paper-trading.md`](../runbooks/ibkr-paper-trading.md) — operator procedure for moving a book onto real IBKR paper-account order mechanics
