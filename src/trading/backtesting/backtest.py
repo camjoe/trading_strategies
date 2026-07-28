@@ -5,13 +5,10 @@ from datetime import date
 
 from infrastructure.market_data.factory import build_provider
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
-from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
-    WalkForwardConfig,
-    WalkForwardSummary,
 )
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.backtesting.repositories.backtest_repository import (
@@ -21,12 +18,10 @@ from trading.backtesting.repositories.backtest_repository import (
 )
 from trading.backtesting.services import (
     build_monthly_universe,
-    execute_walk_forward_backtest,
     fetch_backtest_leaderboard_entries,
     fetch_backtest_report_data,
     fetch_benchmark_close,
     fetch_close_history,
-    fetch_walk_forward_report_data,
     load_tickers_from_file,
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
@@ -36,16 +31,7 @@ from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.books.book_record import BookRecord
 from trading.repositories.books import BookRepository
 from trading.services.accounts import get_account
-from trading.services.market_data import build_feature_provider
-
-
-def build_walk_forward_windows(
-    start_date: date,
-    end_date: date,
-    test_months: int,
-    step_months: int,
-) -> list[tuple[date, date]]:
-    return build_walk_forward_windows_impl(start_date, end_date, test_months, step_months)
+from trading.services.market_data import MarketDataProvider, build_feature_provider
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
@@ -214,16 +200,38 @@ def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return _run_backtest(conn, cfg, persist=False)
 
 
-def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
-    return fetch_backtest_report_data(conn, run_id=run_id)
+def backtest_report_full(
+    conn: sqlite3.Connection,
+    run_id: int,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> BacktestFullReport:
+    """The full report, benchmark and alpha included.
+
+    Composition seam, same as ``_run_backtest``: the provider the benchmark
+    needs is built here unless a caller injects one, so reading a report does
+    not require every route and handler to wire market data itself.
+    """
+    return fetch_backtest_report_data(conn, run_id=run_id, provider=provider or build_provider())
 
 
-def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
-    return backtest_report_full(conn, run_id).to_payload()
+def backtest_report(
+    conn: sqlite3.Connection,
+    run_id: int,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, object]:
+    return backtest_report_full(conn, run_id, provider=provider).to_payload()
 
 
 def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
-    return backtest_report_full(conn, run_id).summary
+    """The summary alone, which carries no benchmark.
+
+    Deliberately skips the provider: the account list reads one summary per
+    row, and building a benchmark series for each would cost a market-data
+    round trip per account for a figure the summary does not carry.
+    """
+    return fetch_backtest_report_data(conn, run_id=run_id).summary
 
 
 def _validated_strategy_filter(strategy: str | None) -> str | None:
@@ -341,35 +349,3 @@ def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> li
 
     results.sort(key=lambda item: item.total_return_pct, reverse=True)
     return results
-
-
-def run_walk_forward_backtest(
-    conn: sqlite3.Connection,
-    cfg: WalkForwardConfig,
-) -> WalkForwardSummary:
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    windows = build_walk_forward_windows(start_date, end_date, cfg.test_months, cfg.step_months)
-
-    return execute_walk_forward_backtest(
-        conn,
-        cfg=cfg,
-        start_date=start_date,
-        end_date=end_date,
-        windows=windows,
-        run_backtest_fn=run_backtest,
-    )
-
-
-def walk_forward_report(
-    conn: sqlite3.Connection,
-    *,
-    group_id: int | None = None,
-    account_name: str | None = None,
-    strategy_name: str | None = None,
-) -> dict[str, object]:
-    return fetch_walk_forward_report_data(
-        conn,
-        group_id=group_id,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    ).to_payload()

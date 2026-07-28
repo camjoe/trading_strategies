@@ -11,11 +11,9 @@ from trading.backtesting.backtest import (
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
-    run_walk_forward_backtest,
-    walk_forward_report,
 )
 from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
-from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
+from trading.backtesting.models import BacktestBatchConfig, BacktestConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
@@ -23,7 +21,6 @@ from trading.backtesting.repositories.optimization_repository import (
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
 )
-from trading.backtesting.services import find_stale_backtests
 from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from trading.backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
@@ -84,16 +81,12 @@ def _handler_deps() -> dict[str, object]:
         "set_benchmark": set_benchmark,
         "BacktestBatchConfig": BacktestBatchConfig,
         "BacktestConfig": BacktestConfig,
-        "WalkForwardConfig": WalkForwardConfig,
         "OptimizerConfig": OptimizerConfig,
         "backtest_leaderboard_entries": backtest_leaderboard_entries,
         "backtest_report": backtest_report,
-        "walk_forward_report": walk_forward_report,
         "run_backtest": run_backtest,
         "run_backtest_metrics_only": run_backtest_metrics_only,
-        "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
-        "run_walk_forward_backtest": run_walk_forward_backtest,
         "run_walk_forward_optimization": partial(
             run_and_persist_optimization, market_data_provider=resolve_provider_name()
         ),

@@ -19,6 +19,7 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.backtesting.optimizer_models import (
+    ExperimentStatus,
     OptimizationExperimentInsert,
     OptimizationExperimentRecord,
     OptimizationManifestInsert,
@@ -113,6 +114,40 @@ def fetch_recent_experiments(
         (int(limit),),
     ).fetchall()
     return [OptimizationExperimentRecord.from_mapping(dict(row)) for row in rows]
+
+
+def fetch_latest_experiment_for_account_strategy(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    strategy_name: str,
+) -> OptimizationExperimentRecord | None:
+    """Return the most recent completed experiment that is evidence for a strategy.
+
+    An experiment is evidence for a strategy when it either **targeted** it
+    (``strategy_id`` — the optimization ran over that strategy, so its per-window
+    OOS record measures how optimizing it generalizes) or **produced** it
+    (``promoted_strategy_id`` — the winner was minted into this variant, so the
+    holdout run used exactly this variant's parameters).
+
+    Failed experiments are excluded: they carry no winner, no ``holdout_run_id``,
+    and no window audit, so there is nothing to read evidence from.
+    """
+    row = conn.execute(
+        """
+        SELECT e.*
+        FROM optimization_experiments e
+        LEFT JOIN strategies target ON target.id = e.strategy_id
+        LEFT JOIN strategies promoted ON promoted.id = e.promoted_strategy_id
+        WHERE e.account_id = ?
+          AND e.status = ?
+          AND (LOWER(target.strategy_key) = LOWER(?) OR LOWER(promoted.strategy_key) = LOWER(?))
+        ORDER BY e.created_at DESC, e.id DESC
+        LIMIT 1
+        """,
+        (int(account_id), str(ExperimentStatus.COMPLETED), strategy_name, strategy_name),
+    ).fetchone()
+    return OptimizationExperimentRecord.from_mapping(dict(row)) if row is not None else None
 
 
 def set_promoted_strategy(conn: sqlite3.Connection, *, experiment_id: int, strategy_id: int) -> None:

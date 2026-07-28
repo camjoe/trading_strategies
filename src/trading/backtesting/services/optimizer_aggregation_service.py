@@ -19,12 +19,13 @@ from trading.backtesting.repositories.optimization_repository import fetch_windo
 from trading.backtesting.repositories.report_repository import fetch_backtest_run_equity_bounds
 
 
-def fetch_compounded_oos(conn: sqlite3.Connection, *, experiment_id: int) -> CompoundedOOSSeries | None:
-    """Return the experiment's compounded OOS series, or ``None`` if unavailable.
+def fetch_oos_segments(conn: sqlite3.Connection, *, experiment_id: int) -> list[OOSReturnSegment] | None:
+    """Return one OOS segment per persisted window, or ``None`` if unavailable.
 
     ``None`` when the experiment has no persisted windows (predates revision ``0022``)
-    or any window's OOS run has no equity snapshots — the series is only honest if
-    every window contributes, so a missing segment yields no partial series.
+    or any window's OOS run has no equity snapshots — the record is only honest if
+    every window contributes, so a missing segment yields nothing rather than a
+    partial series.
     """
     windows = fetch_windows_for_experiment(conn, experiment_id=experiment_id)
     if not windows:
@@ -44,4 +45,10 @@ def fetch_compounded_oos(conn: sqlite3.Connection, *, experiment_id: int) -> Com
                 return_pct=period_return_pct(first_equity=first_equity, last_equity=last_equity),
             )
         )
-    return compound_oos_returns(segments)
+    return segments
+
+
+def fetch_compounded_oos(conn: sqlite3.Connection, *, experiment_id: int) -> CompoundedOOSSeries | None:
+    """Return the experiment's compounded OOS series, or ``None`` if unavailable."""
+    segments = fetch_oos_segments(conn, experiment_id=experiment_id)
+    return None if segments is None else compound_oos_returns(segments)

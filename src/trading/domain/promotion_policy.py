@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PromotionAssessment,
@@ -18,10 +19,11 @@ MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT = 20
 # Research validation requires a non-negative backtest return before paper observation.
 MIN_RESEARCH_BACKTEST_RETURN_PCT = 0.0
 
-# Research validation rejects backtests with drawdowns worse than this floor.
-MIN_RESEARCH_MAX_DRAWDOWN_PCT = -25.0
+# Research validation rejects backtests breaching the shared risk floor. Operator
+# settings may override the resolved value; the shared constant is the default.
+MIN_RESEARCH_MAX_DRAWDOWN_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
 
-# Grouped walk-forward evidence must also show a non-negative average return.
+# Walk-forward window evidence must also show a non-negative average return.
 MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT = 0.0
 
 # Live-readiness review expects a modest amount of persisted paper observation.
@@ -43,7 +45,7 @@ class PromotionPolicySettings:
 
 
 RESEARCH_EVIDENCE_REQUIRED = "Backtest evidence is required for promotion assessment."
-GROUPED_WALK_FORWARD_REQUIRED = "Grouped walk-forward evidence is required for research validation."
+WALK_FORWARD_EVIDENCE_REQUIRED = "Walk-forward evidence is required for research validation."
 PAPER_EVIDENCE_REQUIRED = "Paper evidence is required before manual promotion review."
 ROTATION_ISOLATION_REQUIRED = (
     "Rotating accounts require strategy-isolated paper evidence before manual promotion review."
@@ -90,8 +92,8 @@ def _research_blockers(
         blockers.append(RESEARCH_EVIDENCE_REQUIRED)
         return blockers
 
-    if not walk_forward.available or not walk_forward.grouped:
-        blockers.append(GROUPED_WALK_FORWARD_REQUIRED)
+    if not walk_forward.available:
+        blockers.append(WALK_FORWARD_EVIDENCE_REQUIRED)
 
     _append_threshold_blocker(
         blockers,

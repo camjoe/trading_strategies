@@ -4,8 +4,6 @@ from tests.src.trading.interfaces.cli.factories import (
     make_backtest_args,
     make_backtest_batch_args,
     make_backtest_result,
-    make_walk_forward_args,
-    make_walk_forward_summary,
 )
 from tests.src.trading.interfaces.cli.helpers import install_main_harness
 from trading.interfaces.cli import main as cli_main
@@ -63,40 +61,6 @@ def test_main_backtest_without_benchmark_prints_unavailable(monkeypatch, capsys)
     assert "Backtest complete: run_id=8" in out
     assert "Benchmark comparison unavailable for selected date range." in out
     assert "Backtest safeguards / approximation notes:" not in out
-    assert fake_conn.closed is True
-
-
-def test_main_backtest_walk_forward_dispatches(monkeypatch, capsys) -> None:
-    args = make_walk_forward_args(account="acct1", run_name_prefix="wf")
-    fake_conn = install_main_harness(monkeypatch, cli_main, args)
-    captured = {}
-    summary = make_walk_forward_summary(run_ids=[101, 102, 103])
-    monkeypatch.setattr(
-        cli_main,
-        "run_walk_forward_backtest",
-        lambda conn, cfg: captured.update({"conn": conn, "cfg": cfg}) or summary,
-    )
-
-    cli_main.main()
-
-    assert captured["conn"] is fake_conn
-    assert captured["cfg"].test_months == 1
-    out = capsys.readouterr().out
-    assert "Walk-forward complete: account=acct1" in out
-    assert "Generated run ids: 101, 102, 103" in out
-    assert fake_conn.closed is True
-
-
-def test_main_backtest_walk_forward_prints_run_id_ellipsis(monkeypatch, capsys) -> None:
-    args = make_walk_forward_args(account="acct1", run_name_prefix="wf")
-    fake_conn = install_main_harness(monkeypatch, cli_main, args)
-    summary = make_walk_forward_summary(window_count=12, run_ids=list(range(101, 113)))
-    monkeypatch.setattr(cli_main, "run_walk_forward_backtest", lambda _conn, _cfg: summary)
-
-    cli_main.main()
-
-    out = capsys.readouterr().out
-    assert "Generated run ids: 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, ..." in out
     assert fake_conn.closed is True
 
 

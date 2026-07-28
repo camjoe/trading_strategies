@@ -200,7 +200,7 @@ python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
 sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```
 
-See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify timers are active:
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, challenger shadow-eval) and their flags. Verify timers are active:
 
 ```bash
 systemctl list-timers --all | grep trading

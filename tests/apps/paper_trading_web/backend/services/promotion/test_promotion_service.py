@@ -64,7 +64,7 @@ class TestBuildPromotionOverview:
             ),
             walk_forward=EvaluationWalkForwardEvidence(
                 available=True,
-                grouped=True,
+                window_returns=[1.0, 2.0],
                 average_return_pct=3.4,
                 best_return_pct=5.6,
                 worst_return_pct=-1.2,
@@ -106,7 +106,7 @@ class TestBuildPromotionOverview:
         assert result["history"] == [{"review": {"score": 0.8}, "events": [{"kind": "snapshot"}]}]
         assert result["evaluation"]["backtest"]["returnPct"] == pytest.approx(12.5)
         assert result["evaluation"]["backtest"]["tradeCount"] == 42
-        assert result["evaluation"]["walkForward"]["grouped"] is True
+        assert result["evaluation"]["walkForward"]["windowCount"] == 2
         assert result["evaluation"]["paperLive"]["strategyIsolated"] is True
         assert result["evaluation"]["confidence"]["blendedScore"] == pytest.approx(8.9)
         assert result["evaluation"]["dataGaps"] == ["missing_walk_forward_evidence"]

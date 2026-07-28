@@ -100,7 +100,6 @@ def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_arg
         r"Trading\DailyPaperTradingFallback",
         r"Trading\DailyChallengerShadowEval",
         r"Trading\DailySnapshot",
-        r"Trading\DailyBacktestRefresh",
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]

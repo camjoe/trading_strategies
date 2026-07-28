@@ -2,14 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.backtesting.backtest import (
-    backtest_report_full,
-    preview_backtest_warnings,
-    run_backtest,
-    run_walk_forward_backtest,
-)
+from trading.backtesting.backtest import backtest_report_full, preview_backtest_warnings, run_backtest
 
-from ..schemas import BacktestPreflightRequest, BacktestRunRequest, WalkForwardRunRequest
+from ..schemas import BacktestPreflightRequest, BacktestRunRequest
 from ..services.accounts.backtests import (
     fetch_latest_backtest_summary,
     fetch_recent_backtest_run_summaries,
@@ -18,7 +13,6 @@ from ..services.accounts.data_access import require_account_row
 from ..services.backtests import (
     build_backtest_config_from_preflight_request,
     build_backtest_config_from_run_request,
-    build_walk_forward_config_from_request,
 )
 from ..services.db import db_conn
 
@@ -73,14 +67,3 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
         # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
         # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
         return {"warnings": warnings}
-
-
-@router.post("/api/backtests/walk-forward")
-def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
-    with db_conn() as conn:
-        resolved_account_name = payload.account.strip()
-        payload = payload.model_copy(update={"account": resolved_account_name})
-        # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
-        # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
-        summary = run_walk_forward_backtest(conn, build_walk_forward_config_from_request(payload))
-        return summary.to_payload()

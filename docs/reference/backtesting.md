@@ -3,9 +3,9 @@
 Type: notes
 Status: Active
 Created: 2026-03-14
-Last Reviewed: 2026-07-22
-Purpose: Reference for backtesting commands, walk-forward terminology, layering overview, and safeguards.
-Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Last Reviewed: 2026-07-27
+Purpose: Reference for backtesting commands, the backtest/optimization/walk-forward capability split, evaluation standards, and safeguards.
+Related: [ADR 016 Optimizer Experiments as Research Evidence](../adr/016-optimizer-experiments-as-research-evidence.md), [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Backtesting reuses account metadata from paper trading while storing run, trade, and equity history
 in dedicated backtest tables. Package structure and layer ownership live in
@@ -31,11 +31,8 @@ python -m trading.interfaces.cli.main apply-account-preset --preset default
 # Single backtest
 python -m trading.interfaces.cli.main backtest --account momentum_5k --lookback-months 12
 
-# Walk-forward
-python -m trading.interfaces.cli.main backtest-walk-forward --account momentum_5k --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
-
-# Persisted walk-forward detail report
-python -m trading.interfaces.cli.main backtest-walk-forward-report --account momentum_5k
+# Walk-forward optimization (see Optimize -> Promote Loop below)
+python -m trading.interfaces.cli.main backtest-optimize --account momentum_5k --strategy trend --search-space '{"fast_window": [5, 10], "slow_window": [20, 30]}' --lookback-months 24
 
 # Batch comparison
 python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,meanrev_5k --lookback-months 12
@@ -44,35 +41,17 @@ python -m trading.interfaces.cli.main backtest-batch --accounts momentum_5k,mean
 python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
 ```
 
-## Scheduled Refresh
-
-Recurring refreshes for persisted account backtests are handled by:
-
-- `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh`
-
-Key behavior:
-
-- **targeted, not blind** — refreshes only the stale or missing backtests across each account's
-  rotation candidate strategies (incumbent + challenger schedule), driven by the freshness signal
-  below (`--stale-threshold-days`, default 3)
-- explicit opt-in via `--enable-run` or `DAILY_BACKTEST_REFRESH_ENABLED=1`
-- duplicate same-day run guard unless `--force-run` is supplied
-- transient retry handling for market-data failures
-- machine-readable JSON artifacts under `local/exports/daily_backtest_refresh/`
-
-For schedule/install details, see [runtime-jobs.md](runtime-jobs.md).
-
-### Freshness cadence (advisory)
+## Backtest Freshness (advisory)
 
 Every strategy evaluation carries an advisory **backtest freshness** diagnostic:
-the age of the newest backtest run (`backtest_runs.created_at`) measured
+the age of the experiment's holdout run (`backtest_runs.created_at`) measured
 against the evaluation's generation time. When that age exceeds the stale
-threshold (default **3 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
+threshold (default **30 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
 `trading.domain.backtest_freshness`) the diagnostic is flagged stale.
 
 It is **advisory only** — it never blocks rotation or promotion and never
 changes confidence or the blended score. It surfaces so operators can spot
-evidence that has drifted (e.g. the refresh job is disabled or failing):
+evidence that has drifted far enough that re-running the optimizer is worth considering:
 
 - CLI `report` / `compare-strategies`: a `backtest_age=<n>d (fresh|stale)`
   fragment on the evaluation summary line.
@@ -83,38 +62,46 @@ evidence that has drifted (e.g. the refresh job is disabled or failing):
 If stale evidence is later proven to skew decisions, this advisory is the hook
 to tighten into confidence decay or a hard gate.
 
-### Remediation
-
-The freshness signal drives remediation — refreshing stale or missing backtests
-across each account's rotation candidate strategies (incumbent + challenger
-schedule), not just the active one:
-
-- On demand: `python -m trading.interfaces.cli.main refresh-stale-backtests`
-  (`--account` filter, `--dry-run` to list targets, `--limit` to cap a batch).
-- Scheduled: the `Trading\DailyBacktestRefresh` job re-runs only the drifted
-  backtests each day.
-
-Candidate strategy names are canonicalized through the strategy catalog, so an
-aliased challenger (e.g. `macd_trend` → `macd`) matches its stored backtest and
-is not re-run once fresh.
-
 ## Strategy Notes
 
 - The full strategy catalog and its ids are documented in `docs/reference/strategies.md`.
 - By default a backtest runs the account's active strategy — the default book's open assignment
   (ADR 014). Pass `--strategy` to backtest a specific strategy instead (e.g. a rotation challenger);
-  the remediation flows use this to refresh challenger evidence.
+  rotation scores challengers through the same evidence path.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
 
+## Backtest, Optimization, Walk-Forward
+
+A **backtest is the atomic unit**: a strategy over a date range, producing an equity curve and
+trades. Everything else composes it — `run_backtest` is the primitive, and the optimizer invokes it
+per training candidate, per OOS window, and once on the holdout, persisting a `backtest_runs` row for
+each run it keeps. Optimizer-written rows *are* backtests; the `purpose` discriminator is what keeps
+them distinguishable from standalone exploration.
+
+Three capabilities, and the roles they play here:
+
+| Capability | Question it answers | Role |
+|---|---|---|
+| `backtest` | Does the strategy run, fire trades, and make money over this period? | **Exploration and debugging.** The fast loop — use it to check signal logic and data before spending a sweep. Not promotion evidence (ADR 016). |
+| `backtest-optimize` | Which parameters score best, *and does the tuning generalize?* | **Validation.** The slow loop, and the only source of research evidence. |
+| Walk-forward | Does the tuning *process* hold up out-of-sample? | Not a separate command — an inherent property of `backtest-optimize`. |
+
+Two deliberate choices follow. Optimization here **always** walks forward; plain grid search with no
+out-of-sample validation is the classic overfitting generator and is not exposed. And a
+walk-forward that optimizes nothing is just a segmented backtest — the weak cell in the grid, which
+is why the rolling-window path was removed rather than kept as a cheaper option.
+
 ## Walk-Forward Terminology and Evaluation Standards
 
-The current `backtest-walk-forward` workflow executes a fixed strategy across chronologically shifted
-test windows and groups the persisted results. This is **rolling-window robustness testing**, not full
-walk-forward optimization: it does not train candidate parameter sets on an earlier interval, select
-and freeze a winner, or evaluate the resulting process on an untouched final holdout.
+`backtest-optimize` is the only walk-forward path. A previous `backtest-walk-forward` command ran a
+fixed strategy across chronologically shifted windows and grouped the results — **rolling-window
+robustness testing**, not walk-forward optimization, since it never trained candidates on an earlier
+interval, froze a winner, or used an untouched holdout. It was removed (revision `0027`) because
+running `backtest-optimize` with a single-candidate search space reproduces it exactly and adds a
+baseline comparison and a holdout.
 
-Use **walk-forward optimization** only for a workflow that meets all of these conditions:
+The term **walk-forward optimization** applies only to a workflow meeting all of these conditions:
 
 1. Every out-of-sample (OOS) window has a strictly earlier training interval.
 2. Candidate parameters and the selection objective are declared before examining OOS results.
@@ -215,7 +202,7 @@ this gate existed.
 ## Operating Notes
 
 - Keep assumptions explicit (slippage, fees, execution timing).
-- Prefer chronological validation with rolling or walk-forward windows.
+- Prefer chronological validation with walk-forward windows.
 - Compare against simple baselines, the strategy's existing default parameters, and benchmark returns.
 
 ## Related Docs

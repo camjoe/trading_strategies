@@ -31,17 +31,6 @@ export type BacktestRunResult = {
   warnings: string[];
 };
 
-export type WalkForwardResult = {
-  accountName: string;
-  startDate: string;
-  endDate: string;
-  windowCount: number;
-  runIds: number[];
-  averageReturnPct: number;
-  medianReturnPct: number;
-  bestReturnPct: number;
-  worstReturnPct: number;
-};
 
 export type BacktestReport = {
   run_id: number;

@@ -20,6 +20,7 @@ Sign conventions matter here:
 from __future__ import annotations
 
 from enum import StrEnum
+from statistics import stdev
 
 from trading.domain.feature_provider import POLICY_RISK_OFF_SELL_THRESHOLD, POLICY_RISK_ON_BUY_THRESHOLD
 
@@ -79,30 +80,26 @@ _STYLE_AFFINITY: dict[str, MarketRegime] = {
 REGIME_FIT_MATCH_BONUS_PCT = 2.0
 
 
-def stability_from_window_returns(
-    *,
-    best_return_pct: float | None,
-    worst_return_pct: float | None,
-    window_count: int,
-) -> float:
-    """Negative spread of out-of-sample window returns; closer to zero is steadier.
+def stability_from_window_returns(*, window_returns: list[float]) -> float:
+    """Negative standard deviation of out-of-sample window returns; closer to zero is steadier.
 
     Measures *consistency* across the walk-forward windows: a strategy whose
     window returns cluster tightly scores near ``0.0``, while a strategy that
     swings between good and bad windows scores further negative.
 
-    This is a **range**, not a standard deviation — the evaluation artifact
-    persists only best/worst/average/median per group, so the range is the only
-    dispersion statistic available without re-reading every window run. It
-    therefore treats upside and downside spread alike; a strategy that is
-    inconsistently *good* is still scored as less steady.
+    Uses the **sample standard deviation** over the full window distribution,
+    which the evaluation artifact now carries directly
+    (``EvaluationWalkForwardEvidence.window_returns``). An earlier version used
+    the best/worst range because only summary statistics were persisted; the
+    range let a single outlier window dominate the score, while the deviation
+    reflects the whole distribution.
+
+    Like the range before it, this treats upside and downside spread alike — a
+    strategy that is inconsistently *good* is still scored as less steady.
     """
-    if window_count < MIN_WINDOWS_FOR_STABILITY:
+    if len(window_returns) < MIN_WINDOWS_FOR_STABILITY:
         return NEUTRAL_COMPONENT
-    if best_return_pct is None or worst_return_pct is None:
-        return NEUTRAL_COMPONENT
-    spread = float(best_return_pct) - float(worst_return_pct)
-    return -max(0.0, spread)
+    return -stdev(window_returns)
 
 
 def drawdown_penalty_from_max_drawdown(max_drawdown_pct: float | None) -> float:

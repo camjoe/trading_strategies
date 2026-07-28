@@ -65,7 +65,7 @@ export function renderBooksPanel(books: AutonomyBook[]): string {
         <td class="cash">${currency.format(s.current_cash)}</td>
         <td class="return ${bookReturnClass}">${pct(s.return_pct)}</td>
         <td class="metrics">
-          ${s.latest_metrics.hit_rate ? `Hit Rate: ${pct(s.latest_metrics.hit_rate)}` : "—"}
+          ${s.latest_metrics.hit_rate === null ? "—" : `Hit Rate: ${(s.latest_metrics.hit_rate * 100).toFixed(1)}%`}
         </td>
         <td class="status"><span class="badge status-${statusClass}">${s.status}</span></td>
       </tr>

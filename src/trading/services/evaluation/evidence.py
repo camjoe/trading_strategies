@@ -6,16 +6,15 @@ from statistics import median
 
 from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from trading.backtesting.domain.metrics import max_drawdown_pct
+from trading.backtesting.repositories.optimization_repository import (
+    fetch_latest_experiment_for_account_strategy,
+)
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
-    fetch_latest_backtest_run_id_for_account_strategy,
 )
-from trading.backtesting.repositories.walk_forward_repository import (
-    fetch_latest_walk_forward_group_for_account_strategy,
-    fetch_walk_forward_group_runs,
-)
+from trading.backtesting.services.optimizer_aggregation_service import fetch_oos_segments
 from trading.domain.evaluation.backtest_freshness import assess_backtest_freshness
 from trading.domain.evaluation.confidence import (
     EvaluationConfidenceSettings,
@@ -63,8 +62,8 @@ BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
 # Diagnostics key used when no strategy-safe paper/live rows are persisted.
 PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 
-# Diagnostics key used when no grouped walk-forward evidence is persisted.
-WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
+# Diagnostics key used when no walk-forward window evidence is persisted.
+WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
 
 
 def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
@@ -117,13 +116,27 @@ def build_backtest_evidence(
     account_id: int,
     requested_strategy: str,
 ) -> EvaluationBacktestEvidence:
-    run_id = fetch_latest_backtest_run_id_for_account_strategy(
+    """Build backtest evidence from the strategy's latest experiment holdout run.
+
+    The holdout is the one run whose parameters *and* date range were committed
+    before it executed (the forward-carried winner, evaluated once on data the
+    search never touched), which is why it — rather than a standalone backtest
+    over an operator-chosen range — is what promotion reads.
+
+    Caveat when the experiment *targeted* this strategy rather than producing it:
+    the holdout ran the tuned winner's parameters, not the strategy's defaults, so
+    the numbers are an upper bound for that strategy family. Evidence attributed
+    via ``promoted_strategy_id`` has no such gap — there the winner's parameters
+    are exactly the variant's.
+    """
+    experiment = fetch_latest_experiment_for_account_strategy(
         conn,
         account_id=account_id,
         strategy_name=requested_strategy,
     )
-    if run_id is None:
+    if experiment is None or experiment.holdout_run_id is None:
         return EvaluationBacktestEvidence()
+    run_id = experiment.holdout_run_id
 
     run = fetch_backtest_report_run(conn, run_id)
     snapshots = fetch_backtest_report_snapshots(conn, run_id)
@@ -331,29 +344,33 @@ def build_walk_forward_evidence(
     account_id: int,
     requested_strategy: str,
 ) -> EvaluationWalkForwardEvidence:
-    group = fetch_latest_walk_forward_group_for_account_strategy(
+    """Build walk-forward evidence from the strategy's latest experiment windows.
+
+    Each window's return is derived from its persisted OOS run's equity marks
+    rather than a stored aggregate, so the distribution cannot drift from the runs
+    it summarizes. The windows measure the *process* — retune on each training
+    interval, then run out-of-sample — which is what walk-forward evidence is for.
+    """
+    experiment = fetch_latest_experiment_for_account_strategy(
         conn,
         account_id=account_id,
         strategy_name=requested_strategy,
     )
-    if group is None:
+    if experiment is None:
         return EvaluationWalkForwardEvidence()
 
-    group_runs = fetch_walk_forward_group_runs(
-        conn,
-        group_id=row_expect_int(group, "id"),
-    )
-    # Aggregates are derived from the window returns rather than read from stored
-    # columns, which were dropped so they cannot drift from the member runs.
-    window_returns = [value for item in group_runs if (value := row_float(item, "total_return_pct")) is not None]
+    segments = fetch_oos_segments(conn, experiment_id=experiment.id)
+    if not segments:
+        return EvaluationWalkForwardEvidence()
+
+    window_returns = [segment.return_pct for segment in segments]
     return EvaluationWalkForwardEvidence(
-        available=bool(group_runs),
-        grouped=bool(group_runs),
-        run_ids=[row_expect_int(item, "run_id") for item in group_runs],
-        average_return_pct=(sum(window_returns) / len(window_returns)) if window_returns else None,
-        median_return_pct=float(median(window_returns)) if window_returns else None,
-        best_return_pct=max(window_returns) if window_returns else None,
-        worst_return_pct=min(window_returns) if window_returns else None,
+        available=True,
+        window_returns=window_returns,
+        average_return_pct=sum(window_returns) / len(window_returns),
+        median_return_pct=float(median(window_returns)),
+        best_return_pct=max(window_returns),
+        worst_return_pct=min(window_returns),
     )
 
 

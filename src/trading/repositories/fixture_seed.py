@@ -73,18 +73,25 @@ class FixtureSeedRepository:
         debited from the default book that account creation bootstrapped, so the
         sum across books still equals `accounts.initial_cash` and account-level
         replay stays consistent.
+
+        The debit includes the default book's `start_equity`, not just its
+        balances. Carve-outs happen before any trade, so the capital the default
+        book *started* with is the capital left after funding the sleeves —
+        leaving `start_equity` at the account's whole opening balance would make
+        the default book's return read as a loss the size of the sleeves.
         """
-        default_cash = self._conn.execute(
-            "SELECT current_cash FROM books WHERE id = ?", (int(default_book_id),)
+        default_book = self._conn.execute(
+            "SELECT start_equity, current_cash FROM books WHERE id = ?", (int(default_book_id),)
         ).fetchone()
-        if default_cash is None:
+        if default_book is None:
             raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
-        remaining = float(default_cash["current_cash"]) - float(opening_cash)
+        remaining = float(default_book["current_cash"]) - float(opening_cash)
         if remaining < 0:
             raise ValueError(
                 f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
-                f"{float(default_cash['current_cash']):.2f}."
+                f"{float(default_book['current_cash']):.2f}."
             )
+        remaining_start_equity = float(default_book["start_equity"]) - float(opening_cash)
 
         cursor = self._conn.execute(
             """INSERT INTO books
@@ -97,8 +104,8 @@ class FixtureSeedRepository:
         if book_id is None:
             raise ValueError(f"Expected a book id after inserting fixture book '{name}'.")
         self._conn.execute(
-            "UPDATE books SET current_cash = ?, current_equity = ?, updated_at = ? WHERE id = ?",
-            (remaining, remaining, now_iso, int(default_book_id)),
+            "UPDATE books SET start_equity = ?, current_cash = ?, current_equity = ?, updated_at = ? WHERE id = ?",
+            (remaining_start_equity, remaining, remaining, now_iso, int(default_book_id)),
         )
         commit_unit_of_work(self._conn)
         return int(book_id)

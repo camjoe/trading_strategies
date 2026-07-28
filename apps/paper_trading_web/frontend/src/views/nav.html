@@ -1,11 +1,15 @@
 <nav class="tab-nav" aria-label="Primary sections">
+  <!-- Operate: live state — what is happening now with real positions. -->
   <button class="tab-btn active" data-tab="accounts">Accounts</button>
   <button class="tab-btn" data-tab="compare">Overview</button>
   <button class="tab-btn" data-tab="portfolio">Portfolio</button>
+  <button class="tab-btn" data-tab="autonomy-monitor">🤖 Autonomy Monitor</button>
+  <!-- Research: produces evidence, touches no live state. -->
   <button class="tab-btn" data-tab="backtesting">Backtesting</button>
   <button class="tab-btn" data-tab="strategy-lab">Strategy Lab</button>
-  <button class="tab-btn" data-tab="autonomy-monitor">🤖 Autonomy Monitor</button>
   <button class="tab-btn" data-tab="alt-strategies">Sentiment</button>
+  <span class="tab-nav-spacer"></span>
+  <!-- System: about the app itself, not about trading. Right-aligned. -->
   <div class="tab-dropdown" id="docsNavItem">
     <button
       class="tab-btn"
@@ -22,6 +26,5 @@
       </div>
     </div>
   </div>
-  <span class="tab-nav-spacer"></span>
   <button class="tab-btn tab-btn--admin" data-tab="admin">Admin</button>
 </nav>

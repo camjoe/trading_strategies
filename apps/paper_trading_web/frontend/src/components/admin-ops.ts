@@ -88,11 +88,6 @@ export function renderOperationsOverview(data: OperationsOverviewResponse): stri
     </div>
     <div class="ops-artifact-grid">
       ${renderArtifactPanel(
-        "Daily Backtest Refresh Artifacts",
-        "No daily backtest refresh artifacts found in local/exports/daily_backtest_refresh yet.",
-        data.dailyBacktestRefreshArtifacts,
-      )}
-      ${renderArtifactPanel(
         "Daily Snapshot Artifacts",
         "No daily snapshot artifacts found in local/exports/daily_snapshots yet.",
         data.dailySnapshotArtifacts,
@@ -159,7 +154,7 @@ function renderPromotionEvaluation(data: PromotionOverviewResponse): string {
         ${renderEvidenceStat("Backtest Snapshots", formatCount(evaluation.backtest.snapshotCount))}
         ${renderEvidenceStat("Backtest Freshness", formatBacktestFreshness(evaluation.backtestFreshness))}
         ${renderEvidenceStat("Max Drawdown", formatPctValue(evaluation.backtest.maxDrawdownPct))}
-        ${renderEvidenceStat("Walk-Forward Grouped", evaluation.walkForward.grouped ? "yes" : "no")}
+        ${renderEvidenceStat("WF Windows", formatCount(evaluation.walkForward.windowCount))}
         ${renderEvidenceStat("WF Average Return", formatPctValue(evaluation.walkForward.averageReturnPct))}
         ${renderEvidenceStat("WF Best Return", formatPctValue(evaluation.walkForward.bestReturnPct))}
         ${renderEvidenceStat("WF Worst Return", formatPctValue(evaluation.walkForward.worstReturnPct))}

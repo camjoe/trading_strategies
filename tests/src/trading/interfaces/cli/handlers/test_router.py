@@ -37,15 +37,12 @@ _EXPECTED_COMMANDS = {
     "configure-strategy",
     "freeze-strategy",
     "backtest",
-    "refresh-stale-backtests",
     "backtest-report",
     "backtest-leaderboard",
     "backtest-batch",
     "backtest-optimize",
     "backtest-optimize-show",
     "backtest-optimize-promote",
-    "backtest-walk-forward",
-    "backtest-walk-forward-report",
 }
 
 

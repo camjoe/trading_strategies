@@ -8,7 +8,6 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-from common.time import parse_utc_iso
 from trading.domain.risk_gate import resolve_sector_for_symbol
 
 logger = logging.getLogger(__name__)
@@ -147,21 +146,3 @@ def persist_normalized_risk_decisions(
             risk_payload_json=json.dumps(decision, sort_keys=True),
             created_at=decision_time,
         )
-
-
-def is_snapshot_time_stale(
-    *,
-    snapshot_time: str | None,
-    now_iso: str,
-    max_age_seconds: int,
-) -> bool:
-    if snapshot_time is None:
-        return True
-    try:
-        snapshot_dt = parse_utc_iso(snapshot_time)
-        now_dt = parse_utc_iso(now_iso)
-    except Exception as exc:
-        logger.warning("Failed to parse snapshot staleness timestamps: %s", exc, exc_info=True)
-        return True
-    age_seconds = (now_dt - snapshot_dt).total_seconds()
-    return age_seconds > float(max_age_seconds)

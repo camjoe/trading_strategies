@@ -13,7 +13,6 @@ import { initDocsFeature } from "./features/docs";
 import { buildDocsTemplate } from "./lib/docs-renderer";
 import appLayoutTemplate from "./views/app-layout.html?raw";
 import navTemplate from "./views/nav.html?raw";
-import logsTemplate from "./views/trades.html?raw";
 import adminArtifactsTemplate from "./views/admin/artifacts.html?raw";
 import adminAccountsTemplate from "./views/admin/accounts.html?raw";
 import adminJobsTemplate from "./views/admin/jobs.html?raw";
@@ -59,7 +58,6 @@ function renderShell(): void {
     .replace("<!-- ADMIN_ARTIFACTS_PARTIAL -->", adminArtifactsTemplate);
   app.innerHTML = appLayoutTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)
-    .replace("<!-- LOGS_TAB_PARTIAL -->", logsTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)

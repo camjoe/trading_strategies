@@ -34,7 +34,6 @@ export interface OperationArtifact {
 
 export interface OperationsOverviewResponse {
   jobs: OperationJobStatus[];
-  dailyBacktestRefreshArtifacts: OperationArtifact[];
   dailySnapshotArtifacts: OperationArtifact[];
   databaseBackups: OperationArtifact[];
 }
@@ -81,7 +80,7 @@ export interface PromotionEvaluationDetail {
   };
   walkForward: {
     available: boolean;
-    grouped: boolean;
+    windowCount: number;
     averageReturnPct: number | null;
     bestReturnPct: number | null;
     worstReturnPct: number | null;

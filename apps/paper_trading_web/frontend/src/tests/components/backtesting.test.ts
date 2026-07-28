@@ -4,10 +4,9 @@ import {
   renderBacktestReport,
   renderBacktestRunCard,
   renderBacktestRunResult,
-  renderWalkForwardResult,
   warningListHtml,
 } from "../../components/backtesting";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types/backtesting";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary } from "../../types/backtesting";
 
 describe("warningListHtml", () => {
   it("renders an empty-state message when no warnings exist", () => {
@@ -84,38 +83,6 @@ describe("renderBacktestRunResult", () => {
     expect(html).toContain("Sortino");
     expect(html).toContain("Win Rate");
     expect(html).toContain("Profit Factor");
-  });
-});
-
-describe("renderWalkForwardResult", () => {
-  const base: WalkForwardResult = {
-    accountName: "trend_v1",
-    startDate: "2026-01-01",
-    endDate: "2026-03-31",
-    windowCount: 3,
-    runIds: [101, 102, 103],
-    averageReturnPct: 1.2,
-    medianReturnPct: 1.0,
-    bestReturnPct: 2.3,
-    worstReturnPct: 0.1,
-  };
-
-  it("renders account name, date range, and window count", () => {
-    const html = renderWalkForwardResult(base);
-    expect(html).toContain("trend_v1");
-    expect(html).toContain("2026-01-01");
-    expect(html).toContain("2026-03-31");
-    expect(html).toContain("Windows: 3");
-  });
-
-  it("renders run IDs joined by comma", () => {
-    const html = renderWalkForwardResult(base);
-    expect(html).toContain("101, 102, 103");
-  });
-
-  it("shows 'none' when there are no run IDs", () => {
-    const html = renderWalkForwardResult({ ...base, runIds: [] });
-    expect(html).toContain("Run IDs: none");
   });
 });
 

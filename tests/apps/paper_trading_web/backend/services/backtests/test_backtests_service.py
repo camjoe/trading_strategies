@@ -3,7 +3,6 @@ from __future__ import annotations
 from paper_trading_web.backend.schemas import (
     BacktestPreflightRequest,
     BacktestRunRequest,
-    WalkForwardRunRequest,
 )
 from paper_trading_web.backend.services import backtests as services_backtests
 
@@ -40,21 +39,3 @@ def test_build_backtest_config_from_preflight_request_zeroes_trading_costs() -> 
     assert config.slippage_bps == 0.0
     assert config.fee_per_trade == 0.0
     assert config.run_name is None
-
-
-def test_build_walk_forward_config_from_request_maps_window_fields() -> None:
-    payload = WalkForwardRunRequest(
-        account="acct",
-        tickersFile="tickers.txt",
-        testMonths=3,
-        stepMonths=2,
-        runNamePrefix="wf",
-        allowApproximateLeaps=True,
-    )
-
-    config = services_backtests.build_walk_forward_config_from_request(payload)
-    assert config.account_name == "acct"
-    assert config.test_months == 3
-    assert config.step_months == 2
-    assert config.run_name_prefix == "wf"
-    assert config.allow_approximate_leaps is True

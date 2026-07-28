@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from tests.support.strategies import ensure_strategy_id_for_label
-from trading.backtesting.repositories.walk_forward_repository import (
-    insert_walk_forward_group,
-    insert_walk_forward_group_run,
+from trading.backtesting.optimizer_models import (
+    OptimizationExperimentInsert,
+    OptimizationWindowInsert,
 )
+from trading.backtesting.repositories.optimization_repository import insert_experiment, insert_window
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 
@@ -88,31 +89,62 @@ def insert_backtest_trade(conn, *, run_id: int, trade_time: str) -> None:
     )
 
 
-def insert_walk_forward_grouping(conn, *, run_ids: list[int]) -> None:
-    # Window returns are total_return_pct = window_index (1.0, 2.0, ...); the
-    # experiment-level aggregates consumers report are derived from these.
-    group_id = insert_walk_forward_group(
+def insert_optimization_experiment(
+    conn,
+    *,
+    account_id: int,
+    strategy_name: str,
+    holdout_run_id: int | None = None,
+    window_run_ids: list[int] | None = None,
+) -> int:
+    """Seed one completed optimizer experiment — the evaluation evidence source.
+
+    Window OOS returns are *derived* from each linked run's equity marks, so
+    callers control them by seeding those runs' snapshots rather than by passing
+    return values here.
+    """
+    window_ids = window_run_ids or []
+    experiment_id = insert_experiment(
         conn,
-        primary_run_id=run_ids[0],
-        grouping_key="wf-eval-group",
-        run_name_prefix="wf-eval",
-        start_date="2026-01-01",
-        end_date="2026-03-31",
-        test_months=1,
-        step_months=1,
-        window_count=len(run_ids),
+        OptimizationExperimentInsert(
+            account_id=account_id,
+            strategy_id=ensure_strategy_id_for_label(conn, strategy_name),
+            primitive="trend",
+            objective_name="calmar_v1",
+            search_space_json='{"fast_window": [5, 10]}',
+            candidate_budget=8,
+            train_months=12,
+            test_months=1,
+            step_months=1,
+            holdout_months=6,
+            warmup_months=6,
+            start_date="2026-01-01",
+            end_date="2026-03-31",
+            window_count=len(window_ids),
+            winner_params_json='{"fast_window": 10}',
+            oos_mean_winner_return_pct=2.0,
+            oos_mean_baseline_return_pct=1.0,
+            oos_windows_beat_baseline=len(window_ids),
+            holdout_run_id=holdout_run_id,
+            holdout_winner_return_pct=3.0,
+            holdout_baseline_return_pct=1.0,
+        ),
         created_at="2026-04-01T00:00:00Z",
     )
-    for window_index, run_id in enumerate(run_ids, start=1):
-        insert_walk_forward_group_run(
+    for window_index, run_id in enumerate(window_ids, start=1):
+        insert_window(
             conn,
-            group_id=group_id,
-            run_id=run_id,
-            window_index=window_index,
-            window_start=f"2026-0{window_index}-01",
-            window_end=f"2026-0{window_index}-28",
-            total_return_pct=float(window_index),
+            OptimizationWindowInsert(
+                experiment_id=experiment_id,
+                window_index=window_index,
+                train_start="2025-01-01",
+                train_end="2025-12-31",
+                test_start=f"2026-0{window_index}-01",
+                test_end=f"2026-0{window_index}-28",
+                oos_run_id=run_id,
+            ),
         )
+    return experiment_id
 
 
 def insert_account_snapshot(
@@ -143,5 +175,5 @@ __all__ = [
     "insert_backtest_run",
     "insert_backtest_snapshot",
     "insert_backtest_trade",
-    "insert_walk_forward_grouping",
+    "insert_optimization_experiment",
 ]

@@ -106,5 +106,5 @@ def test_fetch_strategy_evaluation_reports_data_gaps_when_evidence_missing(conn)
     assert artifact.diagnostics.data_gaps == [
         "missing_backtest_evidence",
         "missing_paper_live_evidence",
-        "walk_forward_grouping_not_persisted",
+        "missing_walk_forward_evidence",
     ]

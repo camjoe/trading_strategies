@@ -84,11 +84,7 @@ def build_rotation_strategy_metrics(
         strategy_name=strategy_name,
         trade_count=artifact.backtest.trade_count or 0,
         risk_adjusted_return=comparable_score,
-        stability=stability_from_window_returns(
-            best_return_pct=walk_forward.best_return_pct,
-            worst_return_pct=walk_forward.worst_return_pct,
-            window_count=len(walk_forward.run_ids),
-        ),
+        stability=stability_from_window_returns(window_returns=walk_forward.window_returns),
         drawdown_penalty=drawdown_penalty_from_max_drawdown(artifact.backtest.max_drawdown_pct),
         regime_fit=regime_fit,
     )

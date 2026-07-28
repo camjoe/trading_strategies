@@ -24,18 +24,15 @@ def _artifact(
     trade_count: int,
     available: bool = True,
     max_drawdown_pct: float | None = None,
-    window_returns: tuple[float, float] | None = None,
-    window_count: int = 0,
+    window_returns: list[float] | None = None,
 ) -> StrategyEvaluationArtifact:
     walk_forward = EvaluationWalkForwardEvidence()
     if window_returns is not None:
-        best, worst = window_returns
         walk_forward = EvaluationWalkForwardEvidence(
             available=True,
-            grouped=True,
-            run_ids=list(range(window_count)),
-            best_return_pct=best,
-            worst_return_pct=worst,
+            window_returns=window_returns,
+            best_return_pct=max(window_returns),
+            worst_return_pct=min(window_returns),
         )
     return StrategyEvaluationArtifact(
         backtest=EvaluationBacktestEvidence(
@@ -98,8 +95,7 @@ def test_build_rotation_strategy_metrics_derives_risk_components(conn, monkeypat
             blended_score=4.5,
             trade_count=18,
             max_drawdown_pct=-12.0,
-            window_returns=(6.0, -2.0),
-            window_count=4,
+            window_returns=[1.0, 3.0, 5.0],
         ),
     )
 
@@ -107,8 +103,8 @@ def test_build_rotation_strategy_metrics_derives_risk_components(conn, monkeypat
 
     # Drawdown is stored negative but SUBTRACTED by the policy, so it must be a magnitude.
     assert metrics.drawdown_penalty == pytest.approx(12.0)
-    # Stability is the negative spread of the walk-forward window returns.
-    assert metrics.stability == pytest.approx(-8.0)
+    # Stability is the negative standard deviation of the walk-forward window returns.
+    assert metrics.stability == pytest.approx(-2.0)
     # No honest input exists for regime_fit without fetch_regime — see the builder docstring.
     assert metrics.regime_fit == 0.0
 
@@ -121,8 +117,7 @@ def test_build_rotation_strategy_metrics_ignores_single_window_stability(conn, m
         lambda _conn, _account, *, strategy_name: _artifact(
             blended_score=4.5,
             trade_count=18,
-            window_returns=(5.0, 5.0),
-            window_count=1,
+            window_returns=[5.0],
         ),
     )
 

@@ -22,8 +22,6 @@ KNOWN_EMPTY_SANDBOX_TABLES = {
     "optimization_run_manifests": "requires a real optimizer sweep",
     "optimization_trials": "requires a real optimizer sweep",
     "optimization_windows": "requires a real optimizer sweep",
-    "walk_forward_experiments": "requires a real walk-forward run",
-    "walk_forward_windows": "requires a real walk-forward run",
     # Written by the risk and rotation runtime passes, which the seeder does not
     # yet drive. The next widening step for the sandbox profile.
     "risk_snapshots": "requires driving the risk pass",
@@ -140,6 +138,30 @@ def test_profiles_seed_without_overdrawing(conn: sqlite3.Connection, profile: Fi
     seed_fixture_database(conn, profile=profile, provider=DemoMarketDataProvider())
     negative = conn.execute("SELECT COUNT(*) FROM books WHERE current_cash < 0").fetchone()[0]
     assert negative == 0
+
+
+@pytest.mark.parametrize("profile", [DEMO_PROFILE, SANDBOX_PROFILE], ids=lambda profile: profile.name)
+def test_book_start_equity_sums_to_the_accounts_opening_capital(
+    conn: sqlite3.Connection, profile: FixtureProfile
+) -> None:
+    """Σ books.start_equity must equal accounts.initial_cash.
+
+    Funding a sleeve carves capital out of the default book rather than adding
+    it, so the opening capital has to stay conserved across the split. When the
+    carve-out debited only the balances, the default book kept the account's
+    whole opening figure as its basis and reported a loss the size of the
+    sleeves — and any account-level return measured against Σ start_equity
+    would have been wrong by the same amount.
+    """
+    seed_fixture_database(conn, profile=profile, provider=DemoMarketDataProvider())
+
+    mismatched = conn.execute(
+        """SELECT a.name, a.initial_cash, SUM(b.start_equity) AS booked
+           FROM accounts a JOIN books b ON b.account_id = a.id
+           GROUP BY a.id
+           HAVING ABS(a.initial_cash - booked) > 0.01"""
+    ).fetchall()
+    assert not mismatched, f"opening capital drifted across books: {[tuple(row) for row in mismatched]}"
 
 
 def test_sandbox_seeds_cash_events_through_the_ledger(conn: sqlite3.Connection) -> None:

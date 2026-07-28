@@ -4,7 +4,6 @@ from collections.abc import Callable, Mapping
 
 from common.coercion import (
     coerce_float,
-    coerce_str,
     row_float,
     row_int,
     row_str,
@@ -31,13 +30,6 @@ _ENUM_FIELDS = {
 
 def normalize_lower(value: str) -> str:
     return value.strip().lower()
-
-
-def normalize_lower_obj(value: object) -> object:
-    text = coerce_str(value)
-    if text is None:
-        raise ValidationError("Expected non-null string value")
-    return normalize_lower(text)
 
 
 def validate_enum_value(value: str, field_name: str) -> str:
@@ -188,15 +180,6 @@ def append_update(
         return
     updates.append(f"{column} = ?")
     params.append(transform(value) if transform is not None else value)
-
-
-def append_numeric_updates(
-    updates: list[str],
-    params: list[object],
-    numeric_fields: list[tuple[str, object | None, Callable[[object], object]]],
-) -> None:
-    for column, value, transform in numeric_fields:
-        append_update(updates, params, column, value, transform)
 
 
 def resolved_float(value: float | None, row: "Mapping[str, object]", column: str) -> float | None:
