@@ -32,6 +32,8 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     build_daily_operator_report as _build_daily_operator_report,
     latest_shadow_eval_summary,
     maybe_send_notification,
+    risk_gate_step_result as _risk_gate_step_result,
+    submission_step_result as _submission_step_result,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext
 from trading.interfaces.runtime.jobs.job_helpers import (
@@ -278,16 +280,20 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )
-        skip_dag_step(
+        # The gate and the submission both run inside the auto-trading runtime at
+        # step 05. These steps report on the rows that work left behind, so a run
+        # artifact says what was blocked and what actually reached the broker
+        # instead of going quiet at the point that matters most.
+        run_dag_step(
             step_results,
             step_id="06_pretrade_risk_gate",
-            reason="risk_gate_runs_inside_auto_trading_runtime",
+            run_fn=lambda: _risk_gate_step_result(accounts),
             now_iso=ts,
         )
-        skip_dag_step(
+        run_dag_step(
             step_results,
             step_id="07_submit_ibkr_orders",
-            reason="broker_submission_runs_inside_auto_trading_runtime",
+            run_fn=lambda: _submission_step_result(accounts),
             now_iso=ts,
         )
 

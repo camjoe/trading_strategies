@@ -196,6 +196,22 @@ class OrderRepository:
         )
         commit_unit_of_work(self._conn)
 
+    def fetch_for_account_on_date(self, *, account_id: int, date_str: str) -> list[OrderRecord]:
+        """Return every order the account submitted on ``date_str`` (YYYY-MM-DD).
+
+        Unlike ``fetch_filled_for_book_on_date`` this keeps all statuses — rejected
+        and cancelled orders are the interesting ones when watching a live broker.
+        Compares on the ISO timestamp's date prefix so it is robust to whether the
+        stored ``submitted_at`` carries a timezone suffix.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM orders "
+            "WHERE account_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "ORDER BY submitted_at ASC, id ASC",
+            (int(account_id), date_str),
+        ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
         """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD).
 

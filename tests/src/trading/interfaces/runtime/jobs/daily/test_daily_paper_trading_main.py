@@ -10,6 +10,7 @@ import pytest
 
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow_module
+import trading.services.autonomy_monitor.artifacts as monitor_artifacts
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
@@ -331,6 +332,57 @@ def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_h
     )
     ordered_steps = [step["step"] for step in payload["step_results"]]
     assert ordered_steps == [step_id for step_id, _name in dag_module.DAILY_DAG_STEPS]
+
+
+def test_risk_gate_and_submission_steps_report_instead_of_skipping(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    """Steps 06 and 07 must record what the runtime did, not skip.
+
+    They are the run's only account of what the risk gate blocked and what
+    reached the broker — exactly the part worth reading once orders are real.
+    """
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+
+    assert code == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    steps = {step["step"]: step for step in payload["step_results"]}
+
+    assert steps["06_pretrade_risk_gate"]["status"] == "ok"
+    assert steps["07_submit_ibkr_orders"]["status"] == "ok"
+    assert "total_decisions" in steps["06_pretrade_risk_gate"]["details"]
+    assert "order_count" in steps["07_submit_ibkr_orders"]["details"]
+
+
+def test_run_artifact_is_readable_by_the_autonomy_monitor(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    """Contract guard: the monitor must read what the workflow actually writes.
+
+    These two drifted apart once already — the reader looked for keys and paths
+    no producer emitted, and its own tests passed because they asserted against
+    invented fixtures. Feed a genuine run artifact through the real reader.
+    """
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+    assert code == 0
+
+    status = monitor_artifacts.fetch_daily_workflow_status(repo_root=tmp_path)
+
+    assert status["status"] == "success"
+    assert status["latest_run_time"] is not None
+    assert status["completed_steps"] == len(dag_module.DAILY_DAG_STEPS)
+    assert status["failed_step"] is None
 
 
 def test_success_notification_requires_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

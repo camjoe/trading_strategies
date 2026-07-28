@@ -75,14 +75,15 @@ day-tagged idempotency lives in the governance and maintenance jobs, not the dai
 gate, and four migrations (`0021`–`0024`) exist and are reachable from three CLI
 commands. No job, no schedule, no artifact history.
 
-**The monitor cannot read job output.** `services/autonomy_monitor/artifacts.py` looks
-for governance artifacts under `local/exports/weekly_governance_*/`; the job runner
-writes them to `local/artifacts/`. It reads keys `success`, `run_timestamp`, `steps`,
-`duration_seconds`, `min_required_successes`, and `check_time`; the jobs write `status`,
-`started_at`/`finished_at`, `step_results`, `completed_steps`, `min_consecutive_days`,
-and `generated_at`. Its tests pass because they assert against fixtures written in the
-reader's imagined shape rather than real job output. Target item 6 is unmet and currently
-reports false negatives.
+**The monitor could not read job output** — fixed in Phase 2.
+`services/autonomy_monitor/artifacts.py` had looked for governance artifacts under
+`local/exports/weekly_governance_*/` while the job runner writes them to
+`local/artifacts/`, and read keys (`success`, `run_timestamp`, `steps`,
+`min_required_successes`, `check_time`) that no producer emits. Its tests passed because
+they asserted against fixtures written in the reader's imagined shape rather than real
+job output — which is why the drift survived. A contract test in the daily-job suite now
+feeds a real run artifact through the real reader, so the two cannot silently diverge
+again.
 
 ## Phases
 
@@ -96,14 +97,27 @@ Ordered by dependency. Each phase should be independently valuable.
 
 ### Phase 2 — One equity book on IBKR paper
 
-Point a single book at `interactive_brokers_paper` and let the cycle run against real
-order mechanics. Two supporting changes:
+**Code side done.** Two observability gaps closed:
 
-- Un-skip DAG steps `06_pretrade_risk_gate` and `07_submit_ibkr_orders`. They are
-  skipped with the reason that the work happens inside the auto-trading runtime — true,
-  but it means the run artifact reports nothing about submission, which is exactly what
-  needs watching once orders reach a real venue.
-- Fix the `autonomy_monitor` artifact contract so the run is observable.
+- Steps `06_pretrade_risk_gate` and `07_submit_ibkr_orders` no longer skip. The gate and
+  the submission still run inside the auto-trading runtime at step 05; these steps now
+  report on the rows that work left behind — decisions by action, and orders by status
+  with each rejection's `status_reason`. See `services/analysis/daily_report.py`.
+- The `autonomy_monitor` reader was rewritten against the real artifact contract. It had
+  been looking in `local/exports/weekly_governance_*/` for governance artifacts the runner
+  writes to `local/artifacts/`, and reading `success`/`run_timestamp`/`steps` keys that no
+  producer emits. Its tests passed because they asserted against invented fixtures, so a
+  contract test now feeds a genuine run artifact through the real reader.
+
+**Operator side remaining** — point a book at the new broker type:
+
+```sql
+UPDATE accounts SET broker_type = 'interactive_brokers_paper' WHERE name = '<book account>';
+```
+
+Then set `TRADING_IBKR_WEB_API_ACCOUNT_ID` to the `DU…` account (or `account_id` in
+`local/ibkr_web_api_config.json`), start the Client Portal Gateway, and confirm with
+`python -m scripts.ibkr_web_api_smoke_test` before the first run.
 
 Exit criterion: a run artifact showing submitted orders with broker-assigned ids, and at
 least one rejection or partial fill understood and explained.
