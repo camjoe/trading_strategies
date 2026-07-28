@@ -103,8 +103,6 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
             daily_paper_trading_fallback_time="15:45",
             daily_challenger_shadow_eval_time="12:50",
             enable_daily_challenger_shadow_eval=True,
-            daily_snapshot_time="13:30",
-            enable_daily_snapshot=True,
             health_check_time="16:00",
             weekly_db_backup_time="02:00",
             weekly_db_backup_day_of_week="Sunday",
@@ -115,16 +113,14 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
         r"Trading\DailyPaperTrading",
         r"Trading\DailyPaperTradingFallback",
         r"Trading\DailyChallengerShadowEval",
-        r"Trading\DailySnapshot",
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]
     assert tasks[1].args == ("--run-source", "scheduled-daily-fallback")
     assert tasks[2].args == ("--enable-run",)
-    assert tasks[3].args == ("--enable-run",)
-    assert tasks[4].args == ("--max-age-hours", "24.0")
-    assert tasks[5].schedule_kind == "weekly"
-    assert tasks[5].day_of_week == "Sunday"
+    assert tasks[3].args == ("--max-age-hours", "24.0")
+    assert tasks[4].schedule_kind == "weekly"
+    assert tasks[4].day_of_week == "Sunday"
 
 
 def test_build_scheduled_tasks_omits_optional_jobs_without_times() -> None:

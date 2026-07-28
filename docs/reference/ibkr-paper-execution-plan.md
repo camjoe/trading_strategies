@@ -62,12 +62,14 @@ Target item 3 requires a contract model, chain data, an IV/greeks source, multi-
 order support, options position accounting, and an options-aware risk gate. It is a
 separate program, not a phase of this one.
 
-**Intraday is blocked by the job model, not the market calendar.** `domain/market_hours.py`
-holds a real NYSE calendar including holidays and early closes, and
-`is_runtime_submission_window_open()` already gates submission to regular hours. But no
-intraday bars are fetched anywhere, and the job tier keys idempotency on a day tag
-(`day_tag`, `already_completed_today`). The dedup guard that protects the daily job is
-exactly what would block a second run in the same session.
+**Repeat runs through the session already work; intraday *data* does not.**
+`domain/market_hours.py` holds a real NYSE calendar including holidays and early closes,
+and `is_runtime_submission_window_open()` gates submission to regular hours. The daily
+job's duplicate-run guard and `--force-run` were removed, so every invocation runs and
+repeat passes through the trading day are the intended usage. What is still missing is
+intraday market data: no intraday bars are fetched anywhere, so each pass re-reads the
+same daily closes and the signals cannot change within a session. The remaining
+day-tagged idempotency lives in the governance and maintenance jobs, not the daily path.
 
 **The optimizer works but is hand-driven.** Walk-forward optimization, the promotion
 gate, and four migrations (`0021`–`0024`) exist and are reachable from three CLI
@@ -86,22 +88,21 @@ reports false negatives.
 
 Ordered by dependency. Each phase should be independently valuable.
 
-### Phase 1 — Separate IBKR paper connectivity from the real-money guard
+### Phase 1 — Separate IBKR paper connectivity from the real-money guard — **done**
 
-Add `broker_type = 'interactive_brokers_paper'`: same Web API adapter, no
+`broker_type = 'interactive_brokers_paper'`: same Web API adapter, no
 `live_trading_enabled` requirement, and a positive assertion that the configured
 `account_id` is a `DU` paper account. See [ADR 017](../adr/017-ibkr-paper-broker-type.md).
 
-Nothing else in this plan can produce real execution data until this lands.
-
 ### Phase 2 — One equity book on IBKR paper
 
-Point a single book at `interactive_brokers_paper` and let the daily cycle run against
-real order mechanics. Two supporting changes:
+Point a single book at `interactive_brokers_paper` and let the cycle run against real
+order mechanics. Two supporting changes:
 
 - Un-skip DAG steps `06_pretrade_risk_gate` and `07_submit_ibkr_orders`. They are
-  currently skipped with the reason that the work happens inside the auto-trading
-  runtime — true, but it means the run artifact reports nothing about submission.
+  skipped with the reason that the work happens inside the auto-trading runtime — true,
+  but it means the run artifact reports nothing about submission, which is exactly what
+  needs watching once orders reach a real venue.
 - Fix the `autonomy_monitor` artifact contract so the run is observable.
 
 Exit criterion: a run artifact showing submitted orders with broker-assigned ids, and at
@@ -112,11 +113,11 @@ least one rejection or partial fill understood and explained.
 Scale to the full set of equity books with distinct strategies, per-book caps, and
 per-book NAV. Mostly configuration plus whatever Phase 2 exposes.
 
-### Phase 4 — Intraday cadence
+### Phase 4 — Intraday data
 
-Replace the day-tagged job model: intraday bars, a per-slot idempotency key rather than
-per-day, and a runner that fires repeatedly through the session. This is where the job
-tier is reworked, so avoid investing in daily-cadence job structure before it.
+The runner already supports repeat passes through the session. What it lacks is a reason
+for a later pass to decide differently: intraday bars, and signal/indicator paths that
+consume them. Until then, extra passes re-read the same daily closes.
 
 ### Phase 5 — Optimizer on a schedule
 
@@ -134,13 +135,16 @@ proves it safe to go live. That is the right eventual shape, but most of it curr
 guards activity that is not happening.
 
 - Keep `paper_trading`, `trader_health`, `weekly_db_backup`.
-- Retire `daily_snapshot`: it runs the same per-account snapshot command as DAG step
-  `08_reconcile_fills_update_ledgers`, is disabled by default, and has run once.
+- `daily_snapshot` is **retired**. The daily run now reconciles and snapshots at both
+  step `01` and step `08`, and its pre-submit gate refuses to trade on a snapshot that is
+  missing or stale — so the run establishes its own equity baseline rather than depending
+  on a separate job. The retired job's retry-with-backoff moved into
+  `workflow.snapshot_account_with_retry`.
 - Park the burn-in path rather than delete it. `burn_in_status` and the
   [burn-in protocol](../runbooks/burn-in-protocol.md) become load-bearing again in
   Phase 2+ once there is a real fill history to burn in, and before real capital.
-- Do not expand the governance tier before Phase 4. Six weekly and monthly jobs review a
-  system that is not running, and four of the six have no working monitor consumer.
+- Do not expand the governance tier before Phase 3. Six weekly and monthly jobs review a
+  system that is barely running, and four of the six have no working monitor consumer.
 
 ## Open Questions
 
@@ -151,6 +155,9 @@ guards activity that is not happening.
   the simulator always fills? Unknown until Phase 2.
 - Intraday bar source for Phase 4 is undecided; the current market-data provider path is
   daily-close oriented.
+- Operators who previously registered the `Trading\DailySnapshot` scheduler task must
+  remove it by hand — `manage_job_schedules --unregister` no longer knows the name, and
+  the task now points at a deleted module.
 - Whether options execution goes through the Web API or the socket path — the socket
   path has no paper broker type today.
 

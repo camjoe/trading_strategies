@@ -21,10 +21,7 @@ export function createAdminOperationsController(): AdminOperationsController {
     try {
       const data = await getJson<OperationsOverviewResponse>("/api/admin/operations/overview");
       setHtml(output, "admin-ops-output", renderOperationsOverview(data));
-      meta.textContent =
-        `${data.jobs.length} jobs tracked · ` +
-        `${data.dailySnapshotArtifacts.length} snapshot artifacts · ` +
-        `${data.databaseBackups.length} DB backups.`;
+      meta.textContent = `${data.jobs.length} jobs tracked · ${data.databaseBackups.length} DB backups.`;
     } catch (error) {
       setOutput(output, "error", errorMessage(error, "Failed to load operations overview."));
       meta.textContent = "Operations overview unavailable.";

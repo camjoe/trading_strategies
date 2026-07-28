@@ -88,11 +88,6 @@ export function renderOperationsOverview(data: OperationsOverviewResponse): stri
     </div>
     <div class="ops-artifact-grid">
       ${renderArtifactPanel(
-        "Daily Snapshot Artifacts",
-        "No daily snapshot artifacts found in local/exports/daily_snapshots yet.",
-        data.dailySnapshotArtifacts,
-      )}
-      ${renderArtifactPanel(
         "Database Backups",
         "No database backups found in local/db_backups yet.",
         data.databaseBackups,

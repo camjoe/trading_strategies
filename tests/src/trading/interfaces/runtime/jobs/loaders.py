@@ -15,7 +15,6 @@ DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.pa
 DAILY_PAPER_TRADING_WORKFLOW_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.workflow"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.scheduling.manage_job_schedules"
-DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
@@ -36,10 +35,6 @@ def load_manage_job_schedules():
     return load_runtime_job(MANAGE_JOB_SCHEDULES_MODULE)
 
 
-def load_daily_snapshot():
-    return load_runtime_job(DAILY_SNAPSHOT_MODULE)
-
-
 def load_run_auto_trades():
     return load_runtime_job(RUN_AUTO_TRADES_MODULE)
 
@@ -51,7 +46,6 @@ def load_daily_challenger_shadow_eval():
 daily_paper_trading = load_daily_paper_trading()
 check_daily_trader_health = load_check_daily_trader_health()
 manage_job_schedules = load_manage_job_schedules()
-daily_snapshot = load_daily_snapshot()
 run_auto_trades = load_run_auto_trades()
 daily_challenger_shadow_eval = load_daily_challenger_shadow_eval()
 
@@ -67,9 +61,6 @@ def make_manage_job_schedules_args(**overrides):
         "enable_daily_challenger_shadow_eval": False,
         "auto_shadow_eval_from_daily_paper": False,
         "shadow_eval_lead_minutes": 20,
-        "daily_snapshot_time": "",
-        "daily_snapshot_task_name": r"Trading\DailySnapshot",
-        "enable_daily_snapshot": False,
         "health_check_time": "",
         "health_check_task_name": r"Trading\DailyTraderHealthCheck",
         "health_check_max_age_hours": 24.0,
@@ -82,19 +73,6 @@ def make_manage_job_schedules_args(**overrides):
         "scheduler": "auto",
         "wake_system": True,
         "env_file": "",
-    }
-    defaults.update(overrides)
-    return SimpleNamespace(**defaults)
-
-
-def make_daily_snapshot_args(**overrides):
-    defaults = {
-        "accounts": "all",
-        "force_run": False,
-        "run_source": "test-run",
-        "enable_run": True,
-        "max_attempts": 2,
-        "backoff_seconds": 0.0,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -224,27 +202,23 @@ def stub_runtime_job_basics(
 
 __all__ = [
     "CHECK_DAILY_TRADER_HEALTH_MODULE",
-    "DAILY_SNAPSHOT_MODULE",
     "MANAGE_JOB_SCHEDULES_MODULE",
     "RUN_ALL_ACCOUNTS_ARGS",
     "DAILY_PAPER_TRADING_MODULE",
     "RUN_AUTO_TRADES_MODULE",
     "DAILY_CHALLENGER_SHADOW_EVAL_MODULE",
     "check_daily_trader_health",
-    "daily_snapshot",
     "manage_job_schedules",
     "daily_paper_trading",
     "run_auto_trades",
     "daily_challenger_shadow_eval",
     "load_check_daily_trader_health",
-    "load_daily_snapshot",
     "load_manage_job_schedules",
     "load_daily_paper_trading",
     "load_run_auto_trades",
     "load_daily_challenger_shadow_eval",
     "load_runtime_job",
     "load_single_artifact_json",
-    "make_daily_snapshot_args",
     "make_daily_challenger_shadow_eval_args",
     "make_manage_job_schedules_args",
     "make_run_auto_trades_args",

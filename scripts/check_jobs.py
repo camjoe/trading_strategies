@@ -17,7 +17,6 @@ from pathlib import Path
 from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
-from trading.interfaces.runtime.jobs.daily.snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
 from trading.interfaces.runtime.jobs.maintenance.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
 
@@ -25,7 +24,6 @@ REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
 DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily.paper_trading"
-DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily.snapshot"
 WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
@@ -113,16 +111,6 @@ def _check_daily() -> dict:
         pattern="daily_paper_trading_[0-9]*_[0-9]*.log",
         sentinel=DAILY_SENTINEL,
         run_cmd=[sys.executable, "-m", DAILY_SCRIPT],
-    )
-
-
-def _check_daily_snapshot() -> dict:
-    """Return status dict for the daily snapshot job."""
-    return _check_daily_job(
-        job="Daily Snapshot",
-        pattern="daily_snapshot_[0-9]*_[0-9]*.log",
-        sentinel=DAILY_SNAPSHOT_SENTINEL,
-        run_cmd=[sys.executable, "-m", DAILY_SNAPSHOT_SCRIPT, "--enable-run"],
     )
 
 
@@ -276,10 +264,7 @@ def main() -> int:
     print(f"  Automation Job Status — {today}")
     print(f"{'=' * 50}")
 
-    daily_jobs = [
-        _check_daily(),
-        _check_daily_snapshot(),
-    ]
+    daily_jobs = [_check_daily()]
     weekly = _check_weekly()
 
     daily_ok = True
@@ -295,12 +280,7 @@ def main() -> int:
                 _trigger(daily["run_cmd"], daily["job"])
         if not weekly_ok:
             _trigger(weekly["run_cmd"], weekly["job"])
-        daily_ok = all(
-            (
-                _check_daily()["today_complete"],
-                _check_daily_snapshot()["today_complete"],
-            )
-        )
+        daily_ok = _check_daily()["today_complete"]
         weekly_ok = _check_weekly()["this_week_complete"]
     else:
         if not daily_ok or not weekly_ok:

@@ -10,6 +10,8 @@ returns the process exit code.
 from __future__ import annotations
 
 import argparse
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 from trading.interfaces.runtime.job_status import (
@@ -47,6 +49,14 @@ from trading.interfaces.runtime.notifications import notify_runtime_event
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
+# Snapshot attempts per account before the step fails. Snapshots reach market data
+# and the DB, which fail transiently far more often than permanently, and the
+# pre-submit gate refuses to trade without a fresh snapshot — so a flaky read
+# should cost a retry rather than the whole run.
+SNAPSHOT_MAX_ATTEMPTS = 3
+# Base delay for exponential backoff between snapshot attempts, in seconds.
+SNAPSHOT_BACKOFF_SECONDS = 2.0
+
 
 def run_auto_trader_group(
     log_path: Path,
@@ -74,6 +84,39 @@ def run_auto_trader_group(
     stream_command(log_path, label, auto_trader_args, repo_root)
 
 
+def snapshot_account_with_retry(
+    log_path: Path,
+    repo_root: Path,
+    account: str,
+    label: str,
+    *,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> None:
+    """Snapshot one account, retrying transient failures with backoff.
+
+    Every failure is treated as retryable — a snapshot has no failure mode worth
+    distinguishing here, it either recorded equity or it did not. Re-raises the
+    last error once ``SNAPSHOT_MAX_ATTEMPTS`` is exhausted.
+    """
+    for attempt in range(1, SNAPSHOT_MAX_ATTEMPTS + 1):
+        try:
+            stream_command(
+                log_path,
+                f"{label} snapshot {account}",
+                ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
+                repo_root,
+            )
+            return
+        except Exception as exc:
+            if attempt == SNAPSHOT_MAX_ATTEMPTS:
+                raise
+            tee_line(
+                log_path,
+                f"[{ts()}] RETRY: {label} snapshot {account} attempt {attempt}/{SNAPSHOT_MAX_ATTEMPTS} failed: {exc}",
+            )
+            sleep_fn(SNAPSHOT_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+
+
 def reconcile_and_snapshot(
     log_path: Path,
     repo_root: Path,
@@ -86,6 +129,9 @@ def reconcile_and_snapshot(
     accounts for fills the broker reported since the last pass — a no-op for
     paper accounts, load-bearing for the async socket path. *label* separates the
     pre- and post-trade passes in the log.
+
+    Snapshots retry on transient failure; an account that still fails after
+    ``SNAPSHOT_MAX_ATTEMPTS`` propagates, failing the step.
     """
     stream_command(
         log_path,
@@ -94,12 +140,7 @@ def reconcile_and_snapshot(
         repo_root,
     )
     for account in accounts:
-        stream_command(
-            log_path,
-            f"{label} snapshot {account}",
-            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
-            repo_root,
-        )
+        snapshot_account_with_retry(log_path, repo_root, account, label)
     return {"accounts": list(accounts), "count": len(accounts)}
 
 

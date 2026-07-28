@@ -11,20 +11,11 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def test_main_run_missing_triggers_new_daily_jobs(monkeypatch, capsys) -> None:
+def test_main_run_missing_triggers_incomplete_daily_job(monkeypatch, capsys) -> None:
     daily = {
         "job": "Daily Paper Trading",
-        "today_complete": True,
-        "run_cmd": ["paper"],
-        "today_ran": True,
-        "today_log": None,
-        "last_success": dt.date.today(),
-        "last_success_log": None,
-    }
-    snapshot = {
-        "job": "Daily Snapshot",
         "today_complete": False,
-        "run_cmd": ["snapshot"],
+        "run_cmd": ["paper"],
         "today_ran": False,
         "today_log": None,
         "last_success": None,
@@ -45,7 +36,6 @@ def test_main_run_missing_triggers_new_daily_jobs(monkeypatch, capsys) -> None:
     argv = ["check_jobs.py", "--run-missing"]
 
     monkeypatch.setattr(check_jobs, "_check_daily", lambda: daily)
-    monkeypatch.setattr(check_jobs, "_check_daily_snapshot", lambda: snapshot)
     monkeypatch.setattr(check_jobs, "_check_weekly", lambda: weekly)
     monkeypatch.setattr(check_jobs, "_trigger", lambda run_cmd, label: triggered.append((run_cmd, label)))
     monkeypatch.setattr(check_jobs.sys, "argv", argv)
@@ -54,7 +44,7 @@ def test_main_run_missing_triggers_new_daily_jobs(monkeypatch, capsys) -> None:
 
     assert result == 1
     assert triggered == [
-        (["snapshot"], "Daily Snapshot"),
+        (["paper"], "Daily Paper Trading"),
     ]
     output = capsys.readouterr().out
-    assert "Daily Snapshot" in output
+    assert "Daily Paper Trading" in output

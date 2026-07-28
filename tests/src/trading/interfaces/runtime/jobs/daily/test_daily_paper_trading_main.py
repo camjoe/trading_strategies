@@ -62,6 +62,8 @@ def _runtime_harness(monkeypatch):
         lambda: list(state.accounts),
     )
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.stream_command", _stream)
+    # Snapshots retry with backoff; keep the failure paths from actually sleeping.
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.SNAPSHOT_BACKOFF_SECONDS", 0)
     monkeypatch.setattr(
         f"{WORKFLOW_MODULE}.notify_runtime_event",
         lambda **kwargs: state.notifications.append(kwargs) or True,

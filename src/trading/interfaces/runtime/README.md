@@ -26,8 +26,7 @@ imported. There are four categories:
 **Scheduled entrypoints** — installed by `scheduling/manage_job_schedules.py`,
 run unattended on the host:
 
-- `jobs/daily/paper_trading` (package), `jobs/daily/snapshot`,
-  `jobs/daily/challenger_shadow_eval`,
+- `jobs/daily/paper_trading` (package), `jobs/daily/challenger_shadow_eval`,
   `jobs/daily/trader_health`, `jobs/maintenance/weekly_db_backup`
 
 **Operator entrypoints** — run by hand or on a manual cadence:
@@ -41,6 +40,8 @@ run unattended on the host:
 
 - `jobs/daily/paper_trading/run_auto_trades` (the daily DAG shells out to it; also
   runnable standalone)
+- `jobs/daily/paper_trading/reconcile_orders` (the daily DAG runs it before each
+  snapshot pass; also runnable standalone when an async broker fills late)
 
 **Libraries** — never run directly:
 
