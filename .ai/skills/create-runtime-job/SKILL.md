@@ -79,7 +79,7 @@ python -m scripts.run_checks python --suite src/trading/interfaces/runtime/jobs/
 ## Repo references
 
 - `src/trading/interfaces/runtime/jobs/job_runner/__init__.py` — the three decorators + `__all__`
-- `src/trading/interfaces/runtime/jobs/daily/snapshot.py` — daily example
+- `src/trading/interfaces/runtime/jobs/daily/challenger_shadow_eval.py` — daily example
 - `src/trading/interfaces/runtime/jobs/governance/weekly/w1_leaderboard.py` — governance example
 - `src/trading/interfaces/runtime/jobs/maintenance/weekly_db_backup.py` — maintenance example
 - `docs/reference/runtime-jobs.md` — operator-facing inventory
