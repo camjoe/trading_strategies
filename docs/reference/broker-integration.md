@@ -276,6 +276,21 @@ the fields it actually reads (open orders and executions; positions are always f
 orders and per-sub-account updates were dropped — never read, and each is another request that can
 time out.
 
+### Socket status mapping
+
+`_IB_STATUS_MAP` in `ibkr_socket/adapter.py` narrows IBKR's status vocabulary to the shared
+`OrderStatus`. Two collapses are worth knowing:
+
+- `PendingSubmit` and `PendingCancel` both map to `PENDING`, so an order waiting to transmit is
+  indistinguishable from one with a cancel in flight. Both mean *still open, keep polling*, so
+  reconciliation resolves either way.
+- `place_order` sets `SUBMITTED` on the returned order locally, without consulting IBKR. The
+  authoritative view is whatever the next `get_open_trades()` reports.
+
+`get_account_info()` has no runtime consumer — only the socket smoke test reads it. IBKR's
+`NetLiquidation` carries paper-account accruals that will not match book equity, and the equity
+reconciliation deliberately compares book equity against this repo's own snapshots instead.
+
 ### Account identity over the socket
 
 `IbkrSocketClient.managed_accounts()` reports the account ids the session can trade, which is

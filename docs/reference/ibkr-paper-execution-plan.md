@@ -116,6 +116,17 @@ was renamed with no alias, and an unrecognized `broker_type` now raises
   producer emits. Its tests passed because they asserted against invented fixtures, so a
   contract test now feeds a genuine run artifact through the real reader.
 
+**Connectivity verified 2026-07-28** against IB Gateway paper over the socket transport:
+connect, `managed_accounts()`, account summary, positions, `place_order()`, and — the one
+that matters — `get_open_trades()` reading back a just-submitted order. That run also
+found and fixed a real defect: `ib_async` gives its startup sync a 4-second budget and, by
+default, logs a timeout and connects anyway, which would have left `trades()` empty in a
+way reconciliation could not distinguish from "no open orders".
+
+**Fill handling remains unproven.** Nothing has filled, so `_normalize_ib_async_fill`, the
+`order_fills` writes, and `apply_book_fill` have still only run against fakes. That is
+what the exit criterion below actually turns on, and it needs a real execution.
+
 **Operator side remaining** — point a book at a paper venue. Either transport works; the
 full procedure is in the [IBKR Paper Trading Runbook](../runbooks/ibkr-paper-trading.md).
 

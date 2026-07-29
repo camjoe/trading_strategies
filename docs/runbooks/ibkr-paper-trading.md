@@ -104,13 +104,13 @@ Run before changing any account row. Neither check places orders or touches the 
 Web API:
 
 ```bash
-.venv/Scripts/python.exe -m scripts.ibkr_web_api_smoke_test
+python -m scripts.ibkr_web_api_smoke_test
 ```
 
 Socket (TWS paper `7497`, TWS live `7496`, IB Gateway paper `4002`, IB Gateway live `4001`):
 
 ```bash
-.venv/Scripts/python.exe -m scripts.ibkr_socket_smoke_test --port 7497 --client-id 99
+python -m scripts.ibkr_socket_smoke_test --port 7497 --client-id 99
 ```
 
 Either way, confirm the reported account id starts with `DU` — if it does not, the factory will
@@ -125,12 +125,12 @@ reconciliation depends on. Both smoke tests can place one non-marketable limit o
 comes back, and cancel it:
 
 ```bash
-./.venv/bin/python -m scripts.ibkr_socket_smoke_test --port 4002 \
+python -m scripts.ibkr_socket_smoke_test --port 4002 \
   --paper-order-check --paper-order-symbol AAPL --paper-order-limit-price 1.00
 ```
 
 ```bash
-./.venv/bin/python -m scripts.ibkr_web_api_smoke_test \
+python -m scripts.ibkr_web_api_smoke_test \
   --paper-order-check --paper-order-symbol AAPL --paper-order-limit-price 1.00
 ```
 
@@ -178,7 +178,7 @@ Switch one account first. Leave the rest on `paper` until you trust the path.
 ## Step 3 — Run and verify
 
 ```bash
-.venv/Scripts/python.exe -m trading.interfaces.runtime.jobs.daily.paper_trading --accounts momentum_5k --run-source manual
+python -m trading.interfaces.runtime.jobs.daily.paper_trading --accounts momentum_5k --run-source manual
 ```
 
 In `local/logs/daily_paper_trading_<date>_<time>.log`, check that:
@@ -195,7 +195,7 @@ you are running. Check symbols and quantities match.
 To apply fills that arrive after a run has finished, without a full run:
 
 ```bash
-.venv/Scripts/python.exe -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
 ```
 
 ## Rolling back
@@ -226,7 +226,7 @@ are still live at IBKR, but the persisted rows will only be reconciled by whiche
 account currently points at. Reconcile and settle before switching:
 
 ```bash
-.venv/Scripts/python.exe -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
 ```
 
 Confirm no orders remain open, then change `broker_type`.
@@ -267,11 +267,43 @@ silently corrupt the book. That call needs a human, so:
 A steady trickle of stale orders means runs are too infrequent relative to submissions: reconcile
 more often (`reconcile_orders` is cheap and safe to run on demand) rather than clearing rows by hand.
 
+## What has been verified against a live gateway
+
+Confirmed 2026-07-28 against IB Gateway paper (`ib_async` backend, port 4002), outside market hours:
+
+- connect and startup sync, `managed_accounts()` reporting the `DU` account, account summary, and
+  positions
+- `place_order()` returning a broker order id
+- **`get_open_trades()` reading back a just-submitted order** — the call fill reconciliation depends
+  on
+- `cancel_order()` accepted without error
+
+Still exercised only against fakes: **fill handling**. Nothing has filled, so
+`_normalize_ib_async_fill`, the `order_fills` writes, and `apply_book_fill` are unproven end to end.
+That needs an order that actually executes, during market hours, with an account pointed at a paper
+venue — steps 2 and 3 above, not the smoke test.
+
+### Reading smoke-test output correctly
+
+- The `submitted : id N status submitted` line is a **local** label. `IbkrSocketAdapter.place_order`
+  sets `SUBMITTED` on return regardless of what IBKR thinks. The `read back` line is IBKR's view.
+- Outside market hours expect `read back : status pending` (IBKR `PendingSubmit`) and a cancel that
+  does not complete. The order transmits at the next open and expires at that session's close.
+- The smoke test never writes to the database, so a test order leaves no row behind. Cancel it from
+  the Gateway UI if you would rather it not rest overnight.
+
 ## Known gaps
 
 - **Reconciliation is run-driven, not continuous.** There is no polling loop; fills land whenever the
   next run's reconcile step executes. An order filling minutes after a run stays unrecorded until the
   next one.
 - **No automatic resolution of stale rows.** By design, per the section above.
+- **`PendingSubmit` and `PendingCancel` are indistinguishable.** `_IB_STATUS_MAP` maps both to
+  `OrderStatus.PENDING`, so a cancel in flight looks identical to an order waiting to transmit. Both
+  mean *still open, keep polling*, so reconciliation resolves either way — the cost is operator
+  legibility, not correctness.
+- **Do not reconcile against IBKR's `NetLiquidation`.** `get_account_info()` has no runtime consumer
+  (only the smoke test reads it), and IBKR's paper accounting carries accruals that will not match
+  book equity. The equity reconciliation compares book equity against *our own* snapshots.
 - **The account assertion is not a capital guarantee.** It verifies the account *identifier*, not the
   gateway it reaches — see the Consequences section of [ADR 017](../adr/017-ibkr-paper-broker-type.md).
