@@ -118,6 +118,36 @@ refuse to connect in step 2. Add `--quote-tickers AAPL,MSFT` to the socket check
 market-data permissions; select the alternative native backend with
 `TRADING_IBKR_SOCKET_CLIENT_BACKEND=ibapi` (not installed by default).
 
+### Optional — prove the order round trip
+
+Reads succeeding does not prove that a submitted order can be *found again*, which is what fill
+reconciliation depends on. Both smoke tests can place one non-marketable limit order, confirm it
+comes back, and cancel it:
+
+```bash
+./.venv/bin/python -m scripts.ibkr_socket_smoke_test --port 4002 \
+  --paper-order-check --paper-order-symbol AAPL --paper-order-limit-price 1.00
+```
+
+```bash
+./.venv/bin/python -m scripts.ibkr_web_api_smoke_test \
+  --paper-order-check --paper-order-symbol AAPL --paper-order-limit-price 1.00
+```
+
+Notes:
+
+- **Use a clearly non-marketable limit price.** There is no default, deliberately: the point is an
+  order that rests where it can be observed, not one that fills.
+- The socket check refuses to submit unless every managed account is a `DU` paper account, since
+  `--host` and `--port` could otherwise aim it at a live gateway.
+- The order is cancelled afterwards. Cancellation is best-effort — outside market hours IBKR may
+  hold an order pre-submission where a cancel is rejected. Pass `--skip-paper-order-cancel` to leave
+  it resting; a DAY order expires at the close either way.
+- `FAIL read back` is the result that matters. Reconciliation calls the same `get_open_trades()`, so
+  an order it cannot see is an order whose fills would be stranded.
+- This proves the broker half only. Applying fills to the books needs a database and an account row,
+  so that half is exercised by the daily run in step 3.
+
 ## Step 2 — Point the account at IBKR paper
 
 A manual database update. No migration is needed; `accounts.broker_type` is `TEXT NOT NULL` with no
