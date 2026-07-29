@@ -16,7 +16,7 @@ Consumed by: trading.interfaces.runtime.jobs.daily.paper_trading (steps 06, 07, 
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
@@ -88,6 +88,9 @@ class AccountSubmissionSummary:
     accepted_count: int
     broker_order_ids: list[str]
     turned_away: list[OrderRecord]
+    # Orders still open from an earlier session — reconciliation could not resolve
+    # them and nothing clears them automatically.
+    stale_open: list[OrderRecord] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,7 +282,17 @@ def build_submission_summary(
     """
     per_account = []
     for account_name, account_id in _resolve_account_ids(conn, accounts):
-        orders = OrderRepository(conn).fetch_for_account_on_date(account_id=account_id, date_str=report_date)
+        repo = OrderRepository(conn)
+        orders = repo.fetch_for_account_on_date(account_id=account_id, date_str=report_date)
+        # Open orders carried over from an earlier session. A `day` order cannot
+        # still be live at the broker, so these are rows reconciliation could not
+        # resolve — see open_order_reconciliation's module docstring. They are the
+        # thing to watch: nothing clears them automatically.
+        stale_open = [
+            order
+            for order in repo.fetch_open_for_account(account_id=account_id)
+            if order.submitted_at[:10] < report_date
+        ]
         per_account.append(
             AccountSubmissionSummary(
                 account=account_name,
@@ -287,6 +300,7 @@ def build_submission_summary(
                 accepted_count=sum(1 for order in orders if order.status in _ACCEPTED_ORDER_STATUSES),
                 broker_order_ids=[order.broker_order_id for order in orders if order.broker_order_id],
                 turned_away=[order for order in orders if order.status in _TURNED_AWAY_ORDER_STATUSES],
+                stale_open=stale_open,
             )
         )
     return {
@@ -299,9 +313,12 @@ def build_submission_summary(
                 "turned_away_count": len(entry.turned_away),
                 "broker_order_ids": entry.broker_order_ids,
                 "turned_away": [_order_as_summary_row(order) for order in entry.turned_away],
+                "stale_open_count": len(entry.stale_open),
+                "stale_open": [_order_as_summary_row(order) for order in entry.stale_open],
             }
             for entry in per_account
         ],
         "order_count": sum(entry.order_count for entry in per_account),
         "turned_away_count": sum(len(entry.turned_away) for entry in per_account),
+        "stale_open_count": sum(len(entry.stale_open) for entry in per_account),
     }

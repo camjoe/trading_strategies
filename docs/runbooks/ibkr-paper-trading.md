@@ -137,11 +137,47 @@ Default ports: TWS paper `7497`, TWS live `7496`, IB Gateway paper `4002`, IB Ga
 Add `--quote-tickers AAPL,MSFT` to check market-data permissions. Select the alternative native
 backend with `TRADING_IBKR_SOCKET_CLIENT_BACKEND=ibapi` (not installed by default).
 
+## Order lifecycle
+
+**The broker expires orders, not this repo.** Orders are submitted with
+`time_in_force = 'day'` (the default on `BookTradeIntent`; the `orders` table's CHECK allows only
+`day` or `gtc`). IBKR cancels an unfilled DAY order at the close of the regular session. Nothing
+here needs to — and deliberately does not — issue an end-of-run cancel sweep.
+
+**What this repo can lose track of is its own rows.** IBKR's `/iserver/account/orders` covers the
+current day. A DAY order that expired at a previous session's close simply stops being reported, so
+reconciliation never sees it again and the persisted `orders` row would sit at `submitted`
+indefinitely.
+
+Reconciliation reports those rather than resolving them. An unreported order might have expired
+unfilled, or might have filled on a day nothing ran — and marking a filled order cancelled would
+silently corrupt the book. That call needs a human, so:
+
+- `reconcile_orders` prints a `WARNING … not reported by the broker and left unresolved` line to
+  stderr, naming each broker order id. The daily run captures stderr into its run log.
+- The daily run artifact's step `07_submit_ibkr_orders` carries `stale_open_count` and a
+  `stale_open` list — open orders carried over from an earlier session, per account.
+
+### Resolving a stale open order
+
+1. Look the order up in the Client Portal by its `broker_order_id`.
+2. **If it never filled**, close the row:
+   ```sql
+   UPDATE orders SET status = 'cancelled', status_reason = 'expired unfilled at broker',
+          updated_at = <now-iso> WHERE broker_order_id = '<id>';
+   ```
+3. **If it did fill**, do *not* hand-edit the row — the fill has to reach the book through
+   `apply_book_fill` or positions, ledger, and equity will disagree. Capture the execution details
+   and treat it as a data-repair task.
+
+A steady trickle of stale orders means runs are too infrequent relative to submissions: reconcile
+more often (`reconcile_orders` is cheap and safe to run on demand) rather than clearing rows by hand.
+
 ## Known gaps
 
-- **No automatic order expiry or end-of-day cancel.** Orders left open at IBKR stay open. Decide a
-  policy before running unattended.
 - **Reconciliation is run-driven, not continuous.** There is no polling loop; fills land whenever the
-  next run's reconcile step executes.
+  next run's reconcile step executes. An order filling minutes after a run stays unrecorded until the
+  next one.
+- **No automatic resolution of stale rows.** By design, per the section above.
 - **The account assertion is not a capital guarantee.** It verifies the account *identifier*, not the
   gateway it reaches — see the Consequences section of [ADR 017](../adr/017-ibkr-paper-broker-type.md).

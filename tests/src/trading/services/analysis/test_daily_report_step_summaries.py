@@ -109,3 +109,39 @@ class TestSubmissionSummary:
 
         assert summary["order_count"] == 0
         assert summary["accounts"][0]["turned_away"] == []
+        assert summary["stale_open_count"] == 0
+
+
+class TestStaleOpenOrders:
+    """Orders left open from an earlier session.
+
+    A `day` order cannot still be live at the broker, so one of these means
+    reconciliation never resolved the row — nothing clears them automatically,
+    which is exactly why the artifact has to say so.
+    """
+
+    def test_open_order_from_an_earlier_session_is_flagged(self, conn, report_env) -> None:
+        _insert_order(conn, report_env, status="submitted", broker_order_id="ib-stale", date=OTHER_DATE)
+
+        summary = build_submission_summary(conn, accounts=[report_env.account_name], report_date=REPORT_DATE)
+
+        assert summary["stale_open_count"] == 1
+        entry = summary["accounts"][0]
+        assert entry["stale_open"][0]["broker_order_id"] == "ib-stale"
+        # It is not one of today's orders, so it must not inflate today's counts.
+        assert entry["order_count"] == 0
+
+    def test_todays_open_order_is_not_stale(self, conn, report_env) -> None:
+        _insert_order(conn, report_env, status="submitted", broker_order_id="ib-today")
+
+        summary = build_submission_summary(conn, accounts=[report_env.account_name], report_date=REPORT_DATE)
+
+        assert summary["stale_open_count"] == 0
+        assert summary["accounts"][0]["order_count"] == 1
+
+    def test_settled_order_from_an_earlier_session_is_not_stale(self, conn, report_env) -> None:
+        _insert_order(conn, report_env, status="filled", broker_order_id="ib-done", date=OTHER_DATE)
+
+        summary = build_submission_summary(conn, accounts=[report_env.account_name], report_date=REPORT_DATE)
+
+        assert summary["stale_open_count"] == 0

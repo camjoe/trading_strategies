@@ -30,6 +30,7 @@ from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_A
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.open_order_reconciliation import (
+    ReconciliationOutcome,
     reconcile_open_orders_impl,
     resolve_reconciliation_exec_id,
 )
@@ -241,7 +242,7 @@ def reconcile_open_broker_orders(
     account: AccountRecord,
     *,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> int:
+) -> ReconciliationOutcome:
     """Poll the account broker for fill updates on all open persisted clean orders.
 
     For each open ``orders`` row the broker reports fills on, this function:
@@ -249,8 +250,9 @@ def reconcile_open_broker_orders(
         (positions/ledger/balances via the shared ``apply_book_fill``)
       - Updates the ``orders`` row status/fill state
 
-    Returns the number of orders that were newly FILLED in this call. Fills carry
-    their own costs, and account history derives from the fill rows.
+    Returns a :class:`ReconciliationOutcome` carrying the count of orders newly
+    FILLED in this call, plus any open orders the broker did not report on. Fills
+    carry their own costs, and account history derives from the fill rows.
 
     Called by the daily run before each equity snapshot. It is a no-op for paper
     accounts, which fill synchronously and report no open trades; it is what keeps

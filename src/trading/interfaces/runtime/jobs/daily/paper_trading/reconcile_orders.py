@@ -12,6 +12,7 @@ The daily workflow runs this before each of its snapshot passes.
 from __future__ import annotations
 
 import argparse
+import sys
 
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
@@ -38,12 +39,22 @@ def main() -> None:
     with db_session() as conn:
         for account_name in account_names:
             account = get_account(conn, account_name)
-            filled = reconcile_open_broker_orders(
+            outcome = reconcile_open_broker_orders(
                 conn,
                 account,
                 broker_factory=get_broker_for_account,
             )
-            print(f"{account_name}: reconciled {filled} newly filled order(s)")
+            print(f"{account_name}: reconciled {outcome.newly_filled} newly filled order(s)")
+            if outcome.has_unreported:
+                # Left open deliberately: an unreported order may have expired
+                # unfilled or may have filled on a day nothing ran, and guessing
+                # wrong would corrupt the book. An operator has to decide.
+                ids = ", ".join(outcome.unreported_broker_order_ids)
+                print(
+                    f"{account_name}: WARNING {len(outcome.unreported_broker_order_ids)} open order(s) "
+                    f"not reported by the broker and left unresolved: {ids}",
+                    file=sys.stderr,
+                )
 
 
 if __name__ == "__main__":
