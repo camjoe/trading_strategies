@@ -39,6 +39,10 @@ class IbAsyncClient:
     def is_connected(self) -> bool:
         return self._ib.isConnected()
 
+    def managed_accounts(self) -> list[str]:
+        """Account ids this session can trade. IB sends these on connect."""
+        return [str(account).strip() for account in self._ib.managedAccounts() if str(account).strip()]
+
     def place_order(self, order: IbkrOrderRequest) -> IbkrTrade:
         import ib_async  # noqa: PLC0415
 

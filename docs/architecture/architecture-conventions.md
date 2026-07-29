@@ -410,13 +410,14 @@ account is not gated on this flag — that path has its own guard, described bel
 
 2. **Never modify `broker_type`, `broker_host`, `broker_port`, or
    `broker_client_id`** to point at a live broker endpoint in any generated
-   code or automated process.  Setting `broker_type` to
-   `interactive_brokers_paper` is not a live endpoint change, but still belongs
-   to the operator — do not switch an account's execution backend unasked.
+   code or automated process.  Setting `broker_type` to one of the `_paper`
+   venues is not a live endpoint change, but still belongs to the operator — do
+   not switch an account's execution backend unasked.
 
-3. **Never catch or suppress `LiveTradingNotEnabledError` or
-   `PaperBrokerAccountMismatchError`** (from `infrastructure.brokers.factory`).
-   If either surfaces, it must propagate so the operator can investigate.
+3. **Never catch or suppress `LiveTradingNotEnabledError`,
+   `PaperBrokerAccountMismatchError`, or `UnknownBrokerTypeError`** (from
+   `infrastructure.brokers.factory`).  If any surfaces, it must propagate so the
+   operator can investigate.
 
 4. **Shared test fixtures and helper factories must default to
    `live_trading_enabled = 0`**. Tests that explicitly exercise the live guard
@@ -429,18 +430,29 @@ live broker.  No automated process — including agents, CI pipelines, or script
 
 ### IBKR paper accounts
 
-`broker_type = 'interactive_brokers_paper'` reaches the real IBKR Client Portal
-gateway without requiring `live_trading_enabled`, because an IBKR paper account
-risks no capital. In place of the real-money flag it carries a **positive
-assertion**: the configured Web API `account_id` must be an IBKR paper account
-(`DU` prefix), or the factory raises `PaperBrokerAccountMismatchError` and
-refuses to connect.
+Transport (Web API vs socket/TWS) and venue (paper vs live) are independent, so
+each transport has both: `interactive_brokers_web` / `interactive_brokers_web_paper`
+and `interactive_brokers_socket` / `interactive_brokers_socket_paper`.
+
+The `_paper` venues reach real IBKR gateways without requiring
+`live_trading_enabled`, because an IBKR paper account risks no capital. In place
+of the real-money flag they carry a **positive assertion**: the resolved IBKR
+account must be a paper account (`DU` prefix), or the factory raises
+`PaperBrokerAccountMismatchError` and refuses to connect. The Web API asserts
+before connecting (the id comes from settings); the socket asserts immediately
+after connecting (IBKR reports its account ids on connect) and disconnects on
+mismatch.
 
 Do not weaken that assertion, widen the accepted prefix set speculatively, or
 reintroduce `live_trading_enabled` as the way to reach a paper account. Adding a
 prefix is an operator-driven change made when a real account needs it.
 
-Rationale and rejected alternatives: `docs/adr/017-ibkr-paper-broker-type.md`.
+An unrecognized non-empty `broker_type` raises `UnknownBrokerTypeError` rather
+than falling through to the simulator — do not reintroduce a silent fallback,
+which would answer a broker request with fabricated fills.
+
+Rationale and rejected alternatives: `docs/adr/017-ibkr-paper-broker-type.md`
+and `docs/adr/018-broker-transport-venue-matrix.md`.
 
 Enforcement: `python -m scripts.checks.repo.live_safety_check --enforce` blocks
 state-mutating automation surfaces from setting `live_trading_enabled` to true/1

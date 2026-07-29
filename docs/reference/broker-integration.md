@@ -29,18 +29,26 @@ Broker resolution is handled in:
 
 Supported `accounts.broker_type` values:
 
-| Value | Adapter | Requires `live_trading_enabled` | Account assertion |
+Transport (how IBKR is reached) and venue (whether real money can move) are independent
+axes, so every transport has both venues — see
+[`docs/adr/018-broker-transport-venue-matrix.md`](../adr/018-broker-transport-venue-matrix.md).
+
+| Value | Transport | Requires `live_trading_enabled` | Account assertion |
 |---|---|---|---|
 | `paper` (default) | in-process simulator | no | none |
-| `interactive_brokers_paper` | IBKR Web API | **no** | `account_id` must start with `DU` |
 | `interactive_brokers_web` | IBKR Web API | yes | none (operator-owned) |
-| `interactive_brokers` | IBKR socket/TWS | yes | none (operator-owned) |
+| `interactive_brokers_web_paper` | IBKR Web API | **no** | `account_id` must start with `DU` |
+| `interactive_brokers_socket` | IBKR socket/TWS | yes | none (operator-owned) |
+| `interactive_brokers_socket_paper` | IBKR socket/TWS | **no** | every managed account must start with `DU` |
+
+Any other non-empty value raises `UnknownBrokerTypeError`. An absent or empty
+`broker_type` still defaults to `paper`.
 
 `paper` never leaves the process: `PaperBrokerAdapter` accepts every order and fills it
 in full, immediately, at the requested price, with zero commission. It produces no
 rejections, partial fills, or slippage, so its fill history is an accounting exercise
-rather than execution evidence. Use `interactive_brokers_paper` for anything intended to
-generate real operational data.
+rather than execution evidence. Use one of the `_paper` IBKR types for anything intended
+to generate real operational data.
 
 Key files:
 
@@ -68,7 +76,7 @@ Broker-related account fields:
 | `broker_host` | socket/TWS host |
 | `broker_port` | socket/TWS port |
 | `broker_client_id` | socket/TWS client id |
-| `live_trading_enabled` | hard gate required for real-money broker adapters; not required for `interactive_brokers_paper` |
+| `live_trading_enabled` | hard gate required for the live venues (`interactive_brokers_web`, `interactive_brokers_socket`); not required for the `_paper` venues |
 
 `account_kind` and `broker_type` are orthogonal:
 
@@ -98,17 +106,17 @@ the source of truth for what automated processes may and may not change.
 
 ### IBKR paper account guard
 
-`interactive_brokers_paper` reaches the same Client Portal gateway without
-`live_trading_enabled`, because no capital is at risk. It carries a different guard: the
-resolved `account_id` must be an IBKR paper account (`DU` prefix), or the factory raises
+The `_paper` broker types reach the same gateways as their live counterparts without
+`live_trading_enabled`, because no capital is at risk. They carry a different guard: the
+resolved IBKR account must be a paper account (`DU` prefix), or the factory raises
 `PaperBrokerAccountMismatchError` and refuses to connect.
 
-Setting up a paper-executing book:
+Setting up a paper-executing book on the Web API:
 
 ```sql
 -- No live_trading_enabled change required.
 UPDATE accounts
-SET broker_type = 'interactive_brokers_paper'
+SET broker_type = 'interactive_brokers_web_paper'
 WHERE name = 'my-paper-account';
 ```
 
@@ -116,7 +124,20 @@ Then point the Web API settings at the paper account
 (`TRADING_IBKR_WEB_API_ACCOUNT_ID=DU1234567`, or `account_id` in the private JSON
 config). A live account id configured against this broker type fails closed.
 
-Rationale: [`docs/adr/017-ibkr-paper-broker-type.md`](../adr/017-ibkr-paper-broker-type.md).
+The socket equivalent sets `broker_type = 'interactive_brokers_socket_paper'` plus the
+`broker_host` / `broker_port` / `broker_client_id` fields, and takes its account identity
+from IBKR rather than from configuration.
+
+**The two transports assert at different moments.** The Web API knows its account id from
+settings, so the assertion runs before connecting. The socket learns its account ids from
+IBKR on connect, so the assertion runs after: a mismatch connects, fails, and disconnects
+before returning. Connecting is not trading, so no order reaches a non-paper account
+either way. The socket check requires *every* reported managed account to be a paper
+account and treats an empty list as a failure — the session can trade any account it
+manages.
+
+Rationale: [`docs/adr/017-ibkr-paper-broker-type.md`](../adr/017-ibkr-paper-broker-type.md)
+and [`docs/adr/018-broker-transport-venue-matrix.md`](../adr/018-broker-transport-venue-matrix.md).
 
 ## IBKR Web API Configuration
 
@@ -224,7 +245,9 @@ a previously persisted reason.
 
 ## Socket/TWS Path
 
-The socket path remains available via `broker_type = 'interactive_brokers'`.
+The socket path is available at both venues: `broker_type = 'interactive_brokers_socket'`
+(real money, requires `live_trading_enabled = 1`) and
+`broker_type = 'interactive_brokers_socket_paper'` (paper account assertion, no flag).
 
 - default backend: `ib_async`
 - optional backend: `ibapi` (orders, positions, account summaries, and snapshot quotes implemented)
@@ -239,16 +262,16 @@ Default socket ports:
 - IB Gateway paper: `4002`
 - IB Gateway live: `4001`
 
-### Deferred persisted-name migration
+### Account identity over the socket
 
-Code and package names use `ibkr_socket`; the database still stores
-`broker_type = 'interactive_brokers'` for compatibility. A later migration should:
+`IbkrSocketClient.managed_accounts()` reports the account ids the session can trade, which is
+what `interactive_brokers_socket_paper` asserts on. `ib_async` exposes this as
+`IB.managedAccounts()`; the native `ibapi` client captures the `managedAccounts` callback IBKR
+sends on connect.
 
-1. add `interactive_brokers_socket` to the account constraint;
-2. rewrite existing `interactive_brokers` rows to `interactive_brokers_socket`;
-3. accept the old value temporarily as a factory alias if external configuration still uses it;
-4. update account-profile fixtures and operator configuration;
-5. remove the compatibility alias only after a repository-wide usage check and migration validation.
+The previously deferred rename landed with ADR 018: `interactive_brokers` became
+`interactive_brokers_socket` with no compatibility alias, since no account row used the old value.
+The old string now raises `UnknownBrokerTypeError` rather than silently routing to the simulator.
 
 ## Extending Broker Support
 

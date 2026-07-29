@@ -91,9 +91,16 @@ Ordered by dependency. Each phase should be independently valuable.
 
 ### Phase 1 — Separate IBKR paper connectivity from the real-money guard — **done**
 
-`broker_type = 'interactive_brokers_paper'`: same Web API adapter, no
-`live_trading_enabled` requirement, and a positive assertion that the configured
-`account_id` is a `DU` paper account. See [ADR 017](../adr/017-ibkr-paper-broker-type.md).
+Paper venues need no `live_trading_enabled`; they carry a positive assertion that the
+resolved IBKR account is a `DU` paper account instead. See
+[ADR 017](../adr/017-ibkr-paper-broker-type.md).
+
+[ADR 018](../adr/018-broker-transport-venue-matrix.md) then made this symmetric across
+transports: `interactive_brokers_web` / `interactive_brokers_web_paper` and
+`interactive_brokers_socket` / `interactive_brokers_socket_paper`. The socket takes its
+account identity from IBKR's on-connect `managedAccounts` report. `interactive_brokers`
+was renamed with no alias, and an unrecognized `broker_type` now raises
+`UnknownBrokerTypeError` instead of silently routing to the simulator.
 
 ### Phase 2 — One equity book on IBKR paper
 
@@ -109,10 +116,11 @@ Ordered by dependency. Each phase should be independently valuable.
   producer emits. Its tests passed because they asserted against invented fixtures, so a
   contract test now feeds a genuine run artifact through the real reader.
 
-**Operator side remaining** — point a book at the new broker type:
+**Operator side remaining** — point a book at a paper venue. Either transport works; the
+full procedure is in the [IBKR Paper Trading Runbook](../runbooks/ibkr-paper-trading.md).
 
 ```sql
-UPDATE accounts SET broker_type = 'interactive_brokers_paper' WHERE name = '<book account>';
+UPDATE accounts SET broker_type = 'interactive_brokers_web_paper' WHERE name = '<book account>';
 ```
 
 Then set `TRADING_IBKR_WEB_API_ACCOUNT_ID` to the `DU…` account (or `account_id` in

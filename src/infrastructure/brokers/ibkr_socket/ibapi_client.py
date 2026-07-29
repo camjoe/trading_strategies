@@ -126,11 +126,21 @@ class _IbApiCallbackState:
         self._quotes: dict[int, _NativeQuoteState] = {}
         self._background_error: RuntimeError | None = None
         self._disconnect_requested = False
+        self._managed_accounts: tuple[str, ...] = ()
 
     def record_next_order_id(self, order_id: int) -> None:
         with self._lock:
             self._next_order_id = order_id
             self.ready.set()
+
+    def record_managed_accounts(self, accounts: str) -> None:
+        """Store the comma-separated account list IBKR sends on connect."""
+        with self._lock:
+            self._managed_accounts = tuple(part.strip() for part in accounts.split(",") if part.strip())
+
+    def managed_accounts(self) -> list[str]:
+        with self._lock:
+            return list(self._managed_accounts)
 
     def reserve_order_id(self) -> int:
         with self._lock:
@@ -453,6 +463,10 @@ class IbApiClient:
     def is_connected(self) -> bool:
         return self._app is not None and self._app.isConnected()
 
+    def managed_accounts(self) -> list[str]:
+        """Account ids this session can trade, from the on-connect callback."""
+        return self._callbacks.managed_accounts()
+
     def callback_errors(self) -> tuple[IbkrApiError, ...]:
         """Return an immutable snapshot of errors received from IBKR."""
         return self._callbacks.errors()
@@ -570,6 +584,9 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
 
         def nextValidId(self, orderId: int) -> None:  # noqa: N802
             callbacks.record_next_order_id(int(orderId))
+
+        def managedAccounts(self, accountsList: str) -> None:  # noqa: N802
+            callbacks.record_managed_accounts(str(accountsList))
 
         def connectionClosed(self) -> None:  # noqa: N802
             callbacks.record_connection_closed()

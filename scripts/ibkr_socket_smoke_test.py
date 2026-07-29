@@ -4,6 +4,7 @@ Operator-run only. It connects the socket adapter straight to a locally running
 TWS or IB Gateway and performs read-only checks:
 
 - connect / is-connected
+- managed accounts, plus whether they would pass the socket paper-venue guard
 - account summary fetch
 - positions fetch
 - open-trade fetch
@@ -23,6 +24,7 @@ import argparse
 import sys
 from typing import TextIO
 
+from infrastructure.brokers.factory import IBKR_PAPER_ACCOUNT_PREFIX, is_ibkr_paper_account_id
 from infrastructure.brokers.ibkr_socket.adapter import IbkrSocketAdapter
 from infrastructure.brokers.ibkr_socket.factory import resolve_ibkr_socket_client_backend
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
@@ -68,6 +70,20 @@ def build_adapter(host: str, port: int, client_id: int) -> IbkrSocketAdapter:
     return IbkrSocketAdapter(client=client, host=host, port=port, client_id=client_id)
 
 
+def _paper_venue_verdict(managed_accounts: list[str]) -> str:
+    """Mirror the factory's socket paper guard: every account must be a paper account."""
+    if not managed_accounts:
+        return "WOULD BE REFUSED — no account reported, which proves nothing"
+    non_paper = [account for account in managed_accounts if not is_ibkr_paper_account_id(account)]
+    if non_paper:
+        return (
+            f"WOULD BE REFUSED — not a {IBKR_PAPER_ACCOUNT_PREFIX!r} account: {', '.join(non_paper)}. "
+            "This session can trade real money; if that is intended, use the "
+            "'interactive_brokers_socket' broker type and enable the live-trading flag by hand."
+        )
+    return f"ok — every account carries the {IBKR_PAPER_ACCOUNT_PREFIX!r} paper prefix"
+
+
 def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
     backend = resolve_ibkr_socket_client_backend()
     print(f"backend            : {backend}", file=out)
@@ -83,6 +99,14 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
 
     try:
         print("connect            : ok", file=out)
+
+        # This is exactly what `interactive_brokers_socket_paper` asserts on, so
+        # report the verdict here — it previews the guard without touching the DB.
+        managed_accounts = adapter.managed_accounts()
+        print(
+            f"managed accounts   : {', '.join(managed_accounts) if managed_accounts else '<none reported>'}", file=out
+        )
+        print(f"paper venue        : {_paper_venue_verdict(managed_accounts)}", file=out)
 
         account_info = adapter.get_account_info()
         print(f"account summary    : {account_info}", file=out)

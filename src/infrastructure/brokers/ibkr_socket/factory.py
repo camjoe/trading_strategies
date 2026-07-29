@@ -12,7 +12,6 @@ from infrastructure.brokers.ibkr_socket.adapter import (
 )
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
 from infrastructure.brokers.ibkr_socket.ibapi_client import IbApiClient
-from trading.domain.broker_connection import BrokerConnection
 from trading.models import AccountRecord
 
 # Named backend constants for the socket/TWS client path.
@@ -36,8 +35,8 @@ def resolve_ibkr_socket_client_backend() -> str:
     return backend
 
 
-def build_ibkr_socket_broker(account: AccountRecord) -> BrokerConnection:
-    """Build the socket/TWS Interactive Brokers adapter for *account*."""
+def build_ibkr_socket_broker(account: AccountRecord) -> IbkrSocketAdapter:
+    """Build and connect the socket/TWS Interactive Brokers adapter for *account*."""
     backend = resolve_ibkr_socket_client_backend()
     if backend == _SOCKET_BACKEND_IBAPI:
         client = IbApiClient()

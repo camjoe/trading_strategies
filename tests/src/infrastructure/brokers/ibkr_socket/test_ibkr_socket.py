@@ -70,18 +70,18 @@ def _socket_trade(**overrides) -> IbkrTrade:
 
 class TestIbkrSocketFactoryRouting:
     def test_ib_without_live_trading_enabled_raises(self):
-        account = _make_account(broker_type="interactive_brokers", live_trading_enabled=0)
+        account = _make_account(broker_type="interactive_brokers_socket", live_trading_enabled=0)
         with pytest.raises(LiveTradingNotEnabledError, match="live_trading_enabled"):
             get_broker_for_account(account)
 
     def test_ib_error_message_mentions_manual_requirement(self):
-        account = _make_account(broker_type="interactive_brokers", live_trading_enabled=0)
+        account = _make_account(broker_type="interactive_brokers_socket", live_trading_enabled=0)
         with pytest.raises(LiveTradingNotEnabledError, match="manually"):
             get_broker_for_account(account)
 
     def test_ib_with_live_trading_enabled_connects(self):
         account = _make_account(
-            broker_type="interactive_brokers",
+            broker_type="interactive_brokers_socket",
             broker_host="127.0.0.1",
             broker_port=7497,
             broker_client_id=1,
@@ -96,13 +96,13 @@ class TestIbkrSocketFactoryRouting:
         mock_client.connect.assert_called_once_with("127.0.0.1", 7497, client_id=1)
 
     def test_live_trading_enabled_missing_key_treated_as_disabled(self):
-        account = _make_account(name="old-account", broker_type="interactive_brokers")
+        account = _make_account(name="old-account", broker_type="interactive_brokers_socket")
         with pytest.raises(LiveTradingNotEnabledError):
             get_broker_for_account(account)
 
     def test_live_trading_enabled_one_is_accepted(self):
         account = _make_account(
-            broker_type="interactive_brokers",
+            broker_type="interactive_brokers_socket",
             live_trading_enabled=1,
             broker_host="127.0.0.1",
             broker_port=7497,
@@ -115,7 +115,7 @@ class TestIbkrSocketFactoryRouting:
 
     def test_ibapi_backend_uses_ib_api_client(self, monkeypatch):
         account = _make_account(
-            broker_type="interactive_brokers",
+            broker_type="interactive_brokers_socket",
             broker_host="127.0.0.1",
             broker_port=7497,
             broker_client_id=1,
@@ -130,7 +130,7 @@ class TestIbkrSocketFactoryRouting:
         assert isinstance(broker, IbkrSocketAdapter)
 
     def test_default_backend_uses_ib_async_when_environment_is_blank(self, monkeypatch):
-        account = _make_account(broker_type="interactive_brokers")
+        account = _make_account(broker_type="interactive_brokers_socket")
         mock_client = _mock_ib_client()
         monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "  ")
         with (
@@ -141,7 +141,7 @@ class TestIbkrSocketFactoryRouting:
         assert isinstance(broker, IbkrSocketAdapter)
 
     def test_backend_environment_value_is_case_and_whitespace_insensitive(self, monkeypatch):
-        account = _make_account(broker_type="interactive_brokers")
+        account = _make_account(broker_type="interactive_brokers_socket")
         mock_client = _mock_ib_client()
         monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", " IBAPI ")
         with (
@@ -152,7 +152,7 @@ class TestIbkrSocketFactoryRouting:
         assert isinstance(broker, IbkrSocketAdapter)
 
     def test_unknown_ib_backend_raises_value_error(self, monkeypatch):
-        account = _make_account(broker_type="interactive_brokers")
+        account = _make_account(broker_type="interactive_brokers_socket")
         monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "not_a_real_backend")
         with patch("infrastructure.brokers.factory._require_live_trading_enabled"):
             with pytest.raises(ValueError, match="TRADING_IBKR_SOCKET_CLIENT_BACKEND"):
@@ -181,6 +181,18 @@ class TestIbkrSocketAdapter:
         client.is_connected.return_value = False
         with pytest.raises(RuntimeError, match="not connected"):
             adapter._require_connected()
+
+    def test_managed_accounts_delegates_to_client(self):
+        adapter, client = _adapter_with_mock_client()
+        client.managed_accounts.return_value = ["DU1234567"]
+        assert adapter.managed_accounts() == ["DU1234567"]
+
+    def test_managed_accounts_requires_a_connection(self):
+        """The socket only knows its accounts once IBKR has reported them."""
+        adapter, client = _adapter_with_mock_client()
+        client.is_connected.return_value = False
+        with pytest.raises(RuntimeError, match="not connected"):
+            adapter.managed_accounts()
 
     def test_place_order_returns_submitted_status(self):
         adapter, client = _adapter_with_mock_client()
@@ -371,6 +383,30 @@ class TestIbAsyncClient:
         )
 
 
+class TestManagedAccounts:
+    """Account identity is what the socket paper venue asserts on."""
+
+    def test_ib_async_client_reports_trimmed_account_ids(self, monkeypatch):
+        backend = MagicMock()
+        backend.managedAccounts.return_value = [" DU1234567 ", "DU7654321", "", "   "]
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+
+        assert IbAsyncClient().managed_accounts() == ["DU1234567", "DU7654321"]
+
+    def test_callback_state_splits_the_comma_separated_list(self):
+        callbacks = _IbApiCallbackState()
+        callbacks.record_managed_accounts("DU1234567,DU7654321")
+        assert callbacks.managed_accounts() == ["DU1234567", "DU7654321"]
+
+    def test_callback_state_ignores_padding_and_empty_entries(self):
+        callbacks = _IbApiCallbackState()
+        callbacks.record_managed_accounts(" DU1234567 , ,DU7654321,")
+        assert callbacks.managed_accounts() == ["DU1234567", "DU7654321"]
+
+    def test_callback_state_reports_nothing_before_the_callback_arrives(self):
+        assert _IbApiCallbackState().managed_accounts() == []
+
+
 class TestIbApiClient:
     def test_native_app_builds_stock_order_and_binds_callbacks(self, monkeypatch):
         class FakeWrapper:
@@ -505,6 +541,9 @@ class TestIbApiClient:
         app.tickPrice(8, 2, 150.0, SimpleNamespace())
         app.tickPrice(8, 4, 149.5, SimpleNamespace())
         app.tickSnapshotEnd(8)
+        app.managedAccounts("DU1234567,DU7654321")
+
+        assert callbacks.managed_accounts() == ["DU1234567", "DU7654321"]
 
         order_id, contract, native_order = app.placed
         assert order_id == 42
@@ -1121,6 +1160,6 @@ class TestIbkrSocketStatusMap:
 class TestIbkrSocketLiveTradingSafety:
     def test_ib_adapter_blocked_when_flag_is_zero(self):
         for flag in (0, "0", None, False):
-            account = _make_account(broker_type="interactive_brokers", live_trading_enabled=flag)
+            account = _make_account(broker_type="interactive_brokers_socket", live_trading_enabled=flag)
             with pytest.raises(LiveTradingNotEnabledError):
                 get_broker_for_account(account)

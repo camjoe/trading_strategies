@@ -8,9 +8,16 @@ from trading.models.orders.broker_order import BrokerOrder, OrderStatus
 
 
 class _FakeAdapter:
-    def __init__(self, *, connect_error: Exception | None = None, read_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        connect_error: Exception | None = None,
+        read_error: Exception | None = None,
+        accounts: list[str] | None = None,
+    ) -> None:
         self.connect_error = connect_error
         self.read_error = read_error
+        self.accounts = ["DU1234567"] if accounts is None else accounts
         self.connected = False
         self.disconnected = False
         self.quoted: list[str] = []
@@ -22,6 +29,9 @@ class _FakeAdapter:
 
     def disconnect(self) -> None:
         self.disconnected = True
+
+    def managed_accounts(self) -> list[str]:
+        return list(self.accounts)
 
     def get_account_info(self) -> dict[str, float]:
         if self.read_error is not None:
@@ -73,6 +83,31 @@ def test_smoke_test_reports_read_only_results(monkeypatch) -> None:
     assert "1 symbol(s)" in output
     assert "MSFT buy qty=3.0" in output
     assert "PASS" in output
+
+
+def test_paper_venue_verdict_passes_for_paper_accounts(monkeypatch) -> None:
+    code, output = _run(monkeypatch, _FakeAdapter(accounts=["DU1234567", "DU7654321"]))
+
+    assert code == 0
+    assert "DU1234567, DU7654321" in output
+    assert "paper venue        : ok" in output
+
+
+def test_paper_venue_verdict_flags_a_live_account(monkeypatch) -> None:
+    """The preview must mirror the factory guard, including the all-accounts rule."""
+    code, output = _run(monkeypatch, _FakeAdapter(accounts=["DU1234567", "U7654321"]))
+
+    # Read-only checks still succeed — the verdict is advisory, not a failure.
+    assert code == 0
+    assert "WOULD BE REFUSED" in output
+    assert "U7654321" in output
+
+
+def test_paper_venue_verdict_flags_an_empty_account_list(monkeypatch) -> None:
+    _, output = _run(monkeypatch, _FakeAdapter(accounts=[]))
+
+    assert "<none reported>" in output
+    assert "WOULD BE REFUSED" in output
 
 
 def test_quotes_are_requested_only_when_tickers_given(monkeypatch) -> None:
