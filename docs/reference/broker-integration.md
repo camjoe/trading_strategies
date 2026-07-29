@@ -262,6 +262,20 @@ Default socket ports:
 - IB Gateway paper: `4002`
 - IB Gateway live: `4001`
 
+### Socket startup sync
+
+`ib_async` serves `trades()`, `positions()`, and fill data from caches populated by a one-off
+startup sync during `connect()` — nothing re-requests them later. By default that sync has a 4-second
+budget and, on timeout, logs an error and connects anyway. IB Gateway routinely exceeds 4 seconds,
+especially shortly after it starts.
+
+A silently failed open-orders sync is not cosmetic: it leaves `trades()` empty in a way
+reconciliation cannot distinguish from "no open orders", so fills would be stranded. `IbAsyncClient`
+therefore connects with a longer timeout, `raiseSyncErrors=True`, and a `fetchFields` set trimmed to
+the fields it actually reads (open orders and executions; positions are always fetched). Completed
+orders and per-sub-account updates were dropped — never read, and each is another request that can
+time out.
+
 ### Account identity over the socket
 
 `IbkrSocketClient.managed_accounts()` reports the account ids the session can trade, which is

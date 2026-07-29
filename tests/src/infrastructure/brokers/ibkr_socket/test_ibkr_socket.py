@@ -31,6 +31,17 @@ from tests.support.account_records import make_account_record
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
 
 
+class _FakeStartupFetch:
+    """Stand-in for `ib_async.StartupFetch`; the real one is an IntFlag."""
+
+    POSITIONS = 1
+    ORDERS_OPEN = 2
+    ORDERS_COMPLETE = 4
+    ACCOUNT_UPDATES = 8
+    SUB_ACCOUNT_UPDATES = 16
+    EXECUTIONS = 32
+
+
 def _make_account(**kwargs):
     return make_account_record(**kwargs)
 
@@ -344,6 +355,7 @@ class TestIbAsyncClient:
             IB=MagicMock(return_value=backend),
             Stock=MagicMock(return_value="stock-contract"),
             Order=MagicMock(return_value="order-object"),
+            StartupFetch=_FakeStartupFetch,
         )
         monkeypatch.setitem(sys.modules, "ib_async", fake_module)
 
@@ -367,7 +379,10 @@ class TestIbAsyncClient:
         assert client.quotes(["AAPL"]) == [IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)]
         client.disconnect()
 
-        backend.connect.assert_called_once_with("127.0.0.1", 7497, clientId=7)
+        # Connect kwargs are asserted in TestIbAsyncConnect; here only the
+        # target matters.
+        assert backend.connect.call_args.args == ("127.0.0.1", 7497)
+        assert backend.connect.call_args.kwargs["clientId"] == 7
         backend.disconnect.assert_called_once_with()
         backend.cancelOrder.assert_called_once_with(sdk_trade.order)
         assert fake_module.Stock.call_args_list == [
@@ -381,6 +396,54 @@ class TestIbAsyncClient:
             lmtPrice=0.0,
             tif="DAY",
         )
+
+
+class TestIbAsyncConnect:
+    """The startup sync fills the caches `trades()` and `positions()` read.
+
+    ib_async logs a sync timeout and connects anyway, which would leave
+    `trades()` empty in a way reconciliation cannot distinguish from "no open
+    orders". Observed against a real IB Gateway, whose sync exceeded the 4s
+    default.
+    """
+
+    @staticmethod
+    def _connect_kwargs(monkeypatch) -> dict:
+        backend = MagicMock()
+        monkeypatch.setitem(
+            sys.modules,
+            "ib_async",
+            SimpleNamespace(IB=MagicMock(return_value=backend), StartupFetch=_FakeStartupFetch),
+        )
+        IbAsyncClient().connect("127.0.0.1", 4002, client_id=7)
+        return backend.connect.call_args.kwargs
+
+    def test_sync_failures_are_raised_rather_than_logged(self, monkeypatch):
+        assert self._connect_kwargs(monkeypatch)["raiseSyncErrors"] is True
+
+    def test_connect_timeout_exceeds_the_ib_async_default(self, monkeypatch):
+        assert self._connect_kwargs(monkeypatch)["timeout"] > 4
+
+    def test_only_the_fields_this_client_reads_are_fetched(self, monkeypatch):
+        # Completed orders and sub-account updates are never read, and each is
+        # another request that can time out.
+        fetch_fields = self._connect_kwargs(monkeypatch)["fetchFields"]
+        assert fetch_fields & _FakeStartupFetch.ORDERS_OPEN
+        assert fetch_fields & _FakeStartupFetch.EXECUTIONS
+        assert not fetch_fields & _FakeStartupFetch.ORDERS_COMPLETE
+        assert not fetch_fields & _FakeStartupFetch.SUB_ACCOUNT_UPDATES
+
+    def test_host_port_and_client_id_are_still_forwarded(self, monkeypatch):
+        backend = MagicMock()
+        monkeypatch.setitem(
+            sys.modules,
+            "ib_async",
+            SimpleNamespace(IB=MagicMock(return_value=backend), StartupFetch=_FakeStartupFetch),
+        )
+        IbAsyncClient().connect("10.0.0.5", 4002, client_id=7)
+        args, kwargs = backend.connect.call_args
+        assert args == ("10.0.0.5", 4002)
+        assert kwargs["clientId"] == 7
 
 
 class TestManagedAccounts:

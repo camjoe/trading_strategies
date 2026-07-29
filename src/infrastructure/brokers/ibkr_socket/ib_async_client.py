@@ -14,6 +14,10 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrTrade,
 )
 
+# ib_async defaults to 4 seconds for the whole startup sync, which IB Gateway
+# routinely exceeds — especially in the minutes after it starts.
+_CONNECT_TIMEOUT_SECONDS = 20.0
+
 
 class IbAsyncClient:
     """IBKR socket client backed by ``ib_async``.
@@ -31,7 +35,27 @@ class IbAsyncClient:
         self._ib = ib_async.IB()
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
-        self._ib.connect(host, port, clientId=client_id)
+        import ib_async  # noqa: PLC0415
+
+        # `trades()`, `positions()`, and their fills are all served from caches
+        # this startup sync fills — nothing re-requests them later. So a sync
+        # timeout is not cosmetic: it leaves `trades()` empty in a way that is
+        # indistinguishable from "no open orders", which would strand fills
+        # during reconciliation. ib_async logs and continues by default;
+        # `raiseSyncErrors` makes that failure loud instead.
+        #
+        # Only the fields this client actually reads are fetched. Completed
+        # orders and per-sub-account updates are never read, and each one is
+        # another request that can time out. Positions are always fetched by
+        # ib_async regardless of the flags.
+        self._ib.connect(
+            host,
+            port,
+            clientId=client_id,
+            timeout=_CONNECT_TIMEOUT_SECONDS,
+            raiseSyncErrors=True,
+            fetchFields=ib_async.StartupFetch.ORDERS_OPEN | ib_async.StartupFetch.EXECUTIONS,
+        )
 
     def disconnect(self) -> None:
         self._ib.disconnect()
