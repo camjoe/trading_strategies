@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from trading.models import AccountState
@@ -101,6 +102,54 @@ def choose_buy_qty(
         return 0
 
     return int(spendable_budget // price)
+
+
+def allocate_buy_quantities(
+    sized_buys: Sequence[tuple[str, float, int]],
+    *,
+    cash: float,
+    fee_per_trade: float,
+) -> dict[str, int]:
+    """Fund one bar's buy signals, scaling proportionally when cash cannot cover them all.
+
+    *sized_buys* is ``(ticker, execution_price, requested_qty)`` per signaled
+    ticker, already sized by :func:`choose_buy_qty` against the book's policy.
+    Returns the quantity actually funded per ticker, omitting any that cannot
+    afford a single share.
+
+    A buy signal carries no conviction — every "buy" on a bar is equally
+    preferred, because that is all the strategy said. So when cash binds, the
+    engine must not invent a preference between them. Funding requests one at a
+    time in list order silently hands the cash to whichever tickers happen to
+    come first, which is a property of the iteration order rather than of the
+    strategy; sorted input makes that the alphabet. Proportional scaling is the
+    allocation that asserts no ordering, and it is order-independent by
+    construction: each ticker's share depends only on its own request and the
+    total.
+
+    When the requests fit, every ticker gets exactly what it asked for and this
+    is a no-op. Integer share counts mean the allocation can leave a little cash
+    unspent; that is left uninvested rather than handed to an arbitrary winner.
+    """
+    requests = [(ticker, price, qty) for ticker, price, qty in sized_buys if qty >= 1 and price > 0]
+    if not requests:
+        return {}
+
+    costs = {ticker: (qty * price) + fee_per_trade for ticker, price, qty in requests}
+    total_cost = sum(costs.values())
+    if total_cost <= cash:
+        return {ticker: qty for ticker, _price, qty in requests}
+
+    granted: dict[str, int] = {}
+    for ticker, price, requested_qty in requests:
+        share = cash * (costs[ticker] / total_cost)
+        spendable = share - fee_per_trade
+        if spendable < price:
+            continue
+        affordable = min(int(spendable // price), requested_qty)
+        if affordable >= 1:
+            granted[ticker] = affordable
+    return granted
 
 
 def choose_sell_qty(position_qty: float) -> int:

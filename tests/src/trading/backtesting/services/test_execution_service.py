@@ -170,21 +170,27 @@ def _patched_run_backtest(
     resolve_signal_fn,
     choose_buy_qty_fn=None,
     account: dict | None = None,
+    insert_trade_fn=None,
 ):
-    """Run a minimal backtest with all I/O patched; returns BacktestResult."""
+    """Run a minimal backtest with all I/O patched; returns BacktestResult.
+
+    The universe is taken from ``close_data`` so multi-ticker bars — where cash
+    has to be shared between simultaneous buy signals — can be exercised.
+    """
     if account is None:
         account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
+    tickers = list(close_data)
     kwargs = dict(
         conn=SimpleNamespace(commit=lambda: None),
         cfg=_base_cfg(),
         get_account_fn=lambda _conn, _name: account,
         resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
         warnings_for_config_fn=lambda _account, _allow: [],
-        resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
+        resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
         fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(close_data, index=idx),
         fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
         insert_run_fn=lambda *_args, **_kwargs: 1,
-        insert_trade_fn=lambda *_args, **_kwargs: None,
+        insert_trade_fn=insert_trade_fn or (lambda *_args, **_kwargs: None),
         insert_snapshot_fn=lambda *_args, **_kwargs: None,
         get_default_book_fn=lambda _conn, *, account_id: None,
     )
@@ -232,8 +238,13 @@ def test_execution_service_buy_skip_when_qty_less_than_one() -> None:
     assert result.trade_count == 0
 
 
-def test_execution_service_buy_skip_when_required_exceeds_cash() -> None:
-    """Buy signal is ignored when required cost exceeds available cash (line 155)."""
+def test_execution_service_buy_is_scaled_down_when_required_exceeds_cash() -> None:
+    """A request larger than cash is funded down to what cash affords, not dropped.
+
+    Cash-constrained buys are partially filled rather than skipped, so the bar
+    spends what it has instead of leaving it idle. ``choose_buy_qty`` already
+    caps at available cash in production; this covers the guard behind it.
+    """
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
     result = _patched_run_backtest(
         idx,
@@ -242,7 +253,9 @@ def test_execution_service_buy_skip_when_required_exceeds_cash() -> None:
         # 1000 shares × $100 = $100 000, far exceeds the $1 000 starting cash.
         choose_buy_qty_fn=lambda *_args, **_kwargs: 1000,
     )
-    assert result.trade_count == 0
+    assert result.trade_count == 1
+    # $1 000 buys 9 shares at $100 plus slippage; never more than cash allows.
+    assert result.ending_equity <= 1000.0
 
 
 # ---------------------------------------------------------------------------
@@ -333,3 +346,96 @@ def test_warmup_enables_signals_in_a_short_window() -> None:
     # Either way, the reported period is the scoring window, not the warm-up lead-in.
     assert cold.start_date == scoring_start.isoformat()
     assert warm.start_date == scoring_start.isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Cash allocation across simultaneous buy signals
+# ---------------------------------------------------------------------------
+
+
+def _recorded_trades():
+    trades: list[tuple[str, str, float]] = []
+
+    def record(_conn, _run_id, _trade_time, ticker, side, qty, *_args, **_kwargs):
+        trades.append((ticker, side, qty))
+
+    return trades, record
+
+
+def test_simultaneous_buys_share_cash_instead_of_funding_alphabetically() -> None:
+    """Two equal buy signals, cash for one: both are funded, neither is preferred.
+
+    Funding requests in iteration order would give AAAA its full position and
+    ZZZZ nothing — an outcome decided by the alphabet rather than the strategy.
+    """
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    trades, record = _recorded_trades()
+    _patched_run_backtest(
+        idx,
+        {"AAAA": [100.0, 100.0, 100.0], "ZZZZ": [100.0, 100.0, 100.0]},
+        lambda *_args, **_kwargs: "buy",
+        # Each ticker asks for the entire $1 000 of starting cash.
+        choose_buy_qty_fn=lambda *_args, **_kwargs: 10,
+        insert_trade_fn=record,
+    )
+
+    buys = {ticker: qty for ticker, side, qty in trades if side == "buy"}
+    assert set(buys) == {"AAAA", "ZZZZ"}
+    assert buys["AAAA"] == buys["ZZZZ"]
+
+
+def test_buy_ordering_does_not_change_the_outcome() -> None:
+    """The same signals must allocate identically whichever order they arrive in."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    forward, record_forward = _recorded_trades()
+    _patched_run_backtest(
+        idx,
+        {"AAAA": [100.0, 100.0, 100.0], "ZZZZ": [50.0, 50.0, 50.0]},
+        lambda *_args, **_kwargs: "buy",
+        choose_buy_qty_fn=lambda _cash, price, *_args, **_kwargs: int(800 // price),
+        insert_trade_fn=record_forward,
+    )
+    reverse, record_reverse = _recorded_trades()
+    _patched_run_backtest(
+        idx,
+        {"ZZZZ": [50.0, 50.0, 50.0], "AAAA": [100.0, 100.0, 100.0]},
+        lambda *_args, **_kwargs: "buy",
+        choose_buy_qty_fn=lambda _cash, price, *_args, **_kwargs: int(800 // price),
+        insert_trade_fn=record_reverse,
+    )
+
+    assert sorted(forward) == sorted(reverse)
+
+
+def test_sell_proceeds_fund_the_same_bar_regardless_of_ticker_order() -> None:
+    """A sell frees cash for every buy on the bar, not only later tickers.
+
+    ZZZZ is sold and AAAA bought on the same bar; sorted iteration reaches AAAA
+    first, so interleaving the two would have hidden ZZZZ's proceeds from it.
+    """
+    idx = pd.date_range("2026-01-01", periods=4, freq="B")
+    trades, record = _recorded_trades()
+
+    def scripted(_strategy, history, _params, _features=None):
+        """Buy ZZZZ on the first bar, then swap into AAAA on every later bar.
+
+        The two tickers are priced apart so the signal can tell them apart from
+        the history alone — ``evaluate_signal`` is not given the ticker.
+        """
+        is_zzzz = float(history.iloc[-1]) < 75.0
+        if len(history) <= 1:
+            return "buy" if is_zzzz else "hold"
+        return "sell" if is_zzzz else "buy"
+
+    _patched_run_backtest(
+        idx,
+        {"AAAA": [100.0] * 4, "ZZZZ": [50.0] * 4},
+        scripted,
+        # Spend everything available, so AAAA is affordable only once ZZZZ has sold.
+        choose_buy_qty_fn=lambda cash, price, *_args, **_kwargs: int(cash // price),
+        insert_trade_fn=record,
+    )
+
+    assert ("ZZZZ", "buy", 20.0) in trades
+    assert any(ticker == "ZZZZ" and side == "sell" for ticker, side, _qty in trades)
+    assert any(ticker == "AAAA" and side == "buy" for ticker, side, _qty in trades)

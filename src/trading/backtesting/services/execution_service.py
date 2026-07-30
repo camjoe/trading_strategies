@@ -17,7 +17,10 @@ from trading.backtesting.domain.simulation_math import (
 )
 from trading.backtesting.domain.windowing import shift_months
 from trading.backtesting.models import BacktestResult
-from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
+from trading.domain.auto_trading_policy import (
+    allocate_buy_quantities as default_allocate_buy_quantities,
+    choose_buy_qty as default_choose_buy_qty,
+)
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
@@ -49,6 +52,7 @@ def run_backtest(
     insert_trade_fn,
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
+    allocate_buy_quantities_fn: Callable[..., dict[str, int]] = default_allocate_buy_quantities,
     get_default_book_fn: Callable[..., Any] = get_default_book,
     feature_provider: FeatureDataProvider | None = None,
 ) -> BacktestResult:
@@ -159,107 +163,119 @@ def run_backtest(
             held_tickers = [ticker for ticker, qty in positions.items() if qty > 0]
             strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
 
+            # A bar resolves in three phases: decide, then sell, then buy. Deciding
+            # first keeps every signal a function of the same pre-trade state.
+            # Selling before buying makes the day's proceeds available to every
+            # buy rather than only to tickers later in the iteration order.
+            signals = {}
             for ticker in strategy_tickers:
                 history = close.loc[:signal_date, ticker].dropna()
                 feature_history = (
                     None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
                 )
-                signal = evaluate_signal(strategy_name, history, effective_params, feature_history)
+                signals[ticker] = evaluate_signal(strategy_name, history, effective_params, feature_history)
 
-                if signal == "buy" and ticker not in active_tickers:
+            for ticker in strategy_tickers:
+                if signals[ticker] != "sell" or positions[ticker] <= 0:
+                    continue
+                px = float(trade_prices[ticker])
+                if px <= 0:
                     continue
 
-                if signal == "buy" and positions[ticker] <= 0:
-                    px = float(trade_prices[ticker])
-                    if px <= 0:
-                        continue
+                exec_px = px * slippage_multiplier_sell
+                qty_float = float(positions[ticker])
+                if qty_float <= 0:
+                    continue
 
-                    exec_px = px * slippage_multiplier_buy
-                    if exec_px <= 0:
-                        continue
+                cash, realized_pnl = update_on_sell(
+                    ticker,
+                    qty_float,
+                    exec_px,
+                    cfg.fee_per_trade,
+                    positions,
+                    avg_cost,
+                    cash,
+                    realized_pnl,
+                )
+                trade_count += 1
+                insert_trade_fn(
+                    conn,
+                    run_id,
+                    trade_date.date().isoformat(),
+                    ticker,
+                    "sell",
+                    qty_float,
+                    exec_px,
+                    cfg.fee_per_trade,
+                    cfg.slippage_bps,
+                    "signal=sell",
+                )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "sell",
+                        "qty": qty_float,
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
+                )
 
-                    qty_int = choose_buy_qty_fn(
-                        cash,
-                        exec_px,
-                        cfg.fee_per_trade,
-                        trade_size_pct=default_book.trade_size_pct if default_book is not None else None,
-                        max_position_pct=default_book.max_position_pct if default_book is not None else None,
-                        current_position_value=float(positions[ticker]) * px,
-                        portfolio_equity=cash + compute_market_value(positions, trade_prices.to_dict()),
-                    )
-                    if qty_int < 1:
-                        continue
+            # Every buy on this bar is sized against the same post-sell equity, so
+            # sizing does not drift as earlier buys in the list execute.
+            post_sell_equity = cash + compute_market_value(positions, trade_prices.to_dict())
+            sized_buys: list[tuple[str, float, int]] = []
+            for ticker in strategy_tickers:
+                if signals[ticker] != "buy" or ticker not in active_tickers or positions[ticker] > 0:
+                    continue
+                px = float(trade_prices[ticker])
+                if px <= 0:
+                    continue
+                exec_px = px * slippage_multiplier_buy
+                if exec_px <= 0:
+                    continue
+                requested_qty = choose_buy_qty_fn(
+                    cash,
+                    exec_px,
+                    cfg.fee_per_trade,
+                    trade_size_pct=default_book.trade_size_pct if default_book is not None else None,
+                    max_position_pct=default_book.max_position_pct if default_book is not None else None,
+                    current_position_value=float(positions[ticker]) * px,
+                    portfolio_equity=post_sell_equity,
+                )
+                if requested_qty >= 1:
+                    sized_buys.append((ticker, exec_px, requested_qty))
 
-                    required = (qty_int * exec_px) + cfg.fee_per_trade
-                    if required > cash:
-                        continue
+            granted = allocate_buy_quantities_fn(sized_buys, cash=cash, fee_per_trade=cfg.fee_per_trade)
+            for ticker, exec_px, requested_qty in sized_buys:
+                qty_int = granted.get(ticker, 0)
+                if qty_int < 1:
+                    continue
 
-                    cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
-                    trade_count += 1
-                    insert_trade_fn(
-                        conn,
-                        run_id,
-                        trade_date.date().isoformat(),
-                        ticker,
-                        "buy",
-                        float(qty_int),
-                        exec_px,
-                        cfg.fee_per_trade,
-                        cfg.slippage_bps,
-                        "signal=buy",
-                    )
-                    executed_trades.append(
-                        {
-                            "ticker": ticker,
-                            "side": "buy",
-                            "qty": float(qty_int),
-                            "price": exec_px,
-                            "fee": cfg.fee_per_trade,
-                        }
-                    )
-
-                if signal == "sell" and positions[ticker] > 0:
-                    px = float(trade_prices[ticker])
-                    if px <= 0:
-                        continue
-
-                    exec_px = px * slippage_multiplier_sell
-                    qty_float = float(positions[ticker])
-                    if qty_float <= 0:
-                        continue
-
-                    cash, realized_pnl = update_on_sell(
-                        ticker,
-                        qty_float,
-                        exec_px,
-                        cfg.fee_per_trade,
-                        positions,
-                        avg_cost,
-                        cash,
-                        realized_pnl,
-                    )
-                    trade_count += 1
-                    insert_trade_fn(
-                        conn,
-                        run_id,
-                        trade_date.date().isoformat(),
-                        ticker,
-                        "sell",
-                        qty_float,
-                        exec_px,
-                        cfg.fee_per_trade,
-                        cfg.slippage_bps,
-                        "signal=sell",
-                    )
-                    executed_trades.append(
-                        {
-                            "ticker": ticker,
-                            "side": "sell",
-                            "qty": qty_float,
-                            "price": exec_px,
-                            "fee": cfg.fee_per_trade,
-                        }
-                    )
+                cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
+                trade_count += 1
+                insert_trade_fn(
+                    conn,
+                    run_id,
+                    trade_date.date().isoformat(),
+                    ticker,
+                    "buy",
+                    float(qty_int),
+                    exec_px,
+                    cfg.fee_per_trade,
+                    cfg.slippage_bps,
+                    # Record when the bar's cash could not fund the full signal set —
+                    # otherwise a scaled position looks like the strategy asked for less.
+                    "signal=buy" if qty_int == requested_qty else "signal=buy (cash-scaled)",
+                )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "buy",
+                        "qty": float(qty_int),
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
+                )
 
             marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
             market_value = compute_market_value(positions, marks)
