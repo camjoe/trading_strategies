@@ -56,10 +56,34 @@ def test_read_returns_cache_miss_when_cached_type_is_wrong(tmp_path: Path, monke
     key = market_data_cache_key("test", ticker="WRONG_TYPE")
     cache_path = tmp_path / f"{key}.pkl"
     with cache_path.open("wb") as f:
-        pickle.dump({"not": "a dataframe"}, f)
+        pickle.dump("not market data at all", f)
 
     result = read_market_data_cache(key)
     assert result is _CACHE_MISS
+
+
+def test_bar_history_survives_the_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bar history is a dict of per-ticker frames, and must not read back as a miss.
+
+    A frame/series-only type guard accepted the write and rejected the read, so
+    every bar-history fetch re-downloaded: slow, a drain on the request budget,
+    and non-deterministic, because the vendor re-derives adjusted prices between
+    calls.
+    """
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    key = market_data_cache_key("bar-history", tickers=["AAPL", "MSFT"])
+    frames = {
+        "AAPL": pd.DataFrame({"close": [100.0, 101.0]}),
+        "MSFT": pd.DataFrame({"close": [200.0, 202.0]}),
+    }
+
+    write_market_data_cache(key, frames)
+    result = read_market_data_cache(key)
+
+    assert isinstance(result, dict)
+    assert set(result) == {"AAPL", "MSFT"}
+    for ticker, frame in frames.items():
+        pd.testing.assert_frame_equal(result[ticker], frame)
 
 
 def test_write_then_read_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

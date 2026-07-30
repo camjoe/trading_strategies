@@ -50,7 +50,15 @@ def market_data_cache_path(cache_key: str) -> Path:
     return market_data_cache_dir() / f"{cache_key}.pkl"
 
 
-def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
+# What a cache entry is allowed to hold. Bar history is a dict of per-ticker
+# frames, so a frame/series-only guard silently turned every bar-history read
+# into a miss — the entry was written, rejected on read, and re-downloaded every
+# time. The check is a sanity guard against a corrupt or foreign pickle, not a
+# schema: widen it whenever a provider starts caching a new shape.
+_CACHEABLE_TYPES = (pd.DataFrame, pd.Series, dict)
+
+
+def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | dict | object:
     if market_data_cache_disabled():
         return _CACHE_MISS
 
@@ -68,12 +76,12 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     except OSError, pickle.UnpicklingError, EOFError:
         return _CACHE_MISS
 
-    if not isinstance(cached, (pd.DataFrame, pd.Series)):
+    if not isinstance(cached, _CACHEABLE_TYPES):
         return _CACHE_MISS
     return cached
 
 
-def write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series) -> None:
+def write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series | dict) -> None:
     if market_data_cache_disabled():
         return
 
