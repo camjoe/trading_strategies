@@ -234,11 +234,63 @@ The ceiling belongs to the synchronous route, not to the optimizer. `backtest-op
 takes an unbounded `--candidate-budget` because nothing is waiting on a socket — run large sweeps
 there.
 
+## Bar Data
+
+The engine reads **whole daily bars**, not closing prices. `MarketDataProvider.fetch_bar_history`
+returns one frame per ticker with `open/high/low/close/volume` (the vocabulary is
+`trading.models.market_data.constants`), and `backtesting/domain/bars.py` aligns them onto a single
+calendar as a `BarPanel`.
+
+Three alignment rules, each chosen to avoid inventing data:
+
+- **The calendar is the union** of every ticker's trading days, not the intersection, so one ticker
+  going quiet cannot truncate the run for the rest.
+- **On a day a ticker has no bar its prices carry forward and its volume is zero.** The last trade
+  stays the best estimate of value; a carried-forward volume would assert trading that never
+  happened, and any liquidity filter reading it would be reading an invention.
+- **Days before a ticker's first bar stay empty.** Back-filling would fabricate prices from before
+  the listing existed. The engine skips a ticker until it has a finite positive price
+  (`_tradeable_price`) rather than trading on a missing one.
+
+Signals and pricing still read the close column, so high, low and volume are available but not yet
+used. Reaching them from a signal requires a contract change — signal functions currently receive a
+close series only.
+
+## Execution Order Within a Bar
+
+A bar resolves in three phases: **evaluate every signal, then execute all sells, then execute buys.**
+
+Deciding first keeps every signal a function of the same pre-trade state. Selling before buying makes
+the day's proceeds available to every buy — previously buys and sells were interleaved in one
+ticker-ordered pass, so cash freed by selling a ticker only reached tickers sorted after it.
+
+When cash cannot fund every buy signal, `allocate_buy_quantities`
+(`trading/domain/auto_trading_policy.py`) **scales the whole set proportionally** rather than funding
+requests in order until the cash runs out. A buy signal carries no conviction — every "buy" on a bar
+is equally preferred, because that is all the strategy said — so any ordering the engine picks is
+information the strategy never supplied. Funding in sorted order made the funded names the ones early
+in the alphabet, consistently, in every run and window. Proportional scaling is order-independent by
+construction: each ticker's share depends only on its own request and the total.
+
+Consequences worth knowing:
+
+- Buys are sized against one **post-sell** portfolio equity, not an equity that drifts as earlier
+  buys in the list fill.
+- A cash-constrained buy is **partially filled**, not dropped, and is logged as
+  `signal=buy (cash-scaled)` so a shrunken position is not mistaken for a smaller signal.
+- **Results from before this change are not comparable.** The bias was correlated with ticker naming
+  and nothing else, so it did not average out across runs.
+
 ## Safeguards and Approximation Notes
 
 - Signals use prior-day data and execute on the next bar to reduce look-ahead bias.
-- Daily adjusted close data is used; intraday path is not modeled.
-- Stop-loss and take-profit behavior is approximate when evaluated on daily bars.
+- Daily adjusted bars are used; the intraday path within a bar is not modeled.
+- Stop-loss and take-profit behavior is approximate when evaluated on daily bars. High and low are
+  now available, so a level can be known to have been *reached*; the order in which the high and low
+  occurred within the session still cannot be recovered.
+- Equity is marked at closes, so reported max drawdown is a close-to-close figure and is optimistic
+  against true intraday drawdown. This matters beyond reporting: the optimizer's `calmar_v1`
+  objective divides by that drawdown, so the promotion gate reads the same flattered number.
 - LEAPs mode is approximate and requires explicit opt-in (`--allow-approximate-leaps`).
 - Survivorship bias can occur if ticker universes are based only on present-day symbols.
 

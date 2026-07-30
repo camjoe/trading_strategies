@@ -21,17 +21,21 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `optimization_repository.py`: walk-forward optimization experiment persistence (Tier-1: config, winner, holdout summary, promoted link).
 
 - `services/`: business flow, model mapping, orchestration.
-  - `backtest_data_service.py`: date resolution and market/universe data composition.
+  - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
+    is the engine's read; `fetch_close_history` still serves the benchmark series and the proxy
+    feature provider.
   - `execution_service.py`: single-run backtest orchestration.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
   - `report_service.py`: full report assembly into typed report models.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
 
 - `domain/`: pure reusable backtesting logic.
+  - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
   - `metrics.py`: drawdown and benchmark-return calculations.
   - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
+  - `optimization/`: candidate search, objective scoring, and the promotion gate.
 
 - `models.py` (package root): typed dataclasses for result and config contracts. Key types: `BacktestConfig`, `BacktestResult`, `WalkForwardConfig`, `WalkForwardSummary`, `BacktestBatchConfig`. `BacktestResult` and `WalkForwardSummary` each expose a `to_payload(*, display_name_fn=None) -> dict` method that produces a JSON-ready dict; pass an optional `display_name_fn` to remap account names for UI presentation.
 
