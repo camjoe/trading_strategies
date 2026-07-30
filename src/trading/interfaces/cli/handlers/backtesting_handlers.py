@@ -180,6 +180,9 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         parser.error("--search-space must be a JSON object mapping parameter -> list of values")
         return
 
+    # One data context for the whole sweep: every candidate reads the account,
+    # universe, and price history once per span instead of once per candidate.
+    run_metrics_only_fn, run_persisted_fn = deps["sweep_run_functions"](conn)
     try:
         summary = deps["run_walk_forward_optimization"](
             conn,
@@ -202,8 +205,8 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
                 candidate_budget=args.candidate_budget,
                 warmup_months=args.warmup_months,
             ),
-            run_metrics_only_fn=deps["run_backtest_metrics_only"],
-            run_persisted_fn=deps["run_backtest"],
+            run_metrics_only_fn=run_metrics_only_fn,
+            run_persisted_fn=run_persisted_fn,
         )
     except ValueError as error:
         parser.error(str(error))
