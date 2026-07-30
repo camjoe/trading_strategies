@@ -191,6 +191,44 @@ failed; `--allow-no-edge` bypasses the bar entirely (e.g. to prove the promotion
 promote a deliberately weak strategy for testing) — the same escape hatch the machinery relied on before
 this gate existed.
 
+## Sweep Cost and the Candidate-Budget Ceiling
+
+A sweep is not one backtest, it is `candidates x windows` training simulations plus a persisted OOS
+run and a metrics-only baseline per window, plus the same pair once for the holdout. The candidate
+count on its own understates the work badly: 8 candidates over 24 months of monthly windows is
+already ~130 simulations.
+
+Measured with `python -m scripts.benchmark_sweep` (re-run it after any change to the inner loop):
+
+| Universe | Per simulation | 8 candidates x 13 windows (132 simulations) |
+|---|---|---|
+| 12 tickers (default) | 0.72–0.89 s | 95–118 s |
+| 52 tickers | ~2.3 s | ~100 s at 4 candidates x 7 windows (44 simulations) |
+
+The per-simulation range is real run-to-run variance on the same machine and configuration, not a
+range of inputs — treat any single benchmark reading as ±20%.
+
+**Candidates within a window share their data.** `sweep_run_functions` (in
+`trading/backtesting/backtest.py`) builds one `BacktestDataContext` for the whole sweep, so the
+account, default book, resolved universe, price history, and feature bundle are read once per span
+instead of once per candidate. It is a strict reduction in redundant I/O and it is the seam a future
+parallel fan-out needs, but **the measured serial saving is only about 1–6% and does not separate
+cleanly from run-to-run noise.** The cost of a sweep is the simulation loop itself — which walks
+every trading day and re-slices each ticker's full price history at every step — not the setup
+around it. Do not expect caching upstream of that loop to make sweeps meaningfully faster.
+
+**The UI route caps `candidateBudget` at 32** (`MAX_CANDIDATE_BUDGET` in
+`apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 16). `POST
+/api/strategy-lab/optimizations` runs its sweep **synchronously**, so the HTTP request stays open for
+the entire run; at the default geometry a budget of 32 is ~444 simulations, or roughly five to seven
+minutes, where the former default of 256 would have meant closer to an hour and the former `le=2048`
+ceiling several hours. The frontend estimates `candidates x windows` before submitting and warns past
+~200 simulations.
+
+The ceiling belongs to the synchronous route, not to the optimizer. `backtest-optimize` on the CLI
+takes an unbounded `--candidate-budget` because nothing is waiting on a socket — run large sweeps
+there.
+
 ## Safeguards and Approximation Notes
 
 - Signals use prior-day data and execute on the next bar to reduce look-ahead bias.
