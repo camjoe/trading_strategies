@@ -439,3 +439,94 @@ def test_sell_proceeds_fund_the_same_bar_regardless_of_ticker_order() -> None:
     assert ("ZZZZ", "buy", 20.0) in trades
     assert any(ticker == "ZZZZ" and side == "sell" for ticker, side, _qty in trades)
     assert any(ticker == "AAAA" and side == "buy" for ticker, side, _qty in trades)
+
+
+# ---------------------------------------------------------------------------
+# Tickers without a price yet
+# ---------------------------------------------------------------------------
+
+
+def test_a_late_listing_ticker_does_not_abort_the_run() -> None:
+    """A ticker with no bars yet is skipped until it has a price.
+
+    Days before a ticker's first bar are deliberately empty — the panel will not
+    invent a pre-listing price. NaN loses every ordinary comparison, so a bare
+    `price <= 0` guard passes it through to sizing, which then fails the whole
+    run with "cannot convert float NaN to integer".
+    """
+    idx = pd.date_range("2026-01-01", periods=5, freq="B")
+    closes = pd.DataFrame(
+        {"OLD": [10.0] * 5, "NEW": [float("nan"), float("nan"), 50.0, 51.0, 52.0]},
+        index=idx,
+    )
+    frames = bars_from_closes(closes)
+    # The provider yields no rows at all before a ticker lists.
+    frames["NEW"] = frames["NEW"].dropna()
+
+    trades, record = _recorded_trades()
+    # Real sizing on purpose: the crash is inside choose_buy_qty, so a stub that
+    # never sees the price would not reproduce it.
+    result = _patched_run_backtest_with_frames(
+        idx,
+        frames,
+        ["NEW", "OLD"],
+        lambda *_args, **_kwargs: "buy",
+        insert_trade_fn=record,
+    )
+
+    assert result.trade_count > 0
+    # OLD trades from the first bar; NEW is skipped until it has a price of its own.
+    assert any(ticker == "OLD" and side == "buy" for ticker, side, _qty in trades)
+
+
+def _patched_run_backtest_with_frames(
+    idx: pd.DatetimeIndex,
+    frames: dict,
+    tickers: list[str],
+    resolve_signal_fn,
+    choose_buy_qty_fn=None,
+    insert_trade_fn=None,
+):
+    """Like ``_patched_run_backtest`` but takes pre-built bar frames.
+
+    Lets a test hand tickers genuinely ragged histories, which is the shape that
+    produces missing prices in the first place.
+    """
+    account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
+    kwargs = dict(
+        conn=SimpleNamespace(commit=lambda: None, rollback=lambda: None),
+        cfg=_base_cfg(),
+        get_account_fn=lambda _conn, _name: account,
+        resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 7)),
+        warnings_for_config_fn=lambda _account, _allow: [],
+        resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {}, tickers, []),
+        fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
+        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
+        insert_run_fn=lambda *_args, **_kwargs: 1,
+        insert_trade_fn=insert_trade_fn or (lambda *_args, **_kwargs: None),
+        insert_snapshot_fn=lambda *_args, **_kwargs: None,
+        get_default_book_fn=lambda _conn, *, account_id: None,
+    )
+    if choose_buy_qty_fn is not None:
+        kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
+
+    with (
+        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
+        patch.object(
+            execution_service,
+            "resolve_strategy",
+            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
+        ),
+        patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
+        patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
+        patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
+    ):
+        return execution_service.run_backtest(**kwargs)
+
+
+def test_tradeable_price_rejects_missing_and_non_positive_prices() -> None:
+    assert execution_service._tradeable_price(10.5) == 10.5
+    assert execution_service._tradeable_price(float("nan")) is None
+    assert execution_service._tradeable_price(float("inf")) is None
+    assert execution_service._tradeable_price(0.0) is None
+    assert execution_service._tradeable_price(-1.0) is None

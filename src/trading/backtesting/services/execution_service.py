@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 from collections import defaultdict
 from collections.abc import Mapping
@@ -28,6 +29,22 @@ from trading.services.books.book_assignments import active_strategy_for_account,
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]
+
+
+def _tradeable_price(raw: Any) -> float | None:
+    """The bar's price if it can be traded on, else None.
+
+    A ticker has no price before its first bar — the panel leaves those days
+    empty rather than inventing one that predates the listing. NaN loses every
+    ordinary comparison, so a bare ``price <= 0`` check waves it through; it
+    then reaches ``choose_buy_qty`` and aborts the whole run with "cannot
+    convert float NaN to integer". Screening here keeps a universe that contains
+    a late listing runnable, skipping the ticker until it has a price.
+    """
+    price = float(raw)
+    if not math.isfinite(price) or price <= 0:
+        return None
+    return price
 
 
 def _first_scoring_index(dates: list, scoring_start: date) -> int:
@@ -182,8 +199,8 @@ def run_backtest(
             for ticker in strategy_tickers:
                 if signals[ticker] != "sell" or positions[ticker] <= 0:
                     continue
-                px = float(trade_prices[ticker])
-                if px <= 0:
+                px = _tradeable_price(trade_prices[ticker])
+                if px is None:
                     continue
 
                 exec_px = px * slippage_multiplier_sell
@@ -231,8 +248,8 @@ def run_backtest(
             for ticker in strategy_tickers:
                 if signals[ticker] != "buy" or ticker not in active_tickers or positions[ticker] > 0:
                     continue
-                px = float(trade_prices[ticker])
-                if px <= 0:
+                px = _tradeable_price(trade_prices[ticker])
+                if px is None:
                     continue
                 exec_px = px * slippage_multiplier_buy
                 if exec_px <= 0:
