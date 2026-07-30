@@ -11,7 +11,6 @@ from trading.backtesting.backtest import (
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
-    sweep_run_functions,
 )
 from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig
@@ -88,7 +87,6 @@ def _handler_deps() -> dict[str, object]:
         "run_backtest": run_backtest,
         "run_backtest_metrics_only": run_backtest_metrics_only,
         "run_backtest_batch": run_backtest_batch,
-        "sweep_run_functions": sweep_run_functions,
         "run_walk_forward_optimization": partial(
             run_and_persist_optimization, market_data_provider=resolve_provider_name()
         ),

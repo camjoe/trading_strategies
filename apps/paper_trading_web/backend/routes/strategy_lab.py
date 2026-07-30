@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.backtesting.backtest import sweep_run_functions
+from trading.backtesting.backtest import run_backtest, run_backtest_metrics_only
 from trading.backtesting.optimizer_models import (
     CompoundedOOSSeries,
     OptimizationExperimentRecord,
@@ -223,9 +223,6 @@ def api_optimization_detail(experiment_id: int) -> dict[str, object]:
 @router.post("/api/strategy-lab/optimizations")
 def api_run_optimization(payload: RunOptimizationRequest) -> dict[str, object]:
     with db_conn() as conn:
-        # One data context for the whole sweep: every candidate reads the account,
-        # universe, and price history once per span instead of once per candidate.
-        run_metrics_only_fn, run_persisted_fn = sweep_run_functions(conn)
         try:
             summary = run_and_persist_optimization(
                 conn,
@@ -248,8 +245,8 @@ def api_run_optimization(payload: RunOptimizationRequest) -> dict[str, object]:
                     candidate_budget=payload.candidateBudget,
                     warmup_months=payload.warmupMonths,
                 ),
-                run_metrics_only_fn=run_metrics_only_fn,
-                run_persisted_fn=run_persisted_fn,
+                run_metrics_only_fn=run_backtest_metrics_only,
+                run_persisted_fn=run_backtest,
             )
         except NotFoundError:
             raise

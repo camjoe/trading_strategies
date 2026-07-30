@@ -208,14 +208,19 @@ Measured with `python -m scripts.benchmark_sweep` (re-run it after any change to
 The per-simulation range is real run-to-run variance on the same machine and configuration, not a
 range of inputs — treat any single benchmark reading as ±20%.
 
-**Candidates within a window share their data.** `sweep_run_functions` (in
-`trading/backtesting/backtest.py`) builds one `BacktestDataContext` for the whole sweep, so the
-account, default book, resolved universe, price history, and feature bundle are read once per span
-instead of once per candidate. It is a strict reduction in redundant I/O and it is the seam a future
-parallel fan-out needs, but **the measured serial saving is only about 1–6% and does not separate
-cleanly from run-to-run noise.** The cost of a sweep is the simulation loop itself — which walks
-every trading day and re-slices each ticker's full price history at every step — not the setup
-around it. Do not expect caching upstream of that loop to make sweeps meaningfully faster.
+**Where a backtest actually spends its time.** Profiled at both universe sizes, everything a run
+reads before simulating — account, default book, universe resolution, price history, benchmark
+series — totals **0.2% of the run**. The other 99.8% is the simulation loop. Caching or hoisting
+those reads cannot pay off, and an attempt to do so was reverted after measurement; don't try again
+without new evidence.
+
+The loop's own cost is dominated by re-derivation rather than by the simulation. For each trading
+day and each ticker it slices that ticker's entire history to the current day
+(`close.loc[:signal_date, ticker].dropna()`) and hands it to `evaluate_signal`, which recomputes the
+strategy's indicators over that whole slice to read the last two values. A 249-day, 12-ticker run
+makes ~3,000 such calls and ~6,000 full rolling-window passes to produce ~6,000 numbers. Computing
+each ticker's indicator series once per run instead is ~200x cheaper on that portion in isolation.
+Any real speed work on backtesting belongs here.
 
 **The UI route caps `candidateBudget` at 32** (`MAX_CANDIDATE_BUDGET` in
 `apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 16). `POST

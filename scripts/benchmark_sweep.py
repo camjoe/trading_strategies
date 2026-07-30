@@ -14,6 +14,14 @@ not leave evidence rows behind.
 
 Add ``--json-out local/sweep_benchmarks.jsonl`` to append a machine-readable row
 per run for before/after comparison.
+
+**Read the output with suspicion.** One run is one sample, and repeated runs of
+an identical configuration have come in 23% apart on the same machine (0.726 vs
+0.893 s per simulation). That is wider than most changes worth making, so a
+single before/after pair cannot resolve anything below roughly 25%. For a
+smaller effect, profile where the time goes instead of A/B timing the whole
+sweep — or teach this script to interleave repeated trials and report the
+minimum, since noise only ever adds time.
 """
 
 from __future__ import annotations
@@ -29,7 +37,7 @@ from typing import Any
 
 from infrastructure.database.backend import SQLiteBackend, set_backend
 from infrastructure.database.config import get_db_path
-from trading.backtesting.backtest import run_backtest, run_backtest_metrics_only, sweep_run_functions
+from trading.backtesting.backtest import run_backtest, run_backtest_metrics_only
 from trading.backtesting.domain.optimization.search import generate_candidates
 from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
 from trading.backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
@@ -67,11 +75,6 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--json-out", default=None, help="Append one JSON result line to this file.")
     parser.add_argument("--skip-single", action="store_true", help="Skip the single-backtest measurement.")
     parser.add_argument("--skip-sweep", action="store_true", help="Skip the full-sweep measurement.")
-    parser.add_argument(
-        "--no-sweep-context",
-        action="store_true",
-        help="Give each candidate its own data context, as the optimizer did before the hoist.",
-    )
     return parser.parse_args()
 
 
@@ -224,19 +227,12 @@ def main() -> None:
                 print(f"linear model for the sweep: {(training_runs + supporting_runs) * warm:.1f}s")
 
             if not args.skip_sweep:
-                # The point of comparison: one shared context for the sweep, or a
-                # fresh one per candidate the way the optimizer ran before W1.
-                if args.no_sweep_context:
-                    metrics_only_fn, persisted_fn = run_backtest_metrics_only, run_backtest
-                else:
-                    metrics_only_fn, persisted_fn = sweep_run_functions(conn)
-                result["sweep_context"] = not args.no_sweep_context
                 started = time.perf_counter()
                 summary = run_walk_forward_optimization(
                     conn,
                     cfg,
-                    run_metrics_only_fn=metrics_only_fn,
-                    run_persisted_fn=persisted_fn,
+                    run_metrics_only_fn=run_backtest_metrics_only,
+                    run_persisted_fn=run_backtest,
                 )
                 elapsed = time.perf_counter() - started
                 total_runs = training_runs + supporting_runs

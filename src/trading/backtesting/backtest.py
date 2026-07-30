@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Callable
 
 from infrastructure.market_data.factory import build_provider
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
@@ -27,19 +26,12 @@ from trading.backtesting.services import (
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
 )
-from trading.backtesting.services.backtest_data_context import BacktestDataContext
 from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.books.book_record import BookRecord
 from trading.repositories.books import BookRepository
 from trading.services.accounts import get_account
-from trading.services.books.book_assignments import get_default_book
 from trading.services.market_data import MarketDataProvider, build_feature_provider
-
-# A backtest entrypoint as the walk-forward optimizer consumes it: metrics-only
-# and persisted runs share this shape, which is what lets one be swapped for a
-# context-sharing variant without the optimizer noticing.
-BacktestRunFn = Callable[[sqlite3.Connection, BacktestConfig], BacktestResult]
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
@@ -169,20 +161,19 @@ def _noop_insert_snapshot(*_args: object, **_kwargs: object) -> None:
     return None
 
 
-def build_backtest_data_context(conn: sqlite3.Connection) -> BacktestDataContext:
-    """Composition seam: build the market-data + feature providers and the context
-    that memoizes what a run reads through them (no global access inside services).
-
-    A single run builds one of these and throws it away. A walk-forward sweep
-    builds one and reuses it across every candidate — see
-    ``BacktestDataContext`` for why that is the entire optimization.
-    """
+def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: bool) -> BacktestResult:
+    # Composition seam: build the market-data + feature providers once for the
+    # run and inject them down the data path (no global access inside services).
+    # When persist is False the run computes metrics only (no run/trade/snapshot
+    # rows) — used by the walk-forward optimizer for training-candidate trials.
     provider = build_provider()
-    return BacktestDataContext(
-        conn=conn,
-        feature_provider=build_feature_provider(market_data_provider=provider),
+    feature_provider = build_feature_provider(market_data_provider=provider)
+    return run_backtest_impl(
+        conn,
+        cfg,
         get_account_fn=get_account,
-        get_default_book_fn=get_default_book,
+        resolve_backtest_dates_fn=resolve_backtest_dates,
+        warnings_for_config_fn=_warnings_for_config,
         resolve_universe_fn=_resolve_universe,
         fetch_close_history_fn=lambda tickers, start_date, end_date: fetch_close_history(
             tickers, start_date, end_date, provider=provider
@@ -190,36 +181,11 @@ def build_backtest_data_context(conn: sqlite3.Connection) -> BacktestDataContext
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
             benchmark_ticker, start_date, end_date, provider=provider
         ),
-    )
-
-
-def _run_backtest(
-    conn: sqlite3.Connection,
-    cfg: BacktestConfig,
-    *,
-    persist: bool,
-    data_context: BacktestDataContext | None = None,
-) -> BacktestResult:
-    # When persist is False the run computes metrics only (no run/trade/snapshot
-    # rows) — used by the walk-forward optimizer for training-candidate trials.
-    # A caller running many backtests over one span passes a shared data_context;
-    # without one, this run gets a context of its own that lives for this call.
-    context = data_context if data_context is not None else build_backtest_data_context(conn)
-    return run_backtest_impl(
-        conn,
-        cfg,
-        get_account_fn=context.get_account,
-        resolve_backtest_dates_fn=resolve_backtest_dates,
-        warnings_for_config_fn=_warnings_for_config,
-        resolve_universe_fn=context.resolve_universe,
-        fetch_close_history_fn=context.fetch_close_history,
-        fetch_benchmark_close_fn=context.fetch_benchmark_close,
         insert_run_fn=_insert_run if persist else _noop_insert_run,
         insert_trade_fn=_insert_trade if persist else _noop_insert_trade,
         insert_snapshot_fn=_insert_snapshot if persist else _noop_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,
-        get_default_book_fn=context.get_default_book,
-        feature_provider=context,
+        feature_provider=feature_provider,
     )
 
 
@@ -232,29 +198,6 @@ def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     snapshot rows. Lets the walk-forward optimizer evaluate grid candidates on training
     windows without polluting stored backtest evidence."""
     return _run_backtest(conn, cfg, persist=False)
-
-
-def sweep_run_functions(conn: sqlite3.Connection) -> tuple[BacktestRunFn, BacktestRunFn]:
-    """Return ``(metrics_only, persisted)`` run functions sharing one data context.
-
-    The pair the walk-forward optimizer should be given: every candidate in the
-    sweep reads the account, book, universe, price history, and feature bundle
-    once per span instead of once per candidate. The signatures match the plain
-    ``run_backtest_metrics_only``/``run_backtest``, so the optimizer service is
-    unchanged and stays unaware that anything is cached.
-
-    The context is bound to *conn* and lives exactly as long as the returned
-    pair, so it cannot leak market data into a later sweep.
-    """
-    context = build_backtest_data_context(conn)
-
-    def run_metrics_only(run_conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
-        return _run_backtest(run_conn, cfg, persist=False, data_context=context)
-
-    def run_persisted(run_conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
-        return _run_backtest(run_conn, cfg, persist=True, data_context=context)
-
-    return run_metrics_only, run_persisted
 
 
 def backtest_report_full(
