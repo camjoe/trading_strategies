@@ -7,6 +7,7 @@ import pandas as pd
 
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
+from trading.models.market_data.constants import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
 
 DATE_FMT = "%Y-%m-%d"
@@ -80,8 +81,16 @@ def fetch_benchmark_close(
     *,
     provider: MarketDataProvider | None = None,
 ) -> pd.Series:
-    close = fetch_close_history([benchmark_ticker], start_date, end_date, provider=provider)
-    series = close[benchmark_ticker].dropna()
+    """The benchmark's closing prices over the span.
+
+    Reads bars rather than the close-only endpoint so a backtest has exactly one
+    market-data path, with one set of gap-filling rules. Two paths over the same
+    prices means two cache entries, two downloads, and two chances to disagree
+    about which days exist — the hazard that ruled out keeping a close frame
+    alongside a separate bar lookup in the first place.
+    """
+    frames = fetch_bar_history([benchmark_ticker], start_date, end_date, provider=provider)
+    series = frames[benchmark_ticker][BAR_CLOSE].dropna()
     if series.empty:
         raise ValidationError(f"No benchmark history for {benchmark_ticker}")
     return series

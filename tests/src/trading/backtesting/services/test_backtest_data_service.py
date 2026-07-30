@@ -9,6 +9,7 @@ from hypothesis import given, settings, strategies as st
 
 from infrastructure.market_data import YFinanceProvider
 from trading.backtesting.services import backtest_data_service as backtest_data
+from trading.models.market_data.constants import BAR_CLOSE
 
 
 def _business_days(periods: int) -> pd.DatetimeIndex:
@@ -178,8 +179,8 @@ def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPat
     nan = float("nan")
     monkeypatch.setattr(
         backtest_data,
-        "fetch_close_history",
-        lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"SPY": [nan, nan]}),
+        "fetch_bar_history",
+        lambda _tickers, _start, _end, **_kwargs: {"SPY": pd.DataFrame({BAR_CLOSE: [nan, nan]})},
     )
 
     with pytest.raises(ValueError, match="No benchmark history for SPY"):
@@ -189,8 +190,8 @@ def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPat
 def test_fetch_benchmark_close_returns_clean_series(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         backtest_data,
-        "fetch_close_history",
-        lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"SPY": [100.0, float("nan"), 101.0]}),
+        "fetch_bar_history",
+        lambda _tickers, _start, _end, **_kwargs: {"SPY": pd.DataFrame({BAR_CLOSE: [100.0, float("nan"), 101.0]})},
     )
 
     out = backtest_data.fetch_benchmark_close("SPY", date(2026, 1, 1), date(2026, 1, 31))
