@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import trading.backtesting.services.execution_service as execution_service
+from tests.support.backtesting import bars_from_closes
 
 
 def _base_cfg() -> SimpleNamespace:
@@ -39,8 +40,8 @@ def test_execution_service_rejects_short_history() -> None:
             resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
             warnings_for_config_fn=lambda _account, _allow: [],
             resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
-            fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(
-                {"AAPL": [100.0, 101.0]}, index=short_index
+            fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
+                pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_index)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0]),
             insert_run_fn=lambda *_args, **_kwargs: 1,
@@ -84,9 +85,8 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
             resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
             warnings_for_config_fn=lambda _account, _allow: ["w1"],
             resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
-            fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(
-                {"AAPL": [100.0, 101.0, 102.0]},
-                index=idx,
+            fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
+                pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
             insert_run_fn=lambda *_args, **_kwargs: 77,
@@ -136,8 +136,8 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
             resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
             warnings_for_config_fn=lambda _account, _allow: [],
             resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
-            fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(
-                {"AAPL": [100.0, 101.0, 102.0]}, index=idx
+            fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
+                pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
             insert_run_fn=lambda _conn, _account_id, strategy_id, *_args, **_kwargs: (
@@ -187,7 +187,7 @@ def _patched_run_backtest(
         resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
         warnings_for_config_fn=lambda _account, _allow: [],
         resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
-        fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(close_data, index=idx),
+        fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
         fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
         insert_run_fn=lambda *_args, **_kwargs: 1,
         insert_trade_fn=insert_trade_fn or (lambda *_args, **_kwargs: None),
@@ -307,8 +307,8 @@ def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx,
     frame = pd.DataFrame({"AAPL": series})
 
     # Realistic fetch: return only the bars within the requested [start, end] range.
-    def fetch_close(_tickers, start, end_):
-        return frame.loc[pd.Timestamp(start) : pd.Timestamp(end_)]
+    def fetch_bars(_tickers, start, end_):
+        return bars_from_closes(frame.loc[pd.Timestamp(start) : pd.Timestamp(end_)])
 
     return execution_service.run_backtest(
         SimpleNamespace(commit=lambda: None),
@@ -317,7 +317,7 @@ def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx,
         resolve_backtest_dates_fn=lambda _s, _e, _l: (scoring_start, end),
         warnings_for_config_fn=lambda _account, _allow: [],
         resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {}, ["AAPL"], []),
-        fetch_close_history_fn=fetch_close,
+        fetch_bar_history_fn=fetch_bars,
         fetch_benchmark_close_fn=lambda _t, _s, _e: pd.Series([100.0] * len(idx), index=idx),
         insert_run_fn=lambda *_args, **_kwargs: 1,
         insert_trade_fn=lambda *_args, **_kwargs: None,

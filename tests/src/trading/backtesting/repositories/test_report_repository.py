@@ -5,6 +5,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
+from tests.support.backtesting import bars_from_closes
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.repositories.report_repository import (
@@ -48,8 +49,8 @@ def test_report_repository_contract_returns_rows(conn, monkeypatch: pytest.Monke
     create_account(conn, "acct_report_repo", "trend_v1", 10000.0, "SPY")
     monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_close_history",
-        lambda _tickers, _start, _end, **_kwargs: _fake_close_history(_tickers),
+        "trading.backtesting.backtest.fetch_bar_history",
+        lambda _tickers, _start, _end, **_kwargs: bars_from_closes(_fake_close_history(_tickers)),
     )
     monkeypatch.setattr(
         "trading.backtesting.backtest.fetch_benchmark_close",

@@ -59,6 +59,20 @@ def fetch_close_history(
     return provider.fetch_close_history(tickers, start_date, end_date)
 
 
+def fetch_bar_history(
+    tickers: list[str],
+    start_date: date,
+    end_date: date,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, pd.DataFrame]:
+    """Return one daily bar frame per ticker over the requested span."""
+    if not tickers:
+        raise ValidationError("At least one ticker is required for backtesting.")
+    provider = require_provider(provider)
+    return provider.fetch_bar_history(tickers, start_date, end_date)
+
+
 def fetch_benchmark_close(
     benchmark_ticker: str,
     start_date: date,

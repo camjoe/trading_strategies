@@ -20,8 +20,8 @@ from trading.backtesting.services import (
     build_monthly_universe,
     fetch_backtest_leaderboard_entries,
     fetch_backtest_report_data,
+    fetch_bar_history,
     fetch_benchmark_close,
-    fetch_close_history,
     load_tickers_from_file,
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
@@ -175,7 +175,7 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
         resolve_backtest_dates_fn=resolve_backtest_dates,
         warnings_for_config_fn=_warnings_for_config,
         resolve_universe_fn=_resolve_universe,
-        fetch_close_history_fn=lambda tickers, start_date, end_date: fetch_close_history(
+        fetch_bar_history_fn=lambda tickers, start_date, end_date: fetch_bar_history(
             tickers, start_date, end_date, provider=provider
         ),
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(

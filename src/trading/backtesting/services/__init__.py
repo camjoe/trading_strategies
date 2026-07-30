@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from trading.backtesting.services.backtest_data_service import (
     build_monthly_universe,
+    fetch_bar_history,
     fetch_benchmark_close,
     fetch_close_history,
     load_tickers_from_file,
@@ -15,6 +16,7 @@ __all__ = [
     "build_monthly_universe",
     "fetch_backtest_leaderboard_entries",
     "fetch_backtest_report_data",
+    "fetch_bar_history",
     "fetch_benchmark_close",
     "fetch_close_history",
     "load_tickers_from_file",

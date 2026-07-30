@@ -3,6 +3,7 @@ import pytest
 
 import trading.backtesting.backtest as backtest_module
 from tests.support.backtesting import (
+    bars_from_closes,
     create_backtest_account,
     make_backtest_config,
     make_fake_close_history,
@@ -46,8 +47,8 @@ class TestBacktestWarnings:
         monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "fetch_close_history",
-            lambda _tickers, _start, _end, **_kwargs: make_fake_close_history(_tickers),
+            "fetch_bar_history",
+            lambda _tickers, _start, _end, **_kwargs: bars_from_closes(make_fake_close_history(_tickers)),
         )
         monkeypatch.setattr(
             backtest_module,

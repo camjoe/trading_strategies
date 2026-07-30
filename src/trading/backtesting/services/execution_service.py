@@ -8,6 +8,7 @@ from typing import Any, Callable, cast
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import BASIS_POINTS_DIVISOR
+from trading.backtesting.domain.bars import build_bar_panel
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, summarize_backtest_performance
 from trading.backtesting.domain.simulation_math import (
     compute_market_value,
@@ -46,7 +47,7 @@ def run_backtest(
     resolve_backtest_dates_fn: Callable[..., tuple[date, date]],
     warnings_for_config_fn: Callable[[Any, bool], list[str]],
     resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
-    fetch_close_history_fn: Callable[..., object],
+    fetch_bar_history_fn: Callable[..., Mapping[str, Any]],
     fetch_benchmark_close_fn: Callable[..., object],
     insert_run_fn: Callable[..., int],
     insert_trade_fn,
@@ -76,7 +77,10 @@ def run_backtest(
     )
     warnings.extend(universe_warnings)
 
-    close = cast(Any, fetch_close_history_fn(all_tickers, data_start_date, end_date))
+    # Bars, not closes: the panel keeps each ticker's full range available for
+    # indicators, while `close` stays the endpoint view the simulation prices at.
+    panel = build_bar_panel(cast(Any, fetch_bar_history_fn(all_tickers, data_start_date, end_date)), all_tickers)
+    close = panel.close
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
