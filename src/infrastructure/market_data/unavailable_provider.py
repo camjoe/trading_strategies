@@ -29,3 +29,11 @@ class UnavailableProvider(MarketDataProvider):
 
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
         self._raise_unavailable()
+
+    def fetch_bar_history(
+        self,
+        tickers: list[str],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, pd.DataFrame]:
+        self._raise_unavailable()

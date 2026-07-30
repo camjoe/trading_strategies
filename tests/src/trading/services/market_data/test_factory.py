@@ -21,6 +21,9 @@ class _StubProvider(MarketDataProvider):
     def fetch_close_series(self, ticker, period):  # pragma: no cover - not exercised
         raise NotImplementedError
 
+    def fetch_bar_history(self, tickers, start_date, end_date):  # pragma: no cover - not exercised
+        raise NotImplementedError
+
 
 def test_build_feature_provider_injects_market_data_provider() -> None:
     provider = _StubProvider()

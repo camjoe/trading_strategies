@@ -5,11 +5,22 @@ from __future__ import annotations
 import logging
 import os
 from datetime import date, timedelta
+from typing import cast
 
 import pandas as pd
 import yfinance as yf
 
 from common.rate_limit import RateLimiter
+from trading.models.market_data.constants import (
+    BAR_CLOSE,
+    BAR_COLUMNS,
+    BAR_HIGH,
+    BAR_LOW,
+    BAR_OPEN,
+    BAR_PRICE_COLUMNS,
+    BAR_VOLUME,
+    BAR_VOLUME_FILL,
+)
 from trading.services.market_data.protocols import MarketDataProvider
 
 from .cache import _CACHE_MISS, market_data_cache_key, read_market_data_cache, write_market_data_cache
@@ -60,6 +71,65 @@ def build_market_data_rate_limiter() -> RateLimiter:
         max_total_calls=None if max_calls == 0 else max_calls,
         name="yfinance",
     )
+
+
+# Vendor spelling -> the repo's bar column vocabulary.
+_VENDOR_BAR_COLUMNS = {
+    "Open": BAR_OPEN,
+    "High": BAR_HIGH,
+    "Low": BAR_LOW,
+    "Close": BAR_CLOSE,
+    "Volume": BAR_VOLUME,
+}
+
+
+def _clean_bar_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """Normalize one ticker's bars: sorted, gap-filled, tz-naive.
+
+    Prices carry forward across days the ticker did not trade — the last trade
+    stays the best estimate of value. Volume does not: a repeated volume would
+    assert trading that never happened, so gaps become ``BAR_VOLUME_FILL``.
+    """
+    frame = frame.sort_index()
+    frame.index = pd.to_datetime(frame.index).tz_localize(None)
+    prices = frame[list(BAR_PRICE_COLUMNS)].ffill()
+    # A row is real only once at least one price exists; leading rows before a
+    # ticker listed have nothing to carry forward and are dropped.
+    prices = prices.dropna(how="any")
+    volume = frame[BAR_VOLUME].reindex(prices.index).fillna(BAR_VOLUME_FILL)
+    cleaned = prices.copy()
+    cleaned[BAR_VOLUME] = volume
+    return cleaned[list(BAR_COLUMNS)]
+
+
+def _split_download_into_bar_frames(hist: pd.DataFrame, tickers: list[str]) -> dict[str, pd.DataFrame]:
+    """Turn one multi-ticker download into per-ticker bar frames.
+
+    ``group_by="column"`` yields MultiIndex columns of (field, ticker) for
+    several tickers and flat field columns for one, so both shapes are handled.
+    Tickers whose bars are entirely missing are omitted; the caller decides
+    whether that is fatal.
+    """
+    frames: dict[str, pd.DataFrame] = {}
+    is_multi = isinstance(hist.columns, pd.MultiIndex)
+    for ticker in tickers:
+        columns: dict[str, pd.Series] = {}
+        for vendor_name, bar_name in _VENDOR_BAR_COLUMNS.items():
+            if is_multi:
+                if vendor_name not in hist.columns.get_level_values(0):
+                    continue
+                field = hist[vendor_name]
+                if ticker not in field.columns:
+                    continue
+                columns[bar_name] = field[ticker]
+            elif vendor_name in hist.columns:
+                columns[bar_name] = hist[vendor_name]
+        if len(columns) != len(BAR_COLUMNS):
+            continue
+        cleaned = _clean_bar_frame(pd.DataFrame(columns))
+        if not cleaned.empty:
+            frames[ticker] = cleaned
+    return frames
 
 
 class YFinanceProvider(MarketDataProvider):
@@ -133,6 +203,47 @@ class YFinanceProvider(MarketDataProvider):
         result = close[normalized_tickers]
         write_market_data_cache(cache_key, result)
         return result
+
+    def fetch_bar_history(
+        self,
+        tickers: list[str],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, pd.DataFrame]:
+        if not tickers:
+            raise ValueError("At least one ticker is required.")
+
+        normalized_tickers = [ticker.upper().strip() for ticker in tickers]
+        cache_key = market_data_cache_key(
+            "bar-history",
+            tickers=normalized_tickers,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+        )
+        cached = read_market_data_cache(cache_key)
+        if cached is not _CACHE_MISS:
+            return cast(dict[str, pd.DataFrame], cached)
+
+        self._rate_limiter.acquire()
+        # The same download the close-only path makes; that one discards four
+        # fifths of what it already paid for.
+        hist = yf.download(
+            tickers=normalized_tickers,
+            start=start_date.isoformat(),
+            end=(end_date + timedelta(days=1)).isoformat(),
+            auto_adjust=True,
+            progress=False,
+            group_by="column",
+        )
+        if hist.empty:
+            raise ValueError("No historical bar data returned for requested tickers/date range.")
+
+        frames = _split_download_into_bar_frames(hist, normalized_tickers)
+        missing = [ticker for ticker in normalized_tickers if ticker not in frames]
+        if missing:
+            raise ValueError(f"Missing bar history for tickers: {', '.join(missing)}")
+        write_market_data_cache(cache_key, frames)
+        return frames
 
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
         normalized_ticker = ticker.upper().strip()
