@@ -8,6 +8,7 @@ from collections.abc import Mapping
 import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
+from trading.models.market_data.constants import BAR_CLOSE, BAR_COLUMNS
 from trading.services.market_data import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
@@ -15,40 +16,66 @@ logger = logging.getLogger(__name__)
 # Fixed lookback for runtime signal evaluation: covers the largest indicator window.
 CLOSE_HISTORY_PERIOD = "1y"
 
+# Runtime signals are evaluated on daily bars, matching the backtest engine.
+DAILY_INTERVAL = "1d"
 
-def fetch_close_histories(
+
+def fetch_bar_histories(
     universe: list[str],
     *,
     provider: MarketDataProvider | None = None,
     period: str = CLOSE_HISTORY_PERIOD,
-) -> dict[str, pd.Series]:
-    """Fetch per-ticker close history once per run, shared by signal evaluation and the IV proxy."""
+) -> dict[str, pd.DataFrame]:
+    """Fetch per-ticker daily bars once per run, shared by signal evaluation and the IV proxy.
+
+    Bars rather than closes because strategies read indicators that can be
+    sourced from any bar column — a breakout is defined on the prior window's
+    true highs and lows, and a close-only history cannot express it. The backtest
+    engine reads bars, so live must too or the two evaluate the same strategy
+    differently.
+
+    Column names are normalized to the repo's own bar vocabulary, so nothing
+    above this layer has to know the vendor's spelling.
+    """
     provider = require_provider(provider)
-    histories: dict[str, pd.Series] = {}
+    histories: dict[str, pd.DataFrame] = {}
     for ticker in universe:
         try:
-            close = provider.fetch_close_series(ticker, period)
+            frame = provider.fetch_ohlcv(ticker, period, DAILY_INTERVAL)
         except Exception as exc:
-            logger.debug("Skipping close history for %s: %s", ticker, exc, exc_info=True)
+            logger.debug("Skipping bar history for %s: %s", ticker, exc, exc_info=True)
             continue
-        if close is None or close.empty:
+        if frame is None or frame.empty:
             continue
-        histories[ticker] = close
+        normalized = _normalize_bar_columns(frame)
+        if normalized is None:
+            logger.debug("Skipping bar history for %s: missing bar columns %s", ticker, list(frame.columns))
+            continue
+        histories[ticker] = normalized
     return histories
+
+
+def _normalize_bar_columns(frame: pd.DataFrame) -> pd.DataFrame | None:
+    """Rename a vendor OHLCV frame to the repo's bar columns, or None if incomplete."""
+    lowered = {str(column).lower(): column for column in frame.columns}
+    if any(name not in lowered for name in BAR_COLUMNS):
+        return None
+    return frame[[lowered[name] for name in BAR_COLUMNS]].set_axis(list(BAR_COLUMNS), axis=1)
 
 
 def build_iv_rank_proxy(
     universe: list[str],
     *,
     provider: MarketDataProvider | None = None,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
 ) -> dict[str, float]:
     if histories is None:
-        histories = fetch_close_histories(universe, provider=provider)
+        histories = fetch_bar_histories(universe, provider=provider)
     vols: dict[str, float] = {}
     for ticker in universe:
         try:
-            close = histories.get(ticker)
+            bars = histories.get(ticker)
+            close = None if bars is None else bars[BAR_CLOSE]
             if close is None or len(close) < 30:
                 continue
             daily_ret = close.pct_change().dropna()

@@ -89,7 +89,7 @@ def _run_books_for_account(
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
     fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> int:
@@ -207,7 +207,7 @@ def run_for_account(
     max_trades: int,
     fee: float,
     *,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,

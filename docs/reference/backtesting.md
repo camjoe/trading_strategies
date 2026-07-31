@@ -231,8 +231,28 @@ Two consequences worth knowing:
   whose history starts late.
 - Adding an indicator kind means adding it to `INDICATOR_KIND_*` and `_compute` in
   `trading/domain/strategies/indicator_view.py`. An indicator sourced from a bar column the caller
-  does not have raises by name — which is how the live path, still on close-only history, reports
-  that it needs real bars.
+  does not have raises by name, so a strategy cannot silently fall back to closes.
+
+**Live and backtest read the same shape.** The runtime path fetches bars too
+(`fetch_bar_histories` in `trading/services/auto_trading/market.py`), so a strategy sourcing an
+indicator from highs or lows evaluates identically under evaluation and in live trading. There is
+deliberately no close-only evaluation helper: one would let a high/low strategy quietly produce
+different decisions in the two places, which is the divergence the promotion gate depends on not
+existing.
+
+### Breakout measures against true highs and lows
+
+`breakout` compares the close against the highest **high** and lowest **low** of the prior window.
+It previously compared against prior *closing* highs and lows, because the engine had no bars.
+
+Closing highs never exceed true highs, so the old threshold sat too low and fired on days that were
+not breakouts. Measured over the default universe when the source was corrected: **366 of 2,988
+decisions changed, every one from a signal to a hold** — buys fell 539 → 299 and sells 244 → 118.
+The change is one-directional by construction; it can only remove signals, never add them.
+
+On a 2025–2026 backtest the corrected strategy reports a *lower* return (24.7% → 16.8%, 110 → 91
+trades, drawdown -3.8% → -5.0%). That is not a regression: the earlier figure was produced by
+entries the strategy should never have taken. Results either side of this change are not comparable.
 
 **The UI route caps `candidateBudget` at 32** (`MAX_CANDIDATE_BUDGET` in
 `apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 16). `POST

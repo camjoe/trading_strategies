@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 import trading.services.execution.selection.selection as trade_execution_service
 from tests.src.trading.services.auto_trading.factories import make_option_settings
+from tests.support.backtesting import bar_frame
 
 
 def test_prepare_buy_trade_equity() -> None:
@@ -299,12 +300,12 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
     assert limited_qty_result is None
 
 
-def _rising_history(length: int = 40) -> "trade_execution_service.pd.Series":
-    return trade_execution_service.pd.Series([float(i) for i in range(1, length + 1)])
+def _rising_history(length: int = 40) -> "trade_execution_service.pd.DataFrame":
+    return bar_frame(trade_execution_service.pd.Series([float(i) for i in range(1, length + 1)]))
 
 
-def _sell_history() -> "trade_execution_service.pd.Series":
-    return trade_execution_service.pd.Series([100.0] * 39 + [90.0])
+def _sell_history() -> "trade_execution_service.pd.DataFrame":
+    return bar_frame(trade_execution_service.pd.Series([100.0] * 39 + [90.0]))
 
 
 def test_select_signal_trade_candidates_buy_and_sell_split_by_holdings() -> None:
@@ -329,7 +330,7 @@ def test_select_signal_trade_candidates_missing_history_is_hold() -> None:
         "trend",
         {"fast_window": 10, "slow_window": 20},
         ["NOHIST", "EMPTY"],
-        {"EMPTY": trade_execution_service.pd.Series(dtype=float)},
+        {"EMPTY": bar_frame(trade_execution_service.pd.Series(dtype=float))},
         positions={},
     )
     assert buys == []
@@ -373,7 +374,7 @@ def test_prepare_trade_selection_returns_none_when_nothing_signals() -> None:
         forced_sell=None,
         universe=["AAPL"],
         prices={"AAPL": 100.0},
-        histories={"AAPL": trade_execution_service.pd.Series([100.0] * 40)},
+        histories={"AAPL": bar_frame(trade_execution_service.pd.Series([100.0] * 40))},
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,

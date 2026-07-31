@@ -52,7 +52,7 @@ def generate_book_trade_intents(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
     # Intents come only from strategy signals — no forced minimum; a run with no
@@ -155,7 +155,7 @@ def run_multi_book_mode_for_account(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> int:
     return len(

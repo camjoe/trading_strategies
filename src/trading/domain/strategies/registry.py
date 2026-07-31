@@ -8,6 +8,8 @@ from trading.domain.strategies.contracts import (
     INDICATOR_KIND_RSI,
     INDICATOR_KIND_SMA,
     INDICATOR_KIND_STDDEV,
+    INDICATOR_SOURCE_HIGH,
+    INDICATOR_SOURCE_LOW,
     IndicatorSpec,
     PrimitiveSpec,
     StrategySpec,
@@ -60,12 +62,26 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         strategy_id="breakout",
         signal_fn=_breakout_signal,
         default_params={"window": 20},
-        # Sourced from close, matching the behaviour this replaces. A breakout is
-        # properly defined on the prior window's true highs and lows; switching
-        # the source waits until the live path also reads bars.
+        # A breakout is defined against the prior window's true highs and lows.
+        # Closing highs never exceed true highs, so sourcing these from close set
+        # the threshold too low and fired on days that were not breakouts.
         indicators=(
-            IndicatorSpec("prior_high", INDICATOR_KIND_ROLLING_MAX, window_param="window", default_window=20, shift=1),
-            IndicatorSpec("prior_low", INDICATOR_KIND_ROLLING_MIN, window_param="window", default_window=20, shift=1),
+            IndicatorSpec(
+                "prior_high",
+                INDICATOR_KIND_ROLLING_MAX,
+                source=INDICATOR_SOURCE_HIGH,
+                window_param="window",
+                default_window=20,
+                shift=1,
+            ),
+            IndicatorSpec(
+                "prior_low",
+                INDICATOR_KIND_ROLLING_MIN,
+                source=INDICATOR_SOURCE_LOW,
+                window_param="window",
+                default_window=20,
+                shift=1,
+            ),
         ),
         aliases=("donchian",),
         description="Donchian-style breakout and breakdown signal.",

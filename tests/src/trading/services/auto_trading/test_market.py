@@ -11,8 +11,24 @@ from trading.services.auto_trading.market import build_iv_rank_proxy
 
 
 def _mock_provider(close_series_map: dict[str, pd.Series | None]) -> MagicMock:
+    """A provider returning vendor-cased OHLCV frames, as fetch_ohlcv does."""
+
+    def _ohlcv(ticker: str, _period: str, _interval: str) -> pd.DataFrame | None:
+        closes = close_series_map.get(ticker)
+        if closes is None:
+            return None
+        return pd.DataFrame(
+            {
+                "Open": closes,
+                "High": closes,
+                "Low": closes,
+                "Close": closes,
+                "Volume": pd.Series(1_000_000.0, index=closes.index),
+            }
+        )
+
     provider = MagicMock()
-    provider.fetch_close_series.side_effect = lambda ticker, _period: close_series_map.get(ticker)
+    provider.fetch_ohlcv.side_effect = _ohlcv
     return provider
 
 
@@ -57,7 +73,7 @@ class TestBuildIvRankProxy:
     def test_exception_on_fetch_skips_ticker(self) -> None:
         """Provider raising exception for one ticker → ticker skipped gracefully."""
         provider = MagicMock()
-        provider.fetch_close_series.side_effect = RuntimeError("network error")
+        provider.fetch_ohlcv.side_effect = RuntimeError("network error")
         result = build_iv_rank_proxy(["AAPL"], provider=provider)
         assert result == {}
 

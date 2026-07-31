@@ -11,7 +11,7 @@ from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
-from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_close_histories
+from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
 
@@ -34,7 +34,7 @@ def resolve_market_inputs(
     tickers_file: str,
     *,
     provider: MarketDataProvider | None = None,
-) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, pd.Series]]:
+) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, pd.DataFrame]]:
     universe = load_tickers_from_file(tickers_file)
     if not universe:
         raise ValueError("Ticker universe is empty.")
@@ -44,7 +44,7 @@ def resolve_market_inputs(
         raise ValueError("Could not fetch any prices for ticker universe.")
 
     # One fetch pass feeds both signal evaluation and the IV-rank proxy (cached per run).
-    histories = fetch_close_histories(universe, provider=provider)
+    histories = fetch_bar_histories(universe, provider=provider)
     iv_rank_proxy = build_iv_rank_proxy(universe, histories=histories)
     return universe, prices, iv_rank_proxy, histories
 
@@ -75,7 +75,7 @@ def run_accounts(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,

@@ -86,48 +86,46 @@ def evaluate_signal(
     return spec.signal_fn(view, params, feature_history)
 
 
-def build_view_over_history(
+def build_view_over_bars(
     strategy_name: str,
-    history: pd.Series,
+    bars: pd.DataFrame,
     params: StrategyParams,
     index: int | None = None,
 ) -> IndicatorView:
-    """Build a view for one bar of a close-only price history.
+    """Build a view for one bar of a full OHLCV frame.
 
-    For callers holding a single ticker's closes with no reason to precompute —
-    the live selection pass, and tests. Indicators sourced from a bar column
-    other than close raise here, which is the intended signal that the caller
-    needs real bars rather than a close series.
+    For callers holding a single ticker with no reason to precompute across a
+    run — the live selection pass, and tests. There is deliberately no
+    close-only variant: a strategy sourcing an indicator from highs or lows
+    would silently evaluate differently from the simulation, which is the exact
+    divergence between evaluation and live trading worth preventing.
     """
     spec = resolve_strategy(strategy_name)
-    closes = history.to_numpy(dtype=float)
-    frame = pd.DataFrame({INDICATOR_SOURCE_CLOSE: history})
-    arrays = build_indicator_arrays(frame, spec.indicators, params)
-    position = len(closes) - 1 if index is None else index
+    closes = bars[INDICATOR_SOURCE_CLOSE].to_numpy(dtype=float)
     return IndicatorView(
         closes=closes,
-        indicators=arrays,
-        index=position,
+        indicators=build_indicator_arrays(bars, spec.indicators, params),
+        index=len(closes) - 1 if index is None else index,
         priced_bars=count_priced_bars(closes),
     )
 
 
-def evaluate_signal_over_history(
+def evaluate_signal_over_bars(
     strategy_name: str,
-    history: pd.Series,
+    bars: pd.DataFrame,
     params: StrategyParams,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
-    """Evaluate the most recent bar of a close-only price history."""
-    view = build_view_over_history(strategy_name, history, params)
+    """Evaluate the most recent bar of a full OHLCV frame."""
+    view = build_view_over_bars(strategy_name, bars, params)
     return evaluate_signal(strategy_name, view, params, feature_history)
 
 
 def resolve_signal(
     strategy_name: str,
-    history: pd.Series,
+    bars: pd.DataFrame,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
     """Resolve strategy labels to explicit signal models evaluated with default params."""
     spec = resolve_strategy(strategy_name)
-    return evaluate_signal_over_history(strategy_name, history, spec.default_params, feature_history)
+    return evaluate_signal_over_bars(strategy_name, bars, spec.default_params, feature_history)

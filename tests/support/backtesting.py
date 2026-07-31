@@ -27,6 +27,23 @@ def make_fake_close_history(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame(data, index=idx)
 
 
+def bar_frame(closes: pd.Series) -> pd.DataFrame:
+    """One ticker's closes as a bar frame, with high and low equal to the close.
+
+    For tests whose subject is not the bar range: a flat bar makes a
+    high/low-reading strategy see exactly what a close-only history showed.
+    """
+    return pd.DataFrame(
+        {
+            BAR_OPEN: closes.shift(1).fillna(closes.iloc[0] if len(closes) else 0.0),
+            BAR_HIGH: closes,
+            BAR_LOW: closes,
+            BAR_CLOSE: closes,
+            BAR_VOLUME: pd.Series(1_000_000.0, index=closes.index),
+        }
+    )[list(BAR_COLUMNS)]
+
+
 def bars_from_closes(closes: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Wrap a ticker-per-column close frame as per-ticker bar frames.
 
@@ -214,6 +231,7 @@ def make_backtest_leaderboard_entry(
 
 __all__ = [
     "create_backtest_account",
+    "bar_frame",
     "bars_from_closes",
     "install_backtest_market_data",
     "make_backtest_config",
