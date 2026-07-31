@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import random
 from collections.abc import Sequence
 from typing import Any, Protocol
@@ -150,6 +151,26 @@ def allocate_buy_quantities(
         if affordable >= 1:
             granted[ticker] = affordable
     return granted
+
+
+def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str]:
+    """Order equally-signalled tickers so no name is systematically preferred.
+
+    A run trades one candidate per book, taking the first it can size. The list
+    arrives in universe order, so the earliest names in the ticker file were
+    always tried first — and since a bought name stops being a buy candidate, a
+    book filled up in file order. Every book with the same universe and strategy
+    built the same portfolio in the same sequence, for a reason that is a
+    property of the file rather than of the market.
+
+    The signal says only "buy", equally, for all of them, so the engine has no
+    basis to rank them and must not invent one. Hashing the ticker with a
+    per-run *seed* spreads first pick evenly across names over successive runs,
+    while staying deterministic within a run: the same seed and candidates
+    always yield the same order, so a decision can be reproduced from the audit
+    trail rather than merely observed.
+    """
+    return sorted(candidates, key=lambda ticker: hashlib.sha256(f"{seed}:{ticker}".encode()).hexdigest())
 
 
 def choose_sell_qty(position_qty: float) -> int:

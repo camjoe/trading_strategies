@@ -109,6 +109,10 @@ def _run_books_for_account(
         fee=fee,
         histories=histories,
         feature_history_fn=feature_history_fn,
+        # Seeded per run date, so candidate order is stable within a run and
+        # reproducible from the audit trail, but does not favour the same names
+        # run after run.
+        selection_seed=snapshot_time[:10],
     )
     if not intents:
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)

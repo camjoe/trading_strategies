@@ -54,6 +54,7 @@ def generate_book_trade_intents(
     fee: float,
     histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
+    selection_seed: str = "",
 ) -> list[BookTradeCandidate]:
     # Intents come only from strategy signals — no forced minimum; a run with no
     # signals produces no trades.
@@ -125,6 +126,7 @@ def generate_book_trade_intents(
             trade_size_pct=book.trade_size_pct,
             max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
+            selection_seed=selection_seed,
         )
         if selection is None:
             continue

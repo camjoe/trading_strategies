@@ -207,3 +207,37 @@ def test_allocate_buy_quantities_ignores_unsized_or_unpriced_requests() -> None:
 
 def test_allocate_buy_quantities_returns_nothing_for_an_empty_bar() -> None:
     assert auto_trader_policy.allocate_buy_quantities([], cash=1000.0, fee_per_trade=0.0) == {}
+
+
+def test_order_signal_candidates_is_deterministic_for_a_seed() -> None:
+    """A decision has to be reproducible from the audit trail, not just observed."""
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    first = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    second = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    assert first == second
+    assert sorted(first) == sorted(candidates)
+
+
+def test_order_signal_candidates_ignores_the_order_it_was_given() -> None:
+    """Candidates arrive in ticker-file order; that must not survive into the pick."""
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    forward = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    reverse = auto_trader_policy.order_signal_candidates(list(reversed(candidates)), seed="2026-07-30")
+    assert forward == reverse
+
+
+def test_order_signal_candidates_spreads_first_pick_across_names() -> None:
+    """The reason this exists: no name may take first pick run after run.
+
+    With a fixed order the first ticker in the universe file was always tried
+    first, so every book built its portfolio in file order.
+    """
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    firsts = {
+        auto_trader_policy.order_signal_candidates(candidates, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)
+    }
+    assert len(firsts) > 1
+
+
+def test_order_signal_candidates_handles_an_empty_list() -> None:
+    assert auto_trader_policy.order_signal_candidates([], seed="2026-07-30") == []
