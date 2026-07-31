@@ -66,11 +66,10 @@ trailing return already captures.
 `src/infrastructure/feature_providers/policy_provider.py` computes
 `policy_risk_on_score ∈ [0, 1]` — a sigmoid of SPY's trailing return versus a basket
 of defensive ETFs (TLT, GLD, XLU, UUP). It is market-wide and cached (returned
-regardless of the queried ticker). It was already wired into **strategy signal
-generation** (`fetch_policy` in `services/execution/selection/selection.py`,
-consumed by the `policy_regime`/`macro_proxy_regime` strategies) before this work;
-rotation now reads the same signal via the same `FeatureFetcherSet.fetch_policy`
-callable, so "risk-on" means the same thing in both places.
+regardless of the queried ticker). Rotation reads it via
+`FeatureFetcherSet.fetch_policy`, the same callable the strategy signal path uses
+when a feature-gated strategy is registered, so "risk-on" means the same thing in
+both places.
 `regime_bucket_from_risk_on_score` (`domain/rotation/score_components.py`) buckets
 it using the same thresholds the signal layer uses
 (`POLICY_RISK_ON_BUY_THRESHOLD = 0.55` / `POLICY_RISK_OFF_SELL_THRESHOLD = 0.45`,
@@ -88,9 +87,9 @@ evaluation windows and the same minimum-sample discipline the rotation gates
 already apply), the as-built design uses the cheapest defensible option:
 **family-derived affinity** from the strategy's primitive style
 (`_STYLE_AFFINITY` in `score_components.py`): `trend` → risk-on, `mean_reversion` →
-risk-off. Everything else (`neutral`, `alternative` — including `policy_regime`/
-`macro_proxy_regime`, which already react to regime in their own signal logic, so
-giving them an affinity here too would double up) gets no bonus in any regime.
+risk-off. Everything else (`neutral`, `alternative`) gets no bonus in any regime —
+a strategy that already reacts to regime in its own signal logic would otherwise
+be counted twice.
 Evidence-derived affinity and the explicit per-book mapping remain open, larger,
 follow-on options if family-derived proves too coarse.
 

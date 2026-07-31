@@ -7,25 +7,20 @@ Last Reviewed: 2026-07-30
 Purpose: Preserve the decision rules and default thresholds of six strategy primitives removed from the registry, so any of them can be rebuilt from this document alone.
 Related: [Strategies](strategies.md), [Backtesting](backtesting.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
-Six primitives were removed on 2026-07-30. None had a `strategies` catalog row, so none could be
-assigned to a book, rotated into, or promoted, and none had ever produced a backtest run. They were
-removed ahead of a change to the signal contract, where each surviving primitive costs a migration
-and permanent maintenance.
+Six primitives were removed. None had a `strategies` catalog row, so none could be assigned to a
+book, rotated into, or promoted, and none had ever produced a backtest run.
 
-**What was removed:** the signal functions, their registry entries, their alias branches, and their
-tests.
+Every provider behind them was kept — `ProxyFeatureDataProvider`, the providers in
+`src/infrastructure/feature_providers/`, the `ExternalFeatureProvider` contract, and the feature-key
+constants in `src/trading/domain/feature_provider.py`. Only the signal layer went, so rebuilding one
+does not mean rebuilding its data source.
 
-**What was kept:** every provider behind them — `ProxyFeatureDataProvider`
-(`src/trading/services/market_data/features.py`), the three external providers in
-`src/infrastructure/feature_providers/`, the `ExternalFeatureProvider` base class with its
-caching/TTL/graceful-degradation contract, and the feature-key constants in
-`src/trading/domain/feature_provider.py`. The capability is intact; only the thin signal layer went.
-Those providers now have no consumer, which is a separate decision from this one.
-
-Recreating any primitive below means writing a `SignalFunction` — `(history, params,
-feature_history) -> "buy" | "sell" | "hold"` — and adding a `StrategySpec` to
-`src/trading/domain/strategies/registry.py`. Note that the signal contract is expected to change;
-rebuild against whatever contract is current rather than copying the shapes verbatim.
+**To rebuild one**, write a `SignalFunction` and add a `StrategySpec` to
+`src/trading/domain/strategies/registry.py`. Note the contract has changed since these were written:
+a signal now takes an `IndicatorView`, not a price history, and declares the series it reads as
+`IndicatorSpec` entries. The rules below are stated as arithmetic rather than as code for that
+reason — translate them, do not transcribe them. `close`, `sma_fast` and `sma_slow` become declared
+indicators; `view.bars()` replaces `len(history)`.
 
 ## macd
 

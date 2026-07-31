@@ -448,3 +448,18 @@ def test_breakout_needs_bars_and_says_so_without_them() -> None:
 
     with pytest.raises(ValueError, match="needs bar column 'high'"):
         resolution.resolve_signal("breakout", closes_only)
+
+
+def test_reversion_labels_do_not_resolve_to_rsi() -> None:
+    """ "rsi" is a substring of "reversion".
+
+    Checking the RSI keyword first sent any unregistered label containing
+    "reversion" to the RSI primitive, so a strategy named for mean reversion
+    silently ran a different signal.
+    """
+    assert resolution.resolve_strategy("mean-reversion").strategy_id == "mean_reversion"
+    assert resolution.resolve_strategy("mean_reversion_v2").strategy_id == "mean_reversion"
+    assert resolution.resolve_strategy("reversion").strategy_id == "mean_reversion"
+
+    # The RSI keyword still resolves on its own.
+    assert resolution.resolve_strategy("rsi_v2").strategy_id == "rsi"

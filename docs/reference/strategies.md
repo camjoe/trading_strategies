@@ -57,17 +57,15 @@ Operators edit the catalog through the CLI (`trading.services.strategy_catalog.m
 
 ### Retired
 
-`macd`, `topic_proxy_rotation`, `macro_proxy_regime`, `policy_regime`, `news_sentiment` and
-`social_trend_rotation` were removed from the registry on 2026-07-30 — none had a catalog row, so
-none could be assigned, rotated into, or promoted, and none had produced a backtest run. Their rules
-and default thresholds are preserved in
-[Retired Strategy Primitives](retired-strategy-primitives.md) so any can be rebuilt.
+`macd` and the five feature-gated primitives were removed from the registry; their rules and
+thresholds are in [Retired Strategy Primitives](retired-strategy-primitives.md) so any can be
+rebuilt.
 
-The providers behind them were kept: `ProxyFeatureDataProvider`, the three external providers in
-`src/infrastructure/feature_providers/`, and the `ExternalFeatureProvider` contract. No strategy
-currently declares `required_features`, so that path is dormant rather than deleted —
-`build_feature_history_fn` in the live selection path still routes by `strategy_style` and returns
-`None` for every strategy that exists today.
+The feature-provider infrastructure was kept — `ProxyFeatureDataProvider`, the providers in
+`src/infrastructure/feature_providers/`, and the `ExternalFeatureProvider` contract. **No strategy
+declares `required_features` today**, so that path is dormant: `build_feature_history_fn` in the live
+selection path returns `None` for every strategy that exists. Restoring a feature-gated strategy is
+what makes it live again.
 
 ## Strategy Resolution Behavior
 
@@ -92,8 +90,8 @@ Examples of compatibility labels that still resolve:
 
 - trend/momentum variants -> `trend`
 - mean-reversion variants -> `mean_reversion`
-- `topic_rotation` / `theme_proxy` -> `topic_proxy_rotation`
-- `policy_etf` / `political_regime` -> `policy_regime`
+- `donchian_push` -> `breakout`
+- `vol_filter_trend` -> `volatility_filtered_trend`
 
 Backtest and walk-forward reports use the catalog `strategy_key` as the canonical display key. Older
 aliases such as `trend_v1` are compatibility inputs, not canonical evidence keys.

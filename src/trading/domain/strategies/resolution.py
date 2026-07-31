@@ -39,10 +39,13 @@ def _resolve_by_keyword(name: str) -> StrategySpec | None:
         return STRATEGY_REGISTRY["volatility_filtered_trend"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
-    if "rsi" in name:
-        return STRATEGY_REGISTRY["rsi"]
+    # Before the rsi check, because "rsi" is a substring of "reversion" — a label
+    # like "mean-reversion" or "mean_reversion_v2" would otherwise resolve to the
+    # RSI primitive and silently backtest a different strategy than it names.
     if "mean" in name or "reversion" in name:
         return STRATEGY_REGISTRY["mean_reversion"]
+    if "rsi" in name:
+        return STRATEGY_REGISTRY["rsi"]
     if "trend" in name or "momentum" in name:
         return STRATEGY_REGISTRY["trend"]
     return None

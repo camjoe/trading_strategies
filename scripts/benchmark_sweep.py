@@ -1,10 +1,9 @@
 """Time the walk-forward optimizer so sweep sizing can be chosen from data.
 
 A sweep is ``candidates x windows`` training backtests plus a persisted OOS run
-and a metrics-only baseline per window, plus two holdout runs. Every number that
-bounds that work — the candidate-budget ceiling, a worker count — is a guess
-until someone measures one backtest and one full sweep. This script measures
-both, and re-run after a change to the inner loop it reports the difference.
+and a metrics-only baseline per window, plus two holdout runs. The route's
+candidate-budget ceiling is derived from what one simulation costs, so re-run
+this whenever the inner loop changes and re-derive the cap from the result.
 
 Runs against a *copy* of the database (SQLite backup API, so WAL content comes
 along), because a sweep persists its OOS and holdout runs and a benchmark should
@@ -16,10 +15,9 @@ Add ``--json-out local/sweep_benchmarks.jsonl`` to append a machine-readable row
 per run for before/after comparison.
 
 **Read the output with suspicion.** One run is one sample, and repeated runs of
-an identical configuration have come in 23% apart on the same machine (0.726 vs
-0.893 s per simulation). That is wider than most changes worth making, so a
-single before/after pair cannot resolve anything below roughly 25%. For a
-smaller effect, profile where the time goes instead of A/B timing the whole
+an identical configuration have come in 23% apart on the same machine. A single
+before/after pair therefore cannot resolve anything below roughly 25%. For a
+smaller effect, profile where the time goes rather than A/B timing the whole
 sweep — or teach this script to interleave repeated trials and report the
 minimum, since noise only ever adds time.
 """

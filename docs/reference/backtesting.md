@@ -198,74 +198,28 @@ run and a metrics-only baseline per window, plus the same pair once for the hold
 count on its own understates the work badly: 8 candidates over 24 months of monthly windows is
 already ~130 simulations.
 
-Measured with `python -m scripts.benchmark_sweep` (re-run it after any change to the inner loop):
+Measured with `python -m scripts.benchmark_sweep` (re-run it after any change to the inner loop;
+readings carry roughly ±20% run-to-run variance, so do not trust a single one):
 
 | Universe | Per simulation | 8 cand x 13 win (132 sims) | 32 cand x 13 win (444 sims) |
 |---|---|---|---|
 | 12 tickers (default) | ~42 ms | 5.6 s | 20.0 s |
 | 52 tickers | ~167 ms | — | 74 s |
 
-Those figures are after indicators moved out of the per-bar path. Before that a simulation cost
-~740 ms and the 132-simulation sweep took ~113 s. Benchmark readings still carry run-to-run variance
-of roughly ±20% on the same machine, so treat a single reading accordingly.
-
-**Where a backtest actually spends its time.** Profiled at both universe sizes, everything a run
-reads before simulating — account, default book, universe resolution, price history, benchmark
-series — totals **0.2% of the run**. The other 99.8% is the simulation loop. Caching or hoisting
-those reads cannot pay off, and an attempt to do so was reverted after measurement; don't try again
-without new evidence.
-
-**Indicators are precomputed, not re-derived per bar.** A strategy declares the series it reads as
-`IndicatorSpec` entries on its `StrategySpec`; the engine computes each once per ticker per run and
-hands the signal an `IndicatorView` positioned at the bar being decided. `view.value("fast_ma")` is
-today's value and `view.value("fast_ma", -1)` yesterday's.
-
-Before this, each signal received the ticker's full price history sliced to the current day and
-recomputed its rolling windows from scratch to read the last one or two values — a 249-day,
-12-ticker run made ~3,000 such slices and ~6,000 full rolling passes to produce ~6,000 numbers.
-Measured effect of the change: **a single backtest went from ~0.85s to ~0.05s, and a
-132-simulation sweep from ~113s to ~18s** on the default universe.
-
-Two consequences worth knowing:
-
-- `view.bars()` counts *priced* bars, not calendar days, preserving the old length gate for a ticker
-  whose history starts late.
-- Adding an indicator kind means adding it to `INDICATOR_KIND_*` and `_compute` in
-  `trading/domain/strategies/indicator_view.py`. An indicator sourced from a bar column the caller
-  does not have raises by name, so a strategy cannot silently fall back to closes.
-
-**Live and backtest read the same shape.** The runtime path fetches bars too
-(`fetch_bar_histories` in `trading/services/auto_trading/market.py`), so a strategy sourcing an
-indicator from highs or lows evaluates identically under evaluation and in live trading. There is
-deliberately no close-only evaluation helper: one would let a high/low strategy quietly produce
-different decisions in the two places, which is the divergence the promotion gate depends on not
-existing.
-
-### Breakout measures against true highs and lows
-
-`breakout` compares the close against the highest **high** and lowest **low** of the prior window.
-It previously compared against prior *closing* highs and lows, because the engine had no bars.
-
-Closing highs never exceed true highs, so the old threshold sat too low and fired on days that were
-not breakouts. Measured over the default universe when the source was corrected: **366 of 2,988
-decisions changed, every one from a signal to a hold** — buys fell 539 → 299 and sells 244 → 118.
-The change is one-directional by construction; it can only remove signals, never add them.
-
-On a 2025–2026 backtest the corrected strategy reports a *lower* return (24.7% → 16.8%, 110 → 91
-trades, drawdown -3.8% → -5.0%). That is not a regression: the earlier figure was produced by
-entries the strategy should never have taken. Results either side of this change are not comparable.
+Nearly all of that is the simulation loop. Everything a run reads before simulating — account, book,
+universe, price history, benchmark — profiles at **0.2% of a run**, so caching or hoisting those
+reads cannot pay off. Measure before optimising here; it has already been tried and reverted once on
+the strength of a benchmark that could not resolve the effect.
 
 **The UI route caps `candidateBudget` at 128** (`MAX_CANDIDATE_BUDGET` in
 `apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 32). `POST
-/api/strategy-lab/optimizations` runs its sweep **synchronously**, so the HTTP request stays open for
-the entire run. At the default geometry a budget of 128 is ~1,690 simulations: about 70 seconds on
-the default universe and under five minutes on a wide one, which is the case the ceiling exists to
-bound. The frontend estimates `candidates x windows` before submitting and warns past 1,000
-simulations.
+/api/strategy-lab/optimizations` runs its sweep **synchronously**, so the request stays open for the
+whole run; at the default geometry 128 is ~1,690 simulations, about 70 seconds on the default
+universe and under five minutes on a wide one. The frontend estimates `candidates x windows` before
+submitting and warns past 1,000 simulations.
 
-The cap is calibrated to the *measured* per-simulation cost and should be revisited whenever that
-moves materially — it was 32 when a simulation cost ~740 ms, and holding it there afterwards would
-have limited research rather than guarded the request.
+That cap is derived from the measured per-simulation cost — revisit it whenever that cost moves, or
+it becomes a limit on research rather than a guard on the request.
 
 The ceiling belongs to the synchronous route, not to the optimizer. `backtest-optimize` on the CLI
 takes an unbounded `--candidate-budget` because nothing is waiting on a socket — run large sweeps
@@ -273,10 +227,11 @@ there.
 
 ## Bar Data
 
-The engine reads **whole daily bars**, not closing prices. `MarketDataProvider.fetch_bar_history`
-returns one frame per ticker with `open/high/low/close/volume` (the vocabulary is
-`trading.models.market_data.constants`), and `backtesting/domain/bars.py` aligns them onto a single
-calendar as a `BarPanel`.
+The engine reads **whole daily bars**. `MarketDataProvider.fetch_bar_history` returns one frame per
+ticker with `open/high/low/close/volume` (vocabulary in `trading.models.market_data.constants`), and
+`backtesting/domain/bars.py` aligns them onto one calendar as a `BarPanel`. The live path reads the
+same shape via `fetch_bar_histories`, so a strategy evaluates identically under backtest and in
+runtime trading.
 
 Three alignment rules, each chosen to avoid inventing data:
 
@@ -289,34 +244,50 @@ Three alignment rules, each chosen to avoid inventing data:
   the listing existed. The engine skips a ticker until it has a finite positive price
   (`_tradeable_price`) rather than trading on a missing one.
 
-Signals and pricing still read the close column, so high, low and volume are available but not yet
-used. Reaching them from a signal requires a contract change — signal functions currently receive a
-close series only.
+## Strategy Indicators
+
+A strategy declares the series it reads as `IndicatorSpec` entries on its `StrategySpec`. The engine
+computes each once per ticker per run and hands the signal an `IndicatorView` positioned at the bar
+being decided: `view.value("fast_ma")` is today's value, `view.value("fast_ma", -1)` yesterday's.
+Deriving indicators inside a signal instead would recompute the same rolling window on every bar to
+read its last value.
+
+- `view.bars()` counts *priced* bars, not calendar days, so a ticker whose history starts late
+  reaches its minimum-history gate when it actually has the history.
+- An indicator names the bar column it reads. One sourced from a column the caller does not have
+  raises by name, so a strategy cannot silently fall back to closes — which is what keeps backtest
+  and live from diverging.
+- Adding a kind means extending `INDICATOR_KIND_*` and `_compute` in
+  `trading/domain/strategies/indicator_view.py`.
+
+`breakout` uses this to compare the close against the prior window's true **high** and **low**, which
+is what a Donchian breakout is defined on. Closing highs never exceed true highs, so measuring
+against closes sets the threshold too low and fires on days that did not break out.
 
 ## Execution Order Within a Bar
 
 A bar resolves in three phases: **evaluate every signal, then execute all sells, then execute buys.**
-
-Deciding first keeps every signal a function of the same pre-trade state. Selling before buying makes
-the day's proceeds available to every buy — previously buys and sells were interleaved in one
-ticker-ordered pass, so cash freed by selling a ticker only reached tickers sorted after it.
+Deciding first keeps every signal a function of the same pre-trade state; selling before buying makes
+the day's proceeds available to every buy rather than only to tickers later in the iteration.
 
 When cash cannot fund every buy signal, `allocate_buy_quantities`
-(`trading/domain/auto_trading_policy.py`) **scales the whole set proportionally** rather than funding
-requests in order until the cash runs out. A buy signal carries no conviction — every "buy" on a bar
-is equally preferred, because that is all the strategy said — so any ordering the engine picks is
-information the strategy never supplied. Funding in sorted order made the funded names the ones early
-in the alphabet, consistently, in every run and window. Proportional scaling is order-independent by
-construction: each ticker's share depends only on its own request and the total.
+(`trading/domain/auto_trading_policy.py`) **scales the whole set proportionally**. A buy signal
+carries no conviction — every "buy" on a bar is equally preferred, because that is all the strategy
+said — so any ordering the engine picks is information the strategy never supplied. Proportional
+scaling is order-independent by construction: each ticker's share depends only on its own request
+and the total.
 
-Consequences worth knowing:
+The runtime path faces the same problem with one trade per book per run, where proportional
+allocation is not available. `order_signal_candidates` instead orders candidates by a hash of the
+ticker and a per-run seed, so first pick spreads across names over runs while staying reproducible
+within one.
+
+Two consequences:
 
 - Buys are sized against one **post-sell** portfolio equity, not an equity that drifts as earlier
-  buys in the list fill.
+  buys fill.
 - A cash-constrained buy is **partially filled**, not dropped, and is logged as
   `signal=buy (cash-scaled)` so a shrunken position is not mistaken for a smaller signal.
-- **Results from before this change are not comparable.** The bias was correlated with ticker naming
-  and nothing else, so it did not average out across runs.
 
 ## Safeguards and Approximation Notes
 
