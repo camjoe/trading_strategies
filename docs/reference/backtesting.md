@@ -200,13 +200,14 @@ already ~130 simulations.
 
 Measured with `python -m scripts.benchmark_sweep` (re-run it after any change to the inner loop):
 
-| Universe | Per simulation | 8 candidates x 13 windows (132 simulations) |
-|---|---|---|
-| 12 tickers (default) | 0.72–0.89 s | 95–118 s |
-| 52 tickers | ~2.3 s | ~100 s at 4 candidates x 7 windows (44 simulations) |
+| Universe | Per simulation | 8 cand x 13 win (132 sims) | 32 cand x 13 win (444 sims) |
+|---|---|---|---|
+| 12 tickers (default) | ~42 ms | 5.6 s | 20.0 s |
+| 52 tickers | ~167 ms | — | 74 s |
 
-The per-simulation range is real run-to-run variance on the same machine and configuration, not a
-range of inputs — treat any single benchmark reading as ±20%.
+Those figures are after indicators moved out of the per-bar path. Before that a simulation cost
+~740 ms and the 132-simulation sweep took ~113 s. Benchmark readings still carry run-to-run variance
+of roughly ±20% on the same machine, so treat a single reading accordingly.
 
 **Where a backtest actually spends its time.** Profiled at both universe sizes, everything a run
 reads before simulating — account, default book, universe resolution, price history, benchmark
@@ -254,13 +255,17 @@ On a 2025–2026 backtest the corrected strategy reports a *lower* return (24.7%
 trades, drawdown -3.8% → -5.0%). That is not a regression: the earlier figure was produced by
 entries the strategy should never have taken. Results either side of this change are not comparable.
 
-**The UI route caps `candidateBudget` at 32** (`MAX_CANDIDATE_BUDGET` in
-`apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 16). `POST
+**The UI route caps `candidateBudget` at 128** (`MAX_CANDIDATE_BUDGET` in
+`apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 32). `POST
 /api/strategy-lab/optimizations` runs its sweep **synchronously**, so the HTTP request stays open for
-the entire run; at the default geometry a budget of 32 is ~444 simulations, or roughly five to seven
-minutes, where the former default of 256 would have meant closer to an hour and the former `le=2048`
-ceiling several hours. The frontend estimates `candidates x windows` before submitting and warns past
-~200 simulations.
+the entire run. At the default geometry a budget of 128 is ~1,690 simulations: about 70 seconds on
+the default universe and under five minutes on a wide one, which is the case the ceiling exists to
+bound. The frontend estimates `candidates x windows` before submitting and warns past 1,000
+simulations.
+
+The cap is calibrated to the *measured* per-simulation cost and should be revisited whenever that
+moves materially — it was 32 when a simulation cost ~740 ms, and holding it there afterwards would
+have limited research rather than guarded the request.
 
 The ceiling belongs to the synchronous route, not to the optimizer. `backtest-optimize` on the CLI
 takes an unbounded `--candidate-budget` because nothing is waiting on a socket — run large sweeps

@@ -175,11 +175,18 @@ describe("estimateSweep", () => {
     expect(estimate.overWarningThreshold).toBe(false);
   });
 
-  it("flags a grid whose real cost is hidden by a small candidate count", () => {
-    const estimate = estimateSweep({ candidates: 8, lookbackMonths: 48, holdoutMonths: 6 });
+  it("flags a grid whose real cost is hidden by a modest candidate count", () => {
+    // 32 candidates looks small; 30 monthly windows turns it into ~1,000 backtests.
+    const estimate = estimateSweep({ candidates: 32, lookbackMonths: 48, holdoutMonths: 6 });
     expect(estimate.windows).toBe(30);
     expect(estimate.simulations).toBeGreaterThan(SWEEP_WARNING_SIMULATIONS);
     expect(estimate.overWarningThreshold).toBe(true);
+  });
+
+  it("does not warn on a sweep the engine now finishes quickly", () => {
+    const estimate = estimateSweep({ candidates: 8, lookbackMonths: 48, holdoutMonths: 6 });
+    expect(estimate.simulations).toBeLessThan(SWEEP_WARNING_SIMULATIONS);
+    expect(estimate.overWarningThreshold).toBe(false);
   });
 
   it("reports no windows when the holdout leaves no room to train", () => {
@@ -202,7 +209,7 @@ describe("sweepConfirmMessage", () => {
 
   it("warns that the page stays open when the sweep is large", () => {
     const message = sweepConfirmMessage(
-      estimateSweep({ candidates: 8, lookbackMonths: 48, holdoutMonths: 6 }),
+      estimateSweep({ candidates: 32, lookbackMonths: 48, holdoutMonths: 6 }),
     );
     expect(message).toContain("long synchronous run");
   });

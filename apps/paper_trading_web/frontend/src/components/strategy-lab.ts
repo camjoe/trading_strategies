@@ -98,10 +98,14 @@ const DEFAULT_TRAIN_MONTHS = 12;
 /** Test/step months the optimizer defaults to — one window per month. */
 const DEFAULT_STEP_MONTHS = 1;
 
-/** Warn past this many simulations. One measured ~0.74s on the default
- * 12-ticker universe, so ~200 is about the point where a synchronous run stops
- * feeling like a request and starts being a wait. */
-export const SWEEP_WARNING_SIMULATIONS = 200;
+/** Warn past this many simulations.
+ *
+ * One measures ~42ms on the default 12-ticker universe and ~167ms on a wide
+ * one, so 1,000 is roughly forty seconds at best and a few minutes at worst —
+ * the point where a synchronous run stops feeling like a request. The universe
+ * is a server-side setting the form cannot see, so this is deliberately a rough
+ * threshold rather than a time estimate. */
+export const SWEEP_WARNING_SIMULATIONS = 1000;
 
 export type SweepEstimate = {
   candidates: number;

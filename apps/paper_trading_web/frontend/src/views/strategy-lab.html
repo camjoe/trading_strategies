@@ -28,7 +28,7 @@
           <label class="bt-field"><span>Search space (JSON)</span><textarea name="searchSpace" rows="6" required>{"fast_window":[5,10],"slow_window":[20,30]}</textarea></label>
           <div class="bt-row">
             <label class="bt-field"><span>Lookback months</span><input name="lookbackMonths" type="number" min="20" value="24" /></label>
-            <label class="bt-field"><span>Candidate budget</span><input name="candidateBudget" type="number" min="1" max="32" value="16" /></label>
+            <label class="bt-field"><span>Candidate budget</span><input name="candidateBudget" type="number" min="1" max="128" value="32" /></label>
             <label class="bt-field"><span>Holdout months</span><input name="holdoutMonths" type="number" min="0" value="6" /></label>
           </div>
           <button type="submit">Run optimization</button><div id="optimizationMessage"></div>
