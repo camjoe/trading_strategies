@@ -44,7 +44,6 @@ Operators edit the catalog through the CLI (`trading.services.strategy_catalog.m
 ### Trend family
 
 - `trend`
-- `macd`
 - `breakout`
 - `pullback_trend`
 - `ma_crossover`
@@ -56,16 +55,19 @@ Operators edit the catalog through the CLI (`trading.services.strategy_catalog.m
 - `rsi`
 - `bollinger_mean_reversion`
 
-### Proxy-feature family (price-derived features)
+### Retired
 
-- `topic_proxy_rotation`
-- `macro_proxy_regime`
+`macd`, `topic_proxy_rotation`, `macro_proxy_regime`, `policy_regime`, `news_sentiment` and
+`social_trend_rotation` were removed from the registry on 2026-07-30 — none had a catalog row, so
+none could be assigned, rotated into, or promoted, and none had produced a backtest run. Their rules
+and default thresholds are preserved in
+[Retired Strategy Primitives](retired-strategy-primitives.md) so any can be rebuilt.
 
-### Alternative-data family (external providers)
-
-- `policy_regime`
-- `news_sentiment`
-- `social_trend_rotation`
+The providers behind them were kept: `ProxyFeatureDataProvider`, the three external providers in
+`src/infrastructure/feature_providers/`, and the `ExternalFeatureProvider` contract. No strategy
+currently declares `required_features`, so that path is dormant rather than deleted —
+`build_feature_history_fn` in the live selection path still routes by `strategy_style` and returns
+`None` for every strategy that exists today.
 
 ## Strategy Resolution Behavior
 

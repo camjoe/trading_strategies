@@ -15,9 +15,6 @@ from infrastructure.feature_providers.policy_provider import (
     POLICY_RISK_ON_SCORE,
     PolicyFeatureProvider,
 )
-from trading.domain.strategies.registry import STRATEGY_REGISTRY
-from trading.domain.strategies.resolution import resolve_strategy
-from trading.domain.strategies.signals.alternative import _policy_regime_signal
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -246,87 +243,3 @@ class TestPolicyFeatureProviderCache:
         b2 = provider.get_features("MSFT")
         assert b1 is b2
         assert provider._fetch_etf_returns.call_count == 1
-
-
-# ---------------------------------------------------------------------------
-# _policy_regime_signal
-# ---------------------------------------------------------------------------
-
-
-class TestPolicyRegimeSignal:
-    def test_buy_when_trend_up_and_risk_on(self):
-        history = _make_history(n=60, start=100.0, slope=1.0)
-        fh = _make_feature_history(risk_on=0.70, def_tilt=-0.01)
-        assert _policy_regime_signal(history, {}, fh) == "buy"
-
-    def test_hold_when_features_missing(self):
-        history = _make_history(n=60, start=100.0, slope=1.0)
-        assert _policy_regime_signal(history, {}, None) == "hold"
-
-    def test_hold_when_history_too_short(self):
-        history = _make_history(n=10)
-        fh = _make_feature_history(risk_on=0.70, def_tilt=-0.01)
-        assert _policy_regime_signal(history, {}, fh) == "hold"
-
-    def test_sell_when_trend_down(self):
-        # Declining prices → sma_slow > close
-        history = _make_history(n=60, start=200.0, slope=-2.0)
-        fh = _make_feature_history(risk_on=0.70, def_tilt=-0.01)
-        signal = _policy_regime_signal(history, {}, fh)
-        assert signal == "sell"
-
-    def test_sell_when_risk_off(self):
-        history = _make_history(n=60, start=100.0, slope=1.0)
-        fh = _make_feature_history(risk_on=0.30, def_tilt=0.05)
-        signal = _policy_regime_signal(history, {}, fh)
-        assert signal == "sell"
-
-    def test_hold_on_neutral_score(self):
-        history = _make_history(n=60, start=100.0, slope=0.2)
-        fh = _make_feature_history(risk_on=0.50, def_tilt=0.01)
-        signal = _policy_regime_signal(history, {}, fh)
-        # risk_on 0.50 < risk_on_threshold 0.55 → no buy; close > sma_slow → no sell
-        assert signal in ("hold", "sell")
-
-    def test_custom_params_respected(self):
-        history = _make_history(n=60, start=100.0, slope=1.0)
-        fh = _make_feature_history(risk_on=0.60, def_tilt=-0.01)
-        # Raise threshold above the score → should NOT buy
-        params = {"risk_on_threshold": 0.80}
-        signal = _policy_regime_signal(history, params, fh)
-        assert signal != "buy"
-
-
-# ---------------------------------------------------------------------------
-# Registry integration
-# ---------------------------------------------------------------------------
-
-
-class TestPolicyRegimeRegistryEntry:
-    def test_registered_in_strategy_registry(self):
-        assert "policy_regime" in STRATEGY_REGISTRY
-
-    def test_strategy_style_is_alternative(self):
-        spec = STRATEGY_REGISTRY["policy_regime"]
-        assert spec.strategy_style == "alternative"
-
-    def test_required_features_declared(self):
-        spec = STRATEGY_REGISTRY["policy_regime"]
-        assert POLICY_RISK_ON_SCORE in spec.required_features
-        assert POLICY_DEFENSIVE_TILT in spec.required_features
-
-    def test_aliases_resolve_correctly(self):
-        for alias in ("policy_external", "policy_etf", "political_regime"):
-            spec = resolve_strategy(alias)
-            assert spec.strategy_id == "policy_regime"
-
-    def test_keyword_resolve_political(self):
-        spec = resolve_strategy("political_macro")
-        assert spec.strategy_id == "policy_regime"
-
-    def test_plain_policy_routes_to_macro_not_policy_regime(self):
-        # "policy" alone must route to macro_proxy_regime, not policy_regime.
-        # _resolve_by_keyword checks "policy_regime" before "policy" — this
-        # test guards against accidental reordering.
-        spec = resolve_strategy("policy")
-        assert spec.strategy_id == "macro_proxy_regime"

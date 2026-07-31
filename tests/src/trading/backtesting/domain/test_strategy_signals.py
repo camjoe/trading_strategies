@@ -20,14 +20,6 @@ def _series_steady(length: int = 80, base: float = 100.0, step: float = 0.1) -> 
     return pd.Series([base + float(i) * step for i in range(length)])
 
 
-def _feature_history(**columns: list[float]) -> pd.DataFrame:
-    first_column = next(iter(columns.values()))
-    return pd.DataFrame(
-        columns,
-        index=pd.date_range("2026-01-01", periods=len(first_column), freq="B"),
-    )
-
-
 def _assert_signal(
     strategy_name: str,
     history: pd.Series,
@@ -44,16 +36,12 @@ def test_available_strategy_ids_include_expanded_families() -> None:
     assert "bollinger_mean_reversion" in ids
     assert "ma_crossover" in ids
     assert "volatility_filtered_trend" in ids
-    assert "topic_proxy_rotation" in ids
-    assert "macro_proxy_regime" in ids
 
 
 def test_resolve_strategy_exact_and_keyword_aliases() -> None:
     assert resolution.resolve_strategy("breakout").strategy_id == "breakout"
     assert resolution.resolve_strategy("donchian_push").strategy_id == "breakout"
     assert resolution.resolve_strategy("bollinger_band_v1").strategy_id == "bollinger_mean_reversion"
-    assert resolution.resolve_strategy("sector_rotation_proxy").strategy_id == "topic_proxy_rotation"
-    assert resolution.resolve_strategy("policy_proxy").strategy_id == "macro_proxy_regime"
 
     with pytest.raises(ValueError, match="Unknown strategy 'unknown'"):
         resolution.resolve_strategy("unknown")
@@ -96,37 +84,6 @@ def test_rsi_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
     _assert_signal("rsi", history, "hold")
 
 
-def test_macd_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
-    history = _series_range(1, 50)
-
-    macd_buy = pd.Series([0.0] * 48 + [1.0])
-    macd_signal_buy = pd.Series([0.0] * 47 + [0.5, 0.2])
-    monkeypatch.setattr(
-        technical,
-        "calculate_macd",
-        lambda _history: (macd_buy, macd_signal_buy, macd_buy - macd_signal_buy),
-    )
-    _assert_signal("macd_strategy", history, "buy")
-
-    macd_sell = pd.Series([0.0] * 47 + [0.5, 0.4, 0.1])
-    macd_signal_sell = pd.Series([0.0] * 47 + [0.2, 0.3, 0.2])
-    monkeypatch.setattr(
-        technical,
-        "calculate_macd",
-        lambda _history: (macd_sell, macd_signal_sell, macd_sell - macd_signal_sell),
-    )
-    _assert_signal("macd", history, "sell")
-
-    macd_nan = pd.Series([0.0] * 48 + [float("nan"), 1.0])
-    macd_signal_nan = pd.Series([0.0] * 48 + [0.0, 0.5])
-    monkeypatch.setattr(
-        technical,
-        "calculate_macd",
-        lambda _history: (macd_nan, macd_signal_nan, macd_nan - macd_signal_nan),
-    )
-    _assert_signal("macd", history, "hold")
-
-
 def test_breakout_buy_sell_hold() -> None:
     _assert_signal("breakout", pd.Series([100.0 + float(i) for i in range(40)]), "buy")
     _assert_signal("breakout", pd.Series([120.0 - float(i) for i in range(40)]), "sell")
@@ -158,43 +115,6 @@ def test_volatility_filtered_trend_buy_sell_and_high_vol_hold() -> None:
         pd.Series([100.0 + ((-1.0) ** i) * (i * 1.2) for i in range(80)]),
         "hold",
     )
-
-
-def test_topic_proxy_rotation_buy_hold_and_sell() -> None:
-    history = pd.Series([100.0 + (i * 0.7) for i in range(45)])
-    buy_features = _feature_history(
-        topic_proxy_available=[1.0] * 45,
-        topic_proxy_rel_strength=[0.01] * 45,
-        topic_proxy_trend_gap=[0.02] * 45,
-    )
-    sell_features = _feature_history(
-        topic_proxy_available=[1.0] * 45,
-        topic_proxy_rel_strength=[-0.2] * 45,
-        topic_proxy_trend_gap=[-0.1] * 45,
-    )
-
-    _assert_signal("topic_proxy_rotation", history, "buy", buy_features)
-    _assert_signal("topic_proxy_rotation", history, "sell", sell_features)
-    _assert_signal("topic_proxy_rotation", history, "hold")
-
-
-def test_macro_proxy_regime_buy_sell_and_missing_features_hold() -> None:
-    history = pd.Series([100.0 + (i * 0.5) for i in range(65)])
-    risk_on_features = _feature_history(
-        macro_risk_on_score=[0.2] * 65,
-        macro_vix_pressure=[0.05] * 65,
-        macro_equity_bond_spread=[0.1] * 65,
-    )
-    risk_off_features = _feature_history(
-        macro_risk_on_score=[-0.2] * 65,
-        macro_vix_pressure=[0.25] * 65,
-        macro_equity_bond_spread=[-0.05] * 65,
-    )
-    missing_columns = _feature_history(macro_risk_on_score=[0.2] * 65)
-
-    _assert_signal("macro_proxy_regime", history, "buy", risk_on_features)
-    _assert_signal("macro_proxy_regime", history, "sell", risk_off_features)
-    _assert_signal("macro_proxy_regime", history, "hold", missing_columns)
 
 
 def test_default_hold_when_short_history() -> None:
@@ -238,16 +158,7 @@ def test_fuzz_resolve_signal_outputs_known_actions() -> None:
                 values.append(price)
 
             history = pd.Series(values)
-            features = _feature_history(
-                topic_proxy_available=[rng.choice([0.0, 1.0]) for _ in range(length)],
-                topic_proxy_rel_strength=[rng.uniform(-0.3, 0.3) for _ in range(length)],
-                topic_proxy_trend_gap=[rng.uniform(-0.3, 0.3) for _ in range(length)],
-                macro_risk_on_score=[rng.uniform(-0.5, 0.5) for _ in range(length)],
-                macro_vix_pressure=[rng.uniform(0.0, 0.4) for _ in range(length)],
-                macro_equity_bond_spread=[rng.uniform(-0.2, 0.2) for _ in range(length)],
-            )
-
-            signal = resolution.resolve_signal(strategy_id, history, features)
+            signal = resolution.resolve_signal(strategy_id, history)
             assert signal in {"buy", "sell", "hold"}
 
 
@@ -258,14 +169,11 @@ def test_fuzz_resolve_signal_outputs_known_actions() -> None:
             "trend",
             "mean_reversion",
             "rsi",
-            "macd",
             "breakout",
             "pullback_trend",
             "bollinger_mean_reversion",
             "ma_crossover",
             "volatility_filtered_trend",
-            "topic_proxy_rotation",
-            "macro_proxy_regime",
         ]
     ),
     history_values=st.lists(
@@ -279,35 +187,13 @@ def test_hypothesis_resolve_signal_outputs_known_actions(
     history_values: list[float],
 ) -> None:
     history = pd.Series(history_values)
-    length = len(history_values)
-    features = _feature_history(
-        topic_proxy_available=[1.0] * length,
-        topic_proxy_rel_strength=[0.0] * length,
-        topic_proxy_trend_gap=[0.0] * length,
-        macro_risk_on_score=[0.0] * length,
-        macro_vix_pressure=[0.1] * length,
-        macro_equity_bond_spread=[0.0] * length,
-    )
-
-    signal = resolution.resolve_signal(strategy_id, history, features)
+    signal = resolution.resolve_signal(strategy_id, history)
     assert signal in {"buy", "sell", "hold"}
 
 
 # ---------------------------------------------------------------------------
 # Inf / NaN guard regression tests
 # ---------------------------------------------------------------------------
-
-
-def _full_features(length: int) -> pd.DataFrame:
-    """Feature history with all proxy columns present and well-formed."""
-    return _feature_history(
-        topic_proxy_available=[1.0] * length,
-        topic_proxy_rel_strength=[0.05] * length,
-        topic_proxy_trend_gap=[0.05] * length,
-        macro_risk_on_score=[0.2] * length,
-        macro_vix_pressure=[0.05] * length,
-        macro_equity_bond_spread=[0.1] * length,
-    )
 
 
 class TestSignalInfAtLastPositionReturnsHold:
@@ -356,20 +242,6 @@ class TestSignalInfAtLastPositionReturnsHold:
 
         assert resolution.resolve_signal("volatility_filtered_trend", history) == "hold"
 
-    def test_inf_close_returns_hold_for_topic_proxy_rotation(self) -> None:
-        history = _series_steady(length=80)
-        history.iloc[-1] = float("inf")
-        features = _full_features(80)
-
-        assert resolution.resolve_signal("topic_proxy_rotation", history, features) == "hold"
-
-    def test_inf_close_returns_hold_for_macro_proxy_regime(self) -> None:
-        history = _series_steady(length=80)
-        history.iloc[-1] = float("inf")
-        features = _full_features(80)
-
-        assert resolution.resolve_signal("macro_proxy_regime", history, features) == "hold"
-
 
 class TestSignalInfInSmaWindowReturnsHold:
     """When inf contaminates a recent SMA window (but NOT the last price), signal
@@ -405,33 +277,6 @@ class TestSignalInfInSmaWindowReturnsHold:
 class TestFeatureValueInfGuard:
     """_feature_value must treat inf feature values as unavailable → 'hold'."""
 
-    def test_inf_proxy_available_treated_as_missing(self) -> None:
-        history = _series_steady(length=80, base=100.0, step=0.7)
-        features = _feature_history(
-            topic_proxy_available=[float("inf")] * 80,
-            topic_proxy_rel_strength=[0.05] * 80,
-            topic_proxy_trend_gap=[0.05] * 80,
-        )
-
-        # proxy_available = inf → treated as None → "hold"
-        assert resolution.resolve_signal("topic_proxy_rotation", history, features) == "hold"
-
-    def test_inf_macro_feature_treated_as_missing(self) -> None:
-        history = _series_steady(length=80, base=100.0, step=0.5)
-        features = _feature_history(
-            macro_risk_on_score=[float("inf")] * 80,
-            macro_vix_pressure=[0.05] * 80,
-            macro_equity_bond_spread=[0.1] * 80,
-        )
-
-        # risk_on_score = inf → treated as None → "hold"
-        assert resolution.resolve_signal("macro_proxy_regime", history, features) == "hold"
-
-
-# ---------------------------------------------------------------------------
-# Hypothesis: inf/NaN inputs never raise exceptions and produce valid signals
-# ---------------------------------------------------------------------------
-
 
 @settings(max_examples=30, deadline=None)
 @given(
@@ -440,7 +285,6 @@ class TestFeatureValueInfGuard:
             "trend",
             "mean_reversion",
             "rsi",
-            "macd",
             "breakout",
             "pullback_trend",
             "bollinger_mean_reversion",
@@ -488,21 +332,6 @@ def test_short_history_hold_for_bollinger() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _feature_value: all-NaN column returns None → strategy falls back to "hold"
-# ---------------------------------------------------------------------------
-
-
-def test_feature_value_all_nan_column_falls_back_to_hold() -> None:
-    """_feature_value returns None when the column is present but all values are NaN (line 69)."""
-    length = 60
-    features = _feature_history(
-        policy_risk_on_score=[float("nan")] * length,
-        policy_defensive_tilt=[0.01] * length,
-    )
-    _assert_signal("policy_regime", _series_steady(length=length), "hold", features)
-
-
-# ---------------------------------------------------------------------------
 # MA crossover: exact golden/death cross entries
 # ---------------------------------------------------------------------------
 
@@ -540,110 +369,6 @@ def test_volatility_filtered_trend_inf_in_slow_sma_window_returns_hold() -> None
     )
 
 
-# ---------------------------------------------------------------------------
-# policy_regime: buy and sell paths
-# ---------------------------------------------------------------------------
-
-
-def test_policy_regime_buy_signal() -> None:
-    """policy_regime returns 'buy' on uptrend + strong risk-on score + low defensive tilt (lines 453-454)."""
-    length = 60
-    features = _feature_history(
-        policy_risk_on_score=[0.6] * length,  # ≥ POLICY_RISK_ON_BUY_THRESHOLD (0.55)
-        policy_defensive_tilt=[0.01] * length,  # ≤ POLICY_MAX_DEFENSIVE_TILT (0.02)
-    )
-    _assert_signal("policy_regime", _series_steady(length=length), "buy", features)
-
-
-def test_policy_regime_sell_signal_low_risk_on_score() -> None:
-    """policy_regime returns 'sell' when risk_on_score < risk_off_threshold (lines 455-456)."""
-    length = 60
-    features = _feature_history(
-        policy_risk_on_score=[0.3] * length,  # < POLICY_RISK_OFF_SELL_THRESHOLD (0.45)
-        policy_defensive_tilt=[0.01] * length,
-    )
-    _assert_signal("policy_regime", _series_steady(length=length), "sell", features)
-
-
-# ---------------------------------------------------------------------------
-# news_sentiment: missing features, insufficient headlines, buy, sell
-# ---------------------------------------------------------------------------
-
-
-def test_news_sentiment_missing_features_returns_hold() -> None:
-    """news_sentiment returns 'hold' when feature_history is None (lines 484-485)."""
-    _assert_signal("news_sentiment", _series_steady(length=40), "hold")
-
-
-def test_news_sentiment_insufficient_headlines_returns_hold() -> None:
-    """news_sentiment returns 'hold' when headline_count < min_headlines (lines 487-489)."""
-    length = 40
-    features = _feature_history(
-        news_sentiment_score=[0.5] * length,
-        news_headline_count=[1.0] * length,  # < NEWS_MIN_HEADLINES_REQUIRED (3.0)
-    )
-    _assert_signal("news_sentiment", _series_steady(length=length), "hold", features)
-
-
-def test_news_sentiment_buy_signal() -> None:
-    """news_sentiment returns 'buy' on uptrend + positive sentiment + enough headlines (lines 500-501)."""
-    length = 40
-    features = _feature_history(
-        news_sentiment_score=[0.2] * length,  # ≥ NEWS_BUY_SENTIMENT_THRESHOLD (0.10)
-        news_headline_count=[5.0] * length,  # ≥ NEWS_MIN_HEADLINES_REQUIRED (3.0)
-    )
-    _assert_signal("news_sentiment", _series_steady(length=length), "buy", features)
-
-
-def test_news_sentiment_sell_signal() -> None:
-    """news_sentiment returns 'sell' on close < sma_fast + negative sentiment (lines 502-503)."""
-    length = 40
-    # Sharp drop at the last bar: close < sma_fast ✓
-    history = pd.Series([100.0 + float(i) * 0.5 for i in range(length - 1)] + [50.0])
-    features = _feature_history(
-        news_sentiment_score=[-0.2] * length,  # ≤ NEWS_SELL_SENTIMENT_THRESHOLD (-0.10)
-        news_headline_count=[5.0] * length,
-    )
-    _assert_signal("news_sentiment", history, "sell", features)
-
-
-# ---------------------------------------------------------------------------
-# social_trend_rotation: short history, buy, sell
-# ---------------------------------------------------------------------------
-
-
-def test_social_trend_rotation_short_history_returns_hold() -> None:
-    """social_trend_rotation returns 'hold' when history is too short (line 529)."""
-    _assert_signal("social_trend_rotation", pd.Series([100.0, 101.0, 102.0]), "hold")
-
-
-def test_social_trend_rotation_buy_signal() -> None:
-    """social_trend_rotation returns 'buy' on uptrend + high trend_score + positive reddit (lines 553-554)."""
-    length = 40
-    features = _feature_history(
-        social_trend_score=[0.5] * length,  # ≥ SOCIAL_TREND_BUY_THRESHOLD (0.40)
-        social_mention_count=[10.0] * length,
-        social_reddit_sentiment=[0.0] * length,  # ≥ SOCIAL_MIN_REDDIT_SENTIMENT (-0.05)
-    )
-    _assert_signal("social_trend_rotation", _series_steady(length=length), "buy", features)
-
-
-def test_social_trend_rotation_sell_signal_low_trend_score() -> None:
-    """social_trend_rotation returns 'sell' when trend_score < trend_exit threshold (lines 555-556)."""
-    length = 40
-    features = _feature_history(
-        social_trend_score=[0.1] * length,  # < SOCIAL_TREND_EXIT_THRESHOLD (0.20)
-        social_mention_count=[10.0] * length,
-        social_reddit_sentiment=[0.0] * length,
-    )
-    _assert_signal("social_trend_rotation", _series_steady(length=length), "sell", features)
-
-
-# ---------------------------------------------------------------------------
-# _resolve_by_keyword: each keyword branch + unknown fallback
-# ---------------------------------------------------------------------------
-
-
 class TestResolveByKeyword:
     """Keyword-resolver branches are only reached when the name is not a known exact key or alias.
     Use names that contain the keyword but are not registered aliases."""
@@ -653,18 +378,6 @@ class TestResolveByKeyword:
 
     def test_vol_trend_keyword_resolves(self) -> None:
         assert resolution.resolve_strategy("vol_trend_v2").strategy_id == "volatility_filtered_trend"
-
-    def test_policy_regime_keyword_resolves(self) -> None:
-        assert resolution.resolve_strategy("my_policy_regime_v2").strategy_id == "policy_regime"
-
-    def test_macro_keyword_resolves(self) -> None:
-        assert resolution.resolve_strategy("macro_system_v1").strategy_id == "macro_proxy_regime"
-
-    def test_news_keyword_resolves(self) -> None:
-        assert resolution.resolve_strategy("custom_news_model").strategy_id == "news_sentiment"
-
-    def test_social_keyword_resolves(self) -> None:
-        assert resolution.resolve_strategy("reddit_v2").strategy_id == "social_trend_rotation"
 
     def test_cross_ma_keyword_resolves(self) -> None:
         assert resolution.resolve_strategy("cross_ma_v3").strategy_id == "ma_crossover"

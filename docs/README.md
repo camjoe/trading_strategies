@@ -58,6 +58,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/ibkr-paper-execution-plan.md`](reference/ibkr-paper-execution-plan.md) — target auto-trader shape, audited current-state gap, and the phase order to close it
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
+- [`reference/retired-strategy-primitives.md`](reference/retired-strategy-primitives.md) � decision rules and default thresholds of six strategy primitives removed from the registry, kept so any can be rebuilt
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification

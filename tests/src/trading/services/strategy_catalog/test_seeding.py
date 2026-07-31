@@ -48,9 +48,9 @@ def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None
     # style/required_features are code-owned (PrimitiveSpec), no longer stored on
     # the row (revision 0017); the seeded row carries only variant identity.
 
-    news = repo.fetch_by_key(strategy_key="news_sentiment")
-    assert news is not None
-    assert news.primitive == "news_sentiment"
+    breakout = repo.fetch_by_key(strategy_key="breakout")
+    assert breakout is not None
+    assert breakout.primitive == "breakout"
 
 
 def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> None:

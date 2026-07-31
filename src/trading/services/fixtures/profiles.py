@@ -272,7 +272,7 @@ SANDBOX_PROFILE = FixtureProfile(
         FixtureAccount(
             name=SANDBOX_IDLE_ACCOUNT,
             descriptive_name="Sandbox Idle",
-            strategy="macd",
+            strategy="bollinger_mean_reversion",
             initial_cash=10_000.0,
             benchmark="SPY",
             trade_universes=("default",),

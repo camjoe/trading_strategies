@@ -92,6 +92,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/ibkr-paper-execution-plan.md` | Target shape of the multi-book auto-trader, the audited gap to it, and the phase order for closing it | A phase lands, or the audited current-state claims stop being true |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategies/` or strategy config changes |
+| `docs/reference/retired-strategy-primitives.md` | Rules and thresholds of removed strategy primitives, for rebuilding | A primitive is removed from, or restored to, the strategy registry |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |

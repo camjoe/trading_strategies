@@ -5,13 +5,12 @@ import math
 import pandas as pd
 
 from common.constants import (
-    MACD_MIN_HISTORY,
     RSI_DEFAULT_WINDOW,
     RSI_OVERBOUGHT,
     RSI_OVERSOLD,
     TRADING_DAYS_PER_YEAR,
 )
-from trading.domain.indicators import calculate_macd, calculate_rs_rsi
+from trading.domain.indicators import calculate_rs_rsi
 from trading.domain.strategies.contracts import StrategyParams
 
 
@@ -82,26 +81,6 @@ def _rsi_signal(
     if last_rsi < oversold:
         return "buy"
     if last_rsi > overbought:
-        return "sell"
-    return "hold"
-
-
-def _macd_signal(
-    history: pd.Series,
-    _params: StrategyParams,
-    _feature_history: pd.DataFrame | None = None,
-) -> str:
-    if len(history) < MACD_MIN_HISTORY:
-        return "hold"
-
-    macd, macd_signal, _hist = calculate_macd(history)
-    prev_diff = macd.iloc[-2] - macd_signal.iloc[-2]
-    curr_diff = macd.iloc[-1] - macd_signal.iloc[-1]
-    if pd.isna(prev_diff) or pd.isna(curr_diff):
-        return "hold"
-    if prev_diff <= 0 and curr_diff > 0:
-        return "buy"
-    if prev_diff >= 0 and curr_diff < 0:
         return "sell"
     return "hold"
 

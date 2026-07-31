@@ -497,20 +497,6 @@ def test_build_feature_history_fn_returns_none_for_non_alternative_styles() -> N
     fetchers.fetch_news.assert_not_called()
 
 
-def test_build_feature_history_fn_uses_matching_fetcher_for_alternative_strategy() -> None:
-    bundle = _StubBundle({"news_sentiment_score": 0.4, "news_headline_count": 5.0})
-    fetchers = SimpleNamespace(fetch_policy=Mock(), fetch_news=Mock(return_value=bundle), fetch_social=None)
-    feature_history_for = trade_execution_service.build_feature_history_fn(fetchers)
-
-    frame = feature_history_for("news_sentiment", "AAPL")
-
-    assert frame is not None
-    assert frame.iloc[-1]["news_sentiment_score"] == 0.4
-    fetchers.fetch_news.assert_called_once_with("AAPL")
-    # social fetcher is None → social strategy safely degrades to no features
-    assert feature_history_for("social_trend_rotation", "AAPL") is None
-
-
 def test_build_feature_history_fn_swallows_fetcher_errors_and_unknown_strategies() -> None:
     fetchers = SimpleNamespace(fetch_policy=Mock(side_effect=RuntimeError("boom")), fetch_news=None, fetch_social=None)
     feature_history_for = trade_execution_service.build_feature_history_fn(fetchers)
