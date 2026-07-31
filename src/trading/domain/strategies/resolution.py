@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 
 from trading.domain.exceptions import ValidationError
-from trading.domain.strategies.contracts import StrategyParams, StrategySpec
+from trading.domain.strategies.contracts import INDICATOR_SOURCE_CLOSE, StrategyParams, StrategySpec
+from trading.domain.strategies.indicator_view import (
+    IndicatorView,
+    build_indicator_arrays,
+    count_priced_bars,
+)
 from trading.domain.strategies.registry import STRATEGY_REGISTRY, available_strategy_ids
 
 
@@ -67,13 +72,55 @@ def validate_strategy_name(strategy_name: str) -> str:
 
 def evaluate_signal(
     strategy_name: str,
+    view: IndicatorView,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Evaluate a strategy's signal at one bar — the shared backtest/live entry.
+
+    Takes a view rather than a price history because the caller that runs this
+    per bar (the simulation loop) must precompute the strategy's indicators once
+    per ticker; rebuilding them here would put the recomputation back.
+    """
+    spec = resolve_strategy(strategy_name)
+    return spec.signal_fn(view, params, feature_history)
+
+
+def build_view_over_history(
+    strategy_name: str,
+    history: pd.Series,
+    params: StrategyParams,
+    index: int | None = None,
+) -> IndicatorView:
+    """Build a view for one bar of a close-only price history.
+
+    For callers holding a single ticker's closes with no reason to precompute —
+    the live selection pass, and tests. Indicators sourced from a bar column
+    other than close raise here, which is the intended signal that the caller
+    needs real bars rather than a close series.
+    """
+    spec = resolve_strategy(strategy_name)
+    closes = history.to_numpy(dtype=float)
+    frame = pd.DataFrame({INDICATOR_SOURCE_CLOSE: history})
+    arrays = build_indicator_arrays(frame, spec.indicators, params)
+    position = len(closes) - 1 if index is None else index
+    return IndicatorView(
+        closes=closes,
+        indicators=arrays,
+        index=position,
+        priced_bars=count_priced_bars(closes),
+    )
+
+
+def evaluate_signal_over_history(
+    strategy_name: str,
     history: pd.Series,
     params: StrategyParams,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
-    """Evaluate a strategy's signal with explicit params — the shared backtest/live entry."""
-    spec = resolve_strategy(strategy_name)
-    return spec.signal_fn(history, params, feature_history)
+    """Evaluate the most recent bar of a close-only price history."""
+    view = build_view_over_history(strategy_name, history, params)
+    return evaluate_signal(strategy_name, view, params, feature_history)
 
 
 def resolve_signal(
@@ -83,4 +130,4 @@ def resolve_signal(
 ) -> str:
     """Resolve strategy labels to explicit signal models evaluated with default params."""
     spec = resolve_strategy(strategy_name)
-    return evaluate_signal(strategy_name, history, spec.default_params, feature_history)
+    return evaluate_signal_over_history(strategy_name, history, spec.default_params, feature_history)

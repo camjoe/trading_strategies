@@ -60,7 +60,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
+            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
         ),
         patch.object(
             execution_service,
@@ -118,7 +118,7 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
             "resolve_strategy",
             lambda name: (
                 resolved.append(name),
-                SimpleNamespace(required_features=(), strategy_id=name, default_params={}),
+                SimpleNamespace(indicators=(), required_features=(), strategy_id=name, default_params={}),
             )[1],
         ),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
@@ -202,7 +202,7 @@ def _patched_run_backtest(
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
+            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
         ),
         patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
@@ -416,14 +416,14 @@ def test_sell_proceeds_fund_the_same_bar_regardless_of_ticker_order() -> None:
     idx = pd.date_range("2026-01-01", periods=4, freq="B")
     trades, record = _recorded_trades()
 
-    def scripted(_strategy, history, _params, _features=None):
+    def scripted(_strategy, view, _params, _features=None):
         """Buy ZZZZ on the first bar, then swap into AAAA on every later bar.
 
         The two tickers are priced apart so the signal can tell them apart from
-        the history alone — ``evaluate_signal`` is not given the ticker.
+        the bar alone — ``evaluate_signal`` is not given the ticker.
         """
-        is_zzzz = float(history.iloc[-1]) < 75.0
-        if len(history) <= 1:
+        is_zzzz = view.close() < 75.0
+        if view.bars() <= 1:
             return "buy" if is_zzzz else "hold"
         return "sell" if is_zzzz else "buy"
 
@@ -515,7 +515,7 @@ def _patched_run_backtest_with_frames(
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend", default_params={}),
+            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
         ),
         patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),

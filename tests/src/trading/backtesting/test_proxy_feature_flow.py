@@ -102,6 +102,7 @@ class TestBacktestProxyFeatureFlow:
             execution_service,
             "resolve_strategy",
             lambda _name: SimpleNamespace(
+                indicators=(),
                 required_features=("topic_proxy_rel_strength",),
                 strategy_id="trend",
                 default_params={},

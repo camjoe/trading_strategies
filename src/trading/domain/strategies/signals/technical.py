@@ -1,36 +1,39 @@
+"""Price-based signal functions.
+
+Each reads its indicators from an :class:`IndicatorView` — values the engine
+computed once per ticker per run — rather than deriving them from a price
+history on every bar. The decision logic is unchanged from when these functions
+did their own rolling maths; only where the numbers come from moved.
+"""
+
 from __future__ import annotations
 
 import math
 
 import pandas as pd
 
-from common.constants import (
-    RSI_DEFAULT_WINDOW,
-    RSI_OVERBOUGHT,
-    RSI_OVERSOLD,
-    TRADING_DAYS_PER_YEAR,
-)
-from trading.domain.indicators import calculate_rs_rsi
+from common.constants import RSI_DEFAULT_WINDOW, RSI_OVERBOUGHT, RSI_OVERSOLD
 from trading.domain.strategies.contracts import StrategyParams
+from trading.domain.strategies.indicator_view import IndicatorView
+
+
+def _all_finite(*values: float) -> bool:
+    return all(math.isfinite(value) for value in values)
 
 
 def _trend_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    fast_window = int(params.get("fast_window", 10))
     slow_window = int(params.get("slow_window", 20))
-    min_history = max(30, slow_window)
-    if len(history) < min_history:
+    if view.bars() < max(30, slow_window):
         return "hold"
 
-    close = float(history.iloc[-1])
-    if not math.isfinite(close):
-        return "hold"
-    sma_fast = float(history.tail(fast_window).mean())
-    sma_slow = float(history.tail(slow_window).mean())
-    if not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+    close = view.close()
+    sma_fast = view.value("fast_ma")
+    sma_slow = view.value("slow_ma")
+    if not _all_finite(close, sma_fast, sma_slow):
         return "hold"
     if close > sma_fast > sma_slow:
         return "buy"
@@ -40,20 +43,17 @@ def _trend_signal(
 
 
 def _mean_reversion_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    window = int(params.get("window", 20))
     band_pct = float(params.get("band_pct", 0.02))
-    if len(history) < 30:
+    if view.bars() < 30:
         return "hold"
 
-    close = float(history.iloc[-1])
-    if not math.isfinite(close):
-        return "hold"
-    sma_mid = float(history.tail(window).mean())
-    if not math.isfinite(sma_mid):
+    close = view.close()
+    sma_mid = view.value("mid_ma")
+    if not _all_finite(close, sma_mid):
         return "hold"
     if close < (sma_mid * (1.0 - band_pct)):
         return "buy"
@@ -63,20 +63,18 @@ def _mean_reversion_signal(
 
 
 def _rsi_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
     window = int(params.get("window", RSI_DEFAULT_WINDOW))
     oversold = float(params.get("oversold", RSI_OVERSOLD))
     overbought = float(params.get("overbought", RSI_OVERBOUGHT))
-    min_history = max(30, window + 1)
-    if len(history) < min_history:
+    if view.bars() < max(30, window + 1):
         return "hold"
 
-    _rs, rsi = calculate_rs_rsi(history, window=window)
-    last_rsi = float(rsi.iloc[-1]) if pd.notna(rsi.iloc[-1]) else float("nan")
-    if pd.isna(last_rsi) or not math.isfinite(last_rsi):
+    last_rsi = view.value("rsi")
+    if not math.isfinite(last_rsi):
         return "hold"
     if last_rsi < oversold:
         return "buy"
@@ -86,22 +84,18 @@ def _rsi_signal(
 
 
 def _breakout_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
     window = int(params.get("window", 20))
-    min_history = max(30, window + 1)
-    if len(history) < min_history:
+    if view.bars() < max(30, window + 1):
         return "hold"
 
-    current_close = float(history.iloc[-1])
-    if not math.isfinite(current_close):
-        return "hold"
-    prior_window = history.iloc[-(window + 1) : -1]
-    highest_breakout = float(prior_window.max())
-    lowest_breakdown = float(prior_window.min())
-    if not math.isfinite(highest_breakout) or not math.isfinite(lowest_breakdown):
+    current_close = view.close()
+    highest_breakout = view.value("prior_high")
+    lowest_breakdown = view.value("prior_low")
+    if not _all_finite(current_close, highest_breakout, lowest_breakdown):
         return "hold"
 
     if current_close > highest_breakout:
@@ -112,22 +106,19 @@ def _breakout_signal(
 
 
 def _pullback_in_trend_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    fast_window = int(params.get("fast_window", 20))
     trend_window = int(params.get("trend_window", 50))
     pullback_pct = float(params.get("pullback_pct", 0.03))
-    min_history = max(60, trend_window)
-    if len(history) < min_history:
+    if view.bars() < max(60, trend_window):
         return "hold"
 
-    close = float(history.iloc[-1])
-    sma_fast = float(history.tail(fast_window).mean())
-    sma_trend = float(history.tail(trend_window).mean())
-
-    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_trend):
+    close = view.close()
+    sma_fast = view.value("fast_ma")
+    sma_trend = view.value("trend_ma")
+    if not _all_finite(close, sma_fast, sma_trend):
         return "hold"
 
     if close < sma_trend:
@@ -141,26 +132,21 @@ def _pullback_in_trend_signal(
 
 
 def _bollinger_mean_reversion_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
     window = int(params.get("window", 20))
     num_std = float(params.get("num_std", 2.0))
-    min_history = max(30, window)
-    if len(history) < min_history:
+    if view.bars() < max(30, window):
         return "hold"
 
-    segment = history.tail(window)
-    close = float(segment.iloc[-1])
-    if not math.isfinite(close):
-        return "hold"
-    segment_finite = segment[segment.map(lambda value: math.isfinite(float(value)))]
-    if len(segment_finite) < len(segment):
-        return "hold"
-    middle = float(segment_finite.mean())
-    std = float(segment_finite.std(ddof=0))
-    if not math.isfinite(std) or std <= 0:
+    close = view.close()
+    middle = view.value("mid_ma")
+    std = view.value("band_std")
+    # A non-finite value anywhere in the window propagates into the rolling
+    # results, so guarding the outputs covers the whole window.
+    if not _all_finite(close, middle, std) or std <= 0:
         return "hold"
 
     lower_band = middle - (num_std * std)
@@ -173,27 +159,19 @@ def _bollinger_mean_reversion_signal(
 
 
 def _ma_crossover_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
-    min_history = max(60, slow_window + 1)
-    if len(history) < min_history:
+    if view.bars() < max(60, slow_window + 1):
         return "hold"
 
-    fast = history.rolling(window=fast_window).mean()
-    slow = history.rolling(window=slow_window).mean()
-    prev_fast = float(fast.iloc[-2])
-    prev_slow = float(slow.iloc[-2])
-    curr_fast = float(fast.iloc[-1])
-    curr_slow = float(slow.iloc[-1])
-
-    has_missing_crossover_inputs = any(pd.isna(value) for value in (prev_fast, prev_slow, curr_fast, curr_slow))
-    if has_missing_crossover_inputs:
-        return "hold"
-    if not all(math.isfinite(v) for v in (prev_fast, prev_slow, curr_fast, curr_slow)):
+    prev_fast = view.value("fast_ma", -1)
+    prev_slow = view.value("slow_ma", -1)
+    curr_fast = view.value("fast_ma")
+    curr_slow = view.value("slow_ma")
+    if not _all_finite(prev_fast, prev_slow, curr_fast, curr_slow):
         return "hold"
 
     if prev_fast <= prev_slow and curr_fast > curr_slow:
@@ -203,7 +181,7 @@ def _ma_crossover_signal(
 
     # Keep this strategy actionable after a recent crossover by honoring
     # the current fast/slow stack and price confirmation.
-    close = float(history.iloc[-1])
+    close = view.close()
     if not math.isfinite(close):
         return "hold"
     if curr_fast > curr_slow and close >= curr_fast:
@@ -214,35 +192,32 @@ def _ma_crossover_signal(
 
 
 def _volatility_filtered_trend_signal(
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
     vol_window = int(params.get("vol_window", 20))
     max_annualized_vol_pct = float(params.get("max_annualized_vol_pct", 45.0))
-    min_history = max(60, slow_window, vol_window + 1)
-    if len(history) < min_history:
+    if view.bars() < max(60, slow_window, vol_window + 1):
         return "hold"
 
-    close = float(history.iloc[-1])
+    close = view.close()
     if not math.isfinite(close):
         return "hold"
 
-    returns = history.pct_change().dropna()
-    recent_returns = returns.tail(vol_window)
-    recent_returns = recent_returns[recent_returns.map(lambda value: math.isfinite(float(value)))]
-    if recent_returns.empty:
-        return "hold"
-    annualized_vol_pct = float(recent_returns.std(ddof=0) * (TRADING_DAYS_PER_YEAR**0.5) * 100.0)
-    if pd.isna(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
+    # A window containing an unusable return yields a non-finite volatility, and
+    # the bar holds. The previous implementation dropped those returns and
+    # estimated from whatever survived, which could pass the filter on a handful
+    # of observations — a risk filter that failed open exactly when its inputs
+    # were least trustworthy.
+    annualized_vol_pct = view.value("return_vol")
+    if not math.isfinite(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
         return "hold"
 
-    sma_fast = float(history.tail(fast_window).mean())
-    sma_slow = float(history.tail(slow_window).mean())
-    has_valid_trend_inputs = math.isfinite(close) and math.isfinite(sma_fast) and math.isfinite(sma_slow)
-    if not has_valid_trend_inputs:
+    sma_fast = view.value("fast_ma")
+    sma_slow = view.value("slow_ma")
+    if not _all_finite(sma_fast, sma_slow):
         return "hold"
     if close > sma_fast > sma_slow:
         return "buy"

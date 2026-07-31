@@ -8,12 +8,70 @@ import pandas as pd
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
 
+# Bar columns an indicator can be computed over. Mirrors
+# ``trading.models.market_data.constants`` without importing it, so the strategy
+# contract stays free of a data-layer dependency.
+INDICATOR_SOURCE_OPEN = "open"
+INDICATOR_SOURCE_HIGH = "high"
+INDICATOR_SOURCE_LOW = "low"
+INDICATOR_SOURCE_CLOSE = "close"
+
+# Supported indicator computations. Each is a rolling window over one bar column.
+INDICATOR_KIND_SMA = "sma"
+INDICATOR_KIND_ROLLING_MAX = "rolling_max"
+INDICATOR_KIND_ROLLING_MIN = "rolling_min"
+INDICATOR_KIND_STDDEV = "stddev"
+INDICATOR_KIND_RSI = "rsi"
+INDICATOR_KIND_RETURN_VOL = "return_vol"
+
+
+@dataclass(frozen=True)
+class IndicatorSpec:
+    """One series a strategy reads, declared so the engine can precompute it.
+
+    The engine computes each declared indicator once per ticker per run and
+    hands the signal the values for the current bar. Without the declaration a
+    signal has to derive its own indicator from a price history on every bar,
+    which is the same rolling window recomputed from scratch for every trading
+    day — quadratic work to produce one number.
+
+    ``window_param`` names the knob that sets the window, so an optimizer
+    sweeping that knob changes the indicator rather than being ignored;
+    ``default_window`` applies when the knob is absent.
+
+    ``shift`` lags the series by N bars. A breakout compares today's price
+    against the highest high of the *prior* window, so it declares ``shift=1``
+    to exclude the bar being decided — without it the comparison includes the
+    value it is testing and can never fire.
+    """
+
+    name: str
+    kind: str
+    source: str = INDICATOR_SOURCE_CLOSE
+    window_param: str | None = None
+    default_window: int | None = None
+    shift: int = 0
+
+    def window_for(self, params: StrategyParams) -> int:
+        """The effective window under *params*."""
+        if self.window_param is not None:
+            configured = params.get(self.window_param)
+            if configured is not None:
+                return int(configured)
+        if self.default_window is None:
+            raise ValueError(f"Indicator '{self.name}' has neither a configured window nor a default.")
+        return int(self.default_window)
+
 
 @dataclass(frozen=True)
 class StrategySpec:
     strategy_id: str
     signal_fn: SignalFunction
     default_params: dict[str, Any]
+    # Series the engine precomputes once per ticker per run and exposes to the
+    # signal through an IndicatorView. Empty means the signal derives everything
+    # itself from the price history it is handed.
+    indicators: tuple[IndicatorSpec, ...] = ()
     aliases: tuple[str, ...] = ()
     description: str = ""
     required_features: tuple[str, ...] = ()

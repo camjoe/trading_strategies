@@ -10,7 +10,7 @@ import pandas as pd
 import trading.domain.auto_trading_policy as auto_trader_policy
 from common.coercion import row_int
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.domain.strategies.resolution import evaluate_signal_over_history, resolve_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,9 @@ def select_signal_trade_candidates(
         if history is None or history.empty:
             continue
         feature_history = feature_history_fn(strategy_name, ticker) if feature_history_fn is not None else None
-        signal = evaluate_signal(strategy_name, history, params, feature_history)
+        # One ticker at a time here, so the indicators are built per call rather
+        # than hoisted the way the simulation loop does it.
+        signal = evaluate_signal_over_history(strategy_name, history, params, feature_history)
         if signal == "buy" and ticker not in held:
             buy_candidates.append(ticker)
         elif signal == "sell" and ticker in held:

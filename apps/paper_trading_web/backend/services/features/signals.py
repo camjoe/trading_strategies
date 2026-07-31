@@ -3,10 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import pandas as pd
-
-from trading.domain.strategies.resolution import resolve_signal
-
 from .interpretation import interpret_signal
 from .shared import PROVIDER_META, build_unavailable_entry, load_providers
 
@@ -14,12 +10,12 @@ _LOG = logging.getLogger(__name__)
 
 
 def get_signals(ticker: str) -> list[dict[str, Any]]:
-    """Compute feature-only alt-strategy signals for ``ticker``.
+    """Report each external provider's features for ``ticker``.
 
-    Price history is intentionally omitted in this UI context, so momentum guards
-    remain active and ``available`` is always ``False``.
+    The signal is always ``"hold"``: the feature-gated strategy primitives were
+    retired, so nothing consumes these features and there is no signal to
+    compute. The providers still run, so the panel keeps showing what they see.
     """
-    empty_history = pd.Series([], dtype=float)
     signals: list[dict[str, Any]] = []
 
     for provider, name, label, strategy_id, _class_name in load_providers():
@@ -73,11 +69,11 @@ def get_signals(ticker: str) -> list[dict[str, Any]]:
             )
             continue
 
-        try:
-            signal = resolve_signal(strategy_id, empty_history, bundle.to_feature_row())
-        except Exception as exc:
-            _LOG.warning("features: signal fn failed for %s/%s: %s", strategy_id, ticker, exc)
-            signal = "hold"
+        # No strategy consumes these features since the feature-gated primitives
+        # were retired, so there is no signal to compute — the panel shows the
+        # provider's feature values and says so. Restoring a strategy that
+        # declares required_features is what makes this meaningful again.
+        signal = "hold"
 
         signals.append(
             {

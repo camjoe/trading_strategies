@@ -6,9 +6,8 @@ import pandas as pd
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from trading.domain.strategies import resolution
+from trading.domain.strategies import indicator_view, resolution
 from trading.domain.strategies.registry import available_strategy_ids
-from trading.domain.strategies.signals import technical
 
 
 def _series_range(start: int, stop: int) -> pd.Series:
@@ -70,14 +69,14 @@ def test_rsi_buy_sell_and_nan_hold(monkeypatch: pytest.MonkeyPatch) -> None:
 
     history = _series_range(1, 50)
     monkeypatch.setattr(
-        technical,
+        indicator_view,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([80.0] * len(history))),
     )
     _assert_signal("rsi", history, "sell")
 
     monkeypatch.setattr(
-        technical,
+        indicator_view,
         "calculate_rs_rsi",
         lambda _history, window=14: (pd.Series([1.0] * len(history)), pd.Series([float("nan")] * len(history))),
     )
@@ -131,17 +130,17 @@ def test_evaluate_signal_explicit_params_override_defaults() -> None:
     history = _series_range(1, 40)
     spec = resolution.resolve_strategy("trend")
 
-    default_signal = resolution.evaluate_signal("trend", history, spec.default_params)
+    default_signal = resolution.evaluate_signal_over_history("trend", history, spec.default_params)
     assert default_signal == resolution.resolve_signal("trend", history) == "buy"
 
     # Swapping the windows inverts the SMA relationship, so explicit params flip buy → hold.
-    overridden = resolution.evaluate_signal("trend", history, {"fast_window": 20, "slow_window": 10})
+    overridden = resolution.evaluate_signal_over_history("trend", history, {"fast_window": 20, "slow_window": 10})
     assert overridden == "hold"
 
 
 def test_evaluate_signal_rejects_unknown_strategy_name() -> None:
     with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
-        resolution.evaluate_signal("unknown_strategy", _series_range(1, 40), {})
+        resolution.evaluate_signal_over_history("unknown_strategy", _series_range(1, 40), {})
 
 
 def test_fuzz_resolve_signal_outputs_known_actions() -> None:

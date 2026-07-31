@@ -214,13 +214,25 @@ series — totals **0.2% of the run**. The other 99.8% is the simulation loop. C
 those reads cannot pay off, and an attempt to do so was reverted after measurement; don't try again
 without new evidence.
 
-The loop's own cost is dominated by re-derivation rather than by the simulation. For each trading
-day and each ticker it slices that ticker's entire history to the current day
-(`close.loc[:signal_date, ticker].dropna()`) and hands it to `evaluate_signal`, which recomputes the
-strategy's indicators over that whole slice to read the last two values. A 249-day, 12-ticker run
-makes ~3,000 such calls and ~6,000 full rolling-window passes to produce ~6,000 numbers. Computing
-each ticker's indicator series once per run instead is ~200x cheaper on that portion in isolation.
-Any real speed work on backtesting belongs here.
+**Indicators are precomputed, not re-derived per bar.** A strategy declares the series it reads as
+`IndicatorSpec` entries on its `StrategySpec`; the engine computes each once per ticker per run and
+hands the signal an `IndicatorView` positioned at the bar being decided. `view.value("fast_ma")` is
+today's value and `view.value("fast_ma", -1)` yesterday's.
+
+Before this, each signal received the ticker's full price history sliced to the current day and
+recomputed its rolling windows from scratch to read the last one or two values — a 249-day,
+12-ticker run made ~3,000 such slices and ~6,000 full rolling passes to produce ~6,000 numbers.
+Measured effect of the change: **a single backtest went from ~0.85s to ~0.05s, and a
+132-simulation sweep from ~113s to ~18s** on the default universe.
+
+Two consequences worth knowing:
+
+- `view.bars()` counts *priced* bars, not calendar days, preserving the old length gate for a ticker
+  whose history starts late.
+- Adding an indicator kind means adding it to `INDICATOR_KIND_*` and `_compute` in
+  `trading/domain/strategies/indicator_view.py`. An indicator sourced from a bar column the caller
+  does not have raises by name — which is how the live path, still on close-only history, reports
+  that it needs real bars.
 
 **The UI route caps `candidateBudget` at 32** (`MAX_CANDIDATE_BUDGET` in
 `apps/paper_trading_web/backend/schemas/strategy_lab.py`, default 16). `POST

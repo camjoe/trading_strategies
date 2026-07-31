@@ -24,7 +24,13 @@ from trading.domain.auto_trading_policy import (
     allocate_buy_quantities as default_allocate_buy_quantities,
     choose_buy_qty as default_choose_buy_qty,
 )
+from trading.domain.strategies.indicator_view import (
+    IndicatorView,
+    build_indicator_arrays,
+    count_priced_bars,
+)
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.models.market_data.constants import BAR_CLOSE
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
@@ -284,6 +290,16 @@ def run_backtest(
         strategy_spec.default_params if not param_override else {**strategy_spec.default_params, **param_override}
     )
 
+    # The strategy's declared indicators, computed once per ticker for the whole
+    # run. Deriving them inside the signal would recompute the same rolling
+    # windows on every bar to keep only their last value.
+    ticker_closes = {ticker: panel.frame(ticker)[BAR_CLOSE].to_numpy(dtype=float) for ticker in all_tickers}
+    ticker_indicators = {
+        ticker: build_indicator_arrays(panel.frame(ticker), strategy_spec.indicators, effective_params)
+        for ticker in all_tickers
+    }
+    ticker_priced_bars = {ticker: count_priced_bars(closes) for ticker, closes in ticker_closes.items()}
+
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
 
     feature_bundle = None
@@ -359,11 +375,16 @@ def run_backtest(
             # buy rather than only to tickers later in the iteration order.
             signals = {}
             for ticker in strategy_tickers:
-                history = close.loc[:signal_date, ticker].dropna()
                 feature_history = (
                     None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
                 )
-                signals[ticker] = evaluate_signal(strategy_name, history, effective_params, feature_history)
+                view = IndicatorView(
+                    closes=ticker_closes[ticker],
+                    indicators=ticker_indicators[ticker],
+                    index=idx - 1,
+                    priced_bars=ticker_priced_bars[ticker],
+                )
+                signals[ticker] = evaluate_signal(strategy_name, view, effective_params, feature_history)
 
             _execute_sells(
                 ctx,
