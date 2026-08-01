@@ -182,7 +182,6 @@ At minimum set:
 cd ~/trading-prod
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
     --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY> \
     --dry-run
@@ -193,7 +192,6 @@ Re-run without `--dry-run` to generate the install script, then apply it:
 ```bash
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
     --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY>
 
@@ -364,8 +362,6 @@ Example setup:
 
 Even with the above, treat a missed run as expected-occasionally, not catastrophic:
 
-- Register the **fallback** paper-trading entry (`--daily-paper-trading-fallback-time`, §1.5) — a
-  second duplicate-guarded attempt later in the day.
 - Backfill any gap with `replay_daily_runs` (see
   [runtime-operations.md](runtime-operations.md#run-did-not-execute-scheduler-missed)).
 - The health-check job + alert webhook tell you when a run is missing so you can react.

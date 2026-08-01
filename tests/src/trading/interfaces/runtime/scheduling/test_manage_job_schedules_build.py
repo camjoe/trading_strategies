@@ -100,7 +100,6 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
     tasks = module.build_scheduled_tasks(
         make_manage_job_schedules_args(
             daily_paper_trading_time="13:10",
-            daily_paper_trading_fallback_time="15:45",
             daily_challenger_shadow_eval_time="12:50",
             enable_daily_challenger_shadow_eval=True,
             health_check_time="16:00",
@@ -111,16 +110,17 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
 
     assert [task.task_name for task in tasks] == [
         r"Trading\DailyPaperTrading",
-        r"Trading\DailyPaperTradingFallback",
         r"Trading\DailyChallengerShadowEval",
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]
-    assert tasks[1].args == ("--run-source", "scheduled-daily-fallback")
-    assert tasks[2].args == ("--enable-run",)
-    assert tasks[3].args == ("--max-age-hours", "24.0")
-    assert tasks[4].schedule_kind == "weekly"
-    assert tasks[4].day_of_week == "Sunday"
+    # The primary entry takes no extra args — there is no second scheduled pass to
+    # distinguish it from.
+    assert tasks[0].args == ()
+    assert tasks[1].args == ("--enable-run",)
+    assert tasks[2].args == ("--max-age-hours", "24.0")
+    assert tasks[3].schedule_kind == "weekly"
+    assert tasks[3].day_of_week == "Sunday"
 
 
 def test_build_scheduled_tasks_omits_optional_jobs_without_times() -> None:

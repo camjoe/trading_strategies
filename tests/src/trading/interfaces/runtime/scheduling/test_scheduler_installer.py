@@ -343,7 +343,7 @@ def test_build_systemd_service_unit_includes_user_command_and_optional_env_file(
         task_name=r"Trading\DailyPaperTrading",
         module="pkg.mod",
         time="13:00",
-        args=("--run-source", "scheduled-daily-fallback"),
+        args=("--run-source", "scheduled-daily"),
     )
     log_path = tmp_path / "logs" / "daily.log"
 
@@ -352,7 +352,7 @@ def test_build_systemd_service_unit_includes_user_command_and_optional_env_file(
     )
     assert "Type=oneshot" in without_env
     assert "User=cam" in without_env
-    assert "-m pkg.mod --run-source scheduled-daily-fallback" in without_env
+    assert "-m pkg.mod --run-source scheduled-daily" in without_env
     assert f"StandardOutput=append:{log_path}" in without_env
     assert "EnvironmentFile" not in without_env
 

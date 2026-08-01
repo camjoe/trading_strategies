@@ -23,7 +23,6 @@ entries are installed only when their time flag is provided.
 | Job | Entrypoint | Task name | Frequency | Why it exists / how it is used |
 |---|---|---|---|---|
 | Daily paper trading | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Daily at `--daily-paper-trading-time` | Main daily runtime workflow. Loads runtime-eligible accounts, optionally runs challenger shadow evaluation, executes auto trades, snapshots accounts, compares strategies, and emits logs, artifacts, and notifications. |
-| Daily paper trading fallback | `python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source scheduled-daily-fallback` | `Trading\DailyPaperTradingFallback` | Daily at `--daily-paper-trading-fallback-time` | Second duplicate-guarded attempt in case the primary daily run missed or failed before completion. |
 | Challenger shadow evaluation | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily at `--daily-challenger-shadow-eval-time`, or auto-derived before paper trading with `--auto-shadow-eval-from-daily-paper` | Scores challenger strategies against incumbents for runtime-eligible accounts and writes account-level shadow-evaluation artifacts. Disabled unless `--enable-run` or the matching environment enable is set. |
 | Daily trader health check | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Daily at `--health-check-time` | Checks that the latest daily paper-trading log is recent and contains the success sentinel; can notify on failure. |
 | Weekly DB backup | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly at `--weekly-db-backup-time` on `--weekly-db-backup-day-of-week` | Runs the database backup command with a same-week duplicate guard. |
@@ -95,7 +94,6 @@ systemd and creates systemd timer units; falls back to cron if systemd is unavai
 # Register the core runtime jobs (Linux — generates local/install_trading_timers.sh)
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
   --daily-paper-trading-time <PRIMARY_HH:MM> \
-  --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
   --health-check-time <HEALTH_HH:MM> \
   --weekly-db-backup-day-of-week <DAY> \
   --weekly-db-backup-time <BACKUP_HH:MM>
@@ -120,18 +118,27 @@ sudo bash local/uninstall_trading_timers.sh
 Replace schedule placeholders with private operator values. Store actual installation schedules under
 the gitignored `local/operations/` directory, not in tracked documentation.
 
-**One-time cleanup:** the `daily_snapshot` job was retired — the daily run now snapshots at
-steps `01` and `08`. `--unregister` no longer knows the `Trading\DailySnapshot` task name, so a
-host that previously registered it must remove that entry by hand, or it will keep firing at a
-deleted module:
+**One-time cleanup:** two entries were retired, and `--unregister` no longer knows either task
+name. A host that previously registered them must remove those entries by hand:
+
+- `Trading\DailySnapshot` — the `daily_snapshot` job was retired; the daily run now snapshots at
+  steps `01` and `08`. Left registered, it keeps firing at a deleted module.
+- `Trading\DailyPaperTradingFallback` — the fallback entry was retired along with the daily job's
+  duplicate-run guard. It existed to re-attempt a missed primary run and relied on that guard to
+  no-op when the primary had succeeded. Without it the entry is a *second full run*, which trades
+  again if the market is open at that time. Left registered, it double-trades.
 
 ```sh
 # Windows
 schtasks /Delete /TN "Trading\DailySnapshot" /F
+schtasks /Delete /TN "Trading\DailyPaperTradingFallback" /F
 
 # Linux (systemd)
 sudo systemctl disable --now trading-dailysnapshot.timer
+sudo systemctl disable --now trading-dailypapertradingfallback.timer
 ```
+
+A missed day is now backfilled with `replay_daily_runs` instead.
 
 On Windows, the same registration commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.

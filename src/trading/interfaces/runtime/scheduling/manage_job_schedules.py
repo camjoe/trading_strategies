@@ -21,7 +21,6 @@ DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader
 WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
-DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME = r"Trading\DailyPaperTradingFallback"
 DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME = r"Trading\DailyChallengerShadowEval"
 DEFAULT_DAILY_TRADER_HEALTH_CHECK_TASK_NAME = r"Trading\DailyTraderHealthCheck"
 DEFAULT_WEEKLY_DB_BACKUP_TASK_NAME = r"Trading\WeeklyDbBackup"
@@ -74,15 +73,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--daily-paper-trading-task-name",
         default=DEFAULT_DAILY_PAPER_TRADING_TASK_NAME,
-    )
-    parser.add_argument(
-        "--daily-paper-trading-fallback-time",
-        default="",
-        help="Optional HH:MM for a second duplicate-guarded paper-trading attempt",
-    )
-    parser.add_argument(
-        "--daily-paper-trading-fallback-task-name",
-        default=DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME,
     )
     parser.add_argument(
         "--daily-challenger-shadow-eval-time",
@@ -203,17 +193,6 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
             )
         )
 
-    if args.daily_paper_trading_fallback_time:
-        tasks.append(
-            _scheduled_task(
-                task_name=args.daily_paper_trading_fallback_task_name,
-                module=DAILY_PAPER_TRADING_MODULE,
-                time=args.daily_paper_trading_fallback_time,
-                args=("--run-source", "scheduled-daily-fallback"),
-                log_name="daily_paper_trading_fallback_scheduler.log",
-            )
-        )
-
     shadow_eval_time = args.daily_challenger_shadow_eval_time
     auto_shadow_eval = False
     should_auto_derive_shadow_eval = (
@@ -267,7 +246,6 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 def default_task_names(args: argparse.Namespace) -> list[str]:
     return [
         args.daily_paper_trading_task_name,
-        args.daily_paper_trading_fallback_task_name,
         args.daily_challenger_shadow_eval_task_name,
         args.health_check_task_name,
         args.weekly_db_backup_task_name,

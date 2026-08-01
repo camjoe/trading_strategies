@@ -25,9 +25,9 @@ running from a Windows dev machine.
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading
 ```
 
-**Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
+**Expected run window:** configured in `manage_job_schedules`. There is one scheduled entry; a missed run is backfilled with `replay_daily_runs` rather than re-attempted automatically.
 
-**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
+**Schedule setup:** to register, enable, or remove scheduled jobs (the challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
 
 ---
 

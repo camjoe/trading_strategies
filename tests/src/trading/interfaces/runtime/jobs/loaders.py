@@ -54,8 +54,6 @@ def make_manage_job_schedules_args(**overrides):
     defaults = {
         "daily_paper_trading_time": "",
         "daily_paper_trading_task_name": r"Trading\DailyPaperTrading",
-        "daily_paper_trading_fallback_time": "",
-        "daily_paper_trading_fallback_task_name": r"Trading\DailyPaperTradingFallback",
         "daily_challenger_shadow_eval_time": "",
         "daily_challenger_shadow_eval_task_name": r"Trading\DailyChallengerShadowEval",
         "enable_daily_challenger_shadow_eval": False,
