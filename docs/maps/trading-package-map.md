@@ -275,7 +275,6 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
 | `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
 | `strategies/resolution.py` | Strategy label/alias resolution and shared signal evaluation entrypoints |
-| `strategies/signals/alternative.py` | Feature-driven topic, macro, policy, news, and social buy/sell/hold signal models |
 | `strategies/signals/technical.py` | Price-history technical signal models for trend, mean-reversion, RSI, MACD, breakout, pullback, Bollinger, MA-crossover, and volatility-filtered strategies |
 
 ---

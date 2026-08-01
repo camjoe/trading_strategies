@@ -27,19 +27,30 @@ from trading.models.market_data.constants import (
 class BarPanel:
     """Every requested ticker's bars, reindexed to one shared calendar.
 
-    ``close`` is the ticker-per-column view the simulation and signal path read;
-    ``frames`` keeps each ticker's full bar frame for anything that needs the
-    range rather than the endpoint — true-range volatility, high/low breakouts,
-    whether a stop level was reached.
+    ``close`` is the ticker-per-column view the simulation prices and marks at;
+    ``frames`` keeps each ticker's full bar frame on that same calendar, for
+    anything that needs the range rather than the endpoint.
+
+    ``sources`` keeps each ticker's bars on *its own* trading days, before
+    alignment. Indicators are computed from these rather than from ``frames``:
+    the shared calendar contains days a given ticker did not trade, and a
+    rolling window over those carried-forward rows makes one ticker's indicator
+    depend on which *other* tickers are in the universe. See
+    ``build_signal_inputs``.
     """
 
     dates: list[pd.Timestamp]
     frames: dict[str, pd.DataFrame]
     close: pd.DataFrame
+    sources: dict[str, pd.DataFrame]
 
     def frame(self, ticker: str) -> pd.DataFrame:
-        """One ticker's bars on the shared calendar."""
+        """One ticker's bars on the shared calendar — for pricing and marking."""
         return self.frames[ticker]
+
+    def source(self, ticker: str) -> pd.DataFrame:
+        """One ticker's bars on its own trading days — for indicators."""
+        return self.sources[ticker]
 
 
 def build_bar_panel(frames: Mapping[str, pd.DataFrame], tickers: Sequence[str]) -> BarPanel:
@@ -71,4 +82,9 @@ def build_bar_panel(frames: Mapping[str, pd.DataFrame], tickers: Sequence[str]) 
         aligned[ticker] = prices
 
     close = pd.DataFrame({ticker: aligned[ticker][BAR_CLOSE] for ticker in tickers}, index=calendar)
-    return BarPanel(dates=list(calendar), frames=aligned, close=close)
+    return BarPanel(
+        dates=list(calendar),
+        frames=aligned,
+        close=close,
+        sources={ticker: frames[ticker] for ticker in tickers},
+    )

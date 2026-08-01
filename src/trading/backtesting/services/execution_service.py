@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Callable, cast
 
+import pandas as pd
+
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.backtesting.domain.bars import build_bar_panel
@@ -26,11 +28,9 @@ from trading.domain.auto_trading_policy import (
 )
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
-    build_indicator_arrays,
-    count_priced_bars,
+    build_signal_inputs,
 )
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
-from trading.models.market_data.constants import BAR_CLOSE
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
@@ -293,12 +293,19 @@ def run_backtest(
     # The strategy's declared indicators, computed once per ticker for the whole
     # run. Deriving them inside the signal would recompute the same rolling
     # windows on every bar to keep only their last value.
-    ticker_closes = {ticker: panel.frame(ticker)[BAR_CLOSE].to_numpy(dtype=float) for ticker in all_tickers}
-    ticker_indicators = {
-        ticker: build_indicator_arrays(panel.frame(ticker), strategy_spec.indicators, effective_params)
+    #
+    # Computed from each ticker's own bars (`panel.source`), not from its
+    # calendar-aligned frame, then carried onto the shared calendar — otherwise a
+    # ticker's indicators depend on which other tickers share the run. The
+    # simulation still prices and marks off the aligned frame, which needs a value
+    # on every bar.
+    calendar = pd.DatetimeIndex(panel.dates)
+    signal_inputs = {
+        ticker: build_signal_inputs(
+            panel.source(ticker), strategy_spec.indicators, effective_params, calendar=calendar
+        )
         for ticker in all_tickers
     }
-    ticker_priced_bars = {ticker: count_priced_bars(closes) for ticker, closes in ticker_closes.items()}
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
 
@@ -378,11 +385,12 @@ def run_backtest(
                 feature_history = (
                     None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
                 )
+                closes, indicators, priced_bars = signal_inputs[ticker]
                 view = IndicatorView(
-                    closes=ticker_closes[ticker],
-                    indicators=ticker_indicators[ticker],
+                    closes=closes,
+                    indicators=indicators,
                     index=idx - 1,
-                    priced_bars=ticker_priced_bars[ticker],
+                    priced_bars=priced_bars,
                 )
                 signals[ticker] = evaluate_signal(strategy_name, view, effective_params, feature_history)
 

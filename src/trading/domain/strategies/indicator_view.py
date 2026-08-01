@@ -26,6 +26,7 @@ from trading.domain.strategies.contracts import (
     INDICATOR_KIND_RSI,
     INDICATOR_KIND_SMA,
     INDICATOR_KIND_STDDEV,
+    INDICATOR_SOURCE_CLOSE,
     IndicatorSpec,
     StrategyParams,
 )
@@ -58,12 +59,21 @@ def build_indicator_arrays(
     bars: pd.DataFrame,
     specs: tuple[IndicatorSpec, ...],
     params: StrategyParams,
+    *,
+    calendar: pd.DatetimeIndex | None = None,
 ) -> dict[str, np.ndarray]:
     """Compute every declared indicator over one ticker's bars.
 
     Returns plain float arrays aligned to ``bars.index`` — positional lookup is
     what makes the per-bar read cheap, and it keeps the view free of pandas
     indexing on the hot path.
+
+    Pass *calendar* to express the results on a different (longer) index than
+    the one they were computed over: each value carries forward until the
+    ticker's next bar. The rolling windows still see only real bars, while the
+    caller can index by a position on a shared calendar. Days before the
+    ticker's first bar have nothing to carry forward and stay NaN, which the
+    signals' finite-value guards already treat as "hold".
     """
     arrays: dict[str, np.ndarray] = {}
     for spec in specs:
@@ -72,6 +82,8 @@ def build_indicator_arrays(
         computed = _compute(bars[spec.source], spec, spec.window_for(params))
         if spec.shift:
             computed = computed.shift(spec.shift)
+        if calendar is not None:
+            computed = computed.reindex(calendar).ffill()
         arrays[spec.name] = computed.to_numpy(dtype=float)
     return arrays
 
@@ -86,6 +98,40 @@ def count_priced_bars(closes: np.ndarray) -> np.ndarray:
     priced bars here preserves that gate exactly.
     """
     return np.cumsum(np.isfinite(closes)).astype(int)
+
+
+def build_signal_inputs(
+    bars: pd.DataFrame,
+    specs: tuple[IndicatorSpec, ...],
+    params: StrategyParams,
+    *,
+    calendar: pd.DatetimeIndex,
+) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray]:
+    """One ticker's ``(closes, indicators, priced_bars)`` for an :class:`IndicatorView`.
+
+    Everything is derived from *bars* — the ticker's own trading days — and then
+    expressed on *calendar*, the shared calendar the simulation walks.
+
+    That order is the point. Deriving from a frame already reindexed onto the
+    shared calendar puts other tickers' trading days inside this ticker's
+    rolling windows as carried-forward repeats, which makes its indicators a
+    function of the universe it happens to sit in: add an unrelated ticker that
+    trades on a day this one did not, and this one's moving average moves. An
+    indicator has to be a property of the instrument alone.
+
+    Carrying values forward afterwards is not the same thing — it holds the
+    value as of the ticker's last real bar, which is exactly what the live path
+    computes from that same bar. The two agree by construction.
+    """
+    closes = bars[INDICATOR_SOURCE_CLOSE]
+    aligned_closes = closes.reindex(calendar).ffill()
+    priced = pd.Series(count_priced_bars(closes.to_numpy(dtype=float)), index=closes.index)
+    aligned_priced = priced.reindex(calendar).ffill().fillna(0)
+    return (
+        aligned_closes.to_numpy(dtype=float),
+        build_indicator_arrays(bars, specs, params, calendar=calendar),
+        aligned_priced.to_numpy(dtype=int),
+    )
 
 
 @dataclass(frozen=True)

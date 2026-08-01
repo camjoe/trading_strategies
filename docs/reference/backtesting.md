@@ -244,6 +244,9 @@ Three alignment rules, each chosen to avoid inventing data:
   the listing existed. The engine skips a ticker until it has a finite positive price
   (`_tradeable_price`) rather than trading on a missing one.
 
+The aligned frames are what the simulation **prices and marks** at — it needs a value for every
+holding on every bar. They are *not* what indicators are computed from; see below.
+
 ## Strategy Indicators
 
 A strategy declares the series it reads as `IndicatorSpec` entries on its `StrategySpec`. The engine
@@ -252,8 +255,17 @@ being decided: `view.value("fast_ma")` is today's value, `view.value("fast_ma", 
 Deriving indicators inside a signal instead would recompute the same rolling window on every bar to
 read its last value.
 
+- **Indicators are computed from each ticker's own bars** (`BarPanel.source`), then carried onto the
+  shared calendar — never computed from the aligned frame. The shared calendar contains days a given
+  ticker did not trade, and a rolling window over those carried-forward rows would make its
+  indicators depend on *which other tickers are in the universe*: adding an unrelated name that
+  trades on a day this one did not would move this one's moving average. Carrying values forward
+  after the fact is not the same thing — it holds the value as of the ticker's last real bar, which
+  is exactly what the live path computes from that same bar, so the two agree by construction.
+  `build_signal_inputs` in `trading/domain/strategies/indicator_view.py` owns this.
 - `view.bars()` counts *priced* bars, not calendar days, so a ticker whose history starts late
-  reaches its minimum-history gate when it actually has the history.
+  reaches its minimum-history gate when it actually has the history — and a ticker that trades
+  weekly is not credited with the daily calendar around it.
 - An indicator names the bar column it reads. One sourced from a column the caller does not have
   raises by name, so a strategy cannot silently fall back to closes — which is what keeps backtest
   and live from diverging.
