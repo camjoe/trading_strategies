@@ -21,6 +21,7 @@ from trading.interfaces.runtime.job_status import (
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
+    DagStepResult,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,
@@ -146,6 +147,53 @@ def reconcile_and_snapshot(
     return {"accounts": list(accounts), "count": len(accounts)}
 
 
+def _finish_run(
+    args: argparse.Namespace,
+    context: DailyRunContext,
+    step_results: list[DagStepResult],
+    *,
+    error: Exception | None = None,
+) -> int:
+    """Write the run artifact, notify, and return the process exit code.
+
+    Success and failure differ only in status, message, and the two failure-only
+    payload keys. Sharing one exit path is what keeps the artifact and the
+    notification from drifting apart between them — a run that fails must still
+    leave the same shape behind for the autonomy monitor to read.
+    """
+    failed = error is not None
+    payload: dict[str, object] = {
+        **context.run_meta,
+        "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
+        "completed_steps": completed_steps_from_dag(step_results),
+        "step_results": serialize_step_results(step_results),
+        "finished_at": ts(),
+    }
+    if failed:
+        # Absent on success: the monitor reads this key as "no failure".
+        payload["failed_step"] = failed_step_id(step_results)
+        payload["error"] = str(error)
+
+    write_artifact(context.artifact_path, payload)
+    maybe_send_notification(
+        notifier=notify_runtime_event,
+        webhook_url=args.notify_webhook_url,
+        email_config=resolve_email_config_from_env(),
+        notify_on_success=args.notify_on_success,
+        status="fail" if failed else "ok",
+        message=(
+            f"Daily paper trading run failed: {error}" if failed else "Daily paper trading run completed successfully"
+        ),
+        details={
+            "accounts": context.accounts,
+            "account_count": len(context.accounts),
+            "log_path": str(context.log_path),
+            "run_source": args.run_source,
+        },
+    )
+    return 1 if failed else 0
+
+
 def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     repo_root = context.repo_root
     log_path = context.log_path
@@ -153,7 +201,6 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     accounts = context.accounts
     account_trade_caps = context.account_trade_caps
     caps_summary = context.caps_summary
-    run_meta = context.run_meta
     report_date = context.report_date
     step_results = new_step_results()
 
@@ -334,59 +381,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         )
 
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
-        success_payload = {
-            **run_meta,
-            "status": DAILY_RUN_STATUS_SUCCESS,
-            "completed_steps": completed_steps_from_dag(step_results),
-            "step_results": serialize_step_results(step_results),
-            "finished_at": ts(),
-        }
-        write_artifact(
-            artifact_path,
-            success_payload,
-        )
-        maybe_send_notification(
-            notifier=notify_runtime_event,
-            webhook_url=args.notify_webhook_url,
-            email_config=resolve_email_config_from_env(),
-            notify_on_success=args.notify_on_success,
-            status="ok",
-            message="Daily paper trading run completed successfully",
-            details={
-                "accounts": accounts,
-                "account_count": len(accounts),
-                "log_path": str(log_path),
-                "run_source": args.run_source,
-            },
-        )
-        return 0
+        return _finish_run(args, context, step_results)
     except Exception as exc:
         tee_line(log_path, f"[{ts()}] ERROR: {exc}")
-        failure_payload = {
-            **run_meta,
-            "status": DAILY_RUN_STATUS_FAILED,
-            "completed_steps": completed_steps_from_dag(step_results),
-            "step_results": serialize_step_results(step_results),
-            "failed_step": failed_step_id(step_results),
-            "error": str(exc),
-            "finished_at": ts(),
-        }
-        write_artifact(
-            artifact_path,
-            failure_payload,
-        )
-        maybe_send_notification(
-            notifier=notify_runtime_event,
-            webhook_url=args.notify_webhook_url,
-            email_config=resolve_email_config_from_env(),
-            notify_on_success=args.notify_on_success,
-            status="fail",
-            message=f"Daily paper trading run failed: {exc}",
-            details={
-                "accounts": accounts,
-                "account_count": len(accounts),
-                "log_path": str(log_path),
-                "run_source": args.run_source,
-            },
-        )
-        return 1
+        return _finish_run(args, context, step_results, error=exc)
