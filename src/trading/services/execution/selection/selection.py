@@ -17,12 +17,15 @@ logger = logging.getLogger(__name__)
 # Per-ticker feature history for signal evaluation: (strategy_name, ticker) -> frame or None.
 FeatureHistoryFn = Callable[[str, str], "pd.DataFrame | None"]
 
-# Alternative-style strategies read external features; map each to its fetcher attribute.
-_ALTERNATIVE_FEATURE_FETCHER_ATTRS = {
-    "policy_regime": "fetch_policy",
-    "news_sentiment": "fetch_news",
-    "social_trend_rotation": "fetch_social",
-}
+# Alternative-style strategies read external features; each registers the fetcher
+# it needs here, keyed by strategy id.
+#
+# Empty because no alternative-style strategy is currently registered — the ones
+# that were (policy_regime, news_sentiment, social_trend_rotation) were retired,
+# and entries naming them would resolve to nothing. This is the live half of the
+# feature seam; the backtest half is `StrategySpec.required_features` feeding
+# `build_feature_bundle`. A restored strategy needs both.
+_ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 
 
 class AccountStateLike(Protocol):

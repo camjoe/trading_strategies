@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 import pandas as pd
 
+if TYPE_CHECKING:
+    from trading.domain.strategies.indicator_view import IndicatorView
+
 StrategyParams = Mapping[str, Any]
-SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
+# A signal reads its indicators from a view positioned at one bar — not from a
+# price history it derives them from itself. `IndicatorView` is imported lazily
+# under TYPE_CHECKING because it imports this module for the indicator kinds.
+SignalFunction = Callable[["IndicatorView", StrategyParams, "pd.DataFrame | None"], str]
 
 # Bar columns an indicator can be computed over. Mirrors
 # ``trading.models.market_data.constants`` without importing it, so the strategy

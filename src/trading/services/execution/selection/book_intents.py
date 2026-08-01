@@ -146,30 +146,3 @@ def generate_book_trade_intents(
             )
         )
     return intents
-
-
-def run_multi_book_mode_for_account(
-    conn: sqlite3.Connection,
-    *,
-    account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    max_trades: int,
-    fee: float,
-    histories: Mapping[str, pd.DataFrame] | None = None,
-    feature_history_fn: FeatureHistoryFn | None = None,
-) -> int:
-    return len(
-        generate_book_trade_intents(
-            conn,
-            account=account,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
-            max_trades=max_trades,
-            fee=fee,
-            histories=histories,
-            feature_history_fn=feature_history_fn,
-        )
-    )
