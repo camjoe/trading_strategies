@@ -162,7 +162,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `execution/risk_audit.py` | Repository wiring that persists one book run's normalized risk decisions and account risk snapshot |
 | `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
-| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`, `run_multi_book_mode_for_account`) over per-book state |
+| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
 | `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
 | `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
