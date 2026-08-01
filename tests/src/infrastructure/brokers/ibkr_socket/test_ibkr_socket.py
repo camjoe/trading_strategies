@@ -328,6 +328,25 @@ class TestIbkrSocketAdapter:
 
 
 class TestIbAsyncClient:
+    def test_quotes_skip_a_ticker_whose_contract_did_not_qualify(self, monkeypatch):
+        """One unqualified symbol must not take the whole batch down.
+
+        `reqTickers` returns a ticker with no contract when qualification
+        failed. Reading `.symbol` off it raised AttributeError, which lost the
+        quotes for every symbol that did resolve.
+        """
+        backend = MagicMock()
+        good = SimpleNamespace(contract=SimpleNamespace(symbol="AAPL"), bid=1.0, ask=2.0, last=1.5)
+        unqualified = SimpleNamespace(contract=None, bid=0.0, ask=0.0, last=0.0)
+        backend.reqTickers.return_value = [unqualified, good]
+        monkeypatch.setitem(
+            sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend), Stock=MagicMock())
+        )
+
+        quotes = IbAsyncClient().quotes(["BADSYM", "AAPL"])
+
+        assert [quote.symbol for quote in quotes] == ["AAPL"]
+
     def test_async_client_normalizes_ib_async_backend(self, monkeypatch):
         backend = MagicMock()
         backend.isConnected.return_value = True

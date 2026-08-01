@@ -60,8 +60,38 @@ hold, a test is the only thing that enforces it.
 
 ## Changing this
 
-Dropping `--follow-imports=skip` is the fix, and it is its own piece of work: the
-error volume is unknown, and pandas-typed surfaces will need either stubs
-(`pandas-stubs`) or explicit `Any` annotations before the tree is clean. Do it as a
-deliberate project with a measured starting error count, not as a flag flip inside
-another change.
+Dropping `--follow-imports=skip` is the fix. It is its own piece of work: **90
+errors across 23 files**, measured 2026-08-01.
+
+To reproduce, mypy also needs the `src/` layout spelled out — without it, it cannot
+map a file path to a module name and stops before checking anything:
+
+```sh
+python -m mypy apps/paper_trading_web/backend src \
+  --python-version 3.14 --ignore-missing-imports \
+  --explicit-package-bases
+```
+
+with `mypy_path = "src:apps/paper_trading_web/backend"` and
+`explicit_package_bases = true` under `[tool.mypy]` in `pyproject.toml`.
+
+> Set `mypy_path` in the config file, not via the `MYPYPATH` environment variable.
+> mypy splits that variable on `os.pathsep` — `;` on Windows — so a
+> colon-separated value is read as one nonexistent directory, intra-repo modules
+> silently fall back to `Any`, and the run reports far fewer errors than exist. A
+> measurement taken that way reported 1 error when the real count was 90. Confirm
+> any measurement by planting a deliberate cross-module type error and checking it
+> is caught.
+
+Two root causes account for most of it:
+
+| Count | Pattern |
+|---|---|
+| 51 | `sqlite3.Row` passed where `Mapping[str, object]` is expected — `Row` is mapping-like at runtime but does not satisfy the protocol in typeshed |
+| 16 | `Any \| None` passed where `Connection` is expected — connection helpers are not annotated tightly enough |
+| 23 | assorted tail |
+
+The two dominant patterns are systemic rather than 67 separate bugs, so the work is
+tractable — but it is a project with its own branch, not a flag flip inside another
+change. The concentration is also why the count is worth re-measuring before
+starting: fixing either root cause moves it a lot.

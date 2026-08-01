@@ -111,15 +111,24 @@ class IbAsyncClient:
 
         contracts = [ib_async.Stock(symbol, "SMART", "USD") for symbol in symbols]
         self._ib.qualifyContracts(*contracts)
-        return [
-            IbkrQuote(
-                symbol=str(ticker.contract.symbol),
-                bid=float(ticker.bid),
-                ask=float(ticker.ask),
-                last=float(ticker.last),
+        quotes = []
+        for ticker in self._ib.reqTickers(*contracts):
+            # A ticker whose contract failed to qualify comes back with no
+            # contract attached. Reading `.symbol` off it raises AttributeError
+            # mid-comprehension and loses every quote in the batch, including the
+            # ones that did resolve — so skip the unqualified one instead.
+            contract = getattr(ticker, "contract", None)
+            if contract is None:
+                continue
+            quotes.append(
+                IbkrQuote(
+                    symbol=str(contract.symbol),
+                    bid=float(ticker.bid),
+                    ask=float(ticker.ask),
+                    last=float(ticker.last),
+                )
             )
-            for ticker in self._ib.reqTickers(*contracts)
-        ]
+        return quotes
 
 
 def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:

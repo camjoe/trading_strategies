@@ -169,6 +169,15 @@ def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str
     while staying deterministic within a run: the same seed and candidates
     always yield the same order, so a decision can be reproduced from the audit
     trail rather than merely observed.
+
+    The guarantee is *across runs*, not across books. Callers seed with the run
+    date, so every book with the same strategy and universe sees the same order
+    on the same day and reaches the same pick. That is intended: two books
+    running identical configurations should decide identically, and decorrelating
+    them would mean any difference in their results came from this hash rather
+    than from what actually differs between them (sizing, equity, risk policy).
+    To make two books pick differently, vary something that matters — their
+    parameters or their universe.
     """
     return sorted(candidates, key=lambda ticker: hashlib.sha256(f"{seed}:{ticker}".encode()).hexdigest())
 
