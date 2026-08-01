@@ -118,6 +118,10 @@ class _IbApiCallbackState:
         self._trades: dict[int, _NativeTradeState] = {}
         self._pending_commissions: dict[str, float] = {}
         self.open_orders_complete = threading.Event()
+        # IBKR pushes managedAccounts on connect, unprompted and on its own
+        # schedule relative to nextValidId. Nothing requests it, so the only way
+        # a reader can tell "not arrived yet" from "no accounts" is to wait.
+        self.managed_accounts_complete = threading.Event()
         self.positions_complete = threading.Event()
         self.account_summary_complete = threading.Event()
         self._positions: dict[str, IbkrPosition] = {}
@@ -137,6 +141,7 @@ class _IbApiCallbackState:
         """Store the comma-separated account list IBKR sends on connect."""
         with self._lock:
             self._managed_accounts = tuple(part.strip() for part in accounts.split(",") if part.strip())
+            self.managed_accounts_complete.set()
 
     def managed_accounts(self) -> list[str]:
         with self._lock:
@@ -385,6 +390,7 @@ class _IbApiCallbackState:
             self.open_orders_complete.set()
             self.positions_complete.set()
             self.account_summary_complete.set()
+            self.managed_accounts_complete.set()
             for quote in self._quotes.values():
                 quote.complete.set()
 
@@ -407,6 +413,7 @@ class _IbApiCallbackState:
             self.open_orders_complete.set()
             self.positions_complete.set()
             self.account_summary_complete.set()
+            self.managed_accounts_complete.set()
             for quote in self._quotes.values():
                 quote.complete.set()
 
@@ -464,7 +471,16 @@ class IbApiClient:
         return self._app is not None and self._app.isConnected()
 
     def managed_accounts(self) -> list[str]:
-        """Account ids this session can trade, from the on-connect callback."""
+        """Account ids this session can trade, from the on-connect callback.
+
+        ``connect`` only waits for ``nextValidId``, and IBKR does not guarantee
+        that ``managedAccounts`` arrives first. Reading without waiting would
+        return an empty list on the orderings where it arrives second — which the
+        paper-venue guard cannot distinguish from a session reporting no accounts,
+        so it would refuse a perfectly good paper account. Wait for the callback;
+        on timeout return what we have and let the caller fail closed.
+        """
+        self._callbacks.managed_accounts_complete.wait(self._request_timeout_seconds)
         return self._callbacks.managed_accounts()
 
     def callback_errors(self) -> tuple[IbkrApiError, ...]:

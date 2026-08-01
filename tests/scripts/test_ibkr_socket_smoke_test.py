@@ -210,9 +210,14 @@ class TestPaperOrderCheck:
         """Reconciliation reads the same call, so this is the failure that matters."""
         adapter = _FakeAdapter(report_submitted_order=False)
 
-        _, output = _run(monkeypatch, adapter, **self._order_args())
+        code, output = _run(monkeypatch, adapter, **self._order_args())
 
         assert "FAIL read back   : get_open_trades() never reported id 77" in output
+        # The verdict has to follow the failure: an operator gating go-live on the
+        # exit code must not be told PASS here.
+        assert code == 1
+        assert "PASS" not in output
+        assert "could not be verified" in output
 
     def test_refuses_to_submit_against_a_live_account(self, monkeypatch) -> None:
         """Host and port are operator flags, so this could be aimed at a live gateway."""

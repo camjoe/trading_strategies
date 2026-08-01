@@ -154,6 +154,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     account_trade_caps = context.account_trade_caps
     caps_summary = context.caps_summary
     run_meta = context.run_meta
+    report_date = context.report_date
     step_results = new_step_results()
 
     try:
@@ -287,13 +288,13 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         run_dag_step(
             step_results,
             step_id="06_pretrade_risk_gate",
-            run_fn=lambda: _risk_gate_step_result(accounts),
+            run_fn=lambda: _risk_gate_step_result(accounts, report_date),
             now_iso=ts,
         )
         run_dag_step(
             step_results,
             step_id="07_submit_ibkr_orders",
-            run_fn=lambda: _submission_step_result(accounts),
+            run_fn=lambda: _submission_step_result(accounts, report_date),
             now_iso=ts,
         )
 
@@ -327,6 +328,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                 artifact_path,
                 repo_root,
                 bool(args.notify_on_success),
+                report_date,
             ),
             now_iso=ts,
         )

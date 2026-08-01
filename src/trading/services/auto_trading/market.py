@@ -8,6 +8,7 @@ from collections.abc import Mapping
 import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
+from trading.domain.bars import normalize_bar_frame
 from trading.models.market_data.constants import BAR_CLOSE, BAR_COLUMNS
 from trading.services.market_data import MarketDataProvider, require_provider
 
@@ -47,15 +48,20 @@ def fetch_bar_histories(
             continue
         if frame is None or frame.empty:
             continue
-        normalized = _normalize_bar_columns(frame)
-        if normalized is None:
+        renamed = _rename_bar_columns(frame)
+        if renamed is None:
             logger.debug("Skipping bar history for %s: missing bar columns %s", ticker, list(frame.columns))
             continue
-        histories[ticker] = normalized
+        # Same gap-filling rule the backtest path applies. Without it a halted or
+        # thinly-traded name reaches the signal with raw vendor gaps live and
+        # forward-filled bars in a backtest, so the same rolling window can
+        # produce a different value on the same date — the divergence between
+        # evaluation and live trading that reading bars at all was meant to close.
+        histories[ticker] = normalize_bar_frame(renamed)
     return histories
 
 
-def _normalize_bar_columns(frame: pd.DataFrame) -> pd.DataFrame | None:
+def _rename_bar_columns(frame: pd.DataFrame) -> pd.DataFrame | None:
     """Rename a vendor OHLCV frame to the repo's bar columns, or None if incomplete."""
     lowered = {str(column).lower(): column for column in frame.columns}
     if any(name not in lowered for name in BAR_COLUMNS):

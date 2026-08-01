@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime as dt
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -51,14 +50,14 @@ def latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
     }
 
 
-def risk_gate_step_result(accounts: list[str]) -> dict[str, object]:
+def risk_gate_step_result(accounts: list[str], report_date: str) -> dict[str, object]:
     """Step 06 payload: what the risk gate decided during this run."""
-    return build_risk_gate_summary(ensure_db(), accounts=accounts, report_date=dt.date.today().isoformat())
+    return build_risk_gate_summary(ensure_db(), accounts=accounts, report_date=report_date)
 
 
-def submission_step_result(accounts: list[str]) -> dict[str, object]:
+def submission_step_result(accounts: list[str], report_date: str) -> dict[str, object]:
     """Step 07 payload: what reached the broker during this run."""
-    return build_submission_summary(ensure_db(), accounts=accounts, report_date=dt.date.today().isoformat())
+    return build_submission_summary(ensure_db(), accounts=accounts, report_date=report_date)
 
 
 def build_daily_operator_report(
@@ -66,8 +65,8 @@ def build_daily_operator_report(
     artifact_path: Path,
     repo_root: Path,
     notify_on_success: bool,
+    report_date: str,
 ) -> dict[str, object]:
-    report_date = dt.date.today().isoformat()
     conn = ensure_db()
     account_reports = []
     for account_name in accounts:

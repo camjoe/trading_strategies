@@ -171,13 +171,17 @@ def run_paper_order_check(
     limit_price: float,
     cancel: bool,
     managed_accounts: list[str],
-) -> None:
+) -> bool:
     """Submit one resting limit order and confirm the adapter can read it back.
 
     This is the half of fill reconciliation that only a real broker can prove:
     an order goes out, comes back through ``get_open_trades()`` carrying a
     broker id, and can be cancelled. Applying fills to the books is the other
     half and needs a database, so it is out of scope here.
+
+    Returns whether the round trip was verified. Cancellation is best-effort and
+    does not affect the verdict; the read-back does, because reconciliation
+    reads that same call.
     """
     # The host and port are operator-supplied flags, so this script can be aimed
     # at a live gateway. Submitting there would move real money. Refuse.
@@ -231,14 +235,16 @@ def run_paper_order_check(
             file=out,
         )
 
+    read_back_ok = observed is not None
+
     if not cancel:
         print("  cancel           : skipped — the order rests until the close", file=out)
-        return
+        return read_back_ok
 
     status = observed.status if observed is not None else submitted.status
     if status not in _CANCELLABLE_STATUSES:
         print(f"  cancel           : skipped — status {status.value} is already terminal", file=out)
-        return
+        return read_back_ok
 
     try:
         adapter.cancel_order(broker_order_id)
@@ -246,7 +252,7 @@ def run_paper_order_check(
         # Best-effort by design: outside market hours IBKR may hold an order
         # pre-submission where a cancel is rejected.
         print(f"  cancel           : best-effort failed ({type(exc).__name__}: {exc})", file=out)
-        return
+        return read_back_ok
 
     time.sleep(_ORDER_VISIBILITY_POLL_DELAY_SECONDS)
     after_cancel = _find_trade(adapter.get_open_trades(), broker_order_id)
@@ -254,6 +260,7 @@ def run_paper_order_check(
         print("  cancel           : requested; order no longer open", file=out)
     else:
         print(f"  cancel           : requested; status now {after_cancel.status.value}", file=out)
+    return read_back_ok
 
 
 def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
@@ -261,6 +268,8 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
     print(f"backend            : {backend}", file=out)
     print(f"target             : {args.host}:{args.port} client_id={args.client_id}", file=out)
 
+    # True unless --paper-order-check runs and cannot read its order back.
+    round_trip_ok = True
     adapter = build_adapter(args.host, args.port, args.client_id)
     try:
         adapter.connect()
@@ -301,7 +310,7 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
             print(f"quotes             : {quotes}", file=out)
 
         if args.paper_order_check:
-            run_paper_order_check(
+            round_trip_ok = run_paper_order_check(
                 adapter,
                 out=out,
                 symbol=args.paper_order_symbol,
@@ -317,6 +326,13 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
     finally:
         adapter.disconnect()
         print("disconnect         : ok", file=out)
+
+    if not round_trip_ok:
+        # An order the adapter cannot read back is an order whose fills would be
+        # stranded by reconciliation. Reporting PASS here would hand an operator
+        # a green light for the one thing this check exists to disprove.
+        print("\nFAIL: socket path reachable, but the order round trip could not be verified.", file=out)
+        return 1
 
     summary = "reachable, reads succeeded" + (", order round trip exercised" if args.paper_order_check else "")
     print(f"\nPASS: socket path {summary}.", file=out)

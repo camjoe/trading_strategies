@@ -11,15 +11,14 @@ import pandas as pd
 import yfinance as yf
 
 from common.rate_limit import RateLimiter
+from trading.domain.bars import normalize_bar_frame
 from trading.models.market_data.constants import (
     BAR_CLOSE,
     BAR_COLUMNS,
     BAR_HIGH,
     BAR_LOW,
     BAR_OPEN,
-    BAR_PRICE_COLUMNS,
     BAR_VOLUME,
-    BAR_VOLUME_FILL,
 )
 from trading.services.market_data.protocols import MarketDataProvider
 
@@ -83,25 +82,6 @@ _VENDOR_BAR_COLUMNS = {
 }
 
 
-def _clean_bar_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    """Normalize one ticker's bars: sorted, gap-filled, tz-naive.
-
-    Prices carry forward across days the ticker did not trade — the last trade
-    stays the best estimate of value. Volume does not: a repeated volume would
-    assert trading that never happened, so gaps become ``BAR_VOLUME_FILL``.
-    """
-    frame = frame.sort_index()
-    frame.index = pd.to_datetime(frame.index).tz_localize(None)
-    prices = frame[list(BAR_PRICE_COLUMNS)].ffill()
-    # A row is real only once at least one price exists; leading rows before a
-    # ticker listed have nothing to carry forward and are dropped.
-    prices = prices.dropna(how="any")
-    volume = frame[BAR_VOLUME].reindex(prices.index).fillna(BAR_VOLUME_FILL)
-    cleaned = prices.copy()
-    cleaned[BAR_VOLUME] = volume
-    return cleaned[list(BAR_COLUMNS)]
-
-
 def _split_download_into_bar_frames(hist: pd.DataFrame, tickers: list[str]) -> dict[str, pd.DataFrame]:
     """Turn one multi-ticker download into per-ticker bar frames.
 
@@ -126,7 +106,7 @@ def _split_download_into_bar_frames(hist: pd.DataFrame, tickers: list[str]) -> d
                 columns[bar_name] = hist[vendor_name]
         if len(columns) != len(BAR_COLUMNS):
             continue
-        cleaned = _clean_bar_frame(pd.DataFrame(columns))
+        cleaned = normalize_bar_frame(pd.DataFrame(columns))
         if not cleaned.empty:
             frames[ticker] = cleaned
     return frames

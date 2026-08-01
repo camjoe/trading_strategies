@@ -58,11 +58,8 @@ def test_latest_shadow_eval_summary_counts_valid_books_and_challengers(tmp_path:
 
 
 def test_build_daily_operator_report_skips_missing_accounts(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(
-        module.dt,
-        "date",
-        type("FakeDate", (), {"today": classmethod(lambda cls: cls()), "isoformat": lambda self: "2026-03-27"}),
-    )
+    # The run owns the report date (as-of-date on a replay, else today) and passes
+    # it in, so this no longer has to fake the clock.
     monkeypatch.setattr(module, "ensure_db", lambda: object())
     monkeypatch.setattr(
         module,
@@ -85,6 +82,7 @@ def test_build_daily_operator_report_skips_missing_accounts(monkeypatch, tmp_pat
         artifact_path=tmp_path / "reports" / "daily.json",
         repo_root=tmp_path,
         notify_on_success=True,
+        report_date="2026-03-27",
     )
 
     assert report == {

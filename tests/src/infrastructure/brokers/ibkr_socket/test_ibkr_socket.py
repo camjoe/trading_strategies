@@ -469,6 +469,40 @@ class TestManagedAccounts:
     def test_callback_state_reports_nothing_before_the_callback_arrives(self):
         assert _IbApiCallbackState().managed_accounts() == []
 
+    def test_ibapi_client_waits_for_a_late_managed_accounts_callback(self):
+        """`connect` only waits for nextValidId; managedAccounts may arrive after.
+
+        Reading without waiting returns [], which the paper-venue guard cannot
+        tell apart from a session with no accounts — so it would refuse a good
+        paper account on whichever orderings IBKR happens to produce.
+        """
+
+        class _LateAccountsApp(_FakeNativeApp):
+            def connect(self, host, port, clientId):
+                super().connect(host, port, clientId)
+                # nextValidId lands first and releases connect(); the account list
+                # follows on the message loop a moment later.
+                threading.Timer(0.05, lambda: self.callbacks.record_managed_accounts("DU1234567")).start()
+
+        client = IbApiClient(app_factory=lambda callbacks: _LateAccountsApp(callbacks, ready_order_id=1))
+        client.connect("127.0.0.1", 7497, client_id=1)
+        try:
+            assert client.managed_accounts() == ["DU1234567"]
+        finally:
+            client.disconnect()
+
+    def test_ibapi_client_gives_up_waiting_and_reports_nothing(self):
+        """A callback that never arrives must not hang; the caller fails closed."""
+        client = IbApiClient(
+            app_factory=lambda callbacks: _FakeNativeApp(callbacks, ready_order_id=1),
+            request_timeout_seconds=0.05,
+        )
+        client.connect("127.0.0.1", 7497, client_id=1)
+        try:
+            assert client.managed_accounts() == []
+        finally:
+            client.disconnect()
+
 
 class TestIbApiClient:
     def test_native_app_builds_stock_order_and_binds_callbacks(self, monkeypatch):

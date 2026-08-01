@@ -630,3 +630,46 @@ def test_main_resolves_relative_trade_caps_config_from_repo_root(
 
     assert code == 0
     assert captured["path"] == tmp_path / "caps.json"
+
+
+def test_replay_reports_the_replayed_date_not_today(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    """A --as-of-date replay must report that date's rows, not today's.
+
+    Steps 06/07/10 all read persisted rows for a date. Resolving that date once
+    on the run context is what keeps them from each calling date.today() and
+    putting a different date in the same artifact.
+    """
+    # Each of these takes the report date as its last positional argument.
+    seen: dict[str, str] = {}
+
+    def _record(name):
+        def _stub(*args, **_kwargs) -> dict[str, object]:
+            seen[name] = args[-1]
+            return {}
+
+        return _stub
+
+    for step_fn in ("_risk_gate_step_result", "_submission_step_result", "_build_daily_operator_report"):
+        monkeypatch.setattr(f"{WORKFLOW_MODULE}.{step_fn}", _record(step_fn))
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--as-of-date", "2026-03-27"],
+    )
+
+    assert code == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["as_of_date"] == "2026-03-27"
+    assert payload["report_date"] == "2026-03-27"
+
+    # Every step that reads rows for a date got the replayed date, not today's.
+    assert seen == {
+        "_risk_gate_step_result": "2026-03-27",
+        "_submission_step_result": "2026-03-27",
+        "_build_daily_operator_report": "2026-03-27",
+    }

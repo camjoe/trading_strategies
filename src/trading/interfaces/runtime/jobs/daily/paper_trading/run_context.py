@@ -38,6 +38,11 @@ class DailyRunContext:
     account_trade_caps: dict[str, int]
     caps_summary: str
     run_meta: dict[str, object]
+    # The trading date this run reports on (YYYY-MM-DD). Every reporting step
+    # reads it rather than calling `date.today()` itself, so a replay driven by
+    # --as-of-date reports the replayed date's rows instead of today's, and the
+    # artifact cannot end up carrying two different dates.
+    report_date: str
 
 
 def build_run_context(
@@ -99,10 +104,12 @@ def build_run_context(
         log_path,
         f"[{ts()}] RUN META: source={args.run_source} accounts={','.join(accounts)} caps={caps_summary}",
     )
+    report_date = (as_of_date or dt.date.today()).isoformat()
     run_meta: dict[str, object] = {
         "job": "daily_paper_trading",
         "run_source": args.run_source,
         "as_of_date": str(as_of_date) if as_of_date else None,
+        "report_date": report_date,
         "accounts": accounts,
         "account_count": len(accounts),
         "caps_summary": caps_summary,
@@ -119,4 +126,5 @@ def build_run_context(
         account_trade_caps=account_trade_caps,
         caps_summary=caps_summary,
         run_meta=run_meta,
+        report_date=report_date,
     )
