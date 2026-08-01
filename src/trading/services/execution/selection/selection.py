@@ -20,11 +20,19 @@ FeatureHistoryFn = Callable[[str, str], "pd.DataFrame | None"]
 # Alternative-style strategies read external features; each registers the fetcher
 # it needs here, keyed by strategy id.
 #
-# Empty because no alternative-style strategy is currently registered — the ones
-# that were (policy_regime, news_sentiment, social_trend_rotation) were retired,
-# and entries naming them would resolve to nothing. This is the live half of the
-# feature seam; the backtest half is `StrategySpec.required_features` feeding
-# `build_feature_bundle`. A restored strategy needs both.
+# **Parked, not dead.** Empty because no alternative-style strategy is currently
+# registered: policy_regime, news_sentiment and social_trend_rotation were retired
+# so the simpler price-only behaviours could be confirmed first, and entries naming
+# them would resolve to nothing. External-feature strategies are expected back
+# around 2026-09.
+#
+# This is the live half of the feature seam. The backtest half is
+# `StrategySpec.required_features` feeding `build_feature_bundle`. Wiring a
+# strategy needs both, and the two are checked separately:
+# `test_proxy_feature_flow` covers the backtest half, and
+# `test_selection.py::TestAlternativeFeatureSeam` covers this one — that test
+# registers a synthetic alternative strategy end to end, so it doubles as the
+# worked example of what a real one has to declare.
 _ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 
 

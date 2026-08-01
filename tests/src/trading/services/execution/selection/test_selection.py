@@ -1,9 +1,13 @@
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
+
 import trading.services.execution.selection.selection as trade_execution_service
 from tests.src.trading.services.auto_trading.factories import make_option_settings
 from tests.support.backtesting import bar_frame
+from trading.domain.strategies.contracts import StrategySpec
+from trading.domain.strategies.registry import STRATEGY_REGISTRY
 
 
 def test_prepare_buy_trade_equity() -> None:
@@ -498,10 +502,88 @@ def test_build_feature_history_fn_returns_none_for_non_alternative_styles() -> N
     fetchers.fetch_news.assert_not_called()
 
 
-def test_build_feature_history_fn_swallows_fetcher_errors_and_unknown_strategies() -> None:
-    fetchers = SimpleNamespace(fetch_policy=Mock(side_effect=RuntimeError("boom")), fetch_news=None, fetch_social=None)
-    feature_history_for = trade_execution_service.build_feature_history_fn(fetchers)
+def test_build_feature_history_fn_returns_none_for_unknown_strategies() -> None:
+    fetchers = SimpleNamespace(fetch_policy=Mock(), fetch_news=None, fetch_social=None)
 
-    assert feature_history_for("policy_regime", "AAPL") is None
-    assert feature_history_for("unknown_strategy_xyz", "AAPL") is None
-    assert trade_execution_service.build_feature_history_fn(None)("news_sentiment", "AAPL") is None
+    assert trade_execution_service.build_feature_history_fn(fetchers)("unknown_strategy_xyz", "AAPL") is None
+    assert trade_execution_service.build_feature_history_fn(None)("trend", "AAPL") is None
+
+
+class TestAlternativeFeatureSeam:
+    """The live half of the external-feature seam, kept exercised while parked.
+
+    No alternative-style strategy is registered right now — they were retired so
+    the price-only behaviours could be confirmed first, and are expected back
+    around 2026-09. That leaves every real call to ``build_feature_history_fn``
+    returning ``None`` at the style guard, which is why the tests that used to
+    cover this went quiet: they named retired strategies, so they stopped
+    reaching the code they were written for and passed for the wrong reason.
+
+    These register a synthetic alternative strategy instead, so the wiring stays
+    checked. They are also the worked example of what a real strategy must
+    declare: a ``StrategySpec`` with ``strategy_style="alternative"``, and an
+    entry in ``_ALTERNATIVE_FEATURE_FETCHER_ATTRS`` naming its fetcher.
+    """
+
+    STRATEGY_ID = "synthetic_alt"
+
+    @pytest.fixture
+    def registered(self, monkeypatch):
+        spec = StrategySpec(
+            strategy_id=self.STRATEGY_ID,
+            signal_fn=lambda _view, _params, _features=None: "hold",
+            default_params={},
+            strategy_style="alternative",
+            required_features=("synthetic_score",),
+        )
+        monkeypatch.setitem(STRATEGY_REGISTRY, self.STRATEGY_ID, spec)
+        monkeypatch.setitem(
+            trade_execution_service._ALTERNATIVE_FEATURE_FETCHER_ATTRS, self.STRATEGY_ID, "fetch_policy"
+        )
+        return spec
+
+    def test_features_reach_the_signal(self, registered) -> None:
+        fetchers = SimpleNamespace(
+            fetch_policy=Mock(return_value=_StubBundle({"synthetic_score": 0.75})),
+            fetch_news=None,
+            fetch_social=None,
+        )
+
+        row = trade_execution_service.build_feature_history_fn(fetchers)(self.STRATEGY_ID, "AAPL")
+
+        assert row is not None
+        assert row["synthetic_score"].iloc[0] == 0.75
+        fetchers.fetch_policy.assert_called_once_with("AAPL")
+
+    def test_a_fetcher_that_raises_is_swallowed(self, registered) -> None:
+        # The path the retired-strategy tests stopped reaching: a live provider
+        # failing must hold the signal, not take the run down.
+        fetchers = SimpleNamespace(
+            fetch_policy=Mock(side_effect=RuntimeError("boom")), fetch_news=None, fetch_social=None
+        )
+
+        assert trade_execution_service.build_feature_history_fn(fetchers)(self.STRATEGY_ID, "AAPL") is None
+
+    def test_an_unavailable_bundle_is_none(self, registered) -> None:
+        fetchers = SimpleNamespace(
+            fetch_policy=Mock(return_value=_StubBundle(None)), fetch_news=None, fetch_social=None
+        )
+
+        assert trade_execution_service.build_feature_history_fn(fetchers)(self.STRATEGY_ID, "AAPL") is None
+
+    def test_a_strategy_with_no_registered_fetcher_is_none(self, monkeypatch) -> None:
+        """Declaring the style is not enough — the fetcher entry is the other half."""
+        monkeypatch.setitem(
+            STRATEGY_REGISTRY,
+            self.STRATEGY_ID,
+            StrategySpec(
+                strategy_id=self.STRATEGY_ID,
+                signal_fn=lambda _view, _params, _features=None: "hold",
+                default_params={},
+                strategy_style="alternative",
+            ),
+        )
+        fetchers = SimpleNamespace(fetch_policy=Mock(), fetch_news=None, fetch_social=None)
+
+        assert trade_execution_service.build_feature_history_fn(fetchers)(self.STRATEGY_ID, "AAPL") is None
+        fetchers.fetch_policy.assert_not_called()
