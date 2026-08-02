@@ -54,7 +54,7 @@ def build_rotation_strategy_metrics(
     ``domain/rotation/score_components``).
 
     ``regime_fit`` computes a real value when ``fetch_regime`` is given — the
-    live-regime, family-derived design in ``docs/reference/rotation-scoring.md``
+    live-regime, family-derived design in ``docs/adr/019-rotation-score-components.md``
     (bucket ``policy_risk_on_score`` via ``regime_bucket_from_risk_on_score``,
     compare against the strategy's primitive family). Callers that don't pass
     ``fetch_regime`` (or that get an unavailable bundle) get ``NEUTRAL_COMPONENT``,

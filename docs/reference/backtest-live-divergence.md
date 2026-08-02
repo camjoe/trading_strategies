@@ -230,4 +230,4 @@ should be narrowed to something the engine can support sooner.
 - [Backtesting](backtesting.md) — engine, walk-forward geometry, promotion gate
 - [IBKR Paper Execution Plan](ibkr-paper-execution-plan.md) — the path to a non-`paper` account
 - [Broker Integration](broker-integration.md) — broker types and their guards
-- [Rotation Scoring](rotation-scoring.md) — the other consumer of backtest performance numbers
+- [ADR 019: Rotation Score Components](../adr/019-rotation-score-components.md) — the other consumer of backtest performance numbers

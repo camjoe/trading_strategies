@@ -65,7 +65,7 @@ def regime_bucket_from_risk_on_score(risk_on_score: float | None) -> MarketRegim
 
 
 # Coarse strategy-family -> regime affinity (the "family-derived" design from
-# docs/reference/rotation-scoring.md, not per-strategy evidence). Styles not listed
+# docs/adr/019-rotation-score-components.md, not per-strategy evidence). Styles not listed
 # here — "neutral", and "alternative" (policy_regime, macro_proxy_regime, ... —
 # strategies that already react to regime in their own signal logic, so giving them
 # an affinity here too would double up) — default to no bonus in any regime.
@@ -122,7 +122,7 @@ def regime_fit_from_style(*, strategy_style: str | None, current_regime: MarketR
     unmapped style, or a mismatch all return ``NEUTRAL_COMPONENT`` — never a
     penalty. A strategy is never punished for its style, only optionally rewarded
     for a plausible match. This is the "minimal first step" from
-    ``docs/reference/rotation-scoring.md``: family-derived affinity against a live
+    ``docs/adr/019-rotation-score-components.md``: family-derived affinity against a live
     regime read, not evidence-derived or an explicit per-book mapping.
     """
     if current_regime is None or current_regime == MarketRegime.NEUTRAL:
