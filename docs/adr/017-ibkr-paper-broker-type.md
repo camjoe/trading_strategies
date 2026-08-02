@@ -1,11 +1,21 @@
 # ADR: IBKR paper is its own broker type, not a live-guard exception
 
 Type: adr
-Status: Accepted
+Status: Accepted — `broker_type` values renamed by [ADR 018](018-broker-transport-venue-matrix.md)
 Created: 2026-07-27
-Last Reviewed: 2026-07-27
+Last Reviewed: 2026-08-02
 Purpose: Record why IBKR paper connectivity gets its own `broker_type` with a positive paper-account assertion, instead of being reached by enabling the real-money `live_trading_enabled` guard.
-Related: [Broker Integration](../reference/broker-integration.md), [IBKR Paper Execution Plan](../reference/ibkr-paper-execution-plan.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Related: [ADR 018: Broker transport and venue are independent axes](018-broker-transport-venue-matrix.md), [Broker Integration](../reference/broker-integration.md), [IBKR Paper Execution Plan](../reference/ibkr-paper-execution-plan.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+
+> **Naming superseded by [ADR 018](018-broker-transport-venue-matrix.md).** The decision
+> below — that IBKR paper connectivity is its own `broker_type` carrying a positive
+> paper-account assertion, rather than something reached by enabling the real-money flag —
+> still holds, and ADR 018 builds directly on it. The *names* it uses do not:
+> `interactive_brokers_paper` became `interactive_brokers_web_paper`, and
+> `interactive_brokers` became `interactive_brokers_socket`, with no aliases. The socket
+> paper venue listed under "Follow-up work" as conditional was added unconditionally.
+> **For the current routing table, read ADR 018 or
+> [`broker-integration.md`](../reference/broker-integration.md).**
 
 ## Context
 
@@ -97,6 +107,9 @@ testing); it does not make misuse impossible.
 - The socket/TWS path has no paper equivalent. It keeps requiring
   `live_trading_enabled`. Add `interactive_brokers_socket_paper` only if the socket path
   becomes the primary integration.
+  *(Resolved by [ADR 018](018-broker-transport-venue-matrix.md): the condition was the
+  wrong test — the asymmetry is a modelling defect regardless of which transport is
+  primary — so `interactive_brokers_socket_paper` was added outright.)*
 - `PaperBrokerAdapter` remains the default and remains a pure simulator. Any evaluation
   built on its fills is measuring an accounting identity, not execution. Books intended
   to produce operational evidence must move to `interactive_brokers_paper`.

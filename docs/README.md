@@ -70,7 +70,8 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
 - [`reference/rotation-scoring.md`](reference/rotation-scoring.md) — champion/challenger rotation score components and their data sources
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
-- [`adr/017-ibkr-paper-broker-type.md`](adr/017-ibkr-paper-broker-type.md) — IBKR paper is its own broker type with a paper-account assertion; `live_trading_enabled` guards real money only
+- [`adr/018-broker-transport-venue-matrix.md`](adr/018-broker-transport-venue-matrix.md) — transport (web/socket) and venue (paper/live) are independent axes; every transport gets both, and an unknown `broker_type` fails instead of falling through to the simulator
+- [`adr/017-ibkr-paper-broker-type.md`](adr/017-ibkr-paper-broker-type.md) — IBKR paper is its own broker type with a paper-account assertion; `live_trading_enabled` guards real money only (its `broker_type` names were renamed by ADR 018)
 - [`adr/016-optimizer-experiments-as-research-evidence.md`](adr/016-optimizer-experiments-as-research-evidence.md) — promotion, rotation, and evaluation read optimizer experiments; the rolling-window path is retired
 - [`adr/015-numbered-alembic-migrations.md`](adr/015-numbered-alembic-migrations.md) — numbered Alembic revisions replace probe-based schema init; runtime is verify-only
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
