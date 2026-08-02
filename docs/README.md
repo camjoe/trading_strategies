@@ -66,7 +66,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
 - [`reference/database-reset-plan.md`](reference/database-reset-plan.md) — planned migration-chain squash and data reset: per-table drop/preserve decisions and open questions
 - [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
-- [`reference/type-checking-gate.md`](reference/type-checking-gate.md) — what the mypy step verifies: intra-module errors only, cross-module annotations are documentation
 - [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
 - [`reference/rotation-scoring.md`](reference/rotation-scoring.md) — champion/challenger rotation score components and their data sources
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
