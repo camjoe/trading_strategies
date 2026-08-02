@@ -38,7 +38,7 @@ similar-return strategies; they cannot force a rotation on their own.
 | Component | Status | Source |
 |---|---|---|
 | `risk_adjusted_return` | Live | Blended evaluation decision score (`derive_decision_score`) |
-| `stability` | Live | Negative spread of walk-forward window returns |
+| `stability` | Live | Negative standard deviation of walk-forward window returns |
 | `drawdown_penalty` | Live | Magnitude of backtest `max_drawdown_pct` |
 | `regime_fit` | **Live (2026-07-26)** | Family-derived affinity vs. a live ETF regime read — see below |
 
