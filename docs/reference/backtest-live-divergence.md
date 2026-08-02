@@ -17,6 +17,11 @@ touch what either side does *with* a signal, and that is where they diverge most
 Read this before trusting a walk-forward result, before changing the live exit path, and before
 raising any trade cap.
 
+**Everything below describes `develop`.** Every defect named here is pre-existing — `MAX_ORDER_QTY`,
+both random draws in the risk-exit path, and the `min(max_trades, book_count)` intent cap are all
+present and unmodified on the base branch. The one item this branch introduces is the engine-side
+proportional buy allocation noted under Overview.
+
 ## Intended use of walk-forward
 
 Recorded because it determines which divergences matter. The optimizer exists to:
@@ -52,7 +57,10 @@ Signal *generation* is shared. Signal *execution* is not.
 | Risk stops | not modelled | fire, then sell 1–5 shares |
 | Buy sizing | `choose_buy_qty` + proportional allocation | `choose_buy_qty` — same policy |
 
-Buys are the one axis that agrees, and only because both call the same policy function.
+Buys are the one axis that broadly agrees, because both call the same sizing policy. The engine adds
+proportional allocation when cash cannot fund every buy signal on a bar (`allocate_buy_quantities`,
+new on this branch). Live never reaches that case: a book emits one trade per run, so there is
+nothing to allocate between. The gap opens only once a real per-book budget lands.
 
 ### Sells close the position in simulation, trim it live
 
