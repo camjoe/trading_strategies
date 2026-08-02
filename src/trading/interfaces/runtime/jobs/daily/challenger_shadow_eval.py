@@ -123,7 +123,7 @@ def run_shadow_eval_for_account(
 def main(ctx: JobContext, account: str) -> dict[str, object]:
     window = ctx.args.rolling_window_days
     shadow_run = run_shadow_eval_for_account(
-        ctx.conn,
+        ctx.db,
         account_name=account,
         rolling_window_days=int(window) if window is not None else None,
         as_of_iso=ts(),

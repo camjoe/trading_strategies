@@ -42,12 +42,12 @@ def already_completed_this_month(log_dir: Path, tag: str) -> bool:
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[dict[str, object]] = []
     for account_name in ctx.accounts:
-        account = find_account(ctx.conn, account_name)
+        account = find_account(ctx.db, account_name)
         if account is None:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        snapshot = fetch_latest_risk_snapshot(ctx.conn, account_id=account.id)
+        snapshot = fetch_latest_risk_snapshot(ctx.db, account_id=account.id)
         if snapshot is None:
             account_results.append(
                 {

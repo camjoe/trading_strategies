@@ -236,33 +236,35 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                 if args.shadow_eval_rolling_window_days is not None
                 else []
             )
+
+            def _run_shadow_eval() -> dict[str, object]:
+                stream_command(
+                    log_path,
+                    "Challenger Shadow Eval",
+                    [
+                        "-m",
+                        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+                        "--accounts",
+                        ",".join(accounts),
+                        "--enable-run",
+                        *shadow_eval_window_args,
+                        "--run-source",
+                        "daily-paper-trading",
+                    ],
+                    repo_root,
+                )
+                return {
+                    "rolling_window_days": (
+                        args.shadow_eval_rolling_window_days
+                        if args.shadow_eval_rolling_window_days is not None
+                        else "book-owned"
+                    )
+                }
+
             run_dag_step(
                 step_results,
                 step_id="02_run_signals_all_strategies",
-                run_fn=lambda: (
-                    stream_command(
-                        log_path,
-                        "Challenger Shadow Eval",
-                        [
-                            "-m",
-                            DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-                            "--accounts",
-                            ",".join(accounts),
-                            "--enable-run",
-                            *shadow_eval_window_args,
-                            "--run-source",
-                            "daily-paper-trading",
-                        ],
-                        repo_root,
-                    ),
-                    {
-                        "rolling_window_days": (
-                            args.shadow_eval_rolling_window_days
-                            if args.shadow_eval_rolling_window_days is not None
-                            else "book-owned"
-                        )
-                    },
-                )[1],
+                run_fn=_run_shadow_eval,
                 now_iso=ts,
             )
             shadow_eval_summary = latest_shadow_eval_summary(repo_root)
@@ -352,18 +354,19 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
 
+        def _run_compare_strategies() -> dict[str, object]:
+            stream_command(
+                log_path,
+                "Compare Strategies",
+                ["-m", CLI_MAIN_MODULE, "compare-strategies"],
+                repo_root,
+            )
+            return {"command": "compare-strategies"}
+
         run_dag_step(
             step_results,
             step_id="09_postclose_metrics_and_attribution",
-            run_fn=lambda: (
-                stream_command(
-                    log_path,
-                    "Compare Strategies",
-                    ["-m", CLI_MAIN_MODULE, "compare-strategies"],
-                    repo_root,
-                ),
-                {"command": "compare-strategies"},
-            )[1],
+            run_fn=_run_compare_strategies,
             now_iso=ts,
         )
 

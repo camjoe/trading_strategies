@@ -121,7 +121,7 @@ def _fetch_recent_rotations(conn: sqlite3.Connection, account_id: int) -> list[d
                 }
             )
 
-    all_rotations.sort(key=lambda x: x["decision_time"], reverse=True)
+    all_rotations.sort(key=lambda row: str(row["decision_time"]), reverse=True)
     return all_rotations[:20]
 
 

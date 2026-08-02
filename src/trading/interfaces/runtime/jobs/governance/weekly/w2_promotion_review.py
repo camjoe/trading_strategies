@@ -48,15 +48,15 @@ def already_completed_this_week(log_dir: Path, tag: str) -> bool:
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[WeeklyPromotionAccountPayload] = []
     for account_name in ctx.accounts:
-        account = find_account(ctx.conn, account_name)
+        account = find_account(ctx.db, account_name)
         if account is None:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        assessment = fetch_promotion_assessment(ctx.conn, account_name=account_name)
+        assessment = fetch_promotion_assessment(ctx.db, account_name=account_name)
 
         book_rows: list[WeeklyPromotionBookPayload] = []
-        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
+        for book, assignment in list_report_books(ctx.db, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
             book_rows.append(

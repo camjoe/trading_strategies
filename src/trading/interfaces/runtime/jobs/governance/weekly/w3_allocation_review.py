@@ -60,12 +60,12 @@ def main(ctx: JobContext) -> dict[str, object]:
 
     account_results: list[WeeklyAllocationAccountPayload] = []
     for account_name in ctx.accounts:
-        account = find_account(ctx.conn, account_name)
+        account = find_account(ctx.db, account_name)
         if account is None:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        books = [book for book, _assignment in list_report_books(ctx.conn, account_id=account.id)]
+        books = [book for book, _assignment in list_report_books(ctx.db, account_id=account.id)]
 
         # current_equity already includes cash for each book — sum live book
         # balances, never frozen/stale ones.

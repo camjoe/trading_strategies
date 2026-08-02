@@ -12,6 +12,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
     ScheduledTaskSpec,
+    ScheduleKind,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
 )
@@ -49,7 +50,7 @@ def _scheduled_task(
     time: str,
     log_name: str,
     args: tuple[str, ...] = (),
-    schedule_kind: str = "daily",
+    schedule_kind: ScheduleKind = "daily",
     day_of_week: str | None = None,
 ) -> ScheduledTaskSpec:
     return ScheduledTaskSpec(

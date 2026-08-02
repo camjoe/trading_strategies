@@ -67,7 +67,8 @@ class JobContext:
     """Everything a job body needs, prepared by the runner.
 
     ``conn`` is ``None`` for jobs that shell out to subprocesses rather than
-    opening a DB session.
+    opening a DB session. Bodies that need the database read ``db`` instead —
+    see that property for why.
     """
 
     args: argparse.Namespace
@@ -78,6 +79,25 @@ class JobContext:
     log_path: Path
     artifact_path: Path
     conn: DBConnection | None = None
+
+    @property
+    def db(self) -> DBConnection:
+        """The run's connection, for a body that requires one.
+
+        Whether a session was opened is fixed by how the job is registered —
+        governance jobs always open one, per-account jobs opt in with
+        ``open_db=True``, maintenance jobs never do — so by the time a body
+        runs, this is settled. Reading ``conn`` directly forces every such body
+        to carry an ``Optional`` it can do nothing about; no caller has ever
+        checked it for ``None``. This states the invariant in one place and
+        fails loudly if the registration and the body ever disagree.
+        """
+        if self.conn is None:
+            raise RuntimeError(
+                "This job did not open a database session. Register it with open_db=True, "
+                "or use a governance job, if the body needs the database."
+            )
+        return self.conn
 
     def log(self, message: str) -> None:
         """Tee a timestamped line to the run log (and stdout)."""

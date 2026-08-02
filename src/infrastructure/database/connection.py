@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
 
 from infrastructure.database.backend import get_backend
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
 
-# Type alias — the concrete type depends on the active DatabaseBackend.
-DBConnection = Any
+# The connection type callers actually receive. Nominally this depends on the
+# active DatabaseBackend, but SQLiteBackend is the only implementation and the
+# ~88 modules downstream already annotate `conn: sqlite3.Connection`, so the
+# alias states what is true today rather than staying `Any` — which propagated
+# to every caller and hid real mismatches. Adding a second backend means
+# widening this to a Protocol, not returning to `Any`.
+DBConnection = sqlite3.Connection
 
 _STATUS_COMMAND = "python -m scripts.data_ops.manage_db_migrations status"
 
