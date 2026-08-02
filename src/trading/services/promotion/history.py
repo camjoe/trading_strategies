@@ -40,7 +40,7 @@ def fetch_promotion_review_history(
     return [
         PromotionReviewHistoryEntry(
             review=review,
-            events=repo.fetch_events(review_id=int(review.id)),
+            events=repo.fetch_events(review_id=review.id),
         )
         for review in review_rows
     ]

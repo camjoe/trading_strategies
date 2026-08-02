@@ -6,18 +6,18 @@ import pytest
 import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
+from tests.support.backtesting import bar_frame
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
-    def fake_fetch_close_series(ticker: str, period: str):
+    def fake_fetch_ohlcv(ticker: str, period: str, interval: str):
         assert period == "1y"
-        if ticker == "EMPTY":
-            return None
+        assert interval == "1d"
         if ticker == "ONE":
-            return pd.Series(range(1, 50), dtype=float)
+            return bar_frame(pd.Series(range(1, 50), dtype=float))
         return None
 
-    provider = SimpleNamespace(fetch_close_series=fake_fetch_close_series)
+    provider = SimpleNamespace(fetch_ohlcv=fake_fetch_ohlcv)
 
     assert auto_trading_service.build_iv_rank_proxy(["EMPTY"], provider=provider) == {}
     assert auto_trading_service.build_iv_rank_proxy(["ONE"], provider=provider) == {"ONE": 50.0}
@@ -35,19 +35,17 @@ def test_validate_trade_count_range_and_account_names() -> None:
 
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
-    close_series = pd.Series(range(1, 50), dtype=float)
+    bars = bar_frame(pd.Series(range(1, 50), dtype=float))
     monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {"AAPL": 101.0})
-    monkeypatch.setattr(
-        auto_trading_inputs, "fetch_close_histories", lambda _universe, **_kwargs: {"AAPL": close_series}
-    )
+    monkeypatch.setattr(auto_trading_inputs, "fetch_bar_histories", lambda _universe, **_kwargs: {"AAPL": bars})
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
     universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs("tickers.txt")
     assert universe == ["AAPL"]
     assert prices == {"AAPL": 101.0}
     assert iv_rank == {"AAPL": 50.0}
-    assert histories == {"AAPL": close_series}
+    assert list(histories) == ["AAPL"]
 
     def _fake_trade_loop(**kwargs):
         return 2 if kwargs["account_name"] == "acct1" else 1

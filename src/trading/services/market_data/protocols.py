@@ -10,7 +10,13 @@ import pandas as pd
 class MarketDataProvider(ABC):
     @abstractmethod
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        """Return a normalized OHLCV DataFrame for *ticker*."""
+        """Return an OHLCV DataFrame for *ticker* over a relative *period*.
+
+        Columns keep the vendor's own capitalized spelling, unlike
+        ``fetch_bar_history``. Callers that feed strategy code normalize them to
+        ``BAR_COLUMNS`` first — the live runtime's per-ticker signal pass does
+        exactly that in ``trading.services.auto_trading.market``.
+        """
 
     @abstractmethod
     def fetch_close_history(
@@ -24,6 +30,26 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
         """Return the Close series for *ticker* over *period*, or None on failure."""
+
+    @abstractmethod
+    def fetch_bar_history(
+        self,
+        tickers: list[str],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, pd.DataFrame]:
+        """Return one daily bar frame per ticker, keyed by ticker.
+
+        Each frame is indexed by date and carries exactly ``BAR_COLUMNS``
+        (see ``trading.models.market_data.constants``) — lower-case, in that
+        order, whatever the vendor calls them. Every requested ticker gets an
+        entry or the call raises; a partially-populated result would let a
+        caller silently backtest a smaller universe than it asked for.
+
+        Distinct from ``fetch_ohlcv``, which serves one ticker over a relative
+        period in the vendor's own column spelling. This is the bulk,
+        date-bounded, already-normalized read the simulation engine runs on.
+        """
 
 
 def require_provider(provider: MarketDataProvider | None) -> MarketDataProvider:

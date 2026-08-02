@@ -4,6 +4,7 @@ from .executables import resolve_repo_python_exe
 from .formatting import relative_posix
 from .project_paths import (
     ACCOUNT_PROFILES_DIR,
+    ACCOUNT_TRADE_CAPS_PATH,
     DB_BACKUPS_DIR,
     DB_CONFIG_PATH,
     DEFAULT_ACCOUNT_PROFILE_PATH,
@@ -25,6 +26,7 @@ from .repo_paths import get_repo_root
 
 __all__ = [
     "ACCOUNT_PROFILES_DIR",
+    "ACCOUNT_TRADE_CAPS_PATH",
     "DB_BACKUPS_DIR",
     "DB_CONFIG_PATH",
     "DEFAULT_ACCOUNT_PROFILE_PATH",

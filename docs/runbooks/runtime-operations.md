@@ -15,19 +15,25 @@ job (rather than monitor it), see the [Runtime Jobs Reference](../reference/runt
 
 ## Scheduled job
 
-The daily paper-trading job runs once per trading day via the OS scheduler — systemd timers on the
-dedicated Linux production host (per [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md)
-and the [Production Runtime Host runbook](production-runtime-host.md)); Windows Task Scheduler when
-running from a Windows dev machine.
+The daily paper-trading job runs once per trading day via systemd timers on the dedicated Linux
+production host (per [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md) and the
+[Production Runtime Host runbook](production-runtime-host.md)). That host is the only machine that
+should have runtime jobs registered.
+
+`manage_job_schedules` can still write Windows Task Scheduler entries, which is how the job was
+scheduled before ADR 008 moved it to its own host. Nothing runs that way now, and a dev box with
+`Trading\*` tasks registered would trade a second time alongside production. Use
+`--scheduler systemd --dry-run` on Windows to review the production units instead of registering
+anything locally.
 
 **Entrypoint:**
 ```
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading
 ```
 
-**Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
+**Expected run window:** configured in `manage_job_schedules`. There is one scheduled entry; a missed run is backfilled with `replay_daily_runs` rather than re-attempted automatically.
 
-**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
+**Schedule setup:** to register, enable, or remove scheduled jobs (the challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
 
 ---
 
@@ -77,10 +83,13 @@ running from a Windows dev machine.
    cat local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log | grep -A 5 "ERROR\|FAIL"
    ```
 3. Fix the underlying issue (connectivity, data freshness, configuration).
-4. Re-run with `--force-run`:
+4. Re-run. The duplicate-run guard keys on the complete sentinel, which a failed run never wrote, so
+   a retry is not blocked:
    ```bash
-   python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
+   python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```
+   Add `--force-run` only to re-run a date that already *succeeded* — that is a second full trading
+   pass, not a retry.
 
 ### Run did not execute (scheduler missed)
 
@@ -129,7 +138,7 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
    ```bash
    python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
    ```
-3. The combined daily paper-trading, daily snapshot, and weekly backup status is summarized by:
+3. The combined daily paper-trading and weekly backup status is summarized by:
    ```bash
    python -m scripts.check_jobs
    ```
@@ -144,7 +153,6 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
 | Run artifacts | `local/exports/daily_paper_trading/daily_paper_trading_{YYYYMMDD}_{HHMMSS}.json` |
 | Startup log | `local/logs/daily_paper_trading_startup_{YYYYMMDD}.log` |
 | Scheduler logs | `local/logs/*_scheduler.log` |
-| Daily snapshot artifacts | `local/exports/daily_snapshots/daily_snapshot_{YYYYMMDD}_{HHMMSS}.json` |
 | Governance artifacts | `local/artifacts/{job}_{tag}_{YYYYMMDD}_{HHMMSS}.json` |
 | Burn-in status artifacts | `local/artifacts/check_burn_in_status_{YYYYMMDD}_{HHMMSS}.json` |
 

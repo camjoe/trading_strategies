@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-08-02
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -29,9 +29,26 @@ Broker resolution is handled in:
 
 Supported `accounts.broker_type` values:
 
-- `paper` (default)
-- `interactive_brokers_web` (current/default live IBKR path)
-- `interactive_brokers` (current compatibility value for the socket/TWS path)
+Transport (how IBKR is reached) and venue (whether real money can move) are independent
+axes, so every transport has both venues — see
+[`docs/adr/018-broker-transport-venue-matrix.md`](../adr/018-broker-transport-venue-matrix.md).
+
+| Value | Transport | Requires `live_trading_enabled` | Account assertion |
+|---|---|---|---|
+| `paper` (default) | in-process simulator | no | none |
+| `interactive_brokers_web` | IBKR Web API | yes | none (operator-owned) |
+| `interactive_brokers_web_paper` | IBKR Web API | **no** | `account_id` must start with `DU` |
+| `interactive_brokers_socket` | IBKR socket/TWS | yes | none (operator-owned) |
+| `interactive_brokers_socket_paper` | IBKR socket/TWS | **no** | every managed account must start with `DU` |
+
+Any other non-empty value raises `UnknownBrokerTypeError`. An absent or empty
+`broker_type` still defaults to `paper`.
+
+`paper` never leaves the process: `PaperBrokerAdapter` accepts every order and fills it
+in full, immediately, at the requested price, with zero commission. It produces no
+rejections, partial fills, or slippage, so its fill history is an accounting exercise
+rather than execution evidence. Use one of the `_paper` IBKR types for anything intended
+to generate real operational data.
 
 Key files:
 
@@ -54,21 +71,15 @@ Broker-related account fields:
 
 | Field | Role |
 |---|---|
-| `account_kind` | account visibility/role (`managed`, `local`) |
 | `broker_type` | execution backend selection |
 | `broker_host` | socket/TWS host |
 | `broker_port` | socket/TWS port |
 | `broker_client_id` | socket/TWS client id |
-| `live_trading_enabled` | hard gate required for live broker adapters |
-
-`account_kind` and `broker_type` are orthogonal:
-
-- `account_kind` answers account role in this repo
-- `broker_type` answers execution backend
+| `live_trading_enabled` | hard gate required for the live venues (`interactive_brokers_web`, `interactive_brokers_socket`); not required for the `_paper` venues |
 
 ## Live Trading Safety Guard
 
-`live_trading_enabled` is a hard runtime gate for live broker paths.
+`live_trading_enabled` is a hard runtime gate for **real-money** broker paths.
 
 - default is `0`
 - live paths raise `LiveTradingNotEnabledError` from `infrastructure.brokers.factory` unless set to `1`
@@ -86,6 +97,41 @@ The canonical guardrail rules live in
 [`docs/architecture/architecture-conventions.md`](../architecture/architecture-conventions.md#live-trading-safety-guard).
 This reference summarizes the runtime behavior; architecture conventions remain
 the source of truth for what automated processes may and may not change.
+
+### IBKR paper account guard
+
+The `_paper` broker types reach the same gateways as their live counterparts without
+`live_trading_enabled`, because no capital is at risk. They carry a different guard: the
+resolved IBKR account must be a paper account (`DU` prefix), or the factory raises
+`PaperBrokerAccountMismatchError` and refuses to connect.
+
+Setting up a paper-executing book on the Web API:
+
+```sql
+-- No live_trading_enabled change required.
+UPDATE accounts
+SET broker_type = 'interactive_brokers_web_paper'
+WHERE name = 'my-paper-account';
+```
+
+Then point the Web API settings at the paper account
+(`TRADING_IBKR_WEB_API_ACCOUNT_ID=DU1234567`, or `account_id` in the private JSON
+config). A live account id configured against this broker type fails closed.
+
+The socket equivalent sets `broker_type = 'interactive_brokers_socket_paper'` plus the
+`broker_host` / `broker_port` / `broker_client_id` fields, and takes its account identity
+from IBKR rather than from configuration.
+
+**The two transports assert at different moments.** The Web API knows its account id from
+settings, so the assertion runs before connecting. The socket learns its account ids from
+IBKR on connect, so the assertion runs after: a mismatch connects, fails, and disconnects
+before returning. Connecting is not trading, so no order reaches a non-paper account
+either way. The socket check requires *every* reported managed account to be a paper
+account and treats an empty list as a failure — the session can trade any account it
+manages.
+
+Rationale: [`docs/adr/017-ibkr-paper-broker-type.md`](../adr/017-ibkr-paper-broker-type.md)
+and [`docs/adr/018-broker-transport-venue-matrix.md`](../adr/018-broker-transport-venue-matrix.md).
 
 ## IBKR Web API Configuration
 
@@ -179,6 +225,12 @@ Reconciliation behavior:
 - applies fills through shared book accounting (`apply_book_fill`); account-level
   history derives from the fill rows — the `trades` table was retired in revision `0006`
 
+The daily paper-trading job drives it via
+`trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders`, once before the pre-trade
+snapshot and again before the post-trade snapshot, so recorded equity always reflects the fills the
+broker has reported so far. It is a no-op for `paper` accounts (synchronous fills, no open trades)
+and load-bearing for the socket path.
+
 The shared order contract and `orders.status_reason` retain broker-provided rejection and
 cancellation explanations when IBKR supplies one. The Web adapter reads
 `order_status_description`; the socket `ib_async` client reads the advanced rejection payload or
@@ -187,7 +239,9 @@ a previously persisted reason.
 
 ## Socket/TWS Path
 
-The socket path remains available via `broker_type = 'interactive_brokers'`.
+The socket path is available at both venues: `broker_type = 'interactive_brokers_socket'`
+(real money, requires `live_trading_enabled = 1`) and
+`broker_type = 'interactive_brokers_socket_paper'` (paper account assertion, no flag).
 
 - default backend: `ib_async`
 - optional backend: `ibapi` (orders, positions, account summaries, and snapshot quotes implemented)
@@ -202,16 +256,45 @@ Default socket ports:
 - IB Gateway paper: `4002`
 - IB Gateway live: `4001`
 
-### Deferred persisted-name migration
+### Socket startup sync
 
-Code and package names use `ibkr_socket`; the database still stores
-`broker_type = 'interactive_brokers'` for compatibility. A later migration should:
+`ib_async` serves `trades()`, `positions()`, and fill data from caches populated by a one-off
+startup sync during `connect()` — nothing re-requests them later. By default that sync has a 4-second
+budget and, on timeout, logs an error and connects anyway. IB Gateway routinely exceeds 4 seconds,
+especially shortly after it starts.
 
-1. add `interactive_brokers_socket` to the account constraint;
-2. rewrite existing `interactive_brokers` rows to `interactive_brokers_socket`;
-3. accept the old value temporarily as a factory alias if external configuration still uses it;
-4. update account-profile fixtures and operator configuration;
-5. remove the compatibility alias only after a repository-wide usage check and migration validation.
+A silently failed open-orders sync is not cosmetic: it leaves `trades()` empty in a way
+reconciliation cannot distinguish from "no open orders", so fills would be stranded. `IbAsyncClient`
+therefore connects with a longer timeout, `raiseSyncErrors=True`, and a `fetchFields` set trimmed to
+the fields it actually reads (open orders and executions; positions are always fetched). Completed
+orders and per-sub-account updates were dropped — never read, and each is another request that can
+time out.
+
+### Socket status mapping
+
+`_IB_STATUS_MAP` in `ibkr_socket/adapter.py` narrows IBKR's status vocabulary to the shared
+`OrderStatus`. Two collapses are worth knowing:
+
+- `PendingSubmit` and `PendingCancel` both map to `PENDING`, so an order waiting to transmit is
+  indistinguishable from one with a cancel in flight. Both mean *still open, keep polling*, so
+  reconciliation resolves either way.
+- `place_order` sets `SUBMITTED` on the returned order locally, without consulting IBKR. The
+  authoritative view is whatever the next `get_open_trades()` reports.
+
+`get_account_info()` has no runtime consumer — only the socket smoke test reads it. IBKR's
+`NetLiquidation` carries paper-account accruals that will not match book equity, and the equity
+reconciliation deliberately compares book equity against this repo's own snapshots instead.
+
+### Account identity over the socket
+
+`IbkrSocketClient.managed_accounts()` reports the account ids the session can trade, which is
+what `interactive_brokers_socket_paper` asserts on. `ib_async` exposes this as
+`IB.managedAccounts()`; the native `ibapi` client captures the `managedAccounts` callback IBKR
+sends on connect.
+
+The previously deferred rename landed with ADR 018: `interactive_brokers` became
+`interactive_brokers_socket` with no compatibility alias, since no account row used the old value.
+The old string now raises `UnknownBrokerTypeError` rather than silently routing to the simulator.
 
 ## Extending Broker Support
 
@@ -231,3 +314,4 @@ When adding a new broker:
 - `scripts/README.md`
 - `docs/architecture/architecture-conventions.md`
 - [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup checklist
+- [`runbooks/ibkr-paper-trading.md`](../runbooks/ibkr-paper-trading.md) — operator procedure for moving a book onto real IBKR paper-account order mechanics

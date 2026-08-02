@@ -3,7 +3,7 @@ import pytest
 
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.leaderboard_service as leaderboard_service
-from tests.support.backtesting import create_backtest_account, make_backtest_config
+from tests.support.backtesting import bars_from_closes, create_backtest_account, make_backtest_config
 from tests.support.strategies import ensure_strategy_id_for_label
 
 
@@ -35,8 +35,10 @@ class TestBacktestValidationAndFailurePaths:
         monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "fetch_close_history",
-            lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_idx),
+            "fetch_bar_history",
+            lambda _tickers, _start, _end, **_kwargs: bars_from_closes(
+                pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_idx)
+            ),
         )
 
         with pytest.raises(ValueError, match="Need at least 3 trading days"):

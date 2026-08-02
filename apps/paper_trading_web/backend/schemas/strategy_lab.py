@@ -6,6 +6,26 @@ from pydantic import BaseModel, Field
 
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 
+# The optimizer route runs its sweep synchronously, so the request is open for the
+# whole run. A sweep costs roughly `candidates x windows` simulations; at the
+# default 24-month/1-month geometry that is ~13 windows.
+#
+# Re-measured after indicators moved out of the per-bar path
+# (`python -m scripts.benchmark_sweep`): ~42ms per simulation on the default
+# 12-ticker universe and ~167ms on a 52-ticker one, down from ~740ms. A budget of
+# 128 is ~1,690 simulations — about 70 seconds on the default universe and under
+# five minutes on the wide one, which is the case a ceiling exists to bound. The
+# previous 32 was calibrated against the old per-simulation cost and had become
+# a limit on research rather than a guard.
+#
+# The ceiling belongs to the synchronous route, not to the optimizer: the CLI
+# runs the same sweep unbounded because nothing is waiting on a socket.
+MAX_CANDIDATE_BUDGET = 128
+
+# Covers the grids most searches actually use (up to 32 points) without editing
+# the field, while leaving a larger search a deliberate act.
+DEFAULT_CANDIDATE_BUDGET = 32
+
 
 class CreateStrategyVariantRequest(BaseModel):
     strategyKey: str
@@ -40,5 +60,5 @@ class RunOptimizationRequest(BaseModel):
     testMonths: int = Field(default=1, gt=0)
     stepMonths: int = Field(default=1, gt=0)
     holdoutMonths: int = Field(default=6, ge=0)
-    candidateBudget: int = Field(default=256, gt=0, le=2048)
+    candidateBudget: int = Field(default=DEFAULT_CANDIDATE_BUDGET, gt=0, le=MAX_CANDIDATE_BUDGET)
     warmupMonths: int = Field(default=6, ge=0)

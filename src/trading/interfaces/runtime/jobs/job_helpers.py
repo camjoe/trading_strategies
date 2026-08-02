@@ -35,6 +35,7 @@ _SMTP_TLS_DISABLED_VALUES = {"0", "false", "no", "off"}
 CLI_MAIN_MODULE = "trading.interfaces.cli.main"
 ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
+RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
 # Transient connectivity/rate-limit strings that indicate a retry may succeed.

@@ -11,7 +11,6 @@ from trading.repositories.accounts import AccountRepository
 def _make_account_insert(**overrides: object) -> AccountInsert:
     values: dict[str, object] = {
         "name": "acct_a",
-        "account_kind": "managed",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00",
         "updated_at": "2026-01-01T00:00:00",
@@ -42,7 +41,6 @@ class TestInsertAccount:
         AccountRepository(conn).insert(
             _make_account_insert(
                 name="full_acct",
-                account_kind="local",
                 initial_cash=5000.0,
                 created_at="2026-03-01T10:00:00",
                 benchmark_ticker="QQQ",
@@ -51,7 +49,6 @@ class TestInsertAccount:
         )
         row = AccountRepository(conn).fetch_by_name("full_acct")
         assert row is not None
-        assert row["account_kind"] == "local"
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
         assert row["descriptive_name"] == "Full Account"
@@ -85,18 +82,14 @@ class TestFetchAccountListingRows:
 class TestFetchAccountRows:
     def test_returns_all_accounts_ordered_by_name(self, conn) -> None:
         _insert(conn, "keep_me")
-        AccountRepository(conn).insert(
-            _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local")
-        )
+        AccountRepository(conn).insert(_make_account_insert(name="second_acct", descriptive_name="second_acct"))
         names = [r["name"] for r in AccountRepository(conn).fetch_all()]
-        assert names == ["keep_me", "local_acct"]
+        assert names == ["keep_me", "second_acct"]
 
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
-        AccountRepository(conn).insert(
-            _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="local")
-        )
+        AccountRepository(conn).insert(_make_account_insert(name="skip_me", descriptive_name="skip_me"))
         rows = AccountRepository(conn).fetch_all()
         names = [r["name"] for r in rows]
         assert names == ["alpha", "bravo", "skip_me"]
@@ -124,13 +117,13 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["descriptive_name = ?", "account_kind = ?"],
-            params=["Multi", "local"],
+            updates=["descriptive_name = ?", "benchmark_ticker = ?"],
+            params=["Multi", "QQQ"],
             updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("multi_upd")
         assert updated["descriptive_name"] == "Multi"
-        assert updated["account_kind"] == "local"
+        assert updated["benchmark_ticker"] == "QQQ"
 
 
 class TestFetchAllAccountNames:

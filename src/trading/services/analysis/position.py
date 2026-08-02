@@ -26,7 +26,7 @@ def compute_position_analysis(
     prices: dict[str, float],
     total_equity: float,
 ) -> list[dict[str, float | str]]:
-    result = []
+    result: list[dict[str, float | str]] = []
     for ticker, qty in sorted(state.positions.items()):
         if qty <= 0:
             continue

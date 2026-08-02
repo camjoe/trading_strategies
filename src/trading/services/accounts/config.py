@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 
 from common.coercion import (
     coerce_float,
@@ -14,12 +14,6 @@ from trading.domain.exceptions import ValidationError
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
 OPTION_TYPES = {"call", "put", "both"}
-
-# Account kind classifies an account's lifecycle/visibility role independently
-# from broker_type, which selects the execution backend.
-ACCOUNT_KIND_MANAGED = "managed"
-ACCOUNT_KIND_LOCAL = "local"
-ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL}
 
 _ENUM_FIELDS = {
     "risk_policy": RISK_POLICIES,
@@ -43,14 +37,6 @@ def validate_enum_value(value: str, field_name: str) -> str:
 
 def normalize_risk_policy(risk_policy: str) -> str:
     return validate_enum_value(risk_policy, "risk_policy")
-
-
-def normalize_account_kind(account_kind: str) -> str:
-    normalized = normalize_lower(account_kind)
-    if normalized not in ACCOUNT_KINDS:
-        options = ", ".join(sorted(ACCOUNT_KINDS))
-        raise ValidationError(f"account_kind must be one of: {options}")
-    return normalized
 
 
 def normalize_instrument_mode(instrument_mode: str) -> str:
@@ -167,19 +153,6 @@ def validate_position_sizing_from_inputs(
     )
     validate_position_sizing(resolved_trade_size_pct, resolved_max_position_pct)
     return resolved_trade_size_pct, resolved_max_position_pct
-
-
-def append_update(
-    updates: list[str],
-    params: list[object],
-    column: str,
-    value: object | None,
-    transform: Callable[[object], object] | None = None,
-) -> None:
-    if value is None:
-        return
-    updates.append(f"{column} = ?")
-    params.append(transform(value) if transform is not None else value)
 
 
 def resolved_float(value: float | None, row: "Mapping[str, object]", column: str) -> float | None:

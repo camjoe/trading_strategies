@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ExperimentDetail, Trial } from "../../components/strategy-lab";
 import {
+  SWEEP_WARNING_SIMULATIONS,
+  estimateSweep,
   rankedTrials,
   renderOptimizationDetail,
   renderTrialsTable,
+  sweepConfirmMessage,
 } from "../../components/strategy-lab";
 
 function trial(overrides: Partial<Trial> = {}): Trial {
@@ -159,5 +162,62 @@ describe("renderOptimizationDetail", () => {
     expect(html).toContain("holdout");
     expect(html).toContain("boom");
     expect(html).not.toContain("Window 1");
+  });
+});
+
+describe("estimateSweep", () => {
+  it("counts windows and simulations, not just candidates", () => {
+    // 24 months, 6 held out, 12 trained on -> 6 monthly windows.
+    const estimate = estimateSweep({ candidates: 4, lookbackMonths: 24, holdoutMonths: 6 });
+    expect(estimate.windows).toBe(6);
+    // 4 candidates x 6 windows, plus an OOS and a baseline run per window, plus the holdout pair.
+    expect(estimate.simulations).toBe(38);
+    expect(estimate.overWarningThreshold).toBe(false);
+  });
+
+  it("flags a grid whose real cost is hidden by a modest candidate count", () => {
+    // 32 candidates looks small; 30 monthly windows turns it into ~1,000 backtests.
+    const estimate = estimateSweep({ candidates: 32, lookbackMonths: 48, holdoutMonths: 6 });
+    expect(estimate.windows).toBe(30);
+    expect(estimate.simulations).toBeGreaterThan(SWEEP_WARNING_SIMULATIONS);
+    expect(estimate.overWarningThreshold).toBe(true);
+  });
+
+  it("does not warn on a sweep the engine now finishes quickly", () => {
+    const estimate = estimateSweep({ candidates: 8, lookbackMonths: 48, holdoutMonths: 6 });
+    expect(estimate.simulations).toBeLessThan(SWEEP_WARNING_SIMULATIONS);
+    expect(estimate.overWarningThreshold).toBe(false);
+  });
+
+  it("reports no windows when the holdout leaves no room to train", () => {
+    const estimate = estimateSweep({ candidates: 4, lookbackMonths: 12, holdoutMonths: 6 });
+    expect(estimate.windows).toBe(0);
+    expect(estimate.simulations).toBe(0);
+  });
+});
+
+describe("sweepConfirmMessage", () => {
+  it("states candidates, windows, and the backtest count", () => {
+    const message = sweepConfirmMessage(
+      estimateSweep({ candidates: 4, lookbackMonths: 24, holdoutMonths: 6 }),
+    );
+    expect(message).toContain("4 candidates");
+    expect(message).toContain("6 windows");
+    expect(message).toContain("38 backtests");
+    expect(message).not.toContain("long synchronous run");
+  });
+
+  it("warns that the page stays open when the sweep is large", () => {
+    const message = sweepConfirmMessage(
+      estimateSweep({ candidates: 32, lookbackMonths: 48, holdoutMonths: 6 }),
+    );
+    expect(message).toContain("long synchronous run");
+  });
+
+  it("says so when the geometry yields no windows at all", () => {
+    const message = sweepConfirmMessage(
+      estimateSweep({ candidates: 4, lookbackMonths: 12, holdoutMonths: 6 }),
+    );
+    expect(message).toContain("no room for a training window");
   });
 });

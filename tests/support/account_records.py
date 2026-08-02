@@ -15,7 +15,6 @@ def make_account_record(**overrides: object) -> AccountRecord:
     values: dict[str, object] = {
         "id": 1,
         "name": "acct-sample",
-        "account_kind": "managed",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00Z",
         "benchmark_ticker": "SPY",

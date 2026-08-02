@@ -9,7 +9,7 @@ Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-mig
 
 ## Purpose
 
-The Alembic chain has grown to 26 revisions (`0001`–`0026`) since the probe-system transition, and
+The Alembic chain has grown to 27 revisions (`0001`–`0027`) since the probe-system transition, and
 the data in the deployed databases has drifted far enough that it is no longer worth carrying
 forward. This document tracks the plan to collapse the revision history back to a single clean
 `0001` baseline and reset the data, deciding table by table what is dropped, what needs a look
@@ -47,8 +47,11 @@ Row counts from the dev database (`local/paper_trading.db`) on 2026-07-26, verif
 on 2026-07-17 and may differ.
 Re-check both before executing (see [Investigate Before Dropping](#investigate-before-dropping)).
 
-The schema is **30 tables** at revision `0026`. Most operational tables are already empty in dev;
-the real volume is backtest and optimizer research history.
+The schema is **28 tables** at revision `0027`. The counts below were taken at `0026`, when it was
+30: revision `0027` has since dropped `walk_forward_experiments` and `walk_forward_windows` along
+with the rolling-window path ([ADR 016](../adr/016-optimizer-experiments-as-research-evidence.md)),
+so those two rows are already done rather than pending. Most operational tables are already empty in
+dev; the real volume is backtest and optimizer research history.
 
 ## Drop List — Audit and History
 
@@ -76,8 +79,8 @@ system to operate after the reset.
 | `backtest_runs` | 416 | Backtest run metadata (dates, fees, slippage, purpose) | Drop |
 | `backtest_equity_snapshots` | 12,788 | Equity curve points within backtest runs | Drop |
 | `backtest_executions` | 10,280 | Simulated buy/sell executions within backtest runs | Drop |
-| `walk_forward_experiments` | 0 | Walk-forward experiment methodology + window membership | Drop |
-| `walk_forward_windows` | 0 | Individual OOS windows linked to their backtest runs | Drop |
+| `walk_forward_experiments` | 0 | Walk-forward experiment methodology + window membership | Dropped in `0027` |
+| `walk_forward_windows` | 0 | Individual OOS windows linked to their backtest runs | Dropped in `0027` |
 | `optimization_experiments` | 6 | Optimizer runs: config, winner params, OOS + holdout summaries | Drop |
 | `optimization_windows` | 102 | Per-window train/test boundaries and winner run links | Drop |
 | `optimization_trials` | 981 | Every evaluated grid candidate — the multiple-testing audit record | Drop |
@@ -128,8 +131,8 @@ seeder's coverage. `seed_demo_database` populates `accounts`, `books`, `strategi
 
 It leaves empty: `ledger`, `global_settings`, `feature_providers`, `book_rotation_settings`,
 `risk_snapshots`, `risk_decisions`, `rotation_decisions`, `promotion_review_events`, all four
-`optimization_*` tables, both `walk_forward_*` tables, and both `*_change_events` tables. Those
-gaps are the work list for the `sandbox` profile.
+`optimization_*` tables, and both `*_change_events` tables. Those gaps are the work list for the
+`sandbox` profile.
 
 ### The fixture bypassed `apply_book_fill`, so book accounting diverged
 
@@ -197,7 +200,6 @@ appears and is neither seeded nor listed:
 | Table group | Why still empty |
 |---|---|
 | `optimization_experiments`, `optimization_run_manifests`, `optimization_trials`, `optimization_windows` | Needs a real optimizer sweep driven during seeding |
-| `walk_forward_experiments`, `walk_forward_windows` | Needs a real walk-forward run driven during seeding |
 | `risk_snapshots`, `risk_decisions` | Needs the risk pass driven during seeding |
 | `rotation_decisions` | Needs the rotation engine driven during seeding |
 

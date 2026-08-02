@@ -11,6 +11,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
+from common.coercion import coerce_float, coerce_int
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.rotation.schedule import dump_rotation_schedule, parse_rotation_schedule
@@ -20,6 +21,7 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # The book rotation-policy fields an operator may set; None clears a field back
 # to the RotationPolicyConfig code default. Also every rotation-policy column
@@ -50,8 +52,11 @@ def _resolve_book_id(conn: sqlite3.Connection, *, account_name: str, book_name: 
         raise NotFoundError(f"Account not found: {account_name}")
     if book_name is None:
         # The default book is bootstrapped on first write; an edit is a write.
+        # book_bridge leaves the commit to its caller, and this is that caller —
+        # via commit_unit_of_work, so the bootstrap joins an enclosing
+        # unit_of_work rather than hard-committing out from under it.
         book_id = default_book_id(conn, account.id)
-        conn.commit()
+        commit_unit_of_work(conn)
         return book_id
     for book in BookRepository(conn).fetch_for_account(account_id=account.id):
         if book.name == book_name:
@@ -85,11 +90,21 @@ def update_book_rotation_policy(
         for name in ROTATION_POLICY_FIELDS
     }
     now_iso = utc_now_iso()
+    # Passed field by field rather than splatted: `**merged` is one dict type for
+    # seven differently-typed parameters, so nothing checks that a weight did not
+    # land in a count. The merge above stays generic over ROTATION_POLICY_FIELDS;
+    # only this boundary is spelled out.
     repository.upsert_rotation_policy(
         book_id=book_id,
         created_at=current.created_at if current is not None else now_iso,
         updated_at=now_iso,
-        **merged,
+        min_trades_in_window=coerce_int(merged["min_trades_in_window"]),
+        outperformance_threshold_bps=coerce_float(merged["outperformance_threshold_bps"]),
+        cooldown_days=coerce_int(merged["cooldown_days"]),
+        risk_adjusted_return_weight=coerce_float(merged["risk_adjusted_return_weight"]),
+        stability_weight=coerce_float(merged["stability_weight"]),
+        drawdown_penalty_weight=coerce_float(merged["drawdown_penalty_weight"]),
+        regime_fit_weight=coerce_float(merged["regime_fit_weight"]),
     )
     saved = repository.fetch(book_id=book_id)
     if saved is None:

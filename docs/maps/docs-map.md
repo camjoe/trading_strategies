@@ -85,12 +85,15 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/trading/backtesting/` interface, safeguards, or evaluation methodology changes |
+| `docs/reference/backtest-live-divergence.md` | Where the simulation engine and live runtime execute differently, what that does to walk-forward selection, and the trade-budget/pacing machinery | Either execution path's sizing, trade-count, or risk-stop behaviour changes, or the intended use of the optimizer changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |
 | `docs/reference/database-transactions.md` | The `unit_of_work` / `commit_unit_of_work` pattern for grouping multiple DB writes into one atomic transaction | `src/trading/repositories/unit_of_work.py` or the repository-commit convention changes |
 | `docs/reference/database-reset-plan.md` | Planned migration-chain squash and data reset: per-table drop/preserve classification, investigation items, redesign candidates | Reset decisions are made, or the reset lands (becomes a completion record) |
+| `docs/reference/ibkr-paper-execution-plan.md` | Target shape of the multi-book auto-trader, the audited gap to it, and the phase order for closing it | A phase lands, or the audited current-state claims stop being true |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategies/` or strategy config changes |
+| `docs/reference/retired-strategy-primitives.md` | Rules and thresholds of removed strategy primitives, for rebuilding | A primitive is removed from, or restored to, the strategy registry |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |
@@ -112,6 +115,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/012-runtime-alert-email-configuration.md` | Runtime SMTP alerts use environment variables | Moving SMTP settings into database or operator UI configuration |
 | `docs/adr/014-execution-mode-collapse.md` | One book-keyed runtime path; rotation scheduling is book-owned, continuous eval under cooldown | Reintroducing an account-mode path or account-owned rotation config |
 | `docs/adr/015-numbered-alembic-migrations.md` | Numbered Alembic revisions are the sole schema source; runtime verifies the head revision only, never migrates | Changing the migration approach, dependency scope, or runtime schema handling |
+| `docs/adr/017-ibkr-paper-broker-type.md` | IBKR paper is its own `broker_type` with a `DU` account assertion; `live_trading_enabled` guards real money only | Changing the broker guard model, or adding a paper path for the socket/TWS integration |
 
 ### Templates and Standards
 

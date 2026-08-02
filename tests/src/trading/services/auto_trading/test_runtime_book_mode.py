@@ -81,7 +81,7 @@ def _patch_runtime_book_execution(
     *,
     now_iso: str = DEFAULT_RUNTIME_NOW_ISO,
 ) -> None:
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: now_iso)
 
 

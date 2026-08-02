@@ -30,6 +30,7 @@ from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_A
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.open_order_reconciliation import (
+    ReconciliationOutcome,
     reconcile_open_orders_impl,
     resolve_reconciliation_exec_id,
 )
@@ -51,8 +52,13 @@ logger = logging.getLogger(__name__)
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
 
 
-def _is_runtime_submission_window_open(now_iso: str) -> bool:
-    return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
+def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
+    """Whether the runtime may submit orders right now (US regular equity hours).
+
+    Public so callers can report *why* a run submitted nothing instead of
+    reporting an indistinguishable zero-trade result.
+    """
+    return is_regular_us_equity_market_open(parse_utc_iso(now_iso or utc_now_iso()))
 
 
 def _resolve_reconciliation_exec_id(
@@ -83,7 +89,7 @@ def _run_books_for_account(
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
     fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> int:
@@ -103,6 +109,10 @@ def _run_books_for_account(
         fee=fee,
         histories=histories,
         feature_history_fn=feature_history_fn,
+        # Seeded per run date, so candidate order is stable within a run and
+        # reproducible from the audit trail, but does not favour the same names
+        # run after run.
+        selection_seed=snapshot_time[:10],
     )
     if not intents:
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
@@ -201,7 +211,7 @@ def run_for_account(
     max_trades: int,
     fee: float,
     *,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
@@ -212,7 +222,7 @@ def run_for_account(
     through the book flow. Books without an open assignment do not trade.
     """
     now_iso = utc_now_iso()
-    if not _is_runtime_submission_window_open(now_iso):
+    if not is_runtime_submission_window_open(now_iso):
         return 0
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)
@@ -233,12 +243,10 @@ def run_for_account(
 
 def reconcile_open_broker_orders(
     conn: sqlite3.Connection,
-    account_name: str,
     account: AccountRecord,
-    fee: float,
     *,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> int:
+) -> ReconciliationOutcome:
     """Poll the account broker for fill updates on all open persisted clean orders.
 
     For each open ``orders`` row the broker reports fills on, this function:
@@ -246,14 +254,14 @@ def reconcile_open_broker_orders(
         (positions/ledger/balances via the shared ``apply_book_fill``)
       - Updates the ``orders`` row status/fill state
 
-    Returns the number of orders that were newly FILLED in this call.
-    ``account_name``/``fee`` are retained for call-site compatibility; fills
-    carry their own costs and account history derives from the fill rows.
+    Returns a :class:`ReconciliationOutcome` carrying the count of orders newly
+    FILLED in this call, plus any open orders the broker did not report on. Fills
+    carry their own costs, and account history derives from the fill rows.
 
-    Called periodically for accounts with broker-managed open orders. It is a no-op
-    for paper accounts, which fill synchronously and report no open trades.
+    Called by the daily run before each equity snapshot. It is a no-op for paper
+    accounts, which fill synchronously and report no open trades; it is what keeps
+    the books honest for async brokers such as the IBKR socket path.
     """
-    del account_name, fee
     return reconcile_open_orders_impl(
         conn,
         account,

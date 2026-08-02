@@ -12,19 +12,17 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
     ScheduledTaskSpec,
+    ScheduleKind,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
 )
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
-DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
 DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
 WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
-DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME = r"Trading\DailyPaperTradingFallback"
 DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME = r"Trading\DailyChallengerShadowEval"
-DEFAULT_DAILY_SNAPSHOT_TASK_NAME = r"Trading\DailySnapshot"
 DEFAULT_DAILY_TRADER_HEALTH_CHECK_TASK_NAME = r"Trading\DailyTraderHealthCheck"
 DEFAULT_WEEKLY_DB_BACKUP_TASK_NAME = r"Trading\WeeklyDbBackup"
 
@@ -52,7 +50,7 @@ def _scheduled_task(
     time: str,
     log_name: str,
     args: tuple[str, ...] = (),
-    schedule_kind: str = "daily",
+    schedule_kind: ScheduleKind = "daily",
     day_of_week: str | None = None,
 ) -> ScheduledTaskSpec:
     return ScheduledTaskSpec(
@@ -76,15 +74,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--daily-paper-trading-task-name",
         default=DEFAULT_DAILY_PAPER_TRADING_TASK_NAME,
-    )
-    parser.add_argument(
-        "--daily-paper-trading-fallback-time",
-        default="",
-        help="Optional HH:MM for a second duplicate-guarded paper-trading attempt",
-    )
-    parser.add_argument(
-        "--daily-paper-trading-fallback-task-name",
-        default=DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME,
     )
     parser.add_argument(
         "--daily-challenger-shadow-eval-time",
@@ -113,20 +102,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_SHADOW_EVAL_LEAD_MINUTES,
         help=(f"Lead minutes for auto-derived shadow-eval schedule (default: {DEFAULT_SHADOW_EVAL_LEAD_MINUTES})."),
-    )
-    parser.add_argument(
-        "--daily-snapshot-time",
-        default="",
-        help="Optional HH:MM for the daily snapshot scheduler entry",
-    )
-    parser.add_argument(
-        "--daily-snapshot-task-name",
-        default=DEFAULT_DAILY_SNAPSHOT_TASK_NAME,
-    )
-    parser.add_argument(
-        "--enable-daily-snapshot",
-        action="store_true",
-        help="Append --enable-run to the daily snapshot scheduler command",
     )
     parser.add_argument(
         "--health-check-time",
@@ -219,17 +194,6 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
             )
         )
 
-    if args.daily_paper_trading_fallback_time:
-        tasks.append(
-            _scheduled_task(
-                task_name=args.daily_paper_trading_fallback_task_name,
-                module=DAILY_PAPER_TRADING_MODULE,
-                time=args.daily_paper_trading_fallback_time,
-                args=("--run-source", "scheduled-daily-fallback"),
-                log_name="daily_paper_trading_fallback_scheduler.log",
-            )
-        )
-
     shadow_eval_time = args.daily_challenger_shadow_eval_time
     auto_shadow_eval = False
     should_auto_derive_shadow_eval = (
@@ -251,18 +215,6 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
                 time=shadow_eval_time,
                 args=shadow_eval_args,
                 log_name="daily_challenger_shadow_eval_scheduler.log",
-            )
-        )
-
-    if args.daily_snapshot_time:
-        snapshot_args = ("--enable-run",) if args.enable_daily_snapshot else ()
-        tasks.append(
-            _scheduled_task(
-                task_name=args.daily_snapshot_task_name,
-                module=DAILY_SNAPSHOT_MODULE,
-                time=args.daily_snapshot_time,
-                args=snapshot_args,
-                log_name="daily_snapshot_scheduler.log",
             )
         )
 
@@ -295,9 +247,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 def default_task_names(args: argparse.Namespace) -> list[str]:
     return [
         args.daily_paper_trading_task_name,
-        args.daily_paper_trading_fallback_task_name,
         args.daily_challenger_shadow_eval_task_name,
-        args.daily_snapshot_task_name,
         args.health_check_task_name,
         args.weekly_db_backup_task_name,
     ]

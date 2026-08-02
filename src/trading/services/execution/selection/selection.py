@@ -8,21 +8,32 @@ from typing import Callable, Mapping, Protocol, cast
 import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
-from common.coercion import row_int
+from common.coercion import coerce_int
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
 
 logger = logging.getLogger(__name__)
 
 # Per-ticker feature history for signal evaluation: (strategy_name, ticker) -> frame or None.
 FeatureHistoryFn = Callable[[str, str], "pd.DataFrame | None"]
 
-# Alternative-style strategies read external features; map each to its fetcher attribute.
-_ALTERNATIVE_FEATURE_FETCHER_ATTRS = {
-    "policy_regime": "fetch_policy",
-    "news_sentiment": "fetch_news",
-    "social_trend_rotation": "fetch_social",
-}
+# Alternative-style strategies read external features; each registers the fetcher
+# it needs here, keyed by strategy id.
+#
+# **Parked, not dead.** Empty because no alternative-style strategy is currently
+# registered: policy_regime, news_sentiment and social_trend_rotation were retired
+# so the simpler price-only behaviours could be confirmed first, and entries naming
+# them would resolve to nothing. External-feature strategies are expected back
+# around 2026-09.
+#
+# This is the live half of the feature seam. The backtest half is
+# `StrategySpec.required_features` feeding `build_feature_bundle`. Wiring a
+# strategy needs both, and the two are checked separately:
+# `test_proxy_feature_flow` covers the backtest half, and
+# `test_selection.py::TestAlternativeFeatureSeam` covers this one — that test
+# registers a synthetic alternative strategy end to end, so it doubles as the
+# worked example of what a real one has to declare.
+_ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 
 
 class AccountStateLike(Protocol):
@@ -139,7 +150,7 @@ def select_signal_trade_candidates(
     strategy_name: str,
     params: Mapping[str, object],
     universe: list[str],
-    histories: Mapping[str, pd.Series],
+    histories: Mapping[str, pd.DataFrame],
     positions: Mapping[str, float],
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> tuple[list[str], list[str]]:
@@ -157,7 +168,9 @@ def select_signal_trade_candidates(
         if history is None or history.empty:
             continue
         feature_history = feature_history_fn(strategy_name, ticker) if feature_history_fn is not None else None
-        signal = evaluate_signal(strategy_name, history, params, feature_history)
+        # One ticker at a time here, so the indicators are built per call rather
+        # than hoisted the way the simulation loop does it.
+        signal = evaluate_signal_over_bars(strategy_name, history, params, feature_history)
         if signal == "buy" and ticker not in held:
             buy_candidates.append(ticker)
         elif signal == "sell" and ticker in held:
@@ -173,7 +186,7 @@ def prepare_trade_selection(
     forced_sell: str | None,
     universe: list[str],
     prices: dict[str, float],
-    histories: Mapping[str, pd.Series],
+    histories: Mapping[str, pd.DataFrame],
     iv_rank_proxy: dict[str, float],
     instrument_mode: str,
     fee: float,
@@ -181,6 +194,7 @@ def prepare_trade_selection(
     trade_size_pct: float | None,
     max_position_pct: float | None,
     feature_history_fn: FeatureHistoryFn | None = None,
+    selection_seed: str = "",
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
     """Select the next trade from the active strategy's signals.
 
@@ -214,6 +228,7 @@ def prepare_trade_selection(
             prices,
             state,
             instrument_mode,
+            selection_seed=selection_seed,
         )
         if prepared_sell is not None:
             ticker, qty, trade_price = prepared_sell
@@ -229,6 +244,7 @@ def prepare_trade_selection(
         fee,
         trade_size_pct=trade_size_pct,
         max_position_pct=max_position_pct,
+        selection_seed=selection_seed,
     )
     if prepared_buy is None:
         return None
@@ -262,8 +278,11 @@ def _size_buy_for_ticker(
             auto_trader_policy.estimate_option_premium(
                 price,
                 delta_est,
-                row_int(option_settings, "option_min_dte"),
-                row_int(option_settings, "option_max_dte"),
+                # Indexed directly: option_settings is an AccountPolicyInput
+                # protocol (__getitem__ only), not a Mapping, so the row_* helpers
+                # do not apply. row_int is exactly this coercion over a lookup.
+                coerce_int(option_settings["option_min_dte"]),
+                coerce_int(option_settings["option_max_dte"]),
             )
         )
     else:
@@ -314,9 +333,15 @@ def prepare_buy_trade(
     *,
     trade_size_pct: float | None,
     max_position_pct: float | None,
+    selection_seed: str = "",
 ) -> tuple[str, int, float, float | None, float | None] | None:
-    """Prepare the first sizable buy among the signal-selected candidates, in order."""
-    for ticker in buy_candidates:
+    """Prepare the first sizable buy among the signal-selected candidates.
+
+    Candidates arrive in universe order and are reordered by *selection_seed*
+    first - see ``order_signal_candidates`` for why taking them as they come
+    built every book's portfolio in ticker-file order.
+    """
+    for ticker in auto_trader_policy.order_signal_candidates(buy_candidates, seed=selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue
@@ -342,10 +367,20 @@ def prepare_sell_trade(
     prices: dict[str, float],
     state: AccountStateLike,
     instrument_mode: str,
+    selection_seed: str = "",
 ) -> tuple[str, int, float] | None:
-    """Prepare the first sellable ticker: the forced risk-stop first, then signaled sells."""
+    """Prepare the first sellable ticker: the forced risk-stop first, then signaled sells.
+
+    The risk stop keeps absolute priority. Signalled exits carry no ranking
+    either, so they are ordered the same way buys are rather than by position in
+    the ticker file.
+    """
     ordered = [forced_sell] if forced_sell is not None else []
-    ordered.extend(ticker for ticker in sell_candidates if ticker != forced_sell)
+    ordered.extend(
+        ticker
+        for ticker in auto_trader_policy.order_signal_candidates(sell_candidates, seed=selection_seed)
+        if ticker != forced_sell
+    )
     for ticker in ordered:
         price = prices.get(ticker)
         if price is None or price <= 0:

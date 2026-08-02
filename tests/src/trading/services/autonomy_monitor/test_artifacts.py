@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -75,56 +76,79 @@ def test_fetch_daily_workflow_status_returns_unknown_when_no_artifact(
 
 
 def test_fetch_daily_workflow_status_parses_artifact(mock_repo_root: Path) -> None:
-    """Test that daily workflow status is parsed correctly from artifact."""
+    """Reads the key names the daily workflow actually writes."""
     artifact_dir = mock_repo_root / "local" / "exports" / "daily_paper_trading"
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_file = artifact_dir / "daily_paper_trading_2026_05_10.json"
-    artifact_data = {
-        "success": True,
-        "run_timestamp": "2026-05-10T09:30:00Z",
-        "duration_seconds": 45.5,
-        "failed_step": None,
-        "steps": [
-            {"name": "Load accounts", "status": "completed"},
-            {"name": "Run books", "status": "completed"},
-            {"name": "Generate reports", "status": "completed"},
-        ],
-    }
-    artifact_file.write_text(__import__("json").dumps(artifact_data))
+    artifact_file = artifact_dir / "daily_paper_trading_20260510_093000.json"
+    artifact_file.write_text(
+        json.dumps(
+            {
+                "job": "daily_paper_trading",
+                "status": "success",
+                "started_at": "2026-05-10T09:30:00+00:00",
+                "finished_at": "2026-05-10T09:30:45.500000+00:00",
+                "step_results": [
+                    {"step": "00_ingest_market_and_account", "status": "ok", "duration_seconds": 0.4},
+                    {"step": "04_rotation_decision", "status": "skipped", "duration_seconds": None},
+                    {"step": "05_build_position_targets_by_book", "status": "ok", "duration_seconds": 12.0},
+                ],
+                "completed_steps": [],
+            }
+        )
+    )
 
     result = artifacts.fetch_daily_workflow_status(repo_root=mock_repo_root)
 
     assert result["status"] == "success"
-    assert result["latest_run_time"] == "2026-05-10T09:30:00Z"
-    assert result["duration_seconds"] == 45.5
+    assert result["latest_run_time"] == "2026-05-10T09:30:45.500000+00:00"
+    assert result["duration_seconds"] == pytest.approx(45.5)
+    # A skipped step is a recorded decision, so it counts as reached-a-conclusion.
     assert result["completed_steps"] == 3
     assert result["failed_step"] is None
 
 
 def test_fetch_daily_workflow_status_handles_failed_run(mock_repo_root: Path) -> None:
-    """Test that failed run status is detected."""
+    """A failed run reports its status and the step that broke."""
     artifact_dir = mock_repo_root / "local" / "exports" / "daily_paper_trading"
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_file = artifact_dir / "daily_paper_trading_2026_05_10.json"
-    artifact_data = {
-        "success": False,
-        "run_timestamp": "2026-05-10T09:30:00Z",
-        "duration_seconds": 10.2,
-        "failed_step": "Run books",
-        "steps": [
-            {"name": "Load accounts", "status": "completed"},
-            {"name": "Run books", "status": "failed"},
-        ],
-    }
-    artifact_file.write_text(__import__("json").dumps(artifact_data))
+    artifact_file = artifact_dir / "daily_paper_trading_20260510_093000.json"
+    artifact_file.write_text(
+        json.dumps(
+            {
+                "job": "daily_paper_trading",
+                "status": "failed",
+                "started_at": "2026-05-10T09:30:00+00:00",
+                "finished_at": "2026-05-10T09:30:10+00:00",
+                "failed_step": "07_submit_ibkr_orders",
+                "step_results": [
+                    {"step": "00_ingest_market_and_account", "status": "ok"},
+                    {"step": "07_submit_ibkr_orders", "status": "failed"},
+                ],
+                "error": "broker refused connection",
+            }
+        )
+    )
 
     result = artifacts.fetch_daily_workflow_status(repo_root=mock_repo_root)
 
     assert result["status"] == "failed"
-    assert result["failed_step"] == "Run books"
-    assert result["completed_steps"] == 1
+    assert result["failed_step"] == "07_submit_ibkr_orders"
+    assert result["completed_steps"] == 2
+
+
+def test_fetch_daily_workflow_status_tolerates_unparseable_timestamps(mock_repo_root: Path) -> None:
+    artifact_dir = mock_repo_root / "local" / "exports" / "daily_paper_trading"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "daily_paper_trading_20260510_093000.json").write_text(
+        json.dumps({"status": "success", "started_at": "not-a-time", "finished_at": "nope", "step_results": []})
+    )
+
+    result = artifacts.fetch_daily_workflow_status(repo_root=mock_repo_root)
+
+    assert result["status"] == "success"
+    assert result["duration_seconds"] is None
 
 
 def test_fetch_governance_checks_status_returns_defaults_when_no_artifacts(
@@ -147,19 +171,35 @@ def test_fetch_governance_checks_status_returns_defaults_when_no_artifacts(
 
 
 def test_fetch_governance_checks_status_parses_artifacts(mock_repo_root: Path) -> None:
-    """Test that governance check status is parsed correctly."""
-    export_dir = mock_repo_root / "local" / "exports"
-
-    # Create W1 leaderboard artifact
-    w1_dir = export_dir / "weekly_governance_2026_05_10"
-    w1_dir.mkdir(parents=True, exist_ok=True)
-    w1_artifact = w1_dir / "w1_leaderboard_2026_05_10.json"
-    w1_artifact.write_text(__import__("json").dumps({"success": True, "run_timestamp": "2026-05-10T10:00:00Z"}))
+    """Governance artifacts live in local/artifacts as {job_name}_{tag}_{stamp}.json."""
+    artifact_dir = mock_repo_root / "local" / "artifacts"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "weekly_governance_w1_leaderboard_2026_W19_20260510_100000.json").write_text(
+        json.dumps({"week": "2026_W19", "generated_at": "2026-05-10T10:00:00+00:00", "accounts": []})
+    )
 
     result = artifacts.fetch_governance_checks_status(repo_root=mock_repo_root)
 
     assert result["w1_leaderboard"]["status"] == "success"
-    assert result["w1_leaderboard"]["last_run"] == "2026-05-10T10:00:00Z"
+    assert result["w1_leaderboard"]["last_run"] == "2026-05-10T10:00:00+00:00"
+    assert result["w1_leaderboard"]["has_results"] is True
+    # The other five remain unreported rather than defaulting to success.
+    assert result["w2_promotion"]["status"] == "not_run"
+
+
+def test_governance_job_names_do_not_cross_match(mock_repo_root: Path) -> None:
+    """m1's artifact must not satisfy m2's lookup, and vice versa."""
+    artifact_dir = mock_repo_root / "local" / "artifacts"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "monthly_governance_m2_parameter_governance_2026_05_20260510_100000.json").write_text(
+        json.dumps({"generated_at": "2026-05-10T10:00:00+00:00"})
+    )
+
+    result = artifacts.fetch_governance_checks_status(repo_root=mock_repo_root)
+
+    assert result["m2_parameter_governance"]["status"] == "success"
+    assert result["m1_risk_rebaseline"]["status"] == "not_run"
+    assert result["m3_performance_audit"]["status"] == "not_run"
 
 
 def test_fetch_burn_in_status_returns_defaults_when_no_artifact(
@@ -183,10 +223,10 @@ def test_fetch_burn_in_status_parses_artifact(mock_repo_root: Path) -> None:
     artifact_data = {
         "ready_for_live": True,
         "consecutive_successes": 15,
-        "min_required_successes": 10,
-        "check_time": "2026-05-10T16:00:00Z",
+        "min_consecutive_days": 10,
+        "generated_at": "2026-05-10T16:00:00Z",
     }
-    artifact_file.write_text(__import__("json").dumps(artifact_data))
+    artifact_file.write_text(json.dumps(artifact_data))
 
     result = artifacts.fetch_burn_in_status(repo_root=mock_repo_root)
 
@@ -205,10 +245,10 @@ def test_fetch_burn_in_status_handles_not_ready(mock_repo_root: Path) -> None:
     artifact_data = {
         "ready_for_live": False,
         "consecutive_successes": 5,
-        "min_required_successes": 10,
-        "check_time": "2026-05-10T16:00:00Z",
+        "min_consecutive_days": 10,
+        "generated_at": "2026-05-10T16:00:00Z",
     }
-    artifact_file.write_text(__import__("json").dumps(artifact_data))
+    artifact_file.write_text(json.dumps(artifact_data))
 
     result = artifacts.fetch_burn_in_status(repo_root=mock_repo_root)
 

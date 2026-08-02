@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 
 from trading.domain.exceptions import ValidationError
-from trading.domain.strategies.contracts import StrategyParams, StrategySpec
+from trading.domain.strategies.contracts import INDICATOR_SOURCE_CLOSE, StrategyParams, StrategySpec
+from trading.domain.strategies.indicator_view import (
+    IndicatorView,
+    build_indicator_arrays,
+    count_priced_bars,
+)
 from trading.domain.strategies.registry import STRATEGY_REGISTRY, available_strategy_ids
 
 
@@ -32,24 +37,15 @@ def _resolve_by_keyword(name: str) -> StrategySpec | None:
         return STRATEGY_REGISTRY["pullback_trend"]
     if "vol" in name and "trend" in name:
         return STRATEGY_REGISTRY["volatility_filtered_trend"]
-    if "topic" in name or ("sector" in name and "rotation" in name) or "theme" in name:
-        return STRATEGY_REGISTRY["topic_proxy_rotation"]
-    if "policy_regime" in name or "political" in name or "policy_etf" in name:
-        return STRATEGY_REGISTRY["policy_regime"]
-    if "macro" in name or "policy" in name:
-        return STRATEGY_REGISTRY["macro_proxy_regime"]
-    if "news" in name or "sentiment" in name:
-        return STRATEGY_REGISTRY["news_sentiment"]
-    if "social" in name or "reddit" in name:
-        return STRATEGY_REGISTRY["social_trend_rotation"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
-    if "rsi" in name:
-        return STRATEGY_REGISTRY["rsi"]
-    if "macd" in name:
-        return STRATEGY_REGISTRY["macd"]
+    # Before the rsi check, because "rsi" is a substring of "reversion" — a label
+    # like "mean-reversion" or "mean_reversion_v2" would otherwise resolve to the
+    # RSI primitive and silently backtest a different strategy than it names.
     if "mean" in name or "reversion" in name:
         return STRATEGY_REGISTRY["mean_reversion"]
+    if "rsi" in name:
+        return STRATEGY_REGISTRY["rsi"]
     if "trend" in name or "momentum" in name:
         return STRATEGY_REGISTRY["trend"]
     return None
@@ -79,20 +75,60 @@ def validate_strategy_name(strategy_name: str) -> str:
 
 def evaluate_signal(
     strategy_name: str,
-    history: pd.Series,
+    view: IndicatorView,
     params: StrategyParams,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
-    """Evaluate a strategy's signal with explicit params — the shared backtest/live entry."""
+    """Evaluate a strategy's signal at one bar — the shared backtest/live entry.
+
+    Takes a view rather than a price history because the caller that runs this
+    per bar (the simulation loop) must precompute the strategy's indicators once
+    per ticker; rebuilding them here would put the recomputation back.
+    """
     spec = resolve_strategy(strategy_name)
-    return spec.signal_fn(history, params, feature_history)
+    return spec.signal_fn(view, params, feature_history)
+
+
+def build_view_over_bars(
+    strategy_name: str,
+    bars: pd.DataFrame,
+    params: StrategyParams,
+    index: int | None = None,
+) -> IndicatorView:
+    """Build a view for one bar of a full OHLCV frame.
+
+    For callers holding a single ticker with no reason to precompute across a
+    run — the live selection pass, and tests. There is deliberately no
+    close-only variant: a strategy sourcing an indicator from highs or lows
+    would silently evaluate differently from the simulation, which is the exact
+    divergence between evaluation and live trading worth preventing.
+    """
+    spec = resolve_strategy(strategy_name)
+    closes = bars[INDICATOR_SOURCE_CLOSE].to_numpy(dtype=float)
+    return IndicatorView(
+        closes=closes,
+        indicators=build_indicator_arrays(bars, spec.indicators, params),
+        index=len(closes) - 1 if index is None else index,
+        priced_bars=count_priced_bars(closes),
+    )
+
+
+def evaluate_signal_over_bars(
+    strategy_name: str,
+    bars: pd.DataFrame,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Evaluate the most recent bar of a full OHLCV frame."""
+    view = build_view_over_bars(strategy_name, bars, params)
+    return evaluate_signal(strategy_name, view, params, feature_history)
 
 
 def resolve_signal(
     strategy_name: str,
-    history: pd.Series,
+    bars: pd.DataFrame,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
     """Resolve strategy labels to explicit signal models evaluated with default params."""
     spec = resolve_strategy(strategy_name)
-    return evaluate_signal(strategy_name, history, spec.default_params, feature_history)
+    return evaluate_signal_over_bars(strategy_name, bars, spec.default_params, feature_history)

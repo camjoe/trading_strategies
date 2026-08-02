@@ -90,6 +90,66 @@ function num(value: number | null | undefined, digits = 2): string {
   return value === null || value === undefined ? NA : value.toFixed(digits);
 }
 
+/** Training months the optimizer defaults to when the form does not send one.
+ * Mirrors `RunOptimizationRequest.trainMonths`; only ever used to *estimate*
+ * the window count before submitting. */
+const DEFAULT_TRAIN_MONTHS = 12;
+
+/** Test/step months the optimizer defaults to — one window per month. */
+const DEFAULT_STEP_MONTHS = 1;
+
+/** Warn past this many simulations.
+ *
+ * One measures ~42ms on the default 12-ticker universe and ~167ms on a wide
+ * one, so 1,000 is roughly forty seconds at best and a few minutes at worst —
+ * the point where a synchronous run stops feeling like a request. The universe
+ * is a server-side setting the form cannot see, so this is deliberately a rough
+ * threshold rather than a time estimate. */
+export const SWEEP_WARNING_SIMULATIONS = 1000;
+
+export type SweepEstimate = {
+  candidates: number;
+  windows: number;
+  simulations: number;
+  overWarningThreshold: boolean;
+};
+
+/** Estimate the real size of a sweep before it is submitted.
+ *
+ * The cost that matters is `candidates x windows`, not the candidate count on
+ * its own — a modest grid over two years of monthly windows is still an hour of
+ * work. Each window also runs a persisted out-of-sample run and a metrics-only
+ * baseline, and the holdout runs the same pair once, which is the `2 * windows + 2`.
+ *
+ * An estimate, not a contract: the server owns the real window geometry. */
+export function estimateSweep(input: {
+  candidates: number;
+  lookbackMonths: number;
+  holdoutMonths: number;
+}): SweepEstimate {
+  const searchMonths = input.lookbackMonths - input.holdoutMonths - DEFAULT_TRAIN_MONTHS;
+  const windows = Math.max(0, Math.floor(searchMonths / DEFAULT_STEP_MONTHS));
+  const simulations = windows === 0 ? 0 : input.candidates * windows + 2 * windows + 2;
+  return {
+    candidates: input.candidates,
+    windows,
+    simulations,
+    overWarningThreshold: simulations > SWEEP_WARNING_SIMULATIONS,
+  };
+}
+
+/** The confirm-dialog text for a sweep, stating what the run will actually cost. */
+export function sweepConfirmMessage(estimate: SweepEstimate): string {
+  if (estimate.windows === 0)
+    return "This lookback leaves no room for a training window after the holdout. Submit anyway?";
+  const summary =
+    `Run ${estimate.candidates} candidates over ${estimate.windows} windows ` +
+    `— about ${estimate.simulations} backtests.`;
+  return estimate.overWarningThreshold
+    ? `${summary} That is a long synchronous run; the page stays open until it finishes. Continue?`
+    : `${summary} Continue?`;
+}
+
 /** Best objective first, with every rejected candidate kept visible below it.
  *
  * The rejected set is the multiple-testing record — how many parameter

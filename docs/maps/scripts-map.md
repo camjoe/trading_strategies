@@ -149,6 +149,8 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |
 | `check_jobs.py` | Check scheduled job status (installed OS-level schedules) |
 | `ibkr_web_api_smoke_test.py` | IBKR Web API connectivity smoke test |
+| `ibkr_socket_smoke_test.py` | Operator-run IBKR socket/TWS smoke test: read-only connectivity checks against a local TWS/Gateway paper port, with an opt-in paper order round trip |
+| `benchmark_sweep.py` | Time the walk-forward optimizer against a DB copy so sweep candidate budgets can be sized from measured cost |
 
 ---
 

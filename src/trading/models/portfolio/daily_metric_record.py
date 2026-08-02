@@ -15,7 +15,8 @@ class DailyMetricRecord:
 
     id: int
     account_id: int
-    book_id: int | None
+    # NOT NULL in the schema — storage is book-keyed, so every row has one.
+    book_id: int
     metric_date: str
     return_pct: float | None
     drawdown_pct: float | None
@@ -34,7 +35,7 @@ class DailyMetricRecord:
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
-            book_id=row_int(values, "book_id"),
+            book_id=row_expect_int(values, "book_id"),
             metric_date=row_expect_str(values, "metric_date"),
             return_pct=row_float(values, "return_pct"),
             drawdown_pct=row_float(values, "drawdown_pct"),

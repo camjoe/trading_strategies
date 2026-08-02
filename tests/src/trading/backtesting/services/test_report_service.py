@@ -189,3 +189,45 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "tickersFile": "trade_universe.txt",
     }
     assert recent == [latest, latest]
+
+
+def test_report_summary_splits_the_stored_warnings_column(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``backtest_runs.warnings`` is a ``" | "``-joined TEXT column, not a list.
+
+    Assigning it straight to the ``list[str]`` field left a ``str`` there, so a
+    caller iterating ``summary.warnings`` walked characters instead of entries.
+    """
+    monkeypatch.setattr(
+        report_service,
+        "fetch_backtest_report_run",
+        lambda *_a, **_k: {
+            "id": 1,
+            "run_name": "r1",
+            "account_name": "acct",
+            "strategy": "trend",
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-31",
+            "created_at": "2026-01-31T00:00:00Z",
+            "slippage_bps": 1.0,
+            "fee_per_trade": 0.0,
+            "tickers_file": "tickers.txt",
+            "warnings": "short history | approximate leaps",
+            "benchmark_ticker": "SPY",
+            "initial_cash": 10000.0,
+            "notes": None,
+        },
+    )
+    snapshot = {
+        "snapshot_time": "2026-01-01",
+        "cash": 0.0,
+        "market_value": 0.0,
+        "equity": 10000.0,
+        "realized_pnl": 0.0,
+        "unrealized_pnl": 0.0,
+    }
+    monkeypatch.setattr(report_service, "fetch_backtest_report_snapshots", lambda *_a, **_k: [snapshot, snapshot])
+    monkeypatch.setattr(report_service, "fetch_backtest_report_trades", lambda *_a, **_k: [])
+
+    report = report_service.fetch_backtest_report_data(object(), run_id=1)
+
+    assert report.summary.warnings == ["short history", "approximate leaps"]

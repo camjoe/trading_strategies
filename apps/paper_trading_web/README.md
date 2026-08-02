@@ -13,7 +13,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
 - **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
-  for configured managed accounts.
+  for every configured account.
 - **Snapshots and operational logs** — snapshot actions stay in the account workspace, while operational logs now live under **Admin > Artifacts & Logs**.
 - **Admin operations visibility** — runtime job health plus recent scheduled refresh, daily snapshot, database-backup, promotion-review visibility, CSV database exports, and operational log browsing all live inside the Admin tab, grouped into focused Admin sub-sections instead of extra top-level tabs.
 
@@ -92,10 +92,10 @@ npm run dev
 
 ### Accounts
 
-- `GET /api/accounts` — list visible accounts (`managed` and `local`).
+- `GET /api/accounts` — list visible accounts.
 - `GET /api/accounts/config/options` — valid values used by account-configuration controls.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab). Includes live benchmark summary fields such as `liveBenchmarkReturnPct` and `liveAlphaPct` when enough snapshots exist.
-- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include `accountKind`, `brokerType`, and rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
+- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include `brokerType` and rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
 - `PATCH /api/accounts/{account_name}/params` — update mutable account config and rotation fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
 
 ### Analysis
@@ -104,7 +104,7 @@ npm run dev
 
 ### Admin
 
-- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `src/infrastructure/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `src/infrastructure/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
+- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `src/infrastructure/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `src/infrastructure/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
 - `GET /api/admin/accounts/delete-preview?accountName=...` — preview account identity before deletion.
 - `GET /api/admin/exports/csv` — list available CSV database exports.
@@ -120,9 +120,9 @@ npm run dev
 ### Portfolio and Autonomy Monitoring
 
 - `GET /api/portfolio/rollup` — cross-account exposure and symbol/sector concentration payload.
-- `GET /api/autonomy/accounts` — configured managed accounts with book and latest-run summaries.
+- `GET /api/autonomy/accounts` — every configured account with book and latest-run summaries.
 - `GET /api/autonomy/accounts/{account_name}` — detailed workflow, governance, burn-in, rotation,
-  and risk status for one managed account.
+  and risk status for one account.
 
 ### Logs
 
@@ -155,11 +155,11 @@ Key account/admin and feature schemas in `apps/paper_trading_web/backend/schemas
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the seeded `src/infrastructure/config/trade_universe.txt` default (see Admin route note above for migration behavior). | `POST /api/admin/accounts/create` |
+| `AdminCreateAccountRequest` | Account creation payload with core fields plus rotation settings. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the seeded `src/infrastructure/config/trade_universe.txt` default (see Admin route note above for migration behavior). | `POST /api/admin/accounts/create` |
 | `AdminDeleteAccountRequest` | `accountName`, `confirm` | `POST /api/admin/accounts/delete` |
 | `BacktestRunRequest` | `account`, date/window selection, optional universe-history inputs, slippage/fee, optional `runName`, and `allowApproximateLeaps` | `POST /api/backtests/run` |
 | `BacktestPreflightRequest` | Same account/date/universe inputs as a run request, without execution fields | `POST /api/backtests/preflight` |
-| `AccountParamsRequest` | Optional mutable account fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `accountKind`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `optionProfitTakePct`, `optionMaxLossPct`. **Rotation:** `rotationEnabled`, `rotationMode`, `rotationOptimalityMode`, `rotationIntervalDays`, `rotationIntervalMinutes`, `rotationLookbackDays`, `rotationSchedule`, `rotationRegimeStrategyRiskOn`, `rotationRegimeStrategyNeutral`, `rotationRegimeStrategyRiskOff`, `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, `rotationOverlayWatchlist`, `rotationActiveIndex`, `rotationLastAt`, `rotationActiveStrategy`. | `PATCH /api/accounts/{name}/params` |
+| `AccountParamsRequest` | Optional mutable account fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `optionProfitTakePct`, `optionMaxLossPct`. **Rotation:** `rotationEnabled`, `rotationMode`, `rotationOptimalityMode`, `rotationIntervalDays`, `rotationIntervalMinutes`, `rotationLookbackDays`, `rotationSchedule`, `rotationRegimeStrategyRiskOn`, `rotationRegimeStrategyNeutral`, `rotationRegimeStrategyRiskOff`, `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, `rotationOverlayWatchlist`, `rotationActiveIndex`, `rotationLastAt`, `rotationActiveStrategy`. | `PATCH /api/accounts/{name}/params` |
 | `FeatureSignalsRequest` | `ticker` | `POST /api/features/signals` |
 
 ## Backend Boundary Notes

@@ -13,9 +13,6 @@ from infrastructure.feature_providers.social_provider import (
     SOCIAL_TREND_SCORE,
     SocialFeatureProvider,
 )
-from trading.domain.strategies.registry import STRATEGY_REGISTRY
-from trading.domain.strategies.resolution import resolve_strategy
-from trading.domain.strategies.signals.alternative import _social_trend_rotation_signal
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -218,81 +215,3 @@ class TestSocialFeatureProviderFetch:
         assert bundle.available is True
         assert bundle.get(SOCIAL_MENTION_COUNT) == 0.0
         assert bundle.get(SOCIAL_REDDIT_SENTIMENT) == 0.0
-
-
-# ---------------------------------------------------------------------------
-# _social_trend_rotation_signal
-# ---------------------------------------------------------------------------
-
-
-class TestSocialTrendRotationSignal:
-    def test_buy_when_uptrend_and_high_social_interest(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(trend=0.70, mentions=10.0, reddit=0.10)
-        assert _social_trend_rotation_signal(history, {}, fh) == "buy"
-
-    def test_hold_when_features_missing(self):
-        history = _make_history(n=40, slope=1.0)
-        assert _social_trend_rotation_signal(history, {}, None) == "hold"
-
-    def test_hold_when_history_too_short(self):
-        history = _make_history(n=5)
-        fh = _make_feature_history(trend=0.70, mentions=10.0, reddit=0.10)
-        assert _social_trend_rotation_signal(history, {}, fh) == "hold"
-
-    def test_sell_when_trend_declining_and_low_interest(self):
-        history = _make_history(n=40, start=200.0, slope=-2.0)
-        fh = _make_feature_history(trend=0.10, mentions=1.0, reddit=-0.30)
-        signal = _social_trend_rotation_signal(history, {}, fh)
-        assert signal == "sell"
-
-    def test_sell_when_trend_score_below_exit(self):
-        history = _make_history(n=40, slope=0.5)
-        fh = _make_feature_history(trend=0.05, mentions=2.0, reddit=0.00)
-        signal = _social_trend_rotation_signal(history, {}, fh)
-        # trend_score 0.05 < trend_exit 0.20 → sell
-        assert signal == "sell"
-
-    def test_hold_when_trend_below_buy_threshold(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(trend=0.30, mentions=5.0, reddit=0.05)
-        # trend_score 0.30 < trend_threshold 0.40 → no buy
-        signal = _social_trend_rotation_signal(history, {}, fh)
-        assert signal in ("hold", "sell")
-
-    def test_custom_params_respected(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(trend=0.70, mentions=10.0, reddit=0.10)
-        params = {"trend_threshold": 0.90}  # require very high interest → no buy
-        assert _social_trend_rotation_signal(history, params, fh) != "buy"
-
-
-# ---------------------------------------------------------------------------
-# Registry integration
-# ---------------------------------------------------------------------------
-
-
-class TestSocialTrendRotationRegistryEntry:
-    def test_registered_in_strategy_registry(self):
-        assert "social_trend_rotation" in STRATEGY_REGISTRY
-
-    def test_strategy_style_is_alternative(self):
-        spec = STRATEGY_REGISTRY["social_trend_rotation"]
-        assert spec.strategy_style == "alternative"
-
-    def test_required_features_declared(self):
-        spec = STRATEGY_REGISTRY["social_trend_rotation"]
-        assert SOCIAL_TREND_SCORE in spec.required_features
-        assert SOCIAL_MENTION_COUNT in spec.required_features
-        assert SOCIAL_REDDIT_SENTIMENT in spec.required_features
-
-    def test_aliases_resolve_correctly(self):
-        for alias in ("social", "social_trend", "reddit_trend"):
-            spec = resolve_strategy(alias)
-            assert spec.strategy_id == "social_trend_rotation"
-
-    def test_keyword_resolve_social(self):
-        assert resolve_strategy("social_momentum").strategy_id == "social_trend_rotation"
-
-    def test_keyword_resolve_reddit(self):
-        assert resolve_strategy("reddit_based_strategy").strategy_id == "social_trend_rotation"

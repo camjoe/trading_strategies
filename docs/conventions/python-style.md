@@ -60,3 +60,8 @@ Keep platform-specific string normalization only at input boundaries (e.g. user-
 - Run mypy through the project runner:
   `python -m scripts.checks.python.mypy_check`. Ad-hoc `mypy <file>` commands do not resolve the
   `src/` layout reliably and can report false import errors.
+- The gate follows imports, so cross-module annotations are checked, not just documentation.
+  It keeps `--ignore-missing-imports`, so unstubbed third-party packages (pandas, yfinance,
+  `ib_async`) still resolve to `Any` — a call into one of those, and anything whose type comes
+  back out of it, is unchecked. Pass `--follow-imports-skip` for a faster local pass, but a run
+  under that flag proves nothing about cross-module types.

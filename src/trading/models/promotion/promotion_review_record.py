@@ -8,7 +8,10 @@ from trading.models.promotion.enums import PromotionReviewState, PromotionStage,
 
 @dataclass(frozen=True)
 class PromotionReviewRecord:
-    id: int | None = None
+    # Required: a *Record* is materialized from a persisted row, which always has
+    # an id. Defaulting it to None made every caller coerce with int(review.id)
+    # to get back a value the row had all along.
+    id: int
     account_id: int | None = None
     account_name_snapshot: str | None = None
     # strategy_id is the real strategies FK (revision 0007); strategy_name is

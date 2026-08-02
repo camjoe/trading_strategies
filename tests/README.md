@@ -125,19 +125,6 @@ python -m pytest -o addopts= tests/scripts/test_readme_check.py
 
 Use `-o addopts=` when local environments do not have coverage plugins required by default pytest options.
 
-## Daily Snapshot Tests
-
-Daily snapshot scheduler coverage lives in:
-
-- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_helpers.py`
-- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_main.py`
-
-Run only this test slice:
-
-```sh
-python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
-```
-
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).

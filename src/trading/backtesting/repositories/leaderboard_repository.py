@@ -1,3 +1,12 @@
+"""Leaderboard read queries.
+
+Rows are converted to plain dicts before leaving the repository: ``sqlite3.Row``
+is not a ``Mapping`` (no ``get``/``items``/``values``, and iterating it yields
+values rather than keys), so handing one to a caller annotated for ``Mapping``
+promises an interface it does not have. Conversion here matches the
+``from_mapping(dict(row))`` boundary the other repositories already use.
+"""
+
 from __future__ import annotations
 
 import sqlite3
@@ -11,7 +20,7 @@ def fetch_leaderboard_rows(
     limit: int,
     account_name: str | None,
     strategy: str | None,
-) -> list[sqlite3.Row]:
+) -> list[dict[str, object]]:
     query = """
         SELECT
             r.id AS run_id,
@@ -51,14 +60,15 @@ def fetch_leaderboard_rows(
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?
     """
-    return conn.execute(
+    rows = conn.execute(
         query,
         (BACKTEST_PURPOSE_STANDALONE, account_name, account_name, strategy, strategy, int(limit)),
     ).fetchall()
+    return [dict(row) for row in rows]
 
 
-def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
-    return conn.execute(
+def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
+    rows = conn.execute(
         """
         SELECT equity
         FROM backtest_equity_snapshots
@@ -67,10 +77,11 @@ def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row
         """,
         (run_id,),
     ).fetchall()
+    return [dict(row) for row in rows]
 
 
-def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
-    return conn.execute(
+def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
+    rows = conn.execute(
         """
         SELECT ticker, side, qty, price, fee
         FROM backtest_executions
@@ -79,3 +90,4 @@ def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]
         """,
         (run_id,),
     ).fetchall()
+    return [dict(row) for row in rows]

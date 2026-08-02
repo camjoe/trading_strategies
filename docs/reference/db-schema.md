@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-08-02
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -30,7 +30,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
+| `accounts` | Account identity, custody, and broker connection — final shape since `0028` (legacy strategy/goal/universe columns are book-owned; the unused `account_kind` managed/local distinction was dropped in `0028`) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |

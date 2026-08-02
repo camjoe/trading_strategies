@@ -20,14 +20,12 @@ describe("renderOperationsOverview", () => {
           runHint: "python3 -m trading.interfaces.runtime.jobs.daily.paper_trading",
         },
       ],
-      dailySnapshotArtifacts: [],
       databaseBackups: [],
     };
 
     const html = renderOperationsOverview(payload);
     expect(html).toContain("Daily Paper Trading");
     expect(html).toContain("Healthy");
-    expect(html).toContain("No daily snapshot artifacts found");
   });
 });
 

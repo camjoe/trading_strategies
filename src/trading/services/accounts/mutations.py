@@ -12,9 +12,6 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.config import (
-    ACCOUNT_KIND_MANAGED,
-    append_update,
-    normalize_account_kind,
     normalize_instrument_mode,
     normalize_lower,
     normalize_option_type,
@@ -97,7 +94,6 @@ def _create_account(
     if not display:
         display = name
 
-    account_kind = normalize_account_kind(cfg.account_kind or ACCOUNT_KIND_MANAGED)
     risk = normalize_risk_policy(cfg.risk_policy or "none")
     mode = normalize_instrument_mode(cfg.instrument_mode or "equity")
     trade_size_pct = cfg.trade_size_pct if cfg.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
@@ -118,7 +114,6 @@ def _create_account(
         AccountRepository(conn).insert(
             AccountInsert(
                 name=name,
-                account_kind=account_kind,
                 initial_cash=float(initial_cash),
                 created_at=created_ts,
                 updated_at=created_ts,
@@ -232,9 +227,6 @@ def _configure_account(
         updates.append("descriptive_name = ?")
         params.append(display)
 
-    if cfg.account_kind is not None:
-        append_update(updates, params, "account_kind", normalize_account_kind(cfg.account_kind))
-
     # Goals, universes, and execution/option knobs are book columns
     # (revisions 0004/0005/0008): validate merged over the default book's
     # current values, then write to the book.
@@ -328,22 +320,3 @@ def configure_account(
     """Apply one account configuration request atomically."""
     with unit_of_work(conn):
         _configure_account(conn, account_name, config)
-
-
-def create_managed_account(
-    conn: sqlite3.Connection,
-    *,
-    name: str,
-    strategy: str,
-    initial_cash: float,
-    benchmark_ticker: str,
-    config: AccountConfig,
-) -> None:
-    create_account(
-        conn,
-        name=name,
-        strategy=strategy,
-        initial_cash=initial_cash,
-        benchmark_ticker=benchmark_ticker,
-        config=config,
-    )

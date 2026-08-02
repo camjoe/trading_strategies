@@ -4,6 +4,8 @@ import datetime as dt
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from common.runtime_job_status import TERMINAL_STEP_STATUSES
+
 DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
     ("00_ingest_market_and_account", "Ingest market and account context"),
     ("01_mark_book_nav", "Mark book NAV"),
@@ -17,8 +19,6 @@ DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
     ("09_postclose_metrics_and_attribution", "Compute post-close metrics and attribution"),
     ("10_emit_report_and_alerts", "Emit report and alerts"),
 )
-
-TERMINAL_STEP_STATUSES = {"ok", "skipped", "failed"}
 
 
 @dataclass

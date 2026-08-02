@@ -12,6 +12,7 @@ from infrastructure.feature_providers.social_provider import SocialFeatureProvid
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
+    is_runtime_submission_window_open,
     resolve_account_names,
     resolve_market_inputs,
     run_accounts,
@@ -52,6 +53,12 @@ def main() -> None:
         random.seed(args.seed)
 
     accounts = resolve_account_names(args.accounts)
+    # The runtime declines to submit outside US regular equity hours. Say so up
+    # front — otherwise a closed market and a genuine no-signal day both read as
+    # "executed 0 trades".
+    if not is_runtime_submission_window_open():
+        print("Market closed: no orders will be submitted (US regular equity hours only).")
+
     # Composition root: build the market-data provider once and inject it through
     # the market-input + rotation paths (no global locator access inside services).
     provider = build_provider()

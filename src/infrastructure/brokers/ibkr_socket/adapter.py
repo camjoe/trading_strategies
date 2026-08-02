@@ -61,11 +61,10 @@ class IbkrSocketAdapter(BrokerConnection):
     concrete backend (``IbAsyncClient`` or ``IbApiClient``) is injected by
     :func:`brokers.factory.get_broker_for_account`.
 
-    Instantiated only when ``broker_type = 'interactive_brokers'`` and
-    ``live_trading_enabled = 1`` on the account row.
-
-    The persisted ``interactive_brokers`` value remains a compatibility name
-    until a later migration introduces ``interactive_brokers_socket``.
+    Instantiated for either socket venue: ``broker_type =
+    'interactive_brokers_socket'`` with ``live_trading_enabled = 1``, or
+    ``broker_type = 'interactive_brokers_socket_paper'`` with a paper account
+    id — the factory owns that choice.
     """
 
     def __init__(
@@ -88,6 +87,16 @@ class IbkrSocketAdapter(BrokerConnection):
         """Disconnect from TWS/IB Gateway."""
         if self._client.is_connected():
             self._client.disconnect()
+
+    def managed_accounts(self) -> list[str]:
+        """Account ids this session can trade.
+
+        Unlike the Web API path — where the account id is known from settings
+        before any request — the socket learns it from IBKR at connect time, so
+        callers can only assert on it once connected.
+        """
+        self._require_connected()
+        return self._client.managed_accounts()
 
     # ------------------------------------------------------------------
     # Order management

@@ -75,11 +75,11 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
+| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass (no-op for `paper` accounts; also runnable standalone) |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/paper_trading/run_context.py` | Resolves accounts, trade caps, artifact paths, and run metadata into the daily workflow context |
 | `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
 | `daily/paper_trading/workflow.py` | Daily DAG orchestration, artifact writing, notifications, and success/failure handling |
-| `daily/snapshot.py` | Daily equity snapshot job |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
 | `governance/weekly/w1_leaderboard.py` | Weekly leaderboard governance job |
@@ -162,7 +162,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `execution/risk_audit.py` | Repository wiring that persists one book run's normalized risk decisions and account risk snapshot |
 | `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
-| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`, `run_multi_book_mode_for_account`) over per-book state |
+| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
 | `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
 | `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
@@ -253,6 +253,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 |---|---|
 | `accounting.py` | Cash and equity accounting rules |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
 | `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
@@ -272,10 +273,10 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `rotation/policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
 | `rotation/score_components.py` | Pure stability and drawdown-penalty derivations for rotation scoring |
 | `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
+| `strategies/indicator_view.py` | Precompute a strategy's declared indicators over one ticker's bars (`build_signal_inputs`) and read them one bar at a time (`IndicatorView`) |
 | `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
 | `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
 | `strategies/resolution.py` | Strategy label/alias resolution and shared signal evaluation entrypoints |
-| `strategies/signals/alternative.py` | Feature-driven topic, macro, policy, news, and social buy/sell/hold signal models |
 | `strategies/signals/technical.py` | Price-history technical signal models for trend, mean-reversion, RSI, MACD, breakout, pullback, Bollinger, MA-crossover, and volatility-filtered strategies |
 
 ---

@@ -2,9 +2,14 @@
 """Replay missed daily paper-trading runs over a date range.
 
 For each calendar date in [from_date, to_date], checks whether a successful
-daily paper-trading run already exists (via the same log-sentinel guard used
-by the daily job itself). Dates that have no successful run are replayed by
-invoking daily_paper_trading with --as-of-date and --force-run.
+daily paper-trading run already exists (via the daily job's log-sentinel
+helper). Dates that have no successful run are replayed by invoking
+daily_paper_trading with --as-of-date.
+
+No --force-run: this filters to dates with no successful run, and the daily job's
+duplicate-run guard keys on that same date and sentinel. A date that reaches the
+replay invocation is one the guard would pass anyway, so overriding it would only
+suppress a disagreement worth seeing.
 
 Usage examples::
 
@@ -96,7 +101,6 @@ def _replay_date(
         DAILY_PAPER_TRADING_MODULE,
         "--as-of-date",
         date.isoformat(),
-        "--force-run",
         "--accounts",
         accounts,
         "--run-source",

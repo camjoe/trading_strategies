@@ -5,6 +5,7 @@ from collections.abc import Callable
 from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
+from paper_trading_web.backend.schemas.strategy_lab import MAX_CANDIDATE_BUDGET
 
 from tests.support.evaluation import insert_backtest_run
 from tests.support.strategies import ensure_strategy_id_for_label
@@ -151,6 +152,31 @@ def test_run_optimization_delegates_to_honest_walk_forward_service(api_client: T
     assert response.status_code == 200
     assert response.json()["experimentId"] == 42
     run_mock.assert_called_once()
+
+
+def test_run_optimization_rejects_a_budget_over_the_synchronous_ceiling(api_client: TestClient) -> None:
+    """The route runs its sweep inside the request, so the budget is capped there.
+
+    Rejection must happen during request validation — before the optimizer is
+    reached — or the caller waits out the very run the cap exists to prevent.
+    """
+    with patch(
+        "paper_trading_web.backend.routes.strategy_lab.run_and_persist_optimization",
+        Mock(),
+    ) as run_mock:
+        response = api_client.post(
+            "/api/strategy-lab/optimizations",
+            json={
+                "account": "acct",
+                "strategy": "trend",
+                "searchSpace": {"fast_window": [5, 10]},
+                "lookbackMonths": 24,
+                "candidateBudget": MAX_CANDIDATE_BUDGET + 1,
+            },
+        )
+
+    assert response.status_code == 422
+    run_mock.assert_not_called()
 
 
 def test_optimization_detail_nests_every_evaluated_candidate_under_its_window(

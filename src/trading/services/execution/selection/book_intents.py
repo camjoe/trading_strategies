@@ -52,15 +52,17 @@ def generate_book_trade_intents(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
+    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
+    selection_seed: str = "",
 ) -> list[BookTradeCandidate]:
     # Intents come only from strategy signals — no forced minimum; a run with no
     # signals produces no trades.
     account_id = account.id
 
-    # Book-native enumeration: active, non-default, openly assigned books.
-    # Unassigned or non-active books do not trade — no account fallback.
+    # Book-native enumeration: active, openly assigned books — including the
+    # default book, which trades like any other (ADR 010/014). Unassigned or
+    # non-active books do not trade; there is no account fallback.
     trading_books = enumerate_trading_books(conn, account_id=account_id)
     if not trading_books:
         return []
@@ -125,6 +127,7 @@ def generate_book_trade_intents(
             trade_size_pct=book.trade_size_pct,
             max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
+            selection_seed=selection_seed,
         )
         if selection is None:
             continue
@@ -144,30 +147,3 @@ def generate_book_trade_intents(
             )
         )
     return intents
-
-
-def run_multi_book_mode_for_account(
-    conn: sqlite3.Connection,
-    *,
-    account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    max_trades: int,
-    fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
-    feature_history_fn: FeatureHistoryFn | None = None,
-) -> int:
-    return len(
-        generate_book_trade_intents(
-            conn,
-            account=account,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
-            max_trades=max_trades,
-            fee=fee,
-            histories=histories,
-            feature_history_fn=feature_history_fn,
-        )
-    )

@@ -13,9 +13,6 @@ from infrastructure.feature_providers.news_provider import (
     NEWS_SENTIMENT_SCORE,
     NewsFeatureProvider,
 )
-from trading.domain.strategies.registry import STRATEGY_REGISTRY
-from trading.domain.strategies.resolution import resolve_strategy
-from trading.domain.strategies.signals.alternative import _news_sentiment_signal
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -193,79 +190,3 @@ class TestNewsFeatureProviderFetch:
         provider._fetch_newsapi_headlines = MagicMock(return_value=["api1"])
         result = provider._collect_headlines("AAPL")
         assert result == ["rss1", "rss2", "api1"]
-
-
-# ---------------------------------------------------------------------------
-# _news_sentiment_signal
-# ---------------------------------------------------------------------------
-
-
-class TestNewsSentimentSignal:
-    def test_buy_when_trending_up_and_bullish(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(score=0.30, count=8.0)
-        assert _news_sentiment_signal(history, {}, fh) == "buy"
-
-    def test_hold_when_features_missing(self):
-        history = _make_history(n=40, slope=1.0)
-        assert _news_sentiment_signal(history, {}, None) == "hold"
-
-    def test_hold_when_history_too_short(self):
-        history = _make_history(n=5)
-        fh = _make_feature_history(score=0.30, count=8.0)
-        assert _news_sentiment_signal(history, {}, fh) == "hold"
-
-    def test_hold_when_headline_count_too_low(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(score=0.30, count=1.0)
-        assert _news_sentiment_signal(history, {}, fh) == "hold"
-
-    def test_sell_when_declining_and_negative_sentiment(self):
-        # Declining prices: last close < fast SMA
-        history = _make_history(n=40, start=200.0, slope=-2.0)
-        fh = _make_feature_history(score=-0.30, count=8.0)
-        signal = _news_sentiment_signal(history, {}, fh)
-        assert signal == "sell"
-
-    def test_hold_on_neutral_sentiment_uptrend(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(score=0.05, count=8.0)  # below buy_sentiment=0.10
-        signal = _news_sentiment_signal(history, {}, fh)
-        assert signal in ("hold", "sell")
-
-    def test_custom_thresholds_respected(self):
-        history = _make_history(n=40, slope=1.0)
-        fh = _make_feature_history(score=0.30, count=8.0)
-        # Require very high sentiment to buy
-        params = {"buy_sentiment": 0.90}
-        assert _news_sentiment_signal(history, params, fh) != "buy"
-
-
-# ---------------------------------------------------------------------------
-# Registry integration
-# ---------------------------------------------------------------------------
-
-
-class TestNewsSentimentRegistryEntry:
-    def test_registered_in_strategy_registry(self):
-        assert "news_sentiment" in STRATEGY_REGISTRY
-
-    def test_strategy_style_is_alternative(self):
-        spec = STRATEGY_REGISTRY["news_sentiment"]
-        assert spec.strategy_style == "alternative"
-
-    def test_required_features_declared(self):
-        spec = STRATEGY_REGISTRY["news_sentiment"]
-        assert NEWS_SENTIMENT_SCORE in spec.required_features
-        assert NEWS_HEADLINE_COUNT in spec.required_features
-
-    def test_aliases_resolve_correctly(self):
-        for alias in ("news", "sentiment", "news_sentiment_strategy"):
-            spec = resolve_strategy(alias)
-            assert spec.strategy_id == "news_sentiment"
-
-    def test_keyword_resolve_news(self):
-        assert resolve_strategy("news_driven").strategy_id == "news_sentiment"
-
-    def test_keyword_resolve_sentiment(self):
-        assert resolve_strategy("sentiment_based").strategy_id == "news_sentiment"

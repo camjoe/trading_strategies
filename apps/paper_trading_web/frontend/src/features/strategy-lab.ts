@@ -1,5 +1,5 @@
 import type { ExperimentDetail } from "../components/strategy-lab";
-import { renderOptimizationDetail } from "../components/strategy-lab";
+import { estimateSweep, renderOptimizationDetail, sweepConfirmMessage } from "../components/strategy-lab";
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
 import { errorMessage, getJson, patchJson, postJson } from "../lib/http";
@@ -129,9 +129,12 @@ export function createStrategyLabFeature() {
           1,
         );
         const budget = Number(data.get("candidateBudget"));
-        if (!window.confirm(`Run a ${candidates}-candidate optimization (budget ${budget})? This may take several minutes.`)) return;
+        const lookbackMonths = Number(data.get("lookbackMonths"));
+        const holdoutMonths = Number(data.get("holdoutMonths"));
+        const estimate = estimateSweep({ candidates, lookbackMonths, holdoutMonths });
+        if (!window.confirm(sweepConfirmMessage(estimate))) return;
         if (message) message.textContent = "Optimization running…";
-        const result = await postJson<{ experimentId: number }>("/api/strategy-lab/optimizations", { account: data.get("account"), strategy: data.get("strategy"), searchSpace, lookbackMonths: Number(data.get("lookbackMonths")), candidateBudget: budget, holdoutMonths: Number(data.get("holdoutMonths")) });
+        const result = await postJson<{ experimentId: number }>("/api/strategy-lab/optimizations", { account: data.get("account"), strategy: data.get("strategy"), searchSpace, lookbackMonths, candidateBudget: budget, holdoutMonths });
         if (message) message.textContent = `Experiment #${result.experimentId} completed.`;
         await load();
       } catch (error) { if (message) message.textContent = errorMessage(error, "Optimization failed."); }

@@ -7,7 +7,6 @@ from .admin import RotationSettingsPayload
 
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
-    accountKind: str | None = None
     descriptiveName: str | None = None
     riskPolicy: str | None = None
     stopLossPct: float | None = None

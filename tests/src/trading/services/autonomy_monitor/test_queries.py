@@ -36,10 +36,9 @@ def _make_account(
     *,
     id: int = 1,
     name: str = "paper_account",
-    account_kind: str = "managed",
     initial_cash: float = 50_000.0,
 ) -> SimpleNamespace:
-    return SimpleNamespace(id=id, name=name, account_kind=account_kind, initial_cash=initial_cash)
+    return SimpleNamespace(id=id, name=name, initial_cash=initial_cash)
 
 
 def _make_risk_decision(
@@ -68,11 +67,10 @@ def mock_conn() -> MagicMock:
     return MagicMock(spec=sqlite3.Connection)
 
 
-def test_fetch_autonomy_accounts_list_filters_managed_accounts(mock_conn: MagicMock) -> None:
+def test_fetch_autonomy_accounts_list_returns_every_account(mock_conn: MagicMock) -> None:
     accounts = [
-        _make_account(id=1, name="live_account", account_kind="live"),
-        _make_account(id=2, name="paper_account", account_kind="managed"),
-        _make_account(id=3, name="another_paper", account_kind="managed"),
+        _make_account(id=1, name="paper_account"),
+        _make_account(id=2, name="another_paper"),
     ]
 
     with patch("trading.services.autonomy_monitor.queries.AccountRepository") as mock_acct_cls:

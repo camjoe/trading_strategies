@@ -88,8 +88,12 @@ Alternatives considered for the host:
 7. **Uptime is "always-on + self-recover," not software-scheduled wake.** The host stays powered with
    sleep disabled and BIOS AC-power-recovery on; an optional BIOS RTC power-on is the safety net.
    A powered-off machine cannot be woken by cron/systemd (only firmware/hardware can), so reliability
-   rests on the host staying up plus the existing missed-run catch-up (fallback task + `replay_daily_runs`)
-   rather than on a wake-from-off mechanism. Machine-specific BIOS/NIC details are captured on the host;
+   rests on the host staying up plus the existing missed-run catch-up (`replay_daily_runs`)
+   rather than on a wake-from-off mechanism. (The second scheduled "fallback" entry this decision
+   also named was retired in favour of `replay_daily_runs`, which backfills a chosen range instead of
+   firing blind at a fixed hour. It only ever no-opped because the daily job's duplicate-run guard
+   made it so; a fixed-time retry that depends on a guard to not trade twice is the fragile
+   arrangement, whether or not the guard is present.) Machine-specific BIOS/NIC details are captured on the host;
    see the runbook's Part 5 TODO.
 
 ## Consequences

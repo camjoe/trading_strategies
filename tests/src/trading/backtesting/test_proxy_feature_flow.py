@@ -1,5 +1,6 @@
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -63,7 +64,7 @@ class TestBacktestProxyFeatureFlow:
         conn,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        create_backtest_account(conn, "acct_topic", strategy="topic_proxy_rotation")
+        create_backtest_account(conn, "acct_topic", strategy="trend")
         install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
         idx = pd.date_range("2026-01-01", periods=40, freq="B")
@@ -93,6 +94,20 @@ class TestBacktestProxyFeatureFlow:
             assert "topic_proxy_rel_strength" in feature_history.columns
             return "hold"
 
+        # No strategy in the registry declares required_features today, so the spec
+        # is stubbed: the behaviour under test is the engine wiring � a strategy
+        # that declares features gets a bundle built and per-ticker history passed
+        # to its signal � not any particular strategy.
+        monkeypatch.setattr(
+            execution_service,
+            "resolve_strategy",
+            lambda _name: SimpleNamespace(
+                indicators=(),
+                required_features=("topic_proxy_rel_strength",),
+                strategy_id="trend",
+                default_params={},
+            ),
+        )
         monkeypatch.setattr(backtest_module, "build_feature_provider", lambda **_kwargs: StubFeatureProvider())
         monkeypatch.setattr(execution_service, "evaluate_signal", fake_signal)
 

@@ -57,11 +57,9 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="paper")
         mock_factory = Mock(return_value=PaperBrokerAdapter())
 
-        result = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=mock_factory
-        )
+        result = runtime_service.reconcile_open_broker_orders(conn, account, broker_factory=mock_factory)
 
-        assert result == 0
+        assert result.newly_filled == 0
         mock_factory.assert_called_once_with(account)
 
     def test_newly_filled_order_applies_book_fill_and_records_trade(self, monkeypatch) -> None:
@@ -100,10 +98,10 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         count = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=1.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
 
-        assert count == 1
+        assert count.newly_filled == 1
         # The clean order + book state were updated from the async fill.
         order = OrderRepository(conn).fetch_by_id(order_id=order_id)
         assert order is not None
@@ -151,15 +149,15 @@ class TestReconcileOpenBrokerOrders:
 
         fake_broker = _FakeBroker()
         first = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+            conn, account, broker_factory=Mock(return_value=fake_broker)
         )
         second = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+            conn, account, broker_factory=Mock(return_value=fake_broker)
         )
 
         # Partial fill is not FILLED → newly_filled stays 0 across both polls.
-        assert first == 0
-        assert second == 0
+        assert first.newly_filled == 0
+        assert second.newly_filled == 0
         fills_count = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-dup'").fetchone()[0]
         assert fills_count == 1
         # The book fill is applied exactly once (qty 5, not 10).
@@ -182,10 +180,10 @@ class TestReconcileOpenBrokerOrders:
                 _FakeBroker._disconnect_calls += 1
 
         result = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
 
-        assert result == 0
+        assert result.newly_filled == 0
         assert _FakeBroker._disconnect_calls == 1
 
     def test_cancelled_and_rejected_update_clean_order_status(self) -> None:
@@ -221,12 +219,94 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         count = runtime_service.reconcile_open_broker_orders(
-            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=_FakeBroker())
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
         )
-        assert count == 0
+        assert count.newly_filled == 0
 
         repo = OrderRepository(conn)
         cancelled = repo.fetch_by_id(order_id=cancel_id)
         rejected = repo.fetch_by_id(order_id=reject_id)
         assert cancelled is not None and cancelled.status == "cancelled"
         assert rejected is not None and rejected.status == "rejected"
+
+    def test_orders_the_broker_omits_are_reported_and_left_untouched(self) -> None:
+        """An order the broker no longer mentions is surfaced, never guessed at.
+
+        IBKR's order endpoint covers the current day, so a `day` order that expired
+        at a prior close simply stops appearing. It might also have filled on a day
+        nothing ran — marking it cancelled would corrupt the book, so the row stays
+        open and the id is reported instead.
+        """
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, reported_id = _open_clean_order(conn, broker_order_id="ib-reported")
+        _, omitted_id = _open_clean_order(conn, broker_order_id="ib-omitted")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        class _FakeBroker:
+            def get_open_trades(self):
+                return [
+                    BrokerOrder(
+                        account_id=1,
+                        ticker="AAPL",
+                        side="buy",
+                        qty=10.0,
+                        price=150.0,
+                        broker_order_id="ib-reported",
+                        status=OrderStatus.SUBMITTED,
+                        filled_qty=0.0,
+                        avg_fill_price=None,
+                        commission=0.0,
+                        fills=[],
+                    )
+                ]
+
+            def disconnect(self):
+                pass
+
+        outcome = runtime_service.reconcile_open_broker_orders(
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
+        )
+
+        assert outcome.unreported_broker_order_ids == ["ib-omitted"]
+        assert outcome.has_unreported is True
+
+        repo = OrderRepository(conn)
+        omitted = repo.fetch_by_id(order_id=omitted_id)
+        assert omitted is not None and omitted.status == "submitted"
+        reported = repo.fetch_by_id(order_id=reported_id)
+        assert reported is not None and reported.status == "submitted"
+
+    def test_no_unreported_ids_when_broker_covers_every_open_order(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _open_clean_order(conn, broker_order_id="ib-1")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        class _FakeBroker:
+            def get_open_trades(self):
+                return [
+                    BrokerOrder(
+                        account_id=1,
+                        ticker="AAPL",
+                        side="buy",
+                        qty=10.0,
+                        price=150.0,
+                        broker_order_id="ib-1",
+                        status=OrderStatus.SUBMITTED,
+                        filled_qty=0.0,
+                        avg_fill_price=None,
+                        commission=0.0,
+                        fills=[],
+                    )
+                ]
+
+            def disconnect(self):
+                pass
+
+        outcome = runtime_service.reconcile_open_broker_orders(
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
+        )
+
+        assert outcome.unreported_broker_order_ids == []
+        assert outcome.has_unreported is False

@@ -43,14 +43,14 @@ def already_completed_this_month(log_dir: Path, tag: str) -> bool:
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[dict[str, object]] = []
     for account_name in ctx.accounts:
-        account = find_account(ctx.conn, account_name)
+        account = find_account(ctx.db, account_name)
         if account is None:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
         book_rows: list[dict[str, object]] = []
 
-        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
+        for book, assignment in list_report_books(ctx.db, account_id=account.id):
             strategy_name: str | None = None
             primitive: str | None = None
             params: object = None
@@ -58,7 +58,7 @@ def main(ctx: JobContext) -> dict[str, object]:
             if assignment is not None:
                 strategy_name = assignment.strategy_name
                 try:
-                    resolved = resolve_catalog_strategy(ctx.conn, strategy_name)
+                    resolved = resolve_catalog_strategy(ctx.db, strategy_name)
                     primitive = resolved.primitive
                     params = resolved.params
                 except UnknownCatalogStrategyError:

@@ -146,3 +146,98 @@ def test_choose_sell_ticker_by_risk_stop_and_target(monkeypatch) -> None:
         take_profit_pct=10.0,
     )
     assert ticker in {"LOSS", "WIN"}
+
+
+def test_allocate_buy_quantities_grants_full_requests_when_cash_covers_them() -> None:
+    granted = auto_trader_policy.allocate_buy_quantities(
+        [("AAAA", 100.0, 3), ("ZZZZ", 50.0, 4)],
+        cash=1000.0,
+        fee_per_trade=0.0,
+    )
+    assert granted == {"AAAA": 3, "ZZZZ": 4}
+
+
+def test_allocate_buy_quantities_scales_proportionally_when_cash_binds() -> None:
+    """Both requests are cut, in proportion to what each asked for."""
+    granted = auto_trader_policy.allocate_buy_quantities(
+        [("AAAA", 100.0, 10), ("ZZZZ", 100.0, 10)],
+        cash=1000.0,
+        fee_per_trade=0.0,
+    )
+    assert granted == {"AAAA": 5, "ZZZZ": 5}
+
+
+def test_allocate_buy_quantities_is_independent_of_request_order() -> None:
+    """The reason this function exists: no ticker may win by sorting first."""
+    requests = [("AAAA", 100.0, 6), ("MMMM", 25.0, 8), ("ZZZZ", 50.0, 9)]
+    forward = auto_trader_policy.allocate_buy_quantities(requests, cash=700.0, fee_per_trade=1.0)
+    reverse = auto_trader_policy.allocate_buy_quantities(list(reversed(requests)), cash=700.0, fee_per_trade=1.0)
+    assert forward == reverse
+
+
+def test_allocate_buy_quantities_never_commits_more_than_available_cash() -> None:
+    requests = [("AAAA", 100.0, 10), ("MMMM", 33.0, 10), ("ZZZZ", 7.0, 10)]
+    fee = 1.5
+    cash = 500.0
+    granted = auto_trader_policy.allocate_buy_quantities(requests, cash=cash, fee_per_trade=fee)
+    prices = {ticker: price for ticker, price, _qty in requests}
+    committed = sum((qty * prices[ticker]) + fee for ticker, qty in granted.items())
+    assert committed <= cash
+
+
+def test_allocate_buy_quantities_drops_tickers_whose_share_cannot_buy_one_share() -> None:
+    """A share too small for a single share is skipped rather than rounded up."""
+    granted = auto_trader_policy.allocate_buy_quantities(
+        [("CHEAP", 1.0, 100), ("PRICEY", 900.0, 1)],
+        cash=120.0,
+        fee_per_trade=0.0,
+    )
+    assert "PRICEY" not in granted
+    assert granted["CHEAP"] >= 1
+
+
+def test_allocate_buy_quantities_ignores_unsized_or_unpriced_requests() -> None:
+    granted = auto_trader_policy.allocate_buy_quantities(
+        [("ZEROQTY", 100.0, 0), ("ZEROPRICE", 0.0, 5), ("GOOD", 10.0, 2)],
+        cash=1000.0,
+        fee_per_trade=0.0,
+    )
+    assert granted == {"GOOD": 2}
+
+
+def test_allocate_buy_quantities_returns_nothing_for_an_empty_bar() -> None:
+    assert auto_trader_policy.allocate_buy_quantities([], cash=1000.0, fee_per_trade=0.0) == {}
+
+
+def test_order_signal_candidates_is_deterministic_for_a_seed() -> None:
+    """A decision has to be reproducible from the audit trail, not just observed."""
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    first = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    second = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    assert first == second
+    assert sorted(first) == sorted(candidates)
+
+
+def test_order_signal_candidates_ignores_the_order_it_was_given() -> None:
+    """Candidates arrive in ticker-file order; that must not survive into the pick."""
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    forward = auto_trader_policy.order_signal_candidates(candidates, seed="2026-07-30")
+    reverse = auto_trader_policy.order_signal_candidates(list(reversed(candidates)), seed="2026-07-30")
+    assert forward == reverse
+
+
+def test_order_signal_candidates_spreads_first_pick_across_names() -> None:
+    """The reason this exists: no name may take first pick run after run.
+
+    With a fixed order the first ticker in the universe file was always tried
+    first, so every book built its portfolio in file order.
+    """
+    candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
+    firsts = {
+        auto_trader_policy.order_signal_candidates(candidates, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)
+    }
+    assert len(firsts) > 1
+
+
+def test_order_signal_candidates_handles_an_empty_list() -> None:
+    assert auto_trader_policy.order_signal_candidates([], seed="2026-07-30") == []

@@ -10,8 +10,8 @@ test-infrastructure fixture, not any production behaviour.
 from __future__ import annotations
 
 from tests.support.seed.db import (
-    ACCT_LOCAL,
     ACCT_MOMENTUM,
+    ACCT_THIRD,
     ACCT_TREND,
     BACKTEST_RUN_NAME,
     BOOK_METRIC_DATE,
@@ -28,19 +28,7 @@ from trading.repositories.daily_metrics import DailyMetricsRepository
 class TestSeededAccounts:
     def test_all_named_accounts_are_present(self, seeded_conn) -> None:
         names = {row["name"] for row in seeded_conn.execute("SELECT name FROM accounts").fetchall()}
-        assert {ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL}.issubset(names)
-
-    def test_account_kinds_are_correct(self, seeded_conn) -> None:
-        rows = {
-            row["name"]: row["account_kind"]
-            for row in seeded_conn.execute(
-                "SELECT name, account_kind FROM accounts WHERE name IN (?, ?, ?)",
-                (ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL),
-            ).fetchall()
-        }
-        assert rows[ACCT_TREND] == "managed"
-        assert rows[ACCT_MOMENTUM] == "managed"
-        assert rows[ACCT_LOCAL] == "local"
+        assert {ACCT_TREND, ACCT_MOMENTUM, ACCT_THIRD}.issubset(names)
 
 
 class TestSeededTrades:

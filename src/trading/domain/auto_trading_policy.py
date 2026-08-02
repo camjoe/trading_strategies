@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import random
+from collections.abc import Sequence
 from typing import Any, Protocol
-
-from trading.models import AccountState
 
 # ---------------------------------------------------------------------------
 # Order sizing
@@ -54,6 +54,21 @@ class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
 
 
+class PositionCostState(Protocol):
+    """Carries per-ticker average cost — all a risk exit needs to price a holding.
+
+    ``AccountState`` and ``BookTradeState`` both satisfy this. Naming either
+    concretely would exclude the other, and execution is book-keyed (ADR 010),
+    so the only caller passes a book state.
+
+    Declared read-only: a plain annotation would demand a *settable* attribute,
+    which a frozen dataclass like ``BookTradeState`` does not offer.
+    """
+
+    @property
+    def avg_cost(self) -> dict[str, float]: ...
+
+
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
     if value is None:
         return default
@@ -101,6 +116,83 @@ def choose_buy_qty(
         return 0
 
     return int(spendable_budget // price)
+
+
+def allocate_buy_quantities(
+    sized_buys: Sequence[tuple[str, float, int]],
+    *,
+    cash: float,
+    fee_per_trade: float,
+) -> dict[str, int]:
+    """Fund one bar's buy signals, scaling proportionally when cash cannot cover them all.
+
+    *sized_buys* is ``(ticker, execution_price, requested_qty)`` per signaled
+    ticker, already sized by :func:`choose_buy_qty` against the book's policy.
+    Returns the quantity actually funded per ticker, omitting any that cannot
+    afford a single share.
+
+    A buy signal carries no conviction — every "buy" on a bar is equally
+    preferred, because that is all the strategy said. So when cash binds, the
+    engine must not invent a preference between them. Funding requests one at a
+    time in list order silently hands the cash to whichever tickers happen to
+    come first, which is a property of the iteration order rather than of the
+    strategy; sorted input makes that the alphabet. Proportional scaling is the
+    allocation that asserts no ordering, and it is order-independent by
+    construction: each ticker's share depends only on its own request and the
+    total.
+
+    When the requests fit, every ticker gets exactly what it asked for and this
+    is a no-op. Integer share counts mean the allocation can leave a little cash
+    unspent; that is left uninvested rather than handed to an arbitrary winner.
+    """
+    requests = [(ticker, price, qty) for ticker, price, qty in sized_buys if qty >= 1 and price > 0]
+    if not requests:
+        return {}
+
+    costs = {ticker: (qty * price) + fee_per_trade for ticker, price, qty in requests}
+    total_cost = sum(costs.values())
+    if total_cost <= cash:
+        return {ticker: qty for ticker, _price, qty in requests}
+
+    granted: dict[str, int] = {}
+    for ticker, price, requested_qty in requests:
+        share = cash * (costs[ticker] / total_cost)
+        spendable = share - fee_per_trade
+        if spendable < price:
+            continue
+        affordable = min(int(spendable // price), requested_qty)
+        if affordable >= 1:
+            granted[ticker] = affordable
+    return granted
+
+
+def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str]:
+    """Order equally-signalled tickers so no name is systematically preferred.
+
+    A run trades one candidate per book, taking the first it can size. The list
+    arrives in universe order, so the earliest names in the ticker file were
+    always tried first — and since a bought name stops being a buy candidate, a
+    book filled up in file order. Every book with the same universe and strategy
+    built the same portfolio in the same sequence, for a reason that is a
+    property of the file rather than of the market.
+
+    The signal says only "buy", equally, for all of them, so the engine has no
+    basis to rank them and must not invent one. Hashing the ticker with a
+    per-run *seed* spreads first pick evenly across names over successive runs,
+    while staying deterministic within a run: the same seed and candidates
+    always yield the same order, so a decision can be reproduced from the audit
+    trail rather than merely observed.
+
+    The guarantee is *across runs*, not across books. Callers seed with the run
+    date, so every book with the same strategy and universe sees the same order
+    on the same day and reaches the same pick. That is intended: two books
+    running identical configurations should decide identically, and decorrelating
+    them would mean any difference in their results came from this hash rather
+    than from what actually differs between them (sizing, equity, risk policy).
+    To make two books pick differently, vary something that matters — their
+    parameters or their universe.
+    """
+    return sorted(candidates, key=lambda ticker: hashlib.sha256(f"{seed}:{ticker}".encode()).hexdigest())
 
 
 def choose_sell_qty(position_qty: float) -> int:
@@ -166,7 +258,7 @@ def option_candidate_allowed(
 def choose_sell_ticker_by_risk(
     can_sell: list[str],
     prices: dict[str, float],
-    state: AccountState,
+    state: PositionCostState,
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,

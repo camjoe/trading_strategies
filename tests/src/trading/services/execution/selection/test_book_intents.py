@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pandas as pd
 
 import trading.services.execution.selection.book_intents as book_intents
+from tests.support.backtesting import bar_frame
 from tests.support.books import assign_test_book_strategy, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
@@ -83,8 +84,8 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     account = get_account(conn, account_name)
     _assign(conn, book_id=book_id, strategy_name="trend")
 
-    rising = pd.Series([float(i) for i in range(1, 41)])
-    flat = pd.Series([100.0] * 40)
+    rising = bar_frame(pd.Series([float(i) for i in range(1, 41)]))
+    flat = bar_frame(pd.Series([100.0] * 40))
 
     buy_intents = book_intents.generate_book_trade_intents(
         conn,
@@ -128,7 +129,7 @@ def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> N
     account = get_account(conn, account_name)
     _assign(conn, book_id=book_id, strategy_name="trend_fast")
 
-    rising = pd.Series([float(i) for i in range(1, 41)])
+    rising = bar_frame(pd.Series([float(i) for i in range(1, 41)]))
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
@@ -249,33 +250,3 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
 
     assert intents == []
     assert captured_universes == [["SPY", "QQQ"]]
-
-
-def test_run_multi_book_mode_for_account_returns_generated_intent_count(conn, monkeypatch) -> None:
-    account_name = "acct_book_mode_count"
-    account_id = insert_repository_account(conn, name=account_name)
-    _assign(conn, book_id=_insert_book(conn, account_id=account_id, name="s1"), strategy_name="trend")
-    _assign(conn, book_id=_insert_book(conn, account_id=account_id, name="s2"), strategy_name="trend")
-    account = get_account(conn, account_name)
-
-    monkeypatch.setattr(
-        book_intents.auto_trader_policy,
-        "choose_sell_ticker_by_risk",
-        lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        book_intents,
-        "prepare_trade_selection",
-        Mock(return_value=("buy", "MSFT", 1, 300.0, None, None)),
-    )
-
-    generated = book_intents.run_multi_book_mode_for_account(
-        conn,
-        account=account,
-        universe=["MSFT"],
-        prices={"MSFT": 300.0},
-        iv_rank_proxy={},
-        max_trades=1,
-        fee=0.0,
-    )
-    assert generated == 1

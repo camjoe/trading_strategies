@@ -13,9 +13,6 @@ from trading.domain.auto_trading_policy import (
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.services.accounts.config import (
-    ACCOUNT_KIND_LOCAL,
-    ACCOUNT_KIND_MANAGED,
-    ACCOUNT_KINDS,
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RISK_POLICIES,
@@ -35,7 +32,6 @@ from trading.services.accounts.listing import (
 from trading.services.accounts.mutations import (
     configure_account,
     create_account,
-    create_managed_account,
     get_account,
     set_account_strategy,
     set_benchmark,
@@ -50,9 +46,6 @@ from trading.services.accounts.queries import (
 from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
 
 __all__ = [
-    "ACCOUNT_KINDS",
-    "ACCOUNT_KIND_LOCAL",
-    "ACCOUNT_KIND_MANAGED",
     "AccountAlreadyExistsError",
     "DEFAULT_MAX_POSITION_PCT",
     "DEFAULT_TRADE_SIZE_PCT",
@@ -65,7 +58,6 @@ __all__ = [
     "build_account_listing_lines",
     "configure_account",
     "create_account",
-    "create_managed_account",
     "format_account_policy_text",
     "format_goal_text",
     "get_account",

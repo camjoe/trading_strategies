@@ -6,6 +6,14 @@ from trading.backtesting.backtest import BacktestConfig
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.models import AccountConfig
+from trading.models.market_data.constants import (
+    BAR_CLOSE,
+    BAR_COLUMNS,
+    BAR_HIGH,
+    BAR_LOW,
+    BAR_OPEN,
+    BAR_VOLUME,
+)
 from trading.services.accounts import create_account
 
 
@@ -19,6 +27,71 @@ def make_fake_close_history(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame(data, index=idx)
 
 
+def bar_frame(closes: pd.Series) -> pd.DataFrame:
+    """One ticker's closes as a bar frame, with high and low equal to the close.
+
+    For tests whose subject is not the bar range: a flat bar makes a
+    high/low-reading strategy see exactly what a close-only history showed.
+    """
+    return pd.DataFrame(
+        {
+            BAR_OPEN: closes.shift(1).fillna(closes.iloc[0] if len(closes) else 0.0),
+            BAR_HIGH: closes,
+            BAR_LOW: closes,
+            BAR_CLOSE: closes,
+            BAR_VOLUME: pd.Series(1_000_000.0, index=closes.index),
+        }
+    )[list(BAR_COLUMNS)]
+
+
+def bars_from_closes(closes: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Wrap a ticker-per-column close frame as per-ticker bar frames.
+
+    For tests whose subject is the simulation rather than the bar data: the
+    close column drives everything as before, and open/high/low are derived so
+    the OHLC invariants hold.
+    """
+    frames: dict[str, pd.DataFrame] = {}
+    for ticker in closes.columns:
+        close = closes[ticker]
+        open_ = close.shift(1).fillna(close.iloc[0] if len(close) else 0.0)
+        pair = pd.concat([open_, close], axis=1)
+        frames[str(ticker)] = pd.DataFrame(
+            {
+                BAR_OPEN: open_,
+                BAR_HIGH: pair.max(axis=1),
+                BAR_LOW: pair.min(axis=1),
+                BAR_CLOSE: close,
+                BAR_VOLUME: pd.Series(1_000_000.0, index=close.index),
+            }
+        )[list(BAR_COLUMNS)]
+    return frames
+
+
+def make_fake_bar_history(tickers: list[str]) -> dict[str, pd.DataFrame]:
+    """Bars wrapping the same synthetic closes the close-only fixture produces.
+
+    Open is the prior close, and the high/low straddle the bar, so the OHLC
+    invariants hold and any test that reads the range gets something a market
+    could actually have printed.
+    """
+    closes = make_fake_close_history(tickers)
+    frames: dict[str, pd.DataFrame] = {}
+    for ticker in tickers:
+        close = closes[ticker]
+        open_ = close.shift(1).fillna(close.iloc[0])
+        frames[ticker] = pd.DataFrame(
+            {
+                BAR_OPEN: open_,
+                BAR_HIGH: pd.concat([open_, close], axis=1).max(axis=1) * 1.01,
+                BAR_LOW: pd.concat([open_, close], axis=1).min(axis=1) * 0.99,
+                BAR_CLOSE: close,
+                BAR_VOLUME: pd.Series(1_000_000.0, index=close.index),
+            }
+        )[list(BAR_COLUMNS)]
+    return frames
+
+
 def install_backtest_market_data(
     monkeypatch,
     backtest_module,
@@ -29,8 +102,8 @@ def install_backtest_market_data(
     monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
         backtest_module,
-        "fetch_close_history",
-        lambda _tickers, _start, _end, **_kwargs: make_fake_close_history(_tickers),
+        "fetch_bar_history",
+        lambda _tickers, _start, _end, **_kwargs: make_fake_bar_history(_tickers),
     )
     monkeypatch.setattr(
         backtest_module,
@@ -158,9 +231,12 @@ def make_backtest_leaderboard_entry(
 
 __all__ = [
     "create_backtest_account",
+    "bar_frame",
+    "bars_from_closes",
     "install_backtest_market_data",
     "make_backtest_config",
     "make_backtest_leaderboard_entry",
     "make_backtest_result",
+    "make_fake_bar_history",
     "make_fake_close_history",
 ]
