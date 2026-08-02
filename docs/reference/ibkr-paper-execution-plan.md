@@ -3,7 +3,7 @@
 Type: notes
 Status: Draft
 Created: 2026-07-27
-Last Reviewed: 2026-07-27
+Last Reviewed: 2026-08-01
 Purpose: Record the target shape of the multi-book auto-trader, the verified gap between that target and the current code, and the phase order for closing it.
 Related: [ADR 017: IBKR paper broker type](../adr/017-ibkr-paper-broker-type.md), [Broker Integration](broker-integration.md), [Runtime Jobs](runtime-jobs.md), [Burn-In Protocol](../runbooks/burn-in-protocol.md)
 
@@ -30,7 +30,9 @@ Read this before planning work on the runtime, the broker layer, or the job tier
 
 ## Verified Current State
 
-Audited 2026-07-27 against `develop`.
+Audited 2026-07-27 against `develop`; re-verified 2026-08-01 against
+`features/auto-trading-updates`. Where a later date appears below, that claim was checked
+then.
 
 **Nothing has traded for real, ever.** Every account resolves to `PaperBrokerAdapter`,
 which accepts every order and fills it in full, immediately, at the requested price, with
@@ -153,9 +155,14 @@ per-book NAV. Mostly configuration plus whatever Phase 2 exposes.
 
 ### Phase 4 — Intraday data
 
-The runner already supports repeat passes through the session. What it lacks is a reason
-for a later pass to decide differently: intraday bars, and signal/indicator paths that
-consume them. Until then, extra passes re-read the same daily closes.
+Two things are missing, and they have to land together. There is no reason for a later
+pass to decide differently — no intraday bars, and no signal/indicator path that consumes
+them — and the daily job's duplicate-run guard blocks a second pass precisely because a
+pass with nothing new to read would only trade again on identical evidence.
+
+So the guard is not a separate obstacle to remove first. Fetching intraday bars, teaching
+the signal path to use them, and relaxing the guard are one change; doing the last of
+those alone buys extra trades rather than extra information.
 
 ### Phase 5 — Optimizer on a schedule
 
@@ -193,8 +200,10 @@ guards activity that is not happening.
   the simulator always fills? Unknown until Phase 2.
 - Intraday bar source for Phase 4 is undecided; the current market-data provider path is
   daily-close oriented.
-- Whether options execution goes through the Web API or the socket path — the socket
-  path has no paper broker type today.
+- Whether options execution goes through the Web API or the socket path. Both have a
+  paper broker type since [ADR 018](../adr/018-broker-transport-venue-matrix.md), so this
+  is now a question about options support on each transport rather than about venue
+  plumbing.
 
 ## Related Docs
 
