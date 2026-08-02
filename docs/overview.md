@@ -10,8 +10,8 @@ Related: [Architecture Conventions](architecture/architecture-conventions.md), [
 ## What this app is
 
 A research framework for developing, backtesting, and paper-trading quantitative strategies. It
-supports historical and rolling-window evaluation, simulated execution, strategy comparison, and
-human-reviewed promotion workflows. Broker-connected and live-trading paths are advanced,
+supports historical backtesting and walk-forward optimization, simulated execution, strategy
+comparison, and human-reviewed promotion workflows. Broker-connected and live-trading paths are advanced,
 experimental surfaces protected by explicit safety gates.
 
 Design goals:
@@ -52,9 +52,10 @@ Design goals:
 
 ## What it can do today
 
-- **Multi-strategy backtesting and rolling-window robustness analysis** that run the real strategy
-  signal functions, persist completed result trees atomically, distinguish run purpose, and derive
-  experiment/window summaries from member runs.
+- **Multi-strategy backtesting and walk-forward optimization** (`backtest-optimize`) that run the
+  real strategy signal functions, persist completed result trees atomically, distinguish run
+  purpose, and derive experiment/window summaries from member runs. The older rolling-window
+  robustness path was retired — see [ADR 016](adr/016-optimizer-experiments-as-research-evidence.md).
 - **Canonical evaluation** (`src/trading/services/evaluation/`) fusing backtest, walk-forward, and
   paper/live evidence into confidence + a blended score, exposed through one decision-score contract
   (`EvaluationDecisionScore`).

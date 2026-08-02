@@ -193,9 +193,6 @@ guards activity that is not happening.
   the simulator always fills? Unknown until Phase 2.
 - Intraday bar source for Phase 4 is undecided; the current market-data provider path is
   daily-close oriented.
-- Operators who previously registered the `Trading\DailySnapshot` scheduler task must
-  remove it by hand — `manage_job_schedules --unregister` no longer knows the name, and
-  the task now points at a deleted module.
 - Whether options execution goes through the Web API or the socket path — the socket
   path has no paper broker type today.
 
