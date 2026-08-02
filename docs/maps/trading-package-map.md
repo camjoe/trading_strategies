@@ -253,6 +253,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 |---|---|
 | `accounting.py` | Cash and equity accounting rules |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
 | `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
@@ -272,6 +273,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `rotation/policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
 | `rotation/score_components.py` | Pure stability and drawdown-penalty derivations for rotation scoring |
 | `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
+| `strategies/indicator_view.py` | Precompute a strategy's declared indicators over one ticker's bars (`build_signal_inputs`) and read them one bar at a time (`IndicatorView`) |
 | `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
 | `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
 | `strategies/resolution.py` | Strategy label/alias resolution and shared signal evaluation entrypoints |
