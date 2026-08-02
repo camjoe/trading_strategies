@@ -178,7 +178,7 @@ def execute_promotion_review_request(
         )
         _record_review_event(
             conn,
-            review_id=int(review.id),
+            review_id=review.id,
             event_type=PromotionReviewEventType.REQUESTED,
             actor_name=normalized_requested_by,
             from_review_state=None,
@@ -187,7 +187,7 @@ def execute_promotion_review_request(
             event_payload=_request_event_payload(assessment),
             created_at=created_at,
         )
-        refreshed = repo.fetch_by_id(review_id=int(review.id))
+        refreshed = repo.fetch_by_id(review_id=review.id)
     if refreshed is None:
         raise ValueError(f"Promotion review {review.id} not found after request creation.")
     return refreshed
@@ -223,7 +223,7 @@ def _execute_promotion_review_note(
     with conn:
         _record_review_event(
             conn,
-            review_id=int(review.id),
+            review_id=review.id,
             event_type=PromotionReviewEventType.NOTE_ADDED,
             actor_name=actor_name,
             from_review_state=review.review_state,
@@ -234,7 +234,7 @@ def _execute_promotion_review_note(
         )
         return _update_review(
             conn,
-            review_id=int(review.id),
+            review_id=review.id,
             expected_review_state=PromotionReviewState.REQUESTED,
             review_state=review.review_state,
             reviewed_by=review.reviewed_by,

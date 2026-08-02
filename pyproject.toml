@@ -43,3 +43,14 @@ exclude = ["paper_trading_web.frontend*"]
 # `infrastructure` (and a future src/trading) are PEP 420 namespace packages
 # with no top-level __init__.py, so namespace discovery must be enabled.
 namespaces = true
+
+[tool.mypy]
+# mypy has to be told the src/ layout, or it cannot map a file path to a module
+# name and stops before checking anything.
+#
+# Set mypy_path here and not via the MYPYPATH environment variable: mypy splits
+# that variable on os.pathsep — ';' on Windows — so a colon-separated value is
+# read as one nonexistent directory, intra-repo modules silently fall back to
+# Any, and the run reports far fewer errors than exist.
+mypy_path = "src:apps/paper_trading_web/backend"
+explicit_package_bases = true

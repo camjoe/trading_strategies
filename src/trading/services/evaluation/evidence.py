@@ -264,6 +264,9 @@ def _book_strategy_evidence(
         return EvaluationPaperLiveEvidence()
     starting_equity = starting_snapshot.equity
 
+    # Declared up front: the open-window branch assigns a known-present snapshot,
+    # the closed-window branch a lookup that may miss and returns early.
+    ending_snapshot: EquitySnapshotRecord | None
     if window_end is None:
         ending_snapshot = latest_snapshot
         source_level = ACTIVE_STRATEGY_WINDOW_SOURCE_LEVEL

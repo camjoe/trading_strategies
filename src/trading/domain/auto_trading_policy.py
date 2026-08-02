@@ -5,8 +5,6 @@ import random
 from collections.abc import Sequence
 from typing import Any, Protocol
 
-from trading.models import AccountState
-
 # ---------------------------------------------------------------------------
 # Order sizing
 # ---------------------------------------------------------------------------
@@ -54,6 +52,21 @@ OPTION_PREMIUM_FLOOR = 0.5
 
 class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
+
+
+class PositionCostState(Protocol):
+    """Carries per-ticker average cost — all a risk exit needs to price a holding.
+
+    ``AccountState`` and ``BookTradeState`` both satisfy this. Naming either
+    concretely would exclude the other, and execution is book-keyed (ADR 010),
+    so the only caller passes a book state.
+
+    Declared read-only: a plain annotation would demand a *settable* attribute,
+    which a frozen dataclass like ``BookTradeState`` does not offer.
+    """
+
+    @property
+    def avg_cost(self) -> dict[str, float]: ...
 
 
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
@@ -245,7 +258,7 @@ def option_candidate_allowed(
 def choose_sell_ticker_by_risk(
     can_sell: list[str],
     prices: dict[str, float],
-    state: AccountState,
+    state: PositionCostState,
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,

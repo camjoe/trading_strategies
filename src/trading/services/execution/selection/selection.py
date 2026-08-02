@@ -8,7 +8,7 @@ from typing import Callable, Mapping, Protocol, cast
 import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
-from common.coercion import row_int
+from common.coercion import coerce_int
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
 
@@ -278,8 +278,11 @@ def _size_buy_for_ticker(
             auto_trader_policy.estimate_option_premium(
                 price,
                 delta_est,
-                row_int(option_settings, "option_min_dte"),
-                row_int(option_settings, "option_max_dte"),
+                # Indexed directly: option_settings is an AccountPolicyInput
+                # protocol (__getitem__ only), not a Mapping, so the row_* helpers
+                # do not apply. row_int is exactly this coercion over a lookup.
+                coerce_int(option_settings["option_min_dte"]),
+                coerce_int(option_settings["option_max_dte"]),
             )
         )
     else:
