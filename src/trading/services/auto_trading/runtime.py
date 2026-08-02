@@ -19,12 +19,10 @@ from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
 from trading.models.execution import (
     BookRunAudit,
-    BookTradeCandidate,
     BookTradeIntent,
     RiskGateConfig,
     RiskGateDecision,
 )
-from trading.models.orders import OrderFill
 from trading.services.accounts import get_account
 from trading.services.books.rotation.account_rotation import run_account_book_rotations
 from trading.services.books.sector_config import load_symbol_sector_map
@@ -34,7 +32,6 @@ from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.open_order_reconciliation import (
     ReconciliationOutcome,
     reconcile_open_orders_impl,
-    resolve_reconciliation_exec_id,
 )
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.reconciliation import reconcile_book_equity
@@ -61,19 +58,6 @@ def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
     reporting an indistinguishable zero-trade result.
     """
     return is_regular_us_equity_market_open(parse_utc_iso(now_iso or utc_now_iso()))
-
-
-def _resolve_reconciliation_exec_id(
-    *,
-    broker_order_id: str,
-    fill: OrderFill,
-    fill_index: int,
-) -> str:
-    return resolve_reconciliation_exec_id(
-        broker_order_id=broker_order_id,
-        fill=fill,
-        fill_index=fill_index,
-    )
 
 
 def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
@@ -120,23 +104,19 @@ def _run_books_for_account(
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
         return 0
 
-    # Intents are book-keyed; keep the book → intent context for the audit
-    # trail and fill notes (the intent's book_id feeds the risk audit).
-    book_intents: list[BookTradeIntent] = []
-    candidate_by_book: dict[int, BookTradeCandidate] = {}
-    for candidate in intents:
-        book_intents.append(
-            BookTradeIntent(
-                book_id=candidate.book_id,
-                account_id=candidate.account_id,
-                strategy_id=None,
-                symbol=candidate.symbol,
-                side=candidate.side,
-                qty=float(candidate.qty),
-                requested_price=float(candidate.requested_price),
-            )
+    # Intents are book-keyed; the intent's book_id feeds the risk audit.
+    book_intents: list[BookTradeIntent] = [
+        BookTradeIntent(
+            book_id=candidate.book_id,
+            account_id=candidate.account_id,
+            strategy_id=None,
+            symbol=candidate.symbol,
+            side=candidate.side,
+            qty=float(candidate.qty),
+            requested_price=float(candidate.requested_price),
         )
-        candidate_by_book[candidate.book_id] = candidate
+        for candidate in intents
+    ]
 
     # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
     # for the run (reconciliation is per-run, not
@@ -173,14 +153,12 @@ def _run_books_for_account(
     broker = broker_factory(account)
     try:
         for book_id, book_intents_for_book in approved_by_book.items():
-            candidate = candidate_by_book[book_id]
-
             # The global trade throttle (operational settings) applies across
             # the whole run: once exceeded, no further books submit.
             try:
                 enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso())
             except RuntimeTradeThrottleExceededError:
-                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=candidate.book_id)
+                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=book_id)
                 break
 
             result = submit_book_intents(
@@ -195,7 +173,7 @@ def _run_books_for_account(
             audit.submitted_count += result.submitted_count
             if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
                 audit.kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
-                audit.record_block(KILL_SWITCH_REASON_BROKER_API_ANOMALY, book_id=candidate.book_id)
+                audit.record_block(KILL_SWITCH_REASON_BROKER_API_ANOMALY, book_id=book_id)
                 break
 
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)

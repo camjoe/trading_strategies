@@ -66,7 +66,7 @@ def run_dag_step(
     step_results: list[DagStepResult],
     *,
     step_id: str,
-    run_fn: Callable[[], object],
+    run_fn: Callable[[], dict[str, object] | None],
     now_iso: Callable[[], str],
 ) -> DagStepResult:
     result = step_result(step_results, step_id)
@@ -87,7 +87,7 @@ def run_dag_step(
     result.status = "ok"
     result.finished_at = now_iso()
     result.duration_seconds = round((finish_time - start_time).total_seconds(), 6)
-    result.details = details if isinstance(details, dict) else {"value": details}
+    result.details = details
     return result
 
 

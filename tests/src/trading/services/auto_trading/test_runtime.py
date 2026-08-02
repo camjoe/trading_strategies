@@ -61,20 +61,6 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     broker_factory.assert_not_called()
 
 
-def test_runtime_wrapper_delegates(monkeypatch) -> None:
-    resolved_exec = Mock(return_value="exec-id")
-    monkeypatch.setattr(runtime_service, "resolve_reconciliation_exec_id", resolved_exec)
-
-    assert (
-        runtime_service._resolve_reconciliation_exec_id(
-            broker_order_id="b1",
-            fill=Mock(),
-            fill_index=0,
-        )
-        == "exec-id"
-    )
-
-
 def test_is_runtime_submission_window_open_parses_iso_before_market_hours_check(monkeypatch) -> None:
     parse_iso = Mock(return_value="parsed-dt")
     market_open = Mock(return_value=True)
