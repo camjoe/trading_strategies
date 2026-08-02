@@ -316,7 +316,9 @@ this system; the UI is an optional consumer that views results and edits paramet
 the same services.  Every capability must be reachable from the scheduler and CLI without
 the UI — never make a capability, contract, or parameter editable *only* through the UI,
 and do not design contracts around UI convenience.  UI-shaping (camelCase JSON, response
-payloads) stays at the UI backend boundary only.
+payloads) stays at the UI backend boundary only.  This also sets the order of work per
+feature: settle the service contract first, then build UI on it — never build UI against a
+contract still in flux.
 
 HTTP error mapping follows the same boundary:
 
