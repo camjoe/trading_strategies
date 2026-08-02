@@ -21,6 +21,7 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
+from trading.repositories.unit_of_work import commit_unit_of_work
 
 # The book rotation-policy fields an operator may set; None clears a field back
 # to the RotationPolicyConfig code default. Also every rotation-policy column
@@ -51,8 +52,11 @@ def _resolve_book_id(conn: sqlite3.Connection, *, account_name: str, book_name: 
         raise NotFoundError(f"Account not found: {account_name}")
     if book_name is None:
         # The default book is bootstrapped on first write; an edit is a write.
+        # book_bridge leaves the commit to its caller, and this is that caller —
+        # via commit_unit_of_work, so the bootstrap joins an enclosing
+        # unit_of_work rather than hard-committing out from under it.
         book_id = default_book_id(conn, account.id)
-        conn.commit()
+        commit_unit_of_work(conn)
         return book_id
     for book in BookRepository(conn).fetch_for_account(account_id=account.id):
         if book.name == book_name:

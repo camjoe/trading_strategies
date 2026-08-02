@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-21
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-08-02
 Purpose: How to group several database writes into one all-or-nothing transaction with `unit_of_work`, and how repositories participate via `commit_unit_of_work`.
 Related: [Architecture Conventions](../architecture/architecture-conventions.md), [DB Migration System](db-migration-system.md)
 
@@ -47,10 +47,10 @@ connection, because `sqlite3.Connection` supports neither attribute assignment
 nor weak references. Connection-id reuse across closed connections is therefore
 harmless.
 
-The fill-accounting path is the worked example: `apply_book_fill` and its three
-callers (submission, reconciliation, manual accounting) wrap their per-order
-sequences, so the order row, its fills, and the book accounting land together or
-not at all. See `src/trading/services/execution/submission.py`.
+The fill-accounting path is the worked example: every caller of `apply_book_fill`
+(submission, reconciliation, manual accounting, fixture seeding) wraps its
+per-order sequence, so the order row, its fills, and the book accounting land
+together or not at all. See `src/trading/services/execution/submission.py`.
 
 ## Usage
 
@@ -83,17 +83,23 @@ The broker/network call that produces the data must stay **outside** the
 
 ## Boundaries
 
-- **Every repository write must use `commit_unit_of_work`.** A write that
+- **Every write must use `commit_unit_of_work`, services included.** A write that
   hard-commits (`conn.commit()`) inside a scope ends the transaction early and
-  silently defeats the rollback guarantee. This is now uniform across
-  `trading/repositories/`, so a new write should follow suit rather than
-  hard-committing and waiting to be converted when some caller later needs
-  atomicity. `tests/src/trading/repositories/test_repository_transaction_participation.py`
-  guards the rule.
+  silently defeats the rollback guarantee — and it does so quietly, because the
+  code works until the day some caller wraps it. This holds across
+  `trading/repositories/` and for the few services that own a commit on a
+  repository's behalf (see the caller-owned boundary below).
+  `tests/src/trading/repositories/test_repository_transaction_participation.py`
+  guards it, but only behaviorally and only for the repositories it names — it
+  does not scan for the pattern, so a service that hard-commits will not be
+  caught.
 - **A few repositories intentionally do not commit at all** — `book_bridge`,
   `promotion`, and `book_assignments` leave the commit to their caller. That is a
   deliberate caller-owned boundary, not an oversight; do not "fix" them by adding
-  a commit without checking the callers.
+  a commit without checking the callers. The caller discharging that duty still
+  uses `commit_unit_of_work`, not `conn.commit()` — see `_resolve_book_id` in
+  `services/parameters/mutations.py`, which commits `book_bridge`'s default-book
+  bootstrap.
 - **The primitive lives in the repository layer** (`trading/repositories/`), not
   `infrastructure/database/`, so services can import it without crossing the
   `trading/services → no direct database imports` boundary enforced by
