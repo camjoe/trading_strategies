@@ -42,7 +42,18 @@ def _stub_build_daily_operator_report(monkeypatch):
 
 
 @pytest.fixture
-def _runtime_harness(monkeypatch):
+def _runtime_harness(monkeypatch, conn):
+    """Stub the subprocess/notification surface and isolate the DB.
+
+    Steps 06/07 (risk gate, submission summary) call ``ensure_db()`` for real —
+    they are not routed through the stubbed ``stream_command``. Without ``conn``
+    swapping the backend, they would silently open whatever ``local/paper_trading.db``
+    happens to exist on disk: migrated and populated on a dev machine, absent (and
+    then created empty) on a clean CI checkout, where every one of these tests
+    would fail with a schema-revision mismatch instead of running against an
+    isolated, empty, head-migrated database.
+    """
+
     @dataclass
     class RuntimeHarnessState:
         accounts: list[str] = field(default_factory=lambda: ["acct_a"])
@@ -618,10 +629,10 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
         run_module_as_main(module.__name__)
 
 
-def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, conn, _runtime_harness) -> None:
+def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     # Run the package's __main__ shim (not the package itself): popping/re-executing
     # the package __init__ via runpy would corrupt the shared module object for
-    # sibling tests. conn keeps get_backend() off the real on-disk database.
+    # sibling tests. _runtime_harness keeps get_backend() off the real on-disk database.
     monkeypatch.setattr(
         sys,
         "argv",
