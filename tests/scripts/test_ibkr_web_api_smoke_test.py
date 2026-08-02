@@ -7,7 +7,7 @@ import pytest
 
 from infrastructure.brokers.ibkr_web import IbWebApiSettings
 from scripts import ibkr_web_api_smoke_test
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderStatus
 
 
 class _FakeClient:

@@ -7,7 +7,7 @@ from common.coercion import coerce_float
 from common.time import utc_now_iso
 from trading.domain.rotation.schedule import dump_rotation_schedule
 from trading.domain.strategies.resolution import validate_strategy_name
-from trading.models.accounts.account_config import AccountConfig
+from trading.models.accounts import AccountConfig
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.services.accounts import (

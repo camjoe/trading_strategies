@@ -8,7 +8,7 @@ confidence or decisions — it only produces a diagnostic an operator can read.
 from __future__ import annotations
 
 from common.time import days_between
-from trading.models.evaluation.backtest_freshness import BacktestFreshness
+from trading.models.evaluation import BacktestFreshness
 
 # Research evidence is the holdout run of an on-demand optimizer experiment, not
 # output of a daily job, so the honest question is "has the market moved on since

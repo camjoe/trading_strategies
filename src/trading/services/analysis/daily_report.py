@@ -18,9 +18,8 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import asdict, dataclass, field
 
-from trading.models.books.book_assignment_view import BookAssignmentView
-from trading.models.books.book_record import BookRecord
-from trading.models.orders.order_record import OrderRecord
+from trading.models.books import BookAssignmentView, BookRecord
+from trading.models.orders import OrderRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository

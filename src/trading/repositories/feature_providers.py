@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.strategy.feature_provider_record import FeatureProviderRecord
+from trading.models.strategy import FeatureProviderRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 

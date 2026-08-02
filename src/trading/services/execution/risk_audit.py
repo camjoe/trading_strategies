@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.execution.book_run_audit import BookRunAudit
+from trading.models.execution import BookRunAudit
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository

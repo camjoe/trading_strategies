@@ -27,7 +27,7 @@ from trading.backtesting.repositories.optimization_repository import (
 )
 from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.models.strategy.strategy_record import StrategyRecord
+from trading.models.strategy import StrategyRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.strategies import StrategyRepository
 

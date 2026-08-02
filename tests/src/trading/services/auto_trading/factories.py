@@ -5,9 +5,9 @@ from unittest.mock import Mock
 
 from tests.support.account_records import make_account_record, make_book_record
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
-from trading.models.accounts.account_state import AccountState
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.orders.broker_order import OrderStatus
+from trading.models.accounts import AccountState
+from trading.models.execution import BookTradeCandidate
+from trading.models.orders import OrderStatus
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
 MARKET_CLOSED_TIME_ISO = "2026-03-15T15:00:00Z"

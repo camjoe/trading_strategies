@@ -8,9 +8,7 @@ from datetime import timedelta
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
 from trading.domain.rotation.schedule import parse_rotation_schedule
-from trading.models.rotation.rotation_decision import RotationDecision
-from trading.models.rotation.rotation_score_weights import RotationScoreWeights
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationDecision, RotationScoreWeights, RotationStrategyMetrics
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository

@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.account_exposure import AccountExposure
-from trading.models.portfolio.portfolio_concentration import PortfolioConcentration
-from trading.models.portfolio.portfolio_exposure_rollup import PortfolioExposureRollup
+from trading.models.portfolio import AccountExposure, PortfolioConcentration, PortfolioExposureRollup
 from trading.services.analysis import fetch_portfolio_concentration, fetch_portfolio_exposure
 
 

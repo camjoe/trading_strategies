@@ -11,14 +11,7 @@ import pandas as pd
 import pytest
 
 from trading.domain.bars import normalize_bar_frame
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_COLUMNS,
-    BAR_HIGH,
-    BAR_LOW,
-    BAR_OPEN,
-    BAR_VOLUME,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
 def _frame(index, **columns) -> pd.DataFrame:

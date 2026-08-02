@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.ledger_entry_record import LedgerEntryRecord
+from trading.models.books import LedgerEntryRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 

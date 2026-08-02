@@ -10,14 +10,7 @@ import pytest
 import infrastructure.market_data.yfinance_provider as provider_module
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from infrastructure.market_data.unavailable_provider import UnavailableProvider
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_COLUMNS,
-    BAR_HIGH,
-    BAR_LOW,
-    BAR_OPEN,
-    BAR_VOLUME,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
 def _multi_ticker_download() -> pd.DataFrame:

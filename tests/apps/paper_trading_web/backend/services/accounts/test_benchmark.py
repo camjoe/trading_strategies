@@ -5,7 +5,7 @@ import pytest
 from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
 
 import trading.services.analysis.benchmark as analysis_benchmark
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 
 
 def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:

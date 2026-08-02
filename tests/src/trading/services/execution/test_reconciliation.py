@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from tests.support.repositories import insert_repository_account
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.models.execution import BookTradeIntent
+from trading.models.orders import BrokerOrder, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.books import BookRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

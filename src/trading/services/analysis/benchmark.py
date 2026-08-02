@@ -14,7 +14,7 @@ from datetime import date
 import pandas as pd
 
 from common.coercion import coerce_float
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.market_data import MarketDataProvider, require_provider
 
 

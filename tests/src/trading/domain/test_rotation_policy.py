@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 
 
 def _incumbent() -> RotationStrategyMetrics:

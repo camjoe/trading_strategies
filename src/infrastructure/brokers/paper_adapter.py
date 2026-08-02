@@ -11,7 +11,7 @@ import uuid
 
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
 
 
 class PaperBrokerAdapter(BrokerConnection):

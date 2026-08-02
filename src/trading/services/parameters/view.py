@@ -14,12 +14,14 @@ from typing import Any
 
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive
-from trading.models.books.book_record import BookRecord
-from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
-from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
-from trading.models.parameters.parameter_entry import ParameterEntry
-from trading.models.parameters.parameter_group import ParameterGroup
-from trading.models.parameters.parameter_source_view import ParameterSourceView
+from trading.models.books import BookRecord, BookRotationSettingsRecord
+from trading.models.parameters import (
+    PARAMETER_SOURCE_DB,
+    PARAMETER_SOURCE_DEFAULT,
+    ParameterEntry,
+    ParameterGroup,
+    ParameterSourceView,
+)
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository

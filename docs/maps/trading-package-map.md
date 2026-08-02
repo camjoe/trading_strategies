@@ -22,7 +22,7 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
 - `src/trading/domain/`: side-effect-free policy/math/state-transition logic and DI contracts (`BrokerConnection`, `FeatureFetcherSet`, `StrategySpec`)
-- `src/trading/models/`: all passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models, and domain value objects), organized into feature subfolders. The **lowest layer** — imports nothing from other trading layers or infrastructure.
+- `src/trading/models/`: all passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models, and domain value objects), organized into feature modules. The **lowest layer** — imports nothing from other trading layers or infrastructure.
 
 Concrete infrastructure (database, brokers, feature providers, the market-data adapter, and static config assets) lives in the sibling `src/infrastructure/` package — see the [Infrastructure Map](infrastructure-map.md). Persistence flows through `src/trading/repositories/` into `src/infrastructure/database/`; the other adapters are injected at the interface layer.
 
@@ -285,21 +285,25 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 Passive data contracts — the **lowest layer**. No business logic, no I/O, and no
 imports from `domain`/`services`/`repositories`/`interfaces`/`infrastructure`
-(enforced by `scripts/checks/repo/layer_check.py`). Organized into feature subfolders;
-each holds one contract per file. The package root and each subpackage re-export
-their public types.
+(enforced by `scripts/checks/repo/layer_check.py`). Organized into feature modules;
+each holds every contract for its feature, plus that feature's vocabulary
+constants. The package root re-exports the stable public types; consumers
+otherwise import from the feature module (`from trading.models.books import BookRecord`).
 
-| Subfolder | Contracts |
+| Module | Contracts |
 |---|---|
-| `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
-| `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
-| `parameters/` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants |
-| `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioConcentration`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord`, `SectorConcentration`, `SymbolConcentration` + rollup vocabulary constants |
-| `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
-| `strategy/` | `StrategyRecord` |
-| `settings/` | `GlobalSettingsRecord` |
-| `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
-| `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |
+| `accounts.py` | `AccountRecord` (implements `Mapping`), `AccountInsert`, `AccountConfig`, `AccountState`, `AccountDeletionPreview` + config field-name vocabulary |
+| `books.py` | `BookRecord` (implements `Mapping`), `BookAssignmentView`, `BookStrategyAssignmentRecord`, `TradingBook`, `BookRotationSettingsRecord`, `BookRotationSettingsChangeEvent`, `RotationDecisionRecord`, `PositionRecord`, `LedgerEntryRecord`, `BookFillTransition`, `RiskDecisionRecord`, `RiskSnapshotRecord` + settings-group vocabulary |
+| `execution.py` | `BookTradeCandidate`, `BookTradeIntent`, `BookTradeState`, `RiskGateConfig`, `RiskGatePosition`, `RiskGateDecision`, `RiskGateResult`, `GateResult`, `SubmissionResult`, `BookNavMarkResult`, `BookRunAudit` + risk-gate defaults |
+| `orders.py` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `OrderRecord` |
+| `parameters.py` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants |
+| `portfolio.py` | `EquitySnapshotRecord`, `DailyMetricRecord`, `AccountExposure`, `PortfolioExposureRollup`, `SymbolConcentration`, `SectorConcentration`, `PortfolioConcentration` + rollup vocabulary constants |
+| `rotation.py` | `BookRotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationScoreWeights`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationDecision` |
+| `strategy.py` | `StrategyRecord`, `FeatureProviderRecord` |
+| `settings.py` | `GlobalSettingsRecord`, `GlobalSettingsChangeEvent` + settings-group vocabulary |
+| `evaluation.py` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `BacktestFreshness`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDecisionScore`, `EvaluationDiagnostics`) + version constants |
+| `promotion.py` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + `PromotionStage`/`PromotionStatus`/`PromotionReviewState`/`PromotionReviewEventType` enums and review vocabulary |
+| `market_data.py` | Bar-column vocabulary (`BAR_OPEN`/`BAR_HIGH`/`BAR_LOW`/`BAR_CLOSE`/`BAR_VOLUME`, `BAR_COLUMNS`, `BAR_PRICE_COLUMNS`, `BAR_VOLUME_FILL`) |
 
 ---
 

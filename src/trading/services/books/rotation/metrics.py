@@ -22,7 +22,7 @@ from trading.domain.rotation.score_components import (
 )
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.models import AccountRecord
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.repositories.strategies import StrategyRepository
 
 

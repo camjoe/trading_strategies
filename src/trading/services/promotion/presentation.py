@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.evaluation.backtest_freshness import BacktestFreshness
+from trading.models.evaluation import BacktestFreshness
 from trading.models.promotion import PromotionAssessment
 from trading.services.promotion.assessment import fetch_promotion_assessment
 from trading.services.promotion.helpers import NONE_TEXT, render_bool, render_section

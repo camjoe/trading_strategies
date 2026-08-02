@@ -20,9 +20,7 @@ from tests.src.trading.services.auto_trading.factories import (
     make_book_trade_candidate,
 )
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.submission_result import SubmissionResult
+from trading.models.execution import BookTradeIntent, GateResult, SubmissionResult
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_BROKER_API_ANOMALY,
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,

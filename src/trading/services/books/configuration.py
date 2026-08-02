@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from common.coercion import expect_float, expect_int
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.models.accounts.account_config import AccountConfig
-from trading.models.books.book_record import BookRecord
+from trading.models.accounts import AccountConfig
+from trading.models.books import BookRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository

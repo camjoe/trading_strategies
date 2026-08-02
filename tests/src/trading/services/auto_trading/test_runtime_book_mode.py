@@ -7,13 +7,9 @@ import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
-from trading.models.evaluation import (
-    EvaluationBacktestEvidence,
-    EvaluationConfidence,
-    StrategyEvaluationArtifact,
-)
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.orders.broker_order import OrderFill, OrderStatus
+from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
+from trading.models.execution import BookTradeCandidate
+from trading.models.orders import OrderFill, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository

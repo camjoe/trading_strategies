@@ -5,8 +5,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from tests.support.repositories import insert_repository_account
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.execution import BookTradeIntent, RiskGateDecision
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

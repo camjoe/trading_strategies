@@ -68,7 +68,7 @@ def settlement_corrected_equity(state: object, prices: object) -> float:
     priced at ``_SETTLEMENT_PRICE`` before calling this function (see
     ``inject_settlement_price``).
     """
-    from trading.models.accounts.account_state import AccountState
+    from trading.models.accounts import AccountState
 
     if not isinstance(state, AccountState) or not isinstance(prices, dict):
         return 0.0
@@ -83,7 +83,7 @@ def inject_settlement_price(state: object, prices: object) -> None:
     function inserts that price only if it is missing, and only when the
     state actually holds a settlement position.
     """
-    from trading.models.accounts.account_state import AccountState
+    from trading.models.accounts import AccountState
 
     if not isinstance(state, AccountState) or not isinstance(prices, dict):
         return
@@ -93,7 +93,7 @@ def inject_settlement_price(state: object, prices: object) -> None:
 
 def settlement_cash(state: object, prices: object) -> float:
     """Return the cash component of an account state, or 0 if state is missing."""
-    from trading.models.accounts.account_state import AccountState
+    from trading.models.accounts import AccountState
 
     if not isinstance(state, AccountState):
         return 0.0

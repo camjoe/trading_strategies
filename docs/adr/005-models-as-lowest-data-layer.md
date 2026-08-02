@@ -4,7 +4,7 @@ Type: adr
 Status: Accepted
 Created: 2026-06-25
 Last Reviewed: 2026-06-25
-Purpose: Record the decision to make src/trading/models/ the single home for all passive data contracts, organized into feature subfolders and importing nothing from higher layers.
+Purpose: Record the decision to make src/trading/models/ the single home for all passive data contracts, organized into feature modules and importing nothing from higher layers.
 Related: [Architecture Conventions](../architecture/architecture-conventions.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Context
@@ -39,11 +39,11 @@ rather than cleanly layered.
    `StrategySpec`). Moving those to `models/` would reintroduce `models → domain`
    imports.
 
-4. **`models/` is organized into feature subfolders** (`accounts/`, `orders/`,
-   `portfolio/`, `books/`, `rotation/`, `strategy/`, `settings/`, `evaluation/`,
-   `promotion/`), one contract per file. The package root re-exports the public
-   types; the cluster subpackages (`evaluation/`, `promotion/`) also re-export
-   from their `__init__`.
+4. **`models/` is organized into feature modules** (`accounts.py`, `orders.py`,
+   `portfolio.py`, `books.py`, `rotation.py`, `strategy.py`, `settings.py`,
+   `evaluation.py`, `promotion.py`), each holding every contract for its feature.
+   The package root re-exports the stable public types; consumers otherwise import
+   from the feature module (`from trading.models.books import BookRecord`).
 
 5. **Serialization that needs domain helpers stays out of the model.**
    `RotationConfig.to_db_dict()` returns the raw field→column mapping; the JSON
@@ -55,15 +55,16 @@ rather than cleanly layered.
    than dumping them in one place:
    - Generic, domain-agnostic primitives → `src/common/constants.py`.
    - A feature's data-contract vocabulary / schema metadata (allowed `status`
-     values, artifact versions) → that feature's `constants.py` in `models/`
-     (e.g. `models/promotion/constants.py`). `domain` policy then *reads* that
-     vocabulary from `models/` — the correct direction.
+     values, artifact versions) → the top of that feature's module in `models/`
+     (e.g. `models/promotion.py`). `domain` policy then *reads* that vocabulary
+     from `models/` — the correct direction.
    - Domain policy parameters (math weights, thresholds, gate messages) → the
      owning `domain/` module.
    - One-off values → top of the single file that uses them.
 
-   Because these moved with their dataclasses, `models/{evaluation,promotion}/`
-   gained `constants.py` files; that is intentional, not an accidental third tier.
+   Because these moved with their dataclasses, `models/evaluation.py` and
+   `models/promotion.py` carry their own vocabulary constants; that is
+   intentional, not an accidental third tier.
 
 ## Consequences
 
@@ -72,7 +73,7 @@ Benefits:
 - A single, testable rule for where a data contract lives ("is it passive data?
   → `models/`").
 - `models/` is a true foundation layer with an enforced no-upward-imports rule.
-- The flat `models/` sprawl is resolved by feature subfolders.
+- The flat `models/` sprawl is resolved by feature modules.
 
 Resolved:
 

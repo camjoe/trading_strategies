@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from trading.models.market_data.constants import BAR_CLOSE, BAR_COLUMNS, BAR_VOLUME
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_VOLUME
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 
 

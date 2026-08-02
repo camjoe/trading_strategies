@@ -4,7 +4,7 @@ import trading.services.auto_trading.runtime as runtime_service
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 from tests.support.db_schema import memory_db_at_head
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository

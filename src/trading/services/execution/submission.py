@@ -6,9 +6,8 @@ from collections.abc import Sequence
 from common.time import utc_now_iso
 from trading.domain.book_accounting import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.submission_result import SubmissionResult
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.models.execution import BookTradeIntent, SubmissionResult
+from trading.models.orders import BrokerOrder, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository

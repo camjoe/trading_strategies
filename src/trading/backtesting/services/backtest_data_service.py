@@ -7,7 +7,7 @@ import pandas as pd
 
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
-from trading.models.market_data.constants import BAR_CLOSE
+from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
 
 DATE_FMT = "%Y-%m-%d"

@@ -4,13 +4,13 @@ import json
 import sqlite3
 from collections.abc import Mapping
 
-from trading.models.settings.constants import (
+from trading.models.settings import (
     GLOBAL_SETTINGS_GROUP_EVALUATION,
     GLOBAL_SETTINGS_GROUP_PROMOTION,
     GLOBAL_SETTINGS_GROUP_THROTTLE,
+    GlobalSettingsChangeEvent,
+    GlobalSettingsRecord,
 )
-from trading.models.settings.global_settings_change_event import GlobalSettingsChangeEvent
-from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Compact JSON storage keeps persisted change-event payloads stable and easy to diff.

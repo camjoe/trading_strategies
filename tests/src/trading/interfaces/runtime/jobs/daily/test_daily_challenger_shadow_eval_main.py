@@ -17,7 +17,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     write_completed_runtime_log,
 )
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.services.books.rotation.challenger_evaluation import BookChallengerEvaluation, ChallengerEvaluationRun
 
 EXPORT_DIR_PARTS = ("local", "exports", "daily_challenger_shadow_eval")

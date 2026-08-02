@@ -4,11 +4,11 @@ import json
 import sqlite3
 from collections.abc import Mapping
 
-from trading.models.books.book_rotation_settings_change_event import BookRotationSettingsChangeEvent
-from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
-from trading.models.books.constants import (
+from trading.models.books import (
     BOOK_ROTATION_SETTINGS_GROUP_POLICY,
     BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING,
+    BookRotationSettingsChangeEvent,
+    BookRotationSettingsRecord,
 )
 from trading.repositories.unit_of_work import commit_unit_of_work
 

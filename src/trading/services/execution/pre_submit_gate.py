@@ -20,11 +20,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.models.execution.risk_gate_position import RiskGatePosition
+from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import (

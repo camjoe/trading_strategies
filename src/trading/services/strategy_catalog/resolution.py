@@ -22,7 +22,7 @@ from typing import Any
 from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.domain.strategies.resolution import resolve_strategy
-from trading.models.strategy.strategy_record import StrategyRecord
+from trading.models.strategy import StrategyRecord
 from trading.repositories.strategies import StrategyRepository
 
 

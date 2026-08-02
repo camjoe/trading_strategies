@@ -8,7 +8,7 @@ import pytest
 
 from common.constants import SETTLEMENT_TICKER
 from tests.support.analysis import make_analysis_account
-from trading.models.portfolio.constants import UNCATEGORIZED_SECTOR
+from trading.models.portfolio import UNCATEGORIZED_SECTOR
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.services.analysis import concentration as concentration_module, fetch_portfolio_concentration
