@@ -38,21 +38,19 @@ similar-return strategies; they cannot force a rotation on their own.
 | Component | Status | Source |
 |---|---|---|
 | `risk_adjusted_return` | Live | Blended evaluation decision score (`derive_decision_score`) |
-| `stability` | Live | Negative standard deviation of walk-forward window returns |
+| `stability` | Live | Consistency across walk-forward windows (`stability_from_window_returns`) |
 | `drawdown_penalty` | Live | Magnitude of backtest `max_drawdown_pct` |
 | `regime_fit` | **Live (2026-07-26)** | Family-derived affinity vs. a live ETF regime read — see below |
 
 The live derivations are in `src/trading/domain/rotation/score_components.py`; the
 metric build is `src/trading/services/books/rotation/metrics.py`.
 
-A fifth component, `cost_penalty`, existed as an always-zero placeholder (revision
-`0014` onward) and was removed (revision `0026`) rather than kept reserved: a
-turnover/trading-cost penalty would have double-counted, since backtest returns are
-already net of modeled per-trade fees, and no un-modeled cost dimension was ever
-identified to justify keeping the slot. If one is identified later (slippage beyond
-the modeled fee, market impact, bid/ask spread), the natural home is the backtest
-cost model, and a rotation weight can be re-added against a real metric at that
-point.
+A fifth component, `cost_penalty`, was an always-zero placeholder and was removed in
+revision `0026` — that revision's docstring holds the reasoning, and being an applied
+migration it cannot drift. What it does not say, because it is rotation-specific: if
+an un-modeled cost dimension is identified later (slippage beyond the modeled fee,
+market impact, bid/ask spread), the natural home is the backtest cost model, and a
+rotation weight can be re-added against a real metric at that point.
 
 ## `regime_fit` — as-built (2026-07-26)
 
