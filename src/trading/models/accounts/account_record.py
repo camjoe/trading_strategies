@@ -17,7 +17,6 @@ class AccountRecord(Mapping[str, object]):
 
     id: int
     name: str
-    account_kind: str
     initial_cash: float
     created_at: str
     benchmark_ticker: str
@@ -33,7 +32,6 @@ class AccountRecord(Mapping[str, object]):
         return cls(
             id=row_expect_int(values, "id"),
             name=row_expect_str(values, "name"),
-            account_kind=row_expect_str(values, "account_kind"),
             initial_cash=row_expect_float(values, "initial_cash"),
             created_at=row_expect_str(values, "created_at"),
             benchmark_ticker=row_expect_str(values, "benchmark_ticker"),

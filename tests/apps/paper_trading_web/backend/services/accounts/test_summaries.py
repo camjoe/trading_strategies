@@ -94,19 +94,17 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     )
 
     assert summary["equity"] == 1200.0
-    assert summary["accountKind"] == "managed"
     assert summary["brokerType"] == "paper"
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
 
 
-def test_build_account_list_payload_includes_account_kind() -> None:
+def test_build_account_list_payload_maps_summary_fields() -> None:
     payload = account_summaries.build_account_list_payload(
         {
             "name": "acct_one",
             "displayName": "Account One",
-            "accountKind": "local",
             "strategy": "trend",
             "instrumentMode": "equity",
             "benchmark": "SPY",
@@ -117,7 +115,8 @@ def test_build_account_list_payload_includes_account_kind() -> None:
             "latestSnapshotTime": None,
         }
     )
-    assert payload["accountKind"] == "local"
+    assert payload["name"] == "acct_one"
+    assert payload["strategy"] == "trend"
 
 
 def test_build_comparison_account_payload_includes_live_overlay_summary() -> None:

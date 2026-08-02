@@ -1,8 +1,8 @@
 """Autonomy monitoring service.
 
-Public surface for querying managed (``account_kind == "managed"``) account
-status, books, governance, burn-in progress, and risk summary. Used by the
-paper_trading_web autonomy dashboard and operators.
+Public surface for querying account status, books, governance, burn-in
+progress, and risk summary. Used by the paper_trading_web autonomy dashboard
+and operators.
 
 Concrete logic lives in focused modules beneath this package root.
 """

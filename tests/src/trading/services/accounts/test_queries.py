@@ -1,7 +1,6 @@
 import pytest
 
 from tests.support.seed.db import ACCT_TREND
-from trading.models import AccountConfig
 from trading.services.accounts import (
     create_account,
     find_account,
@@ -27,20 +26,13 @@ class TestAccountQueries:
     # Exact-list assertion on a known set — uses isolated conn to avoid noise
     # from the shared seeded DB.
     def test_list_account_records_returns_all_accounts(self, conn) -> None:
-        create_account(conn, "acct_managed", "Trend", 1000.0, "SPY")
-        create_account(
-            conn,
-            "acct_local",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="local"),
-        )
+        create_account(conn, "acct_alpha", "Trend", 1000.0, "SPY")
+        create_account(conn, "acct_beta", "Trend", 1000.0, "SPY")
         rows = list_account_records(conn)
         names = [row["name"] for row in rows]
 
-        assert names == ["acct_local", "acct_managed"]
-        assert list_account_names(conn) == ["acct_local", "acct_managed"]
+        assert names == ["acct_alpha", "acct_beta"]
+        assert list_account_names(conn) == ["acct_alpha", "acct_beta"]
 
 
 # ---------------------------------------------------------------------------

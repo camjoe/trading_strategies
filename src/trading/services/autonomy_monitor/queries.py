@@ -1,7 +1,7 @@
-"""Queries for autonomy (managed-account) monitoring data.
+"""Queries for autonomy monitoring data.
 
-Uses repository layer functions for all data access. Covers accounts with
-``account_kind == "managed"`` — the accounts the system runs autonomously.
+Uses repository layer functions for all data access. Covers every account the
+system runs autonomously (all accounts — there is no other kind).
 """
 
 from __future__ import annotations
@@ -18,9 +18,6 @@ from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.risk import RiskDecisionRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import list_report_books
-
-# Accounts the system runs autonomously (vs "local" research accounts).
-_MANAGED_ACCOUNT_KIND = "managed"
 
 
 def _return_pct(equity: float, basis: float) -> float:
@@ -58,12 +55,8 @@ def _build_account_overview(conn: sqlite3.Connection, account: AccountRecord) ->
 
 
 def fetch_autonomy_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Fetch list of managed accounts with book summary."""
-    return [
-        _build_account_overview(conn, account)
-        for account in AccountRepository(conn).fetch_all()
-        if account.account_kind == _MANAGED_ACCOUNT_KIND
-    ]
+    """Fetch list of accounts with book summary."""
+    return [_build_account_overview(conn, account) for account in AccountRepository(conn).fetch_all()]
 
 
 def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict[str, Any]]:

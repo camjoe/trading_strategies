@@ -38,7 +38,6 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
     return {
         "name": summary["name"],
         "displayName": summary["displayName"],
-        "accountKind": summary["accountKind"],
         "strategy": summary["strategy"],
         "instrumentMode": summary["instrumentMode"],
         "benchmark": summary["benchmark"],
@@ -96,7 +95,6 @@ def _build_summary_from_stats(
         "displayName": row.descriptive_name,
         "strategy": active_strategy,
         "instrumentMode": book.instrument_mode if book is not None else "equity",
-        "accountKind": row.account_kind,
         "brokerType": row.broker_type or "paper",
         "riskPolicy": book.risk_policy if book is not None else "none",
         "benchmark": row.benchmark_ticker,

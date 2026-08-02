@@ -8,7 +8,6 @@ class AccountInsert:
     """Repository-ready create payload after validation, defaults, and normalization."""
 
     name: str
-    account_kind: str
     initial_cash: float
     created_at: str
     updated_at: str

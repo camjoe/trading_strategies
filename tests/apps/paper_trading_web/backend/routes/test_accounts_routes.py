@@ -114,7 +114,6 @@ def test_account_detail_exposes_latest_backtest_summary(
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["account"]["accountKind"] == "managed"
     assert payload["account"]["brokerType"] == "paper"
     latest = payload["latestBacktest"]
     assert latest is not None

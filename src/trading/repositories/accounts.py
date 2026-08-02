@@ -8,7 +8,6 @@ from trading.repositories.unit_of_work import commit_unit_of_work
 
 _ACCOUNT_INSERT_COLUMNS = (
     "name",
-    "account_kind",
     "initial_cash",
     "created_at",
     "updated_at",

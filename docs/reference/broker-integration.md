@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-08-02
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -71,17 +71,11 @@ Broker-related account fields:
 
 | Field | Role |
 |---|---|
-| `account_kind` | account visibility/role (`managed`, `local`) |
 | `broker_type` | execution backend selection |
 | `broker_host` | socket/TWS host |
 | `broker_port` | socket/TWS port |
 | `broker_client_id` | socket/TWS client id |
 | `live_trading_enabled` | hard gate required for the live venues (`interactive_brokers_web`, `interactive_brokers_socket`); not required for the `_paper` venues |
-
-`account_kind` and `broker_type` are orthogonal:
-
-- `account_kind` answers account role in this repo
-- `broker_type` answers execution backend
 
 ## Live Trading Safety Guard
 
