@@ -1,16 +1,20 @@
 # Sentiment and Alternative Signal Reference
 
 Type: notes
-Status: Active
+Status: Active (no consuming strategy)
 Created: 2026-03-30
-Last Reviewed: 2026-07-31
+Last Reviewed: 2026-08-02
 Purpose: Describe the external feature-provider architecture that supplies news, social and policy data to strategies, and the contract a strategy must meet to consume it.
-Related: [Strategy Catalog](strategies.md), [Retired Strategy Primitives](retired-strategy-primitives.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Strategy Catalog](strategies.md), [Retired Strategy Primitives](retired-strategy-primitives.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Trading Package Map](../maps/trading-package-map.md)
 
 > **No strategy consumes these providers today.** The three that did
 > (`policy_regime`, `news_sentiment`, `social_trend_rotation`) were retired; their rules are in
-> [Retired Strategy Primitives](retired-strategy-primitives.md). The provider infrastructure below
-> is intact and supported — this document describes what a strategy would plug into.
+> [Retired Strategy Primitives](retired-strategy-primitives.md).
+>
+> The providers themselves are not idle: the daily run constructs all three and passes them into the
+> runtime (`run_auto_trades.py`), and the `alt-strategies` tab live-probes them on every request. Only
+> the last hop is inert — `build_feature_history_fn` hands back `None` because no strategy declares
+> `strategy_style="alternative"`. This document describes what a strategy would plug into.
 
 ## Provider boundary
 
@@ -52,9 +56,3 @@ Enforced by convention and by the architecture rules in
 The `alt-strategies` UI tab shows each provider's status and current feature values, served by
 `apps/paper_trading_web/backend/services/features/`. Its signal column reads `hold` for every row,
 because no strategy consumes the features; restoring one makes it meaningful again.
-
-## Related References
-
-- `docs/reference/strategies.md`
-- `docs/reference/retired-strategy-primitives.md`
-- `docs/architecture/architecture-conventions.md`

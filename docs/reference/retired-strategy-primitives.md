@@ -3,17 +3,16 @@
 Type: notes
 Status: Active
 Created: 2026-07-30
-Last Reviewed: 2026-07-30
+Last Reviewed: 2026-08-02
 Purpose: Preserve the decision rules and default thresholds of six strategy primitives removed from the registry, so any of them can be rebuilt from this document alone.
 Related: [Strategies](strategies.md), [Backtesting](backtesting.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Six primitives were removed. None had a `strategies` catalog row, so none could be assigned to a
 book, rotated into, or promoted, and none had ever produced a backtest run.
 
-Every provider behind them was kept — `ProxyFeatureDataProvider`, the providers in
-`src/infrastructure/feature_providers/`, the `ExternalFeatureProvider` contract, and the feature-key
-constants in `src/trading/domain/feature_provider.py`. Only the signal layer went, so rebuilding one
-does not mean rebuilding its data source.
+Every provider behind them was kept — only the signal layer went, so rebuilding one does not mean
+rebuilding its data source. The provider boundary and the contract a rebuilt strategy must meet are
+in [Sentiment Signals](sentiment-signals.md).
 
 **To rebuild one**, write a `SignalFunction` and add a `StrategySpec` to
 `src/trading/domain/strategies/registry.py`. Note the contract has changed since these were written:
@@ -25,8 +24,8 @@ indicators; `view.bars()` replaces `len(history)`.
 ## macd
 
 Removed for a different reason from the other five: `default_params` was `{}` and the function
-ignored its `params` argument entirely. With no tunable knobs the walk-forward optimizer had nothing
-to search, so the primitive could never participate in the optimize→promote loop.
+ignored its `params` argument entirely — see [Strategy Catalog](strategies.md) on why a knobless
+primitive cannot enter the optimize→promote loop.
 
 - **Aliases:** `macd_strategy`
 - **Style:** trend
@@ -116,8 +115,9 @@ versus SPY trailing returns as a policy-environment proxy.
 - **Aliases:** `policy_external`, `policy_etf`, `political_regime`
 - **Style:** alternative
 - **Features:** `policy_risk_on_score`, `policy_defensive_tilt` (from `PolicyFeatureProvider`)
-- **Parameters:** `fast_window` 20, `slow_window` 50, `risk_on_threshold` 0.55,
-  `risk_off_threshold` 0.45, `max_defensive_tilt` 0.02
+- **Parameters:** `fast_window` 20, `slow_window` 50; `risk_on_threshold`, `risk_off_threshold` and
+  `max_defensive_tilt` defaulted to `POLICY_RISK_ON_BUY_THRESHOLD`, `POLICY_RISK_OFF_SELL_THRESHOLD`
+  and `POLICY_MAX_DEFENSIVE_TILT` in `src/trading/domain/feature_provider.py`
 
 ```
 gate: len(history) < max(30, slow_window)
@@ -135,8 +135,9 @@ Buy when a short-term price uptrend coincides with bullish VADER-scored news sen
 - **Style:** alternative
 - **Features:** `news_sentiment_score` (mean VADER compound, [-1, 1]), `news_headline_count`
   (from `NewsFeatureProvider`)
-- **Parameters:** `fast_window` 10, `slow_window` 30, `buy_sentiment` 0.10, `sell_sentiment` -0.10,
-  `min_headlines` 3.0
+- **Parameters:** `fast_window` 10, `slow_window` 30; `buy_sentiment`, `sell_sentiment` and
+  `min_headlines` defaulted to `NEWS_BUY_SENTIMENT_THRESHOLD`, `NEWS_SELL_SENTIMENT_THRESHOLD` and
+  `NEWS_MIN_HEADLINES_REQUIRED` in `src/trading/domain/feature_provider.py`
 
 Adds a sample-size gate — thin headline coverage holds rather than trading on one story:
 
@@ -159,8 +160,9 @@ a short-term uptrend.
 - **Features:** `social_trend_score` (Trends interest, normalised [0, 1]), `social_mention_count`
   (Reddit post count), `social_reddit_sentiment` (mean VADER of Reddit titles, [-1, 1])
   (from `SocialFeatureProvider`)
-- **Parameters:** `fast_window` 10, `slow_window` 30, `trend_threshold` 0.40, `trend_exit` 0.20,
-  `min_reddit_sentiment` -0.05
+- **Parameters:** `fast_window` 10, `slow_window` 30; `trend_threshold`, `trend_exit` and
+  `min_reddit_sentiment` defaulted to `SOCIAL_TREND_BUY_THRESHOLD`, `SOCIAL_TREND_EXIT_THRESHOLD`
+  and `SOCIAL_MIN_REDDIT_SENTIMENT` in `src/trading/domain/feature_provider.py`
 
 ```
 gate: len(history) < max(10, slow_window)
