@@ -12,6 +12,7 @@ This service module owns:
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import date
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
@@ -25,6 +26,7 @@ from trading.backtesting.report_models import (
     BacktestReportSnapshot,
     BacktestReportSummary,
     BacktestReportTrade,
+    parse_warnings,
 )
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
@@ -113,7 +115,7 @@ def fetch_backtest_report_data(
         slippage_bps=row_expect_float(run, "slippage_bps"),
         fee_per_trade=row_expect_float(run, "fee_per_trade"),
         tickers_file=row_expect_str(run, "tickers_file"),
-        warnings=run["warnings"],
+        warnings=parse_warnings(run["warnings"]),
         trade_count=len(trades),
         starting_equity=first_equity,
         ending_equity=last_equity,
@@ -167,19 +169,19 @@ def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int 
     return _repo_fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
 
 
-def _build_backtest_run_dict(row: object) -> dict[str, object]:
+def _build_backtest_run_dict(row: Mapping[str, object]) -> dict[str, object]:
     """Convert a backtest run row to a serialisable dict with raw (un-substituted) values."""
     return {
-        "runId": int(row["id"]),  # type: ignore[index]
-        "runName": row["run_name"],  # type: ignore[index]
-        "accountName": str(row["account_name"]),  # type: ignore[index]
-        "strategy": str(row["strategy"]),  # type: ignore[index]
-        "startDate": row["start_date"],  # type: ignore[index]
-        "endDate": row["end_date"],  # type: ignore[index]
-        "createdAt": row["created_at"],  # type: ignore[index]
-        "slippageBps": float(row["slippage_bps"]),  # type: ignore[index]
-        "feePerTrade": float(row["fee_per_trade"]),  # type: ignore[index]
-        "tickersFile": row["tickers_file"],  # type: ignore[index]
+        "runId": row_expect_int(row, "id"),
+        "runName": row["run_name"],
+        "accountName": row_expect_str(row, "account_name"),
+        "strategy": row_expect_str(row, "strategy"),
+        "startDate": row["start_date"],
+        "endDate": row["end_date"],
+        "createdAt": row["created_at"],
+        "slippageBps": row_expect_float(row, "slippage_bps"),
+        "feePerTrade": row_expect_float(row, "fee_per_trade"),
+        "tickersFile": row["tickers_file"],
     }
 
 

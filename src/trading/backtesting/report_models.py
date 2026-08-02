@@ -4,7 +4,14 @@ from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
 
-def _parse_warnings(raw: object) -> list[str]:
+def parse_warnings(raw: object) -> list[str]:
+    """Split the stored ``warnings`` TEXT column back into a list.
+
+    ``backtest_runs.warnings`` is written as ``" | ".join(warnings)``, so every
+    read path must split it again. Assigning the raw column value to a
+    ``list[str]`` field type-checks only while the row is untyped, and leaves a
+    ``str`` where callers iterate expecting entries — they get characters.
+    """
     if not raw:
         return []
     return [w.strip() for w in str(raw).split(" | ") if w.strip()]
@@ -48,7 +55,7 @@ class BacktestReportSummary:
             slippage_bps=float(value["slippage_bps"]),
             fee_per_trade=float(value["fee_per_trade"]),
             tickers_file=str(value["tickers_file"]),
-            warnings=_parse_warnings(value.get("warnings")),
+            warnings=parse_warnings(value.get("warnings")),
             trade_count=int(value["trade_count"]),
             starting_equity=float(value["starting_equity"]),
             ending_equity=float(value["ending_equity"]),
