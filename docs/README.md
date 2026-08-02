@@ -66,7 +66,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
 - [`reference/database-reset-plan.md`](reference/database-reset-plan.md) — planned migration-chain squash and data reset: per-table drop/preserve decisions and open questions
 - [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
-- [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
+- [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — where reading equity_snapshots, daily_metrics, risk_snapshots, and the books exit-threshold columns gives a wrong answer: grain, misleading units, reused names, columns with no data
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
 - [`adr/019-rotation-score-components.md`](adr/019-rotation-score-components.md) — rotation score components; `regime_fit` affinity is family-derived, not configured or evidence-derived
 - [`adr/018-broker-transport-venue-matrix.md`](adr/018-broker-transport-venue-matrix.md) — transport (web/socket) and venue (paper/live) are independent axes; every transport gets both, and an unknown `broker_type` fails instead of falling through to the simulator

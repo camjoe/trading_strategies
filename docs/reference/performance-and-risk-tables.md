@@ -3,155 +3,112 @@
 Type: notes
 Status: Active
 Created: 2026-07-21
-Last Reviewed: 2026-07-24
-Purpose: Provide the current table contract for performance snapshots, daily metrics, risk snapshots, risk decisions, and similarly named book exit thresholds.
-Related: [Database Transactions](database-transactions.md), [DB Migration System](db-migration-system.md), [Book-Keyed Execution Model](../adr/010-book-keyed-execution-model.md)
+Last Reviewed: 2026-08-02
+Purpose: Record where reading `equity_snapshots`, `daily_metrics`, `risk_snapshots`, `risk_decisions`, and the `books` exit-threshold columns naively produces a wrong answer — mismatched grain, misleading units, reused names, and columns with no data.
 
 ## Purpose
 
-This is a living current-state reference, not an implementation plan. It describes what the schema,
-repositories, and production writers do today and labels incomplete runtime coverage explicitly.
+`db-schema.md` says what each table is for; `python -m scripts.data_ops.describe_db_schema`
+gives the live columns and types. Neither can tell you that `hit_rate` is a fraction while
+`return_pct` beside it is a percent, or that `drawdown_pct` means two different things in two
+tables. This file is only for the traps. Read it before adding a consumer, a metric, or a
+rollup.
 
-`equity_snapshots`, `daily_metrics`, and `risk_snapshots` all hang off the
-`accounts → books` hierarchy but each sits at a different grain and uses a
-different account-level read strategy. Several columns also share names or
-suffixes while meaning different things (period, grain, or units). This note is
-the single place that pins down what each column means and how the account view
-is derived. Reach for it before adding a consumer, a metric, or a rollup.
+## Grain and account-level reads
 
-## Overview — the grain map
-
-One account owns many books; a book is the execution primitive (see
-[ADR 010](../adr/010-book-keyed-execution-model.md)). The four tables land at
-different grains:
+One account owns many books; a book is the execution primitive
+([ADR 010](../adr/010-book-keyed-execution-model.md)). The four tables sit at different
+grains, and the account-level read differs accordingly:
 
 | Table | Stored grain | Uniqueness | Account-level read |
 |---|---|---|---|
 | `equity_snapshots` | **book** + `snapshot_time` | `(book_id, snapshot_time)` | SQL rollup view: `SUM` of balances across the account's books per `snapshot_time` |
-| `daily_metrics` | **book** + `metric_date` | `(book_id, metric_date)` | JOIN filter that returns **one row per book** (no aggregation) |
+| `daily_metrics` | **book** + `metric_date` | `(book_id, metric_date)` | JOIN filter returning **one row per book** (no aggregation) |
 | `risk_snapshots` | **account** + `snapshot_time` | `(account_id, snapshot_time)` | native; no book breakdown exists |
 | `risk_decisions` | **account** (+ nullable `book_id`) | non-null `(book_id, account_id)` must match `books(id, account_id)` | native |
 
-Consequences worth knowing before you build on them:
-
-- **`equity_snapshots` account rollup carries no identity.** In the rollup
-  select (`repositories/snapshots.py`), `id` and `book_id` are coupled: both are
-  real on a single-book read, and both are `NULL` on a multi-book aggregate. A
-  rollup record is therefore not an addressable row, and `EquitySnapshotRecord.id`
-  is `int | None` so misuse fails loudly instead of silently targeting `MIN(id)`.
 - **`daily_metrics` has no account rollup.** Percentages don't sum, so
-  `fetch_book_rows_for_account` returns each book's row (the name says so).
-  "Account daily metrics" is therefore N rows per date for an N-book account,
-  not one aggregated row.
-- **`risk_snapshots` is account-only by design** — gross/net exposure and
-  concentration are portfolio-wide properties. There is no per-book risk row.
+  `fetch_book_rows_for_account` returns each book's row. "Account daily metrics" is therefore
+  N rows per date for an N-book account, not one aggregated row.
+- **The `equity_snapshots` account rollup carries no identity.** In the rollup select
+  (`repositories/snapshots.py`), `id` and `book_id` are both real on a single-book read and
+  both `NULL` on a multi-book aggregate. A rollup record is not an addressable row, and
+  `EquitySnapshotRecord.id` is `int | None` so misuse fails loudly instead of silently
+  targeting `MIN(id)`.
+- **`risk_snapshots` is account-only by design** — gross/net exposure and concentration are
+  portfolio-wide properties. There is no per-book risk row.
 
-## equity_snapshots
+## Units — `_pct` is not a promise of percent
 
-Book-keyed point-in-time balance snapshots. Written via
-`EquitySnapshotRepository.insert_for_book` (or `insert`, which resolves the
-account's default book).
+| Column | Actual unit |
+|---|---|
+| `daily_metrics.hit_rate` | fraction `0.0–1.0` |
+| `risk_snapshots.max_symbol_concentration_pct` | fraction `0–1`, despite the suffix |
+| `risk_snapshots.max_sector_concentration_pct` | fraction `0–1`, despite the suffix |
+| `daily_metrics.slippage_bps` | basis points — same concept as `orders`/`backtest_*` slippage; keep the computation consistent |
+| `daily_metrics.return_pct` / `drawdown_pct` / `turnover_pct` | percent |
+| `risk_snapshots.drawdown_pct` | percent (`<= 0`) |
+| `daily_metrics.expectancy`, `fees_total`, `risk_snapshots.gross_exposure` / `net_exposure` | account currency |
 
-| Column | Type | Meaning |
-|---|---|---|
-| `book_id` | INT | Owning book. `NULL` only on synthetic account-rollup **read** rows (never stored NULL). |
-| `snapshot_time` | TEXT (ISO-8601 UTC) | Instant of the snapshot. Ordering relies on lexicographic ISO. |
-| `cash` | REAL | Settled cash balance. |
-| `market_value` | REAL | Marked value of open positions. |
-| `equity` | REAL | Total equity. Stored as `cash + market_value`; a **derived** value frozen at write time (no DB-level invariant enforces it). |
-| `realized_pnl` | REAL | Cumulative realized P&L at the snapshot instant. |
-| `unrealized_pnl` | REAL | Open-position P&L at the snapshot instant. |
+## Same name, different meaning
 
-## daily_metrics
+- **`drawdown_pct`** — `daily_metrics.drawdown_pct` is **book** grain, peak-to-trough over a
+  single day. `risk_snapshots.drawdown_pct` is **account** grain, point-in-time:
+  `current_equity / peak_equity - 1`, where `peak_equity` is the account's highest equity
+  ever recorded (`EquitySnapshotRepository.fetch_max_equity`), including today.
+- **`books` exit thresholds** — two pairs that read almost identically and are **not**
+  interchangeable; each applies to a different `instrument_mode`:
 
-Book-keyed per-day performance metrics, upserted on `(book_id, metric_date)`
-via `DailyMetricsRepository.upsert`. The production writer is
+  | `instrument_mode` | Profit target | Loss cap |
+  |---|---|---|
+  | `equity` | `take_profit_pct` | `stop_loss_pct` |
+  | `leaps` (options) | `option_profit_take_pct` | `option_max_loss_pct` |
+
+  The option pair was renamed from `profit_take_pct` / `max_loss_pct` (revision `0011`) into
+  the `option_*` family so the instrument is legible from the name.
+
+## Columns that are not what they look like
+
+- **`equity_snapshots.equity`** is derived — stored as `cash + market_value` and frozen at
+  write time. No DB-level invariant enforces it.
+- **`risk_snapshots.risk_payload_json`** is **supplementary** detail. The typed columns are
+  canonical; the JSON must not be the sole source for a value that has a column.
+- **`books.current_cash` / `current_equity`** duplicate the latest equity snapshot, and
+  nothing reconciles the two. Treat snapshots as the historical source of truth.
+- **`daily_metrics.risk_adjusted_score`** is a trailing **annualized Sharpe ratio** over the
+  book's recent daily `return_pct` series (`mean / population-std × √252`, risk-free 0 — the
+  convention in `backtesting/domain/metrics.py::sharpe_ratio`), over the last ≤20 scored
+  sessions including the day. Not a single-day figure like its neighbours.
+
+## Columns with no data, or not yet
+
+`daily_metrics` is upserted on `(book_id, metric_date)` by
 `services/analysis/daily_metrics.py::write_daily_metrics_for_account`, run from
-`snapshot_account` right after the day's equity snapshot is written (so it lands
-in the daily paper-trading workflow's snapshot step and on any manual `snapshot`).
-Every metric column is nullable; the writer populates the columns derivable from
-stored daily activity and leaves the rest `NULL` on purpose (see the column notes
-and Implementation gaps).
+`snapshot_account` right after the day's equity snapshot. Every metric column is nullable and
+the writer leaves some `NULL` on purpose:
 
-| Column | Type | Period | Meaning |
-|---|---|---|---|
-| `metric_date` | TEXT (ISO date) | the day | Calendar day the metrics summarize. |
-| `return_pct` | REAL | 1 day | Book return for `metric_date`, in **percent**. |
-| `drawdown_pct` | REAL | 1 day | Peak-to-trough decline over the day, in percent. Distinct from `risk_snapshots.drawdown_pct` (account grain, point-in-time). |
-| `turnover_pct` | REAL | 1 day | Traded notional relative to equity, in percent. |
-| `slippage_bps` | REAL | 1 day | Average execution slippage, in **basis points**. Same concept as `orders`/`backtest_*` slippage; keep the computation consistent. |
-| `hit_rate` | REAL | 1 day | Fraction of winning **closing** trades, `0.0–1.0` (not a percent). Over sells (which realize P&L); NULL on a day with no closes. |
-| `expectancy` | REAL | 1 day | Average realized P&L per closing trade, in account currency. From `orders.realized_pnl_delta`. |
-| `risk_adjusted_score` | REAL | trailing | Trailing **annualized Sharpe ratio** over the book's recent daily `return_pct` series (`mean / population-std × √252`, risk-free 0 — the same convention as `backtesting/domain/metrics.py::sharpe_ratio`). Computed over the last ≤20 scored sessions including the day; `NULL` until at least 10 returns exist or when the returns have zero dispersion. |
-| `trade_count` | INT | 1 day | Number of trades that day. |
-| `fees_total` | REAL | 1 day | Total commissions/fees for the day, in account currency. |
+| Column | State |
+|---|---|
+| `daily_metrics.drawdown_pct` | Always `NULL` — needs intraday equity, which is not persisted at this grain |
+| `risk_snapshots.daily_loss_pct` | Always `NULL` — no writer. Same single-day gap; a trailing-history peak cannot stand in for one day's figure |
+| `daily_metrics.hit_rate` / `expectancy` | Populated only for orders created after revision `0020` (from `orders.realized_pnl_delta`); no historical backfill. `hit_rate` is also `NULL` on a day with no closing trades |
+| `daily_metrics.risk_adjusted_score` | `NULL` until at least 10 returns exist, and when the returns have zero dispersion; no backfill |
+| `books.option_profit_take_pct` / `option_max_loss_pct` | Configuration and persistence exist; no production options-execution consumer |
 
-## risk_snapshots
-
-Account-keyed point-in-time risk snapshot, unique on
-`(account_id, snapshot_time)`. Exposure fields are computed by
-`services/execution/risk.py::compute_current_exposure_snapshot`
-over the account's positions and books; concentration caps themselves live in
-`RiskGateConfig` (`domain/risk_gate.py`).
-
-| Column | Type | Meaning |
-|---|---|---|
-| `gross_exposure` | REAL | Σ `abs(market_value)` across all account positions (long + short magnitude), in account currency. |
-| `net_exposure` | REAL | Σ `market_value` (signed: long − short), in account currency. |
-| `max_symbol_concentration_pct` | REAL | Largest single-symbol exposure ÷ total book equity. **A fraction (0–1), despite the `_pct` suffix.** |
-| `max_sector_concentration_pct` | REAL | Largest single-sector exposure ÷ total book equity. **A fraction (0–1), despite the `_pct` suffix.** |
-| `drawdown_pct` | REAL, nullable | Account-grain, **point-in-time**: `current_equity / peak_equity - 1`, in percent (<= 0). `peak_equity` is the account's highest equity ever recorded (`EquitySnapshotRepository.fetch_max_equity`), including today. Distinct from `daily_metrics.drawdown_pct` (book grain, single-day peak-to-trough). `NULL` only when the account has no equity history yet. |
-| `leverage_proxy` | REAL, nullable | `gross_exposure / total_equity`. `NULL` when equity is zero. |
-| `daily_loss_pct` | REAL, nullable | Reserved day-loss figure (single-day peak-to-trough). Still needs intraday equity ticks this codebase does not persist — unlike `drawdown_pct` above, a trailing-history peak cannot stand in for a single day's figure. Auto-trading writer currently records `NULL`. |
-| `kill_switch_triggered` | INT (0/1) | Whether the risk kill-switch fired at this snapshot. |
-| `risk_payload_json` | TEXT (JSON) | **Supplementary** detail only. The typed columns above are canonical; the JSON carries extra context and must not be the sole source for a value that has a column. |
-
-## books exit-threshold columns
-
-`books` carries two pairs of exit thresholds that read almost identically. They
-are **not** interchangeable — each pair applies to a different `instrument_mode`:
-
-| `instrument_mode` | Profit target | Loss cap |
-|---|---|---|
-| `equity` | `take_profit_pct` | `stop_loss_pct` |
-| `leaps` (options) | `option_profit_take_pct` | `option_max_loss_pct` |
-
-The option pair was renamed from `profit_take_pct` / `max_loss_pct` (revision
-`0011`) into the `option_*` column family so the instrument it belongs to is
-legible from the name. The equity pair drives `domain/auto_trading_policy.py`;
-the option pair is configurable and persisted but has no production execution consumer yet.
+`risk_snapshots.drawdown_pct` and `leverage_proxy` are written by
+`persist_book_risk_snapshot`; `leverage_proxy` is `gross_exposure / total_equity`, `NULL` when
+equity is zero. Exposure fields come from
+`services/execution/risk.py::compute_current_exposure_snapshot`; the concentration caps
+themselves live in `RiskGateConfig` (`domain/risk_gate.py`).
 
 ## Boundaries
 
-- **Grain is fixed per table.** New runtime performance/risk work is book-keyed
-  unless it is genuinely account-wide (exposure, concentration) — see
-  [ADR 010](../adr/010-book-keyed-execution-model.md). Do not add a per-book
-  `risk_snapshots` variant or an account-mode execution path.
-- **Timestamps are ISO-8601 UTC TEXT.** Ordering and range filters rely on
-  lexicographic comparison; always write zero-padded UTC ISO strings.
-- **`_pct` is not a promise of percent.** `hit_rate` and the two concentration
-  columns are fractions (0–1); the `*_return_pct`, `drawdown_pct`, and
-  `turnover_pct` fields are percents. Check this table before assuming units.
-- **Denormalized running state exists.** `books.current_cash` /
-  `current_equity` duplicate the latest equity snapshot; nothing reconciles the
-  two. Treat snapshots as the historical source of truth.
-
-## Implementation gaps
-
-- `daily_metrics` is populated by the production writer for the columns derivable from stored daily
-  activity — `return_pct`, `turnover_pct`, `slippage_bps`, `trade_count`, `fees_total`, `hit_rate` /
-  `expectancy` (since revision `0020`, from each closing order's `orders.realized_pnl_delta`), and
-  `risk_adjusted_score` (a trailing annualized Sharpe over the persisted `return_pct` history — see
-  the column note above; `NULL` until enough trailing sessions exist). One column remains `NULL`
-  because its input is not stored at this grain: `drawdown_pct` needs intraday equity. `hit_rate` /
-  `expectancy` are populated only for orders created after `0020`, and `risk_adjusted_score` only
-  fills in once a book has accumulated enough daily rows (neither backfills historical rows).
-- `risk_snapshots.drawdown_pct` and `leverage_proxy` are populated by
-  `persist_book_risk_snapshot`. `daily_loss_pct` remains a column without a
-  populating writer (recorded `NULL` today) — same single-day-grain gap as
-  `daily_metrics.drawdown_pct`.
-- `books.option_profit_take_pct` and `option_max_loss_pct` have configuration and persistence
-  surfaces but no production options-execution consumer.
+- **Grain is fixed per table.** New runtime performance/risk work is book-keyed unless it is
+  genuinely account-wide (exposure, concentration) — see
+  [ADR 010](../adr/010-book-keyed-execution-model.md). Do not add a per-book `risk_snapshots`
+  variant or an account-mode execution path.
+- **Timestamps are ISO-8601 UTC TEXT.** Ordering and range filters rely on lexicographic
+  comparison; always write zero-padded UTC ISO strings.
 
 ## Related Docs
 
