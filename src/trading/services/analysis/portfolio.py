@@ -61,21 +61,17 @@ def _infer_overall_trend_impl(
     return "flat"
 
 
-def settlement_corrected_equity(state: object, prices: object) -> float:
+def settlement_corrected_equity(state: AccountState, prices: dict[str, float]) -> float:
     """Total equity including the settlement position (cash-equivalent ticker).
 
     The settlement ticker represents cash held as a position; it must be
     priced at ``_SETTLEMENT_PRICE`` before calling this function (see
     ``inject_settlement_price``).
     """
-    from trading.models.accounts import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return 0.0
     return state.cash + sum(state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions)
 
 
-def inject_settlement_price(state: object, prices: object) -> None:
+def inject_settlement_price(state: AccountState, prices: dict[str, float]) -> None:
     """Ensure the settlement ticker has a price entry so equity math is correct.
 
     When an account holds the settlement ticker as a position it must be
@@ -83,21 +79,8 @@ def inject_settlement_price(state: object, prices: object) -> None:
     function inserts that price only if it is missing, and only when the
     state actually holds a settlement position.
     """
-    from trading.models.accounts import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return
     if SETTLEMENT_TICKER in state.positions and SETTLEMENT_TICKER not in prices:
         prices[SETTLEMENT_TICKER] = _SETTLEMENT_PRICE
-
-
-def settlement_cash(state: object, prices: object) -> float:
-    """Return the cash component of an account state, or 0 if state is missing."""
-    from trading.models.accounts import AccountState
-
-    if not isinstance(state, AccountState):
-        return 0.0
-    return state.cash
 
 
 def build_account_stats(
@@ -175,6 +158,5 @@ __all__ = [
     "build_account_stats",
     "infer_overall_trend",
     "inject_settlement_price",
-    "settlement_cash",
     "settlement_corrected_equity",
 ]

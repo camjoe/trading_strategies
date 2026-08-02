@@ -34,6 +34,11 @@ def _make_state(
     )
 
 
+def _stats_stub(equity: float):
+    """Stand in for ``build_account_stats``: an all-cash account at ``equity``."""
+    return lambda _conn, _row, **_kwargs: (_make_state({}, {}, cash=equity), {}, 0.0, 0.0, equity)
+
+
 def _patch_book_reads(
     monkeypatch,
     *,
@@ -67,7 +72,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
-        lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+        _stats_stub(1200.0),
     )
     monkeypatch.setattr(
         account_summaries,
@@ -206,7 +211,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -235,7 +240,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -269,7 +274,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1100.0),
+            _stats_stub(1100.0),
         )
         monkeypatch.setattr(
             account_summaries,

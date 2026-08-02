@@ -12,7 +12,6 @@ from trading.services.accounts import (
 from trading.services.analysis import (
     build_account_stats,
     inject_settlement_price,
-    settlement_cash,
     settlement_corrected_equity,
 )
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
@@ -26,12 +25,10 @@ def build_account_summary(
     *,
     provider: MarketDataProvider | None = None,
 ) -> dict[str, object]:
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
+    state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
-    if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = settlement_corrected_equity(state, prices)
-    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    return _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
+    equity = settlement_corrected_equity(state, prices)
+    return _build_summary_from_stats(conn, row, equity, state.cash, state.total_deposited)
 
 
 def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
@@ -56,12 +53,10 @@ def build_account_summary_and_positions(
     provider: MarketDataProvider | None = None,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
+    state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
-    if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = settlement_corrected_equity(state, prices)
-    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    summary = _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
+    equity = settlement_corrected_equity(state, prices)
+    summary = _build_summary_from_stats(conn, row, equity, state.cash, state.total_deposited)
     positions = _build_positions_from_stats(state, prices)
     return summary, positions
 
@@ -141,11 +136,7 @@ def _build_summary_from_stats(
     }
 
 
-def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list[dict[str, object]]:
-    from trading.models.accounts import AccountState
-
-    if not isinstance(state, AccountState):
-        return []
+def _build_positions_from_stats(state: AccountState, prices: dict[str, float]) -> list[dict[str, object]]:
     result = []
     for ticker, qty in sorted(state.positions.items()):
         if qty <= 0 or ticker == _SETTLEMENT_TICKER:
