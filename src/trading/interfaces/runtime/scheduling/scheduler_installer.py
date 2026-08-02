@@ -113,7 +113,11 @@ def _systemd_available() -> bool:
 
 
 def _task_name_to_unit_name(task_name: str) -> str:
-    """Convert 'Trading\\DailyPaperTrading' to 'trading-daily-paper-trading'."""
+    """Convert 'Trading\\DailyPaperTrading' to 'daily-paper-trading'.
+
+    The ``Trading\\`` prefix is dropped, so no unit name carries it — filtering
+    installed timers on "trading" finds only the daily run and misses the rest.
+    """
     name = task_name.split("\\")[-1]
     name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
     return name.lower()
@@ -278,11 +282,15 @@ def generate_systemd_install_script(
     ]
     for timer in timer_unit_names:
         script_lines.append(f"systemctl enable --now {shlex.quote(timer)}")
+    # List exactly the units this script enabled rather than filtering by name:
+    # unit names drop the `Trading\` prefix, so a "trading" filter would report
+    # only the daily run and quietly omit every other timer just installed.
+    listed_timers = " ".join(shlex.quote(timer) for timer in timer_unit_names)
     script_lines += [
         "",
         'echo ""',
         'echo "Trading job timers installed:"',
-        "systemctl list-timers --all | grep trading || true",
+        f"systemctl list-timers --all {listed_timers} || true",
     ]
 
     script_path = repo_root / "local" / "install_trading_timers.sh"

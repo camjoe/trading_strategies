@@ -198,11 +198,16 @@ python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
 sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```
 
-See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, challenger shadow-eval) and their flags. Verify timers are active:
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (challenger shadow-eval) and their flags. Verify timers are active:
 
 ```bash
-systemctl list-timers --all | grep trading
+systemctl list-timers --all | grep -E 'daily-|weekly-'
 ```
+
+Unit names drop the `Trading\` prefix and hyphenate, so only `daily-paper-trading.timer` contains
+"trading" — filtering on that alone hides `daily-challenger-shadow-eval.timer`,
+`daily-trader-health-check.timer`, and `weekly-db-backup.timer`. Check that every entry you
+registered is listed, not just the daily run.
 
 ### 1.6 Verify end to end
 
@@ -354,7 +359,8 @@ Example setup:
    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
    ```
 2. **Systemd timers with `WakeSystem=yes`** — installed via `local/install_trading_timers.sh`.
-   Verify with `systemctl list-timers --all | grep trading`.
+   Verify with `systemctl list-timers --all | grep -E 'daily-|weekly-'` (unit names carry no
+   `trading-` prefix — see Part 1.5).
 3. **AC Power Recovery in BIOS/UEFI** — set to **On** or **Last State** so a power blip brings
    the machine back. (Board-specific menu path — capture below.)
 

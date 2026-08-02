@@ -118,27 +118,15 @@ sudo bash local/uninstall_trading_timers.sh
 Replace schedule placeholders with private operator values. Store actual installation schedules under
 the gitignored `local/operations/` directory, not in tracked documentation.
 
-**One-time cleanup:** two entries were retired, and `--unregister` no longer knows either task
-name. A host that previously registered them must remove those entries by hand:
+**Retired entries:** `Trading\DailySnapshot` and `Trading\DailyPaperTradingFallback` were removed,
+and `--unregister` does not know either name — a host that had registered them would need them
+deleted by hand. Neither was registered on any host when this was checked on 2026-08-01.
 
-- `Trading\DailySnapshot` — the `daily_snapshot` job was retired; the daily run now snapshots at
-  steps `01` and `08`. Left registered, it keeps firing at a deleted module.
-- `Trading\DailyPaperTradingFallback` — the fallback entry was retired along with the daily job's
-  duplicate-run guard. It existed to re-attempt a missed primary run and relied on that guard to
-  no-op when the primary had succeeded. Without it the entry is a *second full run*, which trades
-  again if the market is open at that time. Left registered, it double-trades.
-
-```sh
-# Windows
-schtasks /Delete /TN "Trading\DailySnapshot" /F
-schtasks /Delete /TN "Trading\DailyPaperTradingFallback" /F
-
-# Linux (systemd)
-sudo systemctl disable --now trading-dailysnapshot.timer
-sudo systemctl disable --now trading-dailypapertradingfallback.timer
-```
-
-A missed day is now backfilled with `replay_daily_runs` instead.
+The fallback is the one not to reinstate. It re-attempted a missed primary run and relied on the
+daily job's duplicate-run guard to no-op when the primary had already succeeded. That guard is gone,
+so the entry would now be a *second full run* — reconciling, snapshotting, and trading again if the
+market is open at that hour. A missed day is backfilled with `replay_daily_runs` instead. Snapshots
+moved into the daily run itself, at steps `01` and `08`.
 
 On Windows, the same registration commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.
