@@ -71,8 +71,13 @@ def test_as_of_date_uses_date_prefix_in_log_name(monkeypatch, job_root: Path) ->
     assert log_files, "Expected a log file prefixed with 20200115"
 
 
-def test_as_of_date_replays_over_an_existing_successful_run(monkeypatch, job_root: Path) -> None:
-    """An existing successful run for the override date no longer suppresses a replay."""
+def test_as_of_date_is_guarded_by_that_dates_own_successful_run(monkeypatch, job_root: Path) -> None:
+    """The guard keys on the run's report date, not on today.
+
+    This is what lets `replay_daily_runs` drop `--force-run`: it only invokes dates
+    with no successful run, so the guard it would have had to override never fires.
+    A date that *did* already succeed is still protected.
+    """
     write_completed_runtime_log(
         job_root,
         filename_prefix="daily_paper_trading",
@@ -83,8 +88,22 @@ def test_as_of_date_replays_over_an_existing_successful_run(monkeypatch, job_roo
 
     _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15"])
 
-    # The guard used to return before writing anything; the run now goes ahead
-    # and leaves its own artifact for that date.
+    export_dir = job_root / "local" / "exports" / "daily_paper_trading"
+    assert not list(export_dir.glob("daily_paper_trading_20200115_*.json"))
+
+
+def test_as_of_date_replays_over_an_existing_run_with_force(monkeypatch, job_root: Path) -> None:
+    """`--force-run` overrides the guard for a deliberate operator replay."""
+    write_completed_runtime_log(
+        job_root,
+        filename_prefix="daily_paper_trading",
+        tag="20200115",
+        sentinel=daily_module.COMPLETE_SENTINEL,
+        timestamp="000000",
+    )
+
+    _run_daily_as_of(monkeypatch, job_root, ["--as-of-date", "2020-01-15", "--force-run"])
+
     export_dir = job_root / "local" / "exports" / "daily_paper_trading"
     assert list(export_dir.glob("daily_paper_trading_20200115_*.json"))
 

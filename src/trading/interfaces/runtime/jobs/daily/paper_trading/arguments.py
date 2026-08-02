@@ -57,12 +57,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--force-run",
+        action="store_true",
+        help="Run even if this date already completed successfully",
+    )
+    parser.add_argument(
         "--as-of-date",
         default="",
         help=(
             "Override the trading date for this run (YYYY-MM-DD). "
             "Used by replay/backfill tooling to re-run a missed date. "
-            "Affects the log/artifact file name prefix."
+            "Affects the duplicate-run guard key and the log/artifact file name prefix."
         ),
     )
     parser.add_argument("--run-source", default="scheduled-daily")

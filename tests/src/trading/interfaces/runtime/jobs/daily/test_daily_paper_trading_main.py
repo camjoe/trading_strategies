@@ -72,9 +72,9 @@ def _runtime_harness(monkeypatch):
     return state
 
 
-def test_run_proceeds_when_today_already_has_a_successful_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
-    # No duplicate-run guard: the job is operator-driven and repeat intraday runs
-    # are the point. An earlier successful run today must not suppress this one.
+def test_run_skips_when_today_already_has_a_successful_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # A second pass is a second full trading pass, not a no-op — step 05 submits a
+    # fresh round of orders against a fresh per-run cap. The guard is what stops it.
     today = dt.date.today().strftime("%Y%m%d")
     write_completed_runtime_log(
         tmp_path,
@@ -92,12 +92,39 @@ def test_run_proceeds_when_today_already_has_a_successful_run(monkeypatch, tmp_p
     )
 
     assert code == 0
+    # Nothing ran: no subprocess was streamed and no artifact was written. Exiting
+    # 0 keeps a scheduler from treating an intentional skip as a failure.
+    assert not _runtime_harness.stream_calls
+    export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+    assert not list(export_dir.glob("daily_paper_trading_*.json"))
+
+
+def test_force_run_overrides_the_duplicate_guard(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    today = dt.date.today().strftime("%Y%m%d")
+    write_completed_runtime_log(
+        tmp_path,
+        filename_prefix="daily_paper_trading",
+        tag=today,
+        sentinel=module.COMPLETE_SENTINEL,
+        timestamp="000000",
+    )
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--force-run"],
+    )
+
+    assert code == 0
     assert _runtime_harness.stream_calls
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_paper_trading",
         "daily_paper_trading_*.json",
     )
     assert payload["status"] == "success"
+    # Recorded so a run that traded a date twice says so in its own artifact.
+    assert payload["force_run"] is True
     assert payload["completed_steps"]
     assert payload["step_results"]
     assert payload["step_results"][0]["step"] == "00_ingest_market_and_account"

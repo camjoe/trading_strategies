@@ -102,12 +102,16 @@ def build_run_context(
 
     tee_line(
         log_path,
-        f"[{ts()}] RUN META: source={args.run_source} accounts={','.join(accounts)} caps={caps_summary}",
+        f"[{ts()}] RUN META: source={args.run_source} force={bool(args.force_run)} "
+        f"accounts={','.join(accounts)} caps={caps_summary}",
     )
     report_date = (as_of_date or dt.date.today()).isoformat()
     run_meta: dict[str, object] = {
         "job": "daily_paper_trading",
         "run_source": args.run_source,
+        # True only when an operator overrode the duplicate-run guard, so a run
+        # that traded a date twice says so in its own artifact.
+        "force_run": bool(args.force_run),
         "as_of_date": str(as_of_date) if as_of_date else None,
         "report_date": report_date,
         "accounts": accounts,

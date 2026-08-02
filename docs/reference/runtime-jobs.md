@@ -81,14 +81,27 @@ The daily paper-trading job is self-contained and can be run by hand at any time
   equity against the latest equity snapshot and kills the run when that snapshot is missing or older
   than six hours, so the run has to establish it itself rather than depend on a separately scheduled
   snapshot job. Step `08` repeats both afterwards to record end-state equity.
-- **No duplicate guard.** Every invocation runs. Repeat runs through the trading day are the
-  intended usage — each one reconciles fills, re-snapshots, and trades if the market is open.
+- **Duplicate-run guard.** A date that already completed successfully is skipped, because a second
+  pass is a second full trading pass — step `05` submits a fresh round of orders against a fresh
+  per-run trade cap, and the market-hours gate does not help when both runs fall inside the window.
+  The guard keys on the run's report date (`--as-of-date` when given, else today), so `replay_daily_runs`
+  needs no override. Pass `--force-run` for a deliberate re-run; it is recorded as `force_run` in the
+  run artifact.
 
 ## Registering schedules
 
-`manage_job_schedules` writes Windows Task Scheduler entries on Windows. On Linux it auto-detects
-systemd and creates systemd timer units; falls back to cron if systemd is unavailable. Pass
-`--scheduler cron` or `--scheduler systemd` to override. **Always preview with `--dry-run` first.**
+By default `manage_job_schedules` follows the host: Windows Task Scheduler entries on Windows, and
+on Linux systemd timer units, falling back to cron if systemd is unavailable. **Always preview with
+`--dry-run` first.**
+
+`--scheduler systemd` is honoured on any host, so the timer and service units can be reviewed from a
+Windows dev machine with `--scheduler systemd --dry-run` — the systemd path writes a script and
+installs nothing. Note that paths, `User=`, and the interpreter come from the *invoking* host, so
+what you get on Windows is a structural preview — the right units with the right `OnCalendar`
+expressions, not a file to copy across. Register on the production host itself.
+
+`--scheduler cron` still needs a host with `crontab`, because it merges into that machine's existing
+table rather than emitting a file.
 
 ```sh
 # Register the core runtime jobs (Linux — generates local/install_trading_timers.sh)
@@ -123,10 +136,10 @@ and `--unregister` does not know either name — a host that had registered them
 deleted by hand. Neither was registered on any host when this was checked on 2026-08-01.
 
 The fallback is the one not to reinstate. It re-attempted a missed primary run and relied on the
-daily job's duplicate-run guard to no-op when the primary had already succeeded. That guard is gone,
-so the entry would now be a *second full run* — reconciling, snapshotting, and trading again if the
-market is open at that hour. A missed day is backfilled with `replay_daily_runs` instead. Snapshots
-moved into the daily run itself, at steps `01` and `08`.
+daily job's duplicate-run guard to no-op when the primary had already succeeded. The guard is in
+place, so a reinstated entry would no-op rather than trade twice — but `replay_daily_runs` is the
+supported way to backfill a missed day, and it replays deliberately over a chosen range instead of
+firing blind at a fixed hour. Snapshots moved into the daily run itself, at steps `01` and `08`.
 
 On Windows, the same registration commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.

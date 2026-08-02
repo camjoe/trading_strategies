@@ -90,8 +90,10 @@ Alternatives considered for the host:
    A powered-off machine cannot be woken by cron/systemd (only firmware/hardware can), so reliability
    rests on the host staying up plus the existing missed-run catch-up (`replay_daily_runs`)
    rather than on a wake-from-off mechanism. (The second scheduled "fallback" entry this decision
-   also named was retired when the daily job's duplicate-run guard was removed — unguarded, it was a
-   second full trading pass rather than a catch-up.) Machine-specific BIOS/NIC details are captured on the host;
+   also named was retired in favour of `replay_daily_runs`, which backfills a chosen range instead of
+   firing blind at a fixed hour. It only ever no-opped because the daily job's duplicate-run guard
+   made it so; a fixed-time retry that depends on a guard to not trade twice is the fragile
+   arrangement, whether or not the guard is present.) Machine-specific BIOS/NIC details are captured on the host;
    see the runbook's Part 5 TODO.
 
 ## Consequences

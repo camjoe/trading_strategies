@@ -65,12 +65,17 @@ class TestRiskGateSummary:
 
         assert summary["total_decisions"] == 0
 
-    def test_unknown_account_is_skipped_not_fatal(self, conn, report_env) -> None:
+    def test_unknown_account_is_reported_not_dropped(self, conn, report_env) -> None:
+        # Not fatal: these summaries run after the trading steps, so raising would
+        # fail the run over a reporting problem. But the name has to appear
+        # somewhere, or a typo in --accounts yields a clean-looking report covering
+        # fewer accounts than the run was asked for.
         summary = build_risk_gate_summary(
             conn, accounts=[report_env.account_name, "does_not_exist"], report_date=REPORT_DATE
         )
 
         assert [entry["account"] for entry in summary["accounts"]] == [report_env.account_name]
+        assert summary["unresolved_accounts"] == ["does_not_exist"]
 
 
 class TestSubmissionSummary:
@@ -110,6 +115,15 @@ class TestSubmissionSummary:
         assert summary["order_count"] == 0
         assert summary["accounts"][0]["turned_away"] == []
         assert summary["stale_open_count"] == 0
+        assert summary["unresolved_accounts"] == []
+
+    def test_unknown_account_is_reported_not_dropped(self, conn, report_env) -> None:
+        summary = build_submission_summary(
+            conn, accounts=[report_env.account_name, "does_not_exist"], report_date=REPORT_DATE
+        )
+
+        assert [entry["account"] for entry in summary["accounts"]] == [report_env.account_name]
+        assert summary["unresolved_accounts"] == ["does_not_exist"]
 
 
 class TestStaleOpenOrders:

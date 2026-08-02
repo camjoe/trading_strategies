@@ -215,13 +215,26 @@ def account_daily_report_as_dict(report: AccountDailyReport) -> dict[str, object
     return asdict(report)
 
 
-def _resolve_account_ids(conn: sqlite3.Connection, accounts: list[str]) -> list[tuple[str, int]]:
-    resolved = []
+def _resolve_account_ids(
+    conn: sqlite3.Connection,
+    accounts: list[str],
+) -> tuple[list[tuple[str, int]], list[str]]:
+    """Split *accounts* into resolvable ``(name, id)`` pairs and names that are not.
+
+    The unresolved names are returned rather than dropped: these summaries run
+    after the trading steps, so raising would fail the run over a reporting
+    problem, but staying silent would emit a clean-looking report covering fewer
+    accounts than the run was asked for. The caller puts them in the payload.
+    """
+    resolved: list[tuple[str, int]] = []
+    unresolved: list[str] = []
     for account_name in accounts:
         account_row = find_account(conn, account_name)
-        if account_row is not None:
-            resolved.append((account_name, int(account_row.id)))
-    return resolved
+        if account_row is None:
+            unresolved.append(account_name)
+            continue
+        resolved.append((account_name, int(account_row.id)))
+    return resolved, unresolved
 
 
 def build_risk_gate_summary(
@@ -235,16 +248,18 @@ def build_risk_gate_summary(
     The gate runs inside the auto-trading runtime; this reads the
     ``risk_decisions`` rows it wrote so the DAG step can report on them.
     """
+    resolved, unresolved = _resolve_account_ids(conn, accounts)
     per_account = [
         AccountRiskGateSummary(
             account=account_name,
             violations=_build_risk_violations(conn, account_id, report_date),
         )
-        for account_name, account_id in _resolve_account_ids(conn, accounts)
+        for account_name, account_id in resolved
     ]
     return {
         "report_date": report_date,
         "accounts": [{"account": entry.account, **asdict(entry.violations)} for entry in per_account],
+        "unresolved_accounts": unresolved,
         "total_decisions": sum(entry.violations.total_decisions for entry in per_account),
         "blocked": sum(entry.violations.block_count for entry in per_account),
         "rescaled": sum(entry.violations.rescale_count for entry in per_account),
@@ -280,9 +295,10 @@ def build_submission_summary(
     ``status_reason`` — against a real broker those are the rows worth reading,
     and the paper simulator can never produce one.
     """
+    resolved, unresolved = _resolve_account_ids(conn, accounts)
     per_account = []
-    for account_name, account_id in _resolve_account_ids(conn, accounts):
-        repo = OrderRepository(conn)
+    repo = OrderRepository(conn)
+    for account_name, account_id in resolved:
         orders = repo.fetch_for_account_on_date(account_id=account_id, date_str=report_date)
         # Open orders carried over from an earlier session. A `day` order cannot
         # still be live at the broker, so these are rows reconciliation could not
@@ -318,6 +334,7 @@ def build_submission_summary(
             }
             for entry in per_account
         ],
+        "unresolved_accounts": unresolved,
         "order_count": sum(entry.order_count for entry in per_account),
         "turned_away_count": sum(len(entry.turned_away) for entry in per_account),
         "stale_open_count": sum(len(entry.stale_open) for entry in per_account),

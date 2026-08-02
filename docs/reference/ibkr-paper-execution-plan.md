@@ -62,14 +62,19 @@ Target item 3 requires a contract model, chain data, an IV/greeks source, multi-
 order support, options position accounting, and an options-aware risk gate. It is a
 separate program, not a phase of this one.
 
-**Repeat runs through the session already work; intraday *data* does not.**
+**Repeat runs through the session are blocked, and intraday *data* is why.**
 `domain/market_hours.py` holds a real NYSE calendar including holidays and early closes,
-and `is_runtime_submission_window_open()` gates submission to regular hours. The daily
-job's duplicate-run guard and `--force-run` were removed, so every invocation runs and
-repeat passes through the trading day are the intended usage. What is still missing is
-intraday market data: no intraday bars are fetched anywhere, so each pass re-reads the
-same daily closes and the signals cannot change within a session. The remaining
-day-tagged idempotency lives in the governance and maintenance jobs, not the daily path.
+and `is_runtime_submission_window_open()` gates submission to regular hours. Repeat passes
+through the trading day are the eventual goal, but they are not useful yet: no intraday
+bars are fetched anywhere, so a second pass re-reads the same daily closes, cannot produce
+a different signal, and would simply trade again on the identical evidence. The daily job's
+duplicate-run guard is what stops that, and `--force-run` overrides it for a deliberate
+operator re-run.
+
+Fetching intraday bars is therefore the prerequisite for intra-session repeats, not an
+independent nicety — relaxing the guard before that lands would buy extra trades rather
+than extra information. The guard keys on the run's report date, so a replay of a past date
+is unaffected.
 
 **The optimizer works but is hand-driven.** Walk-forward optimization, the promotion
 gate, and four migrations (`0021`–`0024`) exist and are reachable from three CLI

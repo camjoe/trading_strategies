@@ -6,6 +6,11 @@ daily paper-trading run already exists (via the daily job's log-sentinel
 helper). Dates that have no successful run are replayed by invoking
 daily_paper_trading with --as-of-date.
 
+No --force-run: this filters to dates with no successful run, and the daily job's
+duplicate-run guard keys on that same date and sentinel. A date that reaches the
+replay invocation is one the guard would pass anyway, so overriding it would only
+suppress a disagreement worth seeing.
+
 Usage examples::
 
     # Dry run — list missing dates without executing
