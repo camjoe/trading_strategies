@@ -60,8 +60,9 @@ def generate_book_trade_intents(
     # signals produces no trades.
     account_id = account.id
 
-    # Book-native enumeration: active, non-default, openly assigned books.
-    # Unassigned or non-active books do not trade — no account fallback.
+    # Book-native enumeration: active, openly assigned books — including the
+    # default book, which trades like any other (ADR 010/014). Unassigned or
+    # non-active books do not trade; there is no account fallback.
     trading_books = enumerate_trading_books(conn, account_id=account_id)
     if not trading_books:
         return []

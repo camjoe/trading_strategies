@@ -56,7 +56,7 @@ python -m trading.interfaces.cli.main
 Full listing: [`reference/`](reference/). Key entries:
 
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, walk-forward terminology, safeguards, and layering overview
-- [`reference/backtest-live-divergence.md`](reference/backtest-live-divergence.md) — where simulation and the live runtime execute differently, which gaps are bugs, and what must be settled before a backtest number predicts anything
+- [`reference/backtest-live-divergence.md`](reference/backtest-live-divergence.md) — where simulation and live execution differ, why that biases walk-forward selection rather than merely offsetting it, and which gaps are bugs
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/ibkr-paper-execution-plan.md`](reference/ibkr-paper-execution-plan.md) — target auto-trader shape, audited current-state gap, and the phase order to close it
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
