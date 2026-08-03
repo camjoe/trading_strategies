@@ -26,11 +26,14 @@ is a share of *that book's* equity, while the symbol, sector and gross caps are
 shares of *total equity summed across all books*. One book may therefore hold 25%
 of its own equity in a name that is simultaneously capped at 30% of the portfolio.
 
-**An unmapped symbol has no sector cap.** ``resolve_sector_for_symbol`` returns
-``None`` for any symbol absent from ``config.symbol_sector_map``, and the sector
-limit becomes unbounded for it. This fails open: a ticker added to a trade
-universe but not to ``infrastructure/config/symbol_sectors.json`` is silently
-exempt from sector concentration limits.
+**An unmapped symbol is bucketed, not exempted.** Sector limits are off entirely
+when ``config.symbol_sector_map`` is empty — that is the explicit opt-out. Once a
+map is configured, a symbol missing from it is charged to the shared
+``UNCATEGORIZED_SECTOR`` bucket and competes for the same sector cap as any other
+sector. Missing reference data therefore tightens the gate rather than opening a
+hole in it: a ticker added to a trade universe but not to
+``infrastructure/config/symbol_sectors.json`` cannot slip the cap.
+``scripts/checks/repo/sector_map_check.py`` catches that drift at commit time.
 
 **Intents are evaluated in order and each approval consumes capacity**, so list
 order decides who is filled when a cap binds. The caller seeds selection per run
@@ -53,6 +56,7 @@ from trading.models.execution import (
     RiskGatePosition,
     RiskGateResult,
 )
+from trading.models.portfolio import UNCATEGORIZED_SECTOR
 
 
 def _coerce_positive_fraction(value: float, *, field_name: str) -> float:
@@ -117,6 +121,15 @@ def evaluate_risk_gate(
         config.max_sector_concentration_pct, field_name="max_sector_concentration_pct"
     )
     symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
+    # No map at all means sector limits are switched off. Once a map exists, an
+    # unmapped symbol shares the UNCATEGORIZED_SECTOR bucket instead of escaping
+    # the cap, so incomplete reference data cannot open a hole.
+    sector_limits_enabled = bool(symbol_sector_map)
+
+    def sector_bucket(candidate_symbol: str) -> str | None:
+        if not sector_limits_enabled:
+            return None
+        return resolve_sector_for_symbol(candidate_symbol, symbol_sector_map=symbol_sector_map) or UNCATEGORIZED_SECTOR
 
     total_equity = sum(book_equity_by_id.values())
     gross_cap_notional = total_equity * max_portfolio_gross_exposure
@@ -131,7 +144,7 @@ def evaluate_risk_gate(
         exposure = abs(pos.market_value)
         gross_exposure += exposure
         symbol_exposure[pos.symbol] = symbol_exposure.get(pos.symbol, 0.0) + exposure
-        sector = resolve_sector_for_symbol(pos.symbol, symbol_sector_map=symbol_sector_map)
+        sector = sector_bucket(pos.symbol)
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + exposure
         book_symbol_exposure[(pos.book_id, pos.symbol)] = exposure
@@ -171,7 +184,7 @@ def evaluate_risk_gate(
             exposure_delta = min(symbol_exposure.get(symbol, 0.0), requested_notional)
             gross_exposure = max(0.0, gross_exposure - exposure_delta)
             symbol_exposure[symbol] = max(0.0, symbol_exposure.get(symbol, 0.0) - exposure_delta)
-            sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+            sector = sector_bucket(symbol)
             if sector is not None:
                 sector_exposure[sector] = max(0.0, sector_exposure.get(sector, 0.0) - exposure_delta)
             book_key = (int(intent.book_id), symbol)
@@ -197,7 +210,7 @@ def evaluate_risk_gate(
         remaining_book_notional = max(0.0, book_symbol_cap_notional - current_book_symbol_exposure)
         remaining_symbol_notional = max(0.0, symbol_cap_notional - symbol_exposure.get(symbol, 0.0))
         remaining_gross_notional = max(0.0, gross_cap_notional - gross_exposure)
-        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+        sector = sector_bucket(symbol)
         remaining_sector_notional = (
             max(0.0, sector_cap_notional - sector_exposure.get(sector, 0.0)) if sector is not None else float("inf")
         )
