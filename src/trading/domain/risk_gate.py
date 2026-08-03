@@ -9,6 +9,35 @@ inputs.
 This mirrors ``trading.domain.rotation.policy.evaluate_champion_challenger_rotation``:
 the side-effect-free gate logic lives here and returns a passive
 ``RiskGateResult`` value object; the orchestration lives in services.
+
+Rules this gate enforces, and the assumptions behind them:
+
+**Sells are never blocked.** Any ``side == "sell"`` is approved unconditionally as
+``risk_reducing_sell`` without consulting a cap. *This is sound only because the
+system is long-only*: with no short positions, a sell can only reduce exposure.
+If shorting is ever introduced, this branch becomes a hole — a short sale would
+increase exposure and pass the gate untouched — and it must be revisited first.
+A zero-or-negative quantity is still blocked (``non_positive_qty``) ahead of this
+branch, so a sell of nothing does not slip through.
+
+**Buys are capped four ways**, and the binding constraint is whichever leaves the
+least room. Note the denominators differ deliberately: ``max_book_notional_pct``
+is a share of *that book's* equity, while the symbol, sector and gross caps are
+shares of *total equity summed across all books*. One book may therefore hold 25%
+of its own equity in a name that is simultaneously capped at 30% of the portfolio.
+
+**An unmapped symbol has no sector cap.** ``resolve_sector_for_symbol`` returns
+``None`` for any symbol absent from ``config.symbol_sector_map``, and the sector
+limit becomes unbounded for it. This fails open: a ticker added to a trade
+universe but not to ``infrastructure/config/symbol_sectors.json`` is silently
+exempt from sector concentration limits.
+
+**Intents are evaluated in order and each approval consumes capacity**, so list
+order decides who is filled when a cap binds. The caller seeds selection per run
+date, making the order stable within a day and varied across days.
+
+Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``
+and the sizing policy filters ``qty >= 1`` before intents reach here.
 """
 
 from __future__ import annotations
