@@ -9,7 +9,7 @@ import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
 from trading.domain.bars import normalize_bar_frame
-from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS
+from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
@@ -35,38 +35,26 @@ def fetch_bar_histories(
     engine reads bars, so live must too or the two evaluate the same strategy
     differently.
 
-    Column names are normalized to the repo's own bar vocabulary, so nothing
-    above this layer has to know the vendor's spelling.
+    The provider hands back ``BAR_COLUMNS`` already; this adds only the
+    gap-filling the backtest path also applies.
     """
     provider = require_provider(provider)
     histories: dict[str, pd.DataFrame] = {}
     for ticker in universe:
+        # One bad ticker must never take the universe down with it.
         try:
             frame = provider.fetch_ohlcv(ticker, period, DAILY_INTERVAL)
+            if frame is None or frame.empty:
+                continue
+            # Same gap-filling rule the backtest path applies. Without it a halted or
+            # thinly-traded name reaches the signal with raw vendor gaps live and
+            # forward-filled bars in a backtest, so the same rolling window can
+            # produce a different value on the same date — the divergence between
+            # evaluation and live trading that reading bars at all was meant to close.
+            histories[ticker] = normalize_bar_frame(frame)
         except Exception as exc:
             logger.debug("Skipping bar history for %s: %s", ticker, exc, exc_info=True)
-            continue
-        if frame is None or frame.empty:
-            continue
-        renamed = _rename_bar_columns(frame)
-        if renamed is None:
-            logger.debug("Skipping bar history for %s: missing bar columns %s", ticker, list(frame.columns))
-            continue
-        # Same gap-filling rule the backtest path applies. Without it a halted or
-        # thinly-traded name reaches the signal with raw vendor gaps live and
-        # forward-filled bars in a backtest, so the same rolling window can
-        # produce a different value on the same date — the divergence between
-        # evaluation and live trading that reading bars at all was meant to close.
-        histories[ticker] = normalize_bar_frame(renamed)
     return histories
-
-
-def _rename_bar_columns(frame: pd.DataFrame) -> pd.DataFrame | None:
-    """Rename a vendor OHLCV frame to the repo's bar columns, or None if incomplete."""
-    lowered = {str(column).lower(): column for column in frame.columns}
-    if any(name not in lowered for name in BAR_COLUMNS):
-        return None
-    return frame[[lowered[name] for name in BAR_COLUMNS]].set_axis(list(BAR_COLUMNS), axis=1)
 
 
 def build_iv_rank_proxy(

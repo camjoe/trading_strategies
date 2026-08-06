@@ -10,12 +10,15 @@ import pandas as pd
 class MarketDataProvider(ABC):
     @abstractmethod
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        """Return an OHLCV DataFrame for *ticker* over a relative *period*.
+        """Return a bar frame for one *ticker* over a relative *period* and *interval*.
 
-        Columns keep the vendor's own capitalized spelling, unlike
-        ``fetch_bar_history``. Callers that feed strategy code normalize them to
-        ``BAR_COLUMNS`` first — the live runtime's per-ticker signal pass does
-        exactly that in ``trading.services.auto_trading.market``.
+        Carries exactly ``BAR_COLUMNS``, in that order, or raises — the same
+        vocabulary ``fetch_bar_history`` returns. The vendor's own spelling never
+        leaves the adapter.
+
+        Distinct from ``fetch_bar_history`` in shape, not vocabulary: one ticker
+        over a relative period at any supported interval, rather than many
+        tickers over a date range at daily resolution.
         """
 
     @abstractmethod
@@ -46,9 +49,8 @@ class MarketDataProvider(ABC):
         entry or the call raises; a partially-populated result would let a
         caller silently backtest a smaller universe than it asked for.
 
-        Distinct from ``fetch_ohlcv``, which serves one ticker over a relative
-        period in the vendor's own column spelling. This is the bulk,
-        date-bounded, already-normalized read the simulation engine runs on.
+        The bulk, date-bounded, already-normalized read the simulation engine
+        runs on.
         """
 
 
