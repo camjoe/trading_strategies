@@ -76,7 +76,7 @@ describe("renderDetail", () => {
         createdAt: "2026-03-15T00:00:00Z",
         slippageBps: 5,
         feePerTrade: 1,
-        tickersFile: "trading/config/trade_universe.txt",
+        tickersFile: undefined,
       },
       latestBacktestMetrics: {
         runId: 12,

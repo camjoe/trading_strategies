@@ -115,7 +115,7 @@ class TestBacktestProxyFeatureFlow:
             conn,
             backtest_module.BacktestConfig(
                 account_name="acct_topic",
-                tickers_file="src/infrastructure/config/trade_universe.txt",
+                tickers_file="src/infrastructure/config/trade_universes/default.txt",
                 universe_history_dir=None,
                 start="2026-01-01",
                 end="2026-03-01",

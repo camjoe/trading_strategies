@@ -22,7 +22,6 @@ TRADING_CONFIG_DIR = REPO_ROOT / "src" / "infrastructure" / "config"
 # Canonical file locations used in multiple modules.
 ACCOUNT_PROFILES_DIR = TRADING_CONFIG_DIR / "account_profiles"
 DEFAULT_ACCOUNT_PROFILE_PATH = ACCOUNT_PROFILES_DIR / "default.json"
-TRADE_UNIVERSE_PATH = TRADING_CONFIG_DIR / "trade_universe.txt"
 TRADE_UNIVERSES_DIR = TRADING_CONFIG_DIR / "trade_universes"
 SYMBOL_SECTORS_PATH = TRADING_CONFIG_DIR / "symbol_sectors.json"
 PAPER_TRADING_DB_PATH = LOCAL_DIR / "paper_trading.db"

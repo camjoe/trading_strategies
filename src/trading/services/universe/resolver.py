@@ -11,16 +11,16 @@ an existing book is already trading.
 
 from __future__ import annotations
 
-from common.paths import TRADE_UNIVERSE_PATH, TRADE_UNIVERSES_DIR
+from common.paths import TRADE_UNIVERSES_DIR
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 
 # The universe a book starts on when a caller names none.
 DEFAULT_UNIVERSE_NAME = "default"
 
-# Default universe file for surfaces that take an explicit ticker file rather
-# than book-stored symbols: backtests, the strategy lab, benchmark sweeps.
-DEFAULT_TICKERS_FILE = str(TRADE_UNIVERSE_PATH)
+# Ticker file for surfaces that take an explicit path rather than book-stored
+# symbols: backtests, the strategy lab, benchmark sweeps.
+DEFAULT_TICKERS_FILE = str(TRADE_UNIVERSES_DIR / f"{DEFAULT_UNIVERSE_NAME}.txt")
 
 
 def resolve_named_universes(names: list[str]) -> list[str]:

@@ -42,7 +42,7 @@ def insert_backtest_run(
             "2026-02-01T00:00:00Z",
             5.0,
             0.0,
-            "src/infrastructure/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universes/default.txt",
             "seeded",
             "warning-a",
         ),

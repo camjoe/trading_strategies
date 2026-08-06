@@ -35,7 +35,7 @@ def test_fetch_latest_backtest_summary_none_and_present(conn, create_account_row
             utc_now_iso(),
             5.0,
             0.25,
-            "src/infrastructure/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universes/default.txt",
         ),
     )
     conn.commit()
@@ -64,7 +64,7 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
             utc_now_iso(),
             5.0,
             0.0,
-            "src/infrastructure/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universes/default.txt",
         ),
     )
     conn.commit()

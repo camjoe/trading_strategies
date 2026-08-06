@@ -97,7 +97,7 @@ describe("renderBacktestRunCard", () => {
     createdAt: "2026-02-01T00:00:00Z",
     slippageBps: 5.0,
     feePerTrade: 0.0,
-    tickersFile: "trading/config/trade_universe.txt",
+    tickersFile: undefined,
   };
 
   it("renders run id and run name", () => {
@@ -135,7 +135,7 @@ describe("renderBacktestReport", () => {
     created_at: "2026-02-01T00:00:00Z",
     slippage_bps: 5.0,
     fee_per_trade: 0.25,
-    tickers_file: "trading/config/trade_universe.txt",
+    tickers_file: "src/infrastructure/config/trade_universes/default.txt",
     notes: null,
     warnings: ["daily bars only", "approximate pricing"],
     trade_count: 4,

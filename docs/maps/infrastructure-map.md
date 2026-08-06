@@ -102,8 +102,7 @@ Static file-backed configuration assets, read through `src/trading/services/univ
 
 | Asset | Description |
 |---|---|
-| `trade_universes/` | Named ticker lists. A **write-time shorthand** only: naming one stores its expansion in `books.trade_symbols` (revision 0029), so nothing reads these on the trading path |
-| `trade_universe.txt` | Default ticker file for surfaces that take an explicit universe: backtests, strategy lab, benchmark sweeps |
+| `trade_universes/` | Named ticker lists. A **write-time shorthand** only: naming one stores its expansion in `books.trade_symbols` (revision 0029), so nothing reads these on the trading path. `default.txt` doubles as `DEFAULT_TICKERS_FILE` for surfaces that take an explicit path — backtests, strategy lab, benchmark sweeps |
 | `symbol_sectors.json` | Symbol→sector reference data for the risk gate's sector-concentration caps |
 
 ## Related References

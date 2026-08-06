@@ -132,7 +132,7 @@ def make_backtest_config(
 ) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
-        tickers_file="src/infrastructure/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universes/default.txt",
         universe_history_dir=universe_history_dir,
         start=start,
         end=end,
