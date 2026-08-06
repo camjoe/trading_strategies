@@ -28,6 +28,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
     run_dag_step,
     serialize_step_results,
     skip_dag_step,
+    step_result,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     build_daily_operator_report as _build_daily_operator_report,
@@ -147,6 +148,20 @@ def reconcile_and_snapshot(
     return {"accounts": list(accounts), "count": len(accounts)}
 
 
+def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str]:
+    """Accounts whose risk gate tripped a kill switch during this run.
+
+    Read back out of step 06's summary rather than tracked separately, so there is
+    one source of truth. A kill switch means an account submitted nothing, or
+    stopped part-way through its books — the run can still exit 0, so this has to
+    reach the artifact and the notification or it is invisible to anyone not
+    reading the operator report.
+    """
+    details = step_result(step_results, "06_pretrade_risk_gate").details
+    accounts = details.get("kill_switch_accounts")
+    return [str(account) for account in accounts] if isinstance(accounts, list) else []
+
+
 def _finish_run(
     args: argparse.Namespace,
     context: DailyRunContext,
@@ -160,11 +175,18 @@ def _finish_run(
     payload keys. Sharing one exit path is what keeps the artifact and the
     notification from drifting apart between them — a run that fails must still
     leave the same shape behind for the autonomy monitor to read.
+
+    A run that completed every step but tripped a kill switch is still a success
+    by ``status`` — steps ran, nothing threw — but it did not trade what it
+    intended. ``kill_switch_accounts`` carries that so the artifact and the alert
+    say so instead of reading as a clean run.
     """
     failed = error is not None
+    kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
     payload: dict[str, object] = {
         **context.run_meta,
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
+        "kill_switch_accounts": kill_switch_accounts,
         "completed_steps": completed_steps_from_dag(step_results),
         "step_results": serialize_step_results(step_results),
         "finished_at": ts(),
@@ -174,19 +196,27 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
+    if failed:
+        message = f"Daily paper trading run failed: {error}"
+    elif kill_switch_accounts:
+        message = f"Daily paper trading run completed with kill switches on: {', '.join(kill_switch_accounts)}"
+    else:
+        message = "Daily paper trading run completed successfully"
+
     write_artifact(context.artifact_path, payload)
     maybe_send_notification(
         notifier=notify_runtime_event,
         webhook_url=args.notify_webhook_url,
         email_config=resolve_email_config_from_env(),
         notify_on_success=args.notify_on_success,
-        status="fail" if failed else "ok",
-        message=(
-            f"Daily paper trading run failed: {error}" if failed else "Daily paper trading run completed successfully"
-        ),
+        # A kill switch is not a step failure, but it is not a quiet success
+        # either — alert on it even when notify_on_success is off.
+        status="fail" if failed else ("warn" if kill_switch_accounts else "ok"),
+        message=message,
         details={
             "accounts": context.accounts,
             "account_count": len(context.accounts),
+            "kill_switch_accounts": kill_switch_accounts,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
