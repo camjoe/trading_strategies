@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import DatabaseBackend, SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import (
+    DatabaseBackend,
+    SQLiteBackend,
+    get_backend,
+    set_backend,
+    use_backend,
+)
 
 
 class StubBackend(DatabaseBackend):
@@ -12,13 +18,6 @@ class StubBackend(DatabaseBackend):
     def open_connection(self) -> object:
         self.open_called = True
         return object()
-
-    def run_script(self, conn: object, script: str) -> None:
-        _ = (conn, script)
-
-    def get_table_columns(self, conn: object, table: str) -> set[str]:
-        _ = (conn, table)
-        return {"id"}
 
 
 def test_open_connection_creates_parent_and_sets_row_factory(tmp_path: Path) -> None:
@@ -31,25 +30,6 @@ def test_open_connection_creates_parent_and_sets_row_factory(tmp_path: Path) -> 
         row = conn.execute("SELECT 1 AS n").fetchone()
         assert row is not None
         assert row["n"] == 1
-    finally:
-        conn.close()
-
-
-def test_run_script_and_get_table_columns(tmp_path: Path) -> None:
-    backend = SQLiteBackend(tmp_path / "schema.db")
-    conn = backend.open_connection()
-    try:
-        backend.run_script(
-            conn,
-            """
-            CREATE TABLE sample (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL
-            );
-            """,
-        )
-
-        assert backend.get_table_columns(conn, "sample") == {"id", "name"}
     finally:
         conn.close()
 
@@ -73,14 +53,22 @@ def test_stub_backend_open_connection_is_callable() -> None:
     assert conn is not None
 
 
-@pytest.mark.parametrize(
-    "table_name",
-    ["accounts", "trades"],
-)
-def test_get_table_columns_returns_empty_set_for_missing_table(tmp_path: Path, table_name: str) -> None:
-    backend = SQLiteBackend(tmp_path / "empty.db")
-    conn = backend.open_connection()
-    try:
-        assert backend.get_table_columns(conn, table_name) == set()
-    finally:
-        conn.close()
+def test_use_backend_restores_the_previous_backend() -> None:
+    original = get_backend()
+    replacement = StubBackend()
+
+    with use_backend(replacement) as active:
+        assert active is replacement
+        assert get_backend() is replacement
+
+    assert get_backend() is original
+
+
+def test_use_backend_restores_the_previous_backend_on_error() -> None:
+    original = get_backend()
+
+    with pytest.raises(RuntimeError, match="boom"):
+        with use_backend(StubBackend()):
+            raise RuntimeError("boom")
+
+    assert get_backend() is original

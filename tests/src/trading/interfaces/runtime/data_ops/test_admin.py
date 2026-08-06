@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 import infrastructure.database.connection as db_init
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from tests.support.db_schema import build_db_at_head
 from trading.interfaces.runtime.data_ops import admin
 
@@ -33,13 +33,8 @@ class FakeParser:
 
 @pytest.fixture
 def configured_backend(tmp_path: Path):
-    original = get_backend()
-    backend = SQLiteBackend(tmp_path / "paper_trading.db")
-    set_backend(backend)
-    try:
+    with use_backend(SQLiteBackend(tmp_path / "paper_trading.db")) as backend:
         yield backend
-    finally:
-        set_backend(original)
 
 
 class TestSqliteDbPath:

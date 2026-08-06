@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from infrastructure.database import migration_runner
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
 
 _APPLICATION_TABLES_QUERY = (
@@ -86,12 +86,8 @@ def test_downgrade_then_upgrade_round_trip(migrated_conn: Any) -> None:
 
 def test_runner_uses_active_backend_when_no_connection_given(tmp_path: Path) -> None:
     db_path = tmp_path / "backend_owned.db"
-    original = get_backend()
-    set_backend(SQLiteBackend(db_path))
-    try:
+    with use_backend(SQLiteBackend(db_path)):
         migration_runner.upgrade("head")
-    finally:
-        set_backend(original)
 
     conn = sqlite3.connect(db_path)
     try:

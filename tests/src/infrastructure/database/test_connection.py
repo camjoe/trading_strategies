@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import (
     SchemaVersionError,
     db_session,
@@ -29,12 +29,8 @@ from tests.support.db_schema import build_db_at_head
 @pytest.fixture
 def db_path(tmp_path: Path) -> Iterator[Path]:
     path = tmp_path / "paper_trading.db"
-    original = get_backend()
-    set_backend(SQLiteBackend(path))
-    try:
+    with use_backend(SQLiteBackend(path)):
         yield path
-    finally:
-        set_backend(original)
 
 
 def _set_version(path: Path, *versions: str) -> None:

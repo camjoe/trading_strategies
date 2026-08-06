@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import SchemaVersionError, ensure_db
 from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
 
@@ -31,10 +31,6 @@ def test_loader_returns_account_names(configured_backend: SQLiteBackend) -> None
 
 
 def test_loader_rejects_a_database_off_the_expected_revision(tmp_path: Path) -> None:
-    original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "unversioned.db"))
-    try:
+    with use_backend(SQLiteBackend(tmp_path / "unversioned.db")):
         with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
             load_runtime_eligible_account_names()
-    finally:
-        set_backend(original)

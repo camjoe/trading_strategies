@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
@@ -22,14 +22,12 @@ NOW = "2026-07-03T12:00:00Z"
 
 @pytest.fixture
 def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
+    with use_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db"))):
+        connection = ensure_db()
+        try:
+            yield connection
+        finally:
+            connection.close()
 
 
 def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None:

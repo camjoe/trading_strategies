@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -14,34 +16,24 @@ class DatabaseBackend(ABC):
     Implement this class to swap out SQLite for another database, then
     register your implementation with :func:`set_backend`.
 
-    Only three operations need to be provided — the rest of the codebase
-    uses standard DB-API 2.0 calls (``conn.execute``, ``conn.commit``,
-    etc.) directly on the connection object returned by
-    :meth:`open_connection`.
+    Opening a connection is the only operation a backend must provide — the
+    rest of the codebase uses standard DB-API 2.0 calls (``conn.execute``,
+    ``conn.commit``, etc.) directly on the connection object returned by
+    :meth:`open_connection`. Schema creation and inspection are not backend
+    concerns: the Alembic revision chain owns the schema.
     """
 
     @abstractmethod
     def open_connection(self) -> Any:
         """Return an open, configured database connection."""
 
-    @abstractmethod
-    def run_script(self, conn: Any, script: str) -> None:
-        """Execute a multi-statement SQL script (e.g. schema creation).
-
-        Equivalent to sqlite3's ``executescript``.  Implementations must
-        ensure the script is committed before returning.
-        """
-
-    @abstractmethod
-    def get_table_columns(self, conn: Any, table: str) -> set[str]:
-        """Return the set of column names that currently exist in *table*."""
-
 
 class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
+
     Args:
         db_path: Path to the SQLite file.  Defaults to the path resolved by
-            ``trading.database.config.get_db_path``.
+            ``infrastructure.database.config.get_db_path``.
     """
 
     def __init__(self, db_path: Path | None = None) -> None:
@@ -62,14 +54,6 @@ class SQLiteBackend(DatabaseBackend):
         conn.execute("PRAGMA busy_timeout = 5000")
         return conn
 
-    def run_script(self, conn: Any, script: str) -> None:
-        # executescript commits any open transaction before running.
-        conn.executescript(script)
-
-    def get_table_columns(self, conn: Any, table: str) -> set[str]:
-        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-        return {str(row[1]) for row in rows}
-
 
 _backend: DatabaseBackend = SQLiteBackend()
 
@@ -80,9 +64,25 @@ def get_backend() -> DatabaseBackend:
 
 
 def set_backend(backend: DatabaseBackend) -> None:
-    """Replace the active database backend.
+    """Replace the active database backend for the rest of the process.
 
-    Use this to inject a custom backend (e.g. for testing or migration):
+    Use this to inject a custom backend (e.g. for testing or migration). When
+    the replacement should only last for a scope, use :func:`use_backend`.
     """
     global _backend
     _backend = backend
+
+
+@contextmanager
+def use_backend(backend: DatabaseBackend) -> Iterator[DatabaseBackend]:
+    """Activate *backend* for the duration of the block, then restore the previous one.
+
+    The scoped form of :func:`set_backend`, for callers that must not leak a
+    swapped backend into whatever runs next.
+    """
+    original = get_backend()
+    set_backend(backend)
+    try:
+        yield backend
+    finally:
+        set_backend(original)

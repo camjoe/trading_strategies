@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import SchemaVersionError
 from tests.support.db_schema import build_db_at_head
 from trading.interfaces.runtime.data_ops import csv_export
@@ -29,12 +29,8 @@ class TestOpenDbConnection:
         self, sqlite_db_file: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("TRADING_DB_PATH", str(tmp_path / "missing.db"))
-        original = get_backend()
-        set_backend(SQLiteBackend(sqlite_db_file))
-        try:
+        with use_backend(SQLiteBackend(sqlite_db_file)):
             conn, resolved_path = csv_export.open_db_connection()
-        finally:
-            set_backend(original)
 
         try:
             assert resolved_path == sqlite_db_file.resolve()
