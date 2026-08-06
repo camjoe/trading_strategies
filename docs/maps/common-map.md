@@ -31,7 +31,6 @@ Path resolution helpers.
 
 | Module | Responsibility |
 |---|---|
-| `executables.py` | Repo-local executable resolution helpers (`resolve_repo_python_exe`) |
 | `formatting.py` | Cross-platform path display formatting helpers (`relative_posix`) |
 | `repo_paths.py` | Repo-root discovery (`get_repo_root`) for path-relative resolution |
 | `project_paths.py` | Project data paths (incl. frozen back-compat data locations) |
