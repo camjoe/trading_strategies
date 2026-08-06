@@ -19,17 +19,13 @@ from .cache import _CACHE_MISS, market_data_cache_key, read_market_data_cache, w
 
 logger = logging.getLogger(__name__)
 
-# Deterministic guard on outbound Yahoo requests (module docstring in common/rate_limit.py).
-# Only actual network fetches acquire a slot — cache hits neither pace nor count. One
-# limiter is built per provider instance, and the composition root builds one provider per
-# run and injects it down, so all of a run's fetches share one budget.
+# Only network fetches acquire a slot; cache hits neither pace nor count. One limiter is
+# built per provider instance, so a run that injects one provider shares one budget.
 _YF_MIN_INTERVAL_ENV = "TRADING_YF_MIN_INTERVAL_SECONDS"
 _YF_MAX_CALLS_ENV = "TRADING_YF_MAX_CALLS"
-# Pacing is opt-in (0 = off) so it never adds latency to normal use; set the env var to a
-# small value (e.g. 0.5) to space out requests during a large cold research sweep.
+# Either env var set to 0 disables that guard. Pacing is off by default; the cumulative
+# ceiling is a zero-latency stop for an unbounded loop.
 _DEFAULT_YF_MIN_INTERVAL_SECONDS = 0.0
-# Cumulative-call ceiling per run: far above any legitimate sweep (~tens of cold fetches),
-# but a hard, zero-latency stop for an accidental unbounded loop. Env var 0 disables it.
 _DEFAULT_YF_MAX_CALLS = 1000
 
 
@@ -83,8 +79,13 @@ def _split_download_into_bar_frames(hist: pd.DataFrame, tickers: list[str]) -> d
     Tickers whose bars are entirely missing are omitted; the caller decides
     whether that is fatal.
     """
-    frames: dict[str, pd.DataFrame] = {}
     is_multi = isinstance(hist.columns, pd.MultiIndex)
+    if not is_multi and len(tickers) > 1:
+        # Flat columns name no ticker, so they can only describe a single-ticker
+        # request; splitting them across several hands each the same bars.
+        return {}
+
+    frames: dict[str, pd.DataFrame] = {}
     for ticker in tickers:
         columns: dict[str, pd.Series] = {}
         for vendor_name, bar_name in _VENDOR_BAR_COLUMNS.items():
@@ -109,14 +110,39 @@ class YFinanceProvider(MarketDataProvider):
     """Concrete market data provider backed by yfinance / Yahoo Finance."""
 
     def __init__(self, *, rate_limiter: RateLimiter | None = None) -> None:
-        # One guard per provider (env-configured); injectable for tests.
         self._rate_limiter = rate_limiter or build_market_data_rate_limiter()
+
+    def _download_history(self, tickers: list[str], start_date: date, end_date: date) -> pd.DataFrame:
+        """Return the raw date-bounded download that both bulk history reads share."""
+        cache_key = market_data_cache_key(
+            "download-history",
+            tickers=tickers,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+        )
+        cached = read_market_data_cache(cache_key)
+        if cached is not _CACHE_MISS:
+            return cast(pd.DataFrame, cached)
+
+        self._rate_limiter.acquire()
+        hist = yf.download(
+            tickers=tickers,
+            start=start_date.isoformat(),
+            end=(end_date + timedelta(days=1)).isoformat(),
+            auto_adjust=True,
+            progress=False,
+            group_by="column",
+        )
+        # Conditional: caching an empty frame would pin a failed fetch for the whole TTL.
+        if not hist.empty:
+            write_market_data_cache(cache_key, hist)
+        return hist
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
         cache_key = market_data_cache_key("ohlcv", ticker=ticker.upper().strip(), period=period, interval=interval)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
-            return cached
+            return cast(pd.DataFrame, cached)
 
         self._rate_limiter.acquire()
         df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
@@ -137,25 +163,7 @@ class YFinanceProvider(MarketDataProvider):
             raise ValueError("At least one ticker is required.")
 
         normalized_tickers = [ticker.upper().strip() for ticker in tickers]
-        cache_key = market_data_cache_key(
-            "close-history",
-            tickers=normalized_tickers,
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
-        )
-        cached = read_market_data_cache(cache_key)
-        if cached is not _CACHE_MISS:
-            return cached
-
-        self._rate_limiter.acquire()
-        hist = yf.download(
-            tickers=normalized_tickers,
-            start=start_date.isoformat(),
-            end=(end_date + timedelta(days=1)).isoformat(),
-            auto_adjust=True,
-            progress=False,
-            group_by="column",
-        )
+        hist = self._download_history(normalized_tickers, start_date, end_date)
         if hist.empty:
             raise ValueError("No historical price data returned for requested tickers/date range.")
 
@@ -173,9 +181,7 @@ class YFinanceProvider(MarketDataProvider):
         missing = [ticker for ticker in normalized_tickers if ticker not in close.columns]
         if missing:
             raise ValueError(f"Missing close history for tickers: {', '.join(missing)}")
-        result = close[normalized_tickers]
-        write_market_data_cache(cache_key, result)
-        return result
+        return close[normalized_tickers]
 
     def fetch_bar_history(
         self,
@@ -187,27 +193,7 @@ class YFinanceProvider(MarketDataProvider):
             raise ValueError("At least one ticker is required.")
 
         normalized_tickers = [ticker.upper().strip() for ticker in tickers]
-        cache_key = market_data_cache_key(
-            "bar-history",
-            tickers=normalized_tickers,
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
-        )
-        cached = read_market_data_cache(cache_key)
-        if cached is not _CACHE_MISS:
-            return cast(dict[str, pd.DataFrame], cached)
-
-        self._rate_limiter.acquire()
-        # The same download the close-only path makes; that one discards four
-        # fifths of what it already paid for.
-        hist = yf.download(
-            tickers=normalized_tickers,
-            start=start_date.isoformat(),
-            end=(end_date + timedelta(days=1)).isoformat(),
-            auto_adjust=True,
-            progress=False,
-            group_by="column",
-        )
+        hist = self._download_history(normalized_tickers, start_date, end_date)
         if hist.empty:
             raise ValueError("No historical bar data returned for requested tickers/date range.")
 
@@ -215,7 +201,6 @@ class YFinanceProvider(MarketDataProvider):
         missing = [ticker for ticker in normalized_tickers if ticker not in frames]
         if missing:
             raise ValueError(f"Missing bar history for tickers: {', '.join(missing)}")
-        write_market_data_cache(cache_key, frames)
         return frames
 
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
@@ -223,7 +208,7 @@ class YFinanceProvider(MarketDataProvider):
         cache_key = market_data_cache_key("close-series", ticker=normalized_ticker, period=period)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
-            return cached
+            return cast(pd.Series, cached)
 
         # Outside the try: a RateLimitExceeded must surface, never be swallowed as a
         # fetch failure that silently returns None.

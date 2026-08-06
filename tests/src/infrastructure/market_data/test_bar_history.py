@@ -9,7 +9,6 @@ import pytest
 
 import infrastructure.market_data.yfinance_provider as provider_module
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
-from infrastructure.market_data.unavailable_provider import UnavailableProvider
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
@@ -61,6 +60,21 @@ class TestSplitDownloadIntoBarFrames:
         frames = provider_module._split_download_into_bar_frames(download, ["AAA", "BBB"])
 
         assert set(frames) == {"AAA"}
+
+    def test_flat_columns_are_refused_for_a_multi_ticker_request(self) -> None:
+        """Flat columns name no ticker; splitting them would hand each the same bars."""
+        flat = pd.DataFrame(
+            {
+                "Open": [10.0, 11.0],
+                "High": [10.5, 11.5],
+                "Low": [9.5, 10.5],
+                "Close": [10.2, 11.2],
+                "Volume": [100.0, 200.0],
+            },
+            index=pd.date_range("2026-01-01", periods=2, freq="B"),
+        )
+
+        assert provider_module._split_download_into_bar_frames(flat, ["AAA", "BBB"]) == {}
 
     def test_a_single_ticker_download_with_flat_columns_is_handled(self) -> None:
         index = pd.date_range("2026-01-01", periods=3, freq="B")
@@ -118,8 +132,3 @@ class TestDemoProviderBars:
     def test_empty_ticker_list_is_rejected(self) -> None:
         with pytest.raises(ValueError, match="At least one ticker"):
             DemoMarketDataProvider().fetch_bar_history([], date(2026, 1, 1), date(2026, 2, 1))
-
-
-def test_unavailable_provider_refuses_bar_history() -> None:
-    with pytest.raises(NotImplementedError, match="not implemented yet"):
-        UnavailableProvider("ccxt").fetch_bar_history(["AAA"], date(2026, 1, 1), date(2026, 2, 1))

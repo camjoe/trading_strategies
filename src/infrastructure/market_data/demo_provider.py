@@ -11,6 +11,21 @@ import pandas as pd
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.market_data.protocols import MarketDataProvider
 
+_PERIOD_TRADING_DAYS = {"5d": 5, "1mo": 22, "3mo": 66, "6mo": 132, "1y": 252, "2y": 504}
+
+# fetch_ohlcv returns the vendor's capitalized spelling, unlike fetch_bar_history
+_BAR_TO_VENDOR_COLUMNS = {
+    BAR_OPEN: "Open",
+    BAR_HIGH: "High",
+    BAR_LOW: "Low",
+    BAR_CLOSE: "Close",
+    BAR_VOLUME: "Volume",
+}
+
+# None = already daily, no resampling needed.
+_RESAMPLE_RULES: dict[str, str | None] = {"1d": None, "1wk": "W-FRI", "1mo": "ME"}
+_OHLCV_AGGREGATION = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+
 
 class DemoMarketDataProvider(MarketDataProvider):
     """Deterministic synthetic daily market data for offline demonstrations."""
@@ -53,10 +68,8 @@ class DemoMarketDataProvider(MarketDataProvider):
     def _bar_frame(cls, ticker: str, close: pd.Series) -> pd.DataFrame:
         """Wrap a synthetic close series in bars that obey the OHLC invariants.
 
-        High must be at least the highest of open/close and low at most the
-        lowest, or indicators built on true range produce nonsense and tests
-        pass against data no market could print. The spreads are deterministic
-        per ticker so the demo and fixture databases stay reproducible.
+        Spreads derive from the ticker alone, so fixture databases rebuild
+        identically; a random spread here would break their checked-in values.
         """
         seed = cls._seed(ticker)
         open_ = close.shift(1).fillna(close.iloc[0] if len(close) else 0.0)
@@ -94,35 +107,25 @@ class DemoMarketDataProvider(MarketDataProvider):
         closes = self._close_frame(normalized, index)
         return {ticker: self._bar_frame(ticker, closes[ticker]) for ticker in normalized}
 
+    @staticmethod
+    def _period_index(period: str) -> pd.DatetimeIndex:
+        days = _PERIOD_TRADING_DAYS.get(period, 252)
+        return pd.bdate_range(end=date.today(), periods=days)
+
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
-        days = {"5d": 5, "1mo": 22, "3mo": 66, "6mo": 132, "1y": 252, "2y": 504}.get(period, 252)
-        end = date.today()
-        index = pd.bdate_range(end=end, periods=days)
         normalized = self._normalized_ticker(ticker)
-        return self._close_frame([normalized], index)[normalized]
+        return self._close_frame([normalized], self._period_index(period))[normalized]
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        if interval not in {"1d", "1wk", "1mo"}:
+        if interval not in _RESAMPLE_RULES:
             raise ValueError("Demo market data supports daily, weekly, and monthly intervals.")
-        close = self.fetch_close_series(ticker, period)
-        assert close is not None
-        frame = pd.DataFrame(index=close.index)
-        frame["Open"] = close * 0.997
-        frame["High"] = close * 1.008
-        frame["Low"] = close * 0.992
-        frame["Close"] = close
-        seed = self._seed(self._normalized_ticker(ticker))
-        frame["Volume"] = [1_000_000 + (seed + day * 79_919) % 4_000_000 for day in range(len(frame))]
-        if interval == "1wk":
-            frame = (
-                frame.resample("W-FRI")
-                .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"})
-                .dropna()
-            )
-        elif interval == "1mo":
-            frame = (
-                frame.resample("ME")
-                .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"})
-                .dropna()
-            )
-        return frame
+        normalized = self._normalized_ticker(ticker)
+        close = self._close_frame([normalized], self._period_index(period))[normalized]
+        # Same bars the bar-history path builds, relabelled to the vendor spelling
+        # fetch_ohlcv is contracted to return, so the two reads cannot disagree.
+        frame = self._bar_frame(normalized, close).rename(columns=_BAR_TO_VENDOR_COLUMNS)
+
+        rule = _RESAMPLE_RULES[interval]
+        if rule is None:
+            return frame
+        return frame.resample(rule).agg(_OHLCV_AGGREGATION).dropna()

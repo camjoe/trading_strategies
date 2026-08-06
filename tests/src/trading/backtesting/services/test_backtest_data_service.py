@@ -167,7 +167,7 @@ def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.Mon
         index=idx,
     )
 
-    monkeypatch.setattr("infrastructure.market_data.yf.download", lambda **_kwargs: hist)
+    monkeypatch.setattr("infrastructure.market_data.yfinance_provider.yf.download", lambda **_kwargs: hist)
 
     with pytest.raises(ValueError, match="missing Close column"):
         backtest_data.fetch_close_history(

@@ -43,7 +43,7 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 To point tooling at a disposable database, run `scripts/launch_sandbox.py` or
 `scripts/launch_demo.py`, which set `TRADING_DB_PATH` for you.
 
-**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `src/infrastructure/config/market_data_config.example.json` for the config format.
+**Market data:** defaults to `yfinance`. Override via the `TRADING_MARKET_DATA_PROVIDER` env var (`yfinance` or `demo`); any other value raises at `build_provider()`.
 
 ## Quick Start
 
