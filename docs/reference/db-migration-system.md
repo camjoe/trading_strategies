@@ -110,7 +110,7 @@ For task-oriented guidance (risk estimation, validation, rollback planning) use 
 ## Tests
 
 - Runtime states (missing/empty, unversioned, behind, at-head, ahead, branched):
-  `tests/src/infrastructure/database/test_db.py`
+  `tests/src/infrastructure/database/test_connection.py`
 - Runner + revision integrity (round-trips, FK actions, no-op at head):
   `tests/src/infrastructure/database/test_migration_runner.py`
 - Operator commands: `tests/scripts/test_manage_db_migrations.py`
