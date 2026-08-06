@@ -1,7 +1,25 @@
-"""SQLite row coercion utilities shared across packages.
+"""Value and row coercion helpers shared across packages.
 
-These helpers safely extract and convert values from ``sqlite3.Row`` objects.
-They have no domain dependencies and are usable by any layer.
+Two independent axes, giving four families:
+
+* ``coerce_*`` / ``expect_*`` convert a single value; ``row_*`` / ``row_expect_*``
+  read one key out of a mapping.
+* ``coerce_*`` / ``row_*`` pass ``None`` through; ``expect_*`` / ``row_expect_*``
+  raise :class:`ValueError` on ``None``, so a caller that requires a value gets a
+  non-optional type back instead of narrowing one itself. Both kinds raise
+  ``ValueError`` when a non-null value cannot be converted.
+
+The ``row_*`` families take a :class:`~collections.abc.Mapping`, **not** a
+``sqlite3.Row`` — that class is a sequence, not a mapping, and does not satisfy
+the signature. Repositories already convert at the boundary (``dict(row)``,
+usually straight into a model's ``from_mapping``); these helpers sit on the
+mapping side of it.
+
+Prefer ``row_expect_x(row, key)`` over ``expect_x(row[key])``: it passes the
+column name through, so a bad value reports ``book_id cannot be null`` rather
+than ``value cannot be null``.
+
+No domain dependencies; usable from any layer.
 """
 
 from __future__ import annotations
