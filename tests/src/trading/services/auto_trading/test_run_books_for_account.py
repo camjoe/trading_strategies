@@ -111,7 +111,14 @@ def _install(
 
     submit_iter = iter(submit_results or [])
 
-    def _submit(_conn, *, book_id, account_id, intents, broker, gate, fee):
+    def _submit(_conn, *, book_id, account_id, intents, broker, gate, fee, enforce_throttle=None):
+        # Submission owns the throttle check now — it runs between orders, not
+        # once per book. One call here stands in for that per-order loop.
+        if enforce_throttle is not None:
+            try:
+                enforce_throttle()
+            except RuntimeTradeThrottleExceededError:
+                return SubmissionResult(throttled=True)
         recorder.calls.append(f"submit:{book_id}")
         recorder.submit_book_ids.append(book_id)
         try:

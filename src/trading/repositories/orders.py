@@ -144,9 +144,25 @@ class OrderRepository:
         ).fetchall()
 
     def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
-        """Global fill count in a time window (runtime trade throttles)."""
+        """Global fill count in a time window — realized trading, for the per-day throttle."""
         row = self._conn.execute(
             "SELECT COUNT(*) FROM order_fills WHERE fill_time >= ? AND fill_time <= ?",
+            (start_iso, end_iso),
+        ).fetchone()
+        return 0 if row is None else int(row[0])
+
+    def fetch_submission_count_between(self, *, start_iso: str, end_iso: str) -> int:
+        """Global submitted-order count in a time window — request rate, for broker pacing.
+
+        Distinct from the fill count because a submitted order need not fill.
+        Against the paper adapter fills are instantaneous and the two agree, but
+        against an IBKR socket an order can sit unfilled indefinitely: a run
+        could submit any number of orders in a minute while the fill count
+        stayed at zero, leaving the per-minute cap blind to exactly the brokers
+        that can be overwhelmed.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM orders WHERE submitted_at >= ? AND submitted_at <= ?",
             (start_iso, end_iso),
         ).fetchone()
         return 0 if row is None else int(row[0])

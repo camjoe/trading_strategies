@@ -339,3 +339,29 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
     assert providers.fetch_enabled() == []
     fetched_provider = providers.fetch_by_key(provider_key="news")
     assert fetched_provider is not None and fetched_provider.enabled == 0
+
+
+def test_submission_count_sees_orders_that_never_filled(conn) -> None:
+    """Broker pacing counts requests sent, so an unfilled order still counts.
+
+    The per-minute throttle used to read fill rows. Against a broker where
+    orders can sit open, that count stays at zero however many were submitted.
+    """
+    account_id, book_id = _insert_book(conn, name="pacing")
+    repo = OrderRepository(conn)
+    for index in range(3):
+        repo.insert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol=f"SYM{index}",
+            side="buy",
+            qty=1.0,
+            status="submitted",
+            submitted_at="2026-01-15T10:00:30Z",
+            updated_at="2026-01-15T10:00:30Z",
+        )
+
+    window = {"start_iso": "2026-01-15T10:00:00Z", "end_iso": "2026-01-15T10:01:00Z"}
+    assert repo.fetch_submission_count_between(**window) == 3
+    assert repo.fetch_fill_count_between(**window) == 0
+    assert repo.fetch_submission_count_between(start_iso="2026-01-15T11:00:00Z", end_iso="2026-01-15T11:01:00Z") == 0

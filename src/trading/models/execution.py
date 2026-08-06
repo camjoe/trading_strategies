@@ -177,6 +177,9 @@ class SubmissionResult:
     blocked_count: int = 0
     rescaled_count: int = 0
     kill_switch_reasons: list[str] = field(default_factory=list)
+    # The global trade throttle stopped this book mid-loop. It applies across
+    # the run, so the caller stops submitting for later books too.
+    throttled: bool = False
 
 
 @dataclass(frozen=True, slots=True)

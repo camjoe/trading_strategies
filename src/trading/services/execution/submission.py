@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from common.time import utc_now_iso
 from trading.domain.book_accounting import apply_book_fill_transition
@@ -15,6 +15,7 @@ from trading.repositories.positions import PositionRepository
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
+from trading.services.operational_settings.enforcement import RuntimeTradeThrottleExceededError
 
 # Clean cash-flow ledger vocabulary: each entry is a cash movement, so a book's
 # cash = starting cash + Σ(ledger.amount). A fill posts a gross `trade` entry plus a
@@ -161,6 +162,7 @@ def submit_book_intents(
     broker: BrokerConnection,
     gate: PreSubmitGate,
     fee: float,
+    enforce_throttle: Callable[[], None] | None = None,
 ) -> SubmissionResult:
     """Submit one book's intents: gate → place → persist clean tables.
 
@@ -189,7 +191,17 @@ def submit_book_intents(
 
     order_ids: list[int] = []
     filled_count = 0
+    throttled = False
     for intent in gate_result.approved_intents:
+        # Between orders, not once per book: a book emits several trades per
+        # run since the per-book budget became real, and the per-minute cap
+        # exists to pace the requests themselves.
+        if enforce_throttle is not None:
+            try:
+                enforce_throttle()
+            except RuntimeTradeThrottleExceededError:
+                throttled = True
+                break
         submitted_at = utc_now_iso()
         broker_order = BrokerOrder(
             account_id=account_id,
@@ -287,4 +299,5 @@ def submit_book_intents(
         blocked_count=blocked_count,
         rescaled_count=rescaled_count,
         kill_switch_reasons=kill_switch_reasons,
+        throttled=throttled,
     )

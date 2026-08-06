@@ -30,12 +30,13 @@ def _base_account(**overrides):
     return base
 
 
-def test_choose_qty_helpers(monkeypatch) -> None:
+def test_choose_qty_helpers() -> None:
     assert auto_trader_policy.choose_buy_qty(cash=10.0, price=11.0, fee=0.0) == 0
     assert auto_trader_policy.choose_buy_qty(cash=100.0, price=10.0, fee=0.0) == 1
-    assert auto_trader_policy.choose_sell_qty(position_qty=0.2) == 0
-    monkeypatch.setattr(auto_trader_policy.random, "randint", lambda a, b: b)
-    assert auto_trader_policy.choose_sell_qty(position_qty=9.0) == 5
+    # A sell exits outright, so the whole position goes; sub-share holdings cannot.
+    assert auto_trader_policy.closing_sell_qty(position_qty=0.2) == 0
+    assert auto_trader_policy.closing_sell_qty(position_qty=9.0) == 9
+    assert auto_trader_policy.closing_sell_qty(position_qty=9.7) == 9
 
 
 def test_choose_buy_qty_respects_custom_trade_and_position_caps() -> None:
@@ -131,21 +132,50 @@ def test_build_trade_note_for_leaps_buy() -> None:
     assert "strategy=trend" in note
 
 
-def test_choose_sell_ticker_by_risk_stop_and_target(monkeypatch) -> None:
+def test_order_risk_breaches_puts_stop_losses_before_take_profits() -> None:
+    """A position bleeding past its stop is more urgent than one past its target."""
     state = SimpleNamespace(avg_cost={"LOSS": 100.0, "WIN": 100.0})
     prices = {"LOSS": 90.0, "WIN": 120.0}
 
-    monkeypatch.setattr(auto_trader_policy.random, "choice", lambda seq: seq[0])
-
-    ticker = auto_trader_policy.choose_sell_ticker_by_risk(
-        can_sell=["LOSS", "WIN"],
+    assert auto_trader_policy.order_risk_breaches(
+        can_sell=["WIN", "LOSS"],
         prices=prices,
         state=state,
         risk_policy="stop_and_target",
         stop_loss_pct=5.0,
         take_profit_pct=10.0,
+    ) == ["LOSS", "WIN"]
+
+
+def test_order_risk_breaches_returns_every_breach_worst_first() -> None:
+    """All breaches, not one sampled at random -- two of three used to be dropped."""
+    state = SimpleNamespace(avg_cost={"BAD": 100.0, "WORSE": 100.0, "OK": 100.0, "GAIN": 100.0})
+    prices = {"BAD": 90.0, "WORSE": 70.0, "OK": 99.0, "GAIN": 130.0}
+
+    assert auto_trader_policy.order_risk_breaches(
+        can_sell=["BAD", "OK", "WORSE", "GAIN"],
+        prices=prices,
+        state=state,
+        risk_policy="stop_and_target",
+        stop_loss_pct=5.0,
+        take_profit_pct=10.0,
+    ) == ["WORSE", "BAD", "GAIN"]
+
+
+def test_order_risk_breaches_is_empty_without_a_breach() -> None:
+    state = SimpleNamespace(avg_cost={"FLAT": 100.0})
+
+    assert (
+        auto_trader_policy.order_risk_breaches(
+            can_sell=["FLAT"],
+            prices={"FLAT": 101.0},
+            state=state,
+            risk_policy="stop_and_target",
+            stop_loss_pct=5.0,
+            take_profit_pct=10.0,
+        )
+        == []
     )
-    assert ticker in {"LOSS", "WIN"}
 
 
 def test_allocate_buy_quantities_grants_full_requests_when_cash_covers_them() -> None:

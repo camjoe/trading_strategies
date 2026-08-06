@@ -13,7 +13,7 @@ from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_trade_selection
+from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_book_trades
 from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
@@ -65,10 +65,13 @@ def generate_book_trade_intents(
     if not trading_books:
         return []
 
-    max_intents = min(max_trades, len(trading_books))
+    # `max_trades` caps trades for the account, not books. It used to be
+    # min(max_trades, len(trading_books)) against one intent per book, so the
+    # real limit was the book count and the configured number never bound.
     intents: list[BookTradeCandidate] = []
     for trading_book in trading_books:
-        if len(intents) >= max_intents:
+        remaining = max_trades - len(intents)
+        if remaining <= 0:
             break
         book = trading_book.book
         book_id = book.id
@@ -97,7 +100,7 @@ def generate_book_trade_intents(
         instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
+        forced_sells = auto_trader_policy.order_risk_breaches(
             can_sell,
             prices,
             state,
@@ -105,40 +108,47 @@ def generate_book_trade_intents(
             book.stop_loss_pct,
             book.take_profit_pct,
         )
+        # A book's own limit binds within whatever the account has left; NULL
+        # means the book adds no limit of its own (revision 0001's nullable
+        # column). Until this bound, the column was written everywhere and read
+        # nowhere.
+        book_budget = remaining if book.max_trades_per_run is None else min(remaining, book.max_trades_per_run)
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
-        selection = prepare_trade_selection(
+        selections = prepare_book_trades(
             book,
             signal_primitive,
             strategy_params,
             state,
-            forced_sell,
+            forced_sells,
             effective_universe,
             prices,
             histories or {},
             iv_rank_proxy,
             instrument_mode,
             fee,
+            max_trades=book_budget,
             trade_size_pct=book.trade_size_pct,
             max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
             selection_seed=selection_seed,
         )
-        if selection is None:
-            continue
-        side, symbol, qty, requested_price, delta_est, iv_est = selection
-        intents.append(
-            BookTradeCandidate(
-                account_id=account_id,
-                book_id=book_id,
-                strategy_name=strategy_name,
-                side=side,
-                symbol=symbol,
-                qty=qty,
-                requested_price=requested_price,
-                forced_sell=forced_sell,
-                delta_est=delta_est,
-                iv_est=iv_est,
+        forced_sell_set = set(forced_sells)
+        for side, symbol, qty, requested_price, delta_est, iv_est in selections:
+            intents.append(
+                BookTradeCandidate(
+                    account_id=account_id,
+                    book_id=book_id,
+                    strategy_name=strategy_name,
+                    side=side,
+                    symbol=symbol,
+                    qty=qty,
+                    requested_price=requested_price,
+                    # Per intent now: with several sells in one run, only the
+                    # ones that actually breached carry the risk-exit flag.
+                    forced_sell=symbol if side == "sell" and symbol in forced_sell_set else None,
+                    delta_est=delta_est,
+                    iv_est=iv_est,
+                )
             )
-        )
     return intents
