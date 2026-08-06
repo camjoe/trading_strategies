@@ -73,7 +73,7 @@ def main() -> int:
     # the market-input + rotation paths (no global locator access inside services).
     provider = build_provider()
     universe, prices, iv_rank_proxy, histories = resolve_market_inputs(args.tickers_file, provider=provider)
-    policy_provider = PolicyFeatureProvider()
+    policy_provider = PolicyFeatureProvider(market_data_provider=provider)
     news_provider = NewsFeatureProvider()
     social_provider = SocialFeatureProvider()
     feature_fetchers = FeatureFetcherSet(

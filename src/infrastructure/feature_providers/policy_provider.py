@@ -6,9 +6,7 @@ import logging
 import math
 from datetime import datetime, timedelta, timezone
 
-import pandas as pd
-import yfinance as yf
-
+from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import (
     POLICY_DEFENSIVE_TILT,
     POLICY_MAX_DEFENSIVE_TILT,
@@ -18,6 +16,7 @@ from trading.domain.feature_provider import (
     ExternalFeatureBundle,
     ExternalFeatureProvider,
 )
+from trading.services.market_data import MarketDataProvider
 
 _LOG = logging.getLogger(__name__)
 
@@ -45,6 +44,12 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
     """
 
     _REGIME_CACHE_KEY = "__regime__"
+
+    def __init__(self, *, market_data_provider: MarketDataProvider | None = None) -> None:
+        super().__init__()
+        # Built here only when a caller has no provider to hand; the daily jobs
+        # inject the one their composition root already built.
+        self._market_data = market_data_provider or build_provider()
 
     @property
     def source_label(self) -> str:
@@ -85,43 +90,36 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
         )
 
     def _fetch_etf_returns(self) -> dict[str, float] | None:
-        """Download trailing returns for all proxy ETFs."""
+        """Return each proxy ETF's trailing return, or None if the basket is incomplete.
+
+        All-or-nothing on the ETF set: ``mean_defensive`` is a basket average, so
+        dropping a member would report a different statistic under the same
+        feature name. A short or failed read yields no features rather than a
+        quietly rebased one.
+        """
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)
 
         try:
-            raw = yf.download(
-                list(_ALL_ETFS),
-                start=start.strftime("%Y-%m-%d"),
-                end=end.strftime("%Y-%m-%d"),
-                auto_adjust=True,
-                progress=False,
-            )
+            close = self._market_data.fetch_close_history(list(_ALL_ETFS), start.date(), end.date())
         except Exception as exc:
-            _LOG.warning("PolicyFeatureProvider: yfinance download failed: %s", exc)
+            _LOG.warning("PolicyFeatureProvider: ETF close history unavailable: %s", exc)
             return None
 
-        if raw.empty:
-            return None
-
-        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw.get("Close")
-        if close is None or close.empty or len(close) < POLICY_MIN_OBSERVATIONS:
+        if len(close) < POLICY_MIN_OBSERVATIONS:
             return None
 
         results: dict[str, float] = {}
         for etf in _ALL_ETFS:
-            if etf not in close.columns:
-                _LOG.debug("PolicyFeatureProvider: %s missing from download", etf)
-                continue
             series = close[etf].dropna()
             if len(series) < 2:
-                continue
+                return None
             first, last = float(series.iloc[0]), float(series.iloc[-1])
             if first == 0.0:
-                continue
+                return None
             results[etf] = (last - first) / first
 
-        return results or None
+        return results
 
 
 __all__ = [
