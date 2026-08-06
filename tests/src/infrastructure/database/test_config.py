@@ -1,4 +1,7 @@
-import json
+"""DB path resolution: the TRADING_DB_PATH override, else the repo default."""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
@@ -6,68 +9,40 @@ import pytest
 from infrastructure.database import config
 
 
-def test_returns_none_when_config_missing(tmp_path: Path) -> None:
-    assert config._path_from_file(tmp_path / "missing.json") is None
-
-
-def test_returns_none_for_blank_db_path(tmp_path: Path) -> None:
-    config_path = tmp_path / "db_config.json"
-    config_path.write_text(json.dumps({"db_path": "   "}), encoding="utf-8")
-
-    assert config._path_from_file(config_path) is None
-
-
-def test_resolves_relative_path_from_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    config_path = tmp_path / "db_config.json"
-    config_path.write_text(json.dumps({"db_path": "local/custom.db"}), encoding="utf-8")
-    monkeypatch.setattr(config, "_REPO_ROOT", tmp_path)
-
-    resolved = config._path_from_file(config_path)
-
-    assert resolved == (tmp_path / "local" / "custom.db").resolve()
-
-
-def test_resolves_absolute_path_from_config(tmp_path: Path) -> None:
-    db_path = (tmp_path / "absolute.db").resolve()
-    config_path = tmp_path / "db_config.json"
-    config_path.write_text(json.dumps({"db_path": str(db_path)}), encoding="utf-8")
-
-    assert config._path_from_file(config_path) == db_path
-
-
-def test_prefers_env_path_over_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_env_path_overrides_the_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     env_db = tmp_path / "env.db"
-    config_path = tmp_path / "db_config.json"
-    config_path.write_text(json.dumps({"db_path": "from_config.db"}), encoding="utf-8")
-
     monkeypatch.setenv("TRADING_DB_PATH", str(env_db))
-    monkeypatch.setenv("TRADING_DB_CONFIG", str(config_path))
 
     assert config.get_db_path() == env_db.resolve()
 
 
-def test_uses_config_file_when_env_not_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    config_path = tmp_path / "db_config.json"
-    configured_db = tmp_path / "from_config.db"
-    config_path.write_text(json.dumps({"db_path": str(configured_db)}), encoding="utf-8")
+def test_env_path_expands_a_user_relative_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_DB_PATH", "~/scratch.db")
 
-    monkeypatch.delenv("TRADING_DB_PATH", raising=False)
-    monkeypatch.setenv("TRADING_DB_CONFIG", str(config_path))
-
-    assert config.get_db_path() == configured_db.resolve()
+    assert config.get_db_path() == (Path.home() / "scratch.db").resolve()
 
 
-def test_falls_back_to_default_db_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("TRADING_DB_PATH", raising=False)
-    monkeypatch.delenv("TRADING_DB_CONFIG", raising=False)
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_env_path_falls_back_to_the_default(blank: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_DB_PATH", blank)
     monkeypatch.setattr(config, "_DEFAULT_DB_PATH", tmp_path / "fallback.db")
-    monkeypatch.setattr(config, "_DEFAULT_CONFIG_PATH", tmp_path / "missing_config.json")
 
     assert config.get_db_path() == tmp_path / "fallback.db"
 
 
-def test_config_path_uses_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    custom_config = tmp_path / "custom_config.json"
-    monkeypatch.setenv("TRADING_DB_CONFIG", str(custom_config))
+def test_falls_back_to_the_default_when_env_is_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TRADING_DB_PATH", raising=False)
+    monkeypatch.setattr(config, "_DEFAULT_DB_PATH", tmp_path / "fallback.db")
 
-    assert config._config_path() == custom_config.resolve()
+    assert config.get_db_path() == tmp_path / "fallback.db"
+
+
+def test_a_stray_config_file_no_longer_redirects_the_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The db_config.json layer was removed; a leftover file must be inert rather
+    # than silently pointing tooling at some other database.
+    (tmp_path / "db_config.json").write_text('{"db_path": "local/somewhere_else.db"}', encoding="utf-8")
+    monkeypatch.delenv("TRADING_DB_PATH", raising=False)
+    monkeypatch.setenv("TRADING_DB_CONFIG", str(tmp_path / "db_config.json"))
+    monkeypatch.setattr(config, "_DEFAULT_DB_PATH", tmp_path / "fallback.db")
+
+    assert config.get_db_path() == tmp_path / "fallback.db"

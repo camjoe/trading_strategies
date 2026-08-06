@@ -128,11 +128,15 @@ schemas by hand in fixtures.
 `src/infrastructure/database/config.get_db_path()` resolves in this order:
 
 1. `TRADING_DB_PATH` environment variable
-2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
-3. Default: `local/paper_trading.db`
+2. Default: `local/paper_trading.db`
 
-If `db_path` in the config file is relative, it is resolved from the repository root. All paths
-use `pathlib` — never hardcode slash direction.
+To run against a disposable database, use `scripts/launch_sandbox.py` or `scripts/launch_demo.py`
+— both set `TRADING_DB_PATH` for you — or export it yourself for the shell session.
+
+A third source, `db_path` in `local/db_config.json`, was removed: the env var already covers the
+temp-database case, and a config file persists across terminals, so a stale entry silently
+redirects every later command (including `upgrade` and `delete-account`) with nothing on screen to
+say so. All paths use `pathlib` — never hardcode slash direction.
 
 ---
 

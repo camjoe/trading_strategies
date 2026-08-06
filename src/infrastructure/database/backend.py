@@ -32,16 +32,30 @@ class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
 
     Args:
-        db_path: Path to the SQLite file.  Defaults to the path resolved by
-            ``infrastructure.database.config.get_db_path``.
+        db_path: Path to the SQLite file. When omitted, the path is resolved
+            from the environment on each access rather than pinned here — see
+            :attr:`db_path`.
     """
 
     def __init__(self, db_path: Path | None = None) -> None:
-        self.db_path: Path = db_path if db_path is not None else get_db_path()
+        self._db_path = db_path
+
+    @property
+    def db_path(self) -> Path:
+        """The SQLite file this backend talks to.
+
+        Resolved per access when the constructor was not given an explicit path.
+        The module-level default backend is built at import time, so pinning the
+        path in ``__init__`` would both read the environment during import and
+        freeze the answer: a later ``TRADING_DB_PATH`` change would move
+        ``get_db_path()`` while leaving this attribute behind.
+        """
+        return self._db_path if self._db_path is not None else get_db_path()
 
     def open_connection(self) -> sqlite3.Connection:
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self.db_path)
+        db_path = self.db_path  # resolve once; the property may consult the environment
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         # Schema convention: every *_id is a real, enforced FK. SQLite
         # defaults the pragma to OFF per connection.

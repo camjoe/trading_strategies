@@ -28,12 +28,33 @@ from trading.interfaces.runtime.data_ops.admin import backup_database
 
 _PREFIX = "[manage-db-migrations]"
 
+# How long to wait for a competing writer before giving up. Longer than the
+# backend's per-query timeout: a migration is a rare, operator-initiated step,
+# and waiting out a live reader beats failing and leaving the operator to retry.
+_MIGRATION_BUSY_TIMEOUT_MS = 30_000
+
 
 def _db_path() -> Path:
     backend = get_backend()
     if not isinstance(backend, SQLiteBackend):
         raise RuntimeError("This tool currently supports only SQLite backends.")
     return backend.db_path
+
+
+def _connect(path: Path) -> sqlite3.Connection:
+    """Open *path* for migration work.
+
+    Deliberately not ``SQLiteBackend.open_connection()``: that turns foreign
+    keys ON, and SQLite's batch ALTER rebuilds a table by copy-drop-rename,
+    which needs them OFF (the default) or the rebuild cascades deletes into
+    child tables. The busy timeout still applies, so a migration waits for a
+    live reader — the web backend or a running job — instead of failing
+    immediately with "database is locked".
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.execute(f"PRAGMA busy_timeout = {_MIGRATION_BUSY_TIMEOUT_MS}")
+    return conn
 
 
 def _application_table_count(conn: Any) -> int:
@@ -80,7 +101,7 @@ def _cmd_status(_args: argparse.Namespace) -> int:
         print(f"{_PREFIX} State: missing - {_REMEDIATION['unversioned-empty']}")
         return 1
 
-    conn = sqlite3.connect(path)
+    conn = _connect(path)
     try:
         state, revisions = _classify(conn, head)
     finally:
@@ -112,7 +133,7 @@ def _cmd_upgrade(args: argparse.Namespace) -> int:
     print(f"{_PREFIX} Database: {path}")
     head = migration_runner.repository_head()
     target = str(args.revision)
-    conn = sqlite3.connect(path)
+    conn = _connect(path)
     try:
         state, revisions = _classify(conn, head)
         if state == "unversioned-empty":
@@ -143,7 +164,7 @@ def _cmd_downgrade(args: argparse.Namespace) -> int:
         print(f"{_PREFIX} Refusing downgrade: database is missing.")
         return 1
     head = migration_runner.repository_head()
-    conn = sqlite3.connect(path)
+    conn = _connect(path)
     try:
         revisions = _require_migratable(conn, head, "downgrade")
         if revisions is None:
@@ -164,7 +185,7 @@ def _cmd_history(_args: argparse.Namespace) -> int:
     path = _db_path()
     current: tuple[str, ...] = ()
     if path.exists():
-        conn = sqlite3.connect(path)
+        conn = _connect(path)
         try:
             current = read_database_revisions(conn)
         finally:
