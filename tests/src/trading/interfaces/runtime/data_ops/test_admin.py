@@ -1,4 +1,6 @@
+import sqlite3
 from argparse import Namespace
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -94,6 +96,29 @@ class TestBackupDatabase:
         assert backup.parent == tmp_path / "manual_backups"
         assert backup.name == "paper_trading_20260327_080910.db"
         assert backup.exists()
+
+    def test_backup_database_captures_committed_wal_content(
+        self, configured_backend: SQLiteBackend, tmp_path: Path
+    ) -> None:
+        # Regression: the database runs in WAL mode, where a commit lands in the
+        # -wal sidecar and stays there until a checkpoint. A plain file copy of
+        # the .db alone loses it. The writer is deliberately left open across the
+        # backup, matching manage_db_migrations, which backs up while holding a
+        # connection to the database it is about to migrate.
+        build_db_at_head(configured_backend.db_path)
+        writer = configured_backend.open_connection()
+        try:
+            writer.execute(
+                "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                ("wal-account", 1000.0, "2026-03-27T08:09:10", "2026-03-27T08:09:10"),
+            )
+            writer.commit()
+            backup = admin.backup_database(str(tmp_path / "wal_backup.db"))
+        finally:
+            writer.close()
+
+        with closing(sqlite3.connect(backup)) as conn:
+            assert conn.execute("SELECT name FROM accounts").fetchall() == [("wal-account",)]
 
 
 class TestHelpersAndCommands:

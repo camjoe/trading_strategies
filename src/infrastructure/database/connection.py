@@ -27,25 +27,34 @@ class SchemaVersionError(RuntimeError):
     """
 
 
-def ensure_db() -> DBConnection:
-    """Open a connection and verify the database is at the expected head.
+def verify_schema_revision(conn: DBConnection) -> None:
+    """Raise ``SchemaVersionError`` unless *conn* is at the expected head.
+
+    The gate itself, applicable to any connection. ``ensure_db()`` applies it to
+    the connection it opens; the few callers that open their own connection from
+    the backend must apply it themselves before running application queries.
 
     Verification is plain SQL against ``alembic_version`` — runtime never
     imports Alembic and never mutates the schema.
     """
+    revisions = read_database_revisions(conn)
+    if revisions == (EXPECTED_HEAD_REVISION,):
+        return
+    found = ", ".join(revisions) if revisions else "none"
+    raise SchemaVersionError(
+        f"Database schema revision is '{found}', expected '{EXPECTED_HEAD_REVISION}'. "
+        f"Diagnose and migrate with: {_STATUS_COMMAND}"
+    )
+
+
+def ensure_db() -> DBConnection:
+    """Open a connection and verify the database is at the expected head."""
     conn = get_backend().open_connection()
     try:
-        revisions = read_database_revisions(conn)
+        verify_schema_revision(conn)
     except Exception:
         conn.close()
         raise
-    if revisions != (EXPECTED_HEAD_REVISION,):
-        conn.close()
-        found = ", ".join(revisions) if revisions else "none"
-        raise SchemaVersionError(
-            f"Database schema revision is '{found}', expected '{EXPECTED_HEAD_REVISION}'. "
-            f"Diagnose and migrate with: {_STATUS_COMMAND}"
-        )
     return conn
 
 
