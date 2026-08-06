@@ -38,8 +38,6 @@ def test_falls_back_to_the_default_when_env_is_unset(tmp_path: Path, monkeypatch
 
 
 def test_a_stray_config_file_no_longer_redirects_the_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # The db_config.json layer was removed; a leftover file must be inert rather
-    # than silently pointing tooling at some other database.
     (tmp_path / "db_config.json").write_text('{"db_path": "local/somewhere_else.db"}', encoding="utf-8")
     monkeypatch.delenv("TRADING_DB_PATH", raising=False)
     monkeypatch.setenv("TRADING_DB_CONFIG", str(tmp_path / "db_config.json"))

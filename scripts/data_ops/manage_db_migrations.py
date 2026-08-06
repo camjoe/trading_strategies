@@ -28,9 +28,8 @@ from trading.interfaces.runtime.data_ops.admin import backup_database
 
 _PREFIX = "[manage-db-migrations]"
 
-# How long to wait for a competing writer before giving up. Longer than the
-# backend's per-query timeout: a migration is a rare, operator-initiated step,
-# and waiting out a live reader beats failing and leaving the operator to retry.
+# Long wait: a migration is rare and operator-initiated, so blocking on a live
+# reader beats failing.
 _MIGRATION_BUSY_TIMEOUT_MS = 30_000
 
 
@@ -44,12 +43,9 @@ def _db_path() -> Path:
 def _connect(path: Path) -> sqlite3.Connection:
     """Open *path* for migration work.
 
-    Deliberately not ``SQLiteBackend.open_connection()``: that turns foreign
-    keys ON, and SQLite's batch ALTER rebuilds a table by copy-drop-rename,
-    which needs them OFF (the default) or the rebuild cascades deletes into
-    child tables. The busy timeout still applies, so a migration waits for a
-    live reader — the web backend or a running job — instead of failing
-    immediately with "database is locked".
+    Not ``SQLiteBackend.open_connection()``: that turns foreign keys ON, and
+    batch ALTER rebuilds a table by copy-drop-rename, which needs them OFF or
+    the rebuild cascades deletes into child tables.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)

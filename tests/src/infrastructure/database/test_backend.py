@@ -65,9 +65,6 @@ def test_use_backend_restores_the_previous_backend() -> None:
 
 
 def test_default_backend_tracks_the_environment_after_import(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # The module-level default backend is constructed at import time. It must
-    # resolve its path per access, or a TRADING_DB_PATH set afterwards moves
-    # get_db_path() while leaving the backend pointed at the old database.
     backend = SQLiteBackend()
     monkeypatch.setenv("TRADING_DB_PATH", str(tmp_path / "switched.db"))
 
