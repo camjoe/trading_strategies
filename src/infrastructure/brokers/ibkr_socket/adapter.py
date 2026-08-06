@@ -38,12 +38,7 @@ from common.time import utc_now_iso
 from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders.broker_order import (
-    BrokerOrder,
-    OrderFill,
-    OrderStatus,
-    OrderType,
-)
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus, OrderType
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"

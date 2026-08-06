@@ -8,14 +8,7 @@ import pytest
 from trading.backtesting.domain.bars import build_bar_panel
 from trading.domain.strategies.contracts import INDICATOR_KIND_SMA, IndicatorSpec
 from trading.domain.strategies.indicator_view import build_signal_inputs
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_COLUMNS,
-    BAR_HIGH,
-    BAR_LOW,
-    BAR_OPEN,
-    BAR_VOLUME,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
 def _frame(dates: list[str], closes: list[float]) -> pd.DataFrame:

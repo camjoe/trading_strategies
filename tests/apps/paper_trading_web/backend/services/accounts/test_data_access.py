@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from paper_trading_web.backend.services.accounts import data_access as account_data_access
 
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 
 
 def test_fetch_visible_account_rows_returns_all_accounts(conn, create_account_row) -> None:

@@ -6,9 +6,8 @@ from collections.abc import Sequence
 import pytest
 
 from tests.support.repositories import insert_repository_account
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.execution import BookTradeIntent, GateResult
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository

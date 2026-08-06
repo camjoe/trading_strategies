@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.domain.strategies.resolution import validate_strategy_name
-from trading.models.promotion.enums import PromotionReviewState
+from trading.models.promotion import PromotionReviewState
 from trading.repositories.promotion import PromotionReviewRepository
 
 

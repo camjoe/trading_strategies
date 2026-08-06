@@ -20,16 +20,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.models.execution.risk_gate_position import RiskGatePosition
+from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
-    MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
     RECONCILIATION_EQUITY_TOLERANCE,
 )
 from trading.services.execution.gate import GateAuditSink
@@ -52,7 +47,6 @@ class BookPreSubmitGate:
         snapshot_time: str,
         config: RiskGateConfig | None = None,
         equity_tolerance: float = RECONCILIATION_EQUITY_TOLERANCE,
-        max_snapshot_age_seconds: int = MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
         reconcile: bool = True,
         audit_sink: GateAuditSink | None = None,
     ) -> None:
@@ -60,7 +54,6 @@ class BookPreSubmitGate:
         self._snapshot_time = snapshot_time
         self._config = config if config is not None else RiskGateConfig()
         self._equity_tolerance = abs(float(equity_tolerance))
-        self._max_snapshot_age_seconds = int(max_snapshot_age_seconds)
         # When False, the equity reconciliation kill switch is skipped here — the
         # caller runs it once pre-flight instead (account mode gates per trade in a
         # loop, so mid-loop book equity drifts from the snapshot by fees and would
@@ -188,7 +181,5 @@ class BookPreSubmitGate:
         return reconcile_book_equity(
             conn,
             account_id=account_id,
-            now_iso=self._snapshot_time,
             equity_tolerance=self._equity_tolerance,
-            max_snapshot_age_seconds=self._max_snapshot_age_seconds,
         )

@@ -5,8 +5,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from tests.support.repositories import insert_repository_account
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.execution import BookTradeIntent, RiskGateDecision
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -14,7 +13,6 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
-    KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
 )
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 
@@ -164,17 +162,6 @@ def test_reconciliation_snapshot_missing_kill_switch(conn):
     result = _gate({"AAPL": 100.0}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert result.kill_switch_reasons == [KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING]
-    assert result.approved_intents == []
-
-
-def test_stale_reconciliation_snapshot_kill_switch(conn):
-    account_id, book_id = _book_env(conn, equity=100_000.0)
-    # Snapshot equity matches (no mismatch) but is far older than the 6h freshness window.
-    _snapshot(conn, book_id, equity=100_000.0, snapshot_time="2026-07-01T00:00:00Z")
-
-    result = _gate({"AAPL": 100.0}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
-
-    assert result.kill_switch_reasons == [KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT]
     assert result.approved_intents == []
 
 

@@ -131,3 +131,20 @@ def test_maybe_send_notification_calls_notifier_for_errors() -> None:
             "details": {"count": 1},
         }
     ]
+
+
+def test_maybe_send_notification_sends_warnings_even_when_success_notifications_are_off() -> None:
+    """A kill switch is not a step failure, but it must not be silenced with successes."""
+    calls: list[dict[str, object]] = []
+
+    module.maybe_send_notification(
+        notifier=lambda **kwargs: calls.append(kwargs),
+        webhook_url="https://example.invalid",
+        notify_on_success=False,
+        status="warn",
+        message="kill switches on: acct1",
+        details={"kill_switch_accounts": ["acct1"]},
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["status"] == "warn"

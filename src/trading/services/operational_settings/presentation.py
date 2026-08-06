@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.settings.global_settings_change_event import GlobalSettingsChangeEvent
+from trading.models.settings import GlobalSettingsChangeEvent
 from trading.services.operational_settings.history import fetch_global_settings_change_history
 
 

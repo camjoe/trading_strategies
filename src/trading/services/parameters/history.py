@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_rotation_settings_change_event import BookRotationSettingsChangeEvent
+from trading.models.books import BookRotationSettingsChangeEvent
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.services.parameters.mutations import _resolve_book_id
 

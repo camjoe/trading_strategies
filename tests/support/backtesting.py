@@ -6,14 +6,7 @@ from trading.backtesting.backtest import BacktestConfig
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.models import AccountConfig
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_COLUMNS,
-    BAR_HIGH,
-    BAR_LOW,
-    BAR_OPEN,
-    BAR_VOLUME,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account
 
 

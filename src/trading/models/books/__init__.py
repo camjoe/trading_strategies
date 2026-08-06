@@ -1,1 +1,0 @@
-"""Strategy-book data contracts."""

@@ -7,6 +7,7 @@ import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
 from tests.support.backtesting import bar_frame
+from trading.models.execution import AccountRunResult
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
@@ -48,7 +49,8 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     assert list(histories) == ["AAPL"]
 
     def _fake_trade_loop(**kwargs):
-        return 2 if kwargs["account_name"] == "acct1" else 1
+        name = kwargs["account_name"]
+        return AccountRunResult(account_name=name, submitted_count=2 if name == "acct1" else 1)
 
     monkeypatch.setattr(auto_trading_inputs, "_run_account_trade_loop", _fake_trade_loop)
     results = auto_trading_service.run_accounts(
@@ -62,7 +64,8 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         broker_factory=lambda _: None,
         feature_fetchers=make_feature_fetchers(),
     )
-    assert results == [("acct1", 2), ("acct2", 1)]
+    assert [(r.account_name, r.submitted_count) for r in results] == [("acct1", 2), ("acct2", 1)]
+    assert all(not r.halted for r in results)
 
 
 def test_resolve_market_inputs_raises_when_universe_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:

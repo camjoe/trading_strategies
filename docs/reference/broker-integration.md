@@ -52,7 +52,7 @@ to generate real operational data.
 
 Key files:
 
-- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/orders/broker_order.py`)
+- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/orders.py`)
 - `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
 - `src/infrastructure/brokers/ibkr_web/`: Web API adapter, HTTP client, settings, and pacing
 - `src/infrastructure/brokers/ibkr_socket/adapter.py`: backend-neutral socket/TWS adapter

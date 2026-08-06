@@ -17,10 +17,12 @@ from collections.abc import Mapping
 
 from common.constants import SETTLEMENT_TICKER
 from trading.domain.risk_gate import resolve_sector_for_symbol
-from trading.models.portfolio.constants import UNCATEGORIZED_SECTOR
-from trading.models.portfolio.portfolio_concentration import PortfolioConcentration
-from trading.models.portfolio.sector_concentration import SectorConcentration
-from trading.models.portfolio.symbol_concentration import SymbolConcentration
+from trading.models.portfolio import (
+    UNCATEGORIZED_SECTOR,
+    PortfolioConcentration,
+    SectorConcentration,
+    SymbolConcentration,
+)
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.sector_config import load_symbol_sector_map

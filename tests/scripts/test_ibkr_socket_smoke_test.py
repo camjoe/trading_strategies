@@ -6,7 +6,7 @@ from io import StringIO
 import pytest
 
 from scripts import ibkr_socket_smoke_test
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderStatus
 
 
 class _FakeAdapter:

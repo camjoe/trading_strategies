@@ -4,8 +4,8 @@ import pytest
 from paper_trading_web.backend.services.accounts import summaries as account_summaries
 
 from tests.support.account_records import make_account_record
-from trading.models.accounts.account_state import AccountState
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.accounts import AccountState
+from trading.models.portfolio import EquitySnapshotRecord
 
 
 def _account_record(**overrides: object):
@@ -32,6 +32,11 @@ def _make_state(
         realized_pnl=realized_pnl,
         total_deposited=total_deposited,
     )
+
+
+def _stats_stub(equity: float):
+    """Stand in for ``build_account_stats``: an all-cash account at ``equity``."""
+    return lambda _conn, _row, **_kwargs: (_make_state({}, {}, cash=equity), {}, 0.0, 0.0, equity)
 
 
 def _patch_book_reads(
@@ -67,7 +72,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
-        lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+        _stats_stub(1200.0),
     )
     monkeypatch.setattr(
         account_summaries,
@@ -206,7 +211,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -235,7 +240,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -269,7 +274,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1100.0),
+            _stats_stub(1100.0),
         )
         monkeypatch.setattr(
             account_summaries,

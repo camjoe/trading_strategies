@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.risk_snapshot_record import RiskSnapshotRecord
+from trading.models.books import RiskSnapshotRecord
 from trading.repositories.risk import RiskSnapshotRepository
 
 

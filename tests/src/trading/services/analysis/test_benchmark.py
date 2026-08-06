@@ -6,7 +6,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.analysis import benchmark
 
 

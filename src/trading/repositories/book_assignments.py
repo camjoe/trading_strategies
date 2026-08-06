@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_strategy_assignment_record import BookStrategyAssignmentRecord
+from trading.models.books import BookStrategyAssignmentRecord
 from trading.repositories.unit_of_work import unit_of_work
 
 

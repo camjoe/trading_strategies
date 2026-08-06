@@ -17,12 +17,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from trading.models.market_data.constants import (
-    BAR_COLUMNS,
-    BAR_PRICE_COLUMNS,
-    BAR_VOLUME,
-    BAR_VOLUME_FILL,
-)
+from trading.models.market_data import BAR_COLUMNS, BAR_PRICE_COLUMNS, BAR_VOLUME, BAR_VOLUME_FILL
 
 
 def normalize_bar_frame(frame: pd.DataFrame) -> pd.DataFrame:

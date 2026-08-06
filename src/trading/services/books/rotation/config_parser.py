@@ -6,7 +6,7 @@ from common.coercion import coerce_bool, coerce_int
 from trading.domain.exceptions import ValidationError
 from trading.domain.rotation.schedule import parse_rotation_schedule
 from trading.domain.strategies.resolution import validate_strategy_name
-from trading.models.rotation.rotation_config import BookRotationConfig
+from trading.models.rotation import BookRotationConfig
 
 
 def _validated_strategy_name(value: str | None, field_name: str) -> str | None:

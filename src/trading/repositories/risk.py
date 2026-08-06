@@ -3,8 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
-from trading.models.books.risk_decision_record import RiskDecisionRecord
-from trading.models.books.risk_snapshot_record import RiskSnapshotRecord
+from trading.models.books import RiskDecisionRecord, RiskSnapshotRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 

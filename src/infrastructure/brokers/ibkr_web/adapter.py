@@ -16,7 +16,7 @@ from infrastructure.brokers.ibkr_web import (
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus, OrderType
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (

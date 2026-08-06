@@ -4,7 +4,7 @@ import sqlite3
 
 from common.coercion import coerce_int
 from trading.models import AccountRecord
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.accounts import (
     get_account,
     list_account_records,

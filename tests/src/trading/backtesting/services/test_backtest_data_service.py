@@ -9,7 +9,7 @@ from hypothesis import given, settings, strategies as st
 
 from infrastructure.market_data import YFinanceProvider
 from trading.backtesting.services import backtest_data_service as backtest_data
-from trading.models.market_data.constants import BAR_CLOSE
+from trading.models.market_data import BAR_CLOSE
 
 
 def _business_days(periods: int) -> pd.DatetimeIndex:

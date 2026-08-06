@@ -14,7 +14,7 @@ from infrastructure.brokers.ibkr_web.adapter import (
     _summary_amount,
 )
 from tests.support.brokers import make_broker_order
-from trading.models.orders.broker_order import OrderStatus, OrderType
+from trading.models.orders import OrderStatus, OrderType
 
 
 class TestInteractiveBrokersWebAdapter:

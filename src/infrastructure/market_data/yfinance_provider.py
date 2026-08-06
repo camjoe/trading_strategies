@@ -12,14 +12,7 @@ import yfinance as yf
 
 from common.rate_limit import RateLimiter
 from trading.domain.bars import normalize_bar_frame
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_COLUMNS,
-    BAR_HIGH,
-    BAR_LOW,
-    BAR_OPEN,
-    BAR_VOLUME,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.market_data.protocols import MarketDataProvider
 
 from .cache import _CACHE_MISS, market_data_cache_key, read_market_data_cache, write_market_data_cache

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.models.books.book_fill_transition import BookFillTransition
+from trading.models.books import BookFillTransition
 
 # Supported order directions for book fills.
 VALID_FILL_SIDES = {"buy", "sell"}

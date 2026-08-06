@@ -28,7 +28,7 @@ from trading.backtesting.services import (
 )
 from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.domain.strategies.resolution import resolve_strategy
-from trading.models.books.book_record import BookRecord
+from trading.models.books import BookRecord
 from trading.repositories.books import BookRepository
 from trading.services.accounts import get_account
 from trading.services.market_data import MarketDataProvider, build_feature_provider

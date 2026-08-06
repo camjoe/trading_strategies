@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from tests.support.account_records import make_account_record
-from trading.models.orders.broker_order import BrokerOrder
+from trading.models.orders import BrokerOrder
 
 
 def make_broker_account(**kwargs):

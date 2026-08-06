@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.models.orders.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
+from trading.models.orders import BrokerOrder
 
 
 class BrokerConnection(ABC):

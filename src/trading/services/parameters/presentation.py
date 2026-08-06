@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_rotation_settings_change_event import BookRotationSettingsChangeEvent
-from trading.models.parameters.parameter_source_view import ParameterSourceView
+from trading.models.books import BookRotationSettingsChangeEvent
+from trading.models.parameters import ParameterSourceView
 from trading.services.parameters.history import fetch_book_rotation_change_history
 from trading.services.parameters.view import fetch_parameter_source_view
 

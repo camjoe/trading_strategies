@@ -9,8 +9,7 @@ import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.models import AccountRecord
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.book_trade_state import BookTradeState
+from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books

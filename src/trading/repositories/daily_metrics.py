@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.daily_metric_record import DailyMetricRecord
+from trading.models.portfolio import DailyMetricRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.unit_of_work import commit_unit_of_work
 

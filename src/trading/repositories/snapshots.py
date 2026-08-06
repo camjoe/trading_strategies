@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio import EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.unit_of_work import commit_unit_of_work
 

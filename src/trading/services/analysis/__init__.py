@@ -21,7 +21,6 @@ from trading.services.analysis.portfolio import (
     build_account_stats,
     infer_overall_trend,
     inject_settlement_price,
-    settlement_cash,
     settlement_corrected_equity,
 )
 from trading.services.analysis.queries import fetch_account_analysis
@@ -39,6 +38,5 @@ __all__ = [
     "fetch_portfolio_exposure",
     "infer_overall_trend",
     "inject_settlement_price",
-    "settlement_cash",
     "settlement_corrected_equity",
 ]

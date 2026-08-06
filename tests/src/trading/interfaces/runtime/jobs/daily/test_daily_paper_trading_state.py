@@ -7,6 +7,7 @@ import pytest
 
 import trading.interfaces.runtime.jobs.daily.paper_trading.caps as caps_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
+import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
 
@@ -65,3 +66,27 @@ def test_step_result_raises_for_unknown_step_id() -> None:
 
 def test_failed_step_id_returns_none_when_all_steps_pending() -> None:
     assert dag_module.failed_step_id(dag_module.new_step_results()) is None
+
+
+class TestKillSwitchAccountsFromDag:
+    """Step 06's summary is the single source for which accounts tripped a kill switch."""
+
+    def _steps(self, details: dict[str, object]) -> list[workflow.DagStepResult]:
+        steps = workflow.new_step_results()
+        workflow.step_result(steps, "06_pretrade_risk_gate").details = details
+        return steps
+
+    def test_reads_accounts_from_the_risk_gate_step(self) -> None:
+        steps = self._steps({"kill_switch_accounts": ["acct1", "acct2"]})
+        assert workflow.kill_switch_accounts_from_dag(steps) == ["acct1", "acct2"]
+
+    def test_returns_empty_when_no_kill_switch_fired(self) -> None:
+        steps = self._steps({"kill_switch_accounts": []})
+        assert workflow.kill_switch_accounts_from_dag(steps) == []
+
+    def test_returns_empty_when_the_step_never_ran(self) -> None:
+        assert workflow.kill_switch_accounts_from_dag(workflow.new_step_results()) == []
+
+    def test_tolerates_a_malformed_summary(self) -> None:
+        steps = self._steps({"kill_switch_accounts": "acct1"})
+        assert workflow.kill_switch_accounts_from_dag(steps) == []

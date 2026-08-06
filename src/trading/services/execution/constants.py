@@ -13,8 +13,6 @@ KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
 KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
 # No account snapshot exists to reconcile against.
 KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
-# The latest account snapshot is older than the freshness threshold.
-KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT = "stale_reconciliation_snapshot"
 
 # --- submission-time kill-switch reason (owned by the submission service) ---
 
@@ -23,7 +21,8 @@ KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 
 # --- reconciliation thresholds ----------------------------------------------
 
-# Maximum allowed age for the reconciliation snapshot (seconds).
-MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
-# Absolute equity tolerance for the book-vs-snapshot reconciliation check.
+# Absolute equity tolerance for the book-vs-snapshot reconciliation check. This is
+# also what enforces snapshot freshness: books are marked to current prices just
+# before the comparison, so a stale snapshot fails on value. See
+# `reconciliation.py` for why there is no separate age bound.
 RECONCILIATION_EQUITY_TOLERANCE = 0.01

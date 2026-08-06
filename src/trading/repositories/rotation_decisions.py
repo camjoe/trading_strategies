@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
-from trading.models.books.rotation_decision_record import RotationDecisionRecord
+from trading.models.books import RotationDecisionRecord
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.unit_of_work import commit_unit_of_work
 

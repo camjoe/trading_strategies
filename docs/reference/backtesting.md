@@ -199,7 +199,7 @@ the arithmetic behind that number and must be revisited whenever the per-simulat
 ## Bar Data
 
 The engine reads **whole daily bars**. `MarketDataProvider.fetch_bar_history` returns one frame per
-ticker with `open/high/low/close/volume` (vocabulary in `trading.models.market_data.constants`), and
+ticker with `open/high/low/close/volume` (vocabulary in `trading.models.market_data`), and
 `backtesting/domain/bars.py` aligns them onto one calendar as a `BarPanel`. The live path reads the
 same shape via `fetch_bar_histories`, so a strategy evaluates identically under backtest and in
 runtime trading.

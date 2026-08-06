@@ -28,7 +28,7 @@ from infrastructure.brokers.ibkr_socket.ibapi_client import (
 )
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from tests.support.account_records import make_account_record
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderStatus, OrderType
 
 
 class _FakeStartupFetch:

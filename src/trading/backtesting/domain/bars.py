@@ -15,12 +15,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from trading.models.market_data.constants import (
-    BAR_CLOSE,
-    BAR_PRICE_COLUMNS,
-    BAR_VOLUME,
-    BAR_VOLUME_FILL,
-)
+from trading.models.market_data import BAR_CLOSE, BAR_PRICE_COLUMNS, BAR_VOLUME, BAR_VOLUME_FILL
 
 
 @dataclass(frozen=True)

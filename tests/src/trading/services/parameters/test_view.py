@@ -10,7 +10,7 @@ from common.time import utc_now_iso
 from tests.support.books import insert_test_book, set_test_book_rotation_scheduling
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
-from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
+from trading.models.parameters import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
 from trading.services.operational_settings import set_runtime_throttle_settings

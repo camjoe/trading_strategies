@@ -17,9 +17,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_assignment_view import BookAssignmentView
-from trading.models.books.book_record import BookRecord
-from trading.models.books.trading_book import TradingBook
+from trading.models.books import BookAssignmentView, BookRecord, TradingBook
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_bridge import default_book_id, strategy_id_for_label
 from trading.repositories.books import BookRepository

@@ -7,6 +7,7 @@ from tests.src.trading.services.auto_trading.factories import (
     make_feature_fetchers,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
+from trading.models.execution import AccountRunResult
 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
@@ -28,7 +29,7 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker_factory.assert_not_called()
     books_runner.assert_not_called()
 
@@ -38,7 +39,7 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     account = make_auto_trading_account(id=42)
     monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "get_account", Mock(return_value=account))
-    books_runner = Mock(return_value=3)
+    books_runner = Mock(return_value=AccountRunResult(account_name="acct", submitted_count=3))
     monkeypatch.setattr(runtime_service, "_run_books_for_account", books_runner)
     broker_factory = Mock()
 
@@ -54,25 +55,11 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 3
+    assert executed.submitted_count == 3
     assert books_runner.call_count == 1
     assert books_runner.call_args.kwargs["account"] is account
     # The book path owns the broker lifecycle; the delegator opens nothing.
     broker_factory.assert_not_called()
-
-
-def test_runtime_wrapper_delegates(monkeypatch) -> None:
-    resolved_exec = Mock(return_value="exec-id")
-    monkeypatch.setattr(runtime_service, "resolve_reconciliation_exec_id", resolved_exec)
-
-    assert (
-        runtime_service._resolve_reconciliation_exec_id(
-            broker_order_id="b1",
-            fill=Mock(),
-            fill_index=0,
-        )
-        == "exec-id"
-    )
 
 
 def test_is_runtime_submission_window_open_parses_iso_before_market_hours_check(monkeypatch) -> None:

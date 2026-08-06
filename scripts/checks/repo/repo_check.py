@@ -11,6 +11,7 @@ from scripts.checks.repo.migration_check import run_migration_check
 from scripts.checks.repo.path_safety_check import run_path_safety_check
 from scripts.checks.repo.review_scope_check import run_review_scope_check
 from scripts.checks.repo.secret_hygiene_check import run_secret_hygiene_check
+from scripts.checks.repo.sector_map_check import run_sector_map_check
 from scripts.checks.repo.skills_check import run_skills_check
 
 
@@ -38,6 +39,10 @@ def run_repo_check(repo_root: Path, *, enforce: bool = True, quiet: bool = True)
             CheckStep(
                 "Secret hygiene",
                 lambda: run_secret_hygiene_check(repo_root=repo_root, quiet=quiet, enforce=enforce),
+            ),
+            CheckStep(
+                "Sector map coverage",
+                lambda: run_sector_map_check(repo_root=repo_root, quiet=quiet),
             ),
             CheckStep(
                 "Review scope",

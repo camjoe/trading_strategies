@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from trading.models.rotation.rotation_decision import RotationDecision
-from trading.models.rotation.rotation_score_weights import RotationScoreWeights
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.models.rotation.rotation_strategy_score import RotationStrategyScore
+from trading.models.rotation import (
+    RotationDecision,
+    RotationScoreWeights,
+    RotationStrategyMetrics,
+    RotationStrategyScore,
+)
 
 # Conversion factor from percentage points to basis points.
 PERCENT_TO_BASIS_POINTS = 100.0

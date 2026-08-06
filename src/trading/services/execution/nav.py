@@ -16,7 +16,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
-from trading.models.execution.book_nav_mark_result import BookNavMarkResult
+from trading.models.execution import BookNavMarkResult
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.unit_of_work import unit_of_work

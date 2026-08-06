@@ -9,6 +9,65 @@ inputs.
 This mirrors ``trading.domain.rotation.policy.evaluate_champion_challenger_rotation``:
 the side-effect-free gate logic lives here and returns a passive
 ``RiskGateResult`` value object; the orchestration lives in services.
+
+Rules this gate enforces, and the assumptions behind them:
+
+**Sells are never blocked.** Any ``side == "sell"`` is approved unconditionally as
+``risk_reducing_sell`` without consulting a cap. *This is sound only because the
+system is long-only*: with no short positions, a sell can only reduce exposure.
+If shorting is ever introduced, this branch becomes a hole — a short sale would
+increase exposure and pass the gate untouched — and it must be revisited first.
+A zero-or-negative quantity is still blocked (``non_positive_qty``) ahead of this
+branch, so a sell of nothing does not slip through.
+
+Exposure is summed as ``abs(market_value)``. Under long-only that absolute is a
+no-op, but it is deliberate rather than redundant: gross exposure is *defined* as
+the absolute sum, so the expression stays correct if short positions are ever
+introduced. Do not "simplify" it away — it is one of the few places that would
+silently start understating exposure rather than failing loudly.
+
+**Buys are capped four ways**, and the binding constraint is whichever leaves the
+least room. The limits are deliberately layered rather than uniform:
+
+* ``max_book_notional_pct`` is **book-scoped** — a share of the intent's own book
+  equity.
+* ``max_symbol_concentration_pct``, ``max_sector_concentration_pct`` and
+  ``max_account_gross_exposure`` are **account-scoped** — shares of
+  ``sum(book_equity_by_id.values())``, which the caller populates with one
+  account's books.
+
+A book may therefore hold 25% of its own equity in a name that is simultaneously
+capped at 30% of the account. Both must pass; neither relaxes the other.
+
+**Nothing here spans accounts.** The gate is evaluated once per account, so two
+accounts each sitting at their gross limit are never aggregated. Cross-account
+symbol and sector concentration *is* computed — ``services.analysis.concentration``
+— but only for operator reporting; it does not gate a trade. Adding a
+cross-account tier would mean giving this function account-spanning equity and
+position inputs, which it deliberately does not take today.
+
+Note ``sum(book_equity_by_id.values())`` is not an independent quantity: the
+runtime calls ``reconcile_book_equity`` immediately before the gate, which halts
+the run when the account's rolled-up book equity disagrees with its latest equity
+snapshot by more than ``RECONCILIATION_EQUITY_TOLERANCE``. Book-sum equity and
+account snapshot equity are therefore the same number, to within a cent, whenever
+this code runs.
+
+**An unmapped symbol is bucketed, not exempted.** Sector limits are off entirely
+when ``config.symbol_sector_map`` is empty — that is the explicit opt-out. Once a
+map is configured, a symbol missing from it is charged to the shared
+``UNCATEGORIZED_SECTOR`` bucket and competes for the same sector cap as any other
+sector. Missing reference data therefore tightens the gate rather than opening a
+hole in it: a ticker added to a trade universe but not to
+``infrastructure/config/symbol_sectors.json`` cannot slip the cap.
+``scripts/checks/repo/sector_map_check.py`` catches that drift at commit time.
+
+**Intents are evaluated in order and each approval consumes capacity**, so list
+order decides who is filled when a cap binds. The caller seeds selection per run
+date, making the order stable within a day and varied across days.
+
+Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``
+and the sizing policy filters ``qty >= 1`` before intents reach here.
 """
 
 from __future__ import annotations
@@ -17,11 +76,14 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.models.execution.risk_gate_decision import RiskGateDecision
-from trading.models.execution.risk_gate_position import RiskGatePosition
-from trading.models.execution.risk_gate_result import RiskGateResult
+from trading.models.execution import (
+    BookTradeCandidate,
+    RiskGateConfig,
+    RiskGateDecision,
+    RiskGatePosition,
+    RiskGateResult,
+)
+from trading.models.portfolio import UNCATEGORIZED_SECTOR
 
 
 def _coerce_positive_fraction(value: float, *, field_name: str) -> float:
@@ -38,6 +100,10 @@ def _resolve_blocking_reason(
     remaining_gross_notional: float,
     remaining_sector_notional: float,
 ) -> str:
+    # These strings are persisted as `risk_decisions.reason_code`, so they stay
+    # fixed even where a name has since been sharpened elsewhere:
+    # "gross_exposure_cap" is the account-scoped cap now spelled
+    # `max_account_gross_exposure`. Renaming it would split the audit history.
     limits = [
         ("book_notional_cap", remaining_book_notional),
         ("symbol_concentration_cap", remaining_symbol_notional),
@@ -79,16 +145,25 @@ def evaluate_risk_gate(
     max_symbol_concentration_pct = _coerce_positive_fraction(
         config.max_symbol_concentration_pct, field_name="max_symbol_concentration_pct"
     )
-    max_portfolio_gross_exposure = _coerce_positive_fraction(
-        config.max_portfolio_gross_exposure, field_name="max_portfolio_gross_exposure"
+    max_account_gross_exposure = _coerce_positive_fraction(
+        config.max_account_gross_exposure, field_name="max_account_gross_exposure"
     )
     max_sector_concentration_pct = _coerce_positive_fraction(
         config.max_sector_concentration_pct, field_name="max_sector_concentration_pct"
     )
     symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
+    # No map at all means sector limits are switched off. Once a map exists, an
+    # unmapped symbol shares the UNCATEGORIZED_SECTOR bucket instead of escaping
+    # the cap, so incomplete reference data cannot open a hole.
+    sector_limits_enabled = bool(symbol_sector_map)
+
+    def sector_bucket(candidate_symbol: str) -> str | None:
+        if not sector_limits_enabled:
+            return None
+        return resolve_sector_for_symbol(candidate_symbol, symbol_sector_map=symbol_sector_map) or UNCATEGORIZED_SECTOR
 
     total_equity = sum(book_equity_by_id.values())
-    gross_cap_notional = total_equity * max_portfolio_gross_exposure
+    gross_cap_notional = total_equity * max_account_gross_exposure
     symbol_cap_notional = total_equity * max_symbol_concentration_pct
     sector_cap_notional = total_equity * max_sector_concentration_pct
 
@@ -100,7 +175,7 @@ def evaluate_risk_gate(
         exposure = abs(pos.market_value)
         gross_exposure += exposure
         symbol_exposure[pos.symbol] = symbol_exposure.get(pos.symbol, 0.0) + exposure
-        sector = resolve_sector_for_symbol(pos.symbol, symbol_sector_map=symbol_sector_map)
+        sector = sector_bucket(pos.symbol)
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + exposure
         book_symbol_exposure[(pos.book_id, pos.symbol)] = exposure
@@ -140,7 +215,7 @@ def evaluate_risk_gate(
             exposure_delta = min(symbol_exposure.get(symbol, 0.0), requested_notional)
             gross_exposure = max(0.0, gross_exposure - exposure_delta)
             symbol_exposure[symbol] = max(0.0, symbol_exposure.get(symbol, 0.0) - exposure_delta)
-            sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+            sector = sector_bucket(symbol)
             if sector is not None:
                 sector_exposure[sector] = max(0.0, sector_exposure.get(sector, 0.0) - exposure_delta)
             book_key = (int(intent.book_id), symbol)
@@ -166,7 +241,7 @@ def evaluate_risk_gate(
         remaining_book_notional = max(0.0, book_symbol_cap_notional - current_book_symbol_exposure)
         remaining_symbol_notional = max(0.0, symbol_cap_notional - symbol_exposure.get(symbol, 0.0))
         remaining_gross_notional = max(0.0, gross_cap_notional - gross_exposure)
-        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+        sector = sector_bucket(symbol)
         remaining_sector_notional = (
             max(0.0, sector_cap_notional - sector_exposure.get(sector, 0.0)) if sector is not None else float("inf")
         )

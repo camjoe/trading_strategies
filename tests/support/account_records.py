@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.models import AccountRecord
-from trading.models.books.book_record import BookRecord
+from trading.models.books import BookRecord
 
 
 def make_account_record(**overrides: object) -> AccountRecord:
