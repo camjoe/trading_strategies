@@ -21,10 +21,31 @@ A zero-or-negative quantity is still blocked (``non_positive_qty``) ahead of thi
 branch, so a sell of nothing does not slip through.
 
 **Buys are capped four ways**, and the binding constraint is whichever leaves the
-least room. Note the denominators differ deliberately: ``max_book_notional_pct``
-is a share of *that book's* equity, while the symbol, sector and gross caps are
-shares of *total equity summed across all books*. One book may therefore hold 25%
-of its own equity in a name that is simultaneously capped at 30% of the portfolio.
+least room. The limits are deliberately layered rather than uniform:
+
+* ``max_book_notional_pct`` is **book-scoped** — a share of the intent's own book
+  equity.
+* ``max_symbol_concentration_pct``, ``max_sector_concentration_pct`` and
+  ``max_account_gross_exposure`` are **account-scoped** — shares of
+  ``sum(book_equity_by_id.values())``, which the caller populates with one
+  account's books.
+
+A book may therefore hold 25% of its own equity in a name that is simultaneously
+capped at 30% of the account. Both must pass; neither relaxes the other.
+
+**Nothing here spans accounts.** The gate is evaluated once per account, so two
+accounts each sitting at their gross limit are never aggregated. Cross-account
+symbol and sector concentration *is* computed — ``services.analysis.concentration``
+— but only for operator reporting; it does not gate a trade. Adding a
+cross-account tier would mean giving this function account-spanning equity and
+position inputs, which it deliberately does not take today.
+
+Note ``sum(book_equity_by_id.values())`` is not an independent quantity: the
+runtime calls ``reconcile_book_equity`` immediately before the gate, which halts
+the run when the account's rolled-up book equity disagrees with its latest equity
+snapshot by more than ``RECONCILIATION_EQUITY_TOLERANCE``. Book-sum equity and
+account snapshot equity are therefore the same number, to within a cent, whenever
+this code runs.
 
 **An unmapped symbol is bucketed, not exempted.** Sector limits are off entirely
 when ``config.symbol_sector_map`` is empty — that is the explicit opt-out. Once a
@@ -73,6 +94,10 @@ def _resolve_blocking_reason(
     remaining_gross_notional: float,
     remaining_sector_notional: float,
 ) -> str:
+    # These strings are persisted as `risk_decisions.reason_code`, so they stay
+    # fixed even where a name has since been sharpened elsewhere:
+    # "gross_exposure_cap" is the account-scoped cap now spelled
+    # `max_account_gross_exposure`. Renaming it would split the audit history.
     limits = [
         ("book_notional_cap", remaining_book_notional),
         ("symbol_concentration_cap", remaining_symbol_notional),
@@ -114,8 +139,8 @@ def evaluate_risk_gate(
     max_symbol_concentration_pct = _coerce_positive_fraction(
         config.max_symbol_concentration_pct, field_name="max_symbol_concentration_pct"
     )
-    max_portfolio_gross_exposure = _coerce_positive_fraction(
-        config.max_portfolio_gross_exposure, field_name="max_portfolio_gross_exposure"
+    max_account_gross_exposure = _coerce_positive_fraction(
+        config.max_account_gross_exposure, field_name="max_account_gross_exposure"
     )
     max_sector_concentration_pct = _coerce_positive_fraction(
         config.max_sector_concentration_pct, field_name="max_sector_concentration_pct"
@@ -132,7 +157,7 @@ def evaluate_risk_gate(
         return resolve_sector_for_symbol(candidate_symbol, symbol_sector_map=symbol_sector_map) or UNCATEGORIZED_SECTOR
 
     total_equity = sum(book_equity_by_id.values())
-    gross_cap_notional = total_equity * max_portfolio_gross_exposure
+    gross_cap_notional = total_equity * max_account_gross_exposure
     symbol_cap_notional = total_equity * max_symbol_concentration_pct
     sector_cap_notional = total_equity * max_sector_concentration_pct
 

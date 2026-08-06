@@ -57,21 +57,29 @@ class BookTradeState:
 # --- Risk gate ---
 
 
-# Default share of a book's equity that any single symbol position may occupy.
+# Risk limits are layered: the notional cap constrains a single book, and the
+# other three constrain one account (the sum of that account's books). Nothing
+# here spans accounts — the gate is evaluated per account, so two accounts each
+# at their gross limit are not aggregated. Cross-account concentration is
+# reported by `services.analysis.concentration` but never gates a trade.
+
+# Default share of *a book's* equity that any single symbol position may occupy.
 DEFAULT_MAX_BOOK_NOTIONAL_PCT = 0.25
-# Default share of total portfolio equity that any single symbol may occupy.
+# Default share of *account* equity that any single symbol may occupy.
 DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30
-# Default cap on gross exposure as a multiple of total portfolio equity.
-DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE = 1.0
-# Default share of total portfolio equity that any single sector may occupy.
+# Default cap on gross exposure as a multiple of *account* equity.
+DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE = 1.0
+# Default share of *account* equity that any single sector may occupy.
 DEFAULT_MAX_SECTOR_CONCENTRATION_PCT = 0.45
 
 
 @dataclass(frozen=True, slots=True)
 class RiskGateConfig:
+    # Book-scoped: a fraction of the intent's own book equity.
     max_book_notional_pct: float = DEFAULT_MAX_BOOK_NOTIONAL_PCT
+    # Account-scoped: fractions of the account's total equity across its books.
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
-    max_portfolio_gross_exposure: float = DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE
+    max_account_gross_exposure: float = DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE
     max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
     # Symbol→sector reference data is operator config; the service layer loads it
     # from src/infrastructure/config/symbol_sectors.json and injects it here.
