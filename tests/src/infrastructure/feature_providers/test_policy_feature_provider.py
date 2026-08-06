@@ -2,23 +2,48 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from datetime import date, datetime, timezone
+from unittest.mock import MagicMock
 
 import pandas as pd
 
 from infrastructure.feature_providers.policy_provider import (
     _ALL_ETFS,
-    _DEFENSIVE_ETFS,
     _EQUITY_BENCHMARK,
     POLICY_DEFENSIVE_TILT,
+    POLICY_LOOKBACK_CALENDAR_DAYS,
     POLICY_MIN_OBSERVATIONS,
     POLICY_RISK_ON_SCORE,
     PolicyFeatureProvider,
 )
+from trading.services.market_data import MarketDataProvider
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+class _StubMarketData(MarketDataProvider):
+    """Serves one canned close-history result, or raises the one it was given."""
+
+    def __init__(self, close: pd.DataFrame | Exception) -> None:
+        self._close = close
+        self.calls: list[tuple[list[str], date, date]] = []
+
+    def fetch_close_history(self, tickers: list[str], start_date: date, end_date: date) -> pd.DataFrame:
+        self.calls.append((list(tickers), start_date, end_date))
+        if isinstance(self._close, Exception):
+            raise self._close
+        return self._close
+
+    def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        raise NotImplementedError
+
+    def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
+        raise NotImplementedError
+
+    def fetch_bar_history(self, tickers: list[str], start_date: date, end_date: date) -> dict[str, pd.DataFrame]:
+        raise NotImplementedError
 
 
 def _make_close_df(tickers: list[str], rows: int = 20, base: float = 100.0) -> pd.DataFrame:
@@ -27,11 +52,9 @@ def _make_close_df(tickers: list[str], rows: int = 20, base: float = 100.0) -> p
     return pd.DataFrame(data)
 
 
-def _make_raw_download(tickers: list[str], rows: int = 20) -> pd.DataFrame:
-    """Simulate yfinance multi-ticker download result (MultiIndex columns)."""
-    close_df = _make_close_df(tickers, rows)
-    close_df.columns = pd.MultiIndex.from_product([["Close"], close_df.columns])
-    return close_df
+def _provider_reading(close: pd.DataFrame | Exception) -> tuple[PolicyFeatureProvider, _StubMarketData]:
+    stub = _StubMarketData(close)
+    return PolicyFeatureProvider(market_data_provider=stub), stub
 
 
 def _make_feature_history(risk_on: float, def_tilt: float) -> pd.DataFrame:
@@ -49,85 +72,68 @@ def _make_history(n: int = 60, start: float = 100.0, slope: float = 0.5) -> pd.S
 
 class TestPolicyFeatureProviderFetchReturns:
     def test_returns_dict_with_all_etfs_on_success(self):
-        all_tickers = list(_DEFENSIVE_ETFS) + [_EQUITY_BENCHMARK]
-        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        provider, _ = _provider_reading(close)
 
-        provider = PolicyFeatureProvider()
-        with patch("infrastructure.feature_providers.policy_provider.yf.download", return_value=raw):
-            result = provider._fetch_etf_returns()
+        result = provider._fetch_etf_returns()
 
         assert result is not None
-        for ticker in all_tickers:
-            assert ticker in result
+        assert set(result) == set(_ALL_ETFS)
 
-    def test_returns_none_when_download_raises(self):
-        provider = PolicyFeatureProvider()
-        with patch(
-            "infrastructure.feature_providers.policy_provider.yf.download",
-            side_effect=RuntimeError("network error"),
-        ):
-            result = provider._fetch_etf_returns()
-        assert result is None
+    def test_requests_the_whole_basket_in_one_read(self):
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        provider, stub = _provider_reading(close)
 
-    def test_returns_none_when_close_too_short(self):
-        all_tickers = list(_DEFENSIVE_ETFS) + [_EQUITY_BENCHMARK]
-        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS - 1)
+        provider._fetch_etf_returns()
 
-        provider = PolicyFeatureProvider()
-        with patch("infrastructure.feature_providers.policy_provider.yf.download", return_value=raw):
-            result = provider._fetch_etf_returns()
-        assert result is None
+        assert len(stub.calls) == 1
+        assert stub.calls[0][0] == list(_ALL_ETFS)
 
-    def test_returns_none_on_empty_download(self):
-        provider = PolicyFeatureProvider()
-        with patch(
-            "infrastructure.feature_providers.policy_provider.yf.download",
-            return_value=pd.DataFrame(),
-        ):
-            result = provider._fetch_etf_returns()
-        assert result is None
+    def test_window_ends_before_today(self):
+        """Today's bar is still forming; including it moves the regime with the tape."""
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        provider, stub = _provider_reading(close)
 
-    def test_fetch_etf_returns_skips_missing_etf_column(self):
-        """ETF absent from the Close columns is skipped (line 163-164)."""
-        # Only download SPY + 3 of 4 defensive ETFs (exclude "GLD").
-        partial_tickers = ["TLT", "XLU", "UUP", _EQUITY_BENCHMARK]
-        raw = _make_raw_download(partial_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
-        provider = PolicyFeatureProvider()
-        with patch("infrastructure.feature_providers.policy_provider.yf.download", return_value=raw):
-            result = provider._fetch_etf_returns()
-        # GLD is missing; the others should still produce results (no None return).
-        assert result is not None
-        assert "GLD" not in result
-        assert _EQUITY_BENCHMARK in result
+        provider._fetch_etf_returns()
 
-    def test_fetch_etf_returns_skips_series_shorter_than_2(self):
-        """ETF column with only 1 non-NaN row is skipped (line 167)."""
-        import numpy as np
+        _tickers, start_date, end_date = stub.calls[0]
+        today = datetime.now(timezone.utc).date()
+        assert end_date < today
+        assert (today - start_date).days == POLICY_LOOKBACK_CALENDAR_DAYS
 
-        all_tickers = list(_ALL_ETFS)
-        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
-        # Replace "GLD" column under Close with all-NaN values (dropna gives length 0).
-        raw[("Close", "GLD")] = np.nan
-        provider = PolicyFeatureProvider()
-        with patch("infrastructure.feature_providers.policy_provider.yf.download", return_value=raw):
-            result = provider._fetch_etf_returns()
-        assert result is not None
-        assert "GLD" not in result
+    def test_returns_none_when_the_read_fails(self):
+        provider, _ = _provider_reading(RuntimeError("network error"))
 
-    def test_fetch_etf_returns_skips_zero_first_price(self):
-        """ETF column whose first price is 0.0 is skipped (line 170)."""
-        all_tickers = list(_ALL_ETFS)
-        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
-        # Set the first row of "GLD" to 0.0.
-        raw[("Close", "GLD")] = [0.0] + [100.0] * (POLICY_MIN_OBSERVATIONS + 1)
-        provider = PolicyFeatureProvider()
-        with patch("infrastructure.feature_providers.policy_provider.yf.download", return_value=raw):
-            result = provider._fetch_etf_returns()
-        assert result is not None
-        assert "GLD" not in result
+        assert provider._fetch_etf_returns() is None
+
+    def test_returns_none_when_an_etf_is_missing_from_the_basket(self):
+        """mean_defensive is a basket average, so a short basket is no signal, not a rebased one."""
+        provider, _ = _provider_reading(ValueError("Missing close history for tickers: GLD"))
+
+        assert provider._fetch_etf_returns() is None
+
+    def test_returns_none_when_history_is_too_short(self):
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS - 1)
+        provider, _ = _provider_reading(close)
+
+        assert provider._fetch_etf_returns() is None
+
+    def test_returns_none_when_an_etf_series_is_too_short(self):
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        close["GLD"] = float("nan")
+        provider, _ = _provider_reading(close)
+
+        assert provider._fetch_etf_returns() is None
+
+    def test_returns_none_when_an_etf_opens_at_zero(self):
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        close["GLD"] = [0.0] + [100.0] * (POLICY_MIN_OBSERVATIONS + 1)
+        provider, _ = _provider_reading(close)
+
+        assert provider._fetch_etf_returns() is None
 
     def test_feature_names_contains_expected_keys(self):
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         assert POLICY_RISK_ON_SCORE in provider._feature_names
         assert POLICY_DEFENSIVE_TILT in provider._feature_names
 
@@ -140,7 +146,7 @@ class TestPolicyFeatureProviderFetchReturns:
 class TestPolicyFeatureProviderFetch:
     def _provider_with_returns(self, spy_ret: float, defensive_rets: dict[str, float]):
         """Build a provider whose _fetch_etf_returns is patched to return fixed data."""
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         all_returns = {_EQUITY_BENCHMARK: spy_ret, **defensive_rets}
         provider._fetch_etf_returns = MagicMock(return_value=all_returns)
         return provider
@@ -190,7 +196,7 @@ class TestPolicyFeatureProviderFetch:
         assert bundle.get(POLICY_DEFENSIVE_TILT, -1.0) > 0.0
 
     def test_unavailable_when_spy_missing(self):
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         provider._fetch_etf_returns = MagicMock(
             return_value={"TLT": 0.02, "GLD": 0.01, "XLU": 0.01, "UUP": 0.00}
             # SPY intentionally absent
@@ -199,7 +205,7 @@ class TestPolicyFeatureProviderFetch:
         assert bundle.available is False
 
     def test_unavailable_when_all_defensives_missing(self):
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         provider._fetch_etf_returns = MagicMock(
             return_value={_EQUITY_BENCHMARK: 0.05}
             # no defensive ETFs
@@ -208,7 +214,7 @@ class TestPolicyFeatureProviderFetch:
         assert bundle.available is False
 
     def test_unavailable_when_returns_none(self):
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         provider._fetch_etf_returns = MagicMock(return_value=None)
         bundle = provider._fetch("ANY")
         assert bundle.available is False
@@ -229,7 +235,7 @@ class TestPolicyFeatureProviderFetch:
 
 class TestPolicyFeatureProviderCache:
     def test_different_tickers_share_same_cache_entry(self):
-        provider = PolicyFeatureProvider()
+        provider, _ = _provider_reading(_make_close_df(list(_ALL_ETFS)))
         provider._fetch_etf_returns = MagicMock(
             return_value={
                 _EQUITY_BENCHMARK: 0.03,

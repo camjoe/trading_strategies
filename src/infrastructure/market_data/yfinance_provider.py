@@ -139,7 +139,7 @@ class YFinanceProvider(MarketDataProvider):
         return hist
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        cache_key = market_data_cache_key("ohlcv", ticker=ticker.upper().strip(), period=period, interval=interval)
+        cache_key = market_data_cache_key("bars", ticker=ticker.upper().strip(), period=period, interval=interval)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
             return cast(pd.DataFrame, cached)
@@ -155,6 +155,13 @@ class YFinanceProvider(MarketDataProvider):
                 df = df.xs(key, axis=1, level="Ticker", drop_level=True)
             else:
                 df.columns = df.columns.get_level_values(0)
+
+        df = df.rename(columns=_VENDOR_BAR_COLUMNS)
+        missing = [column for column in BAR_COLUMNS if column not in df.columns]
+        if missing:
+            raise ValueError(f"Download for '{ticker}' is missing bar column(s): {', '.join(missing)}")
+        df = df[list(BAR_COLUMNS)]
+
         write_market_data_cache(cache_key, df)
         return df
 

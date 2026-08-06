@@ -13,18 +13,15 @@ from trading.services.market_data.protocols import MarketDataProvider
 
 _PERIOD_TRADING_DAYS = {"5d": 5, "1mo": 22, "3mo": 66, "6mo": 132, "1y": 252, "2y": 504}
 
-# fetch_ohlcv returns the vendor's capitalized spelling, unlike fetch_bar_history
-_BAR_TO_VENDOR_COLUMNS = {
-    BAR_OPEN: "Open",
-    BAR_HIGH: "High",
-    BAR_LOW: "Low",
-    BAR_CLOSE: "Close",
-    BAR_VOLUME: "Volume",
-}
-
 # None = already daily, no resampling needed.
 _RESAMPLE_RULES: dict[str, str | None] = {"1d": None, "1wk": "W-FRI", "1mo": "ME"}
-_OHLCV_AGGREGATION = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+_OHLCV_AGGREGATION = {
+    BAR_OPEN: "first",
+    BAR_HIGH: "max",
+    BAR_LOW: "min",
+    BAR_CLOSE: "last",
+    BAR_VOLUME: "sum",
+}
 
 
 class DemoMarketDataProvider(MarketDataProvider):
@@ -121,9 +118,7 @@ class DemoMarketDataProvider(MarketDataProvider):
             raise ValueError("Demo market data supports daily, weekly, and monthly intervals.")
         normalized = self._normalized_ticker(ticker)
         close = self._close_frame([normalized], self._period_index(period))[normalized]
-        # Same bars the bar-history path builds, relabelled to the vendor spelling
-        # fetch_ohlcv is contracted to return, so the two reads cannot disagree.
-        frame = self._bar_frame(normalized, close).rename(columns=_BAR_TO_VENDOR_COLUMNS)
+        frame = self._bar_frame(normalized, close)
 
         rule = _RESAMPLE_RULES[interval]
         if rule is None:

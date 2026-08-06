@@ -7,12 +7,13 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_VOLUME
+from common.rate_limit import RateLimitExceeded
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 
 
 def _mock_provider(close_series_map: dict[str, pd.Series | None]) -> MagicMock:
-    """A provider returning vendor-cased OHLCV frames, as fetch_ohlcv does."""
+    """A provider returning ``BAR_COLUMNS`` frames, as fetch_ohlcv does."""
 
     def _ohlcv(ticker: str, _period: str, _interval: str) -> pd.DataFrame | None:
         closes = close_series_map.get(ticker)
@@ -20,11 +21,11 @@ def _mock_provider(close_series_map: dict[str, pd.Series | None]) -> MagicMock:
             return None
         return pd.DataFrame(
             {
-                "Open": closes,
-                "High": closes,
-                "Low": closes,
-                "Close": closes,
-                "Volume": pd.Series(1_000_000.0, index=closes.index),
+                BAR_OPEN: closes,
+                BAR_HIGH: closes,
+                BAR_LOW: closes,
+                BAR_CLOSE: closes,
+                BAR_VOLUME: pd.Series(1_000_000.0, index=closes.index),
             }
         )
 
@@ -99,11 +100,11 @@ class TestFetchBarHistories:
         provider = MagicMock()
         provider.fetch_ohlcv.return_value = pd.DataFrame(
             {
-                "Open": [10.0, float("nan"), 12.0],
-                "High": [10.0, float("nan"), 12.0],
-                "Low": [10.0, float("nan"), 12.0],
-                "Close": [10.0, float("nan"), 12.0],
-                "Volume": [500.0, float("nan"), 700.0],
+                BAR_OPEN: [10.0, float("nan"), 12.0],
+                BAR_HIGH: [10.0, float("nan"), 12.0],
+                BAR_LOW: [10.0, float("nan"), 12.0],
+                BAR_CLOSE: [10.0, float("nan"), 12.0],
+                BAR_VOLUME: [500.0, float("nan"), 700.0],
             },
             index=index,
         )
@@ -120,11 +121,11 @@ class TestFetchBarHistories:
         provider = MagicMock()
         provider.fetch_ohlcv.return_value = pd.DataFrame(
             {
-                "Volume": [1.0, 1.0],
-                "Close": [1.0, 1.0],
-                "Low": [1.0, 1.0],
-                "High": [1.0, 1.0],
-                "Open": [1.0, 1.0],
+                BAR_VOLUME: [1.0, 1.0],
+                BAR_CLOSE: [1.0, 1.0],
+                BAR_LOW: [1.0, 1.0],
+                BAR_HIGH: [1.0, 1.0],
+                BAR_OPEN: [1.0, 1.0],
             },
             index=index,
         )
@@ -133,9 +134,17 @@ class TestFetchBarHistories:
 
         assert list(histories["AAPL"].columns) == list(BAR_COLUMNS)
 
+    def test_an_exhausted_call_budget_stops_the_run(self) -> None:
+        """A truncated universe would let the run trade on whatever arrived first."""
+        provider = MagicMock()
+        provider.fetch_ohlcv.side_effect = RateLimitExceeded("yfinance budget exhausted")
+
+        with pytest.raises(RateLimitExceeded):
+            fetch_bar_histories(["AAPL", "MSFT"], provider=provider)
+
     def test_a_frame_missing_a_bar_column_is_skipped_not_raised(self) -> None:
         index = pd.to_datetime(["2024-01-02"])
         provider = MagicMock()
-        provider.fetch_ohlcv.return_value = pd.DataFrame({"Close": [1.0]}, index=index)
+        provider.fetch_ohlcv.return_value = pd.DataFrame({BAR_CLOSE: [1.0]}, index=index)
 
         assert fetch_bar_histories(["AAPL"], provider=provider) == {}

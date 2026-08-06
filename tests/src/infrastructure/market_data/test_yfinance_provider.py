@@ -10,8 +10,13 @@ import pandas as pd
 import pytest
 
 import infrastructure.market_data.yfinance_provider as provider_module
-from infrastructure.market_data.cache import _MARKET_DATA_CACHE_TTL_SECONDS
+from infrastructure.market_data.cache import (
+    _MARKET_DATA_CACHE_TTL_SECONDS,
+    market_data_cache_key,
+    write_market_data_cache,
+)
 from infrastructure.market_data.yfinance_provider import YFinanceProvider
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS
 
 
 def _bar_download(tickers: tuple[str, ...], periods: int = 3) -> pd.DataFrame:
@@ -189,17 +194,7 @@ class TestFetchBarHistory:
 
 class TestFetchOhlcv:
     def test_multiindex_columns_are_narrowed_to_the_requested_ticker(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        index = pd.date_range("2026-01-01", periods=2)
-        hist = pd.DataFrame(
-            {
-                ("Close", "MSFT"): [200.0, 201.0],
-                ("Volume", "MSFT"): [20.0, 21.0],
-                ("Close", "AAPL"): [100.0, 101.0],
-                ("Volume", "AAPL"): [10.0, 11.0],
-            },
-            index=index,
-        )
-        hist.columns = pd.MultiIndex.from_tuples(hist.columns, names=["Field", "Ticker"])
+        hist = _bar_download(("AAPL", "MSFT"), periods=2)
         calls: list[object] = []
         monkeypatch.setattr(
             provider_module.yf,
@@ -212,25 +207,52 @@ class TestFetchOhlcv:
         second = provider.fetch_ohlcv(" aapl ", "1mo", "1d")
 
         assert len(calls) == 1
-        assert list(first.columns) == ["Close", "Volume"]
-        assert float(first.iloc[-1]["Close"]) == 101.0
+        assert tuple(first.columns) == BAR_COLUMNS
+        assert float(first.iloc[-1][BAR_CLOSE]) == 101.2
         pd.testing.assert_frame_equal(first, second)
 
     def test_multiindex_without_ticker_names_is_flattened(self, monkeypatch: pytest.MonkeyPatch) -> None:
         hist = pd.DataFrame(
-            {("Close", "raw"): [100.0], ("Volume", "raw"): [10.0]},
+            {(name, "raw"): [10.0] for name in ("Open", "High", "Low", "Close", "Volume")},
             index=pd.date_range("2026-01-01", periods=1),
         )
         hist.columns = pd.MultiIndex.from_tuples(hist.columns)
         monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
 
-        assert list(YFinanceProvider().fetch_ohlcv("SPY", "5d", "1d").columns) == ["Close", "Volume"]
+        assert tuple(YFinanceProvider().fetch_ohlcv("SPY", "5d", "1d").columns) == BAR_COLUMNS
 
     def test_empty_download_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: pd.DataFrame())
 
         with pytest.raises(ValueError, match="No data returned for ticker"):
             YFinanceProvider().fetch_ohlcv("SPY", "1mo", "1d")
+
+    def test_an_incomplete_download_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The port promises BAR_COLUMNS, so a partial frame cannot be handed back."""
+        hist = pd.DataFrame({"Close": [100.0], "Volume": [10.0]}, index=pd.date_range("2026-01-01", periods=1))
+        monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
+
+        with pytest.raises(ValueError, match="missing bar column"):
+            YFinanceProvider().fetch_ohlcv("SPY", "1mo", "1d")
+
+    def test_a_vendor_cased_entry_under_the_old_key_is_not_served(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Serving one would hand back capitalized columns and drop the ticker downstream."""
+        legacy = pd.DataFrame(
+            {name: [1.0, 2.0] for name in ("Open", "High", "Low", "Close", "Volume")},
+            index=pd.date_range("2026-01-01", periods=2),
+        )
+        write_market_data_cache(
+            market_data_cache_key("ohlcv", ticker="AAPL", period="1y", interval="1d"),
+            legacy,
+        )
+        monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: _bar_download(("AAPL",)))
+
+        result = YFinanceProvider().fetch_ohlcv("AAPL", "1y", "1d")
+
+        assert tuple(result.columns) == BAR_COLUMNS
 
 
 class TestFetchCloseSeries:

@@ -11,16 +11,10 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(
 ) -> None:
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     index = pd.date_range("2026-01-01", periods=3)
-    columns = pd.MultiIndex.from_product(
-        [["Close", "Volume"], ["AAPL"]],
-        names=["Price", "Ticker"],
-    )
+    fields = ("Open", "High", "Low", "Close", "Volume")
+    columns = pd.MultiIndex.from_product([list(fields), ["AAPL"]], names=["Price", "Ticker"])
     df = pd.DataFrame(
-        [
-            [100.0, 1_000_000],
-            [101.0, 1_100_000],
-            [102.0, 1_200_000],
-        ],
+        [[100.0 + row for _ in fields] for row in range(3)],
         index=index,
         columns=columns,
     )
@@ -29,8 +23,7 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(
 
     out = fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())
 
-    assert "Close" in out.columns
-    assert "Volume" in out.columns
+    assert list(out.columns) == list(fields)
     assert not isinstance(out.columns, pd.MultiIndex)
 
 

@@ -11,11 +11,18 @@ from common.rate_limit import RateLimiter, RateLimitExceeded
 from infrastructure.market_data.yfinance_provider import YFinanceProvider
 
 
+def _vendor_download(rows: int = 2) -> pd.DataFrame:
+    """A complete vendor OHLCV frame; these tests count limiter calls, not values."""
+    return pd.DataFrame(
+        {name: [float(row + 1) for row in range(rows)] for name in ("Open", "High", "Low", "Close", "Volume")}
+    )
+
+
 def test_network_fetch_acquires_one_slot(monkeypatch: pytest.MonkeyPatch) -> None:
     limiter = RateLimiter()
     monkeypatch.setattr(provider_module, "read_market_data_cache", lambda _key: provider_module._CACHE_MISS)
     monkeypatch.setattr(provider_module, "write_market_data_cache", lambda _key, _value: None)
-    monkeypatch.setattr(provider_module.yf, "download", lambda *a, **k: pd.DataFrame({"Close": [1.0, 2.0]}))
+    monkeypatch.setattr(provider_module.yf, "download", lambda *a, **k: _vendor_download())
 
     YFinanceProvider(rate_limiter=limiter).fetch_ohlcv("AAPL", "1mo", "1d")
 
@@ -42,7 +49,7 @@ def test_exhausted_budget_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     limiter = RateLimiter(max_total_calls=1)
     monkeypatch.setattr(provider_module, "read_market_data_cache", lambda _key: provider_module._CACHE_MISS)
     monkeypatch.setattr(provider_module, "write_market_data_cache", lambda _key, _value: None)
-    monkeypatch.setattr(provider_module.yf, "download", lambda *a, **k: pd.DataFrame({"Close": [1.0]}))
+    monkeypatch.setattr(provider_module.yf, "download", lambda *a, **k: _vendor_download(1))
 
     provider = YFinanceProvider(rate_limiter=limiter)
     provider.fetch_ohlcv("AAPL", "1mo", "1d")  # consumes the single allowed call
