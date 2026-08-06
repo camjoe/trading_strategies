@@ -20,6 +20,12 @@ increase exposure and pass the gate untouched — and it must be revisited first
 A zero-or-negative quantity is still blocked (``non_positive_qty``) ahead of this
 branch, so a sell of nothing does not slip through.
 
+Exposure is summed as ``abs(market_value)``. Under long-only that absolute is a
+no-op, but it is deliberate rather than redundant: gross exposure is *defined* as
+the absolute sum, so the expression stays correct if short positions are ever
+introduced. Do not "simplify" it away — it is one of the few places that would
+silently start understating exposure rather than failing loudly.
+
 **Buys are capped four ways**, and the binding constraint is whichever leaves the
 least room. The limits are deliberately layered rather than uniform:
 
