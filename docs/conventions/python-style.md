@@ -15,6 +15,16 @@ Baseline PEP 8 (whitespace, blank lines, comparison idioms, comprehensions, f-st
 
 - Comments explain *why*, not *what*; complete sentences; keep them current (a stale comment is
   worse than none).
+- **"Why" means a fact about the system, not the author's reasoning.** A comment earns its place
+  when a reader would otherwise get something wrong — "batch ALTER rebuilds by copy-drop-rename, so
+  foreign keys must stay off". It does not earn its place by recording deliberation: what you
+  considered, what this replaced, what bug it fixed, why the old approach was worse.
+- **Rationale for a change goes in the commit message.** Source is the worst place for it: the code
+  gets edited and the story rots into a lie, while `git log`/`git blame` keep it accurate forever.
+  Never narrate history in a file — no "this used to…", "X was removed because…", "previously this
+  froze…".
+- **Budget check.** If a change adds more prose lines than code lines, cut it back. That ratio is
+  almost always narration rather than explanation.
 - Docstrings follow [PEP 257](https://peps.python.org/pep-0257/): one-liners on a single line;
   multi-line = summary line, blank line, detail.
 - Public modules, classes, and functions must have docstrings; `_private` helpers when non-obvious.
