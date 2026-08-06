@@ -61,6 +61,21 @@ class TestSplitDownloadIntoBarFrames:
 
         assert set(frames) == {"AAA"}
 
+    def test_flat_columns_are_refused_for_a_multi_ticker_request(self) -> None:
+        """Flat columns name no ticker; splitting them would hand each the same bars."""
+        flat = pd.DataFrame(
+            {
+                "Open": [10.0, 11.0],
+                "High": [10.5, 11.5],
+                "Low": [9.5, 10.5],
+                "Close": [10.2, 11.2],
+                "Volume": [100.0, 200.0],
+            },
+            index=pd.date_range("2026-01-01", periods=2, freq="B"),
+        )
+
+        assert provider_module._split_download_into_bar_frames(flat, ["AAA", "BBB"]) == {}
+
     def test_a_single_ticker_download_with_flat_columns_is_handled(self) -> None:
         index = pd.date_range("2026-01-01", periods=3, freq="B")
         flat = pd.DataFrame(

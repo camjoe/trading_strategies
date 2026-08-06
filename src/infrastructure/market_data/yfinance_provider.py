@@ -79,8 +79,13 @@ def _split_download_into_bar_frames(hist: pd.DataFrame, tickers: list[str]) -> d
     Tickers whose bars are entirely missing are omitted; the caller decides
     whether that is fatal.
     """
-    frames: dict[str, pd.DataFrame] = {}
     is_multi = isinstance(hist.columns, pd.MultiIndex)
+    if not is_multi and len(tickers) > 1:
+        # Flat columns name no ticker, so they can only describe a single-ticker
+        # request; splitting them across several hands each the same bars.
+        return {}
+
+    frames: dict[str, pd.DataFrame] = {}
     for ticker in tickers:
         columns: dict[str, pd.Series] = {}
         for vendor_name, bar_name in _VENDOR_BAR_COLUMNS.items():

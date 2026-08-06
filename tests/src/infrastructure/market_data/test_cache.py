@@ -62,8 +62,8 @@ def test_read_returns_cache_miss_when_cached_type_is_wrong(tmp_path: Path, monke
     assert result is _CACHE_MISS
 
 
-def test_bar_history_survives_the_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A dict of per-ticker frames is a cacheable shape and must not read back as a miss."""
+def test_a_dict_of_frames_survives_the_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A shape the type guard accepts must not read back as a miss."""
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     key = market_data_cache_key("bar-history", tickers=["AAPL", "MSFT"])
     frames = {
