@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import os
 
-from common.paths.project_paths import ACCOUNT_TRADE_CAPS_PATH
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import ACCOUNT_TRADE_CAPS_PATH
 from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV
 
 REPO_ROOT = get_repo_root(__file__)

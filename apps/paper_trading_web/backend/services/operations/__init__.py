@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from common.paths.project_paths import DB_BACKUPS_DIR
+from common.paths import DB_BACKUPS_DIR
 from common.runtime_job_status import (
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL,
     WEEKLY_DB_BACKUP_COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from common.paths.formatting import relative_posix
+from common.paths import relative_posix
 
 
 def test_relative_posix_uses_forward_slashes(tmp_path) -> None:

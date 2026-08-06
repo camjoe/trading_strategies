@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from common.files import modified_at_utc, sorted_by_mtime_desc
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
 from trading.interfaces.runtime.jobs.maintenance.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL

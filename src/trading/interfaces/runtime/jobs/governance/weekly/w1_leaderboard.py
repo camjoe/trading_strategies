@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TypedDict
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from common.runtime_job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyLeaderboardAccountPayload,

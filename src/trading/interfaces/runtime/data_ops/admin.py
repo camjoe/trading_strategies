@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, cast
 
-from common.paths.project_paths import DB_BACKUPS_DIR
+from common.paths import DB_BACKUPS_DIR
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
 from trading.services.accounts import delete_account, preview_account_deletion

@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Protocol
 
-from common.paths.project_paths import (
+from common.paths import (
     ACCOUNT_PROFILES_DIR,
     DEFAULT_ACCOUNT_PROFILE_PATH,
     LEGACY_ACCOUNT_PROFILES_DIR,

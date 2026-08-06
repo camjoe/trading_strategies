@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks.repo.skills_check import (
     frontmatter_problems,
     run_skills_check,

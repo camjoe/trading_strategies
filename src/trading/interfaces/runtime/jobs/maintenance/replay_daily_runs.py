@@ -34,7 +34,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.daily.paper_trading import already_completed_today
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo, ts
 

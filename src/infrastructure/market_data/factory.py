@@ -18,7 +18,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.services.market_data.protocols import MarketDataProvider
 
 from .demo_provider import DemoMarketDataProvider

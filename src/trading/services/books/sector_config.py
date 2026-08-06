@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common.paths.project_paths import SYMBOL_SECTORS_PATH
+from common.paths import SYMBOL_SECTORS_PATH
 
 
 def load_symbol_sector_map(config_path: Path = SYMBOL_SECTORS_PATH) -> dict[str, str]:

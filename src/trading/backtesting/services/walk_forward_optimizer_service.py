@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import date
 from typing import Any, Callable
 
-from common.revision import git_head_revision
+from common.git import git_head_revision
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 from trading.backtesting.domain.optimization.objective import evaluate_candidate, select_winner

@@ -5,8 +5,8 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-from common.paths.formatting import relative_posix
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 # Mechanical safety check for the live-trading guard documented in
 # docs/architecture/architecture-conventions.md. This intentionally enforces only the

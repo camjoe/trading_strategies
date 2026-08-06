@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from common.files import sorted_by_mtime_desc
-from common.paths.formatting import relative_posix
+from common.paths import relative_posix
 from infrastructure.database.connection import ensure_db
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account

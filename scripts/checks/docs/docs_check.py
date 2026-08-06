@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks._runner import CheckStep, run_check_steps
 from scripts.checks.docs.db_schema_check import run_db_schema_check
 from scripts.checks.docs.doc_header_check import run_doc_header_check

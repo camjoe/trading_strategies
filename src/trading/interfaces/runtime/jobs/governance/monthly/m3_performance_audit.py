@@ -7,7 +7,7 @@ import argparse
 import datetime as dt
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from common.runtime_job_status import MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,

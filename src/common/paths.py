@@ -1,6 +1,16 @@
+"""Where this repository's files live, and how to display a path relative to it.
+
+Path *constants* resolved from the repository root, plus the one formatting
+helper used when a path is logged, compared, or written into a report.
+
+Locating the root itself is git's job — see :func:`common.git.get_repo_root`.
+"""
+
 from __future__ import annotations
 
-from common.paths.repo_paths import get_repo_root
+from pathlib import Path
+
+from common.git import get_repo_root
 
 # Canonical repository root resolved via git top-level discovery.
 REPO_ROOT = get_repo_root(__file__)
@@ -27,3 +37,8 @@ SCREENSHOTS_DIR = LOCAL_DIR / "screenshots"
 
 # Historical relative prefix still accepted for account profile file rewrites.
 LEGACY_ACCOUNT_PROFILES_PREFIX = "trading/account_profiles/"
+
+
+def relative_posix(path: Path, root: Path) -> str:
+    """Return *path* relative to *root* with POSIX separators."""
+    return path.relative_to(root).as_posix()

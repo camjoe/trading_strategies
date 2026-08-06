@@ -9,7 +9,7 @@ import json
 import re
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from common.runtime_job_status import (
     BURN_IN_STATUS_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,

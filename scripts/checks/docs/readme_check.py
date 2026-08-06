@@ -8,8 +8,8 @@ from pathlib import Path
 
 from common.constants import SECONDS_PER_DAY
 from common.files import modified_at_utc
-from common.paths.formatting import relative_posix
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 

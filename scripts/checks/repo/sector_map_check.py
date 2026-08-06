@@ -20,8 +20,8 @@ import argparse
 import json
 from pathlib import Path
 
-from common.paths.formatting import relative_posix
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 CONFIG_DIR = Path("src/infrastructure/config")
 SECTOR_MAP_PATH = CONFIG_DIR / "symbol_sectors.json"
