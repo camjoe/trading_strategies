@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import shutil
+import sqlite3
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, cast
@@ -39,7 +40,14 @@ def backup_database(destination: str | None = None) -> Path:
             raw_target.mkdir(parents=True, exist_ok=True)
             target = raw_target / f"{source.stem}_{stamp}.db"
 
-    shutil.copy2(source, target)
+    # Not a file copy: in WAL mode, commits live in the -wal sidecar until a
+    # checkpoint, so copying the .db alone silently drops them. backup() reads
+    # through the WAL and stays consistent under a live writer.
+    with (
+        closing(sqlite3.connect(source)) as source_conn,
+        closing(sqlite3.connect(target)) as target_conn,
+    ):
+        source_conn.backup(target_conn)
     return target
 
 

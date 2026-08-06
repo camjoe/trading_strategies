@@ -6,16 +6,11 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.checks.repo.live_safety_check import check_file, run_live_safety_check
-
-
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+from tests.scripts.helpers import write_file
 
 
 def test_dict_enablement_is_reported(tmp_path: Path) -> None:
-    path = _write(tmp_path / "tests/example.py", "row = {'live_trading_enabled': 1}\n")
+    path = write_file(tmp_path / "tests/example.py", "row = {'live_trading_enabled': 1}\n")
 
     findings = check_file(path)
 
@@ -24,7 +19,7 @@ def test_dict_enablement_is_reported(tmp_path: Path) -> None:
 
 
 def test_keyword_enablement_is_reported(tmp_path: Path) -> None:
-    path = _write(tmp_path / "src/example.py", "build_account(live_trading_enabled=True)\n")
+    path = write_file(tmp_path / "src/example.py", "build_account(live_trading_enabled=True)\n")
 
     findings = check_file(path)
 
@@ -33,7 +28,7 @@ def test_keyword_enablement_is_reported(tmp_path: Path) -> None:
 
 
 def test_sql_literal_enablement_is_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "scripts/example.py",
         'SQL = "UPDATE accounts SET live_trading_enabled = 1 WHERE id = ?"\n',
     )
@@ -45,7 +40,7 @@ def test_sql_literal_enablement_is_reported(tmp_path: Path) -> None:
 
 
 def test_docstring_mentions_are_not_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         '"""A human may set live_trading_enabled = 1 manually."""\n\nvalue = 0\n',
     )
@@ -54,7 +49,7 @@ def test_docstring_mentions_are_not_reported(tmp_path: Path) -> None:
 
 
 def test_false_and_zero_are_allowed(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "tests/example.py",
         "row = {'live_trading_enabled': 0}\nbuild_account(live_trading_enabled=False)\nlive_trading_enabled = 0\n",
     )
@@ -63,7 +58,7 @@ def test_false_and_zero_are_allowed(tmp_path: Path) -> None:
 
 
 def test_run_enforce_exit_one_with_findings(tmp_path: Path) -> None:
-    _write(tmp_path / "scripts/example.py", "row = {'live_trading_enabled': 1}\n")
+    write_file(tmp_path / "scripts/example.py", "row = {'live_trading_enabled': 1}\n")
 
     assert run_live_safety_check(tmp_path, enforce=True) == 1
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import types
 
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
     handle_parameters,
@@ -17,14 +18,6 @@ from trading.interfaces.cli.handlers.reporting_handlers import (
 )
 
 
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
-
-
 def test_handle_report_calls_account_report_dep() -> None:
     calls: list = []
     deps = {"account_report": lambda _conn, account: calls.append(account)}
@@ -32,7 +25,7 @@ def test_handle_report_calls_account_report_dep() -> None:
     handle_report(
         object(),
         types.SimpleNamespace(account="alice"),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -46,7 +39,7 @@ def test_handle_snapshot_calls_snapshot_account_dep() -> None:
     handle_snapshot(
         object(),
         types.SimpleNamespace(account="alice", time="2026-03-01T00:00:00"),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -60,7 +53,7 @@ def test_handle_promotion_status_calls_show_promotion_status_dep() -> None:
     handle_promotion_status(
         object(),
         types.SimpleNamespace(account="alice", strategy="trend_v1"),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -88,7 +81,7 @@ def test_handle_promotion_request_review_calls_request_dep() -> None:
             requested_by="cam",
             note="please review",
         ),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -113,7 +106,7 @@ def test_handle_promotion_review_history_calls_history_dep() -> None:
     handle_promotion_review_history(
         object(),
         types.SimpleNamespace(account="alice", strategy="trend_v1", limit=5),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -131,7 +124,7 @@ def test_handle_promotion_review_action_calls_action_dep() -> None:
     handle_promotion_review_action(
         object(),
         types.SimpleNamespace(review_id=7, action="approve", actor="cam", note="ship it"),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -145,7 +138,7 @@ def test_handle_snapshot_history_calls_show_snapshots_dep() -> None:
     handle_snapshot_history(
         object(),
         types.SimpleNamespace(account="alice", limit=10),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -160,7 +153,7 @@ def test_handle_portfolio_exposure_calls_show_dep() -> None:
     handle_portfolio_exposure(
         conn,
         types.SimpleNamespace(),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -175,7 +168,7 @@ def test_handle_portfolio_concentration_calls_show_dep() -> None:
     handle_portfolio_concentration(
         conn,
         types.SimpleNamespace(),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -190,7 +183,7 @@ def test_handle_parameters_calls_show_dep_with_account_filter() -> None:
     handle_parameters(
         conn,
         types.SimpleNamespace(account="alice"),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -204,7 +197,7 @@ def test_handle_compare_strategies_calls_compare_dep() -> None:
     handle_compare_strategies(
         object(),
         types.SimpleNamespace(lookback=30),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 

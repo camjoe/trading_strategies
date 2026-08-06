@@ -5,6 +5,7 @@ from pathlib import Path
 
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.config import get_db_path
+from infrastructure.database.connection import verify_schema_revision
 
 
 def open_db_connection(db_path: Path | None = None) -> tuple[sqlite3.Connection, Path]:
@@ -18,4 +19,10 @@ def open_db_connection(db_path: Path | None = None) -> tuple[sqlite3.Connection,
     if not resolved_db_path.exists():
         raise FileNotFoundError(f"Database file not found: {resolved_db_path}")
 
-    return backend.open_connection(), resolved_db_path
+    conn = backend.open_connection()
+    try:
+        verify_schema_revision(conn)
+    except Exception:
+        conn.close()
+        raise
+    return conn, resolved_db_path

@@ -3,6 +3,9 @@
 Any state other than exactly the expected head — missing/empty, unversioned,
 behind, ahead, or branched — is rejected with the same error pointing at the
 operator status command. Runtime never applies or downgrades migrations.
+
+``verify_schema_revision()`` is the same gate applied to a caller-supplied
+connection, for the few callers that open one from the backend themselves.
 """
 
 from __future__ import annotations
@@ -13,20 +16,21 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.connection import SchemaVersionError, db_session, ensure_db
+from infrastructure.database.backend import SQLiteBackend, use_backend
+from infrastructure.database.connection import (
+    SchemaVersionError,
+    db_session,
+    ensure_db,
+    verify_schema_revision,
+)
 from tests.support.db_schema import build_db_at_head
 
 
 @pytest.fixture
 def db_path(tmp_path: Path) -> Iterator[Path]:
     path = tmp_path / "paper_trading.db"
-    original = get_backend()
-    set_backend(SQLiteBackend(path))
-    try:
+    with use_backend(SQLiteBackend(path)):
         yield path
-    finally:
-        set_backend(original)
 
 
 def _set_version(path: Path, *versions: str) -> None:
@@ -95,3 +99,25 @@ def test_db_session_propagates_schema_error(db_path: Path) -> None:
     with pytest.raises(SchemaVersionError):
         with db_session():
             pass
+
+
+def test_verify_schema_revision_accepts_a_caller_supplied_head_connection(tmp_path: Path) -> None:
+    # The gate is reusable on its own: callers that open a connection from the
+    # backend themselves apply it directly rather than going through ensure_db().
+    path = build_db_at_head(tmp_path / "supplied.db")
+    conn = sqlite3.connect(path)
+    try:
+        assert verify_schema_revision(conn) is None
+    finally:
+        conn.close()
+
+
+def test_verify_schema_revision_rejects_a_caller_supplied_off_head_connection(tmp_path: Path) -> None:
+    path = build_db_at_head(tmp_path / "supplied.db")
+    _set_version(path, "0000")
+    conn = sqlite3.connect(path)
+    try:
+        with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
+            verify_schema_revision(conn)
+    finally:
+        conn.close()

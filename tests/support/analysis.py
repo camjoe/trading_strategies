@@ -4,8 +4,29 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.accounts import create_account
 from trading.services.analysis import portfolio as analysis_portfolio
+
+
+def snapshot_record(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
+    """Build a snapshot record carrying only the fields the benchmark overlay reads.
+
+    The remaining columns are zeroed rather than realistic: the overlay aligns on
+    ``snapshot_time`` and ``equity`` alone, and tests that need real balances
+    build snapshots through the repository instead.
+    """
+    return EquitySnapshotRecord(
+        id=0,
+        account_id=0,
+        book_id=None,
+        snapshot_time=snapshot_time,
+        cash=0.0,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
 
 
 def make_analysis_account(
@@ -74,4 +95,5 @@ __all__ = [
     "make_analysis_account",
     "patch_analysis_market_data",
     "record_analysis_buy",
+    "snapshot_record",
 ]

@@ -59,7 +59,7 @@ packages** inside `src/trading/services/`, see [Service Ownership Map](service-o
 | `trading/models/` | The lowest layer — imports nothing from any other layer |
 | `trading/repositories/` | SQL reads/writes and row-level data access helpers |
 | `trading/backtesting/` | Bounded context; mirrors the same repository/service/domain layering |
-| `infrastructure/database/` | DB infrastructure only: schema init/evolution, backend selection, path/config, coercion |
+| `infrastructure/database/` | DB infrastructure only: schema migration, connection gating, backend selection, path/config |
 | `infrastructure/config/` | File-backed static config assets (account profile presets) |
 | `infrastructure/brokers/` | Owns broker SDK imports and connection adapters |
 | `infrastructure/feature_providers/` | Owns external-data SDK imports and network calls |

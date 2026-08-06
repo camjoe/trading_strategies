@@ -4,19 +4,12 @@ import types
 
 import pytest
 
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
     handle_configure_strategy,
     handle_create_strategy_variant,
     handle_freeze_strategy,
 )
-
-
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
 
 
 def _record(**overrides):
@@ -41,7 +34,7 @@ def test_handle_create_variant_passes_knob_overrides(capsys) -> None:
     handle_create_strategy_variant(
         object(),
         types.SimpleNamespace(strategy="trend_fast", primitive="trend", set_knobs=[("fast_window", "5")]),
-        _parser(),
+        fake_parser(),
         deps={"create_strategy_variant": _create},
     )
 
@@ -55,7 +48,7 @@ def test_handle_configure_requires_a_change() -> None:
         handle_configure_strategy(
             object(),
             types.SimpleNamespace(strategy="trend_fast"),
-            _parser(),
+            fake_parser(),
             deps={},
         )
 
@@ -70,7 +63,7 @@ def test_handle_configure_passes_enabled_without_params(capsys) -> None:
     handle_configure_strategy(
         object(),
         types.SimpleNamespace(strategy="trend_fast", enabled=False),
-        _parser(),
+        fake_parser(),
         deps={"configure_strategy": _configure},
     )
 
@@ -86,7 +79,7 @@ def test_handle_freeze_prints_status(capsys) -> None:
     handle_freeze_strategy(
         object(),
         types.SimpleNamespace(strategy="trend_fast"),
-        _parser(),
+        fake_parser(),
         deps={"freeze_strategy": _freeze},
     )
 
