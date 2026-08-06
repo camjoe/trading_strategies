@@ -45,3 +45,24 @@ def list_available_universes() -> list[str]:
     if not TRADE_UNIVERSES_DIR.exists():
         return []
     return sorted(p.stem for p in TRADE_UNIVERSES_DIR.iterdir() if p.suffix == ".txt")
+
+
+def validate_universe_names(names: list[str]) -> None:
+    """Raise if any name in *names* has no universe file.
+
+    Called on the write paths so an unresolvable name is rejected at config
+    time. Without it the name persists and only fails when the book next
+    trades, where the resulting FileNotFoundError aborts the whole account run.
+
+    Raises:
+        ValueError: If *names* is empty or names a universe that does not exist.
+    """
+    if not names:
+        raise ValueError("At least one universe name must be provided.")
+
+    available = list_available_universes()
+    unknown = [name for name in names if name not in available]
+    if unknown:
+        raise ValueError(
+            f"Unknown universe(s): {', '.join(unknown)}. Available universes: {', '.join(available) or '(none)'}"
+        )

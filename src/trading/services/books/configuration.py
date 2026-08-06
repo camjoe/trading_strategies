@@ -37,6 +37,7 @@ from trading.services.parameters.mutations import (
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
+from trading.services.universe import validate_universe_names
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,8 +195,10 @@ def configure_book(
         if updates:
             BookRepository(conn).update_settings_columns(book_id=book.id, updates=updates, params=params)
         if config.trade_universes is not None:
-            if not config.trade_universes:
-                raise ValidationError("trade_universes must name at least one universe.")
+            try:
+                validate_universe_names(config.trade_universes)
+            except ValueError as error:
+                raise ValidationError(str(error)) from error
             BookRepository(conn).update_trade_universes(
                 book_id=book.id,
                 trade_universes=json.dumps(config.trade_universes, separators=(",", ":")),

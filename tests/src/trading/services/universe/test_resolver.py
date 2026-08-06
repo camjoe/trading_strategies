@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from trading.services.universe.resolver import list_available_universes, resolve_named_universes
+from trading.services.universe.resolver import (
+    list_available_universes,
+    resolve_named_universes,
+    validate_universe_names,
+)
 
 
 def _write_universe(tmp_path: Path, name: str, tickers: list[str]) -> None:
@@ -86,3 +90,24 @@ def test_resolve_ignores_comments_and_blanks(tmp_path: Path, monkeypatch: pytest
     result = resolve_named_universes(["mixed"])
 
     assert result == ["AAPL", "MSFT", "GOOGL"]
+
+
+def test_validate_universe_names_accepts_known_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_universe(tmp_path, "growth", ["NVDA"])
+    _write_universe(tmp_path, "default", ["AAPL"])
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
+
+    validate_universe_names(["default", "growth"])
+
+
+def test_validate_universe_names_rejects_unknown_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_universe(tmp_path, "growth", ["NVDA"])
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
+
+    with pytest.raises(ValueError, match="Unknown universe\\(s\\): bogus"):
+        validate_universe_names(["growth", "bogus"])
+
+
+def test_validate_universe_names_rejects_empty_list() -> None:
+    with pytest.raises(ValueError, match="At least one universe name"):
+        validate_universe_names([])

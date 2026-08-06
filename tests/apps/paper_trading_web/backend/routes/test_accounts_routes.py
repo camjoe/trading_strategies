@@ -78,7 +78,7 @@ def test_book_params_endpoint_updates_named_book(
         json={
             "strategy": "mean_reversion",
             "riskPolicy": "fixed_stop",
-            "tradeUniverses": ["large_cap", "technology"],
+            "tradeUniverses": ["default", "growth"],
             "rotation": {
                 "enabled": True,
                 "schedule": ["trend", "mean_reversion"],
@@ -96,10 +96,36 @@ def test_book_params_endpoint_updates_named_book(
     book = detail["books"][0]
     assert book["strategy"] == "mean_reversion"
     assert book["riskPolicy"] == "fixed_stop"
-    assert book["tradeUniverses"] == ["large_cap", "technology"]
+    assert book["tradeUniverses"] == ["default", "growth"]
     assert book["rotation"]["lookbackDays"] == 30
     assert book["rotationPolicy"]["minTradesInWindow"] == 8
     assert book["rotationPolicy"]["cooldownDays"] == 14
+
+
+def test_book_params_endpoint_rejects_unknown_trade_universe(
+    api_client: TestClient,
+    api_conn: sqlite3.Connection,
+    seed_account: Callable[..., None],
+) -> None:
+    """An unresolvable universe name must fail the PATCH, not persist and break the next run."""
+    seed_account("acct_bad_universe")
+    book_name = api_conn.execute(
+        """
+        SELECT b.name
+        FROM books b
+        JOIN accounts a ON a.id = b.account_id
+        WHERE a.name = ? AND b.is_default = 1
+        """,
+        ("acct_bad_universe",),
+    ).fetchone()["name"]
+
+    response = api_client.patch(
+        f"/api/accounts/acct_bad_universe/books/{book_name}/params",
+        json={"tradeUniverses": ["default", "no_such_universe"]},
+    )
+
+    assert response.status_code == 422
+    assert "no_such_universe" in response.json()["detail"]
 
 
 def test_account_detail_exposes_latest_backtest_summary(

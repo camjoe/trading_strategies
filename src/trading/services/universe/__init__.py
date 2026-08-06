@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from trading.services.universe.resolver import list_available_universes, resolve_named_universes
+from trading.services.universe.resolver import (
+    list_available_universes,
+    resolve_named_universes,
+    validate_universe_names,
+)
 
 __all__ = [
     "list_available_universes",
     "resolve_named_universes",
+    "validate_universe_names",
 ]

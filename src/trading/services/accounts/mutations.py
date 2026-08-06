@@ -25,6 +25,7 @@ from trading.services.accounts.config import (
 )
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
+from trading.services.universe import validate_universe_names
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
@@ -189,8 +190,10 @@ def _apply_trade_universes_to_default_book(
     names: list[str],
 ) -> None:
     """Set the default book's universes (history-recorded; revision 0008)."""
-    if not names:
-        raise ValidationError("trade_universes must name at least one universe.")
+    try:
+        validate_universe_names(names)
+    except ValueError as error:
+        raise ValidationError(str(error)) from error
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")

@@ -252,7 +252,7 @@ class TestApplyBookRotationSettings:
                     "strategy": "Momentum",
                     "initial_cash": 5000,
                     "benchmark_ticker": "SPY",
-                    "trade_universes": ["large_cap", "growth"],
+                    "trade_universes": ["default", "growth"],
                 }
             ],
             create_missing=True,
@@ -263,7 +263,7 @@ class TestApplyBookRotationSettings:
         assert book is not None
         raw = book.trade_universes
         assert raw is not None
-        assert json.loads(raw) == ["large_cap", "growth"]
+        assert json.loads(raw) == ["default", "growth"]
 
     def test_trade_universes_updated_on_update(self, conn) -> None:
         import json
@@ -276,7 +276,7 @@ class TestApplyBookRotationSettings:
 
         apply_account_profiles(
             conn,
-            [{"name": "upd_universe", "trade_universes": ["dividend"]}],
+            [{"name": "upd_universe", "trade_universes": ["growth"]}],
             create_missing=False,
         )
 
@@ -285,4 +285,4 @@ class TestApplyBookRotationSettings:
         assert book is not None
         raw = book.trade_universes
         assert raw is not None
-        assert json.loads(raw) == ["dividend"]
+        assert json.loads(raw) == ["growth"]
