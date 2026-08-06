@@ -134,7 +134,7 @@ anywhere when this was checked on 2026-08-01.
 
 ## Configuration
 
-- `src/infrastructure/config/account_trade_caps.json` — per-account trade caps read by the daily paper-trading run; supports per-account `min`/`max` trade counts with a `default` fallback.
+- Account trade caps come from the daily paper-trading job's own flags: `--primary-accounts` with `--primary-max-trades` / `--other-max-trades`, and `--account-trade-caps` for per-account overrides. See [backtest-live-divergence.md](backtest-live-divergence.md) for why these do not currently bind.
 - Trade universe files live under `src/infrastructure/config/` (default `trade_universe.txt`); pass `--tickers-file` to select a preset. See [src/trading/README.md](../../src/trading/README.md) for universe presets and auto-trading behavior.
 </content>
 </invoke>

@@ -110,23 +110,14 @@ schedule the runtime job entrypoints, see the [Runtime Jobs Reference](../../doc
 
 ## Auto-Trading
 
-Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
-
-| File | Description |
-|------|-------------|
-| `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
-| `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
+Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`.
 
 Pass `--tickers-file` to use a non-default universe. Run
 `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help`
 for all options.
 
 ```sh
-# Default universe
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
-
-# S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker

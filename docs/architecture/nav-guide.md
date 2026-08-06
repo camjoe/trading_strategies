@@ -67,7 +67,7 @@ The maps and this guide serve different questions:
 |---|---|
 | Change an account profile (strategy params, caps) | `src/infrastructure/config/account_profiles/<profile>.json` |
 | Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
-| Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
+| Change account-level trade caps | `--primary-max-trades` / `--other-max-trades` on the daily paper-trading job |
 
 ### Models / Data Contracts
 

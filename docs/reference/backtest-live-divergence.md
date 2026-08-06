@@ -109,13 +109,16 @@ Because `choose_sell_qty` caps at 5 unconditionally, no live sell ever closes a 
 `max_intents = min(max_trades, len(trading_books))`
 ([`book_intents.py:69`](../../src/trading/services/execution/selection/book_intents.py)).
 
-Three surfaces configure a larger number. None reaches execution:
+Two surfaces configure a larger number. Neither reaches execution:
 
 | Surface | Configured | Effect |
 |---|---|---|
-| `account_trade_caps.json` | `default: 11`; momentum/meanrev `5` | only as `min(cap, book_count)` |
 | `books.max_trades_per_run` | per book; in web UI, account API, optimizer manifest | **never read by the execution path** |
-| `--primary-max-trades` / `--other-max-trades` | defaults 5 / 11 | same `min(...)` |
+| `--primary-max-trades` / `--other-max-trades` | defaults 5 / 11 | only as `min(cap, book_count)` |
+
+A third surface, `src/infrastructure/config/account_trade_caps.json`, set `default: 11` with
+momentum/meanrev at `5`. It was deleted along with its loader; because it took precedence over the
+two CLI flags, it had also made them unreachable.
 
 Measured against the live database on 2026-08-01: every one of the 8 accounts has exactly one
 trading book, so `max_intents = min(cap, 1) = 1` for all of them. The configured caps of 5 and 11
@@ -185,7 +188,7 @@ substantially cheaper than either direction above and should come first.
 2. A stop-loss breach should outrank a take-profit breach rather than tie.
 3. Every breached position should be considered, not one sampled at random.
 4. A signalled sell should be able to close a position.
-5. `books.max_trades_per_run` should bind, and `account_trade_caps` should cap trades rather than
+5. `books.max_trades_per_run` should bind, and the account-level cap should cap trades rather than
    books.
 
 ### Open decisions

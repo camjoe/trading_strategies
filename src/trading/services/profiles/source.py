@@ -14,8 +14,6 @@ from typing import Protocol
 from common.paths import (
     ACCOUNT_PROFILES_DIR,
     DEFAULT_ACCOUNT_PROFILE_PATH,
-    LEGACY_ACCOUNT_PROFILES_DIR,
-    LEGACY_ACCOUNT_PROFILES_PREFIX,
     TRADE_UNIVERSE_PATH,
 )
 
@@ -24,34 +22,8 @@ DEFAULT_ACCOUNT_PROFILES_FILE = str(DEFAULT_ACCOUNT_PROFILE_PATH)
 DEFAULT_TICKERS_FILE = str(TRADE_UNIVERSE_PATH)
 
 
-def _profiles_dir_candidates() -> list[Path]:
-    return [
-        ACCOUNT_PROFILES_DIR,
-        LEGACY_ACCOUNT_PROFILES_DIR,
-    ]
-
-
 def get_builtin_profile_preset_path(preset: str) -> Path:
-    preset_name = preset.strip().lower()
-    for profiles_dir in _profiles_dir_candidates():
-        candidate = profiles_dir / f"{preset_name}.json"
-        if candidate.exists():
-            return candidate
-    # Return preferred target location for clear error paths when missing.
-    return _profiles_dir_candidates()[0] / f"{preset_name}.json"
-
-
-def resolve_profile_file_path(file_path: str | Path) -> Path:
-    candidate = Path(file_path)
-    if candidate.exists():
-        return candidate
-
-    normalized = candidate.as_posix()
-    if normalized.startswith(LEGACY_ACCOUNT_PROFILES_PREFIX):
-        suffix = normalized[len(LEGACY_ACCOUNT_PROFILES_PREFIX) :]
-        return ACCOUNT_PROFILES_DIR / suffix
-
-    return candidate
+    return ACCOUNT_PROFILES_DIR / f"{preset.strip().lower()}.json"
 
 
 class AccountProfileSource(Protocol):
@@ -60,7 +32,7 @@ class AccountProfileSource(Protocol):
 
 class JsonAccountProfileSource:
     def __init__(self, file_path: str | Path) -> None:
-        self.file_path = resolve_profile_file_path(file_path)
+        self.file_path = Path(file_path)
 
     def load_profiles(self) -> list[dict[str, object]]:
         if not self.file_path.exists():

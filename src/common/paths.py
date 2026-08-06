@@ -17,25 +17,19 @@ REPO_ROOT = get_repo_root(__file__)
 
 # Common top-level directories reused across trading, UI, and scripts.
 LOCAL_DIR = REPO_ROOT / "local"
-TRADING_DIR = REPO_ROOT / "trading"
 TRADING_CONFIG_DIR = REPO_ROOT / "src" / "infrastructure" / "config"
 
 # Canonical file locations used in multiple modules.
 ACCOUNT_PROFILES_DIR = TRADING_CONFIG_DIR / "account_profiles"
-LEGACY_ACCOUNT_PROFILES_DIR = TRADING_DIR / "account_profiles"
 DEFAULT_ACCOUNT_PROFILE_PATH = ACCOUNT_PROFILES_DIR / "default.json"
 TRADE_UNIVERSE_PATH = TRADING_CONFIG_DIR / "trade_universe.txt"
 TRADE_UNIVERSES_DIR = TRADING_CONFIG_DIR / "trade_universes"
 SYMBOL_SECTORS_PATH = TRADING_CONFIG_DIR / "symbol_sectors.json"
-ACCOUNT_TRADE_CAPS_PATH = TRADING_CONFIG_DIR / "account_trade_caps.json"
 PAPER_TRADING_DB_PATH = LOCAL_DIR / "paper_trading.db"
 DB_BACKUPS_DIR = LOCAL_DIR / "db_backups"
 LOGS_DIR = LOCAL_DIR / "logs"
 EXPORTS_DIR = LOCAL_DIR / "exports"
 SCREENSHOTS_DIR = LOCAL_DIR / "screenshots"
-
-# Historical relative prefix still accepted for account profile file rewrites.
-LEGACY_ACCOUNT_PROFILES_PREFIX = "trading/account_profiles/"
 
 
 def relative_posix(path: Path, root: Path) -> str:

@@ -104,9 +104,7 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 |---|---|
 | `account_profiles/` | JSON account profile presets |
 | `trade_universes/` | Trade-universe definition files |
-| `account_trade_caps.json` | Account-level trade-cap limits |
 | `trade_universe.txt` | Default trade-universe ticker list |
-| `trade_universe_sp500_broad.txt` | Broad S&P 500 trade universe |
 
 ## Related References
 
