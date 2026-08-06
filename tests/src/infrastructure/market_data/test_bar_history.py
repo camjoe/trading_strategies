@@ -9,7 +9,6 @@ import pytest
 
 import infrastructure.market_data.yfinance_provider as provider_module
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
-from infrastructure.market_data.unavailable_provider import UnavailableProvider
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
@@ -118,8 +117,3 @@ class TestDemoProviderBars:
     def test_empty_ticker_list_is_rejected(self) -> None:
         with pytest.raises(ValueError, match="At least one ticker"):
             DemoMarketDataProvider().fetch_bar_history([], date(2026, 1, 1), date(2026, 2, 1))
-
-
-def test_unavailable_provider_refuses_bar_history() -> None:
-    with pytest.raises(NotImplementedError, match="not implemented yet"):
-        UnavailableProvider("ccxt").fetch_bar_history(["AAA"], date(2026, 1, 1), date(2026, 2, 1))

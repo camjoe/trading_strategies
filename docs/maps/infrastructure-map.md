@@ -81,8 +81,7 @@ feature provider stay in `src/trading/services/market_data/`.
 |---|---|
 | `demo_provider.py` | Deterministic offline `DemoMarketDataProvider` |
 | `yfinance_provider.py` | Network-backed `YFinanceProvider` and yfinance SDK boundary; guards live fetches with a `common.rate_limit.RateLimiter` (only cache-miss network calls) |
-| `unavailable_provider.py` | Placeholder adapter for configured integrations not yet implemented |
-| `factory.py` | `build_provider` + provider routing (env/config resolution) + `supported_provider_names` |
+| `factory.py` | `build_provider` + provider routing (`TRADING_MARKET_DATA_PROVIDER`, else the `yfinance` default); an unsupported name raises at build time |
 | `cache.py` | Transport-level market-data cache (pickle-to-disk with TTL), used only by the adapter |
 
 **Operational env knobs** (all optional; sensible defaults):
@@ -108,7 +107,6 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 | `account_trade_caps.json` | Account-level trade-cap limits |
 | `trade_universe.txt` | Default trade-universe ticker list |
 | `trade_universe_sp500_broad.txt` | Broad S&P 500 trade universe |
-| `market_data_config.example.json` | Example market-data provider config (copy to `local/` to override) |
 
 ## Related References
 

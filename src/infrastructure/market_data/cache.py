@@ -1,3 +1,10 @@
+"""On-disk transport cache for market-data fetches.
+
+Keyed by a hash of the request arguments and expired by file mtime, so a repeated
+fetch within the TTL costs no network request. Adapters own what they put in it;
+this module has no knowledge of the shapes beyond the read-side type guard.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -10,10 +17,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.git import get_repo_root
+from common.paths import REPO_ROOT
 
-_REPO_ROOT = get_repo_root(__file__)
-_DEFAULT_MARKET_DATA_CACHE_DIR = _REPO_ROOT / "local" / "cache" / "market_data"
+_DEFAULT_MARKET_DATA_CACHE_DIR = REPO_ROOT / "local" / "cache" / "market_data"
 _MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60
 _MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
 _MARKET_DATA_CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
@@ -50,11 +56,10 @@ def market_data_cache_path(cache_key: str) -> Path:
     return market_data_cache_dir() / f"{cache_key}.pkl"
 
 
-# What a cache entry is allowed to hold. Bar history is a dict of per-ticker
-# frames, so a frame/series-only guard silently turned every bar-history read
-# into a miss — the entry was written, rejected on read, and re-downloaded every
-# time. The check is a sanity guard against a corrupt or foreign pickle, not a
-# schema: widen it whenever a provider starts caching a new shape.
+# What a cache entry is allowed to hold. A guard against a stale or foreign
+# pickle, not a security boundary — pickle.load already ran arbitrary code by the
+# time this is checked. Not a schema either: widen it whenever an adapter starts
+# caching a new shape, or reads of that shape silently become permanent misses.
 _CACHEABLE_TYPES = (pd.DataFrame, pd.Series, dict)
 
 
@@ -66,8 +71,8 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | dict | 
     if not cache_path.exists():
         return _CACHE_MISS
 
-    cache_age_seconds = os.path.getmtime(cache_path)
-    if (time.time() - cache_age_seconds) > _MARKET_DATA_CACHE_TTL_SECONDS:
+    modified_at = os.path.getmtime(cache_path)
+    if (time.time() - modified_at) > _MARKET_DATA_CACHE_TTL_SECONDS:
         return _CACHE_MISS
 
     try:

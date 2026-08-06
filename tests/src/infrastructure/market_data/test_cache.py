@@ -63,13 +63,7 @@ def test_read_returns_cache_miss_when_cached_type_is_wrong(tmp_path: Path, monke
 
 
 def test_bar_history_survives_the_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Bar history is a dict of per-ticker frames, and must not read back as a miss.
-
-    A frame/series-only type guard accepted the write and rejected the read, so
-    every bar-history fetch re-downloaded: slow, a drain on the request budget,
-    and non-deterministic, because the vendor re-derives adjusted prices between
-    calls.
-    """
+    """A dict of per-ticker frames is a cacheable shape and must not read back as a miss."""
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     key = market_data_cache_key("bar-history", tickers=["AAPL", "MSFT"])
     frames = {
