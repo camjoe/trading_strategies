@@ -13,7 +13,7 @@ from trading.services.market_data.protocols import MarketDataProvider
 
 _PERIOD_TRADING_DAYS = {"5d": 5, "1mo": 22, "3mo": 66, "6mo": 132, "1y": 252, "2y": 504}
 
-# fetch_ohlcv returns the vendor's capitalized spelling, unlike fetch_bar_history.
+# fetch_ohlcv returns the vendor's capitalized spelling, unlike fetch_bar_history
 _BAR_TO_VENDOR_COLUMNS = {
     BAR_OPEN: "Open",
     BAR_HIGH: "High",
