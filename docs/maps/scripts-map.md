@@ -62,7 +62,7 @@ Root files are orchestration and shared helpers. Concrete checks live under `doc
 | Package | Checks |
 |---|---|
 | `scripts/checks/docs/` | `scripts/checks/docs/docs_check.py`, `scripts/checks/docs/readme_check.py`, `scripts/checks/docs/maps_check.py`, `scripts/checks/docs/link_check.py`, `scripts/checks/docs/module_ref_check.py`, `scripts/checks/docs/db_schema_check.py`, `scripts/checks/docs/doc_header_check.py`, `scripts/checks/docs/doc_naming_check.py` |
-| `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/migration_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/review_scope_check.py` |
+| `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/migration_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/review_scope_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/sector_map_check.py` |
 | `scripts/checks/python/` | `scripts/checks/python/python_check.py`, `scripts/checks/python/python_conventions_check.py`, `scripts/checks/python/public_api_test_evidence_check.py`, `scripts/checks/python/function_complexity_check.py`, `scripts/checks/python/ruff_check.py`, `scripts/checks/python/mypy_check.py`, `scripts/checks/python/pytest_check.py` |
 
 **Run a targeted suite:**
