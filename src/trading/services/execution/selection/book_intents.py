@@ -65,9 +65,7 @@ def generate_book_trade_intents(
     if not trading_books:
         return []
 
-    # `max_trades` caps trades for the account, not books. It used to be
-    # min(max_trades, len(trading_books)) against one intent per book, so the
-    # real limit was the book count and the configured number never bound.
+    # `max_trades` caps trades for the account, not books.
     intents: list[BookTradeCandidate] = []
     for trading_book in trading_books:
         remaining = max_trades - len(intents)
@@ -108,10 +106,8 @@ def generate_book_trade_intents(
             book.stop_loss_pct,
             book.take_profit_pct,
         )
-        # A book's own limit binds within whatever the account has left; NULL
-        # means the book adds no limit of its own (revision 0001's nullable
-        # column). Until this bound, the column was written everywhere and read
-        # nowhere.
+        # A book's own limit binds within whatever the account has left;
+        # NULL means the book adds no limit of its own.
         book_budget = remaining if book.max_trades_per_run is None else min(remaining, book.max_trades_per_run)
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
@@ -144,8 +140,7 @@ def generate_book_trade_intents(
                     symbol=symbol,
                     qty=qty,
                     requested_price=requested_price,
-                    # Per intent now: with several sells in one run, only the
-                    # ones that actually breached carry the risk-exit flag.
+                    # Only the sells that actually breached carry the flag.
                     forced_sell=symbol if side == "sell" and symbol in forced_sell_set else None,
                     delta_est=delta_est,
                     iv_est=iv_est,

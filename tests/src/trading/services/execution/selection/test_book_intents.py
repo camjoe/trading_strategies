@@ -290,7 +290,7 @@ def _rising_histories() -> dict[str, pd.DataFrame]:
 
 
 def test_generate_book_trade_intents_emits_more_than_one_trade_per_book(conn) -> None:
-    """The account cap counts trades; it used to be clamped by the book count."""
+    """The account cap counts trades, not books."""
     _, account = _multi_signal_book(conn, account_name="acct_budget_multi")
 
     intents = book_intents.generate_book_trade_intents(
@@ -326,7 +326,7 @@ def test_generate_book_trade_intents_respects_the_account_cap(conn) -> None:
 
 
 def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
-    """books.max_trades_per_run was written everywhere and read nowhere until now."""
+    """A book's own limit narrows the account cap."""
     book_id, account = _multi_signal_book(conn, account_name="acct_budget_book_cap")
     BookRepository(conn).update_settings_columns(
         book_id=book_id,

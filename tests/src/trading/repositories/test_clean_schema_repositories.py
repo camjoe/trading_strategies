@@ -342,11 +342,7 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
 
 
 def test_submission_count_sees_orders_that_never_filled(conn) -> None:
-    """Broker pacing counts requests sent, so an unfilled order still counts.
-
-    The per-minute throttle used to read fill rows. Against a broker where
-    orders can sit open, that count stays at zero however many were submitted.
-    """
+    """Submitted orders count for pacing even when nothing fills."""
     account_id, book_id = _insert_book(conn, name="pacing")
     repo = OrderRepository(conn)
     for index in range(3):

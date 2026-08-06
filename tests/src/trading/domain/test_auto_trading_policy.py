@@ -148,7 +148,7 @@ def test_order_risk_breaches_puts_stop_losses_before_take_profits() -> None:
 
 
 def test_order_risk_breaches_returns_every_breach_worst_first() -> None:
-    """All breaches, not one sampled at random -- two of three used to be dropped."""
+    """Every breach is returned, not one sampled at random."""
     state = SimpleNamespace(avg_cost={"BAD": 100.0, "WORSE": 100.0, "OK": 100.0, "GAIN": 100.0})
     prices = {"BAD": 90.0, "WORSE": 70.0, "OK": 99.0, "GAIN": 130.0}
 

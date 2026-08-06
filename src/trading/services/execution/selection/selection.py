@@ -43,11 +43,10 @@ TradeSelection = tuple[str, str, int, float, float | None, float | None]
 
 @dataclass
 class _WorkingState:
-    """A book's cash and holdings as they stand part-way through one run.
+    """A book's cash and holdings part-way through one run.
 
-    Selection is multi-trade per book, so a sell's proceeds and a buy's spend
-    have to be visible to the trades chosen after them. The persisted state is
-    frozen; this is the mutable copy the run works against.
+    The persisted state is frozen; selection is multi-trade, so it needs a
+    mutable copy where a sell's proceeds are visible to the buys after it.
     """
 
     cash: float
@@ -56,9 +55,8 @@ class _WorkingState:
 
 
 class AccountStateLike(Protocol):
-    # Read-only: a plain annotation demands an invariant `Mapping` attribute,
-    # which the mutable `_WorkingState` and the frozen `BookTradeState` (both
-    # `dict`) would each fail. Same reason as `PositionCostState`.
+    # Read-only: a plain annotation demands an invariant `Mapping`, which the
+    # `dict`-holding implementers fail. Same reason as `PositionCostState`.
     @property
     def positions(self) -> Mapping[str, float]: ...
 
@@ -229,8 +227,7 @@ def prepare_book_trades(
     the book (a Mapping) supplying the option/leaps knobs.
 
     Sells go first — risk breaches in their own urgency order, then signalled
-    exits — so their proceeds fund the same run's buys. Buys are then sized and
-    funded against that post-sell cash.
+    exits — so their proceeds fund the same run's buys.
 
     Returns an empty list when nothing signals; callers must not manufacture a
     trade in that case.
@@ -267,8 +264,6 @@ def prepare_book_trades(
         if qty <= 0:
             continue
         selections.append(("sell", ticker, qty, float(price), None, None))
-        # Sells run before buys so their proceeds are spendable this run, the
-        # same ordering the backtest's `_apply_sells` gives them.
         working.cash += (qty * float(price)) - fee
         working.positions.pop(ticker, None)
         working.avg_cost.pop(ticker, None)
@@ -377,15 +372,10 @@ def prepare_buy_trades(
 ) -> list[TradeSelection]:
     """Size and fund up to *max_buys* of the signal-selected candidates.
 
-    Candidates arrive in universe order and are reordered by *selection_seed*
-    first — see ``order_signal_candidates`` for why taking them as they come
-    built every book's portfolio in ticker-file order.
-
-    Sizing and funding are separate steps. Each candidate is sized on its own
-    against the book's policy, then ``allocate_buy_quantities`` splits the cash
-    across the ones that fit in the budget. A buy signal carries no conviction,
-    so when cash binds the split has to assert no preference between them —
-    the same reasoning, and the same function, the backtest engine uses.
+    Candidates are reordered by *selection_seed* — see ``order_signal_candidates``.
+    Sizing and funding are separate: each candidate is sized on its own against
+    the book's policy, then ``allocate_buy_quantities`` splits the cash across
+    them, the same allocation the backtest engine uses.
     """
     if max_buys <= 0:
         return []
@@ -453,10 +443,7 @@ def prepare_sell_trade(
 ) -> tuple[str, int, float] | None:
     """Prepare the first sellable ticker, closing the position outright.
 
-    A sell exits the whole position, matching what the backtest engine credits
-    (``execution_service._apply_sells``). Selling a slice instead left a
-    stopped-out position open and still below its stop, so it re-breached the
-    next run and took on the order of a month to exit.
+    A sell exits the whole position, matching ``execution_service._apply_sells``.
     """
     for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)

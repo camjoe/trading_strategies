@@ -169,13 +169,11 @@ def _run_books_for_account(
                 broker=broker,
                 gate=AllowAllGate(),  # gating already ran once above for the whole batch
                 fee=fee,
-                # Checked before every order rather than once per book: a book
-                # emits several trades per run now, and the per-minute cap is
-                # there to pace broker requests.
+                # Checked before every order, not once per book.
                 enforce_throttle=lambda: enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso()),
             )
             if result.throttled:
-                # The throttle is global, so no later book submits either.
+                # The throttle is global: no later book submits either.
                 audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=book_id)
                 audit.submitted_count += result.submitted_count
                 break

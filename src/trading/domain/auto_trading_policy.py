@@ -260,19 +260,9 @@ def order_risk_breaches(
 ) -> list[str]:
     """Every position past its stop or target, most urgent first.
 
-    Two orderings, applied in sequence:
-
-    1. **Stop-loss breaches outrank take-profit breaches.** A position losing
-       past its stop and one gaining past its target are not equally urgent —
-       only one of them is still bleeding.
-    2. **Within a group, furthest past the threshold first.** Unlike a buy
-       signal, which says only "buy" and carries no ranking, distance past a
-       stop *is* the domain's own measure of how far risk has run.
-
-    Deterministic on purpose: the previous ``random.choice`` picked one breach
-    and discarded the rest, so two of three breaching positions were ignored
-    every run, and which one survived could not be reproduced from the audit
-    trail.
+    Stop-loss breaches come before take-profit breaches; within each group,
+    furthest past the threshold first. Ordering is deterministic, so a run's
+    exit sequence reproduces from the audit trail.
     """
     if not can_sell:
         return []

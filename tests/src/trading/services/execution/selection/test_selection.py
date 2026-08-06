@@ -98,7 +98,7 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
 
 
 def test_prepare_sell_trade_closes_the_whole_position() -> None:
-    """A sell exits outright — slicing left a stopped-out position open and re-breaching."""
+    """A sell exits the position outright."""
     result = trade_execution_service.prepare_sell_trade(
         sell_candidates=[],
         forced_sells=["AAPL"],

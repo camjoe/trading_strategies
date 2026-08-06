@@ -154,12 +154,8 @@ class OrderRepository:
     def fetch_submission_count_between(self, *, start_iso: str, end_iso: str) -> int:
         """Global submitted-order count in a time window — request rate, for broker pacing.
 
-        Distinct from the fill count because a submitted order need not fill.
-        Against the paper adapter fills are instantaneous and the two agree, but
-        against an IBKR socket an order can sit unfilled indefinitely: a run
-        could submit any number of orders in a minute while the fill count
-        stayed at zero, leaving the per-minute cap blind to exactly the brokers
-        that can be overwhelmed.
+        Diverges from the fill count against any broker where an order can sit
+        unfilled; they agree only because paper fills are instantaneous.
         """
         row = self._conn.execute(
             "SELECT COUNT(*) FROM orders WHERE submitted_at >= ? AND submitted_at <= ?",

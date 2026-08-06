@@ -34,10 +34,8 @@ def enforce_runtime_trade_throttles(
         return
 
     repository = OrderRepository(conn)
-    # The two caps measure different things. Per-day is about how much trading
-    # happened, so it counts fills (the execution history since the trades table
-    # went in revision 0006). Per-minute is broker pacing, so it counts orders
-    # sent — an unfilled order still consumed a request.
+    # Per-day measures trading done, so it counts fills. Per-minute is broker
+    # pacing, so it counts orders sent — an unfilled order still cost a request.
     count_fills = count_trades_between_fn or repository.fetch_fill_count_between
     count_submissions = count_submissions_between_fn or repository.fetch_submission_count_between
     trade_time = parse_utc_iso(trade_time_iso)

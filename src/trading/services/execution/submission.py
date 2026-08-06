@@ -193,9 +193,7 @@ def submit_book_intents(
     filled_count = 0
     throttled = False
     for intent in gate_result.approved_intents:
-        # Between orders, not once per book: a book emits several trades per
-        # run since the per-book budget became real, and the per-minute cap
-        # exists to pace the requests themselves.
+        # Between orders: the per-minute cap paces requests, not books.
         if enforce_throttle is not None:
             try:
                 enforce_throttle()
