@@ -18,6 +18,7 @@ from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetche
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
 from trading.models.execution import (
+    AccountRunResult,
     BookRunAudit,
     BookTradeIntent,
     RiskGateConfig,
@@ -60,6 +61,14 @@ def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
     return is_regular_us_equity_market_open(parse_utc_iso(now_iso or utc_now_iso()))
 
 
+def _account_run_result(account: AccountRecord, audit: BookRunAudit) -> AccountRunResult:
+    return AccountRunResult(
+        account_name=str(account.name),
+        submitted_count=audit.submitted_count,
+        kill_switch_reasons=tuple(audit.kill_switch_reasons),
+    )
+
+
 def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
     """Convert the gate's book-keyed decisions into audit dicts."""
     return [asdict(decision) for decision in decisions]
@@ -78,7 +87,7 @@ def _run_books_for_account(
     histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
     fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
-) -> int:
+) -> AccountRunResult:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
     audit = BookRunAudit()
@@ -102,7 +111,7 @@ def _run_books_for_account(
     )
     if not intents:
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
-        return 0
+        return _account_run_result(account, audit)
 
     # Intents are book-keyed; the intent's book_id feeds the risk audit.
     book_intents: list[BookTradeIntent] = [
@@ -144,7 +153,7 @@ def _run_books_for_account(
     approved_intents = [] if audit.kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
-        return 0
+        return _account_run_result(account, audit)
 
     approved_by_book: dict[int, list[BookTradeIntent]] = defaultdict(list)
     for book_intent in approved_intents:
@@ -177,7 +186,7 @@ def _run_books_for_account(
                 break
 
         persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
-        return audit.submitted_count
+        return _account_run_result(account, audit)
     finally:
         broker.disconnect()
 
@@ -195,7 +204,7 @@ def run_for_account(
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
-) -> int:
+) -> AccountRunResult:
     """Run the account's trading books (the one execution path, ADR 014).
 
     Every active, openly assigned book — the default book included — trades
@@ -203,7 +212,7 @@ def run_for_account(
     """
     now_iso = utc_now_iso()
     if not is_runtime_submission_window_open(now_iso):
-        return 0
+        return AccountRunResult(account_name=account_name, submitted_count=0)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)
     return _run_books_for_account(

@@ -123,7 +123,7 @@ def test_run_for_account_book_mode_applies_rotation_before_intent_generation(
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     assert captured["active_strategy"] == "meanrev"
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
@@ -172,7 +172,7 @@ def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     assert captured["active_strategy"] == "trend"
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
@@ -203,7 +203,7 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     # The book submits through the shared service onto its bridging book's clean tables.
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
@@ -305,7 +305,7 @@ def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkey
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     broker.disconnect.assert_called_once()
     throttle_rows = conn.execute(
@@ -337,7 +337,7 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     broker.place_order.assert_called_once()
     broker_order = broker.place_order.call_args.args[0]
     assert broker_order.qty == 2.0
@@ -385,7 +385,7 @@ def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(boo
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -432,7 +432,7 @@ def test_run_for_account_book_mode_kill_switch_reconciliation_mismatch(book_env,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -489,7 +489,7 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
@@ -551,7 +551,7 @@ def test_run_for_account_book_mode_kill_switch_stale_reconciliation_snapshot(con
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -587,7 +587,7 @@ def test_run_for_account_book_mode_kill_switch_when_reconciliation_snapshot_miss
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -635,7 +635,7 @@ def test_run_for_account_book_mode_submitted_order_with_no_broker_id_skips_broke
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     # The clean order carries a null broker id (the legacy broker_orders table is gone).
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
@@ -685,7 +685,7 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     row = conn.execute(
         """
         SELECT COUNT(*) AS n

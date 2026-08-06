@@ -226,3 +226,25 @@ class BookRunAudit:
             "rescaled_count": self.rescaled_count,
             "allowed_count": self.allowed_count,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class AccountRunResult:
+    """What one account's trading run did, and whether anything stopped it.
+
+    ``submitted_count`` on its own cannot tell a quiet day from a halted one:
+    zero trades reads the same whether there were no signals, a kill switch
+    blocked every intent before submission, or the broker failed part-way
+    through the book loop leaving some books traded and others not. The
+    run-wide ``kill_switch_reasons`` travel alongside so the caller can tell
+    those apart and set an exit code accordingly.
+    """
+
+    account_name: str
+    submitted_count: int
+    kill_switch_reasons: tuple[str, ...] = ()
+
+    @property
+    def halted(self) -> bool:
+        """Whether a kill switch stopped this account short of its full intent."""
+        return bool(self.kill_switch_reasons)

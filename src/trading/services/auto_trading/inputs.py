@@ -11,6 +11,7 @@ from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
+from trading.models.execution import AccountRunResult
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
@@ -55,7 +56,7 @@ def _run_account_trade_loop(
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
     **kwargs,
-) -> int:
+) -> AccountRunResult:
     from trading.services.auto_trading.runtime import run_for_account
 
     return run_for_account(
@@ -79,10 +80,17 @@ def run_accounts(
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
-) -> list[tuple[str, int]]:
-    results: list[tuple[str, int]] = []
+) -> list[AccountRunResult]:
+    """Run each account independently.
+
+    Accounts are isolated on purpose: broker connections are per account, so one
+    account halting on a broker anomaly says nothing about the next one's broker.
+    Each result carries its own kill-switch reasons; deriving an exit code from
+    the aggregate is the caller's job.
+    """
+    results: list[AccountRunResult] = []
     for account_name in account_names:
-        executed = _run_account_trade_loop(
+        result = _run_account_trade_loop(
             broker_factory=broker_factory,
             feature_fetchers=feature_fetchers,
             provider=provider,
@@ -95,5 +103,5 @@ def run_accounts(
             fee=fee,
             histories=histories,
         )
-        results.append((account_name, executed))
+        results.append(result)
     return results

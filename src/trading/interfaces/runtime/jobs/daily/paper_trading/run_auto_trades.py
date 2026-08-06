@@ -18,6 +18,7 @@ from trading.services.auto_trading import (
     run_accounts,
     run_for_account,
 )
+from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 
 REPO_ROOT = get_repo_root(__file__)
@@ -44,7 +45,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> int:
+    """Run the accounts and return the process exit code.
+
+    Exits non-zero when the broker misbehaved mid-submission. That is the one
+    outcome where real orders may exist in an unknown state, so it should fail
+    the daily run's step rather than read as a clean pass. Every other halt —
+    a stale-price or reconciliation kill switch, or the trade throttle — is a
+    control working as designed: the run stays green and the workflow reports it
+    via ``kill_switch_accounts``.
+    """
     args = parse_args()
     if args.max_trades < 1:
         raise ValueError("--max-trades must be >= 1")
@@ -73,7 +83,7 @@ def main() -> None:
     )
 
     with db_session() as conn:
-        for account_name, executed in run_accounts(
+        results = run_accounts(
             conn,
             account_names=accounts,
             universe=universe,
@@ -85,9 +95,18 @@ def main() -> None:
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,
             provider=provider,
-        ):
-            print(f"{account_name}: executed {executed} trades")
+        )
+
+    for result in results:
+        halted = f" (halted: {', '.join(result.kill_switch_reasons)})" if result.halted else ""
+        print(f"{result.account_name}: executed {result.submitted_count} trades{halted}")
+
+    broker_anomalies = [r.account_name for r in results if KILL_SWITCH_REASON_BROKER_API_ANOMALY in r.kill_switch_reasons]
+    if broker_anomalies:
+        print(f"Broker API anomaly during submission for: {', '.join(broker_anomalies)}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
