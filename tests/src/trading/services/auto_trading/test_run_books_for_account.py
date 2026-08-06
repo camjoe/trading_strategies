@@ -69,7 +69,7 @@ def _install(
 
     monkeypatch.setattr(runtime_service, "mark_account_to_market", _mark)
 
-    def _reconcile(_conn, *, account_id, now_iso):
+    def _reconcile(_conn, *, account_id):
         recorder.calls.append("reconcile")
         return list(reconciliation_reasons or [])
 

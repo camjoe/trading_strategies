@@ -5,8 +5,6 @@ from unittest.mock import Mock
 
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
-from tests.support.books import insert_test_book
-from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.execution import BookTradeCandidate
 from trading.models.orders import OrderFill, OrderStatus
@@ -15,7 +13,6 @@ from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.auto_trading.runtime import run_for_account
 from trading.services.books.book_assignments import open_assignment_for_book
 from trading.services.operational_settings import set_runtime_throttle_settings
@@ -514,53 +511,6 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     assert decision_row["action"] == "block"
     assert decision_row["reason_code"] == "broker_api_anomaly"
     assert broker.disconnect_calls == 1
-
-
-def test_run_for_account_book_mode_kill_switch_stale_reconciliation_snapshot(conn, monkeypatch) -> None:
-    account_id = insert_repository_account(conn, name="acct_book")
-    book_id = insert_test_book(
-        conn,
-        account_id=account_id,
-        start_equity=1_000.0,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
-        snapshot_time="2026-05-01T00:00:00Z",
-        cash=1_000.0,
-        market_value=0.0,
-        equity=1_000.0,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
-
-    broker = FakeBroker()
-    _patch_runtime_book_execution(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
-
-    executed = run_for_account(
-        conn,
-        account_name="acct_book",
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
-        max_trades=1,
-        fee=0.0,
-        broker_factory=lambda _, b=broker: b,
-        feature_fetchers=make_feature_fetchers(),
-    )
-
-    assert executed.submitted_count == 0
-    broker.place_order.assert_not_called()
-    row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
-        (account_id,),
-    ).fetchone()
-    assert row is not None
-    assert int(row["kill_switch_triggered"]) == 1
-    payload = json.loads(row["risk_payload_json"])
-    assert "stale_reconciliation_snapshot" in payload["kill_switch_reasons"]
 
 
 def test_run_for_account_book_mode_kill_switch_when_reconciliation_snapshot_missing_value_error(

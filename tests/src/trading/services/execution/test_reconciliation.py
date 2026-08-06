@@ -11,7 +11,6 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
-    KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
 )
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.ledger import record_trade
@@ -67,7 +66,7 @@ def _snapshot(conn, book_id: int, *, equity: float, snapshot_time: str = NOW) ->
 
 def test_missing_snapshot_reports_missing(conn):
     account_id, _ = _account_book(conn, equity=10_000.0)
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == [
+    assert reconcile_book_equity(conn, account_id=account_id) == [
         KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING
     ]
 
@@ -75,23 +74,14 @@ def test_missing_snapshot_reports_missing(conn):
 def test_within_tolerance_is_clean(conn):
     account_id, book_id = _account_book(conn, equity=10_000.0)
     _snapshot(conn, book_id, equity=10_000.0)
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == []
+    assert reconcile_book_equity(conn, account_id=account_id) == []
 
 
 def test_equity_mismatch_reports_mismatch(conn):
     account_id, book_id = _account_book(conn, equity=10_000.0)
     _snapshot(conn, book_id, equity=9_000.0)
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == [
+    assert reconcile_book_equity(conn, account_id=account_id) == [
         KILL_SWITCH_REASON_RECONCILIATION_MISMATCH
-    ]
-
-
-def test_stale_snapshot_reports_stale(conn):
-    account_id, book_id = _account_book(conn, equity=10_000.0)
-    # Equity agrees (no mismatch), but the snapshot is far older than the 6h window.
-    _snapshot(conn, book_id, equity=10_000.0, snapshot_time="2026-07-01T00:00:00Z")
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == [
-        KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT
     ]
 
 
@@ -129,7 +119,7 @@ def test_fill_then_mark_then_reconcile_pipeline(conn):
 
     # A market-marked snapshot agrees with the NAV-marked book equity → clean.
     _snapshot(conn, book_id, equity=10_200.0)
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == []
+    assert reconcile_book_equity(conn, account_id=account_id) == []
 
 
 # --- 2c-4: confirm the clean book path and the independent account/trades path agree ----
@@ -197,4 +187,4 @@ def test_book_and_account_accounting_agree_and_reconcile(conn):
         realized_pnl=0.0,
         unrealized_pnl=0.0,
     )
-    assert reconcile_book_equity(conn, account_id=account_id, now_iso=NOW) == []
+    assert reconcile_book_equity(conn, account_id=account_id) == []

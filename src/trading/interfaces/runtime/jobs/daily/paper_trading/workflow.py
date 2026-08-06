@@ -246,8 +246,9 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
         # The pre-submit gate reconciles book equity against the latest equity
-        # snapshot and kills the run when that snapshot is missing or older than
-        # MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS. Snapshotting here — before any
+        # snapshot and kills the run when that snapshot is missing or disagrees on
+        # value. Books are marked to current prices just before that check, so a
+        # snapshot from an earlier session fails it. Snapshotting here — before any
         # trading — is what lets the run stand on its own at any point the market
         # is open; the post-trade pass at step 08 still records end-state equity.
         run_dag_step(

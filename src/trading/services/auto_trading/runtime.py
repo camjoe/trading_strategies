@@ -132,7 +132,7 @@ def _run_books_for_account(
     # per-book). The batch gate then applies the notional caps + stale-price across all
     # books with reconcile=False, so cross-book exposure caps are enforced together.
     mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=snapshot_time)
-    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id, now_iso=snapshot_time)
+    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id)
     gate = BookPreSubmitGate(
         prices=prices,
         snapshot_time=snapshot_time,
