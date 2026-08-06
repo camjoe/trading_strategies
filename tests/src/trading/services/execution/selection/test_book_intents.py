@@ -205,21 +205,17 @@ def test_generate_book_trade_intents_returns_empty_without_active_books(conn) ->
     assert intents == []
 
 
-def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_universes(
-    conn,
-    monkeypatch,
-) -> None:
-    account_name = "acct_book_invalid_universe"
+def _captured_book_universe(conn, monkeypatch, *, account_name: str, stored_symbols: str) -> list[list[str]]:
+    """Run intent generation for a book holding *stored_symbols*, capturing what it selected over."""
     account_id = insert_repository_account(conn, name=account_name)
-    book_id = _insert_book(conn, account_id=account_id, name="invalid-universe")
-    BookRepository(conn).update_trade_universes(
+    book_id = _insert_book(conn, account_id=account_id, name=account_name)
+    BookRepository(conn).update_trade_symbols(
         book_id=book_id,
-        trade_universes='{"name": "not-a-list"}',
+        trade_symbols=stored_symbols,
         updated_at="2026-05-03T00:00:00Z",
     )
     _assign(conn, book_id=book_id, strategy_name="trend")
-    account = get_account(conn, account_name)
-    captured_universes: list[list[str]] = []
+    captured: list[list[str]] = []
 
     monkeypatch.setattr(
         book_intents.auto_trader_policy,
@@ -228,25 +224,49 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
     )
     monkeypatch.setattr(
         book_intents,
-        "resolve_named_universes",
-        lambda _names: (_ for _ in ()).throw(AssertionError("named universes should not be resolved")),
-    )
-    monkeypatch.setattr(
-        book_intents,
         "prepare_trade_selection",
         # positional args: (account, strategy_name, params, state, forced_sell, universe, ...)
-        lambda *_args, **_kwargs: captured_universes.append(list(_args[5])) or None,
+        lambda *_args, **_kwargs: captured.append(list(_args[5])) or None,
     )
 
     intents = book_intents.generate_book_trade_intents(
         conn,
-        account=account,
+        account=get_account(conn, account_name),
         universe=["SPY", "QQQ"],
         prices={"SPY": 500.0, "QQQ": 400.0},
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
     )
-
     assert intents == []
-    assert captured_universes == [["SPY", "QQQ"]]
+    return captured
+
+
+def test_generate_book_trade_intents_selects_over_the_books_stored_symbols(conn, monkeypatch) -> None:
+    captured = _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_symbols",
+        stored_symbols='["NVDA","AMD"]',
+    )
+
+    assert captured == [["NVDA", "AMD"]]
+
+
+def test_generate_book_trade_intents_falls_back_to_the_run_universe_for_unusable_symbols(
+    conn,
+    monkeypatch,
+) -> None:
+    """A malformed or empty column must not silently narrow the book to nothing."""
+    assert _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_bad_symbols",
+        stored_symbols='{"name": "not-a-list"}',
+    ) == [["SPY", "QQQ"]]
+    assert _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_empty_symbols",
+        stored_symbols="[]",
+    ) == [["SPY", "QQQ"]]

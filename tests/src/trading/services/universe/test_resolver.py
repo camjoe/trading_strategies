@@ -6,10 +6,12 @@ from pathlib import Path
 
 import pytest
 
+from trading.domain.exceptions import ValidationError
 from trading.services.universe.resolver import (
+    default_trade_symbols,
     list_available_universes,
     resolve_named_universes,
-    validate_universe_names,
+    resolve_trade_symbols,
 )
 
 
@@ -92,22 +94,22 @@ def test_resolve_ignores_comments_and_blanks(tmp_path: Path, monkeypatch: pytest
     assert result == ["AAPL", "MSFT", "GOOGL"]
 
 
-def test_validate_universe_names_accepts_known_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _write_universe(tmp_path, "growth", ["NVDA"])
-    _write_universe(tmp_path, "default", ["AAPL"])
-    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
-
-    validate_universe_names(["default", "growth"])
-
-
-def test_validate_universe_names_rejects_unknown_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_trade_symbols_reports_an_unknown_name_as_a_validation_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The write paths need a caller-facing failure, not a FileNotFoundError."""
     _write_universe(tmp_path, "growth", ["NVDA"])
     monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
-    with pytest.raises(ValueError, match="Unknown universe\\(s\\): bogus"):
-        validate_universe_names(["growth", "bogus"])
+    assert resolve_trade_symbols(["growth"]) == ["NVDA"]
+    with pytest.raises(ValidationError, match="Universe 'bogus' not found"):
+        resolve_trade_symbols(["bogus"])
+    with pytest.raises(ValidationError, match="At least one universe name"):
+        resolve_trade_symbols([])
 
 
-def test_validate_universe_names_rejects_empty_list() -> None:
-    with pytest.raises(ValueError, match="At least one universe name"):
-        validate_universe_names([])
+def test_default_trade_symbols_expands_the_default_universe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_universe(tmp_path, "default", ["AAPL", "MSFT"])
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
+
+    assert default_trade_symbols() == ["AAPL", "MSFT"]

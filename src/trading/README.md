@@ -10,7 +10,7 @@ Provide the core runtime and tooling for paper trading, reporting, promotion rev
 
 The `src/trading/` module handles:
 
-- Account lifecycle (create, configure, benchmark, profiles)
+- Account lifecycle (create, configure, benchmark)
 - Trade simulation and position tracking
 - Live broker integration (Interactive Brokers via Client Portal/Web API or the TWS/IB Gateway socket API; paper broker by default)
 - Snapshot history and reporting
@@ -52,13 +52,12 @@ README active.
 
 ```sh
 python -m scripts.data_ops.manage_db_migrations upgrade
-python -m trading.interfaces.cli.main apply-account-preset --preset default
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy momentum --initial-cash 5000 --benchmark SPY
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k
 ```
 
 The migration command creates a missing database or upgrades an existing one. Application commands
-verify the schema version and never apply migrations automatically. The tracked presets contain
-synthetic examples only.
+verify the schema version and never apply migrations automatically.
 
 For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
 
@@ -110,10 +109,8 @@ schedule the runtime job entrypoints, see the [Runtime Jobs Reference](../../doc
 
 ## Auto-Trading
 
-The run prices the union of the trade universes of the books it is about to trade, resolved from
-each book's `trade_universes` column against the named universe files in
-`src/infrastructure/config/trade_universes/`. A symbol a book can select is therefore a symbol the
-run priced.
+The run prices the union of `books.trade_symbols` across the books it is about to trade — the same
+column selection reads — so a symbol a book can select is a symbol the run priced.
 
 `--tickers-file` overrides that with an explicit ticker file, for manual runs against a universe
 no book names. Run
@@ -191,17 +188,17 @@ Review requests freeze the current evaluation evidence into a durable record and
 - Broker integration: [docs/reference/broker-integration.md](../../docs/reference/broker-integration.md)
 - Trading architecture guide: [docs/architecture/architecture-conventions.md](../../docs/architecture/architecture-conventions.md)
 
-## Preset Profiles
+## Trade universes
 
-Built-in account profile presets now live under:
+Named universe files under `src/infrastructure/config/trade_universes/` are a **write-time
+shorthand**. Naming one on `create-account`, `configure-book`, or the book-params API expands it and
+stores the resulting tickers in `books.trade_symbols` (revision 0029).
 
-- `src/infrastructure/config/account_profiles/`
+Nothing reads those files on the trading path, so editing one changes what future writes resolve to
+and never what an existing book is already trading. Re-apply the name to pull in a changed roster.
 
-CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
-
-These tracked presets are synthetic examples for testing and demonstration. Their account names,
-capital amounts, return goals, risk limits, and strategy schedules do not represent actual accounts,
-validated performance expectations, or recommended settings.
+The tracked universe files are synthetic examples. Their membership is not derived from any index or
+screen — see the provenance header in each file.
 
 Keep real strategy parameters, operator profiles, and research notes under the gitignored
 `local/strategies/` workspace. Do not replace the tracked presets with personal operating

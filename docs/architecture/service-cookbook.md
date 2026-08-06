@@ -55,7 +55,7 @@ or `reconciliation`) instead of treating the package root as a facade.
 | I need to… | Package | Scope notes |
 |---|---|---|
 | Look up, list, create, or configure accounts; change strategy/benchmark | `trading.services.accounts` | Strict (`get_*`) vs optional (`find_*`) lookups; runtime-eligible listing |
-| Apply named preset profiles to an account | `trading.services.profiles` | Profile loading + application (`profile_source` is the input-backend abstraction) |
+| Expand a universe name into the tickers a book stores | `trading.services.universe` | `resolve_trade_symbols` (write paths); books keep the expansion, not the name |
 | Load account state; record trades; list trades | `trading.services.execution.ledger` | Cash/positions/cost state + the trade ledger write path |
 | Account stats, equity/settlement math, benchmark overlays, CLI reports, snapshots | `trading.services.reporting` | Also owns compare-strategies and snapshot history display |
 | Fetch prices | `trading.services.market_data.lookups` | Latest-price + benchmark lookups over the injected provider |

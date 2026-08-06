@@ -9,7 +9,7 @@ from trading.services.accounts import (
     delete_account,
     preview_account_deletion,
 )
-from trading.services.profiles import apply_book_rotation_settings
+from trading.services.books.rotation.config_parser import apply_book_rotation_settings
 
 from ..account_contract import AdminCreateAccountCommand
 from .db import db_conn

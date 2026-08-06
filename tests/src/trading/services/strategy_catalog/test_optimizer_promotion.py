@@ -33,8 +33,8 @@ from trading.backtesting.repositories.optimization_repository import (
 )
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # The winning candidate (differs from trend's default fast/slow, so the promoted
 # variant is provably a tuned variant, not the default).

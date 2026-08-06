@@ -31,7 +31,9 @@ class BookRepository:
         start_equity: float,
         current_cash: float,
         current_equity: float,
-        trade_universes: str = '["default"]',
+        # Explicitly unset. Resolving a universe name to symbols is service
+        # work (revision 0029), so the repository has no default to offer.
+        trade_symbols: str = "[]",
         goal_min_return_pct: float | None = None,
         goal_max_return_pct: float | None = None,
         goal_period: str | None = None,
@@ -63,7 +65,7 @@ class BookRepository:
             """
             INSERT INTO books (
                 account_id, name, status, is_default, start_equity, current_cash,
-                current_equity, trade_universes, goal_min_return_pct,
+                current_equity, trade_symbols, goal_min_return_pct,
                 goal_max_return_pct, goal_period, learning_enabled, risk_policy,
                 stop_loss_pct, take_profit_pct, option_profit_take_pct, option_max_loss_pct,
                 trade_size_pct, max_position_pct, max_trades_per_run,
@@ -82,7 +84,7 @@ class BookRepository:
                 float(start_equity),
                 float(current_cash),
                 float(current_equity),
-                trade_universes,
+                trade_symbols,
                 goal_min_return_pct,
                 goal_max_return_pct,
                 goal_period,
@@ -112,11 +114,11 @@ class BookRepository:
             ),
         )
         book_id = int(cursor.lastrowid or 0)
-        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=created_at)
+        self._record_universe_history(book_id=book_id, trade_symbols=trade_symbols, effective_from=created_at)
         commit_unit_of_work(self._conn)
         return book_id
 
-    def _record_universe_history(self, *, book_id: int, trade_universes: str, effective_from: str) -> None:
+    def _record_universe_history(self, *, book_id: int, trade_symbols: str, effective_from: str) -> None:
         """Close the open universe-history row (if any) and open a new one."""
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
@@ -124,16 +126,16 @@ class BookRepository:
         )
         self._conn.execute(
             """
-            INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
+            INSERT INTO book_universe_history (book_id, trade_symbols, effective_from, effective_to)
             VALUES (?, ?, ?, NULL)
             """,
-            (int(book_id), trade_universes, effective_from),
+            (int(book_id), trade_symbols, effective_from),
         )
 
     def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
         return self._conn.execute(
             """
-            SELECT trade_universes, effective_from, effective_to
+            SELECT trade_symbols, effective_from, effective_to
             FROM book_universe_history
             WHERE book_id = ?
             ORDER BY effective_from ASC, id ASC
@@ -177,13 +179,13 @@ class BookRepository:
         )
         commit_unit_of_work(self._conn)
 
-    def update_trade_universes(self, *, book_id: int, trade_universes: str, updated_at: str) -> None:
+    def update_trade_symbols(self, *, book_id: int, trade_symbols: str, updated_at: str) -> None:
         """Set the book's universes and record the change in the history table."""
         self._conn.execute(
-            "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
-            (trade_universes, updated_at, int(book_id)),
+            "UPDATE books SET trade_symbols = ?, updated_at = ? WHERE id = ?",
+            (trade_symbols, updated_at, int(book_id)),
         )
-        self._record_universe_history(book_id=book_id, trade_universes=trade_universes, effective_from=updated_at)
+        self._record_universe_history(book_id=book_id, trade_symbols=trade_symbols, effective_from=updated_at)
         commit_unit_of_work(self._conn)
 
     def update_balances(

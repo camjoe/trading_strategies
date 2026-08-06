@@ -87,11 +87,11 @@ def test_resolve_run_universe_unions_the_books_own_universes(conn) -> None:
     assert len(universe) == len(set(universe))
 
 
-def test_resolve_run_universe_raises_when_no_book_yields_tickers(conn) -> None:
+def test_resolve_run_universe_raises_when_no_book_carries_symbols(conn) -> None:
     create_account(conn, "acct_none", "trend", 5000.0, "SPY")
     conn.execute("UPDATE books SET status = 'closed'")
 
-    with pytest.raises(ValueError, match="resolves to any ticker"):
+    with pytest.raises(ValueError, match="carries any symbol"):
         auto_trading_inputs.resolve_run_universe(conn, ["acct_none"])
 
 

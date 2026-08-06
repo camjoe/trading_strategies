@@ -44,7 +44,6 @@ from trading.services.parameters import (
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
-from trading.services.profiles import apply_account_profiles, load_account_profiles
 from trading.services.promotion import (
     execute_promotion_review_action,
     execute_promotion_review_request,
@@ -97,8 +96,6 @@ def _handler_deps() -> dict[str, object]:
         "fetch_optimization_manifest": fetch_manifest_for_experiment,
         "evaluate_promotion_gate": evaluate_promotion_gate,
         "promote_optimization_experiment": promote_optimization_experiment,
-        "load_account_profiles": load_account_profiles,
-        "apply_account_profiles": apply_account_profiles,
         "account_report": partial(account_report, provider=provider),
         "show_promotion_status": show_promotion_status,
         "execute_promotion_review_request": execute_promotion_review_request,

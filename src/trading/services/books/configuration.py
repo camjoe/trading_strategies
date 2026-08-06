@@ -37,7 +37,7 @@ from trading.services.parameters.mutations import (
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
-from trading.services.universe import validate_universe_names
+from trading.services.universe import resolve_trade_symbols
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,13 +195,11 @@ def configure_book(
         if updates:
             BookRepository(conn).update_settings_columns(book_id=book.id, updates=updates, params=params)
         if config.trade_universes is not None:
-            try:
-                validate_universe_names(config.trade_universes)
-            except ValueError as error:
-                raise ValidationError(str(error)) from error
-            BookRepository(conn).update_trade_universes(
+            # Names are shorthand; the book stores the expansion (revision 0029).
+            symbols = resolve_trade_symbols(config.trade_universes)
+            BookRepository(conn).update_trade_symbols(
                 book_id=book.id,
-                trade_universes=json.dumps(config.trade_universes, separators=(",", ":")),
+                trade_symbols=json.dumps(symbols, separators=(",", ":")),
                 updated_at=utc_now_iso(),
             )
         if rotation_scheduling:

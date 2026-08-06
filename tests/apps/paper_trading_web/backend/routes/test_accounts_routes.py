@@ -9,6 +9,7 @@ from paper_trading_web.backend.routes.accounts import ROTATION_POLICY_REQUEST_NA
 from paper_trading_web.backend.schemas.accounts import RotationPolicyRequest
 
 from trading.services.parameters.mutations import ROTATION_POLICY_FIELDS
+from trading.services.universe import resolve_named_universes
 
 
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:
@@ -96,7 +97,7 @@ def test_book_params_endpoint_updates_named_book(
     book = detail["books"][0]
     assert book["strategy"] == "mean_reversion"
     assert book["riskPolicy"] == "fixed_stop"
-    assert book["tradeUniverses"] == ["default", "growth"]
+    assert book["tradeSymbols"] == resolve_named_universes(["default", "growth"])
     assert book["rotation"]["lookbackDays"] == 30
     assert book["rotationPolicy"]["minTradesInWindow"] == 8
     assert book["rotationPolicy"]["cooldownDays"] == 14

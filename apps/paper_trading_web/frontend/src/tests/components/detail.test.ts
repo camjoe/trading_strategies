@@ -217,7 +217,7 @@ describe("renderDetail", () => {
         startEquity: 5000,
         currentCash: 4200,
         currentEquity: 5100,
-        tradeUniverses: ["technology"],
+        tradeSymbols: ["AAPL", "MSFT"],
         maxTradesPerRun: 3,
         instrumentMode: "equity",
         riskPolicy: "fixed_stop",
@@ -264,7 +264,7 @@ describe("renderDetail", () => {
     const html = renderDetail(detail, { activeSection: "books" });
     expect(html).toContain("Strategy Books");
     expect(html).toContain("growth");
-    expect(html).toContain("technology");
+    expect(html).toContain("AAPL, MSFT");
     expect(html).toContain('class="book-config-save"');
     expect(html).toContain('data-book="growth"');
   });

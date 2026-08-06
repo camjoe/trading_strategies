@@ -66,7 +66,7 @@ export interface BookConfiguration extends AccountConfigFields {
   startEquity: number;
   currentCash: number;
   currentEquity: number;
-  tradeUniverses: string[];
+  tradeSymbols: string[];
   maxTradesPerRun: number | null;
   rotation: RotationSettings;
   rotationPolicy: RotationPolicySettings;

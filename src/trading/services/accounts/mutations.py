@@ -25,7 +25,7 @@ from trading.services.accounts.config import (
 )
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
-from trading.services.universe import validate_universe_names
+from trading.services.universe import default_trade_symbols, resolve_trade_symbols
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
@@ -35,8 +35,8 @@ def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     return row
 
 
-def _serialize_trade_universes(names: list[str]) -> str:
-    return json.dumps(names, separators=(",", ":"))
+def _serialize_trade_symbols(symbols: list[str]) -> str:
+    return json.dumps(symbols, separators=(",", ":"))
 
 
 def _apply_book_settings_to_default_book(
@@ -166,8 +166,13 @@ def _create_account(
             "goal_period": normalize_lower(cfg.goal_period or "monthly"),
         },
     )
+    # Always land a resolved symbol list: the bootstrap leaves the book empty
+    # (it cannot resolve a universe name), so a new account with no universes
+    # named would otherwise trade nothing.
     if cfg.trade_universes is not None:
         _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
+    else:
+        _apply_trade_symbols_to_default_book(conn, account_id=account.id, symbols=default_trade_symbols())
 
 
 def create_account(
@@ -189,17 +194,28 @@ def _apply_trade_universes_to_default_book(
     account_id: int,
     names: list[str],
 ) -> None:
-    """Set the default book's universes (history-recorded; revision 0008)."""
-    try:
-        validate_universe_names(names)
-    except ValueError as error:
-        raise ValidationError(str(error)) from error
+    """Expand universe *names* and store the resulting symbols on the default book.
+
+    Names are the caller's shorthand; the book keeps the tickers (revision
+    0029), so an unresolvable name fails here rather than at trade time, and
+    later edits to a universe file leave this book's symbols alone.
+    """
+    _apply_trade_symbols_to_default_book(conn, account_id=account_id, symbols=resolve_trade_symbols(names))
+
+
+def _apply_trade_symbols_to_default_book(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    symbols: list[str],
+) -> None:
+    """Set the default book's tradeable symbols (history-recorded; revision 0008)."""
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update_trade_universes(
+    BookRepository(conn).update_trade_symbols(
         book_id=book.id,
-        trade_universes=_serialize_trade_universes(names),
+        trade_symbols=_serialize_trade_symbols(symbols),
         updated_at=utc_now_iso(),
     )
 

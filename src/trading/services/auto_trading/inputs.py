@@ -18,7 +18,6 @@ from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
-from trading.services.universe import resolve_named_universes
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
@@ -36,7 +35,7 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
 
 
 def resolve_run_universe(conn: sqlite3.Connection, account_names: list[str]) -> list[str]:
-    """Union the trade universes of every book the run will trade.
+    """Union the trade symbols of every book the run will trade.
 
     Selection is book-scoped (``book_intents``), but the fetch is one pass for
     the whole run, so anything a book may select has to be in it. Deriving the
@@ -44,24 +43,24 @@ def resolve_run_universe(conn: sqlite3.Connection, account_names: list[str]) -> 
     a symbol a book can pick is a symbol this run priced.
 
     Raises:
-        ValueError: If no book across *account_names* yields a ticker.
+        ValueError: If no book across *account_names* carries a symbol.
     """
     seen: dict[str, None] = {}
     for account_name in account_names:
         account = get_account(conn, account_name)
         for trading_book in enumerate_trading_books(conn, account_id=account.id):
-            for ticker in _book_universe(trading_book.book):
-                seen[ticker] = None
+            for symbol in _book_symbols(trading_book.book):
+                seen[symbol] = None
     if not seen:
-        raise ValueError(f"No trading book across {', '.join(account_names)} resolves to any ticker.")
+        raise ValueError(f"No trading book across {', '.join(account_names)} carries any symbol.")
     return list(seen)
 
 
-def _book_universe(book: BookRecord) -> list[str]:
-    names = json.loads(book.trade_universes) if book.trade_universes else []
-    if not isinstance(names, list) or not names:
+def _book_symbols(book: BookRecord) -> list[str]:
+    symbols = json.loads(book.trade_symbols) if book.trade_symbols else []
+    if not isinstance(symbols, list):
         return []
-    return resolve_named_universes([str(name) for name in names])
+    return [str(symbol) for symbol in symbols]
 
 
 def resolve_market_inputs(

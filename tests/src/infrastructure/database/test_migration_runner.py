@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -750,3 +751,67 @@ def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # trading by default.
     columns = {row[1]: row for row in migrated_conn.execute("PRAGMA table_info(accounts)")}
     assert str(columns["live_trading_enabled"][4]) == "0"
+
+
+def test_revision_0029_expands_universe_names_into_stored_symbols(tmp_path: Path) -> None:
+    conn = sqlite3.connect(tmp_path / "trade_symbols.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        migration_runner.upgrade("0028", connection=conn)
+        conn.executescript(
+            """
+            INSERT INTO accounts (id, name, initial_cash, created_at, updated_at)
+            VALUES (1, 'acct', 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, start_equity, current_cash, current_equity,
+                trade_universes, created_at, updated_at
+            )
+            VALUES
+                (1, 1, 'default', 1000, 1000, 1000, '["default"]',
+                 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (2, 1, 'growth_sleeve', 500, 500, 500, '["growth"]',
+                 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                (3, 1, 'stale', 100, 100, 100, '["mid_cap"]',
+                 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+            INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
+            VALUES (1, '["default"]', '2026-01-01T00:00:00Z', NULL);
+            """
+        )
+        conn.commit()
+
+        migration_runner.upgrade("0029", connection=conn)
+
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(books)")}
+        assert "trade_symbols" in columns
+        assert "trade_universes" not in columns
+
+        stored = {
+            int(row["id"]): json.loads(row["trade_symbols"])
+            for row in conn.execute("SELECT id, trade_symbols FROM books ORDER BY id")
+        }
+        assert stored[1][:3] == ["AAPL", "MSFT", "NVDA"]
+        assert "CRWD" in stored[2]
+        # A name this revision cannot expand collapses to the default rather than
+        # persisting as a bogus ticker the book would never match.
+        assert stored[3] == stored[1]
+        assert (
+            json.loads(conn.execute("SELECT trade_symbols FROM book_universe_history WHERE book_id = 1").fetchone()[0])
+            == stored[1]
+        )
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        migration_runner.downgrade("0028", connection=conn)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(books)")}
+        assert "trade_universes" in columns
+        assert "trade_symbols" not in columns
+        names = {
+            int(row["id"]): row["trade_universes"]
+            for row in conn.execute("SELECT id, trade_universes FROM books ORDER BY id")
+        }
+        assert names[1] == '["default"]'
+        assert names[2] == '["growth"]'
+
+        migration_runner.upgrade("0029", connection=conn)
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        conn.close()

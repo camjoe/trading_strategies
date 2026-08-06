@@ -98,13 +98,13 @@ multi-strategy sweep on one account/universe/date-window stays far under the cei
 
 ### `src/infrastructure/config/`
 
-Static file-backed configuration assets. Read at runtime; not imported as Python modules (except by `src/trading/services/profiles/`).
+Static file-backed configuration assets, read through `src/trading/services/universe/`.
 
 | Asset | Description |
 |---|---|
-| `account_profiles/` | JSON account profile presets |
-| `trade_universes/` | Trade-universe definition files |
-| `trade_universe.txt` | Default trade-universe ticker list |
+| `trade_universes/` | Named ticker lists. A **write-time shorthand** only: naming one stores its expansion in `books.trade_symbols` (revision 0029), so nothing reads these on the trading path |
+| `trade_universe.txt` | Default ticker file for surfaces that take an explicit universe: backtests, strategy lab, benchmark sweeps |
+| `symbol_sectors.json` | Symbol→sector reference data for the risk gate's sector-concentration caps |
 
 ## Related References
 

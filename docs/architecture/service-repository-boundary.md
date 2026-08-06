@@ -165,16 +165,6 @@ like `runtime_job_status.py` can remain standalone when it is already a clear
 surface and does not duplicate a sibling facade or blur a service/repository
 boundary.
 
-### Profile application
-
-For profile application flows:
-
-- `trading.services.profiles` is the stable public service surface for loading
-  and applying account profiles.
-- `trading.services.profiles.source` can remain a separate internal source
-  abstraction because it represents profile-input backends rather than a sibling
-  facade for the same use-case API.
-
 ### Evaluation and auto-trading package splits
 
 For strategy evaluation flows:

@@ -111,7 +111,7 @@ def _mandate_group(scope_prefix: str, book: BookRecord) -> ParameterGroup:
             name="goal_max_return_pct", value=_render(book.goal_max_return_pct), source=PARAMETER_SOURCE_DB
         ),
         ParameterEntry(name="goal_period", value=_render(book.goal_period), source=PARAMETER_SOURCE_DB),
-        ParameterEntry(name="trade_universes", value=_render(book.trade_universes), source=PARAMETER_SOURCE_DB),
+        ParameterEntry(name="trade_symbols", value=_render(book.trade_symbols), source=PARAMETER_SOURCE_DB),
     )
     return ParameterGroup(scope=f"{scope_prefix} / mandate", entries=entries)
 

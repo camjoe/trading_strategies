@@ -71,7 +71,9 @@ def _book_payload(view: BookConfigurationView) -> dict[str, object]:
         "startEquity": book.start_equity,
         "currentCash": book.current_cash,
         "currentEquity": book.current_equity,
-        "tradeUniverses": json.loads(book.trade_universes),
+        # The book's resolved tickers. Writes still take universe *names*
+        # (`tradeUniverses` on the PATCH body); the server expands them.
+        "tradeSymbols": json.loads(book.trade_symbols),
         "goalMinReturnPct": book.goal_min_return_pct,
         "goalMaxReturnPct": book.goal_max_return_pct,
         "goalPeriod": book.goal_period,

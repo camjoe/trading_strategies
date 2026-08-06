@@ -46,7 +46,7 @@ def make_book_record(**overrides: object) -> BookRecord:
         "start_equity": 1000.0,
         "current_cash": 1000.0,
         "current_equity": 1000.0,
-        "trade_universes": '["default"]',
+        "trade_symbols": '["AAPL","MSFT"]',
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": None,

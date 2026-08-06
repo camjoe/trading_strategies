@@ -169,8 +169,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
 | `market_data/lookups.py` | Caller-facing latest-price + benchmark lookup queries over the injected provider |
-| `profiles/application.py` | Account profile application logic |
-| `profiles/source.py` | Profile source loading |
 | `promotion/actions.py` | Promotion action execution |
 | `promotion/assessment.py` | Promotion eligibility assessment |
 | `promotion/helpers.py` | Promotion workflow helpers |

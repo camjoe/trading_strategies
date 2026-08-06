@@ -18,7 +18,6 @@ from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
 )
-from trading.services.universe import resolve_named_universes
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +87,9 @@ def generate_book_trade_intents(
         # assigned label for display and rotation bookkeeping.
         signal_primitive = resolved.primitive
         strategy_params = resolved.params
-        if book.trade_universes:
-            book_universe_names: object = json.loads(book.trade_universes)
-            if isinstance(book_universe_names, list) and book_universe_names:
-                effective_universe = resolve_named_universes([str(n) for n in book_universe_names])
-            else:
-                effective_universe = universe
+        book_symbols: object = json.loads(book.trade_symbols) if book.trade_symbols else []
+        if isinstance(book_symbols, list) and book_symbols:
+            effective_universe = [str(symbol) for symbol in book_symbols]
         else:
             effective_universe = universe
         # Execution/risk knobs are book-owned (revision 0004).

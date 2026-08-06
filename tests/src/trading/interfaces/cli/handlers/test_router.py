@@ -10,8 +10,6 @@ _EXPECTED_COMMANDS = {
     "init",
     "create-account",
     "configure-account",
-    "apply-account-profiles",
-    "apply-account-preset",
     "set-benchmark",
     "list-accounts",
     "trade",

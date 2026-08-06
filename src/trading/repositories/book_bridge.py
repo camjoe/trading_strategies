@@ -24,17 +24,18 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
     ).fetchone()
     if row is not None:
         return int(row[0])
-    # Goals/universes are book-owned (revision 0008) — the account carries
-    # nothing to copy. The bootstrapped book starts on the default universe;
-    # every universe set/change records history.
+    # Goals/symbols are book-owned (revision 0008) — the account carries nothing
+    # to copy. Symbols start empty because resolving a universe name is service
+    # work (revision 0029); create_account applies the real set right after.
+    # Every symbol set/change records history.
     cursor = conn.execute(
         """
         INSERT INTO books (
             account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, trade_universes, created_at, updated_at
+            current_equity, trade_symbols, created_at, updated_at
         )
         SELECT id, 'default', 'active', 1, initial_cash, initial_cash, initial_cash,
-               '["default"]', created_at, created_at
+               '[]', created_at, created_at
         FROM accounts WHERE id = ?
         """,
         (int(account_id),),
@@ -44,8 +45,8 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
     book_id = int(cursor.lastrowid or 0)
     conn.execute(
         """
-        INSERT INTO book_universe_history (book_id, trade_universes, effective_from, effective_to)
-        SELECT ?, '["default"]', created_at, NULL FROM accounts WHERE id = ?
+        INSERT INTO book_universe_history (book_id, trade_symbols, effective_from, effective_to)
+        SELECT ?, '[]', created_at, NULL FROM accounts WHERE id = ?
         """,
         (book_id, int(account_id)),
     )

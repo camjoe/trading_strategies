@@ -63,7 +63,7 @@ class FixtureSeedRepository:
         account_id: int,
         default_book_id: int,
         name: str,
-        trade_universes: str,
+        trade_symbols: str,
         opening_cash: float,
         now_iso: str,
     ) -> int:
@@ -96,9 +96,9 @@ class FixtureSeedRepository:
         cursor = self._conn.execute(
             """INSERT INTO books
                (account_id, name, status, is_default, start_equity, current_cash, current_equity,
-                trade_universes, created_at, updated_at)
+                trade_symbols, created_at, updated_at)
                VALUES (?, ?, 'active', 0, ?, ?, ?, ?, ?, ?)""",
-            (account_id, name, opening_cash, opening_cash, opening_cash, trade_universes, now_iso, now_iso),
+            (account_id, name, opening_cash, opening_cash, opening_cash, trade_symbols, now_iso, now_iso),
         )
         book_id = cursor.lastrowid
         if book_id is None:
