@@ -1,7 +1,7 @@
 """Universe resolver — resolves named universe identifiers to ticker lists.
 
 Named universes are .txt files stored under ``TRADE_UNIVERSES_DIR``.  A name
-maps 1-to-1 to a filename: ``"large_cap"`` → ``large_cap.txt``.
+maps 1-to-1 to a filename: ``"growth"`` → ``growth.txt``.
 
 Resolution precedence at runtime:
     book-level trade_universes (NOT NULL since revision 0008) > global CLI default
@@ -17,7 +17,7 @@ def resolve_named_universes(names: list[str]) -> list[str]:
     """Return a deduplicated union of tickers from all named universe files.
 
     Args:
-        names: Universe identifiers (e.g. ``["large_cap", "growth"]``).
+        names: Universe identifiers (e.g. ``["default", "growth"]``).
 
     Returns:
         Ordered, deduplicated list of tickers (first-seen order preserved).

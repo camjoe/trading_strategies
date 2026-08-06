@@ -225,7 +225,7 @@ SANDBOX_PROFILE = FixtureProfile(
             strategy="rsi",
             initial_cash=40_000.0,
             benchmark="SPY",
-            trade_universes=("large_cap",),
+            trade_universes=("default",),
             trades=(
                 FixtureBuy(day_index=12, symbol="WMT", notional=_SANDBOX_SMALL_POSITION_NOTIONAL),
                 FixtureSell(day_index=260, symbol="WMT", fraction=0.6),
