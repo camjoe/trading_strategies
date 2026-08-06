@@ -1,8 +1,4 @@
-"""Shared helpers for the execution service tests.
-
-Co-located rather than in ``tests/support/`` because only this suite uses them
-(see ``tests/support/README.md``).
-"""
+"""Shared helpers for the execution service tests."""
 
 from __future__ import annotations
 
@@ -14,8 +10,7 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 def insert_book_equity_snapshot(conn: Any, book_id: int, *, equity: float, snapshot_time: str) -> None:
     """Record a book equity snapshot with *equity* held entirely as cash.
 
-    Gate and reconciliation tests read equity and ignore the composition, so the
-    market-value and P&L columns stay zeroed.
+    Callers assert on equity only, so market value and P&L stay zeroed.
     """
     EquitySnapshotRepository(conn).insert_for_book(
         book_id=book_id,

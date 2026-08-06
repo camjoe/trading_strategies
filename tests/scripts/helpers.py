@@ -1,10 +1,4 @@
-"""Shared helpers for the repository-check script tests.
-
-Co-located rather than in ``tests/support/`` because only this suite uses them
-(see ``tests/support/README.md``). The checks under ``scripts/checks/`` all work
-by scanning files on disk, so every one of their test modules needs to lay out a
-temporary tree first.
-"""
+"""Shared helpers for the repository-check script tests."""
 
 from __future__ import annotations
 

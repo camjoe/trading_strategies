@@ -13,14 +13,10 @@ from infrastructure.database.config import get_db_path
 class DatabaseBackend(ABC):
     """Abstract interface for database backends.
 
-    Implement this class to swap out SQLite for another database, then
-    register your implementation with :func:`set_backend`.
-
-    Opening a connection is the only operation a backend must provide — the
-    rest of the codebase uses standard DB-API 2.0 calls (``conn.execute``,
-    ``conn.commit``, etc.) directly on the connection object returned by
-    :meth:`open_connection`. Schema creation and inspection are not backend
-    concerns: the Alembic revision chain owns the schema.
+    Implement this class to swap out SQLite for another database, then register
+    it with :func:`set_backend`. Opening a connection is the only operation
+    required — callers use plain DB-API 2.0 on the returned object, and schema
+    creation is not a backend concern (the Alembic revision chain owns it).
     """
 
     @abstractmethod
@@ -53,10 +49,9 @@ class SQLiteBackend(DatabaseBackend):
         # Schema convention: every *_id is a real, enforced FK. SQLite
         # defaults the pragma to OFF per connection.
         conn.execute("PRAGMA foreign_keys = ON")
-        # WAL lets the web backend and runtime jobs read while a writer
-        # commits (journal_mode persists in the file; re-asserting is cheap).
-        # busy_timeout makes brief lock contention wait instead of raising
-        # "database is locked".
+        # WAL lets readers run while a writer commits. It persists in the file,
+        # so re-asserting it here is cheap. busy_timeout waits out brief lock
+        # contention instead of raising "database is locked".
         conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("PRAGMA busy_timeout = 5000")
         return conn
@@ -82,11 +77,7 @@ def set_backend(backend: DatabaseBackend) -> None:
 
 @contextmanager
 def use_backend(backend: DatabaseBackend) -> Iterator[DatabaseBackend]:
-    """Activate *backend* for the duration of the block, then restore the previous one.
-
-    The scoped form of :func:`set_backend`, for callers that must not leak a
-    swapped backend into whatever runs next.
-    """
+    """Activate *backend* for the block, then restore the previous one."""
     original = get_backend()
     set_backend(backend)
     try:

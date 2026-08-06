@@ -1,13 +1,8 @@
 """Runtime account loader — opens its own DB connection to fetch eligible accounts.
 
-This module is the sole deliberate exception to the rule that ``trading/services``
-must not import from ``infrastructure.database`` directly.  It is kept isolated here
-so that the exception is explicit and the scope is narrow: this file's only job is to
-bridge the service layer to the shared connection helper for runtime job runners
-that need a fresh list of accounts without an injected connection.
-
-It goes through ``db_session()`` rather than the backend directly, so the
-schema-revision gate applies here as it does to every other application query.
+The only ``trading/services`` module allowed to import ``infrastructure.database``
+(`layer_check` carries a file-level exception for it). Keep it to this one job so
+the exception stays narrow; every other service takes an injected connection.
 """
 
 from __future__ import annotations
