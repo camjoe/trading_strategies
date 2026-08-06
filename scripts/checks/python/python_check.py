@@ -4,7 +4,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks._runner import CheckStep, resolve_python_exe, run_check_steps
 from scripts.checks.python.function_complexity_check import run_function_complexity_check
 from scripts.checks.python.mypy_check import run_mypy

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 
 _REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_MARKET_DATA_CACHE_DIR = _REPO_ROOT / "local" / "cache" / "market_data"

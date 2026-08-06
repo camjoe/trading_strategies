@@ -20,7 +20,8 @@ import argparse
 import json
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 CONFIG_DIR = Path("src/infrastructure/config")
 SECTOR_MAP_PATH = CONFIG_DIR / "symbol_sectors.json"
@@ -65,7 +66,7 @@ def run_sector_map_check(repo_root: Path, *, quiet: bool = True) -> int:
     failures = 0
     for path in universe_paths:
         missing = sorted(_load_universe(path) - set(sector_map))
-        rel = path.relative_to(repo_root).as_posix()
+        rel = relative_posix(path, repo_root)
         if missing:
             failures += 1
             print(f"FAIL: {rel}: {len(missing)} symbol(s) missing from {SECTOR_MAP_PATH.name}")

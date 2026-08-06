@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from common.files import sorted_by_mtime_desc
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from common.runtime_job_status import TERMINAL_STEP_STATUSES
 
 # Governance job names, in the order an operator reviews them, mapped to the

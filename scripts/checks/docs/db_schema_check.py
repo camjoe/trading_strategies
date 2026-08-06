@@ -4,7 +4,7 @@ import argparse
 import re
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from infrastructure.database import migration_runner
 
 DB_SCHEMA_DOC_REL = "docs/reference/db-schema.md"

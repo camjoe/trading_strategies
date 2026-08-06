@@ -29,7 +29,8 @@ Decision hints:
 ## 2. Add the completion sentinel
 
 Add `<JOB>_COMPLETE_SENTINEL = "<Job> run succeeded."` to `src/common/runtime_job_status.py`
-and its `__all__`, then re-export it in `src/trading/interfaces/runtime/job_status.py`.
+and its `__all__`. Job modules import it from there directly — the sentinels live in
+`common/` because the web backend reads them too and cannot import the interface layer.
 
 ## 3. Create the module
 

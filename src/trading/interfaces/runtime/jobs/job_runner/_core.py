@@ -19,7 +19,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Literal
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from infrastructure.database.connection import DBConnection, db_session
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,

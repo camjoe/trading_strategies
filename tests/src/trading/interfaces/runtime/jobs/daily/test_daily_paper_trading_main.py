@@ -613,7 +613,7 @@ def test_main_rejects_unknown_account_trade_cap_overrides(
 def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, tmp_path: Path) -> None:
     import builtins
 
-    import common.paths.repo_paths as repo_paths_module
+    import common.git as git_module
 
     original_import = builtins.__import__
 
@@ -622,7 +622,7 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
             raise ImportError("boom")
         return original_import(name, globals, locals, fromlist, level)
 
-    monkeypatch.setattr(repo_paths_module, "get_repo_root", lambda _file: tmp_path)
+    monkeypatch.setattr(git_module, "get_repo_root", lambda _file: tmp_path)
     monkeypatch.setattr(builtins, "__import__", _fake_import)
 
     with pytest.raises(ImportError, match="boom"):

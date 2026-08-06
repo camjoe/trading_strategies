@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from common.paths.project_paths import REPO_ROOT
+from common.paths import REPO_ROOT
 from infrastructure.database import migration_runner
 from scripts.database_diagrams.html_viewer import render_html
 from scripts.database_diagrams.sqlite_introspection import (

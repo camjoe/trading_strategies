@@ -6,11 +6,11 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
-from trading.domain.feature_provider import ExternalFeatureBundle
-from trading.interfaces.runtime.job_status import (
+from common.runtime_job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
+from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
+from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.interfaces.runtime.jobs.job_helpers import ts
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 from trading.services.accounts import get_account

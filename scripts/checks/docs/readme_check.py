@@ -6,8 +6,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from common.paths.formatting import relative_posix
-from common.paths.repo_paths import get_repo_root
+from common.constants import SECONDS_PER_DAY
+from common.files import modified_at_utc
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
@@ -117,12 +119,11 @@ def evaluate_staleness(path: Path, max_age_days: int) -> str | None:
     if max_age_days <= 0:
         return None
 
-    modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
-    age = datetime.now(tz=UTC) - modified_at
+    age = datetime.now(tz=UTC) - modified_at_utc(path)
     max_age = timedelta(days=max_age_days)
 
     if age > max_age:
-        whole_days = int(age.total_seconds() // 86400)
+        whole_days = int(age.total_seconds() // SECONDS_PER_DAY)
         return f"README not updated in {whole_days} days (threshold: {max_age_days})."
 
     return None

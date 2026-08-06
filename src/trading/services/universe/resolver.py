@@ -9,7 +9,7 @@ Resolution precedence at runtime:
 
 from __future__ import annotations
 
-from common.paths.project_paths import TRADE_UNIVERSES_DIR
+from common.paths import TRADE_UNIVERSES_DIR
 from common.tickers import load_tickers_from_file
 
 

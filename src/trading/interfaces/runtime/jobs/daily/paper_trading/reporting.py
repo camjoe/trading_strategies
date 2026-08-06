@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from common.files import sorted_by_mtime_desc
+from common.paths import relative_posix
 from infrastructure.database.connection import ensure_db
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account
@@ -43,7 +44,7 @@ def latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
             challenger_count += int(book.get("challenger_count") or 0)
     return {
         "status": payload.get("status"),
-        "artifact_path": latest.relative_to(repo_root).as_posix(),
+        "artifact_path": relative_posix(latest, repo_root),
         "account_count": len(results),
         "book_count": book_count,
         "challenger_count": challenger_count,
@@ -81,7 +82,7 @@ def build_daily_operator_report(
         )
         account_reports.append(account_daily_report_as_dict(report))
     return {
-        "artifact_path": artifact_path.relative_to(repo_root).as_posix(),
+        "artifact_path": relative_posix(artifact_path, repo_root),
         "notify_on_success": notify_on_success,
         "report_date": report_date,
         "account_count": len(account_reports),

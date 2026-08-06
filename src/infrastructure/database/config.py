@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from common.paths.project_paths import DB_CONFIG_PATH, PAPER_TRADING_DB_PATH, REPO_ROOT
+from common.paths import DB_CONFIG_PATH, PAPER_TRADING_DB_PATH, REPO_ROOT
 
 _DEFAULT_DB_PATH = PAPER_TRADING_DB_PATH
 _DEFAULT_CONFIG_PATH = DB_CONFIG_PATH

@@ -45,7 +45,7 @@ helpers should be annotated when it clarifies a non-obvious contract.
 Use `pathlib.Path` for filesystem paths. For repo-relative paths, logging, and cross-platform operations, prefer the shared helpers in `src/common/`:
 
 - `common.paths.relative_posix(path, root)` when displaying/logging/comparing repo-relative paths.
-- `common.paths.resolve_repo_python_exe(repo_root)` for venv interpreter paths.
+- `common.git.get_repo_root(start)` to resolve the repository root.
 - `common.files.modified_at_utc(path)` / `modified_at_iso(path)` for timezone-aware file mtimes.
 - `common.files.sorted_by_mtime_desc(paths)` / `latest_by_mtime(paths)` for newest-file selection.
 

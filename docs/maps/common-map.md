@@ -18,22 +18,12 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | `coercion.py` | Defensive value/row coercion helpers (`coerce_float`, `row_expect_float/int/str`, `row_float`) |
 | `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, …) |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
+| `git.py` | Best-effort git interrogation of the checkout — arbitrary commands (`run_git`), repo-root discovery (`get_repo_root`), and HEAD revision for provenance (`git_head_revision`) |
+| `paths.py` | Repo-relative path constants (`REPO_ROOT`, `LOCAL_DIR`, `LOGS_DIR`, …) and path display formatting (`relative_posix`) |
 | `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
-| `revision.py` | Best-effort Git HEAD revision discovery for provenance and audit records (`git_head_revision`) |
 | `tickers.py` | Ticker-file parsing (`parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |
 | `time.py` | Timezone-aware time helpers (`utc_now_iso`, `parse_utc_iso`) |
-| `runtime_job_status.py` | Shared runtime job-status types used by jobs and reporting |
-
-### `src/common/paths/`
-
-Path resolution helpers.
-
-| Module | Responsibility |
-|---|---|
-| `executables.py` | Repo-local executable resolution helpers (`resolve_repo_python_exe`) |
-| `formatting.py` | Cross-platform path display formatting helpers (`relative_posix`) |
-| `repo_paths.py` | Repo-root discovery (`get_repo_root`) for path-relative resolution |
-| `project_paths.py` | Project data paths (incl. frozen back-compat data locations) |
+| `runtime_job_status.py` | Runtime job completion sentinels and run/step status vocabulary, imported directly by runtime jobs and the web backend |
 
 ## Related References
 

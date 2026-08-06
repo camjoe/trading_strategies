@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from trading.interfaces.runtime.job_status import (
+from common.runtime_job_status import (
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,

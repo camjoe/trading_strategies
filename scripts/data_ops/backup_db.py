@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.interfaces.runtime.data_ops.admin import backup_database
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from common.coercion import coerce_bool, coerce_float
-from common.paths.project_paths import LOCAL_DIR
+from common.paths import LOCAL_DIR
 
 # Default local Client Portal Gateway base URL.
 _DEFAULT_WEB_API_BASE_URL = "https://localhost:5000/v1/api"

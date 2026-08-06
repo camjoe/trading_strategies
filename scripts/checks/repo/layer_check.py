@@ -22,7 +22,8 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
+from common.paths import relative_posix
 
 # ---------------------------------------------------------------------------
 # Rules — edit this table to add or change layer constraints.
@@ -263,7 +264,7 @@ def _discover_files(repo_root: Path, glob: str) -> list[Path]:
 def check_rule(repo_root: Path, rule: LayerRule) -> list[Violation]:
     violations: list[Violation] = []
     for path in _discover_files(repo_root, rule.source_glob):
-        rel_posix = path.relative_to(repo_root).as_posix()
+        rel_posix = relative_posix(path, repo_root)
         if any(rel_posix.startswith(prefix) for prefix in rule.excluded_prefixes):
             continue
         if rel_posix in rule.exceptions:

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timezone
 
+from common.constants import SECONDS_PER_DAY
+
 
 def parse_utc_iso(value: str) -> datetime:
     normalized = value.strip()
@@ -35,4 +37,4 @@ def utc_today() -> date:
 def days_between(earlier_iso: str, later_iso: str) -> float:
     """Fractional days from ``earlier_iso`` to ``later_iso`` (negative if reversed)."""
     delta = parse_utc_iso(later_iso) - parse_utc_iso(earlier_iso)
-    return delta.total_seconds() / 86400.0
+    return delta.total_seconds() / SECONDS_PER_DAY
