@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -75,21 +73,10 @@ def test_get_repo_root_uses_cwd_when_start_is_none(monkeypatch: pytest.MonkeyPat
 
 
 class TestDiscoverRepoRootViaGit:
-    def test_returns_none_when_git_command_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(
-            repo_paths.subprocess,
-            "run",
-            lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="fatal"),
-        )
+    """Patches the ``run_git`` seam; ``run_git``'s own failure modes live in test_git.py."""
 
-        assert _discover_repo_root_via_git(".") is None
-
-    def test_returns_none_when_git_output_is_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(
-            repo_paths.subprocess,
-            "run",
-            lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="\n", stderr=""),
-        )
+    def test_returns_none_when_git_cannot_resolve_a_root(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(repo_paths, "run_git", lambda *_args, **_kwargs: None)
 
         assert _discover_repo_root_via_git(".") is None
 
@@ -98,11 +85,7 @@ class TestDiscoverRepoRootViaGit:
     ) -> None:
         file_path = tmp_path / "not_a_dir.txt"
         file_path.write_text("x", encoding="utf-8")
-        monkeypatch.setattr(
-            repo_paths.subprocess,
-            "run",
-            lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=str(file_path), stderr=""),
-        )
+        monkeypatch.setattr(repo_paths, "run_git", lambda *_args, **_kwargs: str(file_path))
 
         assert _discover_repo_root_via_git(".") is None
 
@@ -111,24 +94,33 @@ class TestDiscoverRepoRootViaGit:
     ) -> None:
         project = tmp_path / "project"
         project.mkdir(parents=True)
-        monkeypatch.setattr(
-            repo_paths.subprocess,
-            "run",
-            lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=str(project), stderr=""),
-        )
+        monkeypatch.setattr(repo_paths, "run_git", lambda *_args, **_kwargs: str(project))
 
         assert _discover_repo_root_via_git(".") == project.resolve()
+
+    def test_asks_git_for_the_top_level_of_the_start_directory(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: list[tuple[tuple[str, ...], str]] = []
+
+        def _fake_run_git(*args: str, cwd: str) -> None:
+            seen.append((args, cwd))
+            return None
+
+        monkeypatch.setattr(repo_paths, "run_git", _fake_run_git)
+
+        _discover_repo_root_via_git("/some/dir")
+
+        assert seen == [(("rev-parse", "--show-toplevel"), "/some/dir")]
 
     def test_is_cached_for_same_start_directory(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         project = tmp_path / "project"
         project.mkdir(parents=True)
         calls = {"count": 0}
 
-        def _fake_run(*_args, **_kwargs) -> subprocess.CompletedProcess[str]:
+        def _fake_run_git(*_args: str, **_kwargs: object) -> str:
             calls["count"] += 1
-            return SimpleNamespace(returncode=0, stdout=str(project), stderr="")
+            return str(project)
 
-        monkeypatch.setattr(repo_paths.subprocess, "run", _fake_run)
+        monkeypatch.setattr(repo_paths, "run_git", _fake_run_git)
 
         first = _discover_repo_root_via_git(str(project))
         second = _discover_repo_root_via_git(str(project))

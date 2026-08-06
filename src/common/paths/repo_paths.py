@@ -1,25 +1,15 @@
 from __future__ import annotations
 
-import subprocess
 from functools import lru_cache
 from pathlib import Path
+
+from common.git import run_git
 
 
 @lru_cache(maxsize=128)
 def _discover_repo_root_via_git(start_dir: str) -> Path | None:
-    completed = subprocess.run(
-        ["git", "-C", start_dir, "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if completed.returncode != 0:
-        return None
-
-    raw_root = completed.stdout.strip()
-    if not raw_root:
+    raw_root = run_git("rev-parse", "--show-toplevel", cwd=start_dir)
+    if raw_root is None:
         return None
 
     candidate = Path(raw_root).expanduser().resolve()

@@ -8,10 +8,10 @@ to "unknown" rather than failing the caller.
 
 from __future__ import annotations
 
-import subprocess
 from functools import lru_cache
 from pathlib import Path
 
+from common.git import run_git
 from common.paths.repo_paths import get_repo_root
 
 
@@ -26,15 +26,4 @@ def git_head_revision() -> str | None:
     except RuntimeError:
         return None
 
-    completed = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if completed.returncode != 0:
-        return None
-    revision = completed.stdout.strip()
-    return revision or None
+    return run_git("rev-parse", "HEAD", cwd=str(repo_root))

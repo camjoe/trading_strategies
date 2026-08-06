@@ -17,6 +17,7 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 |---|---|
 | `coercion.py` | Defensive value/row coercion helpers (`coerce_float`, `row_expect_float/int/str`, `row_float`) |
 | `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, …) |
+| `git.py` | Best-effort git command execution against a checkout (`run_git`) |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
 | `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
 | `revision.py` | Best-effort Git HEAD revision discovery for provenance and audit records (`git_head_revision`) |
