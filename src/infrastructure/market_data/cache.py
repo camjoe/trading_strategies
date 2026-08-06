@@ -57,12 +57,13 @@ def market_data_cache_path(cache_key: str) -> Path:
 
 # What a cache entry is allowed to hold. A guard against a stale or foreign
 # pickle, not a security boundary — pickle.load already ran arbitrary code by the
-# time this is checked. Not a schema either: widen it whenever an adapter starts
-# caching a new shape, or reads of that shape silently become permanent misses.
-_CACHEABLE_TYPES = (pd.DataFrame, pd.Series, dict)
+# time this is checked. Widen it in the same change that starts caching a new
+# shape: a write the read side rejects is not an error, it is a permanent miss
+# that re-fetches forever.
+_CACHEABLE_TYPES = (pd.DataFrame, pd.Series)
 
 
-def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | dict | object:
+def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     if market_data_cache_disabled():
         return _CACHE_MISS
 
@@ -85,7 +86,7 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | dict | 
     return cached
 
 
-def write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series | dict) -> None:
+def write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series) -> None:
     if market_data_cache_disabled():
         return
 
