@@ -23,7 +23,6 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(
 
     out = fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())
 
-    # The app reads bars under the display names its chart labels use.
     assert list(out.columns) == list(fields)
     assert not isinstance(out.columns, pd.MultiIndex)
 

@@ -12,13 +12,7 @@ class MarketDataProvider(ABC):
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
         """Return a bar frame for one *ticker* over a relative *period* and *interval*.
 
-        Carries exactly ``BAR_COLUMNS``, in that order, or raises — the same
-        vocabulary ``fetch_bar_history`` returns. The vendor's own spelling never
-        leaves the adapter.
-
-        Distinct from ``fetch_bar_history`` in shape, not vocabulary: one ticker
-        over a relative period at any supported interval, rather than many
-        tickers over a date range at daily resolution.
+        Carries exactly ``BAR_COLUMNS``, in that order, or raises.
         """
 
     @abstractmethod

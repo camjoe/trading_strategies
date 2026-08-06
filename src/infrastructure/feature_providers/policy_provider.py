@@ -47,8 +47,6 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
 
     def __init__(self, *, market_data_provider: MarketDataProvider | None = None) -> None:
         super().__init__()
-        # Built here only when a caller has no provider to hand; the daily jobs
-        # inject the one their composition root already built.
         self._market_data = market_data_provider or build_provider()
 
     @property
@@ -90,13 +88,7 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
         )
 
     def _fetch_etf_returns(self) -> dict[str, float] | None:
-        """Return each proxy ETF's trailing return, or None if the basket is incomplete.
-
-        All-or-nothing on the ETF set: ``mean_defensive`` is a basket average, so
-        dropping a member would report a different statistic under the same
-        feature name. A short or failed read yields no features rather than a
-        quietly rebased one.
-        """
+        """Return each proxy ETF's trailing return, or None if the basket is incomplete."""
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)
 

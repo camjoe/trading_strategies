@@ -5,8 +5,6 @@ import pandas as pd
 from trading.models.market_data import BAR_CLOSE, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.market_data import MarketDataProvider
 
-# The charting and indicator code below this seam labels its own axes and legends,
-# so it reads bars under the capitalized names those labels use.
 _DISPLAY_COLUMNS = {
     BAR_OPEN: "Open",
     BAR_HIGH: "High",
