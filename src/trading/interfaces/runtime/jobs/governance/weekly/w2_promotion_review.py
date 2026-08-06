@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
+from common.runtime_job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionAccountPayload,
     WeeklyPromotionArtifactPayload,

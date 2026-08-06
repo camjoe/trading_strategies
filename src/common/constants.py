@@ -22,9 +22,6 @@ TRADING_DAYS_PER_YEAR = 252
 ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 SECONDS_PER_DAY = 86_400
 
-# Number of seconds in one calendar minute
-SECONDS_PER_MINUTE = 60
-
 # Divisor for converting basis points to a decimal fraction (1 bps = 0.0001)
 BASIS_POINTS_DIVISOR = 10_000
 
@@ -56,7 +53,3 @@ MACD_SLOW_SPAN = 26
 
 # EMA period for the MACD signal (trigger) line
 MACD_SIGNAL_SPAN = 9
-
-# Minimum history bars needed before the MACD signal line has enough data
-# to generate a reliable crossover: slow span + signal span warm-up.
-MACD_MIN_HISTORY = MACD_SLOW_SPAN + MACD_SIGNAL_SPAN

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 
 JOB_NAME = "<job_name>"
@@ -75,7 +75,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 
 JOB_NAME = "<job_name>"
@@ -120,9 +120,9 @@ from __future__ import annotations
 
 import argparse
 
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_helpers import run_command
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
 
 JOB_NAME = "<job_name>"
 COMPLETE_SENTINEL = <SENTINEL_CONST>

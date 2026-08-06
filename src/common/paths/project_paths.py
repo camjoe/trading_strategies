@@ -24,8 +24,6 @@ DB_BACKUPS_DIR = LOCAL_DIR / "db_backups"
 LOGS_DIR = LOCAL_DIR / "logs"
 EXPORTS_DIR = LOCAL_DIR / "exports"
 SCREENSHOTS_DIR = LOCAL_DIR / "screenshots"
-TEST_INVESTMENTS_PATH = LOCAL_DIR / "test_investments.txt"
-LEGACY_TEST_INVESTMENTS_PATH = LOCAL_DIR / "test_invesments.txt"
 
 # Historical relative prefix still accepted for account profile file rewrites.
 LEGACY_ACCOUNT_PROFILES_PREFIX = "trading/account_profiles/"

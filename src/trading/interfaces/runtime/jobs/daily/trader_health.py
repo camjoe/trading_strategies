@@ -13,7 +13,7 @@ from typing import TypedDict
 
 from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL as COMPLETE_SENTINEL
+from common.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL as COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
     RUNTIME_ALERT_WEBHOOK_ENV,
     logs_dir_for_repo,

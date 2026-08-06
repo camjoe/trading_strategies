@@ -117,7 +117,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `job_status.py` | Job status tracking models |
 | `notifications.py` | Notification/alerting dispatch from runtime jobs |
 
 ---

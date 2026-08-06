@@ -22,7 +22,7 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | `revision.py` | Best-effort Git HEAD revision discovery for provenance and audit records (`git_head_revision`) |
 | `tickers.py` | Ticker-file parsing (`parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |
 | `time.py` | Timezone-aware time helpers (`utc_now_iso`, `parse_utc_iso`) |
-| `runtime_job_status.py` | Shared runtime job-status types used by jobs and reporting |
+| `runtime_job_status.py` | Runtime job completion sentinels and run/step status vocabulary, imported directly by runtime jobs and the web backend |
 
 ### `src/common/paths/`
 
