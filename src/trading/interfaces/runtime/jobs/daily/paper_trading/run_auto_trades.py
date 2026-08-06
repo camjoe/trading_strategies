@@ -101,7 +101,9 @@ def main() -> int:
         halted = f" (halted: {', '.join(result.kill_switch_reasons)})" if result.halted else ""
         print(f"{result.account_name}: executed {result.submitted_count} trades{halted}")
 
-    broker_anomalies = [r.account_name for r in results if KILL_SWITCH_REASON_BROKER_API_ANOMALY in r.kill_switch_reasons]
+    broker_anomalies = [
+        r.account_name for r in results if KILL_SWITCH_REASON_BROKER_API_ANOMALY in r.kill_switch_reasons
+    ]
     if broker_anomalies:
         print(f"Broker API anomaly during submission for: {', '.join(broker_anomalies)}")
         return 1

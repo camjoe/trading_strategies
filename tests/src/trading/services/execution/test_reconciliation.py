@@ -66,9 +66,7 @@ def _snapshot(conn, book_id: int, *, equity: float, snapshot_time: str = NOW) ->
 
 def test_missing_snapshot_reports_missing(conn):
     account_id, _ = _account_book(conn, equity=10_000.0)
-    assert reconcile_book_equity(conn, account_id=account_id) == [
-        KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING
-    ]
+    assert reconcile_book_equity(conn, account_id=account_id) == [KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING]
 
 
 def test_within_tolerance_is_clean(conn):
@@ -80,9 +78,7 @@ def test_within_tolerance_is_clean(conn):
 def test_equity_mismatch_reports_mismatch(conn):
     account_id, book_id = _account_book(conn, equity=10_000.0)
     _snapshot(conn, book_id, equity=9_000.0)
-    assert reconcile_book_equity(conn, account_id=account_id) == [
-        KILL_SWITCH_REASON_RECONCILIATION_MISMATCH
-    ]
+    assert reconcile_book_equity(conn, account_id=account_id) == [KILL_SWITCH_REASON_RECONCILIATION_MISMATCH]
 
 
 # --- integration: fill (2c-1) → mark (2c-2) → reconcile (2c-3) --------------
