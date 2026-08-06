@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
+from common.rate_limit import RateLimitExceeded
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 
@@ -132,6 +133,14 @@ class TestFetchBarHistories:
         histories = fetch_bar_histories(["AAPL"], provider=provider)
 
         assert list(histories["AAPL"].columns) == list(BAR_COLUMNS)
+
+    def test_an_exhausted_call_budget_stops_the_run(self) -> None:
+        """A truncated universe would let the run trade on whatever arrived first."""
+        provider = MagicMock()
+        provider.fetch_ohlcv.side_effect = RateLimitExceeded("yfinance budget exhausted")
+
+        with pytest.raises(RateLimitExceeded):
+            fetch_bar_histories(["AAPL", "MSFT"], provider=provider)
 
     def test_a_frame_missing_a_bar_column_is_skipped_not_raised(self) -> None:
         index = pd.to_datetime(["2024-01-02"])

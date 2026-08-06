@@ -8,6 +8,7 @@ from collections.abc import Mapping
 import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
+from common.rate_limit import RateLimitExceeded
 from trading.domain.bars import normalize_bar_frame
 from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
@@ -52,6 +53,10 @@ def fetch_bar_histories(
             # produce a different value on the same date — the divergence between
             # evaluation and live trading that reading bars at all was meant to close.
             histories[ticker] = normalize_bar_frame(frame)
+        except RateLimitExceeded:
+            # An exhausted budget is a runaway loop, not a bad ticker. Skipping it
+            # would truncate the universe and let the run trade on the remainder.
+            raise
         except Exception as exc:
             logger.debug("Skipping bar history for %s: %s", ticker, exc, exc_info=True)
     return histories
