@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.interfaces.cli.handlers.accounts_handlers import (
     handle_apply_account_preset,
     handle_apply_account_profiles,
@@ -48,16 +49,8 @@ def _config_args(**kwargs) -> types.SimpleNamespace:
     return types.SimpleNamespace(**defaults)
 
 
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
-
-
 def test_handle_init_prints_db_path(capsys) -> None:
-    handle_init(None, types.SimpleNamespace(), _parser(), deps={"db_path": "/data/paper.db"})
+    handle_init(None, types.SimpleNamespace(), fake_parser(), deps={"db_path": "/data/paper.db"})
     assert "/data/paper.db" in capsys.readouterr().out
 
 
@@ -66,7 +59,7 @@ def test_handle_create_account_calls_create_account_dep() -> None:
     deps = {"create_account": lambda *a, **kw: calls.append((a, kw))}
     args = _config_args(name="alice", strategy="trend", initial_cash=10000.0, benchmark="spy")
 
-    handle_create_account(object(), args, _parser(), deps=deps)
+    handle_create_account(object(), args, fake_parser(), deps=deps)
 
     assert len(calls) == 1
     positional, _ = calls[0]
@@ -80,7 +73,7 @@ def test_handle_create_account_routes_invalid_strategy_to_parser_error() -> None
     args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery'"):
-        handle_create_account(object(), args, _parser(), deps=deps)
+        handle_create_account(object(), args, fake_parser(), deps=deps)
 
 
 def test_handle_configure_account_calls_configure_account_dep() -> None:
@@ -88,7 +81,7 @@ def test_handle_configure_account_calls_configure_account_dep() -> None:
     deps = {"configure_account": lambda *a, **kw: calls.append(kw)}
     args = _config_args(account="bob")
 
-    handle_configure_account(object(), args, _parser(), deps=deps)
+    handle_configure_account(object(), args, fake_parser(), deps=deps)
 
     assert calls[0]["account_name"] == "bob"
 
@@ -98,7 +91,7 @@ def test_handle_configure_account_routes_value_error_to_parser_error() -> None:
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
 
     with pytest.raises(SystemExit):
-        handle_configure_account(object(), args, _parser(), deps={})
+        handle_configure_account(object(), args, fake_parser(), deps={})
 
 
 def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
@@ -109,7 +102,7 @@ def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
     }
     args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
 
-    handle_apply_account_profiles(object(), args, _parser(), deps=deps)
+    handle_apply_account_profiles(object(), args, fake_parser(), deps=deps)
 
     assert loaded == ["profiles.yaml"]
 
@@ -124,7 +117,7 @@ def test_handle_apply_account_profiles_routes_validation_error_to_parser_error()
     args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_profiles(object(), args, _parser(), deps=deps)
+        handle_apply_account_profiles(object(), args, fake_parser(), deps=deps)
 
 
 def test_handle_apply_account_preset_resolves_preset_path_and_loads(
@@ -145,7 +138,7 @@ def test_handle_apply_account_preset_resolves_preset_path_and_loads(
     }
     args = types.SimpleNamespace(preset="starter", no_create_missing=True)
 
-    handle_apply_account_preset(object(), args, _parser(), deps=deps)
+    handle_apply_account_preset(object(), args, fake_parser(), deps=deps)
 
     assert loaded == [str(preset_path)]
 
@@ -170,7 +163,7 @@ def test_handle_apply_account_preset_routes_validation_error_to_parser_error(
     args = types.SimpleNamespace(preset="starter", no_create_missing=True)
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_preset(object(), args, _parser(), deps=deps)
+        handle_apply_account_preset(object(), args, fake_parser(), deps=deps)
 
 
 def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
@@ -178,7 +171,7 @@ def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
     deps = {"set_benchmark": lambda _conn, account, benchmark: calls.append((account, benchmark))}
     args = types.SimpleNamespace(account="alice", benchmark="qqq")
 
-    handle_set_benchmark(object(), args, _parser(), deps=deps)
+    handle_set_benchmark(object(), args, fake_parser(), deps=deps)
 
     assert calls == [("alice", "qqq")]
 
@@ -187,7 +180,7 @@ def test_handle_list_accounts_prints_lines(capsys) -> None:
     conn = object()
     deps = {"list_accounts": lambda c: ["[1] acct1", "[2] acct2"]}
 
-    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps)
+    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "[1] acct1" in out
@@ -198,7 +191,7 @@ def test_handle_list_accounts_prints_empty_message(capsys) -> None:
     conn = object()
     deps = {"list_accounts": lambda c: []}
 
-    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps)
+    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), deps=deps)
 
     assert "No accounts found." in capsys.readouterr().out
 
@@ -210,7 +203,7 @@ def test_handle_trade_delegates_all_fields_to_record_trade_dep() -> None:
         account="alice", side="buy", ticker="AAPL", qty=10, price=150.0, fee=1.0, time=None, note="test"
     )
 
-    handle_trade(object(), args, _parser(), deps=deps)
+    handle_trade(object(), args, fake_parser(), deps=deps)
 
     assert calls[0]["account_name"] == "alice"
     assert calls[0]["ticker"] == "AAPL"

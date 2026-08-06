@@ -6,16 +6,11 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.checks.repo.path_safety_check import check_file, run_path_safety_check
-
-
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+from tests.scripts.helpers import write_file
 
 
 def test_os_path_join_is_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\nimport os\n\nvalue = os.path.join('a', 'b')\n",
     )
@@ -24,7 +19,7 @@ def test_os_path_join_is_reported(tmp_path: Path) -> None:
 
 
 def test_os_sep_is_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\nimport os\n\nvalue = 'a' + os.sep + 'b'\n",
     )
@@ -33,7 +28,7 @@ def test_os_sep_is_reported(tmp_path: Path) -> None:
 
 
 def test_hardcoded_backslash_file_path_is_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\nvalue = 'local\\\\exports\\\\report.csv'\n",
     )
@@ -42,7 +37,7 @@ def test_hardcoded_backslash_file_path_is_reported(tmp_path: Path) -> None:
 
 
 def test_windows_task_name_is_allowed(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\nvalue = 'Trading\\\\DailySnapshot'\n",
     )

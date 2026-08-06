@@ -4,11 +4,11 @@ import sqlite3
 from collections.abc import Sequence
 from types import SimpleNamespace
 
+from tests.src.trading.services.execution.helpers import insert_book_equity_snapshot
 from tests.support.repositories import insert_repository_account
 from trading.models.execution import BookTradeIntent, RiskGateDecision
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
@@ -60,15 +60,7 @@ def _book_env(conn, *, equity: float = 100_000.0) -> tuple[int, int]:
 
 
 def _snapshot(conn, book_id: int, *, equity: float, snapshot_time: str = RUN_TIME) -> None:
-    EquitySnapshotRepository(conn).insert_for_book(
-        book_id=book_id,
-        snapshot_time=snapshot_time,
-        cash=equity,
-        market_value=0.0,
-        equity=equity,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
+    insert_book_equity_snapshot(conn, book_id, equity=equity, snapshot_time=snapshot_time)
 
 
 def _intent(

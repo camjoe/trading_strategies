@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
     handle_book_rotation_history,
@@ -15,14 +16,6 @@ from trading.interfaces.cli.handlers.settings_handlers import (
     handle_settings_history,
 )
 from trading.services.operational_settings.models import RuntimeThrottleSettings
-
-
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
 
 
 def test_handle_configure_throttle_merges_over_current(capsys) -> None:
@@ -37,7 +30,7 @@ def test_handle_configure_throttle_merges_over_current(capsys) -> None:
     handle_configure_throttle(
         object(),
         types.SimpleNamespace(max_trades_per_day=25),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -56,7 +49,7 @@ def test_handle_configure_evaluation_merges_partial_flags(capsys) -> None:
     handle_configure_evaluation(
         object(),
         types.SimpleNamespace(backtest_evidence_weight=0.7, paper_live_evidence_weight=0.3),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 
@@ -87,7 +80,7 @@ def test_handle_configure_book_rotation_policy_passes_only_provided_flags(capsys
     handle_configure_book_rotation_policy(
         object(),
         types.SimpleNamespace(account="acct1", book=None, cooldown_days=10, stability_weight=0.4),
-        _parser(),
+        fake_parser(),
         deps={"update_book_rotation_policy": fake_update},
     )
 
@@ -104,7 +97,7 @@ def test_handle_configure_book_rotation_policy_requires_a_flag() -> None:
         handle_configure_book_rotation_policy(
             object(),
             types.SimpleNamespace(account="acct1", book=None),
-            _parser(),
+            fake_parser(),
             deps={},
         )
 
@@ -117,7 +110,7 @@ def test_global_configure_handlers_require_a_flag(handler) -> None:
     # A zero-flag invocation must error rather than silently persisting the
     # current effective values (which would pin code defaults into the DB).
     with pytest.raises(SystemExit):
-        handler(object(), types.SimpleNamespace(), _parser(), deps={})
+        handler(object(), types.SimpleNamespace(), fake_parser(), deps={})
 
 
 def test_handle_configure_book_rotation_maps_flags_to_fields(capsys) -> None:
@@ -135,7 +128,7 @@ def test_handle_configure_book_rotation_maps_flags_to_fields(capsys) -> None:
     handle_configure_book_rotation(
         object(),
         types.SimpleNamespace(account="acct1", book=None, enabled=True, schedule=["trend", "meanrev"]),
-        _parser(),
+        fake_parser(),
         deps={"update_book_rotation_scheduling": fake_update},
     )
 
@@ -151,7 +144,7 @@ def test_handle_configure_book_rotation_requires_a_flag() -> None:
         handle_configure_book_rotation(
             object(),
             types.SimpleNamespace(account="acct1", book=None),
-            _parser(),
+            fake_parser(),
             deps={},
         )
 
@@ -160,7 +153,7 @@ def test_handle_settings_history_passes_limit() -> None:
     calls: dict = {}
     deps = {"show_global_settings_history": lambda _conn, *, limit: calls.update({"limit": limit})}
 
-    handle_settings_history(object(), types.SimpleNamespace(limit=5), _parser(), deps=deps)
+    handle_settings_history(object(), types.SimpleNamespace(limit=5), fake_parser(), deps=deps)
 
     assert calls["limit"] == 5
 
@@ -176,7 +169,7 @@ def test_handle_book_rotation_history_passes_account_book_and_limit() -> None:
     handle_book_rotation_history(
         object(),
         types.SimpleNamespace(account="acct1", book="core", limit=10),
-        _parser(),
+        fake_parser(),
         deps=deps,
     )
 

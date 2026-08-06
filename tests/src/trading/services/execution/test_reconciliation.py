@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.src.trading.services.execution.helpers import insert_book_equity_snapshot
 from tests.support.repositories import insert_repository_account
 from trading.models.execution import BookTradeIntent
 from trading.models.orders import BrokerOrder, OrderStatus
@@ -50,15 +51,7 @@ def _account_book(conn, *, equity: float) -> tuple[int, int]:
 
 
 def _snapshot(conn, book_id: int, *, equity: float, snapshot_time: str = NOW) -> None:
-    EquitySnapshotRepository(conn).insert_for_book(
-        book_id=book_id,
-        snapshot_time=snapshot_time,
-        cash=equity,
-        market_value=0.0,
-        equity=equity,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
+    insert_book_equity_snapshot(conn, book_id, equity=equity, snapshot_time=snapshot_time)
 
 
 # --- unit ------------------------------------------------------------------

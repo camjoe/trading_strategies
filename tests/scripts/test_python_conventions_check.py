@@ -10,16 +10,11 @@ from scripts.checks.python.python_conventions_check import (
     discover_python_files,
     run_python_conventions_check,
 )
-
-
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+from tests.scripts.helpers import write_file
 
 
 def test_valid_module_passes(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\n\ndef public() -> int:\n    return 1\n",
     )
@@ -28,13 +23,13 @@ def test_valid_module_passes(tmp_path: Path) -> None:
 
 
 def test_missing_future_annotations_is_reported(tmp_path: Path) -> None:
-    path = _write(tmp_path / "src/example.py", "def public() -> int:\n    return 1\n")
+    path = write_file(tmp_path / "src/example.py", "def public() -> int:\n    return 1\n")
 
     assert check_file(path).problems == ["missing `from __future__ import annotations`"]
 
 
 def test_public_function_without_return_annotation_is_reported(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\n\ndef public():\n    return 1\n",
     )
@@ -43,7 +38,7 @@ def test_public_function_without_return_annotation_is_reported(tmp_path: Path) -
 
 
 def test_private_function_without_return_annotation_is_allowed(tmp_path: Path) -> None:
-    path = _write(
+    path = write_file(
         tmp_path / "src/example.py",
         "from __future__ import annotations\n\n\ndef _private():\n    return 1\n",
     )
@@ -52,9 +47,9 @@ def test_private_function_without_return_annotation_is_allowed(tmp_path: Path) -
 
 
 def test_discovery_skips_tests_and_init_files(tmp_path: Path) -> None:
-    _write(tmp_path / "src/pkg/__init__.py", "")
-    _write(tmp_path / "tests/test_example.py", "")
-    _write(tmp_path / "src/pkg/module.py", "from __future__ import annotations\n")
+    write_file(tmp_path / "src/pkg/__init__.py", "")
+    write_file(tmp_path / "tests/test_example.py", "")
+    write_file(tmp_path / "src/pkg/module.py", "from __future__ import annotations\n")
 
     discovered = {path.relative_to(tmp_path).as_posix() for path in discover_python_files(tmp_path)}
 

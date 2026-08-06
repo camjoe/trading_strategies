@@ -9,18 +9,11 @@ from tests.src.trading.interfaces.cli.factories import (
     make_backtest_batch_args,
     make_backtest_result,
 )
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
 )
-
-
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
 
 
 def test_handle_backtest_calls_run_backtest_with_built_config() -> None:
@@ -30,7 +23,7 @@ def test_handle_backtest_calls_run_backtest_with_built_config() -> None:
         "run_backtest": lambda _conn, _cfg: make_backtest_result(account_name="acct"),
     }
 
-    handle_backtest(object(), make_backtest_args(account="my_acct"), _parser(), deps=deps)
+    handle_backtest(object(), make_backtest_args(account="my_acct"), fake_parser(), deps=deps)
 
     assert len(configs) == 1
     assert configs[0]["account_name"] == "my_acct"
@@ -44,7 +37,7 @@ def test_handle_backtest_prints_warnings_when_present(capsys) -> None:
         "run_backtest": lambda *_: result,
     }
 
-    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
+    handle_backtest(object(), make_backtest_args(), fake_parser(), deps=deps)
 
     assert "LEAPs mode is approximated" in capsys.readouterr().out
 
@@ -56,7 +49,7 @@ def test_handle_backtest_routes_value_error_to_parser_error() -> None:
     }
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
+        handle_backtest(object(), make_backtest_args(), fake_parser(), deps=deps)
 
 
 def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
@@ -66,7 +59,7 @@ def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
         "run_backtest": lambda *_: result,
     }
 
-    handle_backtest(object(), make_backtest_args(), _parser(), deps=deps)
+    handle_backtest(object(), make_backtest_args(), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "Benchmark comparison unavailable" in out
@@ -84,7 +77,7 @@ def test_handle_backtest_batch_prints_rank_table(capsys) -> None:
         tickers_file="tickers.txt",
     )
 
-    handle_backtest_batch(object(), args, _parser(), deps=deps)
+    handle_backtest_batch(object(), args, fake_parser(), deps=deps)
 
     assert "rank" in capsys.readouterr().out
 
@@ -102,7 +95,7 @@ def test_handle_backtest_batch_splits_accounts_on_comma() -> None:
     }
     args = make_backtest_batch_args(accounts=" acct_a , acct_b ", tickers_file="tickers.txt")
 
-    handle_backtest_batch(object(), args, _parser(), deps=deps)
+    handle_backtest_batch(object(), args, fake_parser(), deps=deps)
 
     assert seen_accounts == ["acct_a", "acct_b"]
 
@@ -117,7 +110,7 @@ def test_handle_backtest_batch_routes_value_error_to_parser_error() -> None:
     args = make_backtest_batch_args(accounts="acct_a", tickers_file="tickers.txt")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_batch(object(), args, _parser(), deps=deps)
+        handle_backtest_batch(object(), args, fake_parser(), deps=deps)
 
 
 class _RecordingParser:

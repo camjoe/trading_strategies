@@ -4,20 +4,13 @@ import types
 
 import pytest
 
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,
     handle_backtest_report,
 )
-
-
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
-
-    return _P()
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
@@ -47,7 +40,7 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
     }
     deps = {"backtest_report": lambda _conn, _run_id: report}
 
-    handle_backtest_report(object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps)
+    handle_backtest_report(object(), types.SimpleNamespace(run_id=42), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "42" in out
@@ -80,7 +73,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
     deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: [row]}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
+    handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "run_id" in out
@@ -91,7 +84,7 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
     deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: []}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
+    handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
 
     assert "No backtest runs" in capsys.readouterr().out
 
@@ -105,7 +98,7 @@ def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> Non
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
+        handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
 
 
 class _RecordingParser:
@@ -238,7 +231,7 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "Windows (1) with per-candidate trials:" in out
@@ -262,7 +255,7 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
         "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "Windows: none persisted" in out
@@ -283,7 +276,7 @@ def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(ca
         "fetch_optimization_manifest": lambda _conn, *, experiment_id: calls.append("manifest"),
     }
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "status=failed" in out
@@ -299,4 +292,4 @@ def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:
     }
 
     with pytest.raises(SystemExit, match="Optimization experiment not found: 5"):
-        handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+        handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)
