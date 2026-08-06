@@ -81,7 +81,8 @@ def make_run_auto_trades_args(**overrides):
         "max_trades": 1,
         "seed": None,
         "accounts": "acct1",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
+        # Empty means "derive the fetch universe from the books being run".
+        "tickers_file": "",
         "fee": 0.0,
     }
     defaults.update(overrides)

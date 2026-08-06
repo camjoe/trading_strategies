@@ -7,7 +7,9 @@ import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
 from tests.support.backtesting import bar_frame
+from trading.models.accounts import AccountConfig
 from trading.models.execution import AccountRunResult
+from trading.services.accounts import create_account
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
@@ -37,12 +39,11 @@ def test_validate_trade_count_range_and_account_names() -> None:
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
     bars = bar_frame(pd.Series(range(1, 50), dtype=float))
-    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {"AAPL": 101.0})
     monkeypatch.setattr(auto_trading_inputs, "fetch_bar_histories", lambda _universe, **_kwargs: {"AAPL": bars})
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
-    universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs("tickers.txt")
+    universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs(["AAPL"])
     assert universe == ["AAPL"]
     assert prices == {"AAPL": 101.0}
     assert iv_rank == {"AAPL": 50.0}
@@ -68,19 +69,42 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     assert all(not r.halted for r in results)
 
 
-def test_resolve_market_inputs_raises_when_universe_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: [])
+def test_resolve_run_universe_unions_the_books_own_universes(conn) -> None:
+    """The fetch set must cover every symbol a book could select, not a fixed file."""
+    create_account(conn, "acct_default", "trend", 5000.0, "SPY")
+    create_account(conn, "acct_growth", "trend", 5000.0, "SPY", config=AccountConfig(trade_universes=["growth"]))
 
+    universe = auto_trading_inputs.resolve_run_universe(conn, ["acct_default", "acct_growth"])
+
+    default_only = auto_trading_inputs.resolve_run_universe(conn, ["acct_default"])
+    growth_only = auto_trading_inputs.resolve_run_universe(conn, ["acct_growth"])
+
+    assert set(universe) == set(default_only) | set(growth_only)
+    # CRWD is growth-only: under the old fixed tickers file it was never priced,
+    # so the growth book could not have traded it.
+    assert "CRWD" in universe
+    assert "CRWD" not in default_only
+    assert len(universe) == len(set(universe))
+
+
+def test_resolve_run_universe_raises_when_no_book_yields_tickers(conn) -> None:
+    create_account(conn, "acct_none", "trend", 5000.0, "SPY")
+    conn.execute("UPDATE books SET status = 'closed'")
+
+    with pytest.raises(ValueError, match="resolves to any ticker"):
+        auto_trading_inputs.resolve_run_universe(conn, ["acct_none"])
+
+
+def test_resolve_market_inputs_raises_when_universe_is_empty() -> None:
     with pytest.raises(ValueError, match="Ticker universe is empty"):
-        auto_trading_inputs.resolve_market_inputs("tickers.txt")
+        auto_trading_inputs.resolve_market_inputs([])
 
 
 def test_resolve_market_inputs_raises_when_prices_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {})
 
     with pytest.raises(ValueError, match="Could not fetch any prices"):
-        auto_trading_inputs.resolve_market_inputs("tickers.txt")
+        auto_trading_inputs.resolve_market_inputs(["AAPL"])
 
 
 def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyPatch) -> None:

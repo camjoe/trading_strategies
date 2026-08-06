@@ -110,9 +110,13 @@ schedule the runtime job entrypoints, see the [Runtime Jobs Reference](../../doc
 
 ## Auto-Trading
 
-Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`.
+The run prices the union of the trade universes of the books it is about to trade, resolved from
+each book's `trade_universes` column against the named universe files in
+`src/infrastructure/config/trade_universes/`. A symbol a book can select is therefore a symbol the
+run priced.
 
-Pass `--tickers-file` to use a non-default universe. Run
+`--tickers-file` overrides that with an explicit ticker file, for manual runs against a universe
+no book names. Run
 `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help`
 for all options.
 

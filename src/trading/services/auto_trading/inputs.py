@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable, Mapping
 
 import pandas as pd
 
-from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
+from trading.models.books import BookRecord
 from trading.models.execution import AccountRunResult
+from trading.services.accounts import get_account
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
+from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
+from trading.services.universe import resolve_named_universes
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
@@ -31,12 +35,40 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
     return accounts
 
 
+def resolve_run_universe(conn: sqlite3.Connection, account_names: list[str]) -> list[str]:
+    """Union the trade universes of every book the run will trade.
+
+    Selection is book-scoped (``book_intents``), but the fetch is one pass for
+    the whole run, so anything a book may select has to be in it. Deriving the
+    fetch set from the same column selection reads keeps the two from drifting:
+    a symbol a book can pick is a symbol this run priced.
+
+    Raises:
+        ValueError: If no book across *account_names* yields a ticker.
+    """
+    seen: dict[str, None] = {}
+    for account_name in account_names:
+        account = get_account(conn, account_name)
+        for trading_book in enumerate_trading_books(conn, account_id=account.id):
+            for ticker in _book_universe(trading_book.book):
+                seen[ticker] = None
+    if not seen:
+        raise ValueError(f"No trading book across {', '.join(account_names)} resolves to any ticker.")
+    return list(seen)
+
+
+def _book_universe(book: BookRecord) -> list[str]:
+    names = json.loads(book.trade_universes) if book.trade_universes else []
+    if not isinstance(names, list) or not names:
+        return []
+    return resolve_named_universes([str(name) for name in names])
+
+
 def resolve_market_inputs(
-    tickers_file: str,
+    universe: list[str],
     *,
     provider: MarketDataProvider | None = None,
 ) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, pd.DataFrame]]:
-    universe = load_tickers_from_file(tickers_file)
     if not universe:
         raise ValueError("Ticker universe is empty.")
 

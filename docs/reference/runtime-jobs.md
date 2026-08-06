@@ -135,6 +135,6 @@ anywhere when this was checked on 2026-08-01.
 ## Configuration
 
 - Account trade caps come from the daily paper-trading job's own flags: `--primary-accounts` with `--primary-max-trades` / `--other-max-trades`, and `--account-trade-caps` for per-account overrides. See [backtest-live-divergence.md](backtest-live-divergence.md) for why these do not currently bind.
-- Trade universe files live under `src/infrastructure/config/` (default `trade_universe.txt`); pass `--tickers-file` to select a preset. See [src/trading/README.md](../../src/trading/README.md) for universe presets and auto-trading behavior.
+- The daily auto-trading run derives its fetch universe from the `trade_universes` of the books it trades; `--tickers-file` overrides that with an explicit ticker file. Named universe files live under `src/infrastructure/config/trade_universes/`. See [src/trading/README.md](../../src/trading/README.md) for auto-trading behavior.
 </content>
 </invoke>
