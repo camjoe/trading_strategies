@@ -89,9 +89,7 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
 
     def _fetch_etf_returns(self) -> dict[str, float] | None:
         """Return each proxy ETF's trailing return, or None if the basket is incomplete."""
-        # Completed sessions only. Including today's in-progress bar would let the
-        # regime drift with the tape, and the 24h transport cache would then pin
-        # whichever intraday value the day's first run happened to see.
+        # Ends yesterday: today's bar is still forming.
         today = datetime.now(timezone.utc).date()
         end = today - timedelta(days=1)
         start = today - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)

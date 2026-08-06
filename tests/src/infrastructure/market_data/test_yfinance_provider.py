@@ -239,11 +239,7 @@ class TestFetchOhlcv:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Releases before the BAR_COLUMNS contract cached under "ohlcv".
-
-        Serving one of those would hand back capitalized columns, and every
-        caller that normalizes on them drops the ticker instead.
-        """
+        """Serving one would hand back capitalized columns and drop the ticker downstream."""
         legacy = pd.DataFrame(
             {name: [1.0, 2.0] for name in ("Open", "High", "Low", "Close", "Volume")},
             index=pd.date_range("2026-01-01", periods=2),
