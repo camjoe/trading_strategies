@@ -1,8 +1,7 @@
 """On-disk transport cache for market-data fetches.
 
-Keyed by a hash of the request arguments and expired by file mtime, so a repeated
-fetch within the TTL costs no network request. Adapters own what they put in it;
-this module has no knowledge of the shapes beyond the read-side type guard.
+Entries expire on file mtime, so touching a cache file extends its life and
+deleting the directory is always a safe reset.
 """
 
 from __future__ import annotations

@@ -89,7 +89,6 @@ class TestSharedDownloadCache:
         assert len(calls) == 2
 
     def test_an_empty_download_is_not_cached(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Caching a failed fetch would pin the outage for the whole TTL."""
         calls: list[dict[str, object]] = []
         monkeypatch.setattr(
             provider_module.yf,
@@ -182,7 +181,6 @@ class TestFetchBarHistory:
             YFinanceProvider().fetch_bar_history(["AAPL"], date(2026, 1, 1), date(2026, 1, 2))
 
     def test_a_ticker_without_bars_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A partial result would silently backtest a smaller universe than asked for."""
         monkeypatch.setattr(provider_module.yf, "download", lambda **_kwargs: _bar_download(("AAPL", "MSFT")))
 
         with pytest.raises(ValueError, match="Missing bar history for tickers: NFLX"):

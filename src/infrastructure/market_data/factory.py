@@ -1,14 +1,11 @@
 """Concrete market-data provider factory.
 
-Resolves the configured provider (constructor argument, then the
-``TRADING_MARKET_DATA_PROVIDER`` env var, then the default) and returns a
-*fresh* instance each call. Holds no module-level state — composition roots call
-``build_provider`` once at entry and inject the result down the call chain
-(mirroring the broker factory pattern).
+Every call returns a fresh instance; nothing here is cached or global, so a
+composition root builds one provider at entry and injects it down the chain.
 
-This is the sole location for ``provider`` routing and concrete-adapter
-construction. ``src/trading/`` must never import this module; the interface
-layer (and the backtest composition seam) wire it in.
+``src/trading/`` must never import this module (enforced by
+``scripts/checks/repo/layer_check.py``); the interface layer and the backtest
+composition seam wire it in.
 """
 
 from __future__ import annotations
@@ -44,10 +41,6 @@ def resolve_provider_name() -> str:
 
 
 def build_provider(name: str | None = None) -> MarketDataProvider:
-    """Build a fresh ``MarketDataProvider``.
-
-    When *name* is ``None`` the provider is resolved from configuration (env
-    var, then the default). Raises ``ValueError`` for an unsupported name.
-    """
+    """Build a fresh ``MarketDataProvider``, resolving *name* from the environment when omitted."""
     resolved = name.strip().lower() if name else resolve_provider_name()
     return _provider_factory(resolved)()

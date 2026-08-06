@@ -68,9 +68,8 @@ class DemoMarketDataProvider(MarketDataProvider):
     def _bar_frame(cls, ticker: str, close: pd.Series) -> pd.DataFrame:
         """Wrap a synthetic close series in bars that obey the OHLC invariants.
 
-        High is at least the highest of open/close and low at most the lowest.
-        Spreads are deterministic per ticker, so the demo and fixture databases
-        stay reproducible across runs.
+        Spreads derive from the ticker alone, so fixture databases rebuild
+        identically; a random spread here would break their checked-in values.
         """
         seed = cls._seed(ticker)
         open_ = close.shift(1).fillna(close.iloc[0] if len(close) else 0.0)

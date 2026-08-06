@@ -108,13 +108,7 @@ class YFinanceProvider(MarketDataProvider):
         self._rate_limiter = rate_limiter or build_market_data_rate_limiter()
 
     def _download_history(self, tickers: list[str], start_date: date, end_date: date) -> pd.DataFrame:
-        """Return the raw date-bounded download that both bulk history reads derive from.
-
-        Cached on the download's own arguments rather than per calling method, so
-        asking for closes and asking for bars over the same universe and range
-        costs one request, not two. Empty results are not cached — a failed
-        fetch must not pin an empty frame for the whole TTL.
-        """
+        """Return the raw date-bounded download that both bulk history reads share."""
         cache_key = market_data_cache_key(
             "download-history",
             tickers=tickers,
@@ -134,6 +128,7 @@ class YFinanceProvider(MarketDataProvider):
             progress=False,
             group_by="column",
         )
+        # Conditional: caching an empty frame would pin a failed fetch for the whole TTL.
         if not hist.empty:
             write_market_data_cache(cache_key, hist)
         return hist

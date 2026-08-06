@@ -1,15 +1,4 @@
-"""Concrete market-data adapters and provider factory.
-
-Houses the concrete ``MarketDataProvider`` implementations (the yfinance-backed
-adapter and the deterministic demo adapter) plus the factory that routes
-``provider`` selection and constructs them. The yfinance dependency is isolated
-to ``yfinance_provider``.
-
-The ``MarketDataProvider`` port lives in ``trading.services.market_data`` (the
-adapters implement it). ``src/trading/`` must never import from this package;
-the interface layer and the backtest composition seam wire it in (mirroring
-``infrastructure.brokers``).
-"""
+"""Concrete market-data adapters and the provider factory."""
 
 from __future__ import annotations
 
