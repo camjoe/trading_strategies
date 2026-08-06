@@ -139,7 +139,10 @@ class YFinanceProvider(MarketDataProvider):
         return hist
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
-        cache_key = market_data_cache_key("ohlcv", ticker=ticker.upper().strip(), period=period, interval=interval)
+        # Kind is "bars", not "ohlcv": entries under the old name hold the vendor's
+        # capitalized columns, and this returns BAR_COLUMNS. Sharing a key would
+        # serve those to callers that then drop the ticker on a missing column.
+        cache_key = market_data_cache_key("bars", ticker=ticker.upper().strip(), period=period, interval=interval)
         cached = read_market_data_cache(cache_key)
         if cached is not _CACHE_MISS:
             return cast(pd.DataFrame, cached)

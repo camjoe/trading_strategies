@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -11,6 +11,7 @@ from infrastructure.feature_providers.policy_provider import (
     _ALL_ETFS,
     _EQUITY_BENCHMARK,
     POLICY_DEFENSIVE_TILT,
+    POLICY_LOOKBACK_CALENDAR_DAYS,
     POLICY_MIN_OBSERVATIONS,
     POLICY_RISK_ON_SCORE,
     PolicyFeatureProvider,
@@ -87,6 +88,18 @@ class TestPolicyFeatureProviderFetchReturns:
 
         assert len(stub.calls) == 1
         assert stub.calls[0][0] == list(_ALL_ETFS)
+
+    def test_window_ends_before_today(self):
+        """Today's bar is still forming; including it moves the regime with the tape."""
+        close = _make_close_df(list(_ALL_ETFS), rows=POLICY_MIN_OBSERVATIONS + 2)
+        provider, stub = _provider_reading(close)
+
+        provider._fetch_etf_returns()
+
+        _tickers, start_date, end_date = stub.calls[0]
+        today = datetime.now(timezone.utc).date()
+        assert end_date < today
+        assert (today - start_date).days == POLICY_LOOKBACK_CALENDAR_DAYS
 
     def test_returns_none_when_the_read_fails(self):
         provider, _ = _provider_reading(RuntimeError("network error"))

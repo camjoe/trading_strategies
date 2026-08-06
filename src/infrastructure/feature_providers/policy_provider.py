@@ -89,11 +89,15 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
 
     def _fetch_etf_returns(self) -> dict[str, float] | None:
         """Return each proxy ETF's trailing return, or None if the basket is incomplete."""
-        end = datetime.now(timezone.utc)
-        start = end - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)
+        # Completed sessions only. Including today's in-progress bar would let the
+        # regime drift with the tape, and the 24h transport cache would then pin
+        # whichever intraday value the day's first run happened to see.
+        today = datetime.now(timezone.utc).date()
+        end = today - timedelta(days=1)
+        start = today - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)
 
         try:
-            close = self._market_data.fetch_close_history(list(_ALL_ETFS), start.date(), end.date())
+            close = self._market_data.fetch_close_history(list(_ALL_ETFS), start, end)
         except Exception as exc:
             _LOG.warning("PolicyFeatureProvider: ETF close history unavailable: %s", exc)
             return None

@@ -10,7 +10,11 @@ import pandas as pd
 import pytest
 
 import infrastructure.market_data.yfinance_provider as provider_module
-from infrastructure.market_data.cache import _MARKET_DATA_CACHE_TTL_SECONDS
+from infrastructure.market_data.cache import (
+    _MARKET_DATA_CACHE_TTL_SECONDS,
+    market_data_cache_key,
+    write_market_data_cache,
+)
 from infrastructure.market_data.yfinance_provider import YFinanceProvider
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS
 
@@ -230,6 +234,29 @@ class TestFetchOhlcv:
 
         with pytest.raises(ValueError, match="missing bar column"):
             YFinanceProvider().fetch_ohlcv("SPY", "1mo", "1d")
+
+    def test_a_vendor_cased_entry_under_the_old_key_is_not_served(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Releases before the BAR_COLUMNS contract cached under "ohlcv".
+
+        Serving one of those would hand back capitalized columns, and every
+        caller that normalizes on them drops the ticker instead.
+        """
+        legacy = pd.DataFrame(
+            {name: [1.0, 2.0] for name in ("Open", "High", "Low", "Close", "Volume")},
+            index=pd.date_range("2026-01-01", periods=2),
+        )
+        write_market_data_cache(
+            market_data_cache_key("ohlcv", ticker="AAPL", period="1y", interval="1d"),
+            legacy,
+        )
+        monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: _bar_download(("AAPL",)))
+
+        result = YFinanceProvider().fetch_ohlcv("AAPL", "1y", "1d")
+
+        assert tuple(result.columns) == BAR_COLUMNS
 
 
 class TestFetchCloseSeries:
