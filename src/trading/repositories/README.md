@@ -84,6 +84,7 @@ These belong to no single context and stay at the root deliberately.
 | Module | Responsibility |
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope + `commit_unit_of_work` helper |
+| `change_events.py` | JSON column encoding and the old/new field diff behind the settings change-event trail |
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
 | `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
 | `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |

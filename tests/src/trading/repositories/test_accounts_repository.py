@@ -92,8 +92,7 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("upd_acct")
         repo.update(
             account_id=row["id"],
-            updates=["descriptive_name = ?"],
-            params=["Renamed"],
+            values={"descriptive_name": "Renamed"},
             updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("upd_acct")
@@ -107,8 +106,7 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["descriptive_name = ?", "benchmark_ticker = ?"],
-            params=["Multi", "QQQ"],
+            values={"descriptive_name": "Multi", "benchmark_ticker": "QQQ"},
             updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("multi_upd")

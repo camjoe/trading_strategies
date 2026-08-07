@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 
 from common.time import utc_now_iso
 from trading.models.books import BookRecord
@@ -132,11 +133,18 @@ class BookRepository:
             (int(book_id), trade_symbols, effective_from),
         )
 
-    def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
-        """Apply pre-built ``column = ?`` update fragments to one book."""
+    def update_settings(self, *, book_id: int, values: Mapping[str, object]) -> None:
+        """Write ``values`` as a partial column update to one book; no-op when empty.
+
+        Callers pass column name to value; deciding which settings to include
+        (and so which to leave at their current value) is theirs.
+        """
+        if not values:
+            return
+        assignments = ", ".join(f"{column} = ?" for column in values)
         self._conn.execute(
-            f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
-            (*params, utc_now_iso(), int(book_id)),
+            f"UPDATE books SET {assignments}, updated_at = ? WHERE id = ?",
+            (*values.values(), utc_now_iso(), int(book_id)),
         )
         commit_unit_of_work(self._conn)
 

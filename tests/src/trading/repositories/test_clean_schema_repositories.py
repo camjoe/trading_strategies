@@ -153,21 +153,15 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["fixed_stop", 5.0]
-    )
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["stop_and_target", 4.0]
-    )
+    book_repo.update_settings(book_id=book_id, values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0})
+    book_repo.update_settings(book_id=book_id, values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0})
     execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["option_type = ?", "option_min_dte = ?"], params=["call", 120]
-    )
+    book_repo.update_settings(book_id=book_id, values={"option_type": "call", "option_min_dte": 120})
     option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
     assert option.option_min_dte == 120

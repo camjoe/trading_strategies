@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import astuple
 
 from trading.models import AccountInsert, AccountRecord
@@ -43,11 +44,14 @@ class AccountRepository:
         self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
         commit_unit_of_work(self._conn)
 
-    def update(self, *, account_id: int, updates: list[str], params: list[object], updated_at: str) -> None:
-        query_params = [*params, updated_at, account_id]
+    def update(self, *, account_id: int, values: Mapping[str, object], updated_at: str) -> None:
+        """Write ``values`` as a partial column update to one account; no-op when empty."""
+        if not values:
+            return
+        assignments = ", ".join(f"{column} = ?" for column in values)
         self._conn.execute(
-            f"UPDATE accounts SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
-            tuple(query_params),
+            f"UPDATE accounts SET {assignments}, updated_at = ? WHERE id = ?",
+            (*values.values(), updated_at, account_id),
         )
         commit_unit_of_work(self._conn)
 
