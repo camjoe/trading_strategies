@@ -35,47 +35,24 @@ class BookRepository:
         # Explicitly unset. Resolving a universe name to symbols is service
         # work (revision 0029), so the repository has no default to offer.
         trade_symbols: str = "[]",
-        goal_min_return_pct: float | None = None,
-        goal_max_return_pct: float | None = None,
-        goal_period: str | None = None,
-        learning_enabled: int = 0,
-        risk_policy: str = "none",
-        stop_loss_pct: float | None = None,
-        take_profit_pct: float | None = None,
-        option_profit_take_pct: float | None = None,
-        option_max_loss_pct: float | None = None,
-        trade_size_pct: float | None = None,
-        max_position_pct: float | None = None,
-        max_trades_per_run: int | None = None,
-        instrument_mode: str = "equity",
-        option_strike_offset_pct: float | None = None,
-        option_min_dte: int | None = None,
-        option_max_dte: int | None = None,
-        option_type: str | None = None,
-        target_delta_min: float | None = None,
-        target_delta_max: float | None = None,
-        max_premium_per_trade: float | None = None,
-        max_contracts_per_trade: int | None = None,
-        iv_rank_min: float | None = None,
-        iv_rank_max: float | None = None,
-        roll_dte_threshold: int | None = None,
         created_at: str,
         updated_at: str,
     ) -> int:
+        """Create a book with its identity, opening balances, and universe.
+
+        Execution, risk, goal, and option settings are not arguments here. They
+        are columns on `books` (revisions 0004/0005) that every one of them
+        either defaults or nulls at creation, and callers apply them afterwards
+        through `update_settings`. The two other insert paths — `book_bridge`'s
+        default-book bootstrap and the fixture seeder — write these same columns.
+        """
         cursor = self._conn.execute(
             """
             INSERT INTO books (
                 account_id, name, status, is_default, start_equity, current_cash,
-                current_equity, trade_symbols, goal_min_return_pct,
-                goal_max_return_pct, goal_period, learning_enabled, risk_policy,
-                stop_loss_pct, take_profit_pct, option_profit_take_pct, option_max_loss_pct,
-                trade_size_pct, max_position_pct, max_trades_per_run,
-                instrument_mode, option_strike_offset_pct, option_min_dte,
-                option_max_dte, option_type, target_delta_min, target_delta_max,
-                max_premium_per_trade, max_contracts_per_trade, iv_rank_min,
-                iv_rank_max, roll_dte_threshold, created_at, updated_at
+                current_equity, trade_symbols, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 account_id,
@@ -86,30 +63,6 @@ class BookRepository:
                 current_cash,
                 current_equity,
                 trade_symbols,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                goal_period,
-                learning_enabled,
-                risk_policy,
-                stop_loss_pct,
-                take_profit_pct,
-                option_profit_take_pct,
-                option_max_loss_pct,
-                trade_size_pct,
-                max_position_pct,
-                max_trades_per_run,
-                instrument_mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                option_type,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
                 created_at,
                 updated_at,
             ),
@@ -120,7 +73,18 @@ class BookRepository:
         return book_id
 
     def _record_universe_history(self, *, book_id: int, trade_symbols: str, effective_from: str) -> None:
-        """Close the open universe-history row (if any) and open a new one."""
+        """Close the open universe-history row (if any) and open a new one.
+
+        `book_universe_history` records the **resolved ticker set** effective over
+        each interval, not the universe names (revision 0029) — so what a book was
+        actually trading on a past date stays reconstructable even after a universe
+        file is edited. That is the point-in-time guarantee backtest and evaluation
+        integrity rest on.
+
+        Nothing reads the table yet; the read side has not been built. The writes
+        still matter: history only exists later if it is recorded now, so do not
+        take the absent reader as a sign these are dead.
+        """
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
             (effective_from, book_id),
