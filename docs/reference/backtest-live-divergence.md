@@ -130,7 +130,7 @@ Two surfaces configure a larger number. Neither reaches execution:
 | `books.max_trades_per_run` | per book; in web UI, account API, optimizer manifest | **never read by the execution path** |
 | `--primary-max-trades` / `--other-max-trades` | defaults 5 / 11 | only as `min(cap, book_count)` |
 
-A third surface, `src/infrastructure/config/account_trade_caps.json`, set `default: 11` with
+A third surface, src/infrastructure/config/account_trade_caps.json, set `default: 11` with
 momentum/meanrev at `5`. It was deleted along with its loader; because it took precedence over the
 two CLI flags, it had also made them unreachable.
 
