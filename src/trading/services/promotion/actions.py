@@ -21,6 +21,7 @@ from trading.models.promotion import (
 )
 from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.repositories.unit_of_work import unit_of_work
 from trading.services.promotion.assessment import fetch_promotion_snapshot
 from trading.services.promotion.helpers import normalize_optional_text
 
@@ -166,7 +167,7 @@ def execute_promotion_review_request(
     created_at = utc_now_iso()
     normalized_requested_by = normalize_optional_text(requested_by)
     normalized_note = normalize_optional_text(note)
-    with conn:
+    with unit_of_work(conn):
         repo = PromotionReviewRepository(conn)
         review = repo.insert_review(
             assessment=assessment,
@@ -220,7 +221,7 @@ def _execute_promotion_review_note(
     note: str | None,
     updated_at: str,
 ) -> PromotionReviewRecord:
-    with conn:
+    with unit_of_work(conn):
         _record_review_event(
             conn,
             review_id=review.id,
@@ -269,7 +270,7 @@ def execute_promotion_review_action(
 
     next_state, event_type = _resolve_review_closure(action, ready_for_live=review.ready_for_live)
 
-    with conn:
+    with unit_of_work(conn):
         _record_review_event(
             conn,
             review_id=review_id,

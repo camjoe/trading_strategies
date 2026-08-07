@@ -19,9 +19,11 @@ several contexts, so filing them under one owner would misstate who owns them.
   `conn.commit()` directly. A hard commit inside a scope would end the transaction early and
   silently defeat the rollback guarantee — see
   [Database Transactions](../../../docs/reference/database-transactions.md).
-- **Three modules deliberately do not commit at all** — `book_bridge.py`, `promotion.py`, and
-  `book_assignments.py` leave the commit to their caller. That is a deliberate caller-owned
-  boundary, not an oversight; don't "fix" them by adding a commit without checking callers.
+- **`book_bridge.py` and `promotion.py` deliberately do not commit at all** — they leave the commit
+  to their caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
+  oversight; don't "fix" them by adding a commit without checking callers. (`book_assignments.py`
+  opens its own scope internally, so it commits when called standalone and joins an outer scope
+  otherwise.)
 - **Reads need no ceremony.** Only write methods commit, so query methods participate in any
   enclosing scope for free.
 - **`books.py`, `book_bridge.py`, `snapshots.py`, and `positions.py` carry the widest import

@@ -113,7 +113,7 @@ def build_account_listing_lines(
 
 
 def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[str]:
-    accounts = AccountRepository(conn).fetch_listing()
+    accounts = AccountRepository(conn).fetch_all()
     if not accounts:
         return []
     active_strategies = {account.id: active_strategy_for_account(conn, account.id) for account in accounts}

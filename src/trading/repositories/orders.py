@@ -170,13 +170,6 @@ class OrderRepository:
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
-    def fetch_by_broker_order_id(self, *, account_id: int, broker_order_id: str) -> OrderRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM orders WHERE account_id = ? AND broker_order_id = ?",
-            (int(account_id), broker_order_id),
-        ).fetchone()
-        return self._row_to_record(row) if row is not None else None
-
     def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
             """

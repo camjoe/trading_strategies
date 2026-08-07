@@ -28,16 +28,12 @@ class AccountRepository:
         return AccountRecord.from_mapping(dict(row))
 
     def fetch_all(self) -> list[AccountRecord]:
-        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name ASC").fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_by_name(self, name: str) -> AccountRecord | None:
         row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
         return self._row_to_record(row) if row is not None else None
-
-    def fetch_listing(self) -> list[AccountRecord]:
-        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name ASC").fetchall()
-        return [self._row_to_record(row) for row in rows]
 
     def fetch_names(self) -> list[str]:
         rows = self._conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()

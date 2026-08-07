@@ -100,7 +100,6 @@ class StrategyRepository:
             (primitive, params_json, updated_at, int(strategy_id)),
         )
         if cursor.rowcount == 0:
-            self._conn.rollback()
             raise StrategyImmutableError(
                 f"Strategy {strategy_id} is frozen or missing; tuning requires a new strategy row."
             )

@@ -132,17 +132,6 @@ class BookRepository:
             (int(book_id), trade_symbols, effective_from),
         )
 
-    def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
-            """
-            SELECT trade_symbols, effective_from, effective_to
-            FROM book_universe_history
-            WHERE book_id = ?
-            ORDER BY effective_from ASC, id ASC
-            """,
-            (int(book_id),),
-        ).fetchall()
-
     def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
         """Apply pre-built ``column = ?`` update fragments to one book."""
         self._conn.execute(

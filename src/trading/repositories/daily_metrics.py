@@ -61,7 +61,7 @@ class DailyMetricsRepository:
         resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, int(account_id))
 
         update_set = ", ".join(f"{column} = excluded.{column}" for column in _METRIC_COLUMNS)
-        cursor = self._conn.execute(
+        self._conn.execute(
             f"""
             INSERT INTO daily_metrics (
                 book_id, metric_date, {", ".join(_METRIC_COLUMNS)}, created_at, updated_at
@@ -94,7 +94,6 @@ class DailyMetricsRepository:
         ).fetchone()
         if row is None:
             raise ValueError("Expected daily_metrics id after upsert.")
-        del cursor
         return int(row[0])
 
     def fetch_book_rows_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:

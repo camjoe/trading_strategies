@@ -15,6 +15,7 @@ from trading.repositories.orders import BookAccountMismatchError, OrderRepositor
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
+from trading.repositories.unit_of_work import unit_of_work
 
 NOW = "2026-07-03T12:00:00Z"
 
@@ -99,6 +100,27 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
 
     repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
     assert repo.fetch_enabled() == []
+
+
+def test_immutability_guard_leaves_an_enclosing_unit_of_work_intact(conn) -> None:
+    strategy_id = _insert_strategy(conn)
+    repo = StrategyRepository(conn)
+    repo.freeze(strategy_id=strategy_id, updated_at=NOW)
+
+    # The guard rejects the edit but must not end the enclosing transaction: a
+    # caller that handles it and carries on still gets the scope's other writes.
+    with unit_of_work(conn):
+        repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
+        with pytest.raises(StrategyImmutableError):
+            repo.update_draft_knobs(
+                strategy_id=strategy_id,
+                primitive="trend",
+                params_json='{"fast_window": 2}',
+                updated_at=NOW,
+            )
+
+    frozen = repo.fetch_by_id(strategy_id=strategy_id)
+    assert frozen is not None and frozen.enabled == 0
 
 
 def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
