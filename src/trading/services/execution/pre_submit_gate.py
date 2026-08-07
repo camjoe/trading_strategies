@@ -4,12 +4,12 @@ Composes the pre-submit kill switches (stale-price + reconciliation) with the
 notional risk gate, so every book — a plain account's default book and any
 additional book alike — inherits the same guards.
 
-**Book-as-bucket.** ``book_id`` is the risk bucket. The notional risk-gate
-*policy* (``trading.domain.risk_gate.evaluate_risk_gate``) is reused
-**unchanged**; this module only adapts book intents / equity / positions into the
-bucket-shaped inputs the policy expects (a book is just "the bucket").
-Reconciliation likewise rolls up book equity for the account. Kept free of any
-``auto_trading`` *service* dependency so ``auto_trading`` can call this
+**Book-as-bucket.** ``book_id`` is the risk bucket. No policy decision is taken
+here; this module only assembles what
+``trading.domain.risk_gate.evaluate_risk_gate`` expects — book intents, equity and
+positions shaped as buckets (a book is just "the bucket"), plus the account's
+drawdown. Reconciliation likewise rolls up book equity for the account. Kept free
+of any ``auto_trading`` *service* dependency so ``auto_trading`` can call this
 without a cycle.
 """
 
@@ -19,10 +19,11 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy
+from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy, point_in_time_drawdown_pct
 from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
     RECONCILIATION_EQUITY_TOLERANCE,
@@ -128,6 +129,7 @@ class BookPreSubmitGate:
             book_equity_by_id=equity_by_book,
             positions=gate_positions,
             config=self._config,
+            drawdown_pct=self._account_drawdown_pct(conn, account_id, equity_by_book),
         )
 
         # Decisions are 1:1 with the input intents, in order — map each back to its
@@ -145,6 +147,20 @@ class BookPreSubmitGate:
             else:  # allow
                 approved.append(original)
         return list(result.decisions), approved, blocked, rescaled
+
+    def _account_drawdown_pct(
+        self,
+        conn: sqlite3.Connection,
+        account_id: int,
+        equity_by_book: Mapping[int, float],
+    ) -> float | None:
+        """The account's distance below peak equity, for the gate's loss breaker.
+
+        Current equity is the book roll-up, not the latest snapshot: the runtime
+        marks books to market before the gate, so the roll-up is the live number.
+        """
+        peak_equity = EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id)
+        return point_in_time_drawdown_pct(total_equity=sum(equity_by_book.values()), peak_equity=peak_equity)
 
     def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
         # book_id is the risk bucket key; the policy only uses side,

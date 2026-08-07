@@ -65,9 +65,14 @@ def generate_book_trade_intents(
     if not trading_books:
         return []
 
-    # `max_trades` caps trades for the account, not books.
+    # `max_trades` caps trades for the account, not books. Book order therefore
+    # decides who gets that budget — and again downstream, where the risk gate
+    # consumes its account caps in intent order — so it is rotated per run.
+    books_by_id = {trading_book.book.id: trading_book for trading_book in trading_books}
+    claim_order = auto_trader_policy.order_capacity_claimants(list(books_by_id), seed=selection_seed)
+
     intents: list[BookTradeCandidate] = []
-    for trading_book in trading_books:
+    for trading_book in (books_by_id[book_id] for book_id in claim_order):
         remaining = max_trades - len(intents)
         if remaining <= 0:
             break

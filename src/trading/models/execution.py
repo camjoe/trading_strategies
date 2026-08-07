@@ -71,6 +71,10 @@ DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30
 DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE = 1.0
 # Default share of *account* equity that any single sector may occupy.
 DEFAULT_MAX_SECTOR_CONCENTRATION_PCT = 0.45
+# Default distance below peak account equity at which the account stops buying.
+# Unlike the four caps above this is a 0-100 percent, matching the signed
+# `risk_snapshots.drawdown_pct` it is compared against.
+DEFAULT_MAX_DRAWDOWN_PCT = 20.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +85,8 @@ class RiskGateConfig:
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
     max_account_gross_exposure: float = DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE
     max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
+    # Account-scoped loss breaker: blocks buys only, never sells.
+    max_drawdown_pct: float = DEFAULT_MAX_DRAWDOWN_PCT
     # Symbol→sector reference data is operator config; the service layer loads it
     # from src/infrastructure/config/symbol_sectors.json and injects it here.
     # An empty map means no sector-concentration limits are applied.
@@ -236,16 +242,20 @@ class AccountRunResult:
     """What one account's trading run did, and whether anything stopped it.
 
     ``submitted_count`` on its own cannot tell a quiet day from a halted one:
-    zero trades reads the same whether there were no signals, a kill switch
-    blocked every intent before submission, or the broker failed part-way
-    through the book loop leaving some books traded and others not. The
-    run-wide ``kill_switch_reasons`` travel alongside so the caller can tell
-    those apart and set an exit code accordingly.
+    zero trades reads the same whether there were no signals, the market was
+    shut, a kill switch blocked every intent before submission, or the broker
+    failed part-way through the book loop leaving some books traded and others
+    not. The run-wide ``kill_switch_reasons`` travel alongside so the caller can
+    tell those apart and set an exit code accordingly.
+
+    ``submission_window_closed`` is deliberately not a kill-switch reason: a shut
+    market is a normal condition, and kill switches raise a ``warn`` alert.
     """
 
     account_name: str
     submitted_count: int
     kill_switch_reasons: tuple[str, ...] = ()
+    submission_window_closed: bool = False
 
     @property
     def halted(self) -> bool:

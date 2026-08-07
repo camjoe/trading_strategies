@@ -209,3 +209,63 @@ def test_sell_position_reduction_is_allowed(conn):
     # Risk-reducing sells are always allowed regardless of caps.
     assert result.kill_switch_reasons == []
     assert [i.qty for i in result.approved_intents] == [5.0]
+
+
+# --- drawdown breaker -------------------------------------------------------
+
+
+def _drawn_down_book(conn) -> tuple[int, int]:
+    """A book down 30% from a peak recorded earlier in its snapshot series.
+
+    The latest snapshot must match current book equity or reconciliation trips
+    first and the breaker never gets a say.
+    """
+    account_id, book_id = _book_env(conn, equity=70_000.0)
+    _snapshot(conn, book_id, equity=100_000.0, snapshot_time="2026-07-01T12:00:00Z")
+    _snapshot(conn, book_id, equity=70_000.0)
+    return account_id, book_id
+
+
+def test_drawdown_breaker_blocks_buys_past_the_limit(conn):
+    account_id, book_id = _drawn_down_book(conn)
+
+    result = _gate({"AAPL": 100.0}).evaluate(
+        conn, account_id=account_id, intents=[_intent(book_id, account_id, qty=1.0, price=100.0)]
+    )
+
+    # Not a kill switch: the account keeps running, it just stops adding risk.
+    assert result.kill_switch_reasons == []
+    assert result.approved_intents == []
+    assert [d.reason_code for d in result.decisions] == ["drawdown_breaker"]
+
+
+def test_drawdown_breaker_leaves_the_exit_open(conn):
+    account_id, book_id = _drawn_down_book(conn)
+    PositionRepository(conn).upsert(
+        book_id=book_id,
+        symbol="AAPL",
+        qty=10.0,
+        avg_cost=100.0,
+        market_value=1_000.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-07-05T09:00:00Z",
+    )
+
+    result = _gate({"AAPL": 100.0}).evaluate(
+        conn, account_id=account_id, intents=[_intent(book_id, account_id, side="sell", qty=10.0, price=100.0)]
+    )
+
+    assert result.kill_switch_reasons == []
+    assert [i.qty for i in result.approved_intents] == [10.0]
+
+
+def test_shallow_drawdown_does_not_block_buys(conn):
+    account_id, book_id = _book_env(conn, equity=95_000.0)
+    _snapshot(conn, book_id, equity=100_000.0, snapshot_time="2026-07-01T12:00:00Z")
+    _snapshot(conn, book_id, equity=95_000.0)
+
+    result = _gate({"AAPL": 100.0}).evaluate(
+        conn, account_id=account_id, intents=[_intent(book_id, account_id, qty=1.0, price=100.0)]
+    )
+
+    assert [i.qty for i in result.approved_intents] == [1.0]

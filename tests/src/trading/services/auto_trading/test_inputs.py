@@ -49,11 +49,13 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     assert iv_rank == {"AAPL": 50.0}
     assert list(histories) == ["AAPL"]
 
-    def _fake_trade_loop(**kwargs):
-        name = kwargs["account_name"]
-        return AccountRunResult(account_name=name, submitted_count=2 if name == "acct1" else 1)
+    def _fake_run_for_account(_conn, account_name, *_args, **_kwargs):
+        return AccountRunResult(
+            account_name=account_name,
+            submitted_count=2 if account_name == "acct1" else 1,
+        )
 
-    monkeypatch.setattr(auto_trading_inputs, "_run_account_trade_loop", _fake_trade_loop)
+    monkeypatch.setattr(auto_trading_inputs, "run_for_account", _fake_run_for_account)
     results = auto_trading_service.run_accounts(
         conn=object(),
         account_names=["acct1", "acct2"],
@@ -107,27 +109,47 @@ def test_resolve_market_inputs_raises_when_prices_are_empty(monkeypatch: pytest.
         auto_trading_inputs.resolve_market_inputs(["AAPL"])
 
 
-def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
-    import types
+def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replaces the wrapper test that pinned a forwarding shim instead of the real call."""
+    captured: dict[str, object] = {}
 
-    fake_runtime = types.ModuleType("trading.services.auto_trading.runtime")
-    fake_runtime.run_for_account = lambda **kwargs: kwargs["max_trades"]  # type: ignore[attr-defined]
-    import sys
+    def _capture(conn, account_name, universe, prices, iv_rank_proxy, max_trades, fee, **kwargs):
+        captured.update(
+            conn=conn,
+            account_name=account_name,
+            universe=universe,
+            prices=prices,
+            iv_rank_proxy=iv_rank_proxy,
+            max_trades=max_trades,
+            fee=fee,
+            **kwargs,
+        )
+        return AccountRunResult(account_name=account_name, submitted_count=0)
 
-    monkeypatch.setitem(sys.modules, "trading.services.auto_trading.runtime", fake_runtime)
+    monkeypatch.setattr(auto_trading_inputs, "run_for_account", _capture)
+    conn = object()
+    fetchers = make_feature_fetchers()
+    bars = bar_frame(pd.Series(range(1, 50), dtype=float))
 
-    result = auto_trading_inputs._run_account_trade_loop(
-        conn=object(),
-        account_name="acct1",
+    auto_trading_inputs.run_accounts(
+        conn,
+        account_names=["acct1"],
         universe=["AAPL"],
         prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        iv_rank_proxy={"AAPL": 50.0},
         max_trades=5,
-        fee=0.0,
+        fee=1.0,
+        histories={"AAPL": bars},
         broker_factory=lambda _: None,
-        feature_fetchers=make_feature_fetchers(),
+        feature_fetchers=fetchers,
     )
-    assert result == 5
+
+    assert captured["conn"] is conn
+    assert captured["account_name"] == "acct1"
+    assert captured["max_trades"] == 5
+    assert captured["fee"] == 1.0
+    assert captured["feature_fetchers"] is fetchers
+    assert list(captured["histories"]) == ["AAPL"]  # type: ignore[arg-type]
     from common.time import parse_utc_iso
 
     naive = parse_utc_iso("2026-03-21T12:00:00")

@@ -191,6 +191,16 @@ def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str
     return sorted(candidates, key=lambda ticker: hashlib.sha256(f"{seed}:{ticker}".encode()).hexdigest())
 
 
+def order_capacity_claimants(book_ids: Sequence[int], *, seed: str) -> list[int]:
+    """Order an account's books so none is permanently first in line for its capacity.
+
+    :func:`order_signal_candidates` one layer up, with the same guarantee: stable
+    within a run, varied across runs. The seed is namespaced so book ids and
+    tickers of the same spelling cannot collide into a shared order.
+    """
+    return sorted(book_ids, key=lambda book_id: hashlib.sha256(f"{seed}:book:{book_id}".encode()).hexdigest())
+
+
 def closing_sell_qty(position_qty: float) -> int:
     """Whole-share quantity that closes the position outright."""
     max_qty = int(position_qty)

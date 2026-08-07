@@ -210,7 +210,7 @@ def run_for_account(
     """
     now_iso = utc_now_iso()
     if not is_runtime_submission_window_open(now_iso):
-        return AccountRunResult(account_name=account_name, submitted_count=0)
+        return AccountRunResult(account_name=account_name, submitted_count=0, submission_window_closed=True)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)
     return _run_books_for_account(
