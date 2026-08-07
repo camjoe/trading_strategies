@@ -32,6 +32,10 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
     assert executed.submitted_count == 0
     broker_factory.assert_not_called()
     books_runner.assert_not_called()
+    # Distinguishable from a quiet day, and not a kill switch: a shut market is
+    # normal, and kill-switch reasons raise a warn alert.
+    assert executed.submission_window_closed is True
+    assert executed.halted is False
 
 
 def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:

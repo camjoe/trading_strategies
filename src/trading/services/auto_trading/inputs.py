@@ -15,6 +15,7 @@ from trading.models.books import BookRecord
 from trading.models.execution import AccountRunResult
 from trading.services.accounts import get_account
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
+from trading.services.auto_trading.runtime import run_for_account
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
@@ -81,23 +82,6 @@ def resolve_market_inputs(
     return universe, prices, iv_rank_proxy, histories
 
 
-def _run_account_trade_loop(
-    *,
-    broker_factory: Callable[[AccountRecord], BrokerConnection],
-    feature_fetchers: FeatureFetcherSet,
-    provider: MarketDataProvider | None = None,
-    **kwargs,
-) -> AccountRunResult:
-    from trading.services.auto_trading.runtime import run_for_account
-
-    return run_for_account(
-        **kwargs,
-        broker_factory=broker_factory,
-        feature_fetchers=feature_fetchers,
-        provider=provider,
-    )
-
-
 def run_accounts(
     conn: sqlite3.Connection,
     *,
@@ -121,18 +105,18 @@ def run_accounts(
     """
     results: list[AccountRunResult] = []
     for account_name in account_names:
-        result = _run_account_trade_loop(
+        result = run_for_account(
+            conn,
+            account_name,
+            universe,
+            prices,
+            iv_rank_proxy,
+            max_trades,
+            fee,
+            histories=histories,
             broker_factory=broker_factory,
             feature_fetchers=feature_fetchers,
             provider=provider,
-            conn=conn,
-            account_name=account_name,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
-            max_trades=max_trades,
-            fee=fee,
-            histories=histories,
         )
         results.append(result)
     return results

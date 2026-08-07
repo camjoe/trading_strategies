@@ -102,8 +102,13 @@ def main() -> int:
         )
 
     for result in results:
-        halted = f" (halted: {', '.join(result.kill_switch_reasons)})" if result.halted else ""
-        print(f"{result.account_name}: executed {result.submitted_count} trades{halted}")
+        if result.halted:
+            note = f" (halted: {', '.join(result.kill_switch_reasons)})"
+        elif result.submission_window_closed:
+            note = " (market closed)"
+        else:
+            note = ""
+        print(f"{result.account_name}: executed {result.submitted_count} trades{note}")
 
     broker_anomalies = [
         r.account_name for r in results if KILL_SWITCH_REASON_BROKER_API_ANOMALY in r.kill_switch_reasons

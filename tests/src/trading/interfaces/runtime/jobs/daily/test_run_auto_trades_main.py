@@ -171,6 +171,22 @@ def test_main_exits_non_zero_on_a_broker_anomaly(monkeypatch, capsys) -> None:
     assert "Broker API anomaly during submission for: acct2" in out
 
 
+def test_main_reports_a_closed_market_per_account(monkeypatch, capsys) -> None:
+    """A shut market must not read as a quiet day, and must not read as a halt."""
+    install_main_args(monkeypatch, accounts="acct1")
+    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(
+        module,
+        "run_accounts",
+        Mock(return_value=[AccountRunResult(account_name="acct1", submitted_count=0, submission_window_closed=True)]),
+    )
+
+    assert module.main() == 0
+    assert "acct1: executed 0 trades (market closed)" in capsys.readouterr().out
+
+
 def test_main_stays_green_for_a_non_broker_kill_switch(monkeypatch, capsys) -> None:
     """Stale prices and reconciliation halts are controls working, not run failures."""
     conn = FakeConn()

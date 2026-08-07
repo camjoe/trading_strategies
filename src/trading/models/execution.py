@@ -242,16 +242,20 @@ class AccountRunResult:
     """What one account's trading run did, and whether anything stopped it.
 
     ``submitted_count`` on its own cannot tell a quiet day from a halted one:
-    zero trades reads the same whether there were no signals, a kill switch
-    blocked every intent before submission, or the broker failed part-way
-    through the book loop leaving some books traded and others not. The
-    run-wide ``kill_switch_reasons`` travel alongside so the caller can tell
-    those apart and set an exit code accordingly.
+    zero trades reads the same whether there were no signals, the market was
+    shut, a kill switch blocked every intent before submission, or the broker
+    failed part-way through the book loop leaving some books traded and others
+    not. The run-wide ``kill_switch_reasons`` travel alongside so the caller can
+    tell those apart and set an exit code accordingly.
+
+    ``submission_window_closed`` is deliberately not a kill-switch reason: a shut
+    market is a normal condition, and kill switches raise a ``warn`` alert.
     """
 
     account_name: str
     submitted_count: int
     kill_switch_reasons: tuple[str, ...] = ()
+    submission_window_closed: bool = False
 
     @property
     def halted(self) -> bool:
