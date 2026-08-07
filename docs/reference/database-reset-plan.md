@@ -275,6 +275,27 @@ Things the reset is an opportunity to change rather than faithfully reproduce.
   during it: the fixture seeder's `sandbox` profile is the checked-in seed definition that makes the
   next reset cheap. A `sandbox` build that leaves a table empty is the signal that the seed
   definition has a hole, which is why the build ships with a check asserting no table is empty.
+- **Money representation: `REAL` vs integer minor units.** Open, added 2026-08-07. Every monetary
+  and quantity value is an IEEE double in a `REAL` column — 106 of them in the `0001` baseline
+  (`cash`, `equity`, `avg_cost`, `price`, `commission`, `realized_pnl`, …). Institutional systems
+  use fixed-point; SQLite has no decimal type, so the alternative is integer minor units plus
+  conversion at every read and write, and in the domain accounting math.
+
+  **Current exposure is low, and worth recording precisely so it is not over- or under-rated.**
+  Order quantities are whole numbers (`auto_trading_policy.py` sizes with
+  `int(spendable // price)` and `int(position_qty)`), so the exact float comparison in
+  `domain/accounting.py` — `if positions[ticker] == 0` — cannot leave dust. Money accumulates
+  rounding, but nothing compares money for equality and there is no broker cash reconciliation
+  with a tolerance, so the error is invisible at any realistic fill count.
+
+  **What would raise it:** supporting fractional shares (that `== 0` becomes a live bug, leaving
+  a phantom open position with a stale average cost), adding a broker balance reconciliation, or
+  trading real capital.
+
+  **Why it belongs here:** the conversion is a schema change across ~106 columns. Doing it during
+  a squash that is already accepting data loss is roughly the only time the cost is reasonable.
+  Decide before authoring the new `0001` baseline, not after.
+
 - **`db-schema.md` table count drift.** The quick-reference header says 27 tables; the schema has
   30. Fix as part of the doc regeneration step.
 

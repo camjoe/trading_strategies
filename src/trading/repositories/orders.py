@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.time import next_date_str
 from trading.models.orders import FillEventRecord, OrderRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
@@ -205,29 +206,23 @@ class OrderRepository:
 
         Unlike ``fetch_filled_for_book_on_date`` this keeps all statuses — rejected
         and cancelled orders are the interesting ones when watching a live broker.
-        Compares on the ISO timestamp's date prefix so it is robust to whether the
-        stored ``submitted_at`` carries a timezone suffix.
         """
         rows = self._conn.execute(
             "SELECT * FROM orders "
-            "WHERE account_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "WHERE account_id = ? AND submitted_at >= ? AND submitted_at < ? "
             "ORDER BY submitted_at ASC, id ASC",
-            (account_id, date_str),
+            (account_id, date_str, next_date_str(date_str)),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
-        """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD).
-
-        Compares on the ISO timestamp's date prefix so it is robust to whether the
-        stored ``submitted_at`` carries a timezone suffix.
-        """
+        """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD)."""
         rows = self._conn.execute(
             "SELECT * FROM orders "
-            "WHERE book_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "WHERE book_id = ? AND submitted_at >= ? AND submitted_at < ? "
             "AND status IN ('filled', 'partially_filled') "
             "ORDER BY submitted_at ASC, id ASC",
-            (book_id, date_str),
+            (book_id, date_str, next_date_str(date_str)),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 

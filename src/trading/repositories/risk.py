@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
 
+from common.time import next_date_str
 from trading.models.books import RiskDecisionRecord, RiskSnapshotRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
@@ -78,7 +78,7 @@ class RiskSnapshotRepository:
         reports, so a report for a past date reflects that day's state rather
         than the current one.
         """
-        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        next_date = next_date_str(report_date)
         row = self._conn.execute(
             "SELECT * FROM risk_snapshots WHERE account_id = ? AND snapshot_time < ? "
             "ORDER BY snapshot_time DESC LIMIT 1",
@@ -146,7 +146,7 @@ class RiskDecisionRepository:
         return [RiskDecisionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_account_date(self, *, account_id: int, report_date: str) -> list[RiskDecisionRecord]:
-        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        next_date = next_date_str(report_date)
         rows = self._conn.execute(
             """
             SELECT * FROM risk_decisions

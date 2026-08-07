@@ -200,3 +200,71 @@ class TestWindowReads:
 
         assert repo.fetch_first_at_or_after(account_id=acct_id, iso="2026-03-01T00:00:00Z") is None
         assert repo.fetch_last_at_or_before(account_id=acct_id, iso="2026-01-01T00:00:00Z") is None
+
+
+class TestBookDateBoundReads:
+    """The per-book date-bounded reads, over deliberately mixed timestamp spellings.
+
+    Rows written before the canonical form was enforced can carry a bare or
+    ``+00:00`` suffix, and the bound is compared as a string, so the date reads
+    have to hold for every spelling of the same instant.
+    """
+
+    def _book_id(self, conn, account_id: int) -> int:
+        from trading.repositories.book_bridge import default_book_id
+
+        return default_book_id(conn, account_id)
+
+    def _seed_mixed_spellings(self, conn, account_id: int) -> int:
+        book_id = self._book_id(conn, account_id)
+        repo = EquitySnapshotRepository(conn)
+        for snapshot_time, equity in (
+            ("2026-02-03T16:00:00Z", 1000.0),
+            ("2026-02-04T16:00:00+00:00", 1050.0),
+            ("2026-02-05T16:00:00", 1100.0),
+        ):
+            repo.insert_for_book(
+                book_id=book_id,
+                snapshot_time=snapshot_time,
+                cash=equity,
+                market_value=0.0,
+                equity=equity,
+                realized_pnl=0.0,
+                unrealized_pnl=0.0,
+            )
+        return book_id
+
+    def test_on_or_before_includes_the_whole_named_day(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_incl")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+        repo = EquitySnapshotRepository(conn)
+
+        # The 2026-02-05 row is naive-suffixed; the bound must still include it.
+        assert repo.fetch_last_for_book_on_or_before_date(
+            book_id=book_id, date_str="2026-02-05"
+        ).equity == pytest.approx(1100.0)
+        # The 2026-02-04 row carries +00:00.
+        assert repo.fetch_last_for_book_on_or_before_date(
+            book_id=book_id, date_str="2026-02-04"
+        ).equity == pytest.approx(1050.0)
+
+    def test_before_date_excludes_the_whole_named_day(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_excl")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+        repo = EquitySnapshotRepository(conn)
+
+        assert repo.fetch_last_for_book_before_date(book_id=book_id, date_str="2026-02-05").equity == pytest.approx(
+            1050.0
+        )
+        assert repo.fetch_last_for_book_before_date(book_id=book_id, date_str="2026-02-03") is None
+
+    def test_returns_none_before_any_snapshot(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_none")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+
+        assert (
+            EquitySnapshotRepository(conn).fetch_last_for_book_on_or_before_date(
+                book_id=book_id, date_str="2026-02-02"
+            )
+            is None
+        )

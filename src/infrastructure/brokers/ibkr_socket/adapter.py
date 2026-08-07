@@ -34,7 +34,7 @@ Async fill note:
 
 from __future__ import annotations
 
-from common.time import utc_now_iso
+from common.time import normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
@@ -138,7 +138,9 @@ class IbkrSocketAdapter(BrokerConnection):
                 OrderFill(
                     filled_qty=fill.shares,
                     fill_price=fill.price,
-                    fill_time=fill.time,
+                    # Each backend spells its execution time differently; the
+                    # stored form is canonical (see common.time.as_utc_iso).
+                    fill_time=normalize_utc_iso(fill.time),
                     commission=fill.commission,
                     exec_id=fill.exec_id,
                 )

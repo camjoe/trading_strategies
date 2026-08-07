@@ -29,6 +29,7 @@ from datetime import date, datetime, time, timezone
 import pandas as pd
 
 from common.constants import SETTLEMENT_TICKER
+from common.time import as_utc_iso
 from trading.models import AccountConfig
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
@@ -98,7 +99,7 @@ def _profile_symbols(profile: FixtureProfile) -> list[str]:
 
 
 def _snapshot_time(stamp: pd.Timestamp) -> str:
-    return datetime.combine(stamp.date(), time(hour=SNAPSHOT_CLOSE_HOUR), tzinfo=timezone.utc).isoformat()
+    return as_utc_iso(datetime.combine(stamp.date(), time(hour=SNAPSHOT_CLOSE_HOUR), tzinfo=timezone.utc))
 
 
 def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_iso: str) -> list[_AccountPlan]:

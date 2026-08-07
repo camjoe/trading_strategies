@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.time import next_date_str
 from trading.models.portfolio import EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.unit_of_work import commit_unit_of_work
@@ -200,30 +201,32 @@ class EquitySnapshotRepository:
     def fetch_last_for_book_on_or_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
         """Latest raw snapshot for one book whose calendar date is <= ``date_str``.
 
-        Per-book (no account roll-up), and compares on the timestamp's date prefix
-        so it is robust to whether stored times carry a timezone suffix.
+        Per-book (no account roll-up).
         """
-        return self._fetch_book_snapshot_by_date(book_id=book_id, date_str=date_str, operator="<=")
+        return self._fetch_last_book_snapshot_before(book_id=book_id, before=next_date_str(date_str))
 
     def fetch_last_for_book_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
         """Latest raw snapshot for one book whose calendar date is strictly < ``date_str``."""
-        return self._fetch_book_snapshot_by_date(book_id=book_id, date_str=date_str, operator="<")
+        return self._fetch_last_book_snapshot_before(book_id=book_id, before=date_str)
 
-    def _fetch_book_snapshot_by_date(
-        self, *, book_id: int, date_str: str, operator: str
-    ) -> EquitySnapshotRecord | None:
+    def _fetch_last_book_snapshot_before(self, *, book_id: int, before: str) -> EquitySnapshotRecord | None:
+        """Latest raw snapshot for one book strictly below the ``before`` bound.
+
+        ``before`` is a bare ``YYYY-MM-DD``, which sorts below every stored
+        timestamp on that day, so the bound excludes the whole day.
+        """
         row = self._conn.execute(
-            f"""
+            """
             SELECT s.id AS id, b.account_id AS account_id, s.book_id AS book_id, s.snapshot_time AS snapshot_time,
                    s.cash AS cash, s.market_value AS market_value, s.equity AS equity,
                    s.realized_pnl AS realized_pnl, s.unrealized_pnl AS unrealized_pnl
             FROM equity_snapshots s
             JOIN books b ON b.id = s.book_id
-            WHERE s.book_id = ? AND substr(s.snapshot_time, 1, 10) {operator} ?
+            WHERE s.book_id = ? AND s.snapshot_time < ?
             ORDER BY s.snapshot_time DESC, s.id DESC
             LIMIT 1
             """,
-            (book_id, date_str),
+            (book_id, before),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 

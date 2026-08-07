@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
 
+from common.time import next_date_str
 from trading.models.books import RotationDecisionRecord
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.unit_of_work import commit_unit_of_work
@@ -109,7 +109,7 @@ class RotationDecisionRepository:
         return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_book_on_date(self, *, book_id: int, report_date: str) -> list[RotationDecisionRecord]:
-        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        next_date = next_date_str(report_date)
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT
             + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
