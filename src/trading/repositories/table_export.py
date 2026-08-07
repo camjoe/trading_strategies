@@ -1,3 +1,16 @@
+"""Read-only access to any table by name, for the operator export/preview feature.
+
+Deliberately not scoped to one business context: the operator chooses the table at
+runtime, so this module takes a table *name* where every other module in the package
+has its table fixed in the SQL it owns.
+
+A table name cannot be a bound parameter, so it is interpolated into the query. That
+is why both entry points resolve their table through :func:`require_table` first:
+:func:`normalize_table_name` strips the input to ``[a-z0-9_]`` and existence is
+checked against ``sqlite_master`` before any name reaches a statement. A new read
+added here must go through the same gate.
+"""
+
 from __future__ import annotations
 
 import sqlite3

@@ -11,6 +11,34 @@ The directory is intentionally flat. The groupings below are the *ownership* map
 [Cross-cutting](#cross-cutting) resist grouping on purpose: their responsibilities genuinely span
 several contexts, so filing them under one owner would misstate who owns them.
 
+## What belongs here
+
+A module in this package either:
+
+1. **owns one area's SQL** — the table modules, which is most of them; or
+2. **is machinery those modules use** — `unit_of_work.py` and `change_events.py`, which contain no
+   SQL at all.
+
+Anything else belongs in another layer: a module that needs a connection but expresses domain
+policy is a service; a pure calculation over already-fetched rows is `domain/`; connection, schema,
+backend, and path concerns are `infrastructure/database/`.
+
+Owning "one area" is not the same as owning one table. `promotion.py` and `risk.py` each own two,
+`book_bridge.py` resolves across two, `fixture_seed.py` writes nine, and `table_export.py` is table-
+agnostic by design. Those are all still rule 1 — a different granularity, not a different kind of
+thing. Each says so in its module docstring, which is where that distinction is recorded rather
+than in the directory layout.
+
+### Why `unit_of_work.py` is not in `infrastructure/database/`
+
+It looks misfiled and is not. It is sqlite transaction mechanics with no trading concepts, so
+`infrastructure/database/` reads like its natural home — but `scripts/checks/repo/layer_check.py`
+forbids `trading/services/**` from importing `infrastructure.database.*`, and **12 service modules**
+open `unit_of_work` scopes (plus 2 more under `backtesting/services/`, which carries the same ban).
+
+This package is the only layer both services and repositories can legally reach for it. Moving it
+is 14 layer-rule exceptions, not a `git mv`.
+
 ## Golden rules
 
 - **Every write commits through `commit_unit_of_work`, never `conn.commit()`.** Standalone it
