@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from infrastructure.database.backend import get_backend
@@ -53,7 +53,7 @@ def ensure_db() -> DBConnection:
 
 
 @contextmanager
-def db_session() -> Iterator[DBConnection]:
+def db_session() -> Generator[DBConnection]:
     """Open a verified DB connection and guarantee it is closed.
 
     Tests stub the connection by patching

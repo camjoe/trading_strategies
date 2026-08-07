@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -76,7 +76,7 @@ def set_backend(backend: DatabaseBackend) -> None:
 
 
 @contextmanager
-def use_backend(backend: DatabaseBackend) -> Iterator[DatabaseBackend]:
+def use_backend(backend: DatabaseBackend) -> Generator[DatabaseBackend]:
     """Activate *backend* for the block, then restore the previous one."""
     original = get_backend()
     set_backend(backend)
