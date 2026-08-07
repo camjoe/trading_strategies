@@ -31,6 +31,19 @@ def _validate_trade_values(qty: float, price: float, *, side: str = "buy") -> No
         raise ValueError("Trade price must be >= 0.")
 
 
+def _require_whole_units(ticker: str, qty: float) -> None:
+    """Instrument quantities are whole units, as sized in ``domain.auto_trading_policy``.
+
+    ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
+    is what makes a fully-sold position read as flat. A fractional quantity leaves float
+    dust that would present as a phantom open position holding a stale average cost.
+    Cash movements are exempt — they ride the settlement ticker, which returns before
+    either apply function.
+    """
+    if not qty.is_integer():
+        raise ValueError(f"Fractional quantity {qty} for {ticker}: instrument quantities must be whole units.")
+
+
 def _apply_buy(
     ticker: str,
     qty: float,
@@ -40,6 +53,7 @@ def _apply_buy(
     avg_cost: dict[str, float],
     cash: float,
 ) -> float:
+    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     new_qty = old_qty + qty
     old_value = old_qty * avg_cost[ticker]
@@ -59,6 +73,7 @@ def _apply_sell(
     cash: float,
     realized: float,
 ) -> tuple[float, float]:
+    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
@@ -66,14 +81,20 @@ def _apply_sell(
     cash += proceeds
     realized += (price - avg_cost[ticker]) * qty - fee
     positions[ticker] = old_qty - qty
-    if positions[ticker] == 0:
-        avg_cost[ticker] = 0.0
     return cash, realized
 
 
 def _compact_positions(
     positions: dict[str, float], avg_cost: dict[str, float]
 ) -> tuple[dict[str, float], dict[str, float]]:
+    """Drop sold-out positions, keeping the average cost of the ones still open.
+
+    ``qty > 0`` is the single definition of "still open", and it is exact only
+    because quantities are whole units — see :func:`_require_whole_units`. A
+    closed position's stale ``avg_cost`` is dropped here rather than cleared on
+    the sell: at zero quantity nothing reads it (``old_qty * avg_cost`` is 0 for
+    the next buy, and a sell against no holding raises first).
+    """
     open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
     open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
     return open_positions, open_avg_cost
