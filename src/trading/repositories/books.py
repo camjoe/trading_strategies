@@ -5,7 +5,7 @@ from collections.abc import Mapping
 
 from common.time import utc_now_iso
 from trading.models.books import BookRecord
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 
 class BookRepository:

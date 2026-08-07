@@ -31,13 +31,13 @@ import pandas as pd
 from common.constants import SETTLEMENT_TICKER
 from common.time import as_utc_iso
 from trading.models import AccountConfig
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy

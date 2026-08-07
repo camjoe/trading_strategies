@@ -14,7 +14,7 @@ import json
 import sqlite3
 from collections.abc import Sequence
 
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Marks every synthetic backtest run so a generated row is never mistaken for a
 # real research result.

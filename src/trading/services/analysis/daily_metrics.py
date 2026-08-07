@@ -18,11 +18,11 @@ from trading.domain.daily_metrics import (
     compute_daily_book_metrics,
 )
 from trading.models import AccountRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 
 def write_daily_metrics_for_account(

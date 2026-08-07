@@ -116,6 +116,18 @@ LAYER_RULES: list[LayerRule] = [
         ),
     ),
     LayerRule(
+        label="trading/persistence → no imports from higher layers (it sits below the repository layer)",
+        source_glob="src/trading/persistence/**/*.py",
+        forbidden_prefixes=(
+            "trading.domain.",
+            "trading.services.",
+            "trading.repositories.",
+            "trading.interfaces.",
+            "trading.backtesting.",
+            "infrastructure.",
+        ),
+    ),
+    LayerRule(
         label="trading → no direct market-data adapter imports (wire at composition roots)",
         source_glob="src/trading/**/*.py",
         forbidden_prefixes=("infrastructure.market_data.",),

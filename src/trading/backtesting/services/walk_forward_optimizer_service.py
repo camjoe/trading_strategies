@@ -49,11 +49,11 @@ from trading.backtesting.services.backtest_data_service import build_monthly_uni
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models import AccountRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).

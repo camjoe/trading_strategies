@@ -4,8 +4,8 @@ import sqlite3
 
 from common.time import next_date_str
 from trading.models.books import RotationDecisionRecord
+from trading.persistence.unit_of_work import commit_unit_of_work
 from trading.repositories.book_bridge import strategy_id_for_label
-from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Reads join strategies to emit the label columns
 # (incumbent_strategy / challenger_strategy / selected_strategy) alongside the

@@ -4,8 +4,8 @@ import sqlite3
 
 from common.time import next_date_str
 from trading.models.portfolio import EquitySnapshotRecord
+from trading.persistence.unit_of_work import commit_unit_of_work
 from trading.repositories.book_bridge import default_book_id
-from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
 # summed balances. Degenerates to the raw row while an account has only its

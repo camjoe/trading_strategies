@@ -4,7 +4,7 @@ import sqlite3
 
 from common.time import next_date_str
 from trading.models.orders import FillEventRecord, OrderRecord
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 
 class BookAccountMismatchError(ValueError):

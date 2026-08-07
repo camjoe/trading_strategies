@@ -8,9 +8,9 @@ from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.config import (
     normalize_instrument_mode,
     normalize_lower,

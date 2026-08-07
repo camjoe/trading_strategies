@@ -29,7 +29,7 @@ from trading.backtesting.repositories.optimization_repository import (
 )
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.strategy import StrategyRecord
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 from trading.services.strategy_catalog.mutations import create_strategy_variant, freeze_strategy
 
 

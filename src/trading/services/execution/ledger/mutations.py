@@ -6,11 +6,11 @@ from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
 from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts import get_account
 
 # Manual entries are cash-flow ledger events or filled orders on the default

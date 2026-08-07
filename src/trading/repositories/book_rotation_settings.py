@@ -8,8 +8,8 @@ from trading.models.books import (
     BookRotationSettingsChangeEvent,
     BookRotationSettingsRecord,
 )
-from trading.repositories.change_events import diff_changed_fields, json_object_dumps, row_json_object
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.change_events import diff_changed_fields, json_object_dumps, row_json_object
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Rotation is the one remaining 1:1 settings table (large, coherent, sparse).
 # A missing row means "use code defaults". Execution and option settings are

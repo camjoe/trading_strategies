@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
@@ -15,7 +16,6 @@ from trading.repositories.orders import BookAccountMismatchError, OrderRepositor
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 NOW = "2026-07-03T12:00:00Z"
 

@@ -9,8 +9,8 @@ from trading.models.settings import (
     GlobalSettingsChangeEvent,
     GlobalSettingsRecord,
 )
-from trading.repositories.change_events import diff_changed_fields, json_object_dumps, row_json_object
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.change_events import diff_changed_fields, json_object_dumps, row_json_object
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 
 class GlobalSettingsRepository:
