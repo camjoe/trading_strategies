@@ -5,7 +5,7 @@ import pytest
 from tests.support.repositories import insert_repository_account
 from trading.models.evaluation import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.promotion import PromotionAssessment
-from trading.repositories.promotion import PromotionReviewRepository, _row_json_object
+from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -167,12 +167,9 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
     assert [item.review_state for item in history] == ["approved"]
 
 
-def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> None:
-    assert _row_json_object({"payload": None}, "payload") == {}
-
-    with pytest.raises(ValueError, match="Expected JSON object in column 'payload'"):
-        _row_json_object({"payload": "[1, 2, 3]"}, "payload")
-
+def test_require_helpers_raise_when_a_row_is_missing(monkeypatch) -> None:
+    # JSON column decoding moved to trading.persistence.json_columns; its own
+    # tests cover the payload-shape guard this used to assert here.
     monkeypatch.setattr(PromotionReviewRepository, "fetch_by_id", lambda self, *, review_id: None)
     with pytest.raises(ValueError, match="Promotion review 7 not found after update"):
         PromotionReviewRepository(object())._require_review(review_id=7, context="update")

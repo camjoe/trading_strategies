@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import replace
 from datetime import date
@@ -49,6 +48,7 @@ from trading.backtesting.services.backtest_data_service import build_monthly_uni
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models import AccountRecord
+from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import strategy_id_for_label
@@ -320,7 +320,7 @@ def _persist_failed_experiment(
         strategy_id=strategy_id,
         primitive=primitive,
         objective_name=cfg.objective_name,
-        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        search_space_json=dumps_json_column(cfg.search_space),
         candidate_budget=cfg.candidate_budget,
         train_months=cfg.train_months,
         test_months=cfg.test_months,
@@ -330,7 +330,7 @@ def _persist_failed_experiment(
         start_date=error.start_date.isoformat(),
         end_date=error.end_date.isoformat(),
         window_count=error.windows_completed,
-        winner_params_json=json.dumps(None),
+        winner_params_json=dumps_json_column(None),
         oos_mean_winner_return_pct=None,
         oos_mean_baseline_return_pct=None,
         oos_windows_beat_baseline=None,
@@ -370,7 +370,7 @@ def _persist_experiment(
         strategy_id=strategy_id,
         primitive=primitive,
         objective_name=cfg.objective_name,
-        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        search_space_json=dumps_json_column(cfg.search_space),
         candidate_budget=cfg.candidate_budget,
         train_months=cfg.train_months,
         test_months=cfg.test_months,
@@ -380,7 +380,7 @@ def _persist_experiment(
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         window_count=len(summary.windows),
-        winner_params_json=json.dumps(winner_params, sort_keys=True),
+        winner_params_json=dumps_json_column(winner_params),
         oos_mean_winner_return_pct=sum(winner_returns) / len(winner_returns),
         oos_mean_baseline_return_pct=sum(baseline_returns) / len(baseline_returns),
         oos_windows_beat_baseline=beat_baseline,
@@ -451,10 +451,10 @@ def _persist_manifest(
             benchmark_ticker=account.benchmark_ticker,
             slippage_bps=cfg.slippage_bps,
             fee_per_trade=cfg.fee_per_trade,
-            effective_execution_json=json.dumps(effective_execution, sort_keys=True),
+            effective_execution_json=dumps_json_column(effective_execution),
             tickers_file=cfg.tickers_file,
             universe_history_dir=cfg.universe_history_dir,
-            universe_tickers_json=json.dumps(universe),
+            universe_tickers_json=dumps_json_column(universe),
             universe_size=len(universe),
             market_data_provider=market_data_provider,
             data_as_of=now,

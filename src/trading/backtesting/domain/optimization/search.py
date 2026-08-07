@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from itertools import product
 from typing import Any
 
 from trading.domain.exceptions import ValidationError
+from trading.persistence.json_columns import dumps_json_column
 
 
 def canonical_params_json(params: dict[str, Any]) -> str:
@@ -14,7 +14,7 @@ def canonical_params_json(params: dict[str, Any]) -> str:
     Keys are sorted so the same parameter set always yields the same text — the
     canonical form persisted on a trial row and hashed by :func:`params_fingerprint`.
     """
-    return json.dumps(params, sort_keys=True)
+    return dumps_json_column(params)
 
 
 def params_fingerprint(params: dict[str, Any]) -> str:

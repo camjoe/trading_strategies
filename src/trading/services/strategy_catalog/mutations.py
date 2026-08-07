@@ -18,6 +18,7 @@ from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive, validate_params_against_primitive
 from trading.models.strategy import StrategyRecord
+from trading.persistence.json_columns import dumps_json_column
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -49,7 +50,7 @@ def create_strategy_variant(
     strategy_id = repo.insert(
         strategy_key=key,
         primitive=spec.primitive,
-        params_json=json.dumps(validated, sort_keys=True),
+        params_json=dumps_json_column(validated),
         description=description,
         status="draft",
         enabled=1,
@@ -85,7 +86,7 @@ def configure_strategy(
         repo.update_draft_knobs(
             strategy_id=record.id,
             primitive=record.primitive,
-            params_json=json.dumps(merged, sort_keys=True),
+            params_json=dumps_json_column(merged),
             updated_at=now,
         )
     if enabled is not None:

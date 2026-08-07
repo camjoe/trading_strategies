@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 from collections.abc import Callable
 from typing import Any
 
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
+from trading.persistence.json_columns import dumps_json_column
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def persist_book_risk_snapshot(
         # drawdown_pct above, a trailing-history peak can't stand in for it).
         daily_loss_pct=None,
         kill_switch_triggered=1 if kill_switch_triggered else 0,
-        risk_payload_json=json.dumps(payload, sort_keys=True),
+        risk_payload_json=dumps_json_column(payload),
     )
 
 
@@ -127,6 +127,6 @@ def persist_normalized_risk_decisions(
             approved_qty=float(approved_qty_value) if approved_qty_value is not None else None,
             requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
             approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
-            risk_payload_json=json.dumps(decision, sort_keys=True),
+            risk_payload_json=dumps_json_column(decision),
             created_at=decision_time,
         )

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 
 from trading.models.evaluation import StrategyEvaluationArtifact
@@ -14,9 +13,7 @@ from trading.models.promotion import (
     PromotionStage,
     PromotionStatus,
 )
-
-# Compact JSON storage keeps persisted review payloads stable and easy to diff.
-JSON_COMPACT_SEPARATORS = (",", ":")
+from trading.persistence.json_columns import dumps_json_column, read_json_object
 
 
 def _row_text(row: sqlite3.Row, key: str) -> str | None:
@@ -31,20 +28,6 @@ def _opt_review_state(value: str | None) -> PromotionReviewState | None:
     return None if value is None else PromotionReviewState(value)
 
 
-def _row_json_object(row: sqlite3.Row, key: str) -> dict[str, object]:
-    raw = row[key]
-    if raw is None:
-        return {}
-    payload = json.loads(str(raw))
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected JSON object in column '{key}'.")
-    return payload
-
-
-def _json_object_dumps(payload: dict[str, object]) -> str:
-    return json.dumps(payload, separators=JSON_COMPACT_SEPARATORS, sort_keys=True)
-
-
 def _db_optional_text(value: str | None) -> str:
     return value or ""
 
@@ -55,6 +38,9 @@ class PromotionReviewRepository:
 
     @staticmethod
     def _map_review_row(row: sqlite3.Row) -> PromotionReviewRecord:
+        # sqlite3.Row is a sequence, not a Mapping — the JSON column readers take
+        # the mapping side of that boundary, as models' from_mapping does.
+        values = dict(row)
         return PromotionReviewRecord(
             id=int(row["id"]),
             account_id=int(row["account_id"]),
@@ -69,8 +55,8 @@ class PromotionReviewRepository:
             live_trading_enabled_snapshot=bool(int(row["live_trading_enabled_snapshot"])),
             promotion_assessment_version=str(row["promotion_assessment_version"]),
             evaluation_artifact_version=str(row["evaluation_artifact_version"]),
-            frozen_assessment_payload=_row_json_object(row, "frozen_assessment_payload"),
-            frozen_evaluation_payload=_row_json_object(row, "frozen_evaluation_payload"),
+            frozen_assessment_payload=read_json_object(values, "frozen_assessment_payload"),
+            frozen_evaluation_payload=read_json_object(values, "frozen_evaluation_payload"),
             requested_by=_row_text(row, "requested_by"),
             reviewed_by=_row_text(row, "reviewed_by"),
             operator_summary_note=_row_text(row, "operator_summary_note"),
@@ -91,7 +77,7 @@ class PromotionReviewRepository:
             from_review_state=_opt_review_state(_row_text(row, "from_review_state")),
             to_review_state=_opt_review_state(_row_text(row, "to_review_state")),
             note=_row_text(row, "note"),
-            event_payload=_row_json_object(row, "event_payload"),
+            event_payload=read_json_object(dict(row), "event_payload"),
             created_at=str(row["created_at"]),
         )
 
@@ -167,8 +153,8 @@ class PromotionReviewRepository:
                 int(assessment.live_trading_enabled),
                 assessment.version,
                 evaluation.meta.artifact_version,
-                _json_object_dumps(assessment.to_payload()),
-                _json_object_dumps(evaluation.to_payload()),
+                dumps_json_column(assessment.to_payload()),
+                dumps_json_column(evaluation.to_payload()),
                 requested_by,
                 None,
                 _db_optional_text(operator_summary_note),
@@ -270,7 +256,7 @@ class PromotionReviewRepository:
                 from_review_state,
                 to_review_state,
                 note,
-                _json_object_dumps(event_payload),
+                dumps_json_column(event_payload),
                 created_at,
             ),
         )

@@ -9,7 +9,8 @@ from trading.models.settings import (
     GlobalSettingsChangeEvent,
     GlobalSettingsRecord,
 )
-from trading.persistence.change_events import diff_changed_fields, json_object_dumps, row_json_object
+from trading.persistence.change_events import diff_changed_fields
+from trading.persistence.json_columns import dumps_json_column, read_json_object
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 
@@ -37,7 +38,7 @@ class GlobalSettingsRepository:
                 settings_group, changed_fields, created_at
             ) VALUES (?, ?, ?)
             """,
-            (settings_group, json_object_dumps(changed_fields), created_at),
+            (settings_group, dumps_json_column(changed_fields), created_at),
         )
 
     def fetch_change_events(self, *, limit: int = 20) -> list[GlobalSettingsChangeEvent]:
@@ -53,7 +54,7 @@ class GlobalSettingsRepository:
             GlobalSettingsChangeEvent(
                 id=int(row["id"]),
                 settings_group=str(row["settings_group"]),
-                changed_fields=row_json_object(row, "changed_fields"),
+                changed_fields=read_json_object(row, "changed_fields"),
                 created_at=str(row["created_at"]),
             )
             for row in rows

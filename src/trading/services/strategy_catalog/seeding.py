@@ -11,12 +11,12 @@ Two idempotent bootstrap passes:
 
 from __future__ import annotations
 
-import json
 import sqlite3
 
 from common.coercion import row_expect_float, row_expect_int
 from common.time import utc_now_iso
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
+from trading.persistence.json_columns import dumps_json_column
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
@@ -35,7 +35,7 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
         repo.insert(
             strategy_key=primitive,
             primitive=primitive,
-            params_json=json.dumps(dict(spec.knob_schema), sort_keys=True),
+            params_json=dumps_json_column(dict(spec.knob_schema)),
             description=spec.description or None,
             status="draft",
             enabled=1,
@@ -88,7 +88,7 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
             current_equity=initial_cash,
             # A bootstrapped book must be able to trade; the repository has no
             # default because expanding a universe name is service work.
-            trade_symbols=json.dumps(default_trade_symbols(), separators=(",", ":")),
+            trade_symbols=dumps_json_column(default_trade_symbols()),
             created_at=now,
             updated_at=now,
         )
