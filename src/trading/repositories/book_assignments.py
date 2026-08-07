@@ -26,14 +26,14 @@ class BookAssignmentRepository:
     def fetch_open(self, *, book_id: int) -> BookStrategyAssignmentRecord | None:
         row = self._conn.execute(
             "SELECT * FROM book_strategy_history WHERE book_id = ? AND effective_to IS NULL",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def fetch_history(self, *, book_id: int) -> list[BookStrategyAssignmentRecord]:
         rows = self._conn.execute(
             "SELECT * FROM book_strategy_history WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -59,7 +59,7 @@ class BookAssignmentRepository:
                 SET effective_to = ?, updated_at = ?
                 WHERE book_id = ? AND effective_to IS NULL
                 """,
-                (effective_from, updated_at, int(book_id)),
+                (effective_from, updated_at, book_id),
             )
             cursor = self._conn.execute(
                 """
@@ -70,8 +70,8 @@ class BookAssignmentRepository:
                 VALUES (?, ?, ?, NULL, ?, ?)
                 """,
                 (
-                    int(book_id),
-                    int(strategy_id),
+                    book_id,
+                    strategy_id,
                     effective_from,
                     created_at,
                     updated_at,

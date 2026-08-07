@@ -34,6 +34,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
 - Grouping several DB writes into one atomic transaction (commit once, roll back on any failure): use `unit_of_work` / `commit_unit_of_work` from `src/trading/repositories/unit_of_work.py` — see `docs/reference/database-transactions.md`.
+- Writing a timestamp to a database column: render it with `utc_now_iso` / `as_utc_iso` / `normalize_utc_iso` from `src/common/time.py`, never a bare `datetime.isoformat()`. Stored timestamps are string-compared in SQL, so mixed spellings of one instant break ordering and range filters — see `docs/conventions/python-style.md` (Timestamps).
 
 ## Output style
 

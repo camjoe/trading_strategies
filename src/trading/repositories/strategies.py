@@ -50,7 +50,7 @@ class StrategyRepository:
                 params_json,
                 description,
                 status,
-                int(enabled),
+                enabled,
                 created_at,
                 updated_at,
             ),
@@ -61,7 +61,7 @@ class StrategyRepository:
     def fetch_by_id(self, *, strategy_id: int) -> StrategyRecord | None:
         row = self._conn.execute(
             "SELECT * FROM strategies WHERE id = ?",
-            (int(strategy_id),),
+            (strategy_id,),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
@@ -97,10 +97,9 @@ class StrategyRepository:
             SET primitive = ?, params_json = ?, updated_at = ?
             WHERE id = ? AND status = 'draft'
             """,
-            (primitive, params_json, updated_at, int(strategy_id)),
+            (primitive, params_json, updated_at, strategy_id),
         )
         if cursor.rowcount == 0:
-            self._conn.rollback()
             raise StrategyImmutableError(
                 f"Strategy {strategy_id} is frozen or missing; tuning requires a new strategy row."
             )
@@ -110,13 +109,13 @@ class StrategyRepository:
         """Mark a strategy frozen (one-way; called once it has evidence or goes live)."""
         self._conn.execute(
             "UPDATE strategies SET status = 'frozen', updated_at = ? WHERE id = ? AND status = 'draft'",
-            (updated_at, int(strategy_id)),
+            (updated_at, strategy_id),
         )
         commit_unit_of_work(self._conn)
 
     def set_enabled(self, *, strategy_id: int, enabled: int, updated_at: str) -> None:
         self._conn.execute(
             "UPDATE strategies SET enabled = ?, updated_at = ? WHERE id = ?",
-            (int(enabled), updated_at, int(strategy_id)),
+            (enabled, updated_at, strategy_id),
         )
         commit_unit_of_work(self._conn)

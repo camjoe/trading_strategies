@@ -168,7 +168,7 @@ class TestFetchLatestRotateAction:
         acct_id = _account_id(conn)
         bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z", rotation_action="hold")
-        assert RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=bk_id) is None
+        assert RotationDecisionRepository(conn).fetch_latest_rotate_time_for_book(book_id=bk_id) is None
 
     def test_returns_most_recent_rotate_ignoring_holds(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -189,10 +189,9 @@ class TestFetchLatestRotateAction:
             decision_reason="latest_rotate",
         )
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T12:00:00Z", rotation_action="hold")
-        row = RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=bk_id)
-        assert row is not None
         # The cooldown source returns the most recent rotate's decision_time, skipping holds.
-        assert row["decision_time"] == "2026-01-01T11:00:00Z"
+        latest = RotationDecisionRepository(conn).fetch_latest_rotate_time_for_book(book_id=bk_id)
+        assert latest == "2026-01-01T11:00:00Z"
 
 
 def test_fetch_selected_strategy_timeline_orders_incumbent_and_selected(conn) -> None:

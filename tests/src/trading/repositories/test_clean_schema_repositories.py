@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
@@ -15,6 +15,7 @@ from trading.repositories.orders import BookAccountMismatchError, OrderRepositor
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
+from trading.repositories.unit_of_work import unit_of_work
 
 NOW = "2026-07-03T12:00:00Z"
 
@@ -101,6 +102,27 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
     assert repo.fetch_enabled() == []
 
 
+def test_immutability_guard_leaves_an_enclosing_unit_of_work_intact(conn) -> None:
+    strategy_id = _insert_strategy(conn)
+    repo = StrategyRepository(conn)
+    repo.freeze(strategy_id=strategy_id, updated_at=NOW)
+
+    # The guard rejects the edit but must not end the enclosing transaction: a
+    # caller that handles it and carries on still gets the scope's other writes.
+    with unit_of_work(conn):
+        repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
+        with pytest.raises(StrategyImmutableError):
+            repo.update_draft_knobs(
+                strategy_id=strategy_id,
+                primitive="trend",
+                params_json='{"fast_window": 2}',
+                updated_at=NOW,
+            )
+
+    frozen = repo.fetch_by_id(strategy_id=strategy_id)
+    assert frozen is not None and frozen.enabled == 0
+
+
 def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
     _, book_id = _insert_book(conn)
     first = _insert_strategy(conn, key="trend_v1")
@@ -131,21 +153,15 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["fixed_stop", 5.0]
-    )
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["stop_and_target", 4.0]
-    )
+    book_repo.update_settings(book_id=book_id, values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0})
+    book_repo.update_settings(book_id=book_id, values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0})
     execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["option_type = ?", "option_min_dte = ?"], params=["call", 120]
-    )
+    book_repo.update_settings(book_id=book_id, values={"option_type": "call", "option_min_dte": 120})
     option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
     assert option.option_min_dte == 120

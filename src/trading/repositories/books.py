@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 
 from common.time import utc_now_iso
 from trading.models.books import BookRecord
@@ -77,18 +78,18 @@ class BookRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(account_id),
+                account_id,
                 name,
                 status,
-                int(is_default),
-                float(start_equity),
-                float(current_cash),
-                float(current_equity),
+                is_default,
+                start_equity,
+                current_cash,
+                current_equity,
                 trade_symbols,
                 goal_min_return_pct,
                 goal_max_return_pct,
                 goal_period,
-                int(learning_enabled),
+                learning_enabled,
                 risk_policy,
                 stop_loss_pct,
                 take_profit_pct,
@@ -122,60 +123,56 @@ class BookRepository:
         """Close the open universe-history row (if any) and open a new one."""
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
-            (effective_from, int(book_id)),
+            (effective_from, book_id),
         )
         self._conn.execute(
             """
             INSERT INTO book_universe_history (book_id, trade_symbols, effective_from, effective_to)
             VALUES (?, ?, ?, NULL)
             """,
-            (int(book_id), trade_symbols, effective_from),
+            (book_id, trade_symbols, effective_from),
         )
 
-    def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
-            """
-            SELECT trade_symbols, effective_from, effective_to
-            FROM book_universe_history
-            WHERE book_id = ?
-            ORDER BY effective_from ASC, id ASC
-            """,
-            (int(book_id),),
-        ).fetchall()
+    def update_settings(self, *, book_id: int, values: Mapping[str, object]) -> None:
+        """Write ``values`` as a partial column update to one book; no-op when empty.
 
-    def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
-        """Apply pre-built ``column = ?`` update fragments to one book."""
+        Callers pass column name to value; deciding which settings to include
+        (and so which to leave at their current value) is theirs.
+        """
+        if not values:
+            return
+        assignments = ", ".join(f"{column} = ?" for column in values)
         self._conn.execute(
-            f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
-            (*params, utc_now_iso(), int(book_id)),
+            f"UPDATE books SET {assignments}, updated_at = ? WHERE id = ?",
+            (*values.values(), utc_now_iso(), book_id),
         )
         commit_unit_of_work(self._conn)
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(
             "SELECT * FROM books WHERE id = ?",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def fetch_for_account(self, *, account_id: int) -> list[BookRecord]:
         rows = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? ORDER BY id ASC",
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_default_for_account(self, *, account_id: int) -> BookRecord | None:
         row = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? AND is_default = 1",
-            (int(account_id),),
+            (account_id,),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def update_status(self, *, book_id: int, status: str, updated_at: str) -> None:
         self._conn.execute(
             "UPDATE books SET status = ?, updated_at = ? WHERE id = ?",
-            (status, updated_at, int(book_id)),
+            (status, updated_at, book_id),
         )
         commit_unit_of_work(self._conn)
 
@@ -183,7 +180,7 @@ class BookRepository:
         """Set the book's universes and record the change in the history table."""
         self._conn.execute(
             "UPDATE books SET trade_symbols = ?, updated_at = ? WHERE id = ?",
-            (trade_symbols, updated_at, int(book_id)),
+            (trade_symbols, updated_at, book_id),
         )
         self._record_universe_history(book_id=book_id, trade_symbols=trade_symbols, effective_from=updated_at)
         commit_unit_of_work(self._conn)
@@ -202,6 +199,6 @@ class BookRepository:
             SET current_cash = ?, current_equity = ?, updated_at = ?
             WHERE id = ?
             """,
-            (float(current_cash), float(current_equity), updated_at, int(book_id)),
+            (current_cash, current_equity, updated_at, book_id),
         )
         commit_unit_of_work(self._conn)

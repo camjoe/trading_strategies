@@ -20,7 +20,7 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
     """Resolve (bootstrapping if needed) the account's default book id."""
     row = conn.execute(
         "SELECT id FROM books WHERE account_id = ? AND is_default = 1",
-        (int(account_id),),
+        (account_id,),
     ).fetchone()
     if row is not None:
         return int(row[0])
@@ -38,7 +38,7 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
                '[]', created_at, created_at
         FROM accounts WHERE id = ?
         """,
-        (int(account_id),),
+        (account_id,),
     )
     if cursor.rowcount == 0:
         raise LookupError(f"Account {account_id} does not exist; cannot resolve its default book.")
@@ -48,7 +48,7 @@ def default_book_id(conn: sqlite3.Connection, account_id: int) -> int:
         INSERT INTO book_universe_history (book_id, trade_symbols, effective_from, effective_to)
         SELECT ?, '[]', created_at, NULL FROM accounts WHERE id = ?
         """,
-        (book_id, int(account_id)),
+        (book_id, account_id),
     )
     return book_id
 

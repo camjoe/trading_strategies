@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
 
+from common.time import next_date_str
 from trading.models.books import RiskDecisionRecord, RiskSnapshotRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
@@ -48,16 +48,16 @@ class RiskSnapshotRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(account_id),
+                account_id,
                 snapshot_time,
-                float(gross_exposure),
-                float(net_exposure),
-                float(max_symbol_concentration_pct),
-                float(max_sector_concentration_pct),
+                gross_exposure,
+                net_exposure,
+                max_symbol_concentration_pct,
+                max_sector_concentration_pct,
                 drawdown_pct,
                 leverage_proxy,
                 daily_loss_pct,
-                int(kill_switch_triggered),
+                kill_switch_triggered,
                 risk_payload_json,
             ),
         )
@@ -67,7 +67,7 @@ class RiskSnapshotRepository:
     def fetch_latest(self, *, account_id: int) -> RiskSnapshotRecord | None:
         row = self._conn.execute(
             "SELECT * FROM risk_snapshots WHERE account_id = ? ORDER BY snapshot_time DESC LIMIT 1",
-            (int(account_id),),
+            (account_id,),
         ).fetchone()
         return RiskSnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
@@ -78,11 +78,11 @@ class RiskSnapshotRepository:
         reports, so a report for a past date reflects that day's state rather
         than the current one.
         """
-        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        next_date = next_date_str(report_date)
         row = self._conn.execute(
             "SELECT * FROM risk_snapshots WHERE account_id = ? AND snapshot_time < ? "
             "ORDER BY snapshot_time DESC LIMIT 1",
-            (int(account_id), next_date),
+            (account_id, next_date),
         ).fetchone()
         return RiskSnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
@@ -120,7 +120,7 @@ class RiskDecisionRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(account_id),
+                account_id,
                 book_id,
                 decision_time,
                 symbol,
@@ -141,18 +141,18 @@ class RiskDecisionRepository:
     def fetch_recent(self, *, account_id: int, limit: int = 50) -> list[RiskDecisionRecord]:
         rows = self._conn.execute(
             "SELECT * FROM risk_decisions WHERE account_id = ? ORDER BY decision_time DESC, id DESC LIMIT ?",
-            (int(account_id), int(limit)),
+            (account_id, limit),
         ).fetchall()
         return [RiskDecisionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_account_date(self, *, account_id: int, report_date: str) -> list[RiskDecisionRecord]:
-        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        next_date = next_date_str(report_date)
         rows = self._conn.execute(
             """
             SELECT * FROM risk_decisions
             WHERE account_id = ? AND decision_time >= ? AND decision_time < ?
             ORDER BY decision_time ASC, id ASC
             """,
-            (int(account_id), report_date, next_date),
+            (account_id, report_date, next_date),
         ).fetchall()
         return [RiskDecisionRecord.from_mapping(dict(row)) for row in rows]

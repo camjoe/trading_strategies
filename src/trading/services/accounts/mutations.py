@@ -51,10 +51,10 @@ def _apply_book_settings_to_default_book(
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")
-    updates = [f"{column} = ?" for column, value in values.items() if value is not None]
-    params = [value for value in values.values() if value is not None]
-    if updates:
-        BookRepository(conn).update_settings_columns(book_id=book.id, updates=updates, params=params)
+    BookRepository(conn).update_settings(
+        book_id=book.id,
+        values={column: value for column, value in values.items() if value is not None},
+    )
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -236,15 +236,13 @@ def _configure_account(
 ) -> None:
     cfg = config or AccountConfig()
     account = get_account(conn, account_name)
-    updates: list[str] = []
-    params: list[object] = []
+    account_values: dict[str, object] = {}
 
     if cfg.descriptive_name is not None:
         display = cfg.descriptive_name.strip()
         if not display:
             raise ValidationError("descriptive_name cannot be empty.")
-        updates.append("descriptive_name = ?")
-        params.append(display)
+        account_values["descriptive_name"] = display
 
     # Goals, universes, and execution/option knobs are book columns
     # (revisions 0004/0005/0008): validate merged over the default book's
@@ -320,13 +318,9 @@ def _configure_account(
     if cfg.trade_universes is not None:
         _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
 
-    if not updates:
-        return
-
     AccountRepository(conn).update(
         account_id=account.id,
-        updates=updates,
-        params=params,
+        values=account_values,
         updated_at=utc_now_iso(),
     )
 

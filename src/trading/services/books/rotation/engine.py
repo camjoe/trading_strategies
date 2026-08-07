@@ -9,7 +9,7 @@ from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
 from trading.domain.rotation.schedule import parse_rotation_schedule
 from trading.models.rotation import RotationDecision, RotationScoreWeights, RotationStrategyMetrics
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.unit_of_work import unit_of_work
@@ -191,12 +191,7 @@ def book_cooldown_active(
     The unified "when" guard for book rotation: read the book's
     latest 'rotate' decision and compare against ``decision_time``.
     """
-    latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=int(book_id))
-    latest_rotate_time = (
-        str(latest_rotate["decision_time"]).strip()
-        if latest_rotate is not None and latest_rotate["decision_time"] is not None
-        else None
-    )
+    latest_rotate_time = RotationDecisionRepository(conn).fetch_latest_rotate_time_for_book(book_id=int(book_id))
     return _is_cooldown_active(
         latest_rotate_time=latest_rotate_time,
         decision_time=decision_time,

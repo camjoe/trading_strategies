@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import sqlite3
-from collections.abc import Mapping
 
 from trading.models.settings import (
     GLOBAL_SETTINGS_GROUP_EVALUATION,
@@ -11,29 +9,8 @@ from trading.models.settings import (
     GlobalSettingsChangeEvent,
     GlobalSettingsRecord,
 )
+from trading.repositories.change_events import diff_changed_fields, json_object_dumps, row_json_object
 from trading.repositories.unit_of_work import commit_unit_of_work
-
-# Compact JSON storage keeps persisted change-event payloads stable and easy to diff.
-JSON_COMPACT_SEPARATORS = (",", ":")
-
-
-def _json_object_dumps(payload: Mapping[str, object]) -> str:
-    return json.dumps(payload, separators=JSON_COMPACT_SEPARATORS, sort_keys=True)
-
-
-def _row_json_object(row: sqlite3.Row, key: str) -> dict[str, dict[str, object]]:
-    return json.loads(str(row[key]))
-
-
-def _diff_changed_fields(
-    *, current: GlobalSettingsRecord | None, new_values: Mapping[str, object]
-) -> dict[str, dict[str, object]]:
-    changed: dict[str, dict[str, object]] = {}
-    for field_name, new_value in new_values.items():
-        old_value = getattr(current, field_name) if current is not None else None
-        if old_value != new_value:
-            changed[field_name] = {"old": old_value, "new": new_value}
-    return changed
 
 
 class GlobalSettingsRepository:
@@ -60,7 +37,7 @@ class GlobalSettingsRepository:
                 settings_group, changed_fields, created_at
             ) VALUES (?, ?, ?)
             """,
-            (settings_group, _json_object_dumps(changed_fields), created_at),
+            (settings_group, json_object_dumps(changed_fields), created_at),
         )
 
     def fetch_change_events(self, *, limit: int = 20) -> list[GlobalSettingsChangeEvent]:
@@ -70,13 +47,13 @@ class GlobalSettingsRepository:
             ORDER BY id DESC
             LIMIT ?
             """,
-            (int(limit),),
+            (limit,),
         ).fetchall()
         return [
             GlobalSettingsChangeEvent(
                 id=int(row["id"]),
                 settings_group=str(row["settings_group"]),
-                changed_fields=_row_json_object(row, "changed_fields"),
+                changed_fields=row_json_object(row, "changed_fields"),
                 created_at=str(row["created_at"]),
             )
             for row in rows
@@ -110,7 +87,7 @@ class GlobalSettingsRepository:
             """,
             (runtime_max_trades_per_day, runtime_max_trades_per_minute, updated_at),
         )
-        changed = _diff_changed_fields(current=current, new_values=new_values)
+        changed = diff_changed_fields(current=current, new_values=new_values)
         self._insert_change_event(
             settings_group=GLOBAL_SETTINGS_GROUP_THROTTLE, changed_fields=changed, created_at=updated_at
         )
@@ -176,7 +153,7 @@ class GlobalSettingsRepository:
                 updated_at,
             ),
         )
-        changed = _diff_changed_fields(current=current, new_values=new_values)
+        changed = diff_changed_fields(current=current, new_values=new_values)
         self._insert_change_event(
             settings_group=GLOBAL_SETTINGS_GROUP_EVALUATION, changed_fields=changed, created_at=updated_at
         )
@@ -240,7 +217,7 @@ class GlobalSettingsRepository:
                 updated_at,
             ),
         )
-        changed = _diff_changed_fields(current=current, new_values=new_values)
+        changed = diff_changed_fields(current=current, new_values=new_values)
         self._insert_change_event(
             settings_group=GLOBAL_SETTINGS_GROUP_PROMOTION, changed_fields=changed, created_at=updated_at
         )

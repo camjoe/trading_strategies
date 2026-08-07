@@ -35,9 +35,9 @@ class LedgerRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(book_id),
+                book_id,
                 entry_type,
-                float(amount),
+                amount,
                 reference_type,
                 reference_id,
                 entry_time,
@@ -50,7 +50,7 @@ class LedgerRepository:
     def fetch_for_book(self, *, book_id: int) -> list[LedgerEntryRecord]:
         rows = self._conn.execute(
             "SELECT * FROM ledger WHERE book_id = ? ORDER BY entry_time ASC, id ASC",
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -64,7 +64,7 @@ class LedgerRepository:
             WHERE b.account_id = ? AND l.entry_type IN ('deposit', 'withdrawal')
             ORDER BY l.entry_time ASC, l.id ASC
             """,
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 

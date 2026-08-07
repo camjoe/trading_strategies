@@ -82,6 +82,37 @@ class BrokerOrder:
 
 
 @dataclass(frozen=True, slots=True)
+class FillEventRecord:
+    """One execution joined to its order, shaped for the account-state replay.
+
+    Field names mirror the retired ``trades`` row so the pure replay math in
+    ``trading.domain.accounting`` reads them unchanged.
+    """
+
+    book_id: int
+    ticker: str
+    side: str
+    qty: float
+    price: float
+    fee: float
+    trade_time: str
+    order_id: int
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> FillEventRecord:
+        return cls(
+            book_id=row_expect_int(values, "book_id"),
+            ticker=row_expect_str(values, "ticker"),
+            side=row_expect_str(values, "side"),
+            qty=row_expect_float(values, "qty"),
+            price=row_expect_float(values, "price"),
+            fee=row_expect_float(values, "fee"),
+            trade_time=row_expect_str(values, "trade_time"),
+            order_id=row_expect_int(values, "order_id"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class OrderRecord:
     """Persisted orders row (clean schema, book-keyed) materialized from the database."""
 

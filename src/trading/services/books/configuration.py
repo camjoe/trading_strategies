@@ -12,7 +12,7 @@ from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.accounts import AccountConfig
 from trading.models.books import BookRecord
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.config import (
@@ -190,10 +190,10 @@ def configure_book(
         if config.option_type is not None:
             values["option_type"] = normalize_option_type(config.option_type)
 
-        updates = [f"{name} = ?" for name, value in values.items() if value is not None]
-        params = [value for value in values.values() if value is not None]
-        if updates:
-            BookRepository(conn).update_settings_columns(book_id=book.id, updates=updates, params=params)
+        BookRepository(conn).update_settings(
+            book_id=book.id,
+            values={name: value for name, value in values.items() if value is not None},
+        )
         if config.trade_universes is not None:
             # Names are shorthand; the book stores the expansion (revision 0029).
             symbols = resolve_trade_symbols(config.trade_universes)

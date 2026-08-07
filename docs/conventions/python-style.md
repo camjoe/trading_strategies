@@ -63,6 +63,31 @@ Keep platform-specific string normalization only at input boundaries (e.g. user-
 
 ---
 
+## Timestamps
+
+Any timestamp written to a database column goes through `src/common/time.py`:
+
+- `common.time.utc_now_iso()` for "now".
+- `common.time.as_utc_iso(value)` to render a `datetime` already in hand.
+- `common.time.normalize_utc_iso(text)` for a timestamp arriving as text from outside (broker
+  execution reports, imports). Raises on input it cannot parse rather than storing it.
+- `common.time.parse_utc_iso(text)` to read one back.
+- `common.time.next_date_str(date_str)` for the exclusive upper bound of a calendar day.
+
+Do not call `datetime.isoformat()` directly on a value headed for a column. Stored timestamps are
+compared as **strings** in SQL, so a column holding a mix of `Z`, `+00:00`, and bare-naive spellings
+of the same instant does not order or range-filter correctly — `"…Z" < "…+00:00"` is False, and a
+range bounded by a bare timestamp excludes the `Z`-suffixed value at the same instant.
+
+For the same reason, filter a calendar day with a half-open range (`>= date_str AND < next_date_str(date_str)`)
+rather than `substr(column, 1, 10)`: the range form uses the timestamp indexes, and a bare
+`YYYY-MM-DD` bound sorts below every stored timestamp on that day whatever suffix it carries.
+
+This rule is about persistence. In-memory `datetime` comparison (market hours, cache TTLs) and
+`date.isoformat()` for a `YYYY-MM-DD` date column are unaffected.
+
+---
+
 ## Tooling
 
 - With the repository virtual environment active, run the normal Python quality gate through the

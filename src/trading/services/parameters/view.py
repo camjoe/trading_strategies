@@ -23,7 +23,7 @@ from trading.models.parameters import (
     ParameterSourceView,
 )
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository

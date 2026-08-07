@@ -81,17 +81,17 @@ class FixtureSeedRepository:
         the default book's return read as a loss the size of the sleeves.
         """
         default_book = self._conn.execute(
-            "SELECT start_equity, current_cash FROM books WHERE id = ?", (int(default_book_id),)
+            "SELECT start_equity, current_cash FROM books WHERE id = ?", (default_book_id,)
         ).fetchone()
         if default_book is None:
             raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
-        remaining = float(default_book["current_cash"]) - float(opening_cash)
+        remaining = float(default_book["current_cash"]) - opening_cash
         if remaining < 0:
             raise ValueError(
                 f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
                 f"{float(default_book['current_cash']):.2f}."
             )
-        remaining_start_equity = float(default_book["start_equity"]) - float(opening_cash)
+        remaining_start_equity = float(default_book["start_equity"]) - opening_cash
 
         cursor = self._conn.execute(
             """INSERT INTO books
@@ -105,7 +105,7 @@ class FixtureSeedRepository:
             raise ValueError(f"Expected a book id after inserting fixture book '{name}'.")
         self._conn.execute(
             "UPDATE books SET start_equity = ?, current_cash = ?, current_equity = ?, updated_at = ? WHERE id = ?",
-            (remaining_start_equity, remaining, remaining, now_iso, int(default_book_id)),
+            (remaining_start_equity, remaining, remaining, now_iso, default_book_id),
         )
         commit_unit_of_work(self._conn)
         return int(book_id)

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.orders import OrderRecord
+from common.time import next_date_str
+from trading.models.orders import FillEventRecord, OrderRecord
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 
@@ -47,9 +48,9 @@ class OrderRepository:
     ) -> int:
         owner = self._conn.execute(
             "SELECT account_id FROM books WHERE id = ?",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
-        if owner is None or int(owner[0]) != int(account_id):
+        if owner is None or int(owner[0]) != account_id:
             raise BookAccountMismatchError(
                 f"Book {book_id} does not belong to account {account_id}; refusing to insert order."
             )
@@ -63,21 +64,21 @@ class OrderRepository:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(book_id),
-                int(account_id),
+                book_id,
+                account_id,
                 strategy_id,
                 rotation_decision_id,
                 broker_order_id,
                 symbol,
                 side,
-                float(qty),
+                qty,
                 order_type,
                 time_in_force,
                 requested_price,
                 status,
-                float(filled_qty),
+                filled_qty,
                 avg_fill_price,
-                float(commission),
+                commission,
                 submitted_at,
                 updated_at,
                 status_reason,
@@ -105,11 +106,11 @@ class OrderRepository:
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
-                int(order_id),
+                order_id,
                 exec_id,
-                float(filled_qty),
-                float(fill_price),
-                float(commission),
+                filled_qty,
+                fill_price,
+                commission,
                 fill_time,
             ),
         )
@@ -119,18 +120,16 @@ class OrderRepository:
         """Return the non-null exec_ids already recorded for an order (fill dedup)."""
         rows = self._conn.execute(
             "SELECT exec_id FROM order_fills WHERE order_id = ? AND exec_id IS NOT NULL",
-            (int(order_id),),
+            (order_id,),
         ).fetchall()
         return {str(row[0]) for row in rows}
 
-    def fetch_fill_events_for_account(self, *, account_id: int) -> list[sqlite3.Row]:
-        """Fill executions for the account's orders as trade-shaped rows, oldest first.
+    def fetch_fill_events_for_account(self, *, account_id: int) -> list[FillEventRecord]:
+        """Fill executions for the account's orders as trade-shaped records, oldest first.
 
-        Feeds the account-state replay (``trading.services.execution.ledger``): the
-        keys mirror the retired ``trades`` rows so the pure replay math is
-        unchanged.
+        Feeds the account-state replay (``trading.services.execution.ledger``).
         """
-        return self._conn.execute(
+        rows = self._conn.execute(
             """
             SELECT o.book_id AS book_id, o.symbol AS ticker, o.side AS side, f.filled_qty AS qty,
                    f.fill_price AS price, f.commission AS fee,
@@ -140,8 +139,9 @@ class OrderRepository:
             WHERE o.account_id = ?
             ORDER BY f.fill_time ASC, f.id ASC
             """,
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
+        return [FillEventRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
         """Global fill count in a time window — realized trading, for the per-day throttle."""
@@ -166,14 +166,7 @@ class OrderRepository:
     def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
         row = self._conn.execute(
             "SELECT * FROM orders WHERE id = ?",
-            (int(order_id),),
-        ).fetchone()
-        return self._row_to_record(row) if row is not None else None
-
-    def fetch_by_broker_order_id(self, *, account_id: int, broker_order_id: str) -> OrderRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM orders WHERE account_id = ? AND broker_order_id = ?",
-            (int(account_id), broker_order_id),
+            (order_id,),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
@@ -184,14 +177,14 @@ class OrderRepository:
             WHERE account_id = ? AND status IN ('submitted', 'partially_filled')
             ORDER BY submitted_at DESC, id DESC
             """,
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_for_book(self, *, book_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
             "SELECT * FROM orders WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -204,7 +197,7 @@ class OrderRepository:
         """
         self._conn.execute(
             "UPDATE orders SET realized_pnl_delta = COALESCE(realized_pnl_delta, 0) + ? WHERE id = ?",
-            (float(realized_pnl_delta), int(order_id)),
+            (realized_pnl_delta, order_id),
         )
         commit_unit_of_work(self._conn)
 
@@ -213,29 +206,23 @@ class OrderRepository:
 
         Unlike ``fetch_filled_for_book_on_date`` this keeps all statuses — rejected
         and cancelled orders are the interesting ones when watching a live broker.
-        Compares on the ISO timestamp's date prefix so it is robust to whether the
-        stored ``submitted_at`` carries a timezone suffix.
         """
         rows = self._conn.execute(
             "SELECT * FROM orders "
-            "WHERE account_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "WHERE account_id = ? AND submitted_at >= ? AND submitted_at < ? "
             "ORDER BY submitted_at ASC, id ASC",
-            (int(account_id), date_str),
+            (account_id, date_str, next_date_str(date_str)),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
-        """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD).
-
-        Compares on the ISO timestamp's date prefix so it is robust to whether the
-        stored ``submitted_at`` carries a timezone suffix.
-        """
+        """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD)."""
         rows = self._conn.execute(
             "SELECT * FROM orders "
-            "WHERE book_id = ? AND substr(submitted_at, 1, 10) = ? "
+            "WHERE book_id = ? AND submitted_at >= ? AND submitted_at < ? "
             "AND status IN ('filled', 'partially_filled') "
             "ORDER BY submitted_at ASC, id ASC",
-            (int(book_id), date_str),
+            (book_id, date_str, next_date_str(date_str)),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -261,6 +248,6 @@ class OrderRepository:
                 updated_at = ?
             WHERE id = ?
             """,
-            (status, filled_qty, avg_fill_price, status_reason, updated_at, int(order_id)),
+            (status, filled_qty, avg_fill_price, status_reason, updated_at, order_id),
         )
         commit_unit_of_work(self._conn)

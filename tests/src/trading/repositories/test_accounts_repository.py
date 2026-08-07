@@ -66,20 +66,10 @@ class TestUpdateAccountBenchmark:
         assert stamped["updated_at"] == "2026-02-01T00:00:00"
 
 
-class TestFetchAccountListingRows:
-    def test_returns_all_accounts_ordered_by_strategy_then_name(self, conn) -> None:
-        _insert(conn, "z_acct")
-        _insert(conn, "a_acct")
-        _insert(conn, "m_acct")
-        rows = AccountRepository(conn).fetch_listing()
-        names = [r["name"] for r in rows]
-        assert names == ["a_acct", "m_acct", "z_acct"]
-
-    def test_empty_table_returns_empty_list(self, conn) -> None:
-        assert AccountRepository(conn).fetch_listing() == []
-
-
 class TestFetchAccountRows:
+    def test_empty_table_returns_empty_list(self, conn) -> None:
+        assert AccountRepository(conn).fetch_all() == []
+
     def test_returns_all_accounts_ordered_by_name(self, conn) -> None:
         _insert(conn, "keep_me")
         AccountRepository(conn).insert(_make_account_insert(name="second_acct", descriptive_name="second_acct"))
@@ -102,8 +92,7 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("upd_acct")
         repo.update(
             account_id=row["id"],
-            updates=["descriptive_name = ?"],
-            params=["Renamed"],
+            values={"descriptive_name": "Renamed"},
             updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("upd_acct")
@@ -117,8 +106,7 @@ class TestUpdateAccountFields:
         row = repo.fetch_by_name("multi_upd")
         repo.update(
             account_id=row["id"],
-            updates=["descriptive_name = ?", "benchmark_ticker = ?"],
-            params=["Multi", "QQQ"],
+            values={"descriptive_name": "Multi", "benchmark_ticker": "QQQ"},
             updated_at="2026-02-01T00:00:00",
         )
         updated = repo.fetch_by_name("multi_upd")

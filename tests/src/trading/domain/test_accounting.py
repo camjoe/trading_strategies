@@ -59,6 +59,23 @@ class TestComputeAccountState:
         assert state.realized_pnl == pytest.approx(20.0)
         assert state.cash == pytest.approx(1020.0)
 
+    def test_rebuying_a_sold_out_position_starts_a_fresh_cost_basis(self) -> None:
+        # The prior cost basis must not blend into the new one. Nothing clears
+        # avg_cost when a position closes; at zero quantity the weighting term
+        # (old_qty * avg_cost) is zero, so the reset would be inert.
+        state = compute_account_state(
+            initial_cash=1000.0,
+            trades=[
+                {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+                {"ticker": "AAPL", "side": "sell", "qty": 2, "price": 110, "fee": 0},
+                {"ticker": "AAPL", "side": "buy", "qty": 1, "price": 50, "fee": 0},
+            ],
+        )
+
+        assert state.positions == {"AAPL": 1.0}
+        assert state.avg_cost["AAPL"] == pytest.approx(50.0)
+        assert state.cash == pytest.approx(970.0)
+
     def test_multiple_buys_updates_weighted_avg_cost(self) -> None:
         state = compute_account_state(
             initial_cash=1000.0,
@@ -72,6 +89,43 @@ class TestComputeAccountState:
         assert state.avg_cost["AAPL"] == pytest.approx((200.0 + 131.0) / 3.0)
         assert state.cash == pytest.approx(669.0)
         assert state.total_deposited == pytest.approx(0.0)
+
+
+class TestWholeUnitQuantities:
+    """Instrument quantities must be whole units — the flat test in ``_compact_positions``
+    (``qty > 0``) reads a fractional remainder as a phantom open position."""
+
+    def test_rejects_fractional_buy(self) -> None:
+        with pytest.raises(ValueError, match="whole units"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[{"ticker": "AAPL", "side": "buy", "qty": 0.5, "price": 100, "fee": 0}],
+            )
+
+    def test_rejects_fractional_sell(self) -> None:
+        with pytest.raises(ValueError, match="whole units"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[
+                    {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+                    {"ticker": "AAPL", "side": "sell", "qty": 1.5, "price": 110, "fee": 0},
+                ],
+            )
+
+    def test_cash_movements_are_exempt(self) -> None:
+        # Deposits ride the settlement ticker as qty=dollars, price=1.0, and are
+        # genuinely fractional. They return before the position math.
+        state = compute_account_state(
+            initial_cash=0.0,
+            trades=[
+                {"ticker": "CASH", "side": "buy", "qty": 1234.56, "price": 1.0, "fee": 0.0},
+                {"ticker": "CASH", "side": "sell", "qty": 34.56, "price": 1.0, "fee": 0.0},
+            ],
+        )
+
+        assert state.cash == pytest.approx(1200.0)
+        assert state.total_deposited == pytest.approx(1234.56)
+        assert state.positions == {}
 
 
 class TestSettlementTickerDepositModel:

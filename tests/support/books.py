@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from tests.support.repositories import insert_repository_account
 from trading.domain.rotation.schedule import dump_rotation_schedule
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

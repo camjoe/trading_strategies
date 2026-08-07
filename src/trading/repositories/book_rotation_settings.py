@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import sqlite3
-from collections.abc import Mapping
 
 from trading.models.books import (
     BOOK_ROTATION_SETTINGS_GROUP_POLICY,
@@ -10,33 +8,12 @@ from trading.models.books import (
     BookRotationSettingsChangeEvent,
     BookRotationSettingsRecord,
 )
+from trading.repositories.change_events import diff_changed_fields, json_object_dumps, row_json_object
 from trading.repositories.unit_of_work import commit_unit_of_work
 
 # Rotation is the one remaining 1:1 settings table (large, coherent, sparse).
 # A missing row means "use code defaults". Execution and option settings are
 # columns on books since revisions 0004/0005.
-
-# Compact JSON storage keeps persisted change-event payloads stable and easy to diff.
-JSON_COMPACT_SEPARATORS = (",", ":")
-
-
-def _json_object_dumps(payload: Mapping[str, object]) -> str:
-    return json.dumps(payload, separators=JSON_COMPACT_SEPARATORS, sort_keys=True)
-
-
-def _row_json_object(row: sqlite3.Row, key: str) -> dict[str, dict[str, object]]:
-    return json.loads(str(row[key]))
-
-
-def _diff_changed_fields(
-    *, current: BookRotationSettingsRecord | None, new_values: Mapping[str, object]
-) -> dict[str, dict[str, object]]:
-    changed: dict[str, dict[str, object]] = {}
-    for field_name, new_value in new_values.items():
-        old_value = getattr(current, field_name) if current is not None else None
-        if old_value != new_value:
-            changed[field_name] = {"old": old_value, "new": new_value}
-    return changed
 
 
 class BookRotationSettingsRepository:
@@ -46,7 +23,7 @@ class BookRotationSettingsRepository:
     def fetch(self, *, book_id: int) -> BookRotationSettingsRecord | None:
         row = self._conn.execute(
             "SELECT * FROM book_rotation_settings WHERE book_id = ?",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
         return BookRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
@@ -66,7 +43,7 @@ class BookRotationSettingsRepository:
                 book_id, settings_group, changed_fields, created_at
             ) VALUES (?, ?, ?, ?)
             """,
-            (int(book_id), settings_group, _json_object_dumps(changed_fields), created_at),
+            (book_id, settings_group, json_object_dumps(changed_fields), created_at),
         )
 
     def fetch_change_events(self, *, book_id: int, limit: int = 20) -> list[BookRotationSettingsChangeEvent]:
@@ -77,14 +54,14 @@ class BookRotationSettingsRepository:
             ORDER BY id DESC
             LIMIT ?
             """,
-            (int(book_id), int(limit)),
+            (book_id, limit),
         ).fetchall()
         return [
             BookRotationSettingsChangeEvent(
                 id=int(row["id"]),
                 book_id=int(row["book_id"]),
                 settings_group=str(row["settings_group"]),
-                changed_fields=_row_json_object(row, "changed_fields"),
+                changed_fields=row_json_object(row, "changed_fields"),
                 created_at=str(row["created_at"]),
             )
             for row in rows
@@ -102,7 +79,7 @@ class BookRotationSettingsRepository:
     ) -> None:
         current = self.fetch(book_id=book_id)
         new_values = {
-            "rotation_enabled": int(rotation_enabled),
+            "rotation_enabled": rotation_enabled,
             "rotation_lookback_days": rotation_lookback_days,
             "rotation_schedule": rotation_schedule,
         }
@@ -122,15 +99,15 @@ class BookRotationSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
-                int(rotation_enabled),
+                book_id,
+                rotation_enabled,
                 rotation_lookback_days,
                 rotation_schedule,
                 created_at,
                 updated_at,
             ),
         )
-        changed = _diff_changed_fields(current=current, new_values=new_values)
+        changed = diff_changed_fields(current=current, new_values=new_values)
         self._insert_change_event(
             book_id=book_id,
             settings_group=BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING,
@@ -185,7 +162,7 @@ class BookRotationSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
+                book_id,
                 min_trades_in_window,
                 outperformance_threshold_bps,
                 cooldown_days,
@@ -197,7 +174,7 @@ class BookRotationSettingsRepository:
                 updated_at,
             ),
         )
-        changed = _diff_changed_fields(current=current, new_values=new_values)
+        changed = diff_changed_fields(current=current, new_values=new_values)
         self._insert_change_event(
             book_id=book_id,
             settings_group=BOOK_ROTATION_SETTINGS_GROUP_POLICY,

@@ -58,10 +58,10 @@ class DailyMetricsRepository:
         created_at: str,
         updated_at: str,
     ) -> int:
-        resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, int(account_id))
+        resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, account_id)
 
         update_set = ", ".join(f"{column} = excluded.{column}" for column in _METRIC_COLUMNS)
-        cursor = self._conn.execute(
+        self._conn.execute(
             f"""
             INSERT INTO daily_metrics (
                 book_id, metric_date, {", ".join(_METRIC_COLUMNS)}, created_at, updated_at
@@ -72,7 +72,7 @@ class DailyMetricsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(resolved_book_id),
+                resolved_book_id,
                 metric_date,
                 return_pct,
                 drawdown_pct,
@@ -90,11 +90,10 @@ class DailyMetricsRepository:
         commit_unit_of_work(self._conn)
         row = self._conn.execute(
             "SELECT id FROM daily_metrics WHERE book_id = ? AND metric_date = ?",
-            (int(resolved_book_id), metric_date),
+            (resolved_book_id, metric_date),
         ).fetchone()
         if row is None:
             raise ValueError("Expected daily_metrics id after upsert.")
-        del cursor
         return int(row[0])
 
     def fetch_book_rows_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:
@@ -113,7 +112,7 @@ class DailyMetricsRepository:
             ORDER BY m.metric_date DESC, m.id DESC
             LIMIT ?
             """,
-            (int(account_id), int(limit)),
+            (account_id, limit),
         ).fetchall()
         return [self._record(row) for row in rows]
 
@@ -127,7 +126,7 @@ class DailyMetricsRepository:
             ORDER BY m.metric_date DESC, m.id DESC
             LIMIT ?
             """,
-            (int(book_id), int(limit)),
+            (book_id, limit),
         ).fetchall()
         return [self._record(row) for row in rows]
 
@@ -149,7 +148,7 @@ class DailyMetricsRepository:
             ORDER BY metric_date DESC, id DESC
             LIMIT ?
             """,
-            (int(book_id), before_date, int(limit)),
+            (book_id, before_date, limit),
         ).fetchall()
         return [float(row[0]) for row in rows]
 
@@ -170,6 +169,6 @@ class DailyMetricsRepository:
               AND m.metric_date <= ?
             ORDER BY m.metric_date ASC, m.id ASC
             """,
-            (int(book_id), start_date, end_date),
+            (book_id, start_date, end_date),
         ).fetchall()
         return [self._record(row) for row in rows]
