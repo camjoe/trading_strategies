@@ -19,7 +19,7 @@ from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.books import BookRotationSettingsRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import default_book_id
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.unit_of_work import commit_unit_of_work
 

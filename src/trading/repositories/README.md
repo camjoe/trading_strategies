@@ -37,7 +37,7 @@ several contexts, so filing them under one owner would misstate who owns them.
 |---|---|
 | `books.py` | Strategy books: bounded capital pools that own cash, positions, and settings |
 | `book_assignments.py` | Book↔strategy assignment and lifecycle records |
-| `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
+| `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `rotation_decisions.py` | Champion/challenger rotation decision records |
 
 ### Execution — orders through to accounting

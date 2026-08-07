@@ -8,7 +8,7 @@ import pytest
 
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.services.books.rotation.engine import (
     DEFAULT_MIN_TRADES_IN_WINDOW,
     DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS,

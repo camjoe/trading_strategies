@@ -8,7 +8,7 @@ import pytest
 
 from tests.support.books import insert_test_book, set_test_book_rotation_scheduling
 from tests.support.repositories import insert_repository_account
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.services.books.rotation.engine import (
     DEFAULT_ROLLING_WINDOW_DAYS,
     BookRotationScheduleConfig,

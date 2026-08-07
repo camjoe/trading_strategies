@@ -6,7 +6,7 @@ import pytest
 
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import (
+from trading.repositories.book_rotation_settings import (
     BookRotationSettingsRepository,
 )
 from trading.repositories.books import BookRepository

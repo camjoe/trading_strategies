@@ -10,7 +10,7 @@ from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.book_bridge import default_book_id
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.services.parameters import update_book_rotation_policy, update_book_rotation_scheduling
 
 

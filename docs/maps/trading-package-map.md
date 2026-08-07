@@ -234,11 +234,12 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs) |
 | `books.py` | Clean-schema strategy books — execution primitives |
-| `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
+| `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
 | `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
 | `table_export.py` | Generic table row/CSV-cursor reads for the operator export/preview feature (`fetch_table_rows`, `fetch_table_cursor`) |
 | `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
+| `change_events.py` | JSON column encoding and the old/new field diff behind the settings change-event trail |
 
 ---
 

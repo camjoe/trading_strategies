@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 
 
 class TestBookRotationSettingsChangeAudit:

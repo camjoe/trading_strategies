@@ -9,7 +9,7 @@ from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
 from trading.domain.rotation.schedule import parse_rotation_schedule
 from trading.models.rotation import RotationDecision, RotationScoreWeights, RotationStrategyMetrics
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.unit_of_work import unit_of_work

@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
