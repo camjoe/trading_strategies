@@ -40,12 +40,12 @@ class PositionRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
+                book_id,
                 symbol,
-                float(qty),
-                float(avg_cost),
-                float(market_value),
-                float(unrealized_pnl),
+                qty,
+                avg_cost,
+                market_value,
+                unrealized_pnl,
                 updated_at,
             ),
         )
@@ -54,21 +54,21 @@ class PositionRepository:
     def delete(self, *, book_id: int, symbol: str) -> None:
         self._conn.execute(
             "DELETE FROM positions WHERE book_id = ? AND symbol = ?",
-            (int(book_id), symbol),
+            (book_id, symbol),
         )
         commit_unit_of_work(self._conn)
 
     def fetch(self, *, book_id: int, symbol: str) -> PositionRecord | None:
         row = self._conn.execute(
             "SELECT * FROM positions WHERE book_id = ? AND symbol = ?",
-            (int(book_id), symbol),
+            (book_id, symbol),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def fetch_for_book(self, *, book_id: int) -> list[PositionRecord]:
         rows = self._conn.execute(
             "SELECT * FROM positions WHERE book_id = ? ORDER BY symbol ASC",
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -81,6 +81,6 @@ class PositionRepository:
             WHERE u.account_id = ?
             ORDER BY p.book_id ASC, p.symbol ASC
             """,
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]

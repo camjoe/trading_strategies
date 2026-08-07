@@ -81,7 +81,7 @@ class RotationDecisionRepository:
                 strategy_id_for_label(self._conn, challenger_strategy, now_iso=created_at),
                 strategy_id_for_label(self._conn, selected_strategy, now_iso=created_at),
                 rotation_action,
-                int(cooldown_active),
+                cooldown_active,
                 score_components_json,
                 gate_results_json,
                 decision_reason,
@@ -97,14 +97,14 @@ class RotationDecisionRepository:
     def fetch_latest_for_book(self, *, book_id: int) -> RotationDecisionRecord | None:
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT 1",
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return RotationDecisionRecord.from_mapping(dict(rows[0])) if rows else None
 
     def fetch_for_book(self, *, book_id: int, limit: int) -> list[RotationDecisionRecord]:
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
-            (int(book_id), int(limit)),
+            (book_id, limit),
         ).fetchall()
         return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
@@ -113,7 +113,7 @@ class RotationDecisionRepository:
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT
             + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
-            (int(book_id), report_date, next_date),
+            (book_id, report_date, next_date),
         ).fetchall()
         return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
@@ -137,7 +137,7 @@ class RotationDecisionRepository:
             WHERE d.book_id = ?
             ORDER BY d.decision_time ASC, d.id ASC
             """,
-            (int(book_id),),
+            (book_id,),
         ).fetchall()
         return [
             (
@@ -148,9 +148,9 @@ class RotationDecisionRepository:
             for row in rows
         ]
 
-    def fetch_latest_rotate_action_for_book(self, *, book_id: int) -> sqlite3.Row | None:
-        """Return the book's most recent 'rotate' decision (book-native cooldown source)."""
-        return self._conn.execute(
+    def fetch_latest_rotate_time_for_book(self, *, book_id: int) -> str | None:
+        """Time of the book's most recent 'rotate' decision (book-native cooldown source)."""
+        row = self._conn.execute(
             """
             SELECT d.decision_time AS decision_time
             FROM rotation_decisions d
@@ -158,5 +158,8 @@ class RotationDecisionRepository:
             ORDER BY d.decision_time DESC, d.id DESC
             LIMIT 1
             """,
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
+        if row is None or row["decision_time"] is None:
+            return None
+        return str(row["decision_time"]).strip()

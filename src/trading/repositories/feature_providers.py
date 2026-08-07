@@ -33,7 +33,7 @@ class FeatureProviderRepository:
                 config_json = excluded.config_json,
                 updated_at = excluded.updated_at
             """,
-            (provider_key, int(enabled), config_json, created_at, updated_at),
+            (provider_key, enabled, config_json, created_at, updated_at),
         )
         commit_unit_of_work(self._conn)
 

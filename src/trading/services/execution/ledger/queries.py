@@ -12,16 +12,16 @@ from trading.repositories.orders import OrderRepository
 def _fill_events(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
     return [
         {
-            "book_id": int(row["book_id"]),
-            "ticker": str(row["ticker"]),
-            "side": str(row["side"]),
-            "qty": float(row["qty"]),
-            "price": float(row["price"]),
-            "fee": float(row["fee"]),
-            "trade_time": str(row["trade_time"]),
-            "note": f"order={int(row['order_id'])}",
+            "book_id": event.book_id,
+            "ticker": event.ticker,
+            "side": event.side,
+            "qty": event.qty,
+            "price": event.price,
+            "fee": event.fee,
+            "trade_time": event.trade_time,
+            "note": f"order={event.order_id}",
         }
-        for row in OrderRepository(conn).fetch_fill_events_for_account(account_id=account_id)
+        for event in OrderRepository(conn).fetch_fill_events_for_account(account_id=account_id)
     ]
 
 

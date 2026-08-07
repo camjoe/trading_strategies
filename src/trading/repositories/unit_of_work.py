@@ -24,16 +24,16 @@ weak references), so connection-id reuse across closed connections is harmless.
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
 
 # Open unit-of-work nesting depth per live connection, keyed by id(conn).
 _ACTIVE_DEPTH: dict[int, int] = {}
 
 
 @contextmanager
-def unit_of_work(conn: Any) -> Iterator[Any]:
+def unit_of_work(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     """Run the block's repository writes as one all-or-nothing transaction.
 
     Commits once when the outermost scope exits cleanly; rolls the whole
@@ -58,7 +58,7 @@ def unit_of_work(conn: Any) -> Iterator[Any]:
             _ACTIVE_DEPTH[key] = outer_depth
 
 
-def commit_unit_of_work(conn: Any) -> None:
+def commit_unit_of_work(conn: sqlite3.Connection) -> None:
     """Commit the connection's current unit of work.
 
     The drop-in replacement for ``conn.commit()`` in repository writes that must

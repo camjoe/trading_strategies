@@ -23,7 +23,7 @@ class BookRotationSettingsRepository:
     def fetch(self, *, book_id: int) -> BookRotationSettingsRecord | None:
         row = self._conn.execute(
             "SELECT * FROM book_rotation_settings WHERE book_id = ?",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
         return BookRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
@@ -43,7 +43,7 @@ class BookRotationSettingsRepository:
                 book_id, settings_group, changed_fields, created_at
             ) VALUES (?, ?, ?, ?)
             """,
-            (int(book_id), settings_group, json_object_dumps(changed_fields), created_at),
+            (book_id, settings_group, json_object_dumps(changed_fields), created_at),
         )
 
     def fetch_change_events(self, *, book_id: int, limit: int = 20) -> list[BookRotationSettingsChangeEvent]:
@@ -54,7 +54,7 @@ class BookRotationSettingsRepository:
             ORDER BY id DESC
             LIMIT ?
             """,
-            (int(book_id), int(limit)),
+            (book_id, limit),
         ).fetchall()
         return [
             BookRotationSettingsChangeEvent(
@@ -79,7 +79,7 @@ class BookRotationSettingsRepository:
     ) -> None:
         current = self.fetch(book_id=book_id)
         new_values = {
-            "rotation_enabled": int(rotation_enabled),
+            "rotation_enabled": rotation_enabled,
             "rotation_lookback_days": rotation_lookback_days,
             "rotation_schedule": rotation_schedule,
         }
@@ -99,8 +99,8 @@ class BookRotationSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
-                int(rotation_enabled),
+                book_id,
+                rotation_enabled,
                 rotation_lookback_days,
                 rotation_schedule,
                 created_at,
@@ -162,7 +162,7 @@ class BookRotationSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
+                book_id,
                 min_trades_in_window,
                 outperformance_threshold_bps,
                 cooldown_days,

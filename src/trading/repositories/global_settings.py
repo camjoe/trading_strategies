@@ -47,7 +47,7 @@ class GlobalSettingsRepository:
             ORDER BY id DESC
             LIMIT ?
             """,
-            (int(limit),),
+            (limit,),
         ).fetchall()
         return [
             GlobalSettingsChangeEvent(
