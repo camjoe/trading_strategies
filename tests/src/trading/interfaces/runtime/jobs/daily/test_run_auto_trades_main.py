@@ -46,6 +46,7 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
         "resolve_market_inputs",
         lambda _p, **_kwargs: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}, {}),
     )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     run_accounts_mock = Mock(
         return_value=[
@@ -72,6 +73,8 @@ def test_main_additional_validation_paths(monkeypatch) -> None:
 
 def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
     install_main_args(monkeypatch)
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(
         module,
         "resolve_market_inputs",
@@ -95,6 +98,7 @@ def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
     conn = FakeConn()
     install_main_args(monkeypatch)
     monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
         module,
@@ -115,6 +119,9 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
 
     conn = FakeConn()
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
+    # run_module_as_main re-imports the module, so its `from ... import x` binds
+    # to the package attribute — patch there, not on the already-imported copy.
+    monkeypatch.setattr(auto_trading_module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(auto_trading_module, "validate_trade_count_range", lambda *_a: None)
     monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
     monkeypatch.setattr(
@@ -141,6 +148,7 @@ def test_main_exits_non_zero_on_a_broker_anomaly(monkeypatch, capsys) -> None:
     conn = FakeConn()
     install_main_args(monkeypatch, accounts="acct1,acct2")
     monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
         module,
@@ -168,6 +176,7 @@ def test_main_stays_green_for_a_non_broker_kill_switch(monkeypatch, capsys) -> N
     conn = FakeConn()
     install_main_args(monkeypatch, accounts="acct1")
     monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
         module,

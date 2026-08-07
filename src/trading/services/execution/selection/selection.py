@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol, cast
 
 import pandas as pd
@@ -36,12 +37,33 @@ FeatureHistoryFn = Callable[[str, str], "pd.DataFrame | None"]
 _ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 
 
+# (side, ticker, qty, price, delta_est, iv_est) — one prepared trade.
+TradeSelection = tuple[str, str, int, float, float | None, float | None]
+
+
+@dataclass
+class _WorkingState:
+    """A book's cash and holdings part-way through one run.
+
+    The persisted state is frozen; selection is multi-trade, so it needs a
+    mutable copy where a sell's proceeds are visible to the buys after it.
+    """
+
+    cash: float
+    positions: dict[str, float]
+    avg_cost: dict[str, float]
+
+
 class AccountStateLike(Protocol):
-    positions: Mapping[str, float]
+    # Read-only: a plain annotation demands an invariant `Mapping`, which the
+    # `dict`-holding implementers fail. Same reason as `PositionCostState`.
+    @property
+    def positions(self) -> Mapping[str, float]: ...
 
 
 class TradePreparationStateLike(AccountStateLike, Protocol):
-    cash: float
+    @property
+    def cash(self) -> float: ...
 
 
 def _position_mark_price(
@@ -178,12 +200,12 @@ def select_signal_trade_candidates(
     return buy_candidates, sell_candidates
 
 
-def prepare_trade_selection(
+def prepare_book_trades(
     option_settings: auto_trader_policy.AccountPolicyInput,
     active_strategy: str | None,
     params: Mapping[str, object] | None,
     state,
-    forced_sell: str | None,
+    forced_sells: list[str],
     universe: list[str],
     prices: dict[str, float],
     histories: Mapping[str, pd.DataFrame],
@@ -191,19 +213,23 @@ def prepare_trade_selection(
     instrument_mode: str,
     fee: float,
     *,
+    max_trades: int,
     trade_size_pct: float | None,
     max_position_pct: float | None,
     feature_history_fn: FeatureHistoryFn | None = None,
     selection_seed: str = "",
-) -> tuple[str, str, int, float, float | None, float | None] | None:
-    """Select the next trade from the active strategy's signals.
+) -> list[TradeSelection]:
+    """Select up to *max_trades* trades from the active strategy's signals.
 
     ``params`` are the strategy's effective knobs, resolved by the caller from
     the catalog. Execution and option settings are book columns (revisions
     0004/0005): sizing knobs are passed explicitly and ``option_settings`` is
-    the book (a Mapping) supplying the option/leaps knobs. Sells take priority
-    (the forced risk-stop first, then signaled sells) so cash is freed before
-    buys. Returns None when nothing signals — callers must not manufacture a
+    the book (a Mapping) supplying the option/leaps knobs.
+
+    Sells go first — risk breaches in their own urgency order, then signalled
+    exits — so their proceeds fund the same run's buys.
+
+    Returns an empty list when nothing signals; callers must not manufacture a
     trade in that case.
     """
     buy_candidates: list[str] = []
@@ -221,35 +247,43 @@ def prepare_trade_selection(
         except ValueError:
             logger.warning("Unknown strategy %r; holding (no signal trades).", active_strategy)
 
-    if forced_sell is not None or sell_candidates:
-        prepared_sell = prepare_sell_trade(
-            sell_candidates,
-            forced_sell,
-            prices,
-            state,
+    working = _WorkingState(
+        cash=float(getattr(state, "cash", 0.0)),
+        positions=dict(cast(Mapping[str, float], getattr(state, "positions", {}))),
+        avg_cost=dict(cast(Mapping[str, float], getattr(state, "avg_cost", {}))),
+    )
+    selections: list[TradeSelection] = []
+
+    for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
+        if len(selections) >= max_trades:
+            break
+        price = prices.get(ticker)
+        if price is None or price <= 0:
+            continue
+        qty = auto_trader_policy.closing_sell_qty(working.positions.get(ticker, 0.0))
+        if qty <= 0:
+            continue
+        selections.append(("sell", ticker, qty, float(price), None, None))
+        working.cash += (qty * float(price)) - fee
+        working.positions.pop(ticker, None)
+        working.avg_cost.pop(ticker, None)
+
+    selections.extend(
+        prepare_buy_trades(
+            option_settings,
             instrument_mode,
+            buy_candidates,
+            prices,
+            iv_rank_proxy,
+            working,
+            fee,
+            max_buys=max_trades - len(selections),
+            trade_size_pct=trade_size_pct,
+            max_position_pct=max_position_pct,
             selection_seed=selection_seed,
         )
-        if prepared_sell is not None:
-            ticker, qty, trade_price = prepared_sell
-            return "sell", ticker, qty, trade_price, None, None
-
-    prepared_buy = prepare_buy_trade(
-        option_settings,
-        instrument_mode,
-        buy_candidates,
-        prices,
-        iv_rank_proxy,
-        state,
-        fee,
-        trade_size_pct=trade_size_pct,
-        max_position_pct=max_position_pct,
-        selection_seed=selection_seed,
     )
-    if prepared_buy is None:
-        return None
-    ticker, qty, trade_price, delta_est, iv_est = prepared_buy
-    return "buy", ticker, qty, trade_price, delta_est, iv_est
+    return selections
 
 
 def _size_buy_for_ticker(
@@ -322,7 +356,7 @@ def _size_buy_for_ticker(
     return ticker, qty, trade_price, delta_est, iv_est
 
 
-def prepare_buy_trade(
+def prepare_buy_trades(
     option_settings: auto_trader_policy.AccountPolicyInput,
     instrument_mode: str,
     buy_candidates: list[str],
@@ -331,17 +365,25 @@ def prepare_buy_trade(
     state: TradePreparationStateLike,
     fee: float,
     *,
+    max_buys: int,
     trade_size_pct: float | None,
     max_position_pct: float | None,
     selection_seed: str = "",
-) -> tuple[str, int, float, float | None, float | None] | None:
-    """Prepare the first sizable buy among the signal-selected candidates.
+) -> list[TradeSelection]:
+    """Size and fund up to *max_buys* of the signal-selected candidates.
 
-    Candidates arrive in universe order and are reordered by *selection_seed*
-    first - see ``order_signal_candidates`` for why taking them as they come
-    built every book's portfolio in ticker-file order.
+    Candidates are reordered by *selection_seed* — see ``order_signal_candidates``.
+    Sizing and funding are separate: each candidate is sized on its own against
+    the book's policy, then ``allocate_buy_quantities`` splits the cash across
+    them, the same allocation the backtest engine uses.
     """
+    if max_buys <= 0:
+        return []
+
+    sized: list[tuple[str, float, int, float | None, float | None]] = []
     for ticker in auto_trader_policy.order_signal_candidates(buy_candidates, seed=selection_seed):
+        if len(sized) >= max_buys:
+            break
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue
@@ -357,41 +399,60 @@ def prepare_buy_trade(
             max_position_pct=max_position_pct,
         )
         if prepared is not None:
-            return prepared
-    return None
+            _ticker, qty, trade_price, delta_est, iv_est = prepared
+            sized.append((ticker, trade_price, qty, delta_est, iv_est))
+
+    granted = auto_trader_policy.allocate_buy_quantities(
+        [(ticker, price, qty) for ticker, price, qty, _d, _iv in sized],
+        cash=float(state.cash),
+        fee_per_trade=fee,
+    )
+    return [
+        ("buy", ticker, granted[ticker], price, delta_est, iv_est)
+        for ticker, price, _qty, delta_est, iv_est in sized
+        if granted.get(ticker, 0) >= 1
+    ]
+
+
+def order_sell_candidates(
+    sell_candidates: list[str],
+    forced_sells: list[str],
+    selection_seed: str = "",
+) -> list[str]:
+    """Risk breaches first in their own urgency order, then signalled exits.
+
+    Signalled exits carry no ranking of their own, so they are ordered the way
+    buys are rather than by position in the ticker file.
+    """
+    ordered = list(forced_sells)
+    ordered.extend(
+        ticker
+        for ticker in auto_trader_policy.order_signal_candidates(sell_candidates, seed=selection_seed)
+        if ticker not in forced_sells
+    )
+    return ordered
 
 
 def prepare_sell_trade(
     sell_candidates: list[str],
-    forced_sell: str | None,
+    forced_sells: list[str],
     prices: dict[str, float],
     state: AccountStateLike,
     instrument_mode: str,
     selection_seed: str = "",
 ) -> tuple[str, int, float] | None:
-    """Prepare the first sellable ticker: the forced risk-stop first, then signaled sells.
+    """Prepare the first sellable ticker, closing the position outright.
 
-    The risk stop keeps absolute priority. Signalled exits carry no ranking
-    either, so they are ordered the same way buys are rather than by position in
-    the ticker file.
+    A sell exits the whole position, matching ``execution_service._apply_sells``.
     """
-    ordered = [forced_sell] if forced_sell is not None else []
-    ordered.extend(
-        ticker
-        for ticker in auto_trader_policy.order_signal_candidates(sell_candidates, seed=selection_seed)
-        if ticker != forced_sell
-    )
-    for ticker in ordered:
+    for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue
 
-        qty = auto_trader_policy.choose_sell_qty(state.positions[ticker])
+        qty = auto_trader_policy.closing_sell_qty(state.positions[ticker])
         if qty <= 0:
             continue
-
-        if instrument_mode == "leaps":
-            qty = min(qty, 2)
 
         return ticker, qty, float(price)
     return None

@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-08-01
-Last Reviewed: 2026-08-01
+Last Reviewed: 2026-08-06
 Purpose: Record where the simulation engine and the live runtime execute differently, what that does to walk-forward selection given how the optimizer is meant to be used, and which gaps are bugs versus open design decisions.
 Related: [Backtesting](backtesting.md), [Broker Integration](broker-integration.md), [IBKR Paper Execution Plan](ibkr-paper-execution-plan.md), [Runtime Jobs](runtime-jobs.md)
 
@@ -17,10 +17,12 @@ touch what either side does *with* a signal, and that is where they diverge most
 Read this before trusting a walk-forward result, before changing the live exit path, and before
 raising any trade cap.
 
-**Everything below describes `develop`.** Every defect named here is pre-existing — `MAX_ORDER_QTY`,
-both random draws in the risk-exit path, and the `min(max_trades, book_count)` intent cap are all
-present and unmodified on the base branch. The one item this branch introduces is the engine-side
-proportional buy allocation noted under Overview.
+**Status of the defects below: fixed on 2026-08-06.** The five items previously listed under
+*Bugs* — the sliced exit, the tied stop/target priority, the single sampled breach, the
+un-closable position, and the caps that never bound — have all landed, along with the broker-pacing
+count. Each section keeps its original description of the defect so the reasoning survives; what
+changed is recorded inline. The **open decisions** below are still open and were deliberately not
+resolved by that work.
 
 ## Intended use of walk-forward
 
@@ -50,17 +52,18 @@ first settling how the two paths should be reconciled.
 
 Signal *generation* is shared. Signal *execution* is not.
 
-| | Backtest | Live |
-|---|---|---|
-| Trades per bar | every signalled buy and sell | one, per book, per run |
-| Sell on signal | closes the full position | 1–5 shares, randomly |
-| Risk stops | not modelled | fire, then sell 1–5 shares |
-| Buy sizing | `choose_buy_qty` + proportional allocation | `choose_buy_qty` — same policy |
+| | Backtest | Live (before) | Live (now) |
+|---|---|---|---|
+| Trades per bar | every signalled buy and sell | one, per book, per run | up to the book's budget |
+| Sell on signal | closes the full position | 1–5 shares, randomly | closes the full position |
+| Risk stops | not modelled | fire, then sell 1–5 shares | fire, then close the position |
+| Buy sizing | `choose_buy_qty` + proportional allocation | `choose_buy_qty` — same policy | same, and now the same allocation |
 
-Buys are the one axis that broadly agrees, because both call the same sizing policy. The engine adds
-proportional allocation when cash cannot fund every buy signal on a bar (`allocate_buy_quantities`,
-new on this branch). Live never reaches that case: a book emits one trade per run, so there is
-nothing to allocate between. The gap opens only once a real per-book budget lands.
+Buys agree on both axes: both sides call `choose_buy_qty` to size and `allocate_buy_quantities` to
+fund. Live reached the allocation case only once a book could emit more than one buy in a run, which
+is why the two landed together.
+
+Risk stops remain unmodelled by the engine — that is **open decision 2**, not a defect fixed here.
 
 ### Sells close the position in simulation, trim it live
 
@@ -78,6 +81,9 @@ qty_float = float(state.positions[ticker])
 `choose_sell_qty` has exactly one call site. `MAX_ORDER_QTY` carries no history beyond the
 `trading/` → `src/trading/` relocation, which places it before the current book/strategy design —
 it reads as a leftover from an early randomized-exploration trader rather than a current decision.
+
+**Fixed.** `choose_sell_qty` and `MAX_ORDER_QTY` are gone; `closing_sell_qty` returns the whole
+position, so a live sell exits the same way the engine's does.
 
 ### The risk stop does not stop out
 
@@ -98,10 +104,18 @@ Two further defects in the same path
 - Stop-loss breaches and take-profit breaches are appended to one list and chosen between at
   random. A position down past its stop and one up past its target are treated as equally urgent.
 
+**Fixed.** `order_risk_breaches` replaces it, returning *every* breach: stop-losses first, then
+take-profits, each group ordered by distance past its threshold. No randomness, so the ordering
+reproduces from the audit trail. With a real per-book budget, more than one breach can now be acted
+on in the same run.
+
 ### Positions can never fully close
 
 Because `choose_sell_qty` caps at 5 unconditionally, no live sell ever closes a position outright. A
 20-share position needs at least four runs to exit; 100 shares needs at least twenty.
+
+**Fixed** by the same change: a sell closes the position. The leaps-only `min(qty, 2)` cap went with
+it — it was the same defect in contracts rather than shares.
 
 ### One trade per book per run, and the caps that never bind
 
@@ -109,13 +123,16 @@ Because `choose_sell_qty` caps at 5 unconditionally, no live sell ever closes a 
 `max_intents = min(max_trades, len(trading_books))`
 ([`book_intents.py:69`](../../src/trading/services/execution/selection/book_intents.py)).
 
-Three surfaces configure a larger number. None reaches execution:
+Two surfaces configure a larger number. Neither reaches execution:
 
 | Surface | Configured | Effect |
 |---|---|---|
-| `account_trade_caps.json` | `default: 11`; momentum/meanrev `5` | only as `min(cap, book_count)` |
 | `books.max_trades_per_run` | per book; in web UI, account API, optimizer manifest | **never read by the execution path** |
-| `--primary-max-trades` / `--other-max-trades` | defaults 5 / 11 | same `min(...)` |
+| `--primary-max-trades` / `--other-max-trades` | defaults 5 / 11 | only as `min(cap, book_count)` |
+
+A third surface, src/infrastructure/config/account_trade_caps.json, set `default: 11` with
+momentum/meanrev at `5`. It was deleted along with its loader; because it took precedence over the
+two CLI flags, it had also made them unreachable.
 
 Measured against the live database on 2026-08-01: every one of the 8 accounts has exactly one
 trading book, so `max_intents = min(cap, 1) = 1` for all of them. The configured caps of 5 and 11
@@ -129,6 +146,16 @@ manifest — everywhere except the one place that would give it effect.
 Combined with the exit defects above, this is also what makes sell-starvation severe. It is not
 "sells take priority within a budget of 11"; it is that the account's *single* trade goes to the
 sell. A book trickling out of one position at a few shares a day does nothing else for weeks.
+
+**Fixed.** `prepare_book_trades` returns a list, so a book emits up to its own budget. The account
+cap counts trades rather than books, and `books.max_trades_per_run` narrows that within a book
+(`NULL` = no book-level limit). Sells still run first, and their proceeds fund the same run's buys.
+
+Two things follow, both live now:
+
+- The 5 / 11 split binds for the first time. See open decision 3 — it has never been tested.
+- The per-minute throttle became load-bearing, so it moved inside `submit_book_intents` and runs
+  between orders rather than once per book.
 
 ## What this does to walk-forward selection
 
@@ -179,44 +206,48 @@ substantially cheaper than either direction above and should come first.
 
 ## Boundaries
 
-### Bugs — fixable without settling anything
+### Bugs — all fixed 2026-08-06
 
-1. A forced sell should close the position (or a configured fraction) rather than draw 1–5 shares.
-2. A stop-loss breach should outrank a take-profit breach rather than tie.
-3. Every breached position should be considered, not one sampled at random.
-4. A signalled sell should be able to close a position.
-5. `books.max_trades_per_run` should bind, and `account_trade_caps` should cap trades rather than
-   books.
+1. ~~A forced sell should close the position rather than draw 1–5 shares.~~
+2. ~~A stop-loss breach should outrank a take-profit breach rather than tie.~~
+3. ~~Every breached position should be considered, not one sampled at random.~~
+4. ~~A signalled sell should be able to close a position.~~
+5. ~~`books.max_trades_per_run` should bind, and the account-level cap should cap trades rather
+   than books.~~
 
-### Open decisions
+### Open decisions — still open
 
-1. Whether sells should keep absolute priority over buys once a book has a real budget.
+1. Whether sells should keep absolute priority over buys once a book has a real budget. The budget
+   is now real and sells still go first, which is the status quo carried forward, **not** a decision
+   that this is right.
 2. Whether the engine models risk stops. While it does not, promotion selects on a number that
-   excludes the exit machinery live actually uses.
+   excludes the exit machinery live actually uses. Unchanged — the exit fixes made live behave as
+   its names say, they did not teach the engine about stops. If anything this widens the gap: live
+   exits decisively now, and the engine still never stops out.
 3. Whether the 5 / 11 account cap split — tighter on the two 5k accounts — was a considered risk
-   choice. It has never bound, so it has never been tested; it becomes real the moment item 5 above
-   lands.
+   choice. **It binds as of item 5 landing**, so it is now live and still untested.
 
 ## Trade budget and broker pacing
 
 Related, because the per-book budget is the mechanism that fixes axis 2, and raising it is what
 makes pacing matter.
 
-`enforce_runtime_trade_throttles` is wired correctly: checked per book before submission, breaks
-out of the loop when exceeded, and records an audit block
-([`runtime.py:179`](../../src/trading/services/auto_trading/runtime.py)). Both of its caps
-(`runtime_max_trades_per_day`, `runtime_max_trades_per_minute`) are unset, so it is a no-op today.
+`enforce_runtime_trade_throttles` records an audit block when exceeded and stops the run. Both of
+its caps (`runtime_max_trades_per_day`, `runtime_max_trades_per_minute`) are unset, so it is a no-op
+today.
 
-**One defect matters for broker pacing.** `fetch_fill_count_between` counts rows in `order_fills` by
-`fill_time`. Against `PaperBrokerAdapter`, fills are instantaneous and this reads like submissions.
-Against the IBKR socket an order may sit unfilled indefinitely — so a run could submit any number of
-orders in a minute while the fill count stays at zero and the per-minute cap never fires. The
-per-minute cap is the broker-pacing protection, and it is blind to precisely the brokers that can be
-overwhelmed. It should count submissions (`orders.submitted_at`); the per-day cap can keep counting
-fills, since that measures realized trading.
+**One defect mattered for broker pacing.** `fetch_fill_count_between` counts rows in `order_fills`
+by `fill_time`. Against `PaperBrokerAdapter`, fills are instantaneous and this reads like
+submissions. Against the IBKR socket an order may sit unfilled indefinitely — so a run could submit
+any number of orders in a minute while the fill count stays at zero and the per-minute cap never
+fires. The per-minute cap is the broker-pacing protection, and it was blind to precisely the brokers
+that can be overwhelmed.
 
-The throttle is also checked once per book rather than between orders. That is moot while a book
-emits one intent and stops being moot as soon as the budget is real.
+**Fixed.** The per-minute cap counts `orders.submitted_at` via `fetch_submission_count_between`; the
+per-day cap keeps counting fills, since that measures realized trading. The check also moved into
+`submit_book_intents` and runs between orders rather than once per book — moot while a book emitted
+one intent, load-bearing now that the budget is real. A throttled book reports `throttled` so the
+run stops submitting for later books too.
 
 **Scale, for sizing these:** 8 accounts × 1 book. At `max_trades_per_run = 5` that is 40 orders per
 run, once a day — negligible for any broker API. The pacing risk arrives with Phase 4 intraday

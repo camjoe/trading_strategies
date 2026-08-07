@@ -20,6 +20,7 @@ from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.services.universe import default_trade_symbols
 
 
 def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
@@ -85,6 +86,9 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
             start_equity=initial_cash,
             current_cash=initial_cash,
             current_equity=initial_cash,
+            # A bootstrapped book must be able to trade; the repository has no
+            # default because expanding a universe name is service work.
+            trade_symbols=json.dumps(default_trade_symbols(), separators=(",", ":")),
             created_at=now,
             updated_at=now,
         )

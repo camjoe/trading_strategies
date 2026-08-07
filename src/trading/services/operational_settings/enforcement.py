@@ -24,6 +24,7 @@ def enforce_runtime_trade_throttles(
         [sqlite3.Connection], RuntimeThrottleSettings
     ] = fetch_runtime_throttle_settings,
     count_trades_between_fn: Callable[..., int] | None = None,
+    count_submissions_between_fn: Callable[..., int] | None = None,
 ) -> None:
     if not hasattr(conn, "execute"):
         return
@@ -32,15 +33,17 @@ def enforce_runtime_trade_throttles(
     if settings.max_trades_per_day is None and settings.max_trades_per_minute is None:
         return
 
-    # Fill rows are the execution history (the trades table was retired in
-    # revision 0006), so throttles count order fills.
-    count_fn = count_trades_between_fn or OrderRepository(conn).fetch_fill_count_between
+    repository = OrderRepository(conn)
+    # Per-day measures trading done, so it counts fills. Per-minute is broker
+    # pacing, so it counts orders sent — an unfilled order still cost a request.
+    count_fills = count_trades_between_fn or repository.fetch_fill_count_between
+    count_submissions = count_submissions_between_fn or repository.fetch_submission_count_between
     trade_time = parse_utc_iso(trade_time_iso)
     trade_time_utc = as_utc_iso(trade_time)
 
     if settings.max_trades_per_day is not None:
         day_start = trade_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        day_count = count_fn(start_iso=as_utc_iso(day_start), end_iso=trade_time_utc)
+        day_count = count_fills(start_iso=as_utc_iso(day_start), end_iso=trade_time_utc)
         if day_count >= settings.max_trades_per_day:
             raise RuntimeTradeThrottleExceededError(
                 f"Global runtime trade throttle reached: runtime_max_trades_per_day={settings.max_trades_per_day}."
@@ -48,7 +51,7 @@ def enforce_runtime_trade_throttles(
 
     if settings.max_trades_per_minute is not None:
         window_start = trade_time - TRADE_THROTTLE_MINUTE_WINDOW
-        minute_count = count_fn(start_iso=as_utc_iso(window_start), end_iso=trade_time_utc)
+        minute_count = count_submissions(start_iso=as_utc_iso(window_start), end_iso=trade_time_utc)
         if minute_count >= settings.max_trades_per_minute:
             raise RuntimeTradeThrottleExceededError(
                 "Global runtime trade throttle reached: "

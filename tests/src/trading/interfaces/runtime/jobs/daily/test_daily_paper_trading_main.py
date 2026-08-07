@@ -567,21 +567,6 @@ def test_main_validates_other_trade_ranges(monkeypatch, tmp_path: Path, capsys, 
     assert "other-max-trades" in capsys.readouterr().err
 
 
-def test_main_rejects_invalid_trade_caps_config(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
-    config_path = tmp_path / "caps.json"
-    config_path.write_text('{"accounts": []}', encoding="utf-8")
-
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--trade-caps-config", str(config_path)],
-    )
-
-    assert code == 1
-    assert "Invalid trade caps config" in capsys.readouterr().err
-
-
 def test_main_rejects_invalid_account_trade_caps_override(
     monkeypatch, tmp_path: Path, capsys, _runtime_harness
 ) -> None:
@@ -643,31 +628,6 @@ def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runt
         run_module_as_main(module.__name__ + ".__main__")
 
     assert excinfo.value.code == 1
-
-
-def test_main_resolves_relative_trade_caps_config_from_repo_root(
-    monkeypatch, tmp_path: Path, _runtime_harness
-) -> None:
-    captured: dict[str, Path] = {}
-
-    def _capture_config_path(path: Path):
-        captured["path"] = path
-        return None, {}
-
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.run_context.load_trade_caps_config",
-        _capture_config_path,
-    )
-
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a", "--trade-caps-config", "caps.json"],
-    )
-
-    assert code == 0
-    assert captured["path"] == tmp_path / "caps.json"
 
 
 def test_replay_reports_the_replayed_date_not_today(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

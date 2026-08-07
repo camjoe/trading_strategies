@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # The optimizer route runs its sweep synchronously, so the request is open for the
 # whole run. A sweep costs roughly `candidates x windows` simulations; at the

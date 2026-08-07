@@ -37,8 +37,8 @@ def _insert_book(conn, account_id: int, name: str = "default", is_default: int =
         """
         INSERT INTO books (
             account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, trade_universes, created_at, updated_at
-        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["default"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
+            current_equity, trade_symbols, created_at, updated_at
+        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["AAPL","MSFT"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (account_id, name, is_default),
     )

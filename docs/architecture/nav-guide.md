@@ -65,9 +65,9 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change an account profile (strategy params, caps) | `src/infrastructure/config/account_profiles/<profile>.json` |
-| Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
-| Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
+| Change which tickers a book trades | Name a universe on `configure-book` / the book-params API; it stores the expansion in `books.trade_symbols` |
+| Change a named universe's roster | `src/infrastructure/config/trade_universes/` — affects future writes only; re-apply the name to existing books |
+| Change account-level trade caps | `--primary-max-trades` / `--other-max-trades` on the daily paper-trading job |
 
 ### Models / Data Contracts
 

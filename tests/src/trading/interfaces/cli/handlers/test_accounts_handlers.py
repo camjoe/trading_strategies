@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import types
-from pathlib import Path
 
 import pytest
 
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from trading.interfaces.cli.handlers.accounts_handlers import (
-    handle_apply_account_preset,
-    handle_apply_account_profiles,
     handle_configure_account,
     handle_create_account,
     handle_init,
@@ -94,78 +91,6 @@ def test_handle_configure_account_routes_value_error_to_parser_error() -> None:
         handle_configure_account(object(), args, fake_parser(), deps={})
 
 
-def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
-    loaded: list = []
-    deps = {
-        "load_account_profiles": lambda f: loaded.append(f) or [],
-        "apply_account_profiles": lambda _conn, _profiles, create_missing: (1, 0, 0),
-    }
-    args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
-
-    handle_apply_account_profiles(object(), args, fake_parser(), deps=deps)
-
-    assert loaded == ["profiles.yaml"]
-
-
-def test_handle_apply_account_profiles_routes_validation_error_to_parser_error() -> None:
-    deps = {
-        "load_account_profiles": lambda _f: [{"name": "acct"}],
-        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(
-            ValueError("Unknown strategy 'mystery_strategy'")
-        ),
-    }
-    args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
-
-    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_profiles(object(), args, fake_parser(), deps=deps)
-
-
-def test_handle_apply_account_preset_resolves_preset_path_and_loads(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    preset_path = tmp_path / "starter.yaml"
-    preset_path.write_text("", encoding="utf-8")
-    monkeypatch.setattr(
-        "trading.interfaces.cli.handlers.accounts_handlers.get_builtin_profile_preset_path",
-        lambda _preset: preset_path,
-    )
-
-    loaded: list = []
-    deps = {
-        "load_account_profiles": lambda f: loaded.append(f) or [],
-        "apply_account_profiles": lambda *_a, **_kw: (0, 1, 0),
-    }
-    args = types.SimpleNamespace(preset="starter", no_create_missing=True)
-
-    handle_apply_account_preset(object(), args, fake_parser(), deps=deps)
-
-    assert loaded == [str(preset_path)]
-
-
-def test_handle_apply_account_preset_routes_validation_error_to_parser_error(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    preset_path = tmp_path / "starter.yaml"
-    preset_path.write_text("", encoding="utf-8")
-    monkeypatch.setattr(
-        "trading.interfaces.cli.handlers.accounts_handlers.get_builtin_profile_preset_path",
-        lambda _preset: preset_path,
-    )
-
-    deps = {
-        "load_account_profiles": lambda _f: [{"name": "acct"}],
-        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(
-            ValueError("Unknown strategy 'mystery_strategy'")
-        ),
-    }
-    args = types.SimpleNamespace(preset="starter", no_create_missing=True)
-
-    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_preset(object(), args, fake_parser(), deps=deps)
-
-
 def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
     calls: list = []
     deps = {"set_benchmark": lambda _conn, account, benchmark: calls.append((account, benchmark))}
@@ -237,49 +162,3 @@ def test_handle_configure_account_records_parser_error_without_printing_success(
 
     assert parser.message == "Use only one of --learning-enabled or --learning-disabled"
     assert "Updated account configuration" not in capsys.readouterr().out
-
-
-def test_handle_apply_account_profiles_records_parser_error_without_printing_summary(capsys) -> None:
-    parser = _RecordingParser()
-    deps = {
-        "load_account_profiles": lambda _f: [{"name": "acct"}],
-        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad profiles")),
-    }
-
-    handle_apply_account_profiles(
-        object(),
-        types.SimpleNamespace(file="profiles.yaml", no_create_missing=False),
-        parser,
-        deps=deps,
-    )
-
-    assert parser.message == "bad profiles"
-    assert "Applied account profiles" not in capsys.readouterr().out
-
-
-def test_handle_apply_account_preset_records_parser_error_without_printing_summary(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys,
-) -> None:
-    parser = _RecordingParser()
-    preset_path = tmp_path / "starter.yaml"
-    preset_path.write_text("", encoding="utf-8")
-    monkeypatch.setattr(
-        "trading.interfaces.cli.handlers.accounts_handlers.get_builtin_profile_preset_path",
-        lambda _preset: preset_path,
-    )
-    deps = {
-        "load_account_profiles": lambda _f: [{"name": "acct"}],
-        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad preset")),
-    }
-
-    handle_apply_account_preset(
-        object(),
-        types.SimpleNamespace(preset="starter", no_create_missing=True),
-        parser,
-        deps=deps,
-    )
-
-    assert parser.message == "bad preset"
-    assert "Applied preset" not in capsys.readouterr().out

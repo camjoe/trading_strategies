@@ -9,6 +9,7 @@ from __future__ import annotations
 from trading.services.auto_trading.inputs import (
     resolve_account_names,
     resolve_market_inputs,
+    resolve_run_universe,
     run_accounts,
     validate_trade_count_range,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "reconcile_open_broker_orders",
     "resolve_account_names",
     "resolve_market_inputs",
+    "resolve_run_universe",
     "run_accounts",
     "run_for_account",
     "validate_trade_count_range",

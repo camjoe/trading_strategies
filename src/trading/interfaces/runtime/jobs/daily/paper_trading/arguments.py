@@ -6,11 +6,9 @@ import argparse
 import os
 
 from common.git import get_repo_root
-from common.paths import ACCOUNT_TRADE_CAPS_PATH
 from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV
 
 REPO_ROOT = get_repo_root(__file__)
-DEFAULT_TRADE_CAPS_CONFIG = ACCOUNT_TRADE_CAPS_PATH
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,11 +32,6 @@ def build_parser() -> argparse.ArgumentParser:
             "Optional per-account maximum overrides in the form "
             "account:max,account:max (example: momentum_5k:5,core_growth_20k:8)"
         ),
-    )
-    parser.add_argument(
-        "--trade-caps-config",
-        default=DEFAULT_TRADE_CAPS_CONFIG,
-        help=(f"Path to JSON file with default and per-account trade caps (default: {DEFAULT_TRADE_CAPS_CONFIG})"),
     )
     parser.add_argument("--fee", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=None)

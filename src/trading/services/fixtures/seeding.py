@@ -52,6 +52,7 @@ from trading.services.fixtures.profiles import (
 from trading.services.market_data import MarketDataProvider
 from trading.services.operational_settings import set_runtime_throttle_settings
 from trading.services.parameters import update_book_rotation_scheduling
+from trading.services.universe import resolve_trade_symbols
 
 # Snapshots are stamped at a nominal 16:00 UTC close so each business day has one
 # unambiguous end-of-day time for the metrics writer to derive returns from.
@@ -129,7 +130,7 @@ def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_i
                 account_id=account_id,
                 default_book_id=default_book_id,
                 name=extra.name,
-                trade_universes=json.dumps(list(spec.trade_universes), separators=(",", ":")),
+                trade_symbols=json.dumps(resolve_trade_symbols(list(spec.trade_universes)), separators=(",", ":")),
                 opening_cash=extra.opening_cash,
                 now_iso=now_iso,
             )

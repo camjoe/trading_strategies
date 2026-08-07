@@ -14,7 +14,7 @@ def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
     with patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", choose_buy_qty):
-        result = trade_execution_service.prepare_buy_trade(
+        result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="equity",
             buy_candidates=["AAPL"],
@@ -22,10 +22,11 @@ def test_prepare_buy_trade_equity() -> None:
             iv_rank_proxy={},
             state=state,
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert result == ("AAPL", 2, 100.0, None, None)
+    assert result == [("buy", "AAPL", 2, 100.0, None, None)]
     choose_buy_qty.assert_called_once()
 
 
@@ -49,7 +50,7 @@ def test_prepare_buy_trade_leaps() -> None:
             Mock(return_value=4),
         ),
     ):
-        result = trade_execution_service.prepare_buy_trade(
+        result = trade_execution_service.prepare_buy_trades(
             option_settings=option_settings,
             instrument_mode="leaps",
             buy_candidates=["AAPL"],
@@ -57,10 +58,11 @@ def test_prepare_buy_trade_leaps() -> None:
             iv_rank_proxy={"AAPL": 30.0},
             state=state,
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert result == ("AAPL", 2, 120.0, 0.4, 30.0)
+    assert result == [("buy", "AAPL", 2, 120.0, 0.4, 30.0)]
 
 
 def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> None:
@@ -80,7 +82,7 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
         ),
         patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=1)),
     ):
-        result = trade_execution_service.prepare_buy_trade(
+        result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="leaps",
             buy_candidates=["AAPL", "MSFT"],
@@ -88,30 +90,38 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
             iv_rank_proxy={"AAPL": 25.0, "MSFT": 25.0},
             state=state,
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert result is not None
-    assert result[0] == "MSFT"
+    assert [sel[1] for sel in result] == ["MSFT"]
 
 
-def test_prepare_sell_trade_leaps_forced_sell() -> None:
-    state = SimpleNamespace(positions={"AAPL": 5.0})
-    choose_sell_qty = Mock(return_value=4)
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_sell_qty", choose_sell_qty):
-        result = trade_execution_service.prepare_sell_trade(
-            sell_candidates=[],
-            forced_sell="AAPL",
-            prices={"AAPL": 150.0},
-            state=state,
-            instrument_mode="leaps",
-        )
-    assert result == ("AAPL", 2, 150.0)
-    choose_sell_qty.assert_called_once_with(5.0)
+def test_prepare_sell_trade_closes_the_whole_position() -> None:
+    """A sell exits the position outright."""
+    result = trade_execution_service.prepare_sell_trade(
+        sell_candidates=[],
+        forced_sells=["AAPL"],
+        prices={"AAPL": 150.0},
+        state=SimpleNamespace(positions={"AAPL": 5.0}),
+        instrument_mode="leaps",
+    )
+    assert result == ("AAPL", 5, 150.0)
 
 
-def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
-    result = trade_execution_service.prepare_buy_trade(
+def test_prepare_sell_trade_prefers_a_risk_breach_over_a_signalled_exit() -> None:
+    result = trade_execution_service.prepare_sell_trade(
+        sell_candidates=["MSFT"],
+        forced_sells=["AAPL"],
+        prices={"AAPL": 150.0, "MSFT": 200.0},
+        state=SimpleNamespace(positions={"AAPL": 5.0, "MSFT": 3.0}),
+        instrument_mode="equity",
+    )
+    assert result == ("AAPL", 5, 150.0)
+
+
+def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
+    result = trade_execution_service.prepare_buy_trades(
         option_settings=make_option_settings(),
         instrument_mode="leaps",
         buy_candidates=[],
@@ -119,16 +129,17 @@ def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
         iv_rank_proxy={},
         state=SimpleNamespace(cash=1000.0),
         fee=0.0,
+        max_buys=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
-    assert result is None
+    assert result == []
 
 
 def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
     result = trade_execution_service.prepare_sell_trade(
         sell_candidates=["AAPL"],
-        forced_sell=None,
+        forced_sells=[],
         prices={"AAPL": 0.0},
         state=SimpleNamespace(positions={"AAPL": 3.0}),
         instrument_mode="equity",
@@ -136,35 +147,19 @@ def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
     assert result is None
 
 
-def test_prepare_sell_trade_returns_none_when_qty_non_positive() -> None:
-    choose_sell_qty = Mock(return_value=0)
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_sell_qty", choose_sell_qty):
-        result = trade_execution_service.prepare_sell_trade(
-            sell_candidates=["AAPL"],
-            forced_sell=None,
-            prices={"AAPL": 100.0},
-            state=SimpleNamespace(positions={"AAPL": 3.0}),
-            instrument_mode="equity",
-        )
+def test_prepare_sell_trade_returns_none_for_a_sub_share_position() -> None:
+    result = trade_execution_service.prepare_sell_trade(
+        sell_candidates=["AAPL"],
+        forced_sells=[],
+        prices={"AAPL": 100.0},
+        state=SimpleNamespace(positions={"AAPL": 0.4}),
+        instrument_mode="equity",
+    )
     assert result is None
-    choose_sell_qty.assert_called_once_with(3.0)
 
 
-def test_prepare_sell_trade_equity_returns_qty_without_leaps_cap() -> None:
-    choose_sell_qty = Mock(return_value=4)
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_sell_qty", choose_sell_qty):
-        result = trade_execution_service.prepare_sell_trade(
-            sell_candidates=["AAPL"],
-            forced_sell=None,
-            prices={"AAPL": 100.0},
-            state=SimpleNamespace(positions={"AAPL": 4.0}),
-            instrument_mode="equity",
-        )
-    assert result == ("AAPL", 4, 100.0)
-
-
-def test_prepare_buy_trade_returns_none_when_equity_price_missing() -> None:
-    result = trade_execution_service.prepare_buy_trade(
+def test_prepare_buy_trades_returns_empty_when_equity_price_missing() -> None:
+    result = trade_execution_service.prepare_buy_trades(
         option_settings=make_option_settings(),
         instrument_mode="equity",
         buy_candidates=["AAPL"],
@@ -172,10 +167,11 @@ def test_prepare_buy_trade_returns_none_when_equity_price_missing() -> None:
         iv_rank_proxy={},
         state=SimpleNamespace(cash=1000.0),
         fee=0.0,
+        max_buys=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
-    assert result is None
+    assert result == []
 
 
 def test_position_mark_price_prefers_leaps_trade_price_then_avg_cost() -> None:
@@ -253,7 +249,7 @@ def test_current_position_value_returns_zero_when_no_position_and_uses_helper_wh
 
 def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> None:
     with patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=0)):
-        result = trade_execution_service.prepare_buy_trade(
+        result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="equity",
             buy_candidates=["AAPL"],
@@ -261,10 +257,11 @@ def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> No
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert result is None
+    assert result == []
 
 
 def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_limits() -> None:
@@ -278,7 +275,7 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
         patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=3)),
         patch.object(trade_execution_service.auto_trader_policy, "apply_leaps_buy_qty_limits", Mock(return_value=0)),
     ):
-        invalid_price_result = trade_execution_service.prepare_buy_trade(
+        invalid_price_result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="leaps",
             buy_candidates=["AAPL"],
@@ -286,10 +283,11 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-        limited_qty_result = trade_execution_service.prepare_buy_trade(
+        limited_qty_result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="leaps",
             buy_candidates=["AAPL"],
@@ -297,11 +295,12 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             iv_rank_proxy={},
             state=SimpleNamespace(cash=1000.0),
             fee=0.0,
+            max_buys=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert invalid_price_result is None
-    assert limited_qty_result is None
+    assert invalid_price_result == []
+    assert limited_qty_result == []
 
 
 def _rising_history(length: int = 40) -> "trade_execution_service.pd.DataFrame":
@@ -344,112 +343,114 @@ def test_select_signal_trade_candidates_missing_history_is_hold() -> None:
 def test_prepare_trade_selection_uses_forced_sell_path() -> None:
     state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0})
     option_settings = make_option_settings()
-    prepare_sell_trade = Mock(return_value=("AAPL", 1, 95.0))
 
-    with patch.object(trade_execution_service, "prepare_sell_trade", prepare_sell_trade):
-        selection = trade_execution_service.prepare_trade_selection(
-            option_settings=option_settings,
-            active_strategy="trend",
-            params={"fast_window": 10, "slow_window": 20},
-            state=state,
-            forced_sell="AAPL",
-            universe=["AAPL"],
-            prices={"AAPL": 95.0},
-            histories={},
-            iv_rank_proxy={},
-            instrument_mode="equity",
-            fee=0.0,
-            trade_size_pct=None,
-            max_position_pct=None,
-        )
+    selection = trade_execution_service.prepare_book_trades(
+        option_settings=option_settings,
+        active_strategy="trend",
+        params={"fast_window": 10, "slow_window": 20},
+        state=state,
+        forced_sells=["AAPL"],
+        universe=["AAPL"],
+        prices={"AAPL": 95.0},
+        histories={},
+        iv_rank_proxy={},
+        instrument_mode="equity",
+        fee=0.0,
+        max_trades=1,
+        trade_size_pct=None,
+        max_position_pct=None,
+    )
 
-    assert selection == ("sell", "AAPL", 1, 95.0, None, None)
-    prepare_sell_trade.assert_called_once()
+    assert selection == [("sell", "AAPL", 2, 95.0, None, None)]
 
 
 def test_prepare_trade_selection_returns_none_when_nothing_signals() -> None:
     # Flat history → hold for the trend strategy; no forced sell → no trade at all.
     state = SimpleNamespace(positions={}, avg_cost={}, cash=1000.0)
-    selection = trade_execution_service.prepare_trade_selection(
+    selection = trade_execution_service.prepare_book_trades(
         option_settings=make_option_settings(),
         active_strategy="trend",
         params={"fast_window": 10, "slow_window": 20},
         state=state,
-        forced_sell=None,
+        forced_sells=[],
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         histories={"AAPL": bar_frame(trade_execution_service.pd.Series([100.0] * 40))},
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        max_trades=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
-    assert selection is None
+    assert selection == []
 
 
 def test_prepare_trade_selection_buys_on_buy_signal() -> None:
     state = SimpleNamespace(positions={}, avg_cost={}, cash=1000.0)
-    selection = trade_execution_service.prepare_trade_selection(
+    selection = trade_execution_service.prepare_book_trades(
         option_settings=make_option_settings(),
         active_strategy="trend",
         params={"fast_window": 10, "slow_window": 20},
         state=state,
-        forced_sell=None,
+        forced_sells=[],
         universe=["AAPL"],
         prices={"AAPL": 10.0},
         histories={"AAPL": _rising_history()},
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        max_trades=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
     assert selection is not None
-    side, ticker, qty, trade_price, _delta, _iv = selection
+    assert len(selection) == 1
+    side, ticker, qty, trade_price, _delta, _iv = selection[0]
     assert (side, ticker, trade_price) == ("buy", "AAPL", 10.0)
     assert qty >= 1
 
 
-def test_prepare_trade_selection_sells_on_sell_signal_for_held_ticker(monkeypatch) -> None:
-    monkeypatch.setattr(trade_execution_service.auto_trader_policy, "choose_sell_qty", lambda qty: int(qty))
+def test_prepare_trade_selection_sells_on_sell_signal_for_held_ticker() -> None:
     state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0}, cash=0.0)
-    selection = trade_execution_service.prepare_trade_selection(
+    selection = trade_execution_service.prepare_book_trades(
         option_settings=make_option_settings(),
         active_strategy="trend",
         params={"fast_window": 10, "slow_window": 20},
         state=state,
-        forced_sell=None,
+        forced_sells=[],
         universe=["AAPL"],
         prices={"AAPL": 90.0},
         histories={"AAPL": _sell_history()},
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        max_trades=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
-    assert selection == ("sell", "AAPL", 2, 90.0, None, None)
+    assert selection == [("sell", "AAPL", 2, 90.0, None, None)]
 
 
 def test_prepare_trade_selection_unknown_strategy_holds() -> None:
     state = SimpleNamespace(positions={}, avg_cost={}, cash=1000.0)
-    selection = trade_execution_service.prepare_trade_selection(
+    selection = trade_execution_service.prepare_book_trades(
         option_settings=make_option_settings(),
         active_strategy="totally_unknown_xyz",
         params={},
         state=state,
-        forced_sell=None,
+        forced_sells=[],
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         histories={"AAPL": _rising_history()},
         iv_rank_proxy={},
         instrument_mode="equity",
         fee=0.0,
+        max_trades=1,
         trade_size_pct=None,
         max_position_pct=None,
     )
-    assert selection is None
+    assert selection == []
 
 
 def test_prepare_trade_selection_returns_buy_selection_with_estimates() -> None:
@@ -461,26 +462,27 @@ def test_prepare_trade_selection_returns_buy_selection_with_estimates() -> None:
         ),
         patch.object(
             trade_execution_service,
-            "prepare_buy_trade",
-            Mock(return_value=("AAPL", 2, 100.0, 0.35, 22.0)),
+            "prepare_buy_trades",
+            Mock(return_value=[("buy", "AAPL", 2, 100.0, 0.35, 22.0)]),
         ),
     ):
-        selection = trade_execution_service.prepare_trade_selection(
+        selection = trade_execution_service.prepare_book_trades(
             option_settings=make_option_settings(),
             active_strategy="trend",
             params={"fast_window": 10, "slow_window": 20},
             state=SimpleNamespace(positions={}, avg_cost={}, cash=1000.0),
-            forced_sell=None,
+            forced_sells=[],
             universe=["AAPL"],
             prices={"AAPL": 100.0},
             histories={"AAPL": _rising_history()},
             iv_rank_proxy={},
             instrument_mode="equity",
             fee=0.0,
+            max_trades=1,
             trade_size_pct=None,
             max_position_pct=None,
         )
-    assert selection == ("buy", "AAPL", 2, 100.0, 0.35, 22.0)
+    assert selection == [("buy", "AAPL", 2, 100.0, 0.35, 22.0)]
 
 
 class _StubBundle:

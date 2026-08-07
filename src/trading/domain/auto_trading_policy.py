@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import random
 from collections.abc import Sequence
 from typing import Any, Protocol
 
 # ---------------------------------------------------------------------------
 # Order sizing
 # ---------------------------------------------------------------------------
-
-# Maximum quantity for a single randomized sell order
-MAX_ORDER_QTY = 5
 
 # Default account-level buy sizing controls. Percent fields in this repository
 # are stored as 0-100 values, not 0-1 fractions.
@@ -195,11 +191,10 @@ def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str
     return sorted(candidates, key=lambda ticker: hashlib.sha256(f"{seed}:{ticker}".encode()).hexdigest())
 
 
-def choose_sell_qty(position_qty: float) -> int:
+def closing_sell_qty(position_qty: float) -> int:
+    """Whole-share quantity that closes the position outright."""
     max_qty = int(position_qty)
-    if max_qty < 1:
-        return 0
-    return random.randint(1, min(MAX_ORDER_QTY, max_qty))
+    return max_qty if max_qty >= 1 else 0
 
 
 def estimate_delta(abs_strike_offset_pct: float) -> float:
@@ -255,18 +250,25 @@ def option_candidate_allowed(
     return True, delta_est, iv_rank if iv_rank is not None else -1.0
 
 
-def choose_sell_ticker_by_risk(
+def order_risk_breaches(
     can_sell: list[str],
     prices: dict[str, float],
     state: PositionCostState,
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
-) -> str | None:
-    if not can_sell:
-        return None
+) -> list[str]:
+    """Every position past its stop or target, most urgent first.
 
-    candidates: list[str] = []
+    Stop-loss breaches come before take-profit breaches; within each group,
+    furthest past the threshold first. Ordering is deterministic, so a run's
+    exit sequence reproduces from the audit trail.
+    """
+    if not can_sell:
+        return []
+
+    stop_breaches: list[tuple[float, str]] = []
+    target_breaches: list[tuple[float, str]] = []
     for ticker in can_sell:
         price = prices.get(ticker)
         avg_cost = state.avg_cost.get(ticker, 0.0)
@@ -276,16 +278,16 @@ def choose_sell_ticker_by_risk(
         move_pct = ((price / avg_cost) - 1.0) * 100.0
         if risk_policy in {"fixed_stop", "stop_and_target"} and stop_loss_pct is not None:
             if move_pct <= -abs(float(stop_loss_pct)):
-                candidates.append(ticker)
+                stop_breaches.append((move_pct, ticker))
+                continue
         uses_take_profit_policy = risk_policy in {"take_profit", "stop_and_target"}
         if uses_take_profit_policy and take_profit_pct is not None:
             if move_pct >= abs(float(take_profit_pct)):
-                candidates.append(ticker)
+                target_breaches.append((move_pct, ticker))
 
-    if not candidates:
-        return None
-
-    return random.choice(list(dict.fromkeys(candidates)))
+    ordered = [ticker for _, ticker in sorted(stop_breaches)]
+    ordered.extend(ticker for _, ticker in sorted(target_breaches, reverse=True))
+    return list(dict.fromkeys(ordered))
 
 
 def apply_leaps_buy_qty_limits(

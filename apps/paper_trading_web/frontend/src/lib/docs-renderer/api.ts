@@ -87,7 +87,7 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, optional</td><td>Ticker universe file path; defaults to the default universe.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window if dates are omitted.</td></tr>
@@ -103,7 +103,7 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to validate.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, optional</td><td>Ticker universe file path; defaults to the default universe.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window.</td></tr>
@@ -116,7 +116,7 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, optional</td><td>Ticker universe file path; defaults to the default universe.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Training lookback window.</td></tr>

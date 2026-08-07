@@ -13,7 +13,6 @@ import pandas as pd
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
@@ -162,14 +161,6 @@ def _run_books_for_account(
     broker = broker_factory(account)
     try:
         for book_id, book_intents_for_book in approved_by_book.items():
-            # The global trade throttle (operational settings) applies across
-            # the whole run: once exceeded, no further books submit.
-            try:
-                enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso())
-            except RuntimeTradeThrottleExceededError:
-                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=book_id)
-                break
-
             result = submit_book_intents(
                 conn,
                 book_id=book_id,
@@ -178,7 +169,14 @@ def _run_books_for_account(
                 broker=broker,
                 gate=AllowAllGate(),  # gating already ran once above for the whole batch
                 fee=fee,
+                # Checked before every order, not once per book.
+                enforce_throttle=lambda: enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso()),
             )
+            if result.throttled:
+                # The throttle is global: no later book submits either.
+                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=book_id)
+                audit.submitted_count += result.submitted_count
+                break
             audit.submitted_count += result.submitted_count
             if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
                 audit.kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)

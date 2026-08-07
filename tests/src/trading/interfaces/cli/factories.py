@@ -7,7 +7,7 @@ def make_backtest_args(**overrides):
     defaults = {
         "command": "backtest",
         "account": "acct1",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universes/default.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",
@@ -43,7 +43,7 @@ def make_backtest_batch_args(**overrides):
     defaults = {
         "command": "backtest-batch",
         "accounts": "acct1, acct2",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universes/default.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",

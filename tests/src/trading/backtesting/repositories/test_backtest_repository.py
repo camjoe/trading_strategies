@@ -14,7 +14,7 @@ from trading.services.accounts import create_account
 def _cfg() -> BacktestConfig:
     return BacktestConfig(
         account_name="acct_repo",
-        tickers_file="src/infrastructure/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universes/default.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-01-31",

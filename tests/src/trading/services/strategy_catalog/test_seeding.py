@@ -12,6 +12,7 @@ from trading.repositories.book_settings import (
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
+from trading.services.universe import default_trade_symbols
 
 NOW = "2026-07-03T12:00:00Z"
 
@@ -54,7 +55,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     assert book is not None
     assert book.is_default == 1
     assert book.start_equity == pytest.approx(5000.0)
-    assert book.trade_universes == '["default"]'
+    assert json.loads(book.trade_symbols) == default_trade_symbols()
 
     # Execution settings are book columns (revision 0004); bootstrap starts on
     # DDL defaults — account creation / editors set real values.

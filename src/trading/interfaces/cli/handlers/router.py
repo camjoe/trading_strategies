@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
-    handle_apply_account_preset,
-    handle_apply_account_profiles,
     handle_configure_account,
     handle_create_account,
     handle_init,
@@ -53,8 +51,6 @@ COMMAND_HANDLERS = {
     "init": handle_init,
     "create-account": handle_create_account,
     "configure-account": handle_configure_account,
-    "apply-account-profiles": handle_apply_account_profiles,
-    "apply-account-preset": handle_apply_account_preset,
     "set-benchmark": handle_set_benchmark,
     "list-accounts": handle_list_accounts,
     "trade": handle_trade,

@@ -1,6 +1,6 @@
 interface BacktestBasePayload {
   account: string;
-  tickersFile: string;
+  tickersFile?: string;
   universeHistoryDir: string | null;
   start: string | null;
   end: string | null;
@@ -38,7 +38,7 @@ function parseFormNumber(fd: FormData, key: string, fallback: number): number {
 export function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
   return {
     account: String(fd.get("account") ?? "").trim(),
-    tickersFile: String(fd.get("tickersFile") ?? "trading/config/trade_universe.txt").trim(),
+    tickersFile: parseOptStr(String(fd.get("tickersFile") ?? "")) ?? undefined,
     universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
     start: parseOptStr(String(fd.get("start") ?? "")),
     end: parseOptStr(String(fd.get("end") ?? "")),

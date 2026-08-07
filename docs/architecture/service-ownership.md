@@ -28,7 +28,7 @@ where it goes.
 | `accounts/` | Broker-account identity/custody/metadata, listing, config, and deletions. | Book-level execution/accounting → `execution/`. |
 | `operational_settings/` | Global operator settings (throttles, evaluation confidence, promotion policy) + throttle **enforcement**. | Per-book settings → `books`. It stays **separate** from `parameters/`. |
 | `parameters/` | A read/edit **surface** over the owning stores (global settings, book settings, strategy rows). | It is **not** a persistence owner — writes go to the owning store. |
-| `profiles/` | Account provisioning from declarative profiles (`application`, `source`). | Rotation-config parsing → `books/rotation/config_parser`. |
+| `universe/` | Expands universe names into ticker lists for the write paths; owns the default-universe vocabulary. | Nothing here runs on the trading path — books store resolved symbols. |
 | `market_data/` | Market-data ports/factory, proxy feature computation, and caller-facing price/benchmark `lookups`. | Concrete adapters → `src/infrastructure/market_data/`. |
 | `strategy_catalog/` | Strategy primitive + `params_json` resolution and catalog edits. | — |
 | `universe/` | Trade-universe resolution. | — |

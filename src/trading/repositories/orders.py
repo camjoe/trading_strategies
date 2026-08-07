@@ -144,9 +144,21 @@ class OrderRepository:
         ).fetchall()
 
     def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
-        """Global fill count in a time window (runtime trade throttles)."""
+        """Global fill count in a time window — realized trading, for the per-day throttle."""
         row = self._conn.execute(
             "SELECT COUNT(*) FROM order_fills WHERE fill_time >= ? AND fill_time <= ?",
+            (start_iso, end_iso),
+        ).fetchone()
+        return 0 if row is None else int(row[0])
+
+    def fetch_submission_count_between(self, *, start_iso: str, end_iso: str) -> int:
+        """Global submitted-order count in a time window — request rate, for broker pacing.
+
+        Diverges from the fill count against any broker where an order can sit
+        unfilled; they agree only because paper fills are instantaneous.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM orders WHERE submitted_at >= ? AND submitted_at <= ?",
             (start_iso, end_iso),
         ).fetchone()
         return 0 if row is None else int(row[0])

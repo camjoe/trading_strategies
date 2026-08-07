@@ -168,7 +168,7 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "created_at": "2026-01-31T00:00:00Z",
         "slippage_bps": "1.25",
         "fee_per_trade": "0.5",
-        "tickers_file": "trade_universe.txt",
+        "tickers_file": "default.txt",
     }
     monkeypatch.setattr(report_service, "_repo_fetch_latest_backtest_run_for_account", lambda *_a, **_k: row)
     monkeypatch.setattr(report_service, "_repo_fetch_recent_backtest_runs", lambda *_a, **_k: [row, row])
@@ -186,7 +186,7 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "createdAt": "2026-01-31T00:00:00Z",
         "slippageBps": 1.25,
         "feePerTrade": 0.5,
-        "tickersFile": "trade_universe.txt",
+        "tickersFile": "default.txt",
     }
     assert recent == [latest, latest]
 

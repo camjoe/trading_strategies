@@ -8,7 +8,7 @@ export type BacktestRunSummary = {
   createdAt: string;
   slippageBps: number;
   feePerTrade: number;
-  tickersFile: string;
+  tickersFile?: string;
 };
 
 export type BacktestRunResult = {

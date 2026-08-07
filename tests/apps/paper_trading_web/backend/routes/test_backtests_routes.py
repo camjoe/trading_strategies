@@ -77,7 +77,7 @@ class TestBacktestsRoutes:
                 "/api/backtests/run",
                 json={
                     "account": "acct_run_err",
-                    "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                    "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                     "start": "2026-01-01",
                     "end": "2026-01-31",
                 },
@@ -103,7 +103,7 @@ class TestBacktestsRoutes:
                     "/api/backtests/run",
                     json={
                         "account": "acct_run_bug",
-                        "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                        "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                         "start": "2026-01-01",
                         "end": "2026-01-31",
                     },
@@ -149,7 +149,7 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_leaps",
-                "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                 "start": "2026-01-01",
                 "end": "2026-03-01",
                 "allowApproximateLeaps": False,
@@ -170,7 +170,7 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_conflict",
-                "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                 "start": "2026-01-01",
                 "lookbackMonths": 1,
             },

@@ -51,13 +51,13 @@ def test_generate_book_trade_intents_uses_active_books_and_assignments(conn, mon
 
     monkeypatch.setattr(
         book_intents.auto_trader_policy,
-        "choose_sell_ticker_by_risk",
-        lambda *_args, **_kwargs: None,
+        "order_risk_breaches",
+        lambda *_args, **_kwargs: [],
     )
     monkeypatch.setattr(
         book_intents,
-        "prepare_trade_selection",
-        Mock(return_value=("buy", "AAPL", 1, 101.0, None, None)),
+        "prepare_book_trades",
+        Mock(return_value=[("buy", "AAPL", 1, 101.0, None, None)]),
     )
 
     intents = book_intents.generate_book_trade_intents(
@@ -205,48 +205,144 @@ def test_generate_book_trade_intents_returns_empty_without_active_books(conn) ->
     assert intents == []
 
 
-def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_universes(
-    conn,
-    monkeypatch,
-) -> None:
-    account_name = "acct_book_invalid_universe"
+def _captured_book_universe(conn, monkeypatch, *, account_name: str, stored_symbols: str) -> list[list[str]]:
+    """Run intent generation for a book holding *stored_symbols*, capturing what it selected over."""
     account_id = insert_repository_account(conn, name=account_name)
-    book_id = _insert_book(conn, account_id=account_id, name="invalid-universe")
-    BookRepository(conn).update_trade_universes(
+    book_id = _insert_book(conn, account_id=account_id, name=account_name)
+    BookRepository(conn).update_trade_symbols(
         book_id=book_id,
-        trade_universes='{"name": "not-a-list"}',
+        trade_symbols=stored_symbols,
         updated_at="2026-05-03T00:00:00Z",
     )
     _assign(conn, book_id=book_id, strategy_name="trend")
-    account = get_account(conn, account_name)
-    captured_universes: list[list[str]] = []
+    captured: list[list[str]] = []
 
     monkeypatch.setattr(
         book_intents.auto_trader_policy,
-        "choose_sell_ticker_by_risk",
-        lambda *_args, **_kwargs: None,
+        "order_risk_breaches",
+        lambda *_args, **_kwargs: [],
     )
     monkeypatch.setattr(
         book_intents,
-        "resolve_named_universes",
-        lambda _names: (_ for _ in ()).throw(AssertionError("named universes should not be resolved")),
-    )
-    monkeypatch.setattr(
-        book_intents,
-        "prepare_trade_selection",
+        "prepare_book_trades",
         # positional args: (account, strategy_name, params, state, forced_sell, universe, ...)
-        lambda *_args, **_kwargs: captured_universes.append(list(_args[5])) or None,
+        lambda *_args, **_kwargs: captured.append(list(_args[5])) or [],
     )
 
     intents = book_intents.generate_book_trade_intents(
         conn,
-        account=account,
+        account=get_account(conn, account_name),
         universe=["SPY", "QQQ"],
         prices={"SPY": 500.0, "QQQ": 400.0},
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
     )
-
     assert intents == []
-    assert captured_universes == [["SPY", "QQQ"]]
+    return captured
+
+
+def test_generate_book_trade_intents_selects_over_the_books_stored_symbols(conn, monkeypatch) -> None:
+    captured = _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_symbols",
+        stored_symbols='["NVDA","AMD"]',
+    )
+
+    assert captured == [["NVDA", "AMD"]]
+
+
+def test_generate_book_trade_intents_falls_back_to_the_run_universe_for_unusable_symbols(
+    conn,
+    monkeypatch,
+) -> None:
+    """A malformed or empty column must not silently narrow the book to nothing."""
+    assert _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_bad_symbols",
+        stored_symbols='{"name": "not-a-list"}',
+    ) == [["SPY", "QQQ"]]
+    assert _captured_book_universe(
+        conn,
+        monkeypatch,
+        account_name="acct_book_empty_symbols",
+        stored_symbols="[]",
+    ) == [["SPY", "QQQ"]]
+
+
+def _multi_signal_book(conn, *, account_name: str, cash: float = 100_000.0) -> tuple[int, object]:
+    account_id = insert_repository_account(conn, name=account_name)
+    book_id = _insert_book(conn, account_id=account_id, name=account_name, current_cash=cash)
+    BookRepository(conn).update_trade_symbols(
+        book_id=book_id,
+        trade_symbols=json.dumps(["AAPL", "MSFT", "NVDA"]),
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    _assign(conn, book_id=book_id, strategy_name="trend")
+    return book_id, get_account(conn, account_name)
+
+
+def _rising_histories() -> dict[str, pd.DataFrame]:
+    rising = bar_frame(pd.Series([float(i) for i in range(1, 41)]))
+    return {"AAPL": rising, "MSFT": rising, "NVDA": rising}
+
+
+def test_generate_book_trade_intents_emits_more_than_one_trade_per_book(conn) -> None:
+    """The account cap counts trades, not books."""
+    _, account = _multi_signal_book(conn, account_name="acct_budget_multi")
+
+    intents = book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL", "MSFT", "NVDA"],
+        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+        iv_rank_proxy={},
+        max_trades=3,
+        fee=0.0,
+        histories=_rising_histories(),
+    )
+
+    assert len(intents) == 3
+    assert {intent.symbol for intent in intents} == {"AAPL", "MSFT", "NVDA"}
+
+
+def test_generate_book_trade_intents_respects_the_account_cap(conn) -> None:
+    _, account = _multi_signal_book(conn, account_name="acct_budget_account_cap")
+
+    intents = book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL", "MSFT", "NVDA"],
+        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+        iv_rank_proxy={},
+        max_trades=2,
+        fee=0.0,
+        histories=_rising_histories(),
+    )
+
+    assert len(intents) == 2
+
+
+def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
+    """A book's own limit narrows the account cap."""
+    book_id, account = _multi_signal_book(conn, account_name="acct_budget_book_cap")
+    BookRepository(conn).update_settings_columns(
+        book_id=book_id,
+        updates=["max_trades_per_run = ?"],
+        params=[1],
+    )
+
+    intents = book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL", "MSFT", "NVDA"],
+        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+        iv_rank_proxy={},
+        max_trades=3,
+        fee=0.0,
+        histories=_rising_histories(),
+    )
+
+    assert len(intents) == 1

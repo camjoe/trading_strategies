@@ -25,8 +25,7 @@ from common.paths import relative_posix
 
 CONFIG_DIR = Path("src/infrastructure/config")
 SECTOR_MAP_PATH = CONFIG_DIR / "symbol_sectors.json"
-# Universe files live both in the trade_universes/ directory and beside it.
-UNIVERSE_GLOBS = ("trade_universes/*.txt", "trade_universe*.txt")
+UNIVERSE_GLOBS = ("trade_universes/*.txt",)
 
 
 def _load_sector_map(path: Path) -> dict[str, str]:

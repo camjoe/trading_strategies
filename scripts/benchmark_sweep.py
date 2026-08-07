@@ -42,7 +42,7 @@ from trading.backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConf
 from trading.backtesting.optimizer_models import OptimizerConfig
 from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
 from trading.backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # An 8-point grid over a two-parameter strategy: small enough to finish while
 # someone watches, large enough that per-candidate setup cost is visible.

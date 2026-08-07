@@ -5,9 +5,8 @@ JSON object of ``{"SYMBOL": "sector"}``.  It is injected into
 ``RiskGateConfig.symbol_sector_map`` at the service layer so the domain
 gate and models stay free of file I/O.
 
-A missing file yields an empty map (sector-concentration limits simply do not
-apply), matching how ``load_trade_caps_config`` degrades when its config is
-absent.
+A missing file yields an empty map: sector-concentration limits simply do not
+apply.
 
 The initial config seed covers the legacy/default trade universe plus broad ETF
 symbols, not every symbol in the named universe files.  Unmapped symbols are

@@ -227,7 +227,7 @@ code that builds the sandbox re-establishes dev configuration after the reset. T
 | Table | Dev rows | What it holds | Status |
 |---|---:|---|---|
 | `accounts` | 8 | Account identity, custody, broker connection, `live_trading_enabled` | Reseed |
-| `books` | 8 | Execution/risk/option settings columns, required `trade_universes` | Reseed |
+| `books` | 8 | Execution/risk/option settings columns, required `trade_symbols` | Reseed |
 | `strategies` | 11 | Strategy catalog: code primitive + tuned `params_json`, draft/frozen/retired | Reseed + export `params_json` |
 | `book_rotation_settings` | 8 | Sparse per-book rotation scheduling and champion/challenger overrides | Reseed |
 | `feature_providers` | 0 | Enabled external feature providers | Reseed |

@@ -20,11 +20,11 @@ complexity, relationship tracking, or portability pressure materially increases.
 All backtesting commands use the shared trading CLI and accept `--help` for the full reference. They
 assume the repository virtual environment created in the root README is active.
 
-Create the database and apply the synthetic default account preset before the first run:
+Create the database and an account before the first run:
 
 ```sh
 python -m scripts.data_ops.manage_db_migrations upgrade
-python -m trading.interfaces.cli.main apply-account-preset --preset default
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy momentum --initial-cash 5000 --benchmark SPY
 ```
 
 ```sh

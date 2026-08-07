@@ -15,7 +15,7 @@ function bookEditor(book: BookConfiguration): string {
       <form class="book-config-form">
         <div class="bt-row">
           ${input("strategy", "Strategy", book.strategy, "text")}
-          ${input("tradeUniverses", "Trade universes", book.tradeUniverses.join(","), "text")}
+          ${input("tradeUniverses", "Set universes (names)", "", "text")}
           ${input("goalPeriod", "Goal period", book.goalPeriod, "text")}
         </div>
         <div class="bt-row">
@@ -96,7 +96,7 @@ export function renderBooksSection(activeSection: DetailSectionName, detail: Acc
         <div class="analysis-stat"><span class="label">Status</span><span>${esc(book.status)}</span></div>
         <div class="analysis-stat"><span class="label">Equity</span><span>${currency.format(book.currentEquity)}</span></div>
         <div class="analysis-stat"><span class="label">Cash</span><span>${currency.format(book.currentCash)}</span></div>
-        <div class="analysis-stat"><span class="label">Universes</span><span>${esc(book.tradeUniverses.join(", "))}</span></div>
+        <div class="analysis-stat"><span class="label">Symbols</span><span>${esc(book.tradeSymbols.join(", "))}</span></div>
         <div class="analysis-stat"><span class="label">Rotation</span><span>${book.rotation.enabled ? "On" : "Off"}</span></div>
       </div>
       ${bookEditor(book)}

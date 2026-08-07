@@ -58,16 +58,20 @@ class TestEnforceRuntimeTradeThrottles:
             count_trades_between_fn=count_fn,
         )
 
-    def test_minute_limit_exceeded_raises(self, conn: sqlite3.Connection) -> None:
+    def test_minute_limit_counts_submissions_not_fills(self, conn: sqlite3.Connection) -> None:
+        """Broker pacing measures requests sent. An order that never fills still cost one."""
         fetch_fn = MagicMock(return_value=_settings(day=None, minute=3))
-        count_fn = MagicMock(return_value=3)
+        no_fills = MagicMock(return_value=0)
+        submissions = MagicMock(return_value=3)
         with pytest.raises(RuntimeTradeThrottleExceededError, match="per_minute"):
             enforce_runtime_trade_throttles(
                 conn,
                 trade_time_iso="2026-01-15T10:00:00Z",
                 fetch_runtime_throttle_settings_fn=fetch_fn,
-                count_trades_between_fn=count_fn,
+                count_trades_between_fn=no_fills,
+                count_submissions_between_fn=submissions,
             )
+        submissions.assert_called_once()
 
     def test_both_limits_set_day_checked_first(self, conn: sqlite3.Connection) -> None:
         """When both limits are set and day limit is exceeded, it raises before minute check."""

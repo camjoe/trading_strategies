@@ -53,7 +53,7 @@ def test_delete_managed_account_removes_related_rows(conn, create_account_row) -
             utc_now_iso(),
             5.0,
             0.0,
-            "src/infrastructure/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universes/default.txt",
         ),
     )
     run = conn.execute("SELECT id FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()

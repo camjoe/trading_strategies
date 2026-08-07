@@ -85,7 +85,7 @@ class TestBacktestLeaderboardAndBatch:
             conn,
             BacktestBatchConfig(
                 account_names=["acct_a", "acct_b"],
-                tickers_file="src/infrastructure/config/trade_universe.txt",
+                tickers_file="src/infrastructure/config/trade_universes/default.txt",
                 universe_history_dir=None,
                 start="2026-01-01",
                 end="2026-02-01",

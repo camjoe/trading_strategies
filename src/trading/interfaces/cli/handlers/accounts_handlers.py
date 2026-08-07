@@ -3,11 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.services.profiles.source import get_builtin_profile_preset_path
-
-
-def _print_profiles_result(prefix: str, created: int, updated: int, skipped: int) -> None:
-    print(f"{prefix}created={created}, updated={updated}, skipped={skipped}.")
 
 
 def handle_init(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -43,35 +38,6 @@ def handle_configure_account(conn, args, parser, *, deps: dict[str, Any]) -> Non
         config=config,
     )
     print(f"Updated account configuration for '{args.account}'.")
-
-
-def handle_apply_account_profiles(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    profiles = deps["load_account_profiles"](args.file)
-    try:
-        created, updated, skipped = deps["apply_account_profiles"](
-            conn,
-            profiles,
-            create_missing=not args.no_create_missing,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-    _print_profiles_result("Applied account profiles: ", created, updated, skipped)
-
-
-def handle_apply_account_preset(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    preset_file = get_builtin_profile_preset_path(args.preset)
-    profiles = deps["load_account_profiles"](str(preset_file))
-    try:
-        created, updated, skipped = deps["apply_account_profiles"](
-            conn,
-            profiles,
-            create_missing=not args.no_create_missing,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-    _print_profiles_result(f"Applied preset '{args.preset}': ", created, updated, skipped)
 
 
 def handle_set_benchmark(conn, args, parser, *, deps: dict[str, Any]) -> None:
