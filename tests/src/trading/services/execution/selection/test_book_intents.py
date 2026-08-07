@@ -358,11 +358,7 @@ def _budget_winner(conn, account, *, seed: str) -> int:
 
 
 def test_account_trade_budget_is_not_always_taken_by_the_lowest_book_id(conn) -> None:
-    """Books are enumerated by id; that must not decide who gets account capacity.
-
-    Otherwise the earliest-created book takes the budget on every run forever,
-    for a reason that is a property of the id sequence rather than of the books.
-    """
+    """Books are enumerated by id; that must not decide who gets account capacity."""
     first, second, account = _two_contending_books(conn, account_name="acct_book_claim_order")
 
     winners = {_budget_winner(conn, account, seed=f"2026-07-{day:02d}") for day in range(1, 29)}

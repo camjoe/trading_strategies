@@ -217,7 +217,7 @@ def test_sell_position_reduction_is_allowed(conn):
 def _drawn_down_book(conn) -> tuple[int, int]:
     """A book down 30% from a peak recorded earlier in its snapshot series.
 
-    The latest snapshot has to match current book equity or reconciliation trips
+    The latest snapshot must match current book equity or reconciliation trips
     first and the breaker never gets a say.
     """
     account_id, book_id = _book_env(conn, equity=70_000.0)

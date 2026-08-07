@@ -5,12 +5,12 @@ notional risk gate, so every book — a plain account's default book and any
 additional book alike — inherits the same guards.
 
 **Book-as-bucket.** ``book_id`` is the risk bucket. No policy decision is taken
-here: this module assembles the inputs
-``trading.domain.risk_gate.evaluate_risk_gate`` expects — book intents, equity
-and positions shaped as buckets (a book is just "the bucket"), plus the account's
-drawdown for its loss breaker — and the domain decides. Reconciliation likewise
-rolls up book equity for the account. Kept free of any ``auto_trading`` *service*
-dependency so ``auto_trading`` can call this without a cycle.
+here; this module only assembles what
+``trading.domain.risk_gate.evaluate_risk_gate`` expects — book intents, equity and
+positions shaped as buckets (a book is just "the bucket"), plus the account's
+drawdown. Reconciliation likewise rolls up book equity for the account. Kept free
+of any ``auto_trading`` *service* dependency so ``auto_trading`` can call this
+without a cycle.
 """
 
 from __future__ import annotations
@@ -156,11 +156,8 @@ class BookPreSubmitGate:
     ) -> float | None:
         """The account's distance below peak equity, for the gate's loss breaker.
 
-        Current equity comes from the same book roll-up the caps are scaled to,
-        not from the latest snapshot: the runtime marks books to market before
-        the gate, so the roll-up is the live number and the snapshot is not.
-        The peak comes from the snapshot series, which is the only record of
-        where equity has been.
+        Current equity is the book roll-up, not the latest snapshot: the runtime
+        marks books to market before the gate, so the roll-up is the live number.
         """
         peak_equity = EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id)
         return point_in_time_drawdown_pct(total_equity=sum(equity_by_book.values()), peak_equity=peak_equity)

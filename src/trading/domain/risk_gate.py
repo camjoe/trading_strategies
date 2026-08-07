@@ -62,30 +62,17 @@ hole in it: a ticker added to a trade universe but not to
 ``infrastructure/config/symbol_sectors.json`` cannot slip the cap.
 ``scripts/checks/repo/sector_map_check.py`` catches that drift at commit time.
 
-**A drawdown breaker stops buys, not sells.** When the account sits at or below
-``max_drawdown_pct`` under its peak equity, every buy is blocked as
-``drawdown_breaker`` and sells pass as normal, so a losing account stops adding
-risk without being trapped in the positions it holds. This is the one limit here
-driven by what has *happened* to the account rather than by what it currently
-holds. It is off when ``drawdown_pct`` is ``None`` — an account with no equity
-history has no drawdown to breach. Note the units: ``max_drawdown_pct`` is a
-0-100 percent matching ``risk_snapshots.drawdown_pct``, while the four caps above
-are 0-1 fractions.
+**A drawdown breaker stops buys, not sells.** At or below ``max_drawdown_pct``
+under peak equity every buy is blocked as ``drawdown_breaker`` while sells pass
+as normal, so a losing account stops adding risk without being trapped in what it
+holds. Off when ``drawdown_pct`` is ``None``. Unlike the four caps above,
+``max_drawdown_pct`` is a 0-100 percent, matching ``risk_snapshots.drawdown_pct``.
 
 **Intents are evaluated in order and each approval consumes capacity**, so list
 order decides who is filled when a cap binds — across books as well as within
-one. Both orders are seeded per run date rather than left to a natural key
+one. Both orders are seeded per run date rather than taken from a natural key
 (``domain.auto_trading_policy.order_signal_candidates`` for tickers,
-``order_capacity_claimants`` for books), so they are stable within a day, varied
-across days, and no ticker or book is systematically first in line. Do not
-restore an id or alphabetical order here for determinism's sake: these already
-are deterministic, and a natural key is exactly the bias they exist to remove.
-
-**Where a blocked intent's reason comes from**: the cap with the least room
-left. Ties go to the broadest constraint (sector, then gross, then symbol, then
-book) because ties are routine, not rare — remaining capacities are floored at
-zero, so an account pinned on two limits produces an exact one. See
-``_resolve_blocking_reason``.
+``order_capacity_claimants`` for books): stable within a day, varied across days.
 
 Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``
 and the sizing policy filters ``qty >= 1`` before intents reach here.
@@ -126,12 +113,10 @@ def _resolve_blocking_reason(
     # "gross_exposure_cap" is the account-scoped cap now spelled
     # `max_account_gross_exposure`. Renaming it would split the audit history.
     #
-    # List order is the tie precedence, since the sort below is stable. Ties are
-    # routine rather than rare: every remaining capacity is floored at 0.0, so an
-    # account sitting at two or more limits produces an exact 0.0 == 0.0.
-    # Account-scoped caps come before the book-scoped one so a pinned account is
-    # never reported as one book hitting its own notional limit, and sector leads
-    # because naming the sector tells an operator what to do about it.
+    # The sort below is stable, so list order is the tie precedence — and ties are
+    # routine, not rare: capacities are floored at 0.0, so an account at two limits
+    # produces an exact one. Account-scoped caps lead so a pinned account is not
+    # reported as a single book hitting its own limit.
     limits = [
         ("sector_concentration_cap", remaining_sector_notional),
         ("gross_exposure_cap", remaining_gross_notional),
@@ -148,9 +133,7 @@ def point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None
     Account-grain, point-in-time (contrast ``daily_metrics.drawdown_pct``, a
     single-day peak-to-trough figure that needs intraday equity ticks this
     codebase does not persist). ``peak_equity`` includes today's equity so a
-    new all-time high reads as 0.0, not a positive number. ``None`` when there
-    is no equity to measure against — a fresh account has no drawdown, not a
-    drawdown of zero.
+    new all-time high reads as 0.0, not a positive number.
     """
     if total_equity <= 0:
         return None
@@ -163,9 +146,8 @@ def point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None
 def is_drawdown_breaker_tripped(*, drawdown_pct: float | None, max_drawdown_pct: float) -> bool:
     """Whether the account has fallen far enough below peak equity to stop buying.
 
-    ``drawdown_pct`` is the signed figure from :func:`point_in_time_drawdown_pct`
-    (0.0 at a high, negative below it); ``max_drawdown_pct`` is the positive
-    limit. ``None`` — no equity history to measure against — is not a breach.
+    ``drawdown_pct`` is signed (0.0 at a high, negative below it) and
+    ``max_drawdown_pct`` is the positive limit. ``None`` is not a breach.
     """
     if drawdown_pct is None:
         return False

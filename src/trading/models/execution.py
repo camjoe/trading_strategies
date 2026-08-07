@@ -85,9 +85,7 @@ class RiskGateConfig:
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
     max_account_gross_exposure: float = DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE
     max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
-    # Account-scoped loss breaker, in signed percent below peak equity rather
-    # than a fraction like the caps above. Stops buys only; sells stay open so a
-    # drawdown never traps a position.
+    # Account-scoped loss breaker: blocks buys only, never sells.
     max_drawdown_pct: float = DEFAULT_MAX_DRAWDOWN_PCT
     # Symbol→sector reference data is operator config; the service layer loads it
     # from src/infrastructure/config/symbol_sectors.json and injects it here.

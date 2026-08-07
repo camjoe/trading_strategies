@@ -1,10 +1,8 @@
 """The orchestration/trading seam: a trading exit code becoming a DAG step status.
 
-Every other test in this area stops at one side of the boundary — the trading
-runtime is verified in-process, and the DAG is verified with its steps stubbed.
-Between them sits a `subprocess` exit code, and nothing checked that a halt the
-runtime reports actually fails the daily run's step 05. These tests take the code
-`run_auto_trades.main()` really returns and drive the real step wiring with it.
+Tests either side of this boundary stub the other. These take the code
+`run_auto_trades.main()` really returns and drive the real step wiring with it,
+so only the subprocess call itself is stubbed.
 """
 
 from __future__ import annotations

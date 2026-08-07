@@ -290,11 +290,7 @@ def test_order_capacity_claimants_ignores_the_order_it_was_given() -> None:
 
 
 def test_order_capacity_claimants_spreads_first_claim_across_books() -> None:
-    """The reason this exists: the lowest book id must not take capacity every run.
-
-    A book created earlier is not a better book, but with an id order it was
-    always first in line for both the max_trades budget and the account caps.
-    """
+    """The reason this exists: the lowest book id must not take capacity every run."""
     book_ids = [1, 2, 3, 4]
     firsts = {
         auto_trader_policy.order_capacity_claimants(book_ids, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)

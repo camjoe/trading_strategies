@@ -126,12 +126,7 @@ def test_non_positive_config_is_rejected() -> None:
 
 
 def test_tied_caps_report_the_broadest_constraint() -> None:
-    """An account pinned on several caps must not read as one book's own limit.
-
-    Remaining capacities are floored at zero, so an account at its gross and
-    sector limits leaves an exact 0.0 on both plus the book cap. Reporting
-    `book_notional_cap` there would send an auditor to the wrong place.
-    """
+    """An account pinned on several caps must not read as one book's own limit."""
     result = evaluate_risk_gate(
         intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
         book_equity_by_id={1: 1_000.0},
