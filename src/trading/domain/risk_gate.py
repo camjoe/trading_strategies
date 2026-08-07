@@ -62,9 +62,30 @@ hole in it: a ticker added to a trade universe but not to
 ``infrastructure/config/symbol_sectors.json`` cannot slip the cap.
 ``scripts/checks/repo/sector_map_check.py`` catches that drift at commit time.
 
+**A drawdown breaker stops buys, not sells.** When the account sits at or below
+``max_drawdown_pct`` under its peak equity, every buy is blocked as
+``drawdown_breaker`` and sells pass as normal, so a losing account stops adding
+risk without being trapped in the positions it holds. This is the one limit here
+driven by what has *happened* to the account rather than by what it currently
+holds. It is off when ``drawdown_pct`` is ``None`` — an account with no equity
+history has no drawdown to breach. Note the units: ``max_drawdown_pct`` is a
+0-100 percent matching ``risk_snapshots.drawdown_pct``, while the four caps above
+are 0-1 fractions.
+
 **Intents are evaluated in order and each approval consumes capacity**, so list
-order decides who is filled when a cap binds. The caller seeds selection per run
-date, making the order stable within a day and varied across days.
+order decides who is filled when a cap binds — across books as well as within
+one. Both orders are seeded per run date rather than left to a natural key
+(``domain.auto_trading_policy.order_signal_candidates`` for tickers,
+``order_capacity_claimants`` for books), so they are stable within a day, varied
+across days, and no ticker or book is systematically first in line. Do not
+restore an id or alphabetical order here for determinism's sake: these already
+are deterministic, and a natural key is exactly the bias they exist to remove.
+
+**Where a blocked intent's reason comes from**: the cap with the least room
+left. Ties go to the broadest constraint (sector, then gross, then symbol, then
+book) because ties are routine, not rare — remaining capacities are floored at
+zero, so an account pinned on two limits produces an exact one. See
+``_resolve_blocking_reason``.
 
 Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``
 and the sizing policy filters ``qty >= 1`` before intents reach here.
@@ -104,14 +125,51 @@ def _resolve_blocking_reason(
     # fixed even where a name has since been sharpened elsewhere:
     # "gross_exposure_cap" is the account-scoped cap now spelled
     # `max_account_gross_exposure`. Renaming it would split the audit history.
+    #
+    # List order is the tie precedence, since the sort below is stable. Ties are
+    # routine rather than rare: every remaining capacity is floored at 0.0, so an
+    # account sitting at two or more limits produces an exact 0.0 == 0.0.
+    # Account-scoped caps come before the book-scoped one so a pinned account is
+    # never reported as one book hitting its own notional limit, and sector leads
+    # because naming the sector tells an operator what to do about it.
     limits = [
-        ("book_notional_cap", remaining_book_notional),
-        ("symbol_concentration_cap", remaining_symbol_notional),
-        ("gross_exposure_cap", remaining_gross_notional),
         ("sector_concentration_cap", remaining_sector_notional),
+        ("gross_exposure_cap", remaining_gross_notional),
+        ("symbol_concentration_cap", remaining_symbol_notional),
+        ("book_notional_cap", remaining_book_notional),
     ]
     limits.sort(key=lambda item: item[1])
     return limits[0][0]
+
+
+def point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None) -> float | None:
+    """Distance below the account's historical peak equity, in percent (<= 0).
+
+    Account-grain, point-in-time (contrast ``daily_metrics.drawdown_pct``, a
+    single-day peak-to-trough figure that needs intraday equity ticks this
+    codebase does not persist). ``peak_equity`` includes today's equity so a
+    new all-time high reads as 0.0, not a positive number. ``None`` when there
+    is no equity to measure against — a fresh account has no drawdown, not a
+    drawdown of zero.
+    """
+    if total_equity <= 0:
+        return None
+    effective_peak = max(peak_equity, total_equity) if peak_equity is not None else total_equity
+    if effective_peak <= 0:
+        return None
+    return (total_equity / effective_peak - 1.0) * 100.0
+
+
+def is_drawdown_breaker_tripped(*, drawdown_pct: float | None, max_drawdown_pct: float) -> bool:
+    """Whether the account has fallen far enough below peak equity to stop buying.
+
+    ``drawdown_pct`` is the signed figure from :func:`point_in_time_drawdown_pct`
+    (0.0 at a high, negative below it); ``max_drawdown_pct`` is the positive
+    limit. ``None`` — no equity history to measure against — is not a breach.
+    """
+    if drawdown_pct is None:
+        return False
+    return drawdown_pct <= -abs(float(max_drawdown_pct))
 
 
 def resolve_sector_for_symbol(symbol: str, *, symbol_sector_map: dict[str, str]) -> str | None:
@@ -129,6 +187,7 @@ def evaluate_risk_gate(
     book_equity_by_id: Mapping[int, float],
     positions: Sequence[RiskGatePosition],
     config: RiskGateConfig = RiskGateConfig(),
+    drawdown_pct: float | None = None,
 ) -> RiskGateResult:
     if not intents:
         return RiskGateResult(
@@ -151,6 +210,7 @@ def evaluate_risk_gate(
     max_sector_concentration_pct = _coerce_positive_fraction(
         config.max_sector_concentration_pct, field_name="max_sector_concentration_pct"
     )
+    buys_halted = is_drawdown_breaker_tripped(drawdown_pct=drawdown_pct, max_drawdown_pct=config.max_drawdown_pct)
     symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
     # No map at all means sector limits are switched off. Once a map exists, an
     # unmapped symbol shares the UNCATEGORIZED_SECTOR bucket instead of escaping
@@ -231,6 +291,23 @@ def evaluate_risk_gate(
                     approved_qty=requested_qty,
                     requested_notional=requested_notional,
                     approved_notional=requested_notional,
+                )
+            )
+            continue
+
+        if buys_halted:
+            blocked_count += 1
+            decisions.append(
+                RiskGateDecision(
+                    book_id=int(intent.book_id),
+                    symbol=symbol,
+                    side=side,
+                    action="block",
+                    reason_code="drawdown_breaker",
+                    requested_qty=requested_qty,
+                    approved_qty=0,
+                    requested_notional=requested_notional,
+                    approved_notional=0.0,
                 )
             )
             continue

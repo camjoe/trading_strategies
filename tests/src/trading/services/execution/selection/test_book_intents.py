@@ -325,6 +325,58 @@ def test_generate_book_trade_intents_respects_the_account_cap(conn) -> None:
     assert len(intents) == 2
 
 
+def _two_contending_books(conn, *, account_name: str) -> tuple[int, int, object]:
+    """Two identically-configured books competing for one trade's worth of budget."""
+    account_id = insert_repository_account(conn, name=account_name)
+    book_ids = []
+    for name in ("first", "second"):
+        book_id = _insert_book(conn, account_id=account_id, name=name, current_cash=100_000.0)
+        BookRepository(conn).update_trade_symbols(
+            book_id=book_id,
+            trade_symbols=json.dumps(["AAPL"]),
+            updated_at="2026-05-03T00:00:00Z",
+        )
+        _assign(conn, book_id=book_id, strategy_name="trend")
+        book_ids.append(book_id)
+    return book_ids[0], book_ids[1], get_account(conn, account_name)
+
+
+def _budget_winner(conn, account, *, seed: str) -> int:
+    intents = book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL"],
+        prices={"AAPL": 10.0},
+        iv_rank_proxy={},
+        max_trades=1,
+        fee=0.0,
+        histories=_rising_histories(),
+        selection_seed=seed,
+    )
+    assert len(intents) == 1
+    return intents[0].book_id
+
+
+def test_account_trade_budget_is_not_always_taken_by_the_lowest_book_id(conn) -> None:
+    """Books are enumerated by id; that must not decide who gets account capacity.
+
+    Otherwise the earliest-created book takes the budget on every run forever,
+    for a reason that is a property of the id sequence rather than of the books.
+    """
+    first, second, account = _two_contending_books(conn, account_name="acct_book_claim_order")
+
+    winners = {_budget_winner(conn, account, seed=f"2026-07-{day:02d}") for day in range(1, 29)}
+
+    assert winners == {first, second}
+
+
+def test_account_trade_budget_claim_is_reproducible_from_the_seed(conn) -> None:
+    """Varied across runs, but a given run's outcome must reproduce from the audit trail."""
+    _, _, account = _two_contending_books(conn, account_name="acct_book_claim_seeded")
+
+    assert _budget_winner(conn, account, seed="2026-07-30") == _budget_winner(conn, account, seed="2026-07-30")
+
+
 def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
     """A book's own limit narrows the account cap."""
     book_id, account = _multi_signal_book(conn, account_name="acct_budget_book_cap")

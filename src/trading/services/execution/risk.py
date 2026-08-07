@@ -8,7 +8,7 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-from trading.domain.risk_gate import resolve_sector_for_symbol
+from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -52,22 +52,6 @@ def _compute_leverage_proxy(*, gross_exposure: float, total_equity: float) -> fl
     return gross_exposure / total_equity if total_equity > 0 else None
 
 
-def _compute_point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None) -> float | None:
-    """Distance below the account's historical peak equity, in percent (<= 0).
-
-    Account-grain, point-in-time (contrast ``daily_metrics.drawdown_pct``, a
-    single-day peak-to-trough figure that needs intraday equity ticks this
-    codebase does not persist). ``peak_equity`` includes today's equity so a
-    new all-time high reads as 0.0, not a positive number.
-    """
-    if total_equity <= 0:
-        return None
-    effective_peak = max(peak_equity, total_equity) if peak_equity is not None else total_equity
-    if effective_peak <= 0:
-        return None
-    return (total_equity / effective_peak - 1.0) * 100.0
-
-
 def persist_book_risk_snapshot(
     conn: sqlite3.Connection,
     *,
@@ -98,7 +82,7 @@ def persist_book_risk_snapshot(
         net_exposure=net_exposure,
         max_symbol_concentration_pct=max_symbol_concentration_pct,
         max_sector_concentration_pct=max_sector_concentration_pct,
-        drawdown_pct=_compute_point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
+        drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
         leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
         # daily_loss_pct is a single-day peak-to-trough figure; still needs
         # intraday equity ticks this codebase does not persist (unlike

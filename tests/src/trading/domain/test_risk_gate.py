@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from trading.domain.risk_gate import evaluate_risk_gate, resolve_sector_for_symbol
+from trading.domain.risk_gate import (
+    evaluate_risk_gate,
+    point_in_time_drawdown_pct,
+    resolve_sector_for_symbol,
+)
 from trading.models.execution import BookTradeCandidate, RiskGateConfig, RiskGatePosition
 
 
@@ -119,6 +123,93 @@ def test_non_positive_config_is_rejected() -> None:
             positions=[],
             config=RiskGateConfig(max_book_notional_pct=0.0),
         )
+
+
+def test_tied_caps_report_the_broadest_constraint() -> None:
+    """An account pinned on several caps must not read as one book's own limit.
+
+    Remaining capacities are floored at zero, so an account at its gross and
+    sector limits leaves an exact 0.0 on both plus the book cap. Reporting
+    `book_notional_cap` there would send an auditor to the wrong place.
+    """
+    result = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
+        book_equity_by_id={1: 1_000.0},
+        # 1_000 of MSFT exhausts both gross (1.0x equity) and technology (45%),
+        # so those two tie at exactly 0.0 while symbol and book still have room.
+        positions=[_position(book_id=1, symbol="MSFT", market_value=1_000.0)],
+        config=RiskGateConfig(symbol_sector_map={"AAPL": "technology", "MSFT": "technology"}),
+    )
+
+    assert result.blocked_count == 1
+    assert result.decisions[0].reason_code == "sector_concentration_cap"
+
+
+def test_drawdown_breaker_blocks_buys() -> None:
+    result = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
+        book_equity_by_id={1: 1_000.0},
+        positions=[],
+        drawdown_pct=-25.0,
+    )
+
+    assert result.blocked_count == 1
+    assert result.approved_intents == []
+    assert result.decisions[0].reason_code == "drawdown_breaker"
+
+
+def test_drawdown_breaker_still_allows_sells() -> None:
+    """The point of blocking buys rather than halting: an exit must stay open."""
+    result = evaluate_risk_gate(
+        intents=[
+            _intent(book_id=1, side="sell", symbol="AAPL", qty=1, price=100.0),
+            _intent(book_id=1, side="buy", symbol="MSFT", qty=1, price=100.0),
+        ],
+        book_equity_by_id={1: 1_000.0},
+        positions=[_position(book_id=1, symbol="AAPL", market_value=100.0)],
+        drawdown_pct=-25.0,
+    )
+
+    assert [decision.reason_code for decision in result.decisions] == ["risk_reducing_sell", "drawdown_breaker"]
+    assert [intent.symbol for intent in result.approved_intents] == ["AAPL"]
+
+
+def test_drawdown_breaker_trips_exactly_at_the_limit() -> None:
+    shallower = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
+        book_equity_by_id={1: 1_000.0},
+        positions=[],
+        drawdown_pct=-19.99,
+    )
+    at_limit = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
+        book_equity_by_id={1: 1_000.0},
+        positions=[],
+        drawdown_pct=-20.0,
+    )
+
+    assert shallower.allowed_count == 1
+    assert at_limit.blocked_count == 1
+
+
+def test_drawdown_breaker_is_off_without_equity_history() -> None:
+    """No snapshots means no measurable peak — not a breach."""
+    result = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=1, price=100.0)],
+        book_equity_by_id={1: 1_000.0},
+        positions=[],
+        drawdown_pct=None,
+    )
+
+    assert result.allowed_count == 1
+
+
+def test_point_in_time_drawdown_pct() -> None:
+    assert point_in_time_drawdown_pct(total_equity=800.0, peak_equity=1_000.0) == pytest.approx(-20.0)
+    # A new high reads as flat, not positive.
+    assert point_in_time_drawdown_pct(total_equity=1_200.0, peak_equity=1_000.0) == pytest.approx(0.0)
+    assert point_in_time_drawdown_pct(total_equity=1_000.0, peak_equity=None) == pytest.approx(0.0)
+    assert point_in_time_drawdown_pct(total_equity=0.0, peak_equity=1_000.0) is None
 
 
 def test_resolve_sector_for_symbol_ignores_blank_mappings() -> None:

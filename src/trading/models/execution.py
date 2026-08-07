@@ -71,6 +71,10 @@ DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30
 DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE = 1.0
 # Default share of *account* equity that any single sector may occupy.
 DEFAULT_MAX_SECTOR_CONCENTRATION_PCT = 0.45
+# Default distance below peak account equity at which the account stops buying.
+# Unlike the four caps above this is a 0-100 percent, matching the signed
+# `risk_snapshots.drawdown_pct` it is compared against.
+DEFAULT_MAX_DRAWDOWN_PCT = 20.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +85,10 @@ class RiskGateConfig:
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
     max_account_gross_exposure: float = DEFAULT_MAX_ACCOUNT_GROSS_EXPOSURE
     max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
+    # Account-scoped loss breaker, in signed percent below peak equity rather
+    # than a fraction like the caps above. Stops buys only; sells stay open so a
+    # drawdown never traps a position.
+    max_drawdown_pct: float = DEFAULT_MAX_DRAWDOWN_PCT
     # Symbol→sector reference data is operator config; the service layer loads it
     # from src/infrastructure/config/symbol_sectors.json and injects it here.
     # An empty map means no sector-concentration limits are applied.
