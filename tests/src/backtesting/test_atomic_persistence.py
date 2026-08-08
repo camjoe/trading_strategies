@@ -57,8 +57,8 @@ class TestAtomicBacktestPersistence:
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "insert_backtest_run",
-            _fail_on_nth_call(backtest_module.insert_backtest_run, nth=1),
+            "insert_run",
+            _fail_on_nth_call(backtest_module.insert_run, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -73,8 +73,8 @@ class TestAtomicBacktestPersistence:
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "insert_backtest_snapshot",
-            _fail_on_nth_call(backtest_module.insert_backtest_snapshot, nth=1),
+            "insert_snapshot",
+            _fail_on_nth_call(backtest_module.insert_snapshot, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -89,8 +89,8 @@ class TestAtomicBacktestPersistence:
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "insert_backtest_trade",
-            _fail_on_nth_call(backtest_module.insert_backtest_trade, nth=1),
+            "insert_trade",
+            _fail_on_nth_call(backtest_module.insert_trade, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -105,8 +105,8 @@ class TestAtomicBacktestPersistence:
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
             backtest_module,
-            "insert_backtest_snapshot",
-            _fail_on_nth_call(backtest_module.insert_backtest_snapshot, nth=5),
+            "insert_snapshot",
+            _fail_on_nth_call(backtest_module.insert_snapshot, nth=5),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):

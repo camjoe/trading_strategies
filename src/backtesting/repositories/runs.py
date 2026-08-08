@@ -16,14 +16,14 @@ from common.time import utc_now_iso
 from trading.persistence.unit_of_work import commit_unit_of_work
 from trading.repositories.book_bridge import strategy_id_for_label
 
-_REPORT_COLUMNS = """
+_RUN_COLUMNS = """
     r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
     r.tickers_file, a.name AS account_name,
     COALESCE(s.strategy_key, 'unknown') AS strategy
 """
 
 
-def insert_backtest_run(
+def insert_run(
     conn: sqlite3.Connection,
     *,
     account_id: int,
@@ -84,7 +84,7 @@ def insert_backtest_run(
     return int(cursor.lastrowid)
 
 
-def insert_backtest_trade(
+def insert_trade(
     conn: sqlite3.Connection,
     *,
     run_id: int,
@@ -109,7 +109,7 @@ def insert_backtest_trade(
     commit_unit_of_work(conn)
 
 
-def insert_backtest_snapshot(
+def insert_snapshot(
     conn: sqlite3.Connection,
     *,
     run_id: int,
@@ -132,7 +132,7 @@ def insert_backtest_snapshot(
     commit_unit_of_work(conn)
 
 
-def fetch_backtest_runs(
+def fetch_runs(
     conn: sqlite3.Connection,
     *,
     limit: int,
@@ -148,7 +148,7 @@ def fetch_backtest_runs(
     """
     rows = conn.execute(
         f"""
-        SELECT {_REPORT_COLUMNS}
+        SELECT {_RUN_COLUMNS}
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         LEFT JOIN strategies s ON s.id = r.strategy_id
@@ -162,10 +162,10 @@ def fetch_backtest_runs(
     return [dict(row) for row in rows]
 
 
-def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> dict[str, object] | None:
+def fetch_run(conn: sqlite3.Connection, run_id: int) -> dict[str, object] | None:
     row = conn.execute(
         f"""
-        SELECT {_REPORT_COLUMNS},
+        SELECT {_RUN_COLUMNS},
              r.notes, r.warnings, r.benchmark_ticker, r.benchmark_return_pct
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
@@ -177,7 +177,7 @@ def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> dict[str
     return None if row is None else dict(row)
 
 
-def fetch_backtest_report_snapshots(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
+def fetch_snapshots(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
     rows = conn.execute(
         """
         SELECT snapshot_date AS snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
@@ -190,7 +190,7 @@ def fetch_backtest_report_snapshots(conn: sqlite3.Connection, run_id: int) -> li
     return [dict(row) for row in rows]
 
 
-def fetch_backtest_report_trades(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
+def fetch_trades(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
     rows = conn.execute(
         """
         SELECT execution_date AS trade_time, ticker, side, qty, price, fee
@@ -203,7 +203,7 @@ def fetch_backtest_report_trades(conn: sqlite3.Connection, run_id: int) -> list[
     return [dict(row) for row in rows]
 
 
-def fetch_backtest_run_equity_bounds(conn: sqlite3.Connection, *, run_id: int) -> tuple[float, float] | None:
+def fetch_run_equity_bounds(conn: sqlite3.Connection, *, run_id: int) -> tuple[float, float] | None:
     """Return a run's ``(first_equity, last_equity)`` by snapshot date, or ``None``.
 
     The two equity marks needed to derive a run's total return without loading its

@@ -26,22 +26,22 @@ from backtesting.models.report import (
     parse_warnings,
 )
 from backtesting.repositories.runs import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
-    fetch_backtest_runs,
+    fetch_run,
+    fetch_runs,
+    fetch_snapshots,
+    fetch_trades,
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.domain.exceptions import NotFoundError
 
 
 def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
-    run = fetch_backtest_report_run(conn, run_id)
+    run = fetch_run(conn, run_id)
     if run is None:
         raise NotFoundError(f"Backtest run id {run_id} not found")
 
-    snapshots = fetch_backtest_report_snapshots(conn, run_id)
-    trades = fetch_backtest_report_trades(conn, run_id)
+    snapshots = fetch_snapshots(conn, run_id)
+    trades = fetch_trades(conn, run_id)
 
     if not snapshots:
         raise ValueError(f"No snapshots found for backtest run {run_id}")
@@ -118,7 +118,7 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
 
 
 def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int | None:
-    rows = fetch_backtest_runs(conn, limit=1, account_name=account_name)
+    rows = fetch_runs(conn, limit=1, account_name=account_name)
     return row_expect_int(rows[0], "id") if rows else None
 
 
@@ -139,12 +139,12 @@ def _build_backtest_run_dict(row: Mapping[str, object]) -> dict[str, object]:
 
 
 def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> dict[str, object] | None:
-    rows = fetch_backtest_runs(conn, limit=1, account_name=account_name)
+    rows = fetch_runs(conn, limit=1, account_name=account_name)
     return _build_backtest_run_dict(rows[0]) if rows else None
 
 
 def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
-    return [_build_backtest_run_dict(row) for row in fetch_backtest_runs(conn, limit=limit)]
+    return [_build_backtest_run_dict(row) for row in fetch_runs(conn, limit=limit)]
 
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:

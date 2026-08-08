@@ -11,9 +11,9 @@ from backtesting.models import (
 )
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
 from backtesting.repositories.runs import (
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
+    insert_run,
+    insert_snapshot,
+    insert_trade,
 )
 from backtesting.services import (
     build_monthly_universe,
@@ -81,7 +81,7 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return warnings
 
 
-def _insert_run(
+def _persist_run(
     conn: sqlite3.Connection,
     account_id: int,
     strategy_name: str,
@@ -92,7 +92,7 @@ def _insert_run(
     benchmark_ticker: str,
     benchmark_return_pct: float | None,
 ) -> int:
-    return insert_backtest_run(
+    return insert_run(
         conn,
         account_id=account_id,
         strategy_name=strategy_name,
@@ -105,7 +105,7 @@ def _insert_run(
     )
 
 
-def _insert_trade(
+def _persist_trade(
     conn: sqlite3.Connection,
     run_id: int,
     trade_time: str,
@@ -117,7 +117,7 @@ def _insert_trade(
     slippage_bps: float,
     note: str | None,
 ) -> None:
-    insert_backtest_trade(
+    insert_trade(
         conn,
         run_id=run_id,
         trade_time=trade_time,
@@ -131,7 +131,7 @@ def _insert_trade(
     )
 
 
-def _insert_snapshot(
+def _persist_snapshot(
     conn: sqlite3.Connection,
     run_id: int,
     snapshot_time: str,
@@ -141,7 +141,7 @@ def _insert_snapshot(
     realized_pnl: float,
     unrealized_pnl: float,
 ) -> None:
-    insert_backtest_snapshot(
+    insert_snapshot(
         conn,
         run_id=run_id,
         snapshot_time=snapshot_time,
@@ -185,9 +185,9 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
             benchmark_ticker, start_date, end_date, provider=provider
         ),
-        insert_run_fn=_insert_run if persist else _noop_insert_run,
-        insert_trade_fn=_insert_trade if persist else _noop_insert_trade,
-        insert_snapshot_fn=_insert_snapshot if persist else _noop_insert_snapshot,
+        insert_run_fn=_persist_run if persist else _noop_insert_run,
+        insert_trade_fn=_persist_trade if persist else _noop_insert_trade,
+        insert_snapshot_fn=_persist_snapshot if persist else _noop_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,
         feature_provider=feature_provider,
     )

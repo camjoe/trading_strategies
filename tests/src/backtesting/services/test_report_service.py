@@ -60,7 +60,7 @@ def test_report_reports_no_alpha_when_the_benchmark_window_was_too_short(conn, b
 
 
 def test_fetch_backtest_report_data_raises_for_missing_run(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(report_service, "fetch_backtest_report_run", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(report_service, "fetch_run", lambda *_args, **_kwargs: None)
 
     with pytest.raises(ValueError, match="not found"):
         report_service.fetch_backtest_report_data(object(), run_id=999)
@@ -69,7 +69,7 @@ def test_fetch_backtest_report_data_raises_for_missing_run(monkeypatch: pytest.M
 def test_fetch_backtest_report_data_raises_when_no_snapshots(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         report_service,
-        "fetch_backtest_report_run",
+        "fetch_run",
         lambda *_args, **_kwargs: {
             "id": 1,
             "run_name": "r1",
@@ -88,15 +88,15 @@ def test_fetch_backtest_report_data_raises_when_no_snapshots(monkeypatch: pytest
             "notes": None,
         },
     )
-    monkeypatch.setattr(report_service, "fetch_backtest_report_snapshots", lambda *_a, **_k: [])
-    monkeypatch.setattr(report_service, "fetch_backtest_report_trades", lambda *_a, **_k: [])
+    monkeypatch.setattr(report_service, "fetch_snapshots", lambda *_a, **_k: [])
+    monkeypatch.setattr(report_service, "fetch_trades", lambda *_a, **_k: [])
 
     with pytest.raises(ValueError, match="No snapshots"):
         report_service.fetch_backtest_report_data(object(), run_id=1)
 
 
 def test_fetch_latest_backtest_run_for_account_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(report_service, "fetch_backtest_runs", lambda *_a, **_k: [])
+    monkeypatch.setattr(report_service, "fetch_runs", lambda *_a, **_k: [])
     assert report_service.fetch_latest_backtest_run_for_account(object(), account_name="acct") is None
     assert report_service.fetch_latest_backtest_run_id_for_account(object(), account_name="acct") is None
 
@@ -114,9 +114,7 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "fee_per_trade": "0.5",
         "tickers_file": "default.txt",
     }
-    monkeypatch.setattr(
-        report_service, "fetch_backtest_runs", lambda *_a, **kw: [row] if kw["limit"] == 1 else [row, row]
-    )
+    monkeypatch.setattr(report_service, "fetch_runs", lambda *_a, **kw: [row] if kw["limit"] == 1 else [row, row])
 
     latest = report_service.fetch_latest_backtest_run_for_account(object(), account_name="acct")
     recent = report_service.fetch_recent_backtest_runs(object(), limit=2)
@@ -147,7 +145,7 @@ def test_report_summary_splits_the_stored_warnings_column(monkeypatch: pytest.Mo
     """
     monkeypatch.setattr(
         report_service,
-        "fetch_backtest_report_run",
+        "fetch_run",
         lambda *_a, **_k: {
             "id": 1,
             "run_name": "r1",
@@ -174,8 +172,8 @@ def test_report_summary_splits_the_stored_warnings_column(monkeypatch: pytest.Mo
         "realized_pnl": 0.0,
         "unrealized_pnl": 0.0,
     }
-    monkeypatch.setattr(report_service, "fetch_backtest_report_snapshots", lambda *_a, **_k: [snapshot, snapshot])
-    monkeypatch.setattr(report_service, "fetch_backtest_report_trades", lambda *_a, **_k: [])
+    monkeypatch.setattr(report_service, "fetch_snapshots", lambda *_a, **_k: [snapshot, snapshot])
+    monkeypatch.setattr(report_service, "fetch_trades", lambda *_a, **_k: [])
 
     report = report_service.fetch_backtest_report_data(object(), run_id=1)
 

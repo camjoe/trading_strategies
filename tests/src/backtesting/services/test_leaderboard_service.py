@@ -29,8 +29,8 @@ def _leaderboard_row(**overrides) -> _Row:
 
 
 def _stub_run_reads(monkeypatch: pytest.MonkeyPatch, *, snapshots, trades) -> None:
-    monkeypatch.setattr(leaderboard_service, "fetch_backtest_report_snapshots", lambda *_a, **_kw: snapshots)
-    monkeypatch.setattr(leaderboard_service, "fetch_backtest_report_trades", lambda *_a, **_kw: trades)
+    monkeypatch.setattr(leaderboard_service, "fetch_snapshots", lambda *_a, **_kw: snapshots)
+    monkeypatch.setattr(leaderboard_service, "fetch_trades", lambda *_a, **_kw: trades)
 
 
 def test_leaderboard_service_rejects_non_positive_limit() -> None:

@@ -20,9 +20,9 @@ from backtesting.repositories.optimization import (
     fetch_latest_experiment_for_account_strategy,
 )
 from backtesting.repositories.runs import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
+    fetch_run,
+    fetch_snapshots,
+    fetch_trades,
 )
 from backtesting.services.optimizer_aggregation_service import fetch_oos_segments
 from common.coercion import row_float, row_str
@@ -58,9 +58,9 @@ def build_backtest_evidence(
         return EvaluationBacktestEvidence()
     run_id = experiment.holdout_run_id
 
-    run = fetch_backtest_report_run(conn, run_id)
-    snapshots = fetch_backtest_report_snapshots(conn, run_id)
-    trades = fetch_backtest_report_trades(conn, run_id)
+    run = fetch_run(conn, run_id)
+    snapshots = fetch_snapshots(conn, run_id)
+    trades = fetch_trades(conn, run_id)
     if run is None or not snapshots:
         return EvaluationBacktestEvidence(
             run_id=run_id,

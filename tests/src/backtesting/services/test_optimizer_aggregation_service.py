@@ -9,7 +9,7 @@ import pytest
 
 from backtesting.models.optimizer import OptimizationExperimentInsert, OptimizationWindowInsert
 from backtesting.repositories.optimization import insert_experiment, insert_window
-from backtesting.repositories.runs import insert_backtest_snapshot
+from backtesting.repositories.runs import insert_snapshot
 from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from tests.support.repositories import insert_repository_account
 
@@ -55,7 +55,7 @@ def _oos_run(conn: sqlite3.Connection, account_id: int, *, first_equity: float, 
     run_id = int(cursor.lastrowid)
     conn.commit()
     # Two equity marks: the first and last of the run's curve.
-    insert_backtest_snapshot(
+    insert_snapshot(
         conn,
         run_id=run_id,
         snapshot_time="2023-01-02",
@@ -65,7 +65,7 @@ def _oos_run(conn: sqlite3.Connection, account_id: int, *, first_equity: float, 
         realized_pnl=0.0,
         unrealized_pnl=0.0,
     )
-    insert_backtest_snapshot(
+    insert_snapshot(
         conn,
         run_id=run_id,
         snapshot_time="2023-01-31",

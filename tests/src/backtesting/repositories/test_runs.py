@@ -9,14 +9,14 @@ import pytest
 from backtesting.backtest import run_backtest
 from backtesting.models import BacktestConfig
 from backtesting.repositories.runs import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
-    fetch_backtest_runs,
     fetch_leaderboard_rows,
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
+    fetch_run,
+    fetch_runs,
+    fetch_snapshots,
+    fetch_trades,
+    insert_run,
+    insert_snapshot,
+    insert_trade,
 )
 from tests.support.backtesting import bars_from_closes
 from tests.support.strategies import ensure_strategy_id_for_label
@@ -85,7 +85,7 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
     create_account(conn, "acct_repo", "trend_v1", 10000.0, "SPY")
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_repo",)).fetchone()["id"])
 
-    run_id = insert_backtest_run(
+    run_id = insert_run(
         conn,
         account_id=account_id,
         strategy_name="trend_v1",
@@ -97,7 +97,7 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
         benchmark_return_pct=1.5,
     )
 
-    insert_backtest_trade(
+    insert_trade(
         conn,
         run_id=run_id,
         trade_time="2026-01-02",
@@ -109,7 +109,7 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
         slippage_bps=5.0,
         note="note",
     )
-    insert_backtest_snapshot(
+    insert_snapshot(
         conn,
         run_id=run_id,
         snapshot_time="2026-01-02",
@@ -171,9 +171,9 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
     cfg = _backtest_config("acct_report_repo", run_name="contract", end="2026-03-01", slippage_bps=1.0)
     result = run_backtest(conn, cfg)
 
-    run_row = fetch_backtest_report_run(conn, result.run_id)
-    snapshot_rows = fetch_backtest_report_snapshots(conn, result.run_id)
-    trade_rows = fetch_backtest_report_trades(conn, result.run_id)
+    run_row = fetch_run(conn, result.run_id)
+    snapshot_rows = fetch_snapshots(conn, result.run_id)
+    trade_rows = fetch_trades(conn, result.run_id)
 
     assert run_row is not None
     assert len(snapshot_rows) >= 2
@@ -183,7 +183,7 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
 def test_fetch_backtest_runs_orders_newest_first_and_respects_limit(conn: sqlite3.Connection) -> None:
     _insert_account_and_runs(conn, "acct_recent", 3)
 
-    rows = fetch_backtest_runs(conn, limit=2)
+    rows = fetch_runs(conn, limit=2)
 
     assert [row["run_name"] for row in rows] == ["run_2", "run_1"]
 
@@ -192,7 +192,7 @@ def test_fetch_backtest_runs_scopes_to_one_account(conn: sqlite3.Connection) -> 
     _insert_account_and_runs(conn, "acct_scoped", 2)
     _insert_account_and_runs(conn, "acct_other", 2)
 
-    rows = fetch_backtest_runs(conn, limit=10, account_name="acct_scoped")
+    rows = fetch_runs(conn, limit=10, account_name="acct_scoped")
 
     assert {row["account_name"] for row in rows} == {"acct_scoped"}
     assert len(rows) == 2
@@ -202,7 +202,7 @@ def test_fetch_backtest_runs_spans_accounts_when_unscoped(conn: sqlite3.Connecti
     _insert_account_and_runs(conn, "acct_a", 1)
     _insert_account_and_runs(conn, "acct_b", 1)
 
-    rows = fetch_backtest_runs(conn, limit=10)
+    rows = fetch_runs(conn, limit=10)
 
     assert {row["account_name"] for row in rows} == {"acct_a", "acct_b"}
 
@@ -211,7 +211,7 @@ def test_fetch_backtest_runs_limit_one_is_the_latest_run(conn: sqlite3.Connectio
     """The "latest run" read is this query with limit=1, not a query of its own."""
     run_ids = _insert_account_and_runs(conn, "acct_latest_row", 2)
 
-    rows = fetch_backtest_runs(conn, limit=1, account_name="acct_latest_row")
+    rows = fetch_runs(conn, limit=1, account_name="acct_latest_row")
 
     assert len(rows) == 1
     assert rows[0]["id"] == run_ids[-1]
@@ -222,7 +222,7 @@ def test_fetch_backtest_runs_returns_nothing_for_an_account_with_no_runs(conn: s
     create_account(conn, "acct_empty_runs", "trend_v1", 1_000.0, "SPY")
     conn.commit()
 
-    assert fetch_backtest_runs(conn, limit=1, account_name="acct_empty_runs") == []
+    assert fetch_runs(conn, limit=1, account_name="acct_empty_runs") == []
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +259,6 @@ def test_leaderboard_fetches_rows_and_equity_curve(conn, bt_repo_account, seed_b
     assert int(rows[0]["run_id"]) == run_id
     assert rows[0]["account_name"] == account_name
 
-    equity_rows = fetch_backtest_report_snapshots(conn, run_id)
+    equity_rows = fetch_snapshots(conn, run_id)
     assert len(equity_rows) == 2
     assert float(equity_rows[0]["equity"]) == 1000.0

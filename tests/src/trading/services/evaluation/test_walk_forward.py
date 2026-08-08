@@ -1,9 +1,9 @@
 import pytest
 
 from tests.support.evaluation import (
-    insert_backtest_run,
-    insert_backtest_snapshot,
     insert_optimization_experiment,
+    insert_run,
+    insert_snapshot,
 )
 from trading.services.accounts import create_account, get_account
 from trading.services.evaluation import fetch_strategy_evaluation
@@ -16,13 +16,13 @@ def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_experime
     # Two OOS windows returning +1% and +2%; the evidence derives both from the
     # runs' equity marks rather than any stored aggregate.
     run_ids = [
-        insert_backtest_run(
+        insert_run(
             conn,
             account_id=account["id"],
             strategy_name="trend_v1",
             run_name="wfo_eval_01",
         ),
-        insert_backtest_run(
+        insert_run(
             conn,
             account_id=account["id"],
             strategy_name="trend_v1",
@@ -30,8 +30,8 @@ def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_experime
         ),
     ]
     for run_id, ending_equity in zip(run_ids, (1010.0, 1020.0)):
-        insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
-        insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=ending_equity)
+        insert_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
+        insert_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=ending_equity)
 
     insert_optimization_experiment(
         conn,

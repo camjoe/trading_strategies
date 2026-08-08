@@ -3,9 +3,9 @@ from __future__ import annotations
 from backtesting.domain.metrics import equity_curve_from_rows, max_drawdown_pct, summarize_backtest_performance
 from backtesting.models.report import BacktestLeaderboardEntry
 from backtesting.repositories.runs import (
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
     fetch_leaderboard_rows,
+    fetch_snapshots,
+    fetch_trades,
 )
 from common.coercion import row_expect_int, row_expect_str, row_float, row_str
 
@@ -35,9 +35,9 @@ def fetch_backtest_leaderboard_entries(
             continue
 
         run_id = row_expect_int(row, "run_id")
-        curve = equity_curve_from_rows(fetch_backtest_report_snapshots(conn, run_id))
+        curve = equity_curve_from_rows(fetch_snapshots(conn, run_id))
         max_drawdown = max_drawdown_pct(curve)
-        performance = summarize_backtest_performance(curve, fetch_backtest_report_trades(conn, run_id))
+        performance = summarize_backtest_performance(curve, fetch_trades(conn, run_id))
 
         total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
 

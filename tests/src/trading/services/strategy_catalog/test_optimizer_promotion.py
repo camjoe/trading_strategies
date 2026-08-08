@@ -29,7 +29,7 @@ from backtesting.repositories.optimization import (
     fetch_windows_for_experiment,
     insert_experiment,
 )
-from backtesting.repositories.runs import insert_backtest_run
+from backtesting.repositories.runs import insert_run
 from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -102,7 +102,7 @@ def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
 
     def fake_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
         # Persisted OOS/holdout runs are real rows so holdout_run_id FK is valid.
-        run_id = insert_backtest_run(
+        run_id = insert_run(
             run_conn,
             account_id=account_id,
             strategy_name=run_cfg.strategy,
@@ -213,7 +213,7 @@ class TestFailFast:
             oos_calls += 1
             if oos_calls == 2:
                 raise RuntimeError("simulated market-data outage")
-            run_id = insert_backtest_run(
+            run_id = insert_run(
                 run_conn,
                 account_id=account_id,
                 strategy_name=run_cfg.strategy,
@@ -252,7 +252,7 @@ class TestFailFast:
         def failing_on_holdout_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
             if run_cfg.purpose == BACKTEST_PURPOSE_FINAL_HOLDOUT:
                 raise RuntimeError("simulated holdout failure")
-            run_id = insert_backtest_run(
+            run_id = insert_run(
                 run_conn,
                 account_id=account_id,
                 strategy_name=run_cfg.strategy,
