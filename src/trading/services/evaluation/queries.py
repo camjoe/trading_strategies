@@ -9,16 +9,18 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
+from trading.backtesting.services.evidence_service import (
+    build_backtest_evidence,
+    build_walk_forward_evidence,
+)
 from trading.models import AccountRecord
 from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
 from trading.services.accounts import get_account
 from trading.services.evaluation.evidence import (
-    build_backtest_evidence,
     build_basic_scope,
     build_confidence,
     build_diagnostics,
     build_paper_live_evidence,
-    build_walk_forward_evidence,
     resolve_requested_strategy,
 )
 from trading.services.operational_settings import fetch_evaluation_confidence_settings

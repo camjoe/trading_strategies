@@ -84,6 +84,28 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
+        label="trading/services → no backtesting repository imports (cross the seam at its services)",
+        source_glob="src/trading/services/**/*.py",
+        forbidden_prefixes=("trading.backtesting.repositories.",),
+        # backtesting is a bounded context: a service reaching past its services
+        # into its tables couples to a schema it does not own. Evidence reads go
+        # through backtesting.services.evidence_service.
+        #
+        # Two known crossings, for different reasons:
+        #  - optimizer_promotion.py orchestrates across both contexts inside one
+        #    transaction (create the variant, then write the promoted link). The
+        #    write has to join the caller's unit_of_work, so routing it through a
+        #    second service would break atomicity, not improve it. Expected to stay.
+        #  - queries.py assembles an experiment's audit record from four reads.
+        #    That composition belongs in backtesting; it is here because
+        #    OptimizationDetail also carries an account name and the promotion gate.
+        #    Expected to move.
+        exceptions=(
+            "src/trading/services/strategy_catalog/optimizer_promotion.py",
+            "src/trading/services/strategy_catalog/queries.py",
+        ),
+    ),
+    LayerRule(
         label="trading/backtesting/services → no direct database imports",
         source_glob="src/trading/backtesting/services/**/*.py",
         forbidden_prefixes=("infrastructure.database.",),
