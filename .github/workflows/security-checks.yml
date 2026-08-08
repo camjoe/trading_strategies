@@ -63,17 +63,7 @@ jobs:
         run: uv pip install --system pip-audit
 
       - name: Run pip-audit for base dependencies
-        run: |
-          pip-audit -r requirements-base.txt -f json -o pip-audit-base.json || true
-          pip-audit -r requirements-base.txt
-
-      - name: Upload pip-audit results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: pip-audit-report
-          path: |
-            pip-audit-base.json
+        run: pip-audit -r requirements-base.txt
 
   frontend-audit:
     needs: changes
@@ -91,13 +81,4 @@ jobs:
 
       - name: Run npm audit
         working-directory: apps/paper_trading_web/frontend
-        run: |
-          npm audit --package-lock-only --audit-level=high --json > npm-audit.json || true
-          npm audit --package-lock-only --audit-level=high
-
-      - name: Upload npm audit results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: npm-audit-report
-          path: apps/paper_trading_web/frontend/npm-audit.json
+        run: npm audit --package-lock-only --audit-level=high
