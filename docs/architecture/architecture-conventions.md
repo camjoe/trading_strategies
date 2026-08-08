@@ -113,6 +113,23 @@ package-name boundaries are enforced by `python -m scripts.checks.repo.layer_che
 - **`backtesting/`** — see [Backtesting](../reference/backtesting.md) and
   `src/backtesting/README.md`.
 
+  **A bounded context owes the backbone its seam, not its internal conventions.** What crosses
+  between `backtesting/` and `trading/` is constrained and enforced by `layer_check`; how
+  backtesting is arranged inside is its own business. Recorded because it keeps getting re-asked:
+
+  - It exposes **module-level repository functions** where `trading/repositories/` uses
+    `*Repository` classes, and names them `*_repository.py` / `*_service.py` where trading uses
+    area names and service packages. Neither is drift — nothing here constrains module filenames
+    beyond `snake_case`, `infrastructure/` diverges the same way, and both packages follow the
+    documented `fetch_*`/`insert_*` verbs.
+  - It keeps its data contracts in three root-level `*_models.py` modules rather than a `models/`
+    package, and they follow the `*Config`/`*Insert`/`*Record` suffixes. [ADR 005](../adr/005-models-as-lowest-data-layer.md)
+    governs `trading/models/` and does not reach across contexts; moving these into
+    `trading/models/` would make trading's lowest layer own contracts for seven tables it never
+    writes. The size is also in band — `optimizer_models.py` is 494 lines against
+    `trading/models/books.py` at 433, and ADR 005 moved *toward* grouped feature modules, which is
+    what these already are.
+
 ## Execution and Parameter Ownership
 
 Books are the execution primitive. A book is a bounded pool of capital inside an
