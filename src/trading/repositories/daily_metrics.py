@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.portfolio import DailyMetricRecord
+from trading.persistence.unit_of_work import commit_unit_of_work
 from trading.repositories.book_bridge import default_book_id
-from trading.repositories.unit_of_work import commit_unit_of_work
 
 _METRIC_COLUMNS = (
     "return_pct",

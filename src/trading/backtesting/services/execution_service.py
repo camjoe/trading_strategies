@@ -31,7 +31,7 @@ from trading.domain.strategies.indicator_view import (
     build_signal_inputs,
 )
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 

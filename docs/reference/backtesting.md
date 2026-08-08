@@ -163,7 +163,8 @@ Two follow-on commands operate on a stored experiment:
   first-class catalog strategy available to rotation/assignment — no extra wiring closes the loop.
 
 Promotion is **quality-gated by default** (`evaluate_promotion_gate` in
-`backtesting/domain/optimization/promotion_gate.py`): beyond the existence/not-failed/not-already-promoted
+`src/trading/domain/promotion_gate.py` — promotion policy, so it sits with the other gates rather
+than in the research package it reads evidence from): beyond the existence/not-failed/not-already-promoted
 checks, the winner must beat its own default on **all three** of — mean OOS return, a strict majority
 of OOS windows (`oos_windows_beat_baseline > window_count / 2`; a good mean can mask a coin-flip
 per-window record), and the untouched holdout return. Missing evidence on either side of any comparison

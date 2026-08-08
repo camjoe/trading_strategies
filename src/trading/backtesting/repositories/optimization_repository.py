@@ -29,7 +29,7 @@ from trading.backtesting.optimizer_models import (
     OptimizationWindowInsert,
     OptimizationWindowRecord,
 )
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 _SELECT = "SELECT * FROM optimization_experiments"
 

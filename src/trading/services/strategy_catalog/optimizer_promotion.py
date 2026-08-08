@@ -21,15 +21,15 @@ import json
 import sqlite3
 from typing import Any
 
-from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.backtesting.optimizer_models import ExperimentStatus, OptimizationExperimentRecord
 from trading.backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     set_promoted_strategy,
 )
 from trading.domain.exceptions import NotFoundError, ValidationError
+from trading.domain.promotion_gate import evaluate_promotion_gate
 from trading.models.strategy import StrategyRecord
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 from trading.services.strategy_catalog.mutations import create_strategy_variant, freeze_strategy
 
 

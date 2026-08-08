@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import replace
 from datetime import date
@@ -49,11 +48,11 @@ from trading.backtesting.services.backtest_data_service import build_monthly_uni
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models import AccountRecord
-from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_bridge import strategy_id_for_label
-from trading.repositories.books import BookRepository
-from trading.repositories.strategies import StrategyRepository
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.json_columns import dumps_json_column
+from trading.persistence.unit_of_work import unit_of_work
+from trading.services.accounts import find_account
+from trading.services.books.book_assignments import get_default_book
+from trading.services.strategy_catalog.resolution import resolve_or_draft_strategy_record
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).
@@ -257,13 +256,13 @@ def run_and_persist_optimization(
     not resolve itself).
     """
     now = utc_now_iso()
-    account = AccountRepository(conn).fetch_by_name(cfg.account_name)
+    account = find_account(conn, cfg.account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {cfg.account_name}")
-    strategy_id = strategy_id_for_label(conn, cfg.strategy, now_iso=now)
-    strategy_row = StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id) if strategy_id is not None else None
+    strategy_row = resolve_or_draft_strategy_record(conn, cfg.strategy, now_iso=now)
     if strategy_row is None:
         raise NotFoundError(f"Strategy not found for optimizer target: {cfg.strategy}")
+    strategy_id = strategy_row.id
 
     try:
         summary = run_walk_forward_optimization(
@@ -320,7 +319,7 @@ def _persist_failed_experiment(
         strategy_id=strategy_id,
         primitive=primitive,
         objective_name=cfg.objective_name,
-        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        search_space_json=dumps_json_column(cfg.search_space),
         candidate_budget=cfg.candidate_budget,
         train_months=cfg.train_months,
         test_months=cfg.test_months,
@@ -330,7 +329,7 @@ def _persist_failed_experiment(
         start_date=error.start_date.isoformat(),
         end_date=error.end_date.isoformat(),
         window_count=error.windows_completed,
-        winner_params_json=json.dumps(None),
+        winner_params_json=dumps_json_column(None),
         oos_mean_winner_return_pct=None,
         oos_mean_baseline_return_pct=None,
         oos_windows_beat_baseline=None,
@@ -370,7 +369,7 @@ def _persist_experiment(
         strategy_id=strategy_id,
         primitive=primitive,
         objective_name=cfg.objective_name,
-        search_space_json=json.dumps(cfg.search_space, sort_keys=True),
+        search_space_json=dumps_json_column(cfg.search_space),
         candidate_budget=cfg.candidate_budget,
         train_months=cfg.train_months,
         test_months=cfg.test_months,
@@ -380,7 +379,7 @@ def _persist_experiment(
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         window_count=len(summary.windows),
-        winner_params_json=json.dumps(winner_params, sort_keys=True),
+        winner_params_json=dumps_json_column(winner_params),
         oos_mean_winner_return_pct=sum(winner_returns) / len(winner_returns),
         oos_mean_baseline_return_pct=sum(baseline_returns) / len(baseline_returns),
         oos_windows_beat_baseline=beat_baseline,
@@ -425,7 +424,7 @@ def _persist_manifest(
     resolved universe membership + lineage, the configured provider, and the engine
     revision — the assumptions every candidate in this experiment shared.
     """
-    book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+    book = get_default_book(conn, account_id=account.id)
     effective_execution = {
         "risk_policy": book.risk_policy if book is not None else None,
         "instrument_mode": book.instrument_mode if book is not None else None,
@@ -451,10 +450,10 @@ def _persist_manifest(
             benchmark_ticker=account.benchmark_ticker,
             slippage_bps=cfg.slippage_bps,
             fee_per_trade=cfg.fee_per_trade,
-            effective_execution_json=json.dumps(effective_execution, sort_keys=True),
+            effective_execution_json=dumps_json_column(effective_execution),
             tickers_file=cfg.tickers_file,
             universe_history_dir=cfg.universe_history_dir,
-            universe_tickers_json=json.dumps(universe),
+            universe_tickers_json=dumps_json_column(universe),
             universe_size=len(universe),
             market_data_provider=market_data_provider,
             data_as_of=now,

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import astuple
 
 from trading.models import AccountInsert, AccountRecord
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 _ACCOUNT_INSERT_COLUMNS = (
     "name",

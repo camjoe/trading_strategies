@@ -12,6 +12,7 @@ from trading.backtesting.optimizer_models import (
     OptimizationTrialRecord,
     OptimizerConfig,
 )
+from trading.backtesting.services.audit_service import ExperimentWindowAudit
 from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from trading.domain.exceptions import NotFoundError
 from trading.services.strategy_catalog.mutations import (
@@ -21,7 +22,6 @@ from trading.services.strategy_catalog.mutations import (
 )
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 from trading.services.strategy_catalog.queries import (
-    OptimizationWindowDetail,
     fetch_optimization_detail,
     fetch_optimization_history,
     fetch_primitive_catalog,
@@ -135,7 +135,7 @@ def _trial_payload(trial: OptimizationTrialRecord) -> dict[str, object]:
     }
 
 
-def _window_payload(detail: OptimizationWindowDetail) -> dict[str, object]:
+def _window_payload(detail: ExperimentWindowAudit) -> dict[str, object]:
     return {
         "windowIndex": detail.window.window_index,
         "trainStart": detail.window.train_start,

@@ -36,6 +36,9 @@ Allowed:
 1. `src/trading/interfaces/*` importing `src/trading/services/*`
 2. `src/trading/services/*` importing `src/trading/repositories/*` and `src/trading/domain/*`
 3. `src/trading/repositories/*` importing `src/infrastructure/database/*` helpers
+4. Any layer importing `src/trading/persistence/*` — it sits below the repository
+   layer so services, both repository packages, and `trading/backtesting/*` can share
+   transaction scope and column encoding without borrowing from one another
 
 Disallowed:
 
@@ -58,6 +61,7 @@ packages** inside `src/trading/services/`, see [Service Ownership Map](service-o
 | `trading/domain/` | Side-effect free — no DB, CLI, subprocess, or network |
 | `trading/models/` | The lowest layer — imports nothing from any other layer |
 | `trading/repositories/` | SQL reads/writes and row-level data access helpers |
+| `trading/persistence/` | Mechanics shared by all DB access — transaction scope, column encoding. Below the repository layer; imports nothing from `trading/` or `infrastructure/` |
 | `trading/backtesting/` | Bounded context; mirrors the same repository/service/domain layering |
 | `infrastructure/database/` | DB infrastructure only: schema migration, connection gating, backend selection, path/config |
 | `infrastructure/config/` | File-backed static config assets (account profile presets) |

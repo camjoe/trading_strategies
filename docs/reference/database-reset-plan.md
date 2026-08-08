@@ -268,9 +268,16 @@ Things the reset is an opportunity to change rather than faithfully reproduce.
 - **History retention policy.** Promotion, risk, backtest, and walk-forward history have no
   age-based retention — rows accumulate until their account is deleted. Carried over as an open
   follow-up from the 2026-07 cleanup. Worth deciding now, since the tables are about to be empty.
-- **Universe membership snapshots.** `book_universe_history` records universe *names*, not
-  membership; definitions stay file-backed, so historical evaluation cannot reconstruct what a
-  universe contained. Known accepted gap — revisit if universe definitions have stabilized.
+- ~~**Universe membership snapshots.**~~ Resolved by revision `0029` (noted 2026-08-07; the entry
+  below described the pre-`0029` state). `books.trade_symbols` and `book_universe_history` now hold
+  the **resolved ticker set**, not universe names, so editing a universe file no longer
+  retroactively changes what past runs were trading. Point-in-time membership is recoverable.
+
+  What remains is that **nothing reads `book_universe_history`** — the write side is correct and
+  accumulating, the read side was never built. That makes it a candidate to *keep*, not to drop:
+  the history only exists later if it is recorded now. Its rows are still `Drop` at reset (the
+  dev rows predate `0029` and hold names, not membership), but the table and its writers should
+  come back.
 - **Seedability as a design constraint.** Being acted on ahead of the reset rather than discovered
   during it: the fixture seeder's `sandbox` profile is the checked-in seed definition that makes the
   next reset cheap. A `sandbox` build that leaves a table empty is the signal that the seed

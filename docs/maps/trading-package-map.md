@@ -238,8 +238,23 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
 | `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
 | `table_export.py` | Generic table row/CSV-cursor reads for the operator export/preview feature (`fetch_table_rows`, `fetch_table_cursor`) |
+
+---
+
+### `src/trading/persistence/`
+
+Mechanics shared by all database access — no SQL, no tables, no domain concepts. Sits *below* the
+repository layer so both repository packages and the services above them can use it, and so
+services need not reach into `infrastructure/database/` (which `layer_check` forbids).
+
+Owns *using* a connection; `infrastructure/database/` owns *getting* one. See
+[`src/trading/persistence/README.md`](../../src/trading/persistence/README.md).
+
+| Module | Responsibility |
+|---|---|
 | `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
-| `change_events.py` | JSON column encoding and the old/new field diff behind the settings change-event trail |
+| `json_columns.py` | Canonical JSON encoding for column storage (`dumps_json_column`, `read_json_object`) — keys sorted, no insignificant whitespace |
+| `change_events.py` | The old/new field diff behind the settings change-event trail |
 
 ---
 
@@ -262,6 +277,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
+| `promotion_gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
 | `portfolio_math.py` | Pure portfolio return math shared by analysis + reporting (market value/unrealized, return %, alpha) |

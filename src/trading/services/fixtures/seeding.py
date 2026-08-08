@@ -20,7 +20,6 @@ Two consequences of that rule are worth knowing before editing this module:
 
 from __future__ import annotations
 
-import json
 import math
 import sqlite3
 from dataclasses import dataclass, field
@@ -31,13 +30,14 @@ import pandas as pd
 from common.constants import SETTLEMENT_TICKER
 from common.time import as_utc_iso
 from trading.models import AccountConfig
+from trading.persistence.json_columns import dumps_json_column
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy
@@ -131,7 +131,7 @@ def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_i
                 account_id=account_id,
                 default_book_id=default_book_id,
                 name=extra.name,
-                trade_symbols=json.dumps(resolve_trade_symbols(list(spec.trade_universes)), separators=(",", ":")),
+                trade_symbols=dumps_json_column(resolve_trade_symbols(list(spec.trade_universes))),
                 opening_cash=extra.opening_cash,
                 now_iso=now_iso,
             )
@@ -395,7 +395,7 @@ def _seed_settings(conn: sqlite3.Connection, *, profile: FixtureProfile, now_iso
         FeatureProviderRepository(conn).upsert(
             provider_key=provider_key,
             enabled=1,
-            config_json=json.dumps({"source": "fixture"}, sort_keys=True),
+            config_json=dumps_json_column({"source": "fixture"}),
             created_at=now_iso,
             updated_at=now_iso,
         )

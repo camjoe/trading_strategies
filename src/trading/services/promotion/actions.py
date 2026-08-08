@@ -19,9 +19,9 @@ from trading.models.promotion import (
     PromotionReviewRecord,
     PromotionReviewState,
 )
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.promotion.assessment import fetch_promotion_snapshot
 from trading.services.promotion.helpers import normalize_optional_text
 

@@ -8,11 +8,11 @@ from trading.domain.book_accounting import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution import BookTradeIntent, SubmissionResult
 from trading.models.orders import BrokerOrder, OrderStatus
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
 from trading.services.operational_settings.enforcement import RuntimeTradeThrottleExceededError

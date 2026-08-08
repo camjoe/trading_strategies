@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import timedelta
@@ -9,10 +8,11 @@ from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
 from trading.domain.rotation.schedule import parse_rotation_schedule
 from trading.models.rotation import RotationDecision, RotationScoreWeights, RotationStrategyMetrics
+from trading.persistence.json_columns import dumps_json_column
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
 from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
@@ -231,8 +231,8 @@ def evaluate_book_rotation(
         selected_strategy=decision.selected_strategy,
         rotation_action=decision.rotation_action,
         cooldown_active=1 if decision.cooldown_active else 0,
-        score_components_json=json.dumps(decision.score_components, sort_keys=True),
-        gate_results_json=json.dumps(decision.gate_results, sort_keys=True),
+        score_components_json=dumps_json_column(decision.score_components),
+        gate_results_json=dumps_json_column(decision.gate_results),
         decision_reason=decision.decision_reason,
         config_version=config.config_version,
         created_at=decision_time,

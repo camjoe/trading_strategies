@@ -11,10 +11,11 @@ from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.accounts import AccountConfig
 from trading.models.books import BookRecord
+from trading.persistence.json_columns import dumps_json_column
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.unit_of_work import unit_of_work
 from trading.services.accounts.config import (
     normalize_instrument_mode,
     normalize_lower,
@@ -199,7 +200,7 @@ def configure_book(
             symbols = resolve_trade_symbols(config.trade_universes)
             BookRepository(conn).update_trade_symbols(
                 book_id=book.id,
-                trade_symbols=json.dumps(symbols, separators=(",", ":")),
+                trade_symbols=dumps_json_column(symbols),
                 updated_at=utc_now_iso(),
             )
         if rotation_scheduling:

@@ -5,8 +5,8 @@ from datetime import date
 
 from common.time import utc_now_iso
 from trading.backtesting.models import BacktestConfig
+from trading.persistence.unit_of_work import commit_unit_of_work
 from trading.repositories.book_bridge import strategy_id_for_label
-from trading.repositories.unit_of_work import commit_unit_of_work
 
 
 def insert_backtest_run(

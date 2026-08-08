@@ -17,9 +17,9 @@ import sqlite3
 from collections.abc import Mapping
 
 from trading.models.execution import BookNavMarkResult
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 
 def mark_book_to_market(

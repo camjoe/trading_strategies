@@ -29,8 +29,8 @@ from trading.backtesting.services import (
 from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.books import BookRecord
-from trading.repositories.books import BookRepository
 from trading.services.accounts import get_account
+from trading.services.books.book_assignments import get_default_book
 from trading.services.market_data import MarketDataProvider, build_feature_provider
 
 
@@ -67,7 +67,7 @@ def _resolve_universe(
 
 def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
     account = get_account(conn, cfg.account_name)
-    default_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+    default_book = get_default_book(conn, account_id=account.id)
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
     warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
 

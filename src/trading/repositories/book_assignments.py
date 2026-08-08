@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.books import BookStrategyAssignmentRecord
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 
 
 class BookAssignmentRepository:

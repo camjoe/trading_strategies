@@ -84,9 +84,40 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
+        label="trading/services → no backtesting repository imports (cross the seam at its services)",
+        source_glob="src/trading/services/**/*.py",
+        forbidden_prefixes=("trading.backtesting.repositories.",),
+        # backtesting is a bounded context: a service reaching past its services
+        # into its tables couples to a schema it does not own. Reads go through
+        # backtesting.services — evidence_service for strategy evidence,
+        # audit_service for experiment records.
+        #
+        # One crossing remains. optimizer_promotion.py orchestrates across both
+        # contexts inside a single transaction: create the strategy variant, then
+        # write the promoted link back onto the experiment. That write has to join
+        # the caller's unit_of_work, so routing it through a second service would
+        # break atomicity rather than improve it.
+        exceptions=("src/trading/services/strategy_catalog/optimizer_promotion.py",),
+    ),
+    LayerRule(
         label="trading/backtesting/services → no direct database imports",
         source_glob="src/trading/backtesting/services/**/*.py",
         forbidden_prefixes=("infrastructure.database.",),
+    ),
+    LayerRule(
+        label="trading/backtesting/services → no trading repository imports (cross the seam at its services)",
+        source_glob="src/trading/backtesting/services/**/*.py",
+        forbidden_prefixes=("trading.repositories.",),
+        # The mirror of the trading/services rule above: backtesting reads the
+        # account, book, and strategy it is running against through trading's
+        # services, not its tables. Both contexts share the layers below them
+        # (trading.domain, trading.models, trading.persistence) — that is layering,
+        # not a crossing, and includes the strategy resolution a backtest must
+        # share with the live path to be testing the same thing.
+        #
+        # backtesting/repositories/ is deliberately outside this rule: a repository
+        # calling trading's book_bridge is same-layer, which is what that bridging
+        # helper is for.
     ),
     LayerRule(
         label="trading/domain → no repository imports",
@@ -106,6 +137,18 @@ LAYER_RULES: list[LayerRule] = [
     LayerRule(
         label="trading/models → no imports from higher layers or infrastructure (models is the lowest, pure-data layer)",
         source_glob="src/trading/models/**/*.py",
+        forbidden_prefixes=(
+            "trading.domain.",
+            "trading.services.",
+            "trading.repositories.",
+            "trading.interfaces.",
+            "trading.backtesting.",
+            "infrastructure.",
+        ),
+    ),
+    LayerRule(
+        label="trading/persistence → no imports from higher layers (it sits below the repository layer)",
+        source_glob="src/trading/persistence/**/*.py",
         forbidden_prefixes=(
             "trading.domain.",
             "trading.services.",

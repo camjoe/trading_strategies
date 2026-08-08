@@ -13,7 +13,7 @@ Read this when a single logical operation performs **more than one database
 write** and a partial result would be wrong — an order fill that updates a
 position, writes ledger entries, and adjusts book balances, for example. It
 explains the reusable transaction primitive in
-`src/trading/repositories/unit_of_work.py` and the one rule repositories must
+`src/trading/persistence/unit_of_work.py` and the one rule repositories must
 follow to participate.
 
 ## How It Works
@@ -58,7 +58,7 @@ A repository write participates by calling `commit_unit_of_work` instead of
 committing directly:
 
 ```python
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 class PositionRepository:
     def upsert(self, *, book_id: int, ...) -> None:
@@ -69,7 +69,7 @@ class PositionRepository:
 A service groups several such writes into one transaction:
 
 ```python
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 
 with unit_of_work(conn):
     order_id = order_repo.insert(...)      # no commit yet

@@ -13,10 +13,10 @@ import pytest
 
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 NOW = "2026-07-23T00:00:00Z"
 

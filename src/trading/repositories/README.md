@@ -11,12 +11,28 @@ The directory is intentionally flat. The groupings below are the *ownership* map
 [Cross-cutting](#cross-cutting) resist grouping on purpose: their responsibilities genuinely span
 several contexts, so filing them under one owner would misstate who owns them.
 
+## What belongs here
+
+Every module in this package **owns one area's SQL**. Nothing else does.
+
+Owning "one area" is not the same as owning one table: `promotion.py` and `risk.py` each own two,
+`book_bridge.py` resolves across two, `fixture_seed.py` writes nine, and `table_export.py` is
+table-agnostic by design. Those are a different granularity, not a different kind of thing, and each
+says so in its module docstring.
+
+Anything without SQL of its own belongs elsewhere. Mechanics every repository shares — transaction
+scope, column encoding — live in [`trading/persistence/`](../persistence/), which sits *below* this
+layer so `trading/backtesting/repositories/` and the services above can use them too. A module that
+needs a connection but expresses domain policy is a service; a pure calculation over already-fetched
+rows is `domain/`; connection, schema, backend, and path concerns are `infrastructure/database/`.
+
 ## Golden rules
 
 - **Every write commits through `commit_unit_of_work`, never `conn.commit()`.** Standalone it
   commits immediately; inside an open `unit_of_work(conn)` scope it defers, so any write can be
-  composed into a larger all-or-nothing sequence. `unit_of_work.py` is the only module that calls
-  `conn.commit()` directly. A hard commit inside a scope would end the transaction early and
+  composed into a larger all-or-nothing sequence. Both live in
+  [`trading/persistence/unit_of_work.py`](../persistence/unit_of_work.py), the only module that
+  calls `conn.commit()` directly. A hard commit inside a scope would end the transaction early and
   silently defeat the rollback guarantee — see
   [Database Transactions](../../../docs/reference/database-transactions.md).
 - **`book_bridge.py` and `promotion.py` deliberately do not commit at all** — they leave the commit
@@ -83,8 +99,6 @@ These belong to no single context and stay at the root deliberately.
 
 | Module | Responsibility |
 |---|---|
-| `unit_of_work.py` | Re-entrant transaction scope + `commit_unit_of_work` helper |
-| `change_events.py` | JSON column encoding and the old/new field diff behind the settings change-event trail |
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
 | `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
 | `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
@@ -95,7 +109,7 @@ These belong to no single context and stay at the root deliberately.
 Group several writes into one all-or-nothing transaction:
 
 ```python
-from trading.repositories.unit_of_work import unit_of_work
+from trading.persistence.unit_of_work import unit_of_work
 
 with unit_of_work(conn):
     order_id = OrderRepository(conn).insert(...)   # no commit yet

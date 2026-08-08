@@ -10,11 +10,11 @@ by its owning service, not here; see ``trading.services.fixtures.seeding``.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections.abc import Sequence
 
-from trading.repositories.unit_of_work import commit_unit_of_work
+from trading.persistence.json_columns import dumps_json_column
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Marks every synthetic backtest run so a generated row is never mistaken for a
 # real research result.
@@ -186,8 +186,8 @@ class FixtureSeedRepository:
                 strategy_key,
                 FIXTURE_ARTIFACT_VERSION,
                 FIXTURE_ARTIFACT_VERSION,
-                json.dumps(assessment),
-                json.dumps(evaluation),
+                dumps_json_column(assessment),
+                dumps_json_column(evaluation),
                 now_iso,
                 now_iso,
                 int(strategy["id"]),
