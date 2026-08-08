@@ -32,6 +32,8 @@ def insert_backtest_run(
     end_date: date,
     cfg: BacktestConfig,
     warnings: list[str],
+    benchmark_ticker: str,
+    benchmark_return_pct: float | None,
 ) -> int:
     # The backtested strategy is a strategies FK. The caller
     # passes the canonical strategy key (resolved via resolve_strategy in the
@@ -52,9 +54,11 @@ def insert_backtest_run(
             fee_per_trade,
             tickers_file,
             notes,
-            warnings
+            warnings,
+            benchmark_ticker,
+            benchmark_return_pct
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             account_id,
@@ -69,6 +73,8 @@ def insert_backtest_run(
             cfg.tickers_file,
             "First working backtest version: deterministic daily-bar simulator.",
             " | ".join(warnings),
+            benchmark_ticker,
+            benchmark_return_pct,
         ),
     )
     # Participates in the run's unit_of_work: commits standalone, defers inside a
@@ -183,7 +189,10 @@ def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> dict[str
     row = conn.execute(
         f"""
         SELECT {_REPORT_COLUMNS},
-             r.notes, r.warnings, a.benchmark_ticker, a.initial_cash
+             r.notes, r.warnings, r.benchmark_return_pct, a.initial_cash,
+             -- Runs written before revision 0030 have no frozen ticker; fall back to
+             -- the account's so the label still renders, alongside a null return.
+             COALESCE(r.benchmark_ticker, a.benchmark_ticker) AS benchmark_ticker
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         LEFT JOIN strategies s ON s.id = r.strategy_id
@@ -200,7 +209,7 @@ def fetch_backtest_report_snapshots(conn: sqlite3.Connection, run_id: int) -> li
         SELECT snapshot_date AS snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
         FROM backtest_equity_snapshots
         WHERE run_id = ?
-        ORDER BY snapshot_date ASC
+        ORDER BY snapshot_date ASC, id ASC
         """,
         (run_id,),
     ).fetchall()
@@ -258,8 +267,7 @@ def fetch_leaderboard_rows(
             r.created_at,
             a.name AS account_name,
             COALESCE(s.strategy_key, 'unknown') AS strategy,
-            a.benchmark_ticker,
-            a.initial_cash,
+            r.benchmark_return_pct,
             (
                 SELECT s.equity
                 FROM backtest_equity_snapshots s
@@ -289,31 +297,5 @@ def fetch_leaderboard_rows(
         LIMIT ?
         """,
         (BACKTEST_PURPOSE_STANDALONE, account_name, account_name, strategy, strategy, int(limit)),
-    ).fetchall()
-    return [dict(row) for row in rows]
-
-
-def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
-    rows = conn.execute(
-        """
-        SELECT equity
-        FROM backtest_equity_snapshots
-        WHERE run_id = ?
-        ORDER BY snapshot_date ASC, id ASC
-        """,
-        (run_id,),
-    ).fetchall()
-    return [dict(row) for row in rows]
-
-
-def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[dict[str, object]]:
-    rows = conn.execute(
-        """
-        SELECT ticker, side, qty, price, fee
-        FROM backtest_executions
-        WHERE run_id = ?
-        ORDER BY execution_date ASC, id ASC
-        """,
-        (run_id,),
     ).fetchall()
     return [dict(row) for row in rows]

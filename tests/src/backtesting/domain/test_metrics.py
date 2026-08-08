@@ -7,6 +7,7 @@ import backtesting.domain.metrics as metrics_module
 from backtesting.domain.metrics import (
     benchmark_return_pct,
     calmar_ratio,
+    equity_curve_from_rows,
     max_drawdown_pct,
     normalize_benchmark_series,
     sharpe_ratio,
@@ -122,3 +123,20 @@ def test_metrics_private_helpers_and_trade_numeric_guards() -> None:
             equity_curve=[1000.0, 1001.0],
             trades=[{"ticker": "AAPL", "side": "buy", "qty": object(), "price": 100.0, "fee": 0.0}],
         )
+
+
+def test_equity_curve_from_rows_keeps_row_order() -> None:
+    rows = [{"equity": 1000.0}, {"equity": 1050.0}, {"equity": 990.0}]
+
+    assert equity_curve_from_rows(rows) == [1000.0, 1050.0, 990.0]
+
+
+def test_equity_curve_from_rows_drops_snapshots_with_no_equity() -> None:
+    """A null mark is nothing to measure, so it leaves the curve rather than entering it as None."""
+    rows = [{"equity": 1000.0}, {"equity": None}, {"equity": 1050.0}]
+
+    assert equity_curve_from_rows(rows) == [1000.0, 1050.0]
+
+
+def test_equity_curve_from_rows_handles_no_rows() -> None:
+    assert equity_curve_from_rows([]) == []

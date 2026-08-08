@@ -15,7 +15,7 @@ from __future__ import annotations
 import sqlite3
 from statistics import median
 
-from backtesting.domain.metrics import max_drawdown_pct
+from backtesting.domain.metrics import equity_curve_from_rows, max_drawdown_pct
 from backtesting.repositories.optimization import (
     fetch_latest_experiment_for_account_strategy,
 )
@@ -69,7 +69,7 @@ def build_backtest_evidence(
 
     starting_equity = row_float(snapshots[0], "equity")
     ending_equity = row_float(snapshots[-1], "equity")
-    equity_curve = [value for value in (row_float(item, "equity") for item in snapshots) if value is not None]
+    curve = equity_curve_from_rows(snapshots)
     return EvaluationBacktestEvidence(
         available=True,
         run_id=run_id,
@@ -82,7 +82,7 @@ def build_backtest_evidence(
         starting_equity=starting_equity,
         ending_equity=ending_equity,
         total_return_pct=safe_return_pct(starting_equity, ending_equity),
-        max_drawdown_pct=max_drawdown_pct(equity_curve),
+        max_drawdown_pct=max_drawdown_pct(curve),
         warnings=row_str(run, "warnings"),
     )
 

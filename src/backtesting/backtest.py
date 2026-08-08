@@ -9,7 +9,7 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
+from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
 from backtesting.repositories.runs import (
     insert_backtest_run,
     insert_backtest_snapshot,
@@ -31,7 +31,7 @@ from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.books import BookRecord
 from trading.services.accounts import get_account
 from trading.services.books.book_assignments import get_default_book
-from trading.services.market_data import MarketDataProvider, build_feature_provider
+from trading.services.market_data import build_feature_provider
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
@@ -89,6 +89,8 @@ def _insert_run(
     end_date: date,
     cfg: BacktestConfig,
     warnings: list[str],
+    benchmark_ticker: str,
+    benchmark_return_pct: float | None,
 ) -> int:
     return insert_backtest_run(
         conn,
@@ -98,6 +100,8 @@ def _insert_run(
         end_date=end_date,
         cfg=cfg,
         warnings=warnings,
+        benchmark_ticker=benchmark_ticker,
+        benchmark_return_pct=benchmark_return_pct,
     )
 
 
@@ -200,38 +204,18 @@ def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return _run_backtest(conn, cfg, persist=False)
 
 
-def backtest_report_full(
-    conn: sqlite3.Connection,
-    run_id: int,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> BacktestFullReport:
+def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
     """The full report, benchmark and alpha included.
 
-    Composition seam, same as ``_run_backtest``: the provider the benchmark
-    needs is built here unless a caller injects one, so reading a report does
-    not require every route and handler to wire market data itself.
+    Takes no provider: the benchmark return is read from the run row, frozen
+    there when the run executed (revision 0030), so reading a report touches no
+    market data.
     """
-    return fetch_backtest_report_data(conn, run_id=run_id, provider=provider or build_provider())
+    return fetch_backtest_report_data(conn, run_id=run_id)
 
 
-def backtest_report(
-    conn: sqlite3.Connection,
-    run_id: int,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> dict[str, object]:
-    return backtest_report_full(conn, run_id, provider=provider).to_payload()
-
-
-def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
-    """The summary alone, which carries no benchmark.
-
-    Deliberately skips the provider: the account list reads one summary per
-    row, and building a benchmark series for each would cost a market-data
-    round trip per account for a figure the summary does not carry.
-    """
-    return fetch_backtest_report_data(conn, run_id=run_id).summary
+def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
+    return backtest_report_full(conn, run_id).to_payload()
 
 
 def _validated_strategy_filter(strategy: str | None) -> str | None:

@@ -34,8 +34,10 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
     is the engine's read; `fetch_close_history` still serves the benchmark series and the proxy
     feature provider.
   - `execution_service.py`: single-run backtest orchestration.
-  - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
-  - `report_service.py`: full report assembly into typed report models.
+  - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
+    frozen benchmark.
+  - `report_service.py`: full report assembly into typed report models. Needs no market-data
+    provider — a run's benchmark return is read from its row, frozen there when it executed.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
   - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence, joined and
     summarized here so evaluation never has to know how runs, holdouts, and experiments relate.
@@ -43,7 +45,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 - `domain/`: pure reusable backtesting logic.
   - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
-  - `metrics.py`: drawdown and benchmark-return calculations.
+  - `metrics.py`: drawdown and benchmark-return calculations, plus `equity_curve_from_rows`.
   - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.

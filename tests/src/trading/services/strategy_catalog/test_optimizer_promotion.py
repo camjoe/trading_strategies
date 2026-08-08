@@ -110,6 +110,8 @@ def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
             end_date=date.fromisoformat(str(run_cfg.end)),
             cfg=run_cfg,
             warnings=[],
+            benchmark_ticker="SPY",
+            benchmark_return_pct=0.0,
         )
         ann, dd, trades = _metrics_for(run_cfg)
         return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
@@ -219,6 +221,8 @@ class TestFailFast:
                 end_date=date.fromisoformat(str(run_cfg.end)),
                 cfg=run_cfg,
                 warnings=[],
+                benchmark_ticker="SPY",
+                benchmark_return_pct=0.0,
             )
             ann, dd, trades = _metrics_for(run_cfg)
             return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
@@ -256,6 +260,8 @@ class TestFailFast:
                 end_date=date.fromisoformat(str(run_cfg.end)),
                 cfg=run_cfg,
                 warnings=[],
+                benchmark_ticker="SPY",
+                benchmark_return_pct=0.0,
             )
             ann, dd, trades = _metrics_for(run_cfg)
             return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)

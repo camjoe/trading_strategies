@@ -2,7 +2,6 @@ import pandas as pd
 import pytest
 
 import backtesting.backtest as backtest_module
-import backtesting.services.leaderboard_service as leaderboard_service
 from tests.support.backtesting import bars_from_closes, create_backtest_account, make_backtest_config
 from tests.support.strategies import ensure_strategy_id_for_label
 
@@ -86,26 +85,49 @@ class TestBacktestValidationAndFailurePaths:
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
             backtest_module.backtest_leaderboard(conn, limit=5, strategy="mystery_strategy")
 
-    def test_backtest_leaderboard_gracefully_handles_benchmark_fetch_error(
+    def test_backtest_leaderboard_reports_the_benchmark_frozen_on_each_run(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
         bt_market_data,
     ) -> None:
+        """The leaderboard's benchmark and alpha come from the run rows.
+
+        They used to be recomputed per row against a ``fetch_benchmark_close``
+        call that was given no provider, so ``require_provider`` raised, a broad
+        ``except`` swallowed it, and both columns were empty on every row.
+        """
         create_backtest_account(conn, "acct_lb_bench")
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        backtest_module.run_backtest(
+        result = backtest_module.run_backtest(
             conn,
-            make_backtest_config("acct_lb_bench", run_name="lb-benchmark-error"),
-        )
-        monkeypatch.setattr(
-            leaderboard_service,
-            "fetch_benchmark_close",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),
+            make_backtest_config("acct_lb_bench", run_name="lb-benchmark"),
         )
 
         leaderboard = backtest_module.backtest_leaderboard(conn, limit=5, account_name="acct_lb_bench")
+
+        assert len(leaderboard) == 1
+        assert leaderboard[0]["benchmark_return_pct"] == pytest.approx(result.benchmark_return_pct)
+        assert leaderboard[0]["alpha_pct"] == pytest.approx(
+            leaderboard[0]["total_return_pct"] - leaderboard[0]["benchmark_return_pct"]
+        )
+
+    def test_backtest_leaderboard_reports_no_alpha_when_a_run_stored_no_benchmark(
+        self,
+        conn,
+        bt_market_data,
+    ) -> None:
+        create_backtest_account(conn, "acct_lb_nobench")
+        bt_market_data(["AAPL"], [100.0, 101.0])
+
+        result = backtest_module.run_backtest(
+            conn,
+            make_backtest_config("acct_lb_nobench", run_name="lb-no-benchmark"),
+        )
+        conn.execute("UPDATE backtest_runs SET benchmark_return_pct = NULL WHERE id = ?", (result.run_id,))
+        conn.commit()
+
+        leaderboard = backtest_module.backtest_leaderboard(conn, limit=5, account_name="acct_lb_nobench")
 
         assert len(leaderboard) == 1
         assert leaderboard[0]["benchmark_return_pct"] is None

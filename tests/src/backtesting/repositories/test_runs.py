@@ -12,7 +12,6 @@ from backtesting.repositories.runs import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
-    fetch_equity_rows,
     fetch_latest_backtest_run_for_account,
     fetch_latest_backtest_run_id_for_account,
     fetch_leaderboard_rows,
@@ -96,6 +95,8 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
         end_date=date(2026, 1, 31),
         cfg=_backtest_config("acct_repo", run_name="repo-test"),
         warnings=["w1", "w2"],
+        benchmark_ticker="SPY",
+        benchmark_return_pct=1.5,
     )
 
     insert_backtest_trade(
@@ -122,7 +123,10 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
     )
     conn.commit()
 
-    run_row = conn.execute("SELECT run_name, warnings FROM backtest_runs WHERE id = ?", (run_id,)).fetchone()
+    run_row = conn.execute(
+        "SELECT run_name, warnings, benchmark_ticker, benchmark_return_pct FROM backtest_runs WHERE id = ?",
+        (run_id,),
+    ).fetchone()
     trades = conn.execute("SELECT COUNT(*) AS n FROM backtest_executions WHERE run_id = ?", (run_id,)).fetchone()
     snaps = conn.execute("SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = ?", (run_id,)).fetchone()
 
@@ -131,6 +135,9 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
     assert "w1 | w2" == run_row["warnings"]
     assert int(trades["n"]) == 1
     assert int(snaps["n"]) == 1
+    # Frozen on the row so readers never recompute it (revision 0030).
+    assert run_row["benchmark_ticker"] == "SPY"
+    assert run_row["benchmark_return_pct"] == 1.5
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +263,6 @@ def test_leaderboard_fetches_rows_and_equity_curve(conn, bt_repo_account, seed_b
     assert int(rows[0]["run_id"]) == run_id
     assert rows[0]["account_name"] == account_name
 
-    equity_rows = fetch_equity_rows(conn, run_id)
+    equity_rows = fetch_backtest_report_snapshots(conn, run_id)
     assert len(equity_rows) == 2
     assert float(equity_rows[0]["equity"]) == 1000.0

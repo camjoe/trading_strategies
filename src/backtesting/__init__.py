@@ -14,7 +14,6 @@ from backtesting.backtest import (
     backtest_leaderboard_entries,
     backtest_report,
     backtest_report_full,
-    backtest_report_summary,
     run_backtest,
     run_backtest_batch,
 )
@@ -34,7 +33,6 @@ __all__ = [
     "backtest_leaderboard_entries",
     "backtest_report_full",
     "backtest_report",
-    "backtest_report_summary",
     "run_backtest",
     "run_backtest_batch",
     "BacktestFullReport",

@@ -45,7 +45,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | Module | Responsibility |
 |---|---|
 | `bars.py` | Bar-series shaping and access helpers |
-| `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure) |
+| `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure), plus `equity_curve_from_rows` to lift a curve out of snapshot rows |
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `simulation_math.py` | Fill, fee, and slippage arithmetic for simulated execution |
 | `windowing.py` | Walk-forward train/test split construction |
@@ -61,7 +61,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |
-| `report_service.py` | Assemble a backtest report with benchmark overlay and alpha |
+| `report_service.py` | Assemble a backtest report; benchmark and alpha come from the run row, so the read needs no market data |
 | `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
 | `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence, as `Evaluation*Evidence` records |
 | `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing |
@@ -72,7 +72,7 @@ SQL only. The seven owned tables.
 
 | Module | Responsibility |
 |---|---|
-| `runs.py` | Backtest run rows, their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
+| `runs.py` | Backtest run rows (including the benchmark frozen at run time, revision `0030`), their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
 | `optimization.py` | Optimizer experiments, windows, trials, and run manifests |
 
 ## `models/`
