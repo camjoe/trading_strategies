@@ -1,8 +1,6 @@
 # Trading Strategies
 
-[![Quality Gates](https://github.com/camjoe/trading_strategies/actions/workflows/quality-gates.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/quality-gates.yml)
-[![Python Tests](https://github.com/camjoe/trading_strategies/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/python-tests.yml)
-[![Frontend Tests](https://github.com/camjoe/trading_strategies/actions/workflows/frontend-tests.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/frontend-tests.yml)
+[![CI](https://github.com/camjoe/trading_strategies/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/ci.yml)
 [![Security Checks](https://github.com/camjoe/trading_strategies/actions/workflows/security-checks.yml/badge.svg?branch=main)](https://github.com/camjoe/trading_strategies/actions/workflows/security-checks.yml)
 
 A research framework for developing, backtesting, and paper-trading quantitative strategies.

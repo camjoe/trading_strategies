@@ -1,27 +1,32 @@
-name: Quality Gates
+name: CI
 
 on:
   push:
     branches:
       - main
+      - develop
     paths:
       - src/trading/**
       - apps/trends/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/frontend/**
+      - apps/paper_trading_web/__init__.py
+      - tests/**
       - docs/**
       - scripts/**
       - .ai/**
       - AGENTS.md
       - .editorconfig
       - .gitattributes
+      - pytest.ini
+      - .coveragerc
       - requirements-base.txt
       - requirements-dev.txt
-      - .github/workflows/quality-gates.yml
+      - .github/workflows/ci.yml
   pull_request:
 
 concurrency:
-  group: quality-gates-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,14 +49,18 @@ jobs:
               - src/trading/**
               - apps/trends/**
               - apps/paper_trading_web/backend/**
+              - apps/paper_trading_web/__init__.py
+              - tests/**
+              - pytest.ini
+              - .coveragerc
               - requirements-base.txt
               - requirements-dev.txt
-              - .github/workflows/quality-gates.yml
+              - .github/workflows/ci.yml
             frontend_related:
               - apps/paper_trading_web/frontend/**
               - requirements-base.txt
               - requirements-dev.txt
-              - .github/workflows/quality-gates.yml
+              - .github/workflows/ci.yml
             docs_enforcement_related:
               - docs/**
               - scripts/**
@@ -63,9 +72,9 @@ jobs:
               - apps/paper_trading_web/frontend/src/assets/**
               - requirements-base.txt
               - requirements-dev.txt
-              - .github/workflows/quality-gates.yml
+              - .github/workflows/ci.yml
 
-  python-quality:
+  python:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.python_related == 'true'
     runs-on: ubuntu-latest
@@ -73,6 +82,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -91,10 +102,17 @@ jobs:
       - name: Run repository quality gates
         run: python -m scripts.run_checks repo
 
-      - name: Run Python quality gates
-        run: python -m scripts.run_checks python --no-cov
+      - name: Run Python lint, type, and test gates
+        run: python -m scripts.run_checks python
 
-  frontend-quality:
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  frontend:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.frontend_related == 'true'
     runs-on: ubuntu-latest
@@ -121,6 +139,16 @@ jobs:
       - name: Run frontend typecheck gate
         working-directory: apps/paper_trading_web/frontend
         run: npm run typecheck
+
+      - name: Run frontend tests with coverage
+        working-directory: apps/paper_trading_web/frontend
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: apps/paper_trading_web/frontend/coverage
 
   docs-enforcement:
     needs: changes
