@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from tests.support.strategies import ensure_strategy_id_for_label
-from trading.backtesting.optimizer_models import (
+from backtesting.optimizer_models import (
     OptimizationExperimentInsert,
     OptimizationWindowInsert,
 )
-from trading.backtesting.repositories.optimization_repository import insert_experiment, insert_window
+from backtesting.repositories.optimization_repository import insert_experiment, insert_window
+from tests.support.strategies import ensure_strategy_id_for_label
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 

@@ -67,7 +67,7 @@ Risk stops remain unmodelled by the engine — that is **open decision 2**, not 
 
 ### Sells close the position in simulation, trim it live
 
-[`execution_service.py:135`](../../src/trading/backtesting/services/execution_service.py) sells the
+[`execution_service.py:135`](../../src/backtesting/services/execution_service.py) sells the
 whole position on a sell signal:
 
 ```python

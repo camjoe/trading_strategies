@@ -2,28 +2,28 @@ from __future__ import annotations
 
 from functools import partial
 
-from infrastructure.database.config import get_db_path
-from infrastructure.database.connection import db_session
-from infrastructure.market_data.factory import build_provider, resolve_provider_name
-from trading.backtesting.backtest import (
+from backtesting.backtest import (
     backtest_leaderboard_entries,
     backtest_report,
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
 )
-from trading.backtesting.models import BacktestBatchConfig, BacktestConfig
-from trading.backtesting.optimizer_models import OptimizerConfig
-from trading.backtesting.repositories.optimization_repository import (
+from backtesting.models import BacktestBatchConfig, BacktestConfig
+from backtesting.optimizer_models import OptimizerConfig
+from backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
 )
-from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
-from trading.backtesting.services.walk_forward_optimizer_service import (
+from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
+from backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
 )
+from infrastructure.database.config import get_db_path
+from infrastructure.database.connection import db_session
+from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.domain.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command

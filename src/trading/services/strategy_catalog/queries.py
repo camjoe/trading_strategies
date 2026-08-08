@@ -6,12 +6,12 @@ import json
 import sqlite3
 from dataclasses import dataclass
 
-from trading.backtesting.optimizer_models import (
+from backtesting.optimizer_models import (
     CompoundedOOSSeries,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
 )
-from trading.backtesting.services.audit_service import (
+from backtesting.services.audit_service import (
     ExperimentWindowAudit,
     fetch_experiment_audit,
     fetch_recent_experiments,

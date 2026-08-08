@@ -22,7 +22,7 @@ says so in its module docstring.
 
 Anything without SQL of its own belongs elsewhere. Mechanics every repository shares — transaction
 scope, column encoding — live in [`trading/persistence/`](../persistence/), which sits *below* this
-layer so `trading/backtesting/repositories/` and the services above can use them too. A module that
+layer so `backtesting/repositories/` and the services above can use them too. A module that
 needs a connection but expresses domain policy is a service; a pure calculation over already-fetched
 rows is `domain/`; connection, schema, backend, and path concerns are `infrastructure/database/`.
 

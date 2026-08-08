@@ -7,7 +7,7 @@ connection once it has it: transaction scope, and the encoding of values into
 columns.
 
 It sits below the repository layer so both repository packages
-(``trading/repositories/`` and ``trading/backtesting/repositories/``) and the
+(``trading/repositories/`` and ``backtesting/repositories/``) and the
 services above them can import it without either borrowing from the other, and
 without services reaching into ``infrastructure.database`` — which
 ``scripts/checks/repo/layer_check.py`` forbids.

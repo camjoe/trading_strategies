@@ -52,7 +52,7 @@ python -m scripts.checks.run_suite src/trading/services/promotion
 python -m scripts.checks.run_suite src/trading/services/market_data src/trading/services/promotion
 
 # Other top-level areas
-python -m scripts.checks.run_suite src/trading/backtesting
+python -m scripts.checks.run_suite src/backtesting
 python -m scripts.checks.run_suite src/trading/repositories
 python -m scripts.checks.run_suite src/trading/interfaces
 python -m scripts.checks.run_suite apps/paper_trading_web
@@ -132,8 +132,8 @@ Use `-o addopts=` when local environments do not have coverage plugins required 
   - `tests/src/trading/services/evaluation/conftest.py` — `eval_account`
   - `tests/src/trading/services/promotion/conftest.py` — `promotion_account`
   - `tests/src/trading/services/accounts/conftest.py` — `configured_backend`
-  - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
-  - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
+  - `tests/src/backtesting/conftest.py` — `bt_market_data` factory fixture
+  - `tests/src/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/src/trading/services/market_data/conftest.py` — provider reset per test
   - `tests/apps/paper_trading_web/conftest.py` — `api_client` with isolated DB backend
 

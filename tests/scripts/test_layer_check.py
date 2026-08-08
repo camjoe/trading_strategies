@@ -134,12 +134,18 @@ def test_check_rule_skips_syntax_errors_gracefully(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _market_data_rule() -> LayerRule:
+def _market_data_rule(source_glob: str = "src/trading/**/*.py") -> LayerRule:
+    # Two rules forbid this prefix now -- one per top-level package -- so the
+    # scope has to be named rather than taking whichever comes first.
     rule = next(
-        (r for r in LAYER_RULES if r.forbidden_prefixes == ("infrastructure.market_data.",)),
+        (
+            r
+            for r in LAYER_RULES
+            if r.forbidden_prefixes == ("infrastructure.market_data.",) and r.source_glob == source_glob
+        ),
         None,
     )
-    assert rule is not None, "Expected a layer rule forbidding infrastructure.market_data imports in src/trading"
+    assert rule is not None, f"Expected a layer rule forbidding infrastructure.market_data imports in {source_glob}"
     return rule
 
 
@@ -154,12 +160,23 @@ def test_trading_must_not_import_market_data_adapter(tmp_path: Path) -> None:
 
 
 def test_backtest_seam_may_import_market_data_adapter(tmp_path: Path) -> None:
-    seam = tmp_path / "src" / "trading" / "backtesting"
+    seam = tmp_path / "src" / "backtesting"
     seam.mkdir(parents=True)
     _write_py(seam, "backtest.py", "from infrastructure.market_data.factory import build_provider\n")
 
-    violations = check_rule(tmp_path, _market_data_rule())
+    violations = check_rule(tmp_path, _market_data_rule("src/backtesting/**/*.py"))
     assert violations == []
+
+
+def test_backtesting_outside_the_seam_must_not_import_market_data_adapter(tmp_path: Path) -> None:
+    # The guard followed backtesting out of src/trading/: relocating the package
+    # took it outside that rule's glob, so it needed its own.
+    src = tmp_path / "src" / "backtesting" / "services"
+    src.mkdir(parents=True)
+    _write_py(src, "sizing.py", "from infrastructure.market_data.factory import build_provider\n")
+
+    violations = check_rule(tmp_path, _market_data_rule("src/backtesting/**/*.py"))
+    assert len(violations) == 1
 
 
 # ---------------------------------------------------------------------------

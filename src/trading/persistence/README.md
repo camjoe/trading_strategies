@@ -14,7 +14,7 @@ trading code does with a connection once it holds it.
 It sits *below* the repository layer, which is what lets three groups share it without borrowing
 from each other:
 
-- `trading/repositories/` and `trading/backtesting/repositories/` — two repository packages in
+- `trading/repositories/` and `backtesting/repositories/` — two repository packages in
   separate bounded contexts. Before this package existed, backtesting imported
   `trading.repositories.unit_of_work`, reaching into another context for a helper.
 - `trading/services/**` — a dozen service modules open transaction scopes. They cannot import

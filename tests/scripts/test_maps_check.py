@@ -163,11 +163,11 @@ def test_check_map_flags_undocumented_and_stale(tmp_path: Path) -> None:
 
 
 def test_check_map_respects_skip_subtrees(tmp_path: Path) -> None:
-    _write(tmp_path / "src/trading/backtesting/backtest.py")
-    _write(tmp_path / "src/trading/backtesting/domain/policy.py")  # under a dir-summarized subtree
-    _write(tmp_path / "map.md", "### `src/trading/backtesting/`\n| `backtest.py` | x |\n")
+    _write(tmp_path / "src/backtesting/backtest.py")
+    _write(tmp_path / "src/backtesting/domain/policy.py")  # under a dir-summarized subtree
+    _write(tmp_path / "map.md", "### `src/backtesting/`\n| `backtest.py` | x |\n")
 
-    report = check_map(tmp_path, "map.md", "src/trading", ("src/trading/backtesting/domain",))
+    report = check_map(tmp_path, "map.md", "src/trading", ("src/backtesting/domain",))
 
     assert report.undocumented == []  # policy.py is skipped, backtest.py is documented
 

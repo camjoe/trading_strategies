@@ -69,7 +69,7 @@ or `reconciliation`) instead of treating the package root as a facade.
 | Promotion assessments, review requests/actions, history | `trading.services.promotion` | Human-gated review workflow + CLI rendering |
 | Canonical strategy evaluation (evidence + decision score) | `trading.services.evaluation` | Backs compare, rotation, and promotion via `derive_decision_score` |
 | Operational settings: throttles, evaluation confidence, promotion policy | `trading.services.operational_settings` | Also owns trade-throttle enforcement |
-| Find stale backtest coverage targets | `trading.backtesting.services` | Staleness enumeration/remediation, colocated with the rest of the backtesting bounded context under `src/trading/backtesting/` |
+| Find stale backtest coverage targets | `backtesting.services` | Staleness enumeration/remediation, colocated with the rest of the backtesting bounded context under `src/backtesting/` |
 | Query Autonomy monitor status, artifacts, governance, and risk | `trading.services.autonomy_monitor` | Operator/dashboard read model over DB state and runtime artifacts |
 | Preview or delete an account (cascade) | `trading.services.accounts` | `deletions.py` — dry-run preview + cascade-backed delete |
 | Resolve trade universes | `trading.services.universe` | Universe name → ticker list |

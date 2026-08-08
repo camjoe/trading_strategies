@@ -46,7 +46,7 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `README.md` | Repo overview, setup, how to run | Project setup, major new packages added |
 | `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
 | `src/trading/README.md` | `src/trading/` package overview and layering summary | Top-level `src/trading/` structure changes |
-| `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
+| `src/backtesting/README.md` | Backtesting subsystem orientation | `src/backtesting/` entry points change |
 | `src/trading/interfaces/runtime/README.md` | Runtime surface index: which modules are runnable (scheduled/operator/worker) vs library | A runtime job, scheduling, or data-ops module is added/moved |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
@@ -67,6 +67,7 @@ Structural reference — one file per major package. Go stale when module files 
 | `docs/maps/trading-package-map.md` | Full `src/trading/` module directory; layering rules and placement decisions | Any `src/trading/` module added, removed, or its layer boundary changes |
 | `docs/maps/ui-map.md` | `apps/paper_trading_web/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
+| `docs/maps/backtesting-map.md` | `src/backtesting/` bounded context — its layers, the seven tables it owns, and the service seam with `trading/` | Any `src/backtesting/` module added, removed, or the seam with `trading/` changes |
 | `docs/maps/infrastructure-map.md` | `src/infrastructure/` adapters, boundary rules, and config assets | Any `src/infrastructure/` module added, removed, or its boundary changes |
 | `docs/maps/common-map.md` | `src/common/` shared-kernel utilities | Any `src/common/` module added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
@@ -84,7 +85,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/trading/backtesting/` interface, safeguards, or evaluation methodology changes |
+| `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/backtesting/` interface, safeguards, or evaluation methodology changes |
 | `docs/reference/backtest-live-divergence.md` | Where the simulation engine and live runtime execute differently, what that does to walk-forward selection, and the trade-budget/pacing machinery | Either execution path's sizing, trade-count, or risk-stop behaviour changes, or the intended use of the optimizer changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |

@@ -28,7 +28,8 @@ Concrete infrastructure (database, brokers, feature providers, the market-data a
 
 ### Bounded Contexts
 
-- `src/trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
+`src/backtesting/` is a peer package, not part of this tree — it owns its own tables and its own
+`domain/services/repositories` stack. It has its own map: [Backtesting Map](backtesting-map.md).
 
 ## Placement Rules
 
@@ -321,20 +322,6 @@ otherwise import from the feature module (`from trading.models.books import Book
 
 ---
 
-### `src/trading/backtesting/` (bounded context)
-
-Self-contained backtest subsystem with its own layered sub-packages.
-
-| Module | Responsibility |
-|---|---|
-| `backtest.py` | Backtest execution engine |
-| `models.py` | Backtest input/output models |
-| `optimizer_models.py` | Walk-forward optimizer defaults, experiment configuration, selection/outcome models, and the persisted experiment insert/record models |
-| `report_models.py` | Backtest report models |
-| `domain/` | Backtesting-specific domain logic |
-| `repositories/` | Backtest result persistence |
-| `services/` | Backtest orchestration services |
-
 ---
 
 ## Related References
@@ -343,4 +330,4 @@ Self-contained backtest subsystem with its own layered sub-packages.
 - [nav-guide.md](../architecture/nav-guide.md) — "I want to X → look/edit Y" lookup table
 - `docs/architecture/architecture-conventions.md` — authoritative import boundary and layering rules
 - `docs/reference/backtesting.md`
-- `src/trading/backtesting/README.md`
+- `src/backtesting/README.md`

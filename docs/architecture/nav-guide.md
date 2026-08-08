@@ -104,10 +104,10 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change backtesting engine | `src/trading/backtesting/backtest.py` |
-| Change backtest result models | `src/trading/backtesting/models.py` and `src/trading/backtesting/report_models.py` |
-| Change backtest persistence | `src/trading/backtesting/repositories/` |
-| Change backtesting services | `src/trading/backtesting/services/` |
+| Change backtesting engine | `src/backtesting/backtest.py` |
+| Change backtest result models | `src/backtesting/models.py` and `src/backtesting/report_models.py` |
+| Change backtest persistence | `src/backtesting/repositories/` |
+| Change backtesting services | `src/backtesting/services/` |
 
 ---
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.backtesting.services.report_service import (
+from backtesting.services.report_service import (
     fetch_backtest_report_summary,
     fetch_latest_backtest_run_for_account,
     fetch_latest_backtest_run_id_for_account,

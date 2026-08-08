@@ -7,19 +7,19 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from paper_trading_web.backend.schemas.strategy_lab import MAX_CANDIDATE_BUDGET
 
-from tests.support.evaluation import insert_backtest_run
-from tests.support.strategies import ensure_strategy_id_for_label
-from trading.backtesting.optimizer_models import (
+from backtesting.optimizer_models import (
     OptimizationExperimentInsert,
     OptimizationSummary,
     OptimizationTrialInsert,
     OptimizationWindowInsert,
 )
-from trading.backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization_repository import (
     insert_experiment,
     insert_trial,
     insert_window,
 )
+from tests.support.evaluation import insert_backtest_run
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 def _seed_experiment_with_audit(conn: sqlite3.Connection, *, account_name: str) -> tuple[int, int]:

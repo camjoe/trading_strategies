@@ -33,15 +33,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from backtesting.backtest import run_backtest, run_backtest_metrics_only
+from backtesting.domain.optimization.search import generate_candidates
+from backtesting.domain.windowing import build_walk_forward_optimization_splits
+from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
+from backtesting.optimizer_models import OptimizerConfig
+from backtesting.services.backtest_data_service import resolve_backtest_dates
+from backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
 from infrastructure.database.backend import SQLiteBackend, set_backend
 from infrastructure.database.config import get_db_path
-from trading.backtesting.backtest import run_backtest, run_backtest_metrics_only
-from trading.backtesting.domain.optimization.search import generate_candidates
-from trading.backtesting.domain.windowing import build_walk_forward_optimization_splits
-from trading.backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
-from trading.backtesting.optimizer_models import OptimizerConfig
-from trading.backtesting.services.backtest_data_service import resolve_backtest_dates
-from trading.backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # An 8-point grid over a two-parameter strategy: small enough to finish while

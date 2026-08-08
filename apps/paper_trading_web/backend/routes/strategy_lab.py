@@ -4,16 +4,16 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.backtesting.backtest import run_backtest, run_backtest_metrics_only
-from trading.backtesting.optimizer_models import (
+from backtesting.backtest import run_backtest, run_backtest_metrics_only
+from backtesting.optimizer_models import (
     CompoundedOOSSeries,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
     OptimizationTrialRecord,
     OptimizerConfig,
 )
-from trading.backtesting.services.audit_service import ExperimentWindowAudit
-from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.services.audit_service import ExperimentWindowAudit
+from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from trading.domain.exceptions import NotFoundError
 from trading.services.strategy_catalog.mutations import (
     configure_strategy,

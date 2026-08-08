@@ -21,14 +21,15 @@ The `src/trading/` module handles:
 
 ## Architecture Shape
 
-`src/trading/` uses a **hybrid structure**:
+`src/trading/` is **layers only** — `interfaces -> services -> repositories/domain -> database`,
+plus `models/` and `persistence/` beneath them. Every subpackage here is a layer, so a sibling of
+`domain/` or `services/` is always the same kind of thing.
 
-- A layered backbone for most runtime behavior:
-  - `interfaces -> services -> repositories/domain -> database`
-- Explicit top-level bounded contexts where isolation is valuable:
-  - `src/trading/backtesting/`
-  - `src/infrastructure/brokers/` (repo root — broker adapters)
-  - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
+Packages with distinct ownership sit at the repo root instead, beside `trading/`:
+
+- `src/backtesting/` — bounded context; owns the backtest and optimizer tables
+- `src/infrastructure/brokers/` — broker adapters
+- `src/infrastructure/feature_providers/` — external-data feature providers
 
 `src/trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
