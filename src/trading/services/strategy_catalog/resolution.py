@@ -23,6 +23,7 @@ from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.strategy import StrategyRecord
+from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -93,3 +94,24 @@ def _parse_params_json(params_json: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"strategies.params_json must be a JSON object, got {type(data).__name__}.")
     return dict(data)
+
+
+def resolve_or_draft_strategy_record(
+    conn: sqlite3.Connection,
+    label: str | None,
+    *,
+    now_iso: str,
+) -> StrategyRecord | None:
+    """Resolve a strategy label to its catalog row, drafting one if it has none.
+
+    The optimizer targets a strategy by name before that name necessarily has a
+    catalog row — searching a primitive's parameter space is how a row earns its
+    knobs. So an unknown label is created as a draft rather than rejected, which
+    is what separates this from :func:`resolve_catalog_strategy`.
+
+    Returns ``None`` only when ``label`` is empty.
+    """
+    strategy_id = strategy_id_for_label(conn, label, now_iso=now_iso)
+    if strategy_id is None:
+        return None
+    return StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id)
