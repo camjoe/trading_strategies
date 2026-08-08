@@ -28,7 +28,8 @@ Concrete infrastructure (database, brokers, feature providers, the market-data a
 
 ### Bounded Contexts
 
-- `src/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
+`src/backtesting/` is a peer package, not part of this tree — it owns its own tables and its own
+`domain/services/repositories` stack. It has its own map: [Backtesting Map](backtesting-map.md).
 
 ## Placement Rules
 
@@ -320,16 +321,6 @@ otherwise import from the feature module (`from trading.models.books import Book
 | `market_data.py` | Bar-column vocabulary (`BAR_OPEN`/`BAR_HIGH`/`BAR_LOW`/`BAR_CLOSE`/`BAR_VOLUME`, `BAR_COLUMNS`, `BAR_PRICE_COLUMNS`, `BAR_VOLUME_FILL`) |
 
 ---
-
-### `src/backtesting/` (bounded context)
-
-Self-contained backtest subsystem with its own layered sub-packages.
-
-| Module | Responsibility |
-|---|---|
-| `domain/` | Backtesting-specific domain logic |
-| `repositories/` | Backtest result persistence |
-| `services/` | Backtest orchestration services |
 
 ---
 

@@ -1,6 +1,14 @@
 # Backtesting Package Map
 
-This package uses explicit layers to keep responsibilities clear.
+A **bounded context**, not a layer — which is why it sits at `src/backtesting/`, beside
+`src/trading/` rather than inside it. The criterion is table ownership: it owns seven tables nothing
+else writes (`backtest_runs`, `backtest_executions`, `backtest_equity_snapshots`,
+`optimization_experiments`, `optimization_windows`, `optimization_trials`,
+`optimization_run_manifests`), and needs its own layered stack to reach them.
+
+For the module-by-module inventory and the seam rules, see the
+[Backtesting Map](../../docs/maps/backtesting-map.md). This file covers ownership boundaries and
+interaction flow.
 
 ## Purpose
 
@@ -28,6 +36,9 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
   - `report_service.py`: full report assembly into typed report models.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
+  - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence, joined and
+    summarized here so evaluation never has to know how runs, holdouts, and experiments relate.
+  - `audit_service.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.
 
 - `domain/`: pure reusable backtesting logic.
   - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
@@ -35,7 +46,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
-  - `optimization/`: candidate search, objective scoring, and the promotion gate.
+  - `optimization/`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
+    is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
 - `models.py` (package root): typed dataclasses for result and config contracts. Key types: `BacktestConfig`, `BacktestResult`, `WalkForwardConfig`, `WalkForwardSummary`, `BacktestBatchConfig`. `BacktestResult` and `WalkForwardSummary` each expose a `to_payload(*, display_name_fn=None) -> dict` method that produces a JSON-ready dict; pass an optional `display_name_fn` to remap account names for UI presentation.
 

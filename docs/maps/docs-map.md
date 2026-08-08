@@ -67,6 +67,7 @@ Structural reference — one file per major package. Go stale when module files 
 | `docs/maps/trading-package-map.md` | Full `src/trading/` module directory; layering rules and placement decisions | Any `src/trading/` module added, removed, or its layer boundary changes |
 | `docs/maps/ui-map.md` | `apps/paper_trading_web/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
+| `docs/maps/backtesting-map.md` | `src/backtesting/` bounded context — its layers, the seven tables it owns, and the service seam with `trading/` | Any `src/backtesting/` module added, removed, or the seam with `trading/` changes |
 | `docs/maps/infrastructure-map.md` | `src/infrastructure/` adapters, boundary rules, and config assets | Any `src/infrastructure/` module added, removed, or its boundary changes |
 | `docs/maps/common-map.md` | `src/common/` shared-kernel utilities | Any `src/common/` module added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
