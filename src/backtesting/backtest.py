@@ -208,14 +208,9 @@ def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullR
     """The full report, benchmark and alpha included.
 
     Takes no provider: the benchmark return is read from the run row, frozen
-    there when the run executed (revision 0030), so reading a report touches no
-    market data.
+    there when the run executed, so reading a report touches no market data.
     """
     return fetch_backtest_report_data(conn, run_id=run_id)
-
-
-def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
-    return backtest_report_full(conn, run_id).to_payload()
 
 
 def _validated_strategy_filter(strategy: str | None) -> str | None:

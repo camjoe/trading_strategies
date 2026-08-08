@@ -308,9 +308,9 @@ def run_backtest(
     }
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
-    # Frozen onto the run row below (revision 0030) rather than left for readers to
-    # recompute: this is the only point where the provider and the run's own
-    # benchmark ticker are both in hand.
+    # Frozen onto the run row below rather than left for readers to recompute: this
+    # is the only point where the provider and the run's own benchmark ticker are
+    # both in hand.
     benchmark_return = benchmark_return_pct(benchmark_series, initial_cash)
 
     feature_bundle = None

@@ -45,7 +45,7 @@ class TestBacktestValidationAndFailurePaths:
 
     def test_backtest_report_missing_run_raises(self, conn) -> None:
         with pytest.raises(ValueError, match="Backtest run id 9999 not found"):
-            backtest_module.backtest_report(conn, 9999)
+            backtest_module.backtest_report_full(conn, 9999).to_payload()
 
     def test_backtest_report_raises_when_snapshots_missing(self, conn) -> None:
         create_backtest_account(conn, "acct_no_snap")
@@ -75,7 +75,7 @@ class TestBacktestValidationAndFailurePaths:
         run_id = int(cursor.lastrowid)
 
         with pytest.raises(ValueError, match="No snapshots found"):
-            backtest_module.backtest_report(conn, run_id)
+            backtest_module.backtest_report_full(conn, run_id).to_payload()
 
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):

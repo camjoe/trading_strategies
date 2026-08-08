@@ -135,7 +135,7 @@ def test_inserts_run_trade_and_snapshot(conn: sqlite3.Connection) -> None:
     assert "w1 | w2" == run_row["warnings"]
     assert int(trades["n"]) == 1
     assert int(snaps["n"]) == 1
-    # Frozen on the row so readers never recompute it (revision 0030).
+    # Frozen on the row so readers never recompute it.
     assert run_row["benchmark_ticker"] == "SPY"
     assert run_row["benchmark_return_pct"] == 1.5
 

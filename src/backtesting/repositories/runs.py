@@ -189,10 +189,7 @@ def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> dict[str
     row = conn.execute(
         f"""
         SELECT {_REPORT_COLUMNS},
-             r.notes, r.warnings, r.benchmark_return_pct, a.initial_cash,
-             -- Runs written before revision 0030 have no frozen ticker; fall back to
-             -- the account's so the label still renders, alongside a null return.
-             COALESCE(r.benchmark_ticker, a.benchmark_ticker) AS benchmark_ticker
+             r.notes, r.warnings, r.benchmark_ticker, r.benchmark_return_pct
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         LEFT JOIN strategies s ON s.id = r.strategy_id

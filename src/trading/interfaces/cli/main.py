@@ -4,7 +4,7 @@ from functools import partial
 
 from backtesting.backtest import (
     backtest_leaderboard_entries,
-    backtest_report,
+    backtest_report_full,
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
@@ -82,7 +82,7 @@ def _handler_deps() -> dict[str, object]:
         "BacktestConfig": BacktestConfig,
         "OptimizerConfig": OptimizerConfig,
         "backtest_leaderboard_entries": backtest_leaderboard_entries,
-        "backtest_report": backtest_report,
+        "backtest_report_full": backtest_report_full,
         "run_backtest": run_backtest,
         "run_backtest_metrics_only": run_backtest_metrics_only,
         "run_backtest_batch": run_backtest_batch,

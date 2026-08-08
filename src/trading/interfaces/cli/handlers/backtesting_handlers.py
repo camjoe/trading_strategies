@@ -62,37 +62,38 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
 
 
 def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["backtest_report"](conn, args.run_id)
+    report = deps["backtest_report_full"](conn, args.run_id)
+    summary = report.summary
     print(
-        f"Backtest Run {report['run_id']} ({report['run_name'] or 'unnamed'}) | "
-        f"account={report['account_name']} strategy={report['strategy']}"
+        f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
+        f"account={summary.account_name} strategy={summary.strategy}"
     )
     print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Trades: {report['trade_count']}"
+        f"Range: {summary.start_date}..{summary.end_date} | Created: {summary.created_at} "
+        f"| Trades: {summary.trade_count}"
     )
     print(
-        f"Start Equity: {report['starting_equity']:.2f} | End Equity: {report['ending_equity']:.2f} "
-        f"| Return: {report['total_return_pct']:.2f}% | Max DD: {report['max_drawdown_pct']:.2f}%"
+        f"Start Equity: {summary.starting_equity:.2f} | End Equity: {summary.ending_equity:.2f} "
+        f"| Return: {summary.total_return_pct:.2f}% | Max DD: {summary.max_drawdown_pct:.2f}%"
     )
     print(
-        f"Slippage (bps): {report['slippage_bps']:.2f} | Fee/Trade: {report['fee_per_trade']:.2f} "
-        f"| Tickers File: {report['tickers_file']}"
+        f"Slippage (bps): {summary.slippage_bps:.2f} | Fee/Trade: {summary.fee_per_trade:.2f} "
+        f"| Tickers File: {summary.tickers_file}"
     )
     print(
         "Risk Analytics: "
-        f"Sharpe {_format_metric(report.get('sharpe_ratio'))} | "
-        f"Sortino {_format_metric(report.get('sortino_ratio'))} | "
-        f"Calmar {_format_metric(report.get('calmar_ratio'))}"
+        f"Sharpe {_format_metric(summary.sharpe_ratio)} | "
+        f"Sortino {_format_metric(summary.sortino_ratio)} | "
+        f"Calmar {_format_metric(summary.calmar_ratio)}"
     )
     print(
         "Trade Analytics: "
-        f"Win Rate {_format_metric(report.get('win_rate_pct'), suffix='%')} | "
-        f"Profit Factor {_format_metric(report.get('profit_factor'))} | "
-        f"Avg Trade Return {_format_metric(report.get('avg_trade_return_pct'), suffix='%')}"
+        f"Win Rate {_format_metric(summary.win_rate_pct, suffix='%')} | "
+        f"Profit Factor {_format_metric(summary.profit_factor)} | "
+        f"Avg Trade Return {_format_metric(summary.avg_trade_return_pct, suffix='%')}"
     )
-    if report["warnings"]:
-        print(f"Safeguards / notes: {report['warnings']}")
+    if summary.warnings:
+        print(f"Safeguards / notes: {' | '.join(summary.warnings)}")
 
 
 def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:

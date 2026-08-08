@@ -93,8 +93,8 @@ def test_leaderboard_carries_the_stored_benchmark_and_derives_alpha(monkeypatch:
     assert entry.alpha_pct == pytest.approx(4.0)
 
 
-def test_leaderboard_reports_no_alpha_when_the_run_stored_no_benchmark(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Runs written before revision 0030, and runs whose benchmark had no history.
+def test_leaderboard_reports_no_alpha_when_the_benchmark_window_was_too_short(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Reached when the run's benchmark window held fewer than two usable closes.
     monkeypatch.setattr(
         leaderboard_service,
         "fetch_leaderboard_rows",

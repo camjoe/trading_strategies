@@ -43,8 +43,8 @@ def test_report_reads_the_benchmark_frozen_on_the_run(conn, bt_market_data) -> N
     assert report.alpha_pct == pytest.approx(report.summary.total_return_pct - report.benchmark_return_pct)
 
 
-def test_report_reports_no_alpha_when_the_run_stored_no_benchmark(conn, bt_market_data) -> None:
-    """Runs written before revision 0030, and runs whose benchmark had no history."""
+def test_report_reports_no_alpha_when_the_benchmark_window_was_too_short(conn, bt_market_data) -> None:
+    """``benchmark_return_pct`` yields None on a window with fewer than two usable closes."""
     create_backtest_account(conn, "acct_report_null_bench")
     bt_market_data(["AAPL"], [100.0, 102.0])
 

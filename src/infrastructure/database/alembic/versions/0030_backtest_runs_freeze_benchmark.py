@@ -15,11 +15,21 @@ It also needed a ``MarketDataProvider`` at read time. The report path injected
 one; the leaderboard path did not, so its ``benchmark_return_pct`` and
 ``alpha_pct`` were always empty.
 
-Both columns are nullable. Rows written before this revision have no stored
-value and cannot be backfilled here: the return depends on market data, which a
-self-contained revision cannot fetch. A run whose benchmark has no history over
-its window is also legitimately null. Readers treat null as "no benchmark", the
-same as a failed lookup.
+Both columns are nullable, for different reasons.
+
+``benchmark_return_pct`` is null whenever the benchmark window held fewer than
+two usable closes, so there was no return to compute. Readers treat that as "no
+benchmark" and report no alpha — a case that outlives this revision.
+
+``benchmark_ticker`` is null only on rows written before this revision. Readers
+do not accommodate that: every run written from here on records its ticker, and
+the report read expects one. Reading a pre-revision run's report therefore
+raises. That is deliberate — the database is being reset before live use, so
+carrying a fallback for rows that are about to be discarded would outlive the
+rows it serves.
+
+Neither column can be backfilled here: the return depends on market data, which
+a self-contained revision cannot fetch.
 
 Alpha stays derived (total return minus benchmark return) rather than stored —
 it is a subtraction of two values the row already has.

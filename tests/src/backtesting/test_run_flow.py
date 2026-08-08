@@ -79,7 +79,7 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_report_bt", slippage_bps=1.0, run_name="for-report"),
         )
 
-        summary = backtest_module.backtest_report(conn, result.run_id)
+        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["run_id"] == result.run_id
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
@@ -176,8 +176,8 @@ class TestBacktestRunFlow:
             assert isinstance(report.trades[0], BacktestReportTrade)
 
         payload = report.to_payload()
-        legacy_payload = backtest_module.backtest_report(conn, result.run_id)
-        assert payload == legacy_payload
+        assert payload["run_id"] == result.run_id
+        assert payload["benchmark_ticker"] == "SPY"
 
     def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(
         self,
@@ -200,7 +200,7 @@ class TestBacktestRunFlow:
         # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
-        summary = backtest_module.backtest_report(conn, result.run_id)
+        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
         filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend")

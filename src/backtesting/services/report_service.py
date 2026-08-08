@@ -103,8 +103,8 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
         for item in trades
     ]
 
-    # Frozen at run time (revision 0030). Null for runs written before it, and for
-    # runs whose benchmark had no history over the window.
+    # Frozen when the run executed. Null when the benchmark window held fewer than
+    # two usable closes, so there was no return to compute.
     benchmark_ret = row_float(run, "benchmark_return_pct")
     alpha_pct = None if benchmark_ret is None else summary.total_return_pct - benchmark_ret
 

@@ -64,7 +64,7 @@ class TestBacktestWarnings:
             make_backtest_config("acct_report_warn", run_name="warn-report"),
         )
 
-        summary = backtest_module.backtest_report(conn, result.run_id)
+        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings

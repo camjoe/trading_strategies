@@ -41,8 +41,7 @@ def fetch_backtest_leaderboard_entries(
 
         total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
 
-        # Frozen at run time (revision 0030). Null for runs written before it, and for
-        # runs whose benchmark had no history over the window.
+        # Frozen when the run executed; null when its benchmark window was too short.
         benchmark_ret = row_float(row, "benchmark_return_pct")
         alpha_pct = None if benchmark_ret is None else total_return_pct - benchmark_ret
 

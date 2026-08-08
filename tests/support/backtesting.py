@@ -4,7 +4,7 @@ import pandas as pd
 
 from backtesting.backtest import BacktestConfig
 from backtesting.models import BacktestResult
-from backtesting.models.report import BacktestLeaderboardEntry
+from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account
@@ -222,12 +222,75 @@ def make_backtest_leaderboard_entry(
     )
 
 
+def make_backtest_full_report(
+    *,
+    run_id: int = 1,
+    run_name: str | None = "smoke",
+    account_name: str = "acct1",
+    strategy: str = "trend_v1",
+    start_date: str = "2026-01-01",
+    end_date: str = "2026-03-01",
+    created_at: str = "2026-03-01T00:00:00Z",
+    trade_count: int = 3,
+    starting_equity: float = 10_000.0,
+    ending_equity: float = 10_500.0,
+    total_return_pct: float = 5.0,
+    max_drawdown_pct: float = -2.0,
+    slippage_bps: float = 5.0,
+    fee_per_trade: float = 0.0,
+    tickers_file: str = "tickers.txt",
+    warnings: list[str] | None = None,
+    sharpe_ratio: float | None = 1.2,
+    sortino_ratio: float | None = 1.5,
+    calmar_ratio: float | None = 0.8,
+    win_rate_pct: float | None = 60.0,
+    profit_factor: float | None = 1.7,
+    avg_trade_return_pct: float | None = 2.5,
+    benchmark_ticker: str = "SPY",
+    benchmark_return_pct: float | None = 1.0,
+    alpha_pct: float | None = 4.0,
+) -> BacktestFullReport:
+    return BacktestFullReport(
+        summary=BacktestReportSummary(
+            run_id=run_id,
+            run_name=run_name,
+            account_name=account_name,
+            strategy=strategy,
+            start_date=start_date,
+            end_date=end_date,
+            created_at=created_at,
+            slippage_bps=slippage_bps,
+            fee_per_trade=fee_per_trade,
+            tickers_file=tickers_file,
+            warnings=[] if warnings is None else warnings,
+            trade_count=trade_count,
+            starting_equity=starting_equity,
+            ending_equity=ending_equity,
+            total_return_pct=total_return_pct,
+            max_drawdown_pct=max_drawdown_pct,
+            sharpe_ratio=sharpe_ratio,
+            sortino_ratio=sortino_ratio,
+            calmar_ratio=calmar_ratio,
+            win_rate_pct=win_rate_pct,
+            profit_factor=profit_factor,
+            avg_trade_return_pct=avg_trade_return_pct,
+        ),
+        benchmark_ticker=benchmark_ticker,
+        notes=None,
+        snapshots=[],
+        trades=[],
+        benchmark_return_pct=benchmark_return_pct,
+        alpha_pct=alpha_pct,
+    )
+
+
 __all__ = [
     "create_backtest_account",
     "bar_frame",
     "bars_from_closes",
     "install_backtest_market_data",
     "make_backtest_config",
+    "make_backtest_full_report",
     "make_backtest_leaderboard_entry",
     "make_backtest_result",
     "make_fake_bar_history",
