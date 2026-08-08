@@ -12,7 +12,6 @@ from trading.backtesting.backtest import (
     run_backtest_batch,
     run_backtest_metrics_only,
 )
-from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig
 from trading.backtesting.optimizer_models import OptimizerConfig
 from trading.backtesting.repositories.optimization_repository import (
@@ -25,6 +24,7 @@ from trading.backtesting.services.optimizer_aggregation_service import fetch_com
 from trading.backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
 )
+from trading.domain.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark

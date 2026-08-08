@@ -5,7 +5,7 @@ import types
 import pytest
 
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
-from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
+from trading.domain.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,

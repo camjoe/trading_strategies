@@ -277,6 +277,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
+| `promotion_gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
 | `portfolio_math.py` | Pure portfolio return math shared by analysis + reporting (market value/unrealized, return %, alpha) |

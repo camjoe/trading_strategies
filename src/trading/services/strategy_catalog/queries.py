@@ -6,10 +6,6 @@ import json
 import sqlite3
 from dataclasses import dataclass
 
-from trading.backtesting.domain.optimization.promotion_gate import (
-    PromotionGateResult,
-    evaluate_promotion_gate,
-)
 from trading.backtesting.optimizer_models import (
     CompoundedOOSSeries,
     ExperimentStatus,
@@ -26,6 +22,10 @@ from trading.backtesting.repositories.optimization_repository import (
     fetch_windows_for_experiment,
 )
 from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
+from trading.domain.promotion_gate import (
+    PromotionGateResult,
+    evaluate_promotion_gate,
+)
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.models.strategy import StrategyRecord
 from trading.repositories.accounts import AccountRepository
