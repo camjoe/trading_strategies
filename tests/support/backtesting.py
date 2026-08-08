@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
 
 from backtesting.backtest import BacktestConfig
 from backtesting.models import BacktestResult
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
+from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account
@@ -117,6 +120,70 @@ def create_backtest_account(
     **kwargs,
 ) -> None:
     create_account(conn, name, strategy, initial_cash, benchmark, config=AccountConfig(**kwargs) if kwargs else None)
+
+
+def seed_backtest_run(
+    conn,
+    *,
+    account_name: str,
+    run_name: str = "seeded-run",
+    strategy_name: str = "trend_v1",
+    start_equity: float = 1_000.0,
+    end_equity: float = 1_100.0,
+    benchmark_return_pct: float | None = 1.0,
+    warnings: list[str] | None = None,
+    trades: list[tuple[str, str, float, float]] | None = None,
+    create_account_first: bool = True,
+) -> int:
+    """Persist one complete backtest run and return its id.
+
+    Writes through the real repository functions rather than assembling rows, so a
+    test reading the run back exercises the same insert/select pair production does
+    — column names, the ``" | "`` warnings join, and the frozen benchmark included.
+
+    *trades* entries are ``(ticker, side, qty, price)``.
+    """
+    if create_account_first:
+        create_backtest_account(conn, account_name)
+    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", (account_name,)).fetchone()["id"])
+
+    run_id = insert_run(
+        conn,
+        account_id=account_id,
+        strategy_name=strategy_name,
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 1, 31),
+        cfg=make_backtest_config(account_name, run_name=run_name),
+        warnings=warnings or [],
+        benchmark_ticker="SPY",
+        benchmark_return_pct=benchmark_return_pct,
+    )
+    for offset, equity in enumerate((start_equity, end_equity)):
+        insert_snapshot(
+            conn,
+            run_id=run_id,
+            snapshot_time=f"2026-01-{offset + 1:02d}T00:00:00Z",
+            cash=equity,
+            market_value=0.0,
+            equity=equity,
+            realized_pnl=0.0,
+            unrealized_pnl=0.0,
+        )
+    for ticker, side, qty, price in trades or []:
+        insert_trade(
+            conn,
+            run_id=run_id,
+            trade_time="2026-01-15",
+            ticker=ticker,
+            side=side,
+            qty=qty,
+            price=price,
+            fee=0.0,
+            slippage_bps=0.0,
+            note="seeded",
+        )
+    conn.commit()
+    return run_id
 
 
 def make_backtest_config(
@@ -293,6 +360,7 @@ __all__ = [
     "make_backtest_full_report",
     "make_backtest_leaderboard_entry",
     "make_backtest_result",
+    "seed_backtest_run",
     "make_fake_bar_history",
     "make_fake_close_history",
 ]
