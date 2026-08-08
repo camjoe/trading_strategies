@@ -113,6 +113,35 @@ package-name boundaries are enforced by `python -m scripts.checks.repo.layer_che
 - **`backtesting/`** — see [Backtesting](../reference/backtesting.md) and
   `src/backtesting/README.md`.
 
+  **A bounded context owes the backbone its seam, not its internal conventions.** What crosses
+  between `backtesting/` and `trading/` is constrained and enforced by `layer_check`; how
+  backtesting is arranged inside is its own business. Recorded because it keeps getting re-asked:
+
+  - It exposes **module-level repository functions** where `trading/repositories/` uses
+    `*Repository` classes, and names its services `*_service.py` where trading uses service
+    packages. Neither is drift — nothing here constrains module filenames beyond `snake_case`,
+    `infrastructure/` is mixed the same way, and both packages follow the documented
+    `fetch_*`/`insert_*` verbs.
+
+    Backtesting's *repository modules* were renamed to area names (`runs.py`, `optimization.py`)
+    in 2026-08, dropping a `*_repository.py` suffix that repeated the package name. That aligned
+    the filenames with `trading/repositories/` because the old names were redundant on their own
+    terms, **not** because matching trading is required — the paragraph above still governs. The
+    function-vs-class split was weighed at the same time and deliberately left alone: the classes
+    hold only a connection and nothing subclasses or substitutes them, so converting would buy
+    symmetry and no behaviour. **This says nothing about `trading/repositories/`,** whose
+    `*Repository` classes are settled and are not to be changed on the strength of a decision
+    made over here.
+  - Its data contracts stay in **its own** `backtesting/models/` package — feature modules with a
+    re-exporting root, the same arrangement as `trading/models/`, following the same
+    `*Config`/`*Insert`/`*Record` suffixes. Sharing the *shape* is worth it for discoverability;
+    sharing the *location* is not. [ADR 005](../adr/005-models-as-lowest-data-layer.md) governs
+    `trading/models/` and does not reach across contexts, and moving these in would make trading's
+    lowest layer own contracts for seven tables it never writes.
+  - Module size is not a reason to split one: `models/optimizer.py` is 494 lines against
+    `trading/models/books.py` at 433. ADR 005 moved *toward* grouped feature modules, so a module
+    holding one coherent area is the target state, not drift from it.
+
 ## Execution and Parameter Ownership
 
 Books are the execution primitive. A book is a bounded pool of capital inside an

@@ -34,7 +34,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
-| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`; the CHECK also still admits the retired `rolling_window` for historical rows, revisions `0016`/`0027`) | → `accounts` |
+| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`; the CHECK also still admits the retired `rolling_window` for historical rows, revisions `0016`/`0027`) and the benchmark frozen at run time (`benchmark_ticker`, `benchmark_return_pct`; null before revision `0030`) | → `accounts` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |

@@ -144,7 +144,7 @@ def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend")
     return cursor.lastrowid
 
 
-def _insert_trade(conn, *, account_id: int) -> None:
+def _persist_trade(conn, *, account_id: int) -> None:
     from tests.support.fills import seed_fill_event
 
     seed_fill_event(
@@ -161,7 +161,7 @@ def _insert_trade(conn, *, account_id: int) -> None:
 class TestDeleteByName:
     def test_removes_account_and_cascades_owned_rows(self, conn) -> None:
         acct_id = _account_id(conn)
-        _insert_trade(conn, account_id=acct_id)
+        _persist_trade(conn, account_id=acct_id)
         run_id = _insert_backtest_run(conn, account_id=acct_id)
 
         repo = AccountRepository(conn)

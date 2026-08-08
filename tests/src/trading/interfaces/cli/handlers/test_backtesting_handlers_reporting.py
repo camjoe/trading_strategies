@@ -5,6 +5,7 @@ import types
 import pytest
 
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
+from tests.support.backtesting import make_backtest_full_report
 from trading.domain.promotion_gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
@@ -14,31 +15,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
-    report = {
-        "run_id": 42,
-        "run_name": "smoke",
-        "account_name": "acct",
-        "strategy": "trend",
-        "start_date": "2026-01-01",
-        "end_date": "2026-03-01",
-        "created_at": "2026-03-01",
-        "trade_count": 3,
-        "starting_equity": 10000.0,
-        "ending_equity": 10500.0,
-        "total_return_pct": 5.0,
-        "max_drawdown_pct": -2.0,
-        "slippage_bps": 5.0,
-        "fee_per_trade": 0.0,
-        "tickers_file": "tickers.txt",
-        "warnings": "",
-        "sharpe_ratio": 1.2,
-        "sortino_ratio": 1.5,
-        "calmar_ratio": 0.8,
-        "win_rate_pct": 60.0,
-        "profit_factor": 1.7,
-        "avg_trade_return_pct": 2.5,
-    }
-    deps = {"backtest_report": lambda _conn, _run_id: report}
+    deps = {"backtest_report_full": lambda _conn, _run_id: make_backtest_full_report(run_id=42, run_name="smoke")}
 
     handle_backtest_report(object(), types.SimpleNamespace(run_id=42), fake_parser(), deps=deps)
 
@@ -46,6 +23,16 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
     assert "42" in out
     assert "Risk Analytics:" in out
     assert "Trade Analytics:" in out
+
+
+def test_handle_backtest_report_joins_the_warning_list(capsys) -> None:
+    """``summary.warnings`` is ``list[str]``; the line must read as prose, not a repr."""
+    report = make_backtest_full_report(warnings=["daily bars only", "approximate leaps"])
+    deps = {"backtest_report_full": lambda _conn, _run_id: report}
+
+    handle_backtest_report(object(), types.SimpleNamespace(run_id=1), fake_parser(), deps=deps)
+
+    assert "Safeguards / notes: daily bars only | approximate leaps" in capsys.readouterr().out
 
 
 def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:

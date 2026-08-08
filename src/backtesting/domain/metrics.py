@@ -7,6 +7,7 @@ from typing import Mapping, Sequence
 import pandas as pd
 
 from backtesting.domain.simulation_math import update_on_buy, update_on_sell
+from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, TRADING_DAYS_PER_YEAR
 
 # Scale factor for converting decimal returns into operator-facing percentage values.
@@ -25,6 +26,16 @@ class BacktestPerformanceMetrics:
     win_rate_pct: float | None = None
     profit_factor: float | None = None
     avg_trade_return_pct: float | None = None
+
+
+def equity_curve_from_rows(snapshot_rows: Sequence[Mapping[str, object]]) -> list[float]:
+    """The equity marks from *snapshot_rows*, in row order, skipping unset ones.
+
+    A snapshot with a null ``equity`` carries no mark to plot or measure; dropping
+    it keeps the curve a series of real values rather than one holding ``None``,
+    which every metric here would have to re-filter.
+    """
+    return [value for value in (row_float(row, "equity") for row in snapshot_rows) if value is not None]
 
 
 def max_drawdown_pct(equity_curve: list[float]) -> float:

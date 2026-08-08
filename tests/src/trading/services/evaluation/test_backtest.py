@@ -4,10 +4,10 @@ import pytest
 
 from tests.support.evaluation import (
     insert_account_snapshot,
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
     insert_optimization_experiment,
+    insert_run,
+    insert_snapshot,
+    insert_trade,
 )
 from trading.services.evaluation import fetch_strategy_evaluation
 
@@ -18,12 +18,12 @@ def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(
 ) -> None:
     # Backtest evidence is the experiment's untouched holdout run, not a
     # standalone backtest over an operator-chosen range.
-    run_id = insert_backtest_run(conn, account_id=eval_account["id"], strategy_name="trend_v1")
-    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
-    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-15T00:00:00Z", equity=1100.0)
-    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1050.0)
-    insert_backtest_trade(conn, run_id=run_id, trade_time="2026-01-02T00:00:00Z")
-    insert_backtest_trade(conn, run_id=run_id, trade_time="2026-01-10T00:00:00Z")
+    run_id = insert_run(conn, account_id=eval_account["id"], strategy_name="trend_v1")
+    insert_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
+    insert_snapshot(conn, run_id=run_id, snapshot_time="2026-01-15T00:00:00Z", equity=1100.0)
+    insert_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1050.0)
+    insert_trade(conn, run_id=run_id, trade_time="2026-01-02T00:00:00Z")
+    insert_trade(conn, run_id=run_id, trade_time="2026-01-10T00:00:00Z")
     insert_optimization_experiment(
         conn,
         account_id=eval_account["id"],

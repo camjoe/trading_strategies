@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-08-07
-Last Reviewed: 2026-08-07
+Last Reviewed: 2026-08-08
 Purpose: Inventory the `src/backtesting/` bounded context — the simulation and parameter-search subsystem that owns the backtest and optimizer tables, and the two service surfaces the trading side reads it through.
 Related: [Trading Package Map](trading-package-map.md), [Backtesting](../reference/backtesting.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
@@ -45,7 +45,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | Module | Responsibility |
 |---|---|
 | `bars.py` | Bar-series shaping and access helpers |
-| `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure) |
+| `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure), plus `equity_curve_from_rows` to lift a curve out of snapshot rows |
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `simulation_math.py` | Fill, fee, and slippage arithmetic for simulated execution |
 | `windowing.py` | Walk-forward train/test split construction |
@@ -61,7 +61,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |
-| `report_service.py` | Assemble a backtest report with benchmark overlay and alpha |
+| `report_service.py` | Assemble a backtest report; benchmark and alpha come from the run row, so the read needs no market data |
 | `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
 | `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence, as `Evaluation*Evidence` records |
 | `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing |
@@ -72,18 +72,20 @@ SQL only. The seven owned tables.
 
 | Module | Responsibility |
 |---|---|
-| `backtest_repository.py` | Backtest run rows, their executions, and equity snapshots |
-| `report_repository.py` | Report-shaped reads over a run and its snapshots/trades |
-| `leaderboard_repository.py` | Ranked reads across runs |
-| `optimization_repository.py` | Optimizer experiments, windows, trials, and run manifests |
+| `runs.py` | Backtest run rows (including the benchmark frozen at run time, revision `0030`), their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
+| `optimization.py` | Optimizer experiments, windows, trials, and run manifests |
 
-## Data contracts
+## `models/`
+
+Passive contracts, one module per area. The package root re-exports the stable public types,
+mirroring `trading/models/`. These belong to the seven tables this context owns; `trading/models/`
+holds the contracts for the tables `trading/repositories/` owns.
 
 | Module | Responsibility |
 |---|---|
-| `models.py` | Backtest configuration and batch contracts (`BacktestConfig`, `BacktestBatchConfig`) |
-| `optimizer_models.py` | Optimizer configuration and persisted experiment/window/trial/manifest records |
-| `report_models.py` | Report and summary shapes returned to operator surfaces |
+| `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
+| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs, plus OOS aggregation shapes |
+| `report.py` | Report and leaderboard shapes returned to operator surfaces |
 
 ## Related
 

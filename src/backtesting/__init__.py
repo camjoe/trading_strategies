@@ -12,13 +12,11 @@ from backtesting.backtest import (
     BacktestResult,
     backtest_leaderboard,
     backtest_leaderboard_entries,
-    backtest_report,
     backtest_report_full,
-    backtest_report_summary,
     run_backtest,
     run_backtest_batch,
 )
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestLeaderboardEntry,
     BacktestReportSnapshot,
@@ -33,8 +31,6 @@ __all__ = [
     "backtest_leaderboard",
     "backtest_leaderboard_entries",
     "backtest_report_full",
-    "backtest_report",
-    "backtest_report_summary",
     "run_backtest",
     "run_backtest_batch",
     "BacktestFullReport",

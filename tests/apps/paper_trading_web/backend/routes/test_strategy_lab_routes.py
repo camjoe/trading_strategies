@@ -7,18 +7,18 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from paper_trading_web.backend.schemas.strategy_lab import MAX_CANDIDATE_BUDGET
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizationSummary,
     OptimizationTrialInsert,
     OptimizationWindowInsert,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     insert_experiment,
     insert_trial,
     insert_window,
 )
-from tests.support.evaluation import insert_backtest_run
+from tests.support.evaluation import insert_run
 from tests.support.strategies import ensure_strategy_id_for_label
 
 
@@ -29,7 +29,7 @@ def _seed_experiment_with_audit(conn: sqlite3.Connection, *, account_name: str) 
     ``backtest_runs`` row because the window carries a foreign key to it.
     """
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", (account_name,)).fetchone()["id"])
-    oos_run_id = insert_backtest_run(conn, account_id=account_id, strategy_name="trend", run_name="wfo_w01")
+    oos_run_id = insert_run(conn, account_id=account_id, strategy_name="trend", run_name="wfo_w01")
     experiment_id = insert_experiment(
         conn,
         OptimizationExperimentInsert(

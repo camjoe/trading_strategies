@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from backtesting.domain.metrics import PERCENT_SCALE
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     CompoundedOOSPoint,
     CompoundedOOSSeries,
     OOSReturnSegment,

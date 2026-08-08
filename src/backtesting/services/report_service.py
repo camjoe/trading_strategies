@@ -3,93 +3,45 @@
 This service module owns:
 
 - ``fetch_backtest_report_data``: assembles a ``BacktestFullReport`` from
-  persisted run, snapshot, and trade rows, including benchmark return and alpha
-  calculation.
-- Thin wrappers around ``report_repository`` reads for latest-run and
+  persisted run, snapshot, and trade rows. Needs no market data — the benchmark
+  return is read from the run row, frozen there when the run executed.
+- Thin wrappers around ``repositories.runs`` reads for latest-run and
   recent-run lookups.
 """
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
-from datetime import date
 
 from backtesting.domain.metrics import (
-    benchmark_return_pct,
+    equity_curve_from_rows,
     max_drawdown_pct,
     summarize_backtest_performance,
 )
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,
     BacktestReportTrade,
     parse_warnings,
 )
-from backtesting.repositories.report_repository import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
-    fetch_latest_backtest_run_for_account as _repo_fetch_latest_backtest_run_for_account,
-    fetch_latest_backtest_run_id_for_account as _repo_fetch_latest_backtest_run_id_for_account,
-    fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
+from backtesting.repositories.runs import (
+    fetch_run,
+    fetch_runs,
+    fetch_snapshots,
+    fetch_trades,
 )
-from backtesting.services.backtest_data_service import fetch_benchmark_close
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.domain.exceptions import NotFoundError
-from trading.services.market_data import MarketDataProvider
-
-logger = logging.getLogger(__name__)
 
 
-def _benchmark_and_alpha(
-    run,
-    total_return_pct: float,
-    provider: MarketDataProvider | None,
-) -> tuple[float | None, float | None]:
-    """Benchmark return and alpha for *run*, or ``(None, None)``.
-
-    The benchmark is the only part of a report that needs market data, so the
-    provider is what asks for it. Callers that want just the summary omit it
-    rather than injecting a provider they have no use for — the account list
-    reads one summary per row, and computing a benchmark series for each would
-    be a provider round trip per account.
-    """
-    if provider is None:
-        return None, None
-
-    try:
-        benchmark_series = fetch_benchmark_close(
-            row_expect_str(run, "benchmark_ticker"),
-            date.fromisoformat(row_expect_str(run, "start_date")),
-            date.fromisoformat(row_expect_str(run, "end_date")),
-            provider=provider,
-        )
-    except Exception as exc:
-        # A benchmark with no history over the run's window is a data gap, not a
-        # reason to fail the whole report.
-        logger.warning("Failed to compute benchmark return for backtest run: %s", exc, exc_info=True)
-        return None, None
-
-    benchmark_ret = benchmark_return_pct(benchmark_series, row_expect_float(run, "initial_cash"))
-    if benchmark_ret is None:
-        return None, None
-    return benchmark_ret, total_return_pct - benchmark_ret
-
-
-def fetch_backtest_report_data(
-    conn,
-    *,
-    run_id: int,
-    provider: MarketDataProvider | None = None,
-) -> BacktestFullReport:
-    run = fetch_backtest_report_run(conn, run_id)
+def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
+    run = fetch_run(conn, run_id)
     if run is None:
         raise NotFoundError(f"Backtest run id {run_id} not found")
 
-    snapshots = fetch_backtest_report_snapshots(conn, run_id)
-    trades = fetch_backtest_report_trades(conn, run_id)
+    snapshots = fetch_snapshots(conn, run_id)
+    trades = fetch_trades(conn, run_id)
 
     if not snapshots:
         raise ValueError(f"No snapshots found for backtest run {run_id}")
@@ -97,12 +49,9 @@ def fetch_backtest_report_data(
     first_equity = row_expect_float(snapshots[0], "equity")
     last_equity = row_expect_float(snapshots[-1], "equity")
 
-    equity_curve = [row_float(item, "equity") for item in snapshots]
-    max_drawdown = max_drawdown_pct([value for value in equity_curve if value is not None])
-    performance = summarize_backtest_performance(
-        [value for value in equity_curve if value is not None],
-        trades,
-    )
+    curve = equity_curve_from_rows(snapshots)
+    max_drawdown = max_drawdown_pct(curve)
+    performance = summarize_backtest_performance(curve, trades)
 
     summary = BacktestReportSummary(
         run_id=row_expect_int(run, "id"),
@@ -152,7 +101,10 @@ def fetch_backtest_report_data(
         for item in trades
     ]
 
-    benchmark_ret, alpha_pct = _benchmark_and_alpha(run, summary.total_return_pct, provider)
+    # Frozen when the run executed. Null when the benchmark window held fewer than
+    # two usable closes, so there was no return to compute.
+    benchmark_ret = row_float(run, "benchmark_return_pct")
+    alpha_pct = None if benchmark_ret is None else summary.total_return_pct - benchmark_ret
 
     return BacktestFullReport(
         summary=summary,
@@ -166,7 +118,8 @@ def fetch_backtest_report_data(
 
 
 def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int | None:
-    return _repo_fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
+    rows = fetch_runs(conn, limit=1, account_name=account_name)
+    return row_expect_int(rows[0], "id") if rows else None
 
 
 def _build_backtest_run_dict(row: Mapping[str, object]) -> dict[str, object]:
@@ -186,14 +139,12 @@ def _build_backtest_run_dict(row: Mapping[str, object]) -> dict[str, object]:
 
 
 def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> dict[str, object] | None:
-    row = _repo_fetch_latest_backtest_run_for_account(conn, account_name=account_name)
-    if row is None:
-        return None
-    return _build_backtest_run_dict(row)
+    rows = fetch_runs(conn, limit=1, account_name=account_name)
+    return _build_backtest_run_dict(rows[0]) if rows else None
 
 
 def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
-    return [_build_backtest_run_dict(row) for row in _repo_fetch_recent_backtest_runs(conn, limit=limit)]
+    return [_build_backtest_run_dict(row) for row in fetch_runs(conn, limit=limit)]
 
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:

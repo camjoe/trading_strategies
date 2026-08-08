@@ -9,11 +9,11 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
-from backtesting.repositories.backtest_repository import (
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
+from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
+from backtesting.repositories.runs import (
+    insert_run,
+    insert_snapshot,
+    insert_trade,
 )
 from backtesting.services import (
     build_monthly_universe,
@@ -31,7 +31,7 @@ from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.books import BookRecord
 from trading.services.accounts import get_account
 from trading.services.books.book_assignments import get_default_book
-from trading.services.market_data import MarketDataProvider, build_feature_provider
+from trading.services.market_data import build_feature_provider
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
@@ -81,7 +81,7 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return warnings
 
 
-def _insert_run(
+def _persist_run(
     conn: sqlite3.Connection,
     account_id: int,
     strategy_name: str,
@@ -89,8 +89,10 @@ def _insert_run(
     end_date: date,
     cfg: BacktestConfig,
     warnings: list[str],
+    benchmark_ticker: str,
+    benchmark_return_pct: float | None,
 ) -> int:
-    return insert_backtest_run(
+    return insert_run(
         conn,
         account_id=account_id,
         strategy_name=strategy_name,
@@ -98,10 +100,12 @@ def _insert_run(
         end_date=end_date,
         cfg=cfg,
         warnings=warnings,
+        benchmark_ticker=benchmark_ticker,
+        benchmark_return_pct=benchmark_return_pct,
     )
 
 
-def _insert_trade(
+def _persist_trade(
     conn: sqlite3.Connection,
     run_id: int,
     trade_time: str,
@@ -113,7 +117,7 @@ def _insert_trade(
     slippage_bps: float,
     note: str | None,
 ) -> None:
-    insert_backtest_trade(
+    insert_trade(
         conn,
         run_id=run_id,
         trade_time=trade_time,
@@ -127,7 +131,7 @@ def _insert_trade(
     )
 
 
-def _insert_snapshot(
+def _persist_snapshot(
     conn: sqlite3.Connection,
     run_id: int,
     snapshot_time: str,
@@ -137,7 +141,7 @@ def _insert_snapshot(
     realized_pnl: float,
     unrealized_pnl: float,
 ) -> None:
-    insert_backtest_snapshot(
+    insert_snapshot(
         conn,
         run_id=run_id,
         snapshot_time=snapshot_time,
@@ -181,9 +185,9 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
             benchmark_ticker, start_date, end_date, provider=provider
         ),
-        insert_run_fn=_insert_run if persist else _noop_insert_run,
-        insert_trade_fn=_insert_trade if persist else _noop_insert_trade,
-        insert_snapshot_fn=_insert_snapshot if persist else _noop_insert_snapshot,
+        insert_run_fn=_persist_run if persist else _noop_insert_run,
+        insert_trade_fn=_persist_trade if persist else _noop_insert_trade,
+        insert_snapshot_fn=_persist_snapshot if persist else _noop_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,
         feature_provider=feature_provider,
     )
@@ -200,38 +204,13 @@ def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return _run_backtest(conn, cfg, persist=False)
 
 
-def backtest_report_full(
-    conn: sqlite3.Connection,
-    run_id: int,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> BacktestFullReport:
+def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
     """The full report, benchmark and alpha included.
 
-    Composition seam, same as ``_run_backtest``: the provider the benchmark
-    needs is built here unless a caller injects one, so reading a report does
-    not require every route and handler to wire market data itself.
+    Takes no provider: the benchmark return is read from the run row, frozen
+    there when the run executed, so reading a report touches no market data.
     """
-    return fetch_backtest_report_data(conn, run_id=run_id, provider=provider or build_provider())
-
-
-def backtest_report(
-    conn: sqlite3.Connection,
-    run_id: int,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> dict[str, object]:
-    return backtest_report_full(conn, run_id, provider=provider).to_payload()
-
-
-def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
-    """The summary alone, which carries no benchmark.
-
-    Deliberately skips the provider: the account list reads one summary per
-    row, and building a benchmark series for each would cost a market-data
-    round trip per account for a figure the summary does not carry.
-    """
-    return fetch_backtest_report_data(conn, run_id=run_id).summary
+    return fetch_backtest_report_data(conn, run_id=run_id)
 
 
 def _validated_strategy_filter(strategy: str | None) -> str | None:

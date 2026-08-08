@@ -4,9 +4,10 @@ import pandas as pd
 import pytest
 
 import backtesting.backtest as backtest_module
+import backtesting.services.backtest_data_service as backtest_data_service
 import backtesting.services.execution_service as execution_service
 import backtesting.services.report_service as report_service
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,
@@ -78,7 +79,7 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_report_bt", slippage_bps=1.0, run_name="for-report"),
         )
 
-        summary = backtest_module.backtest_report(conn, result.run_id)
+        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["run_id"] == result.run_id
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
@@ -116,22 +117,23 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_report_model", run_name="for-report-model"),
         )
 
-        summary = backtest_module.backtest_report_summary(conn, result.run_id)
+        summary = report_service.fetch_backtest_report_summary(conn, result.run_id)
         assert isinstance(summary, BacktestReportSummary)
         assert summary.run_id == result.run_id
         assert summary.account_name == "acct_report_model"
 
-    def test_backtest_report_full_builds_a_provider_for_the_benchmark(
+    def test_backtest_report_full_reads_the_benchmark_without_market_data(
         self,
         conn,
         bt_market_data,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """The report seam must supply the provider the benchmark leg needs.
+        """Reading a report must not reach for market data.
 
-        It did not, so reading any report logged a ``require_provider``
-        traceback and returned a report with no benchmark or alpha. The summary
-        path stays provider-free on purpose — it carries no benchmark.
+        The benchmark return is frozen onto the run when it executes (revision
+        0030), so the read is pure SQL. Before that it was recomputed here, which
+        needed a provider injected at the seam and silently produced nothing
+        wherever one was not — the leaderboard's case.
         """
         create_backtest_account(conn, "acct_report_provider_seam")
         bt_market_data(["AAPL"], [100.0, 104.0])
@@ -141,22 +143,16 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_report_provider_seam", run_name="for-provider-seam"),
         )
 
-        providers: list[object] = []
-        monkeypatch.setattr(
-            report_service,
-            "fetch_benchmark_close",
-            lambda _t, _s, _e, *, provider=None: (providers.append(provider), pd.Series([100.0, 104.0]))[1],
-        )
+        def _fail(*_args, **_kwargs):
+            raise AssertionError("reading a report must not fetch market data")
+
+        monkeypatch.setattr(backtest_data_service, "fetch_benchmark_close", _fail)
+        monkeypatch.setattr(backtest_data_service, "fetch_bar_history", _fail)
 
         report = backtest_module.backtest_report_full(conn, result.run_id)
 
-        assert providers and providers[0] is not None
-        assert report.benchmark_return_pct is not None
-        assert report.alpha_pct is not None
-
-        providers.clear()
-        backtest_module.backtest_report_summary(conn, result.run_id)
-        assert providers == []
+        assert report.benchmark_return_pct == pytest.approx(result.benchmark_return_pct)
+        assert report.alpha_pct == pytest.approx(report.summary.total_return_pct - report.benchmark_return_pct)
 
     def test_backtest_report_full_returns_typed_model_and_payload(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_full")
@@ -180,8 +176,8 @@ class TestBacktestRunFlow:
             assert isinstance(report.trades[0], BacktestReportTrade)
 
         payload = report.to_payload()
-        legacy_payload = backtest_module.backtest_report(conn, result.run_id)
-        assert payload == legacy_payload
+        assert payload["run_id"] == result.run_id
+        assert payload["benchmark_ticker"] == "SPY"
 
     def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(
         self,
@@ -204,7 +200,7 @@ class TestBacktestRunFlow:
         # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
-        summary = backtest_module.backtest_report(conn, result.run_id)
+        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
         filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend")

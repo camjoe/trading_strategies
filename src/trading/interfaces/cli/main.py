@@ -4,14 +4,14 @@ from functools import partial
 
 from backtesting.backtest import (
     backtest_leaderboard_entries,
-    backtest_report,
+    backtest_report_full,
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
 )
 from backtesting.models import BacktestBatchConfig, BacktestConfig
-from backtesting.optimizer_models import OptimizerConfig
-from backtesting.repositories.optimization_repository import (
+from backtesting.models.optimizer import OptimizerConfig
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
     fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
@@ -82,7 +82,7 @@ def _handler_deps() -> dict[str, object]:
         "BacktestConfig": BacktestConfig,
         "OptimizerConfig": OptimizerConfig,
         "backtest_leaderboard_entries": backtest_leaderboard_entries,
-        "backtest_report": backtest_report,
+        "backtest_report_full": backtest_report_full,
         "run_backtest": run_backtest,
         "run_backtest_metrics_only": run_backtest_metrics_only,
         "run_backtest_batch": run_backtest_batch,

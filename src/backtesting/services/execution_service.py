@@ -308,6 +308,10 @@ def run_backtest(
     }
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
+    # Frozen onto the run row below rather than left for readers to recompute: this
+    # is the only point where the provider and the run's own benchmark ticker are
+    # both in hand.
+    benchmark_return = benchmark_return_pct(benchmark_series, initial_cash)
 
     feature_bundle = None
     if strategy_spec.required_features:
@@ -322,7 +326,17 @@ def run_backtest(
     with unit_of_work(conn):
         # Pass the canonical strategy key: backtest_runs stores a strategies FK,
         # so aliases/display names must resolve to the seeded catalog key first.
-        run_id = insert_run_fn(conn, account_id, strategy_spec.strategy_id, start_date, end_date, cfg, warnings)
+        run_id = insert_run_fn(
+            conn,
+            account_id,
+            strategy_spec.strategy_id,
+            start_date,
+            end_date,
+            cfg,
+            warnings,
+            benchmark_ticker,
+            benchmark_return,
+        )
 
         state = _PortfolioState(cash=initial_cash)
         ctx = _ExecutionContext(
@@ -431,7 +445,6 @@ def run_backtest(
 
     ending_equity = equity_curve[-1]
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
-    benchmark_return = benchmark_return_pct(benchmark_series, initial_cash)
     alpha_pct = None if benchmark_return is None else total_return_pct - benchmark_return
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)
 

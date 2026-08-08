@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     ExperimentStatus,
     OptimizationExperimentInsert,
     OptimizationExperimentRecord,
@@ -93,14 +93,6 @@ def insert_experiment(
 
 def fetch_experiment_by_id(conn: sqlite3.Connection, *, experiment_id: int) -> OptimizationExperimentRecord | None:
     row = conn.execute(_SELECT + " WHERE id = ?", (int(experiment_id),)).fetchone()
-    return OptimizationExperimentRecord.from_mapping(dict(row)) if row is not None else None
-
-
-def fetch_latest_for_account(conn: sqlite3.Connection, *, account_id: int) -> OptimizationExperimentRecord | None:
-    row = conn.execute(
-        _SELECT + " WHERE account_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
-        (int(account_id),),
-    ).fetchone()
     return OptimizationExperimentRecord.from_mapping(dict(row)) if row is not None else None
 
 
@@ -227,15 +219,6 @@ def fetch_windows_for_experiment(conn: sqlite3.Connection, *, experiment_id: int
         (int(experiment_id),),
     ).fetchall()
     return [OptimizationWindowRecord.from_mapping(dict(row)) for row in rows]
-
-
-def fetch_trials_for_window(conn: sqlite3.Connection, *, window_id: int) -> list[OptimizationTrialRecord]:
-    """Return a window's evaluated candidates in canonical candidate order."""
-    rows = conn.execute(
-        "SELECT * FROM optimization_trials WHERE window_id = ? ORDER BY candidate_index ASC",
-        (int(window_id),),
-    ).fetchall()
-    return [OptimizationTrialRecord.from_mapping(dict(row)) for row in rows]
 
 
 def fetch_trials_for_experiment(conn: sqlite3.Connection, *, experiment_id: int) -> list[OptimizationTrialRecord]:

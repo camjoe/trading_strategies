@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizationWindowInsert,
 )
-from backtesting.repositories.optimization_repository import insert_experiment, insert_window
+from backtesting.repositories.optimization import insert_experiment, insert_window
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 
-def insert_backtest_run(
+def insert_run(
     conn,
     *,
     account_id: int,
@@ -51,7 +51,7 @@ def insert_backtest_run(
     return int(cursor.lastrowid)
 
 
-def insert_backtest_snapshot(conn, *, run_id: int, snapshot_time: str, equity: float) -> None:
+def insert_snapshot(conn, *, run_id: int, snapshot_time: str, equity: float) -> None:
     conn.execute(
         """
         INSERT INTO backtest_equity_snapshots (
@@ -69,7 +69,7 @@ def insert_backtest_snapshot(conn, *, run_id: int, snapshot_time: str, equity: f
     )
 
 
-def insert_backtest_trade(conn, *, run_id: int, trade_time: str) -> None:
+def insert_trade(conn, *, run_id: int, trade_time: str) -> None:
     conn.execute(
         """
         INSERT INTO backtest_executions (
@@ -172,8 +172,8 @@ def insert_account_snapshot(
 
 __all__ = [
     "insert_account_snapshot",
-    "insert_backtest_run",
-    "insert_backtest_snapshot",
-    "insert_backtest_trade",
+    "insert_run",
+    "insert_snapshot",
+    "insert_trade",
     "insert_optimization_experiment",
 ]

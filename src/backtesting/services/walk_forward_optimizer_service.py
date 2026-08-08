@@ -19,7 +19,7 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     MANIFEST_V1,
     CandidateResult,
     ExperimentStatus,
@@ -35,7 +35,7 @@ from backtesting.optimizer_models import (
     WalkForwardSplit,
     WindowSelection,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     insert_experiment,
     insert_manifest,
     insert_trial,

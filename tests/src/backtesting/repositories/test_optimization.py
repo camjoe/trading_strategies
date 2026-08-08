@@ -4,19 +4,17 @@ import sqlite3
 
 import pytest
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     MANIFEST_V1,
     OptimizationExperimentInsert,
     OptimizationManifestInsert,
     OptimizationTrialInsert,
     OptimizationWindowInsert,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
-    fetch_latest_for_account,
     fetch_manifest_for_experiment,
     fetch_trials_for_experiment,
-    fetch_trials_for_window,
     fetch_windows_for_experiment,
     insert_experiment,
     insert_manifest,
@@ -73,24 +71,6 @@ def test_insert_and_fetch_round_trips_fields(conn) -> None:
 
 def test_fetch_missing_returns_none(conn) -> None:
     assert fetch_experiment_by_id(conn, experiment_id=999) is None
-
-
-def test_fetch_latest_for_account_returns_most_recent(conn) -> None:
-    account_id = insert_repository_account(conn, name="opt_latest")
-    insert_experiment(conn, _payload(account_id), created_at="2026-07-20T00:00:00Z")
-    newer = insert_experiment(conn, _payload(account_id), created_at="2026-07-24T00:00:00Z")
-
-    latest = fetch_latest_for_account(conn, account_id=account_id)
-    assert latest is not None
-    assert latest.id == newer
-
-
-def test_fetch_latest_is_account_scoped(conn) -> None:
-    account_a = insert_repository_account(conn, name="opt_a")
-    account_b = insert_repository_account(conn, name="opt_b")
-    insert_experiment(conn, _payload(account_a), created_at="2026-07-24T00:00:00Z")
-
-    assert fetch_latest_for_account(conn, account_id=account_b) is None
 
 
 def test_set_promoted_strategy_records_the_link(conn) -> None:
@@ -174,7 +154,7 @@ def test_windows_and_trials_round_trip(conn) -> None:
     assert windows[0].oos_run_id == run_id
     assert windows[0].test_end == "2023-01-31"
 
-    trials = fetch_trials_for_window(conn, window_id=window_id)
+    trials = fetch_trials_for_experiment(conn, experiment_id=experiment_id)
     assert [t.candidate_index for t in trials] == [0, 1]
     winner = trials[0]
     assert winner.selected is True and winner.eligible is True

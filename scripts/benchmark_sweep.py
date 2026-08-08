@@ -37,7 +37,7 @@ from backtesting.backtest import run_backtest, run_backtest_metrics_only
 from backtesting.domain.optimization.search import generate_candidates
 from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
-from backtesting.optimizer_models import OptimizerConfig
+from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.backtest_data_service import resolve_backtest_dates
 from backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
 from infrastructure.database.backend import SQLiteBackend, set_backend

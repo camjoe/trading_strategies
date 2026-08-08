@@ -1,23 +1,13 @@
 from __future__ import annotations
 
-import logging
-from datetime import date
-
-from backtesting.domain.metrics import (
-    benchmark_return_pct,
-    max_drawdown_pct,
-    summarize_backtest_performance,
-)
-from backtesting.report_models import BacktestLeaderboardEntry
-from backtesting.repositories.leaderboard_repository import (
-    fetch_equity_rows,
+from backtesting.domain.metrics import equity_curve_from_rows, max_drawdown_pct, summarize_backtest_performance
+from backtesting.models.report import BacktestLeaderboardEntry
+from backtesting.repositories.runs import (
     fetch_leaderboard_rows,
-    fetch_trade_rows,
+    fetch_snapshots,
+    fetch_trades,
 )
-from backtesting.services.backtest_data_service import fetch_benchmark_close
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-
-logger = logging.getLogger(__name__)
+from common.coercion import row_expect_int, row_expect_str, row_float, row_str
 
 
 def fetch_backtest_leaderboard_entries(
@@ -44,35 +34,16 @@ def fetch_backtest_leaderboard_entries(
         if start_equity is None or end_equity is None or start_equity <= 0:
             continue
 
-        equity_rows = fetch_equity_rows(conn, row_expect_int(row, "run_id"))
-        curve = [row_float(item, "equity") for item in equity_rows]
-        max_drawdown = max_drawdown_pct([value for value in curve if value is not None])
-        trade_rows = fetch_trade_rows(conn, row_expect_int(row, "run_id"))
-        performance = summarize_backtest_performance(
-            [value for value in curve if value is not None],
-            trade_rows,
-        )
+        run_id = row_expect_int(row, "run_id")
+        curve = equity_curve_from_rows(fetch_snapshots(conn, run_id))
+        max_drawdown = max_drawdown_pct(curve)
+        performance = summarize_backtest_performance(curve, fetch_trades(conn, run_id))
 
         total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
 
-        benchmark_ret: float | None = None
-        alpha_pct: float | None = None
-        try:
-            benchmark_series = fetch_benchmark_close(
-                row_expect_str(row, "benchmark_ticker"),
-                date.fromisoformat(row_expect_str(row, "start_date")),
-                date.fromisoformat(row_expect_str(row, "end_date")),
-            )
-            benchmark_ret = benchmark_return_pct(
-                benchmark_series,
-                row_expect_float(row, "initial_cash"),
-            )
-            if benchmark_ret is not None:
-                alpha_pct = total_return_pct - benchmark_ret
-        except Exception as exc:
-            logger.warning("Failed to compute benchmark return for leaderboard entry: %s", exc, exc_info=True)
-            benchmark_ret = None
-            alpha_pct = None
+        # Frozen when the run executed; null when its benchmark window was too short.
+        benchmark_ret = row_float(row, "benchmark_return_pct")
+        alpha_pct = None if benchmark_ret is None else total_return_pct - benchmark_ret
 
         entry = BacktestLeaderboardEntry(
             run_id=row_expect_int(row, "run_id"),

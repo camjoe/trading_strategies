@@ -21,20 +21,23 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Layers
 
-- `repositories/`: SQL and row retrieval/persistence only.
-  - `backtest_repository.py`: write-side backtest run/trade/snapshot inserts.
-  - `leaderboard_repository.py`: leaderboard row/equity reads.
-  - `report_repository.py`: full report run/snapshot/trade reads.
-  - `report_repository.py` also exposes recent run-list reads used by backend service adapters.
-  - `optimization_repository.py`: walk-forward optimization experiment persistence (Tier-1: config, winner, holdout summary, promoted link).
+- `repositories/`: SQL and row retrieval/persistence only. One module per data area, as in
+  `trading/repositories/`.
+  - `runs.py`: `backtest_runs`, `backtest_executions`, and `backtest_equity_snapshots` — run/trade/snapshot
+    inserts plus the report, recent-run, and leaderboard reads over them.
+  - `optimization.py`: `optimization_experiments`, `optimization_windows`, `optimization_trials`, and
+    `optimization_run_manifests` — experiment config, winner, holdout summary, promoted link, and the
+    per-window/per-candidate audit tree.
 
 - `services/`: business flow, model mapping, orchestration.
   - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
     is the engine's read; `fetch_close_history` still serves the benchmark series and the proxy
     feature provider.
   - `execution_service.py`: single-run backtest orchestration.
-  - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
-  - `report_service.py`: full report assembly into typed report models.
+  - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
+    frozen benchmark.
+  - `report_service.py`: full report assembly into typed report models. Needs no market-data
+    provider — a run's benchmark return is read from its row, frozen there when it executed.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
   - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence, joined and
     summarized here so evaluation never has to know how runs, holdouts, and experiments relate.
@@ -42,14 +45,19 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 - `domain/`: pure reusable backtesting logic.
   - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
-  - `metrics.py`: drawdown and benchmark-return calculations.
+  - `metrics.py`: drawdown and benchmark-return calculations, plus `equity_curve_from_rows`.
   - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
   - `optimization/`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
     is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
-- `models.py` (package root): typed dataclasses for result and config contracts. Key types: `BacktestConfig`, `BacktestResult`, `WalkForwardConfig`, `WalkForwardSummary`, `BacktestBatchConfig`. `BacktestResult` and `WalkForwardSummary` each expose a `to_payload(*, display_name_fn=None) -> dict` method that produces a JSON-ready dict; pass an optional `display_name_fn` to remap account names for UI presentation.
+- `models/`: passive contracts, one module per area — `backtest.py` (a run's config and result),
+  `optimizer.py` (search config and everything an experiment persists), `report.py` (operator-facing
+  report and leaderboard shapes). The package root re-exports the stable public types, mirroring
+  `trading/models/`. `BacktestResult` and `OptimizationSummary` each expose
+  `to_payload(*, display_name_fn=None) -> dict`; pass `display_name_fn` to remap account names for
+  UI presentation.
 
 ## Hook-Up Flow
 
@@ -59,7 +67,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
    alternative strategies receive `ExternalFeatureBundle` values from
    `src/infrastructure/feature_providers/` providers.
-5. Backtesting-local models live in `models.py` and `report_models.py`; shared cross-runtime
+5. Backtesting-local models live in `models/`; shared cross-runtime
    contracts remain in `src/trading/models/`.
 
 ## Workflows
@@ -70,6 +78,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Naming Convention
 
-- Repository modules end with `_repository.py` and live in `repositories/`.
+- Repository modules live in `repositories/` and are named for the data area they own
+  (`runs`, `optimization`) — the same convention as `trading/repositories/`, with no `_repository` suffix.
 - Service modules end with `_service.py` and live in `services/`.
 - Domain helper modules live in `domain/` and use capability names (`metrics`, `windowing`, etc.).
