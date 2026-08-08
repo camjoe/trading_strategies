@@ -8,20 +8,14 @@ from dataclasses import dataclass
 
 from trading.backtesting.optimizer_models import (
     CompoundedOOSSeries,
-    ExperimentStatus,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
-    OptimizationTrialRecord,
-    OptimizationWindowRecord,
 )
-from trading.backtesting.repositories.optimization_repository import (
-    fetch_experiment_by_id,
-    fetch_manifest_for_experiment,
+from trading.backtesting.services.audit_service import (
+    ExperimentWindowAudit,
+    fetch_experiment_audit,
     fetch_recent_experiments,
-    fetch_trials_for_experiment,
-    fetch_windows_for_experiment,
 )
-from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
 from trading.domain.promotion_gate import (
     PromotionGateResult,
     evaluate_promotion_gate,
@@ -70,14 +64,6 @@ def fetch_optimization_history(
 
 
 @dataclass(frozen=True)
-class OptimizationWindowDetail:
-    """One walk-forward window and every candidate evaluated on its training interval."""
-
-    window: OptimizationWindowRecord
-    trials: list[OptimizationTrialRecord]
-
-
-@dataclass(frozen=True)
 class OptimizationDetail:
     """Everything persisted about one experiment, assembled for an operator surface.
 
@@ -93,7 +79,7 @@ class OptimizationDetail:
     experiment: OptimizationExperimentRecord
     account_name: str
     gate: PromotionGateResult
-    windows: list[OptimizationWindowDetail]
+    windows: list[ExperimentWindowAudit]
     compounded_oos: CompoundedOOSSeries | None
     manifest: OptimizationManifestRecord | None
 
@@ -114,42 +100,22 @@ def fetch_optimization_detail(
     *,
     experiment_id: int,
 ) -> OptimizationDetail | None:
-    """Assemble one experiment's full audit record, or ``None`` if unknown.
+    """Assemble one experiment's operator view, or ``None`` if unknown.
 
-    Trials are nested under the window they were evaluated on rather than returned
-    flat, so the multiple-testing record reads in the order the search happened.
+    The audit tree comes from backtesting; this adds what only the catalog side
+    knows — the owning account's name, and the promotion gate verdict.
     """
-    experiment = fetch_experiment_by_id(conn, experiment_id=experiment_id)
-    if experiment is None:
+    audit = fetch_experiment_audit(conn, experiment_id=experiment_id)
+    if audit is None:
         return None
 
-    account_name = _account_name(conn, experiment.account_id)
-    gate = _experiment_gate(experiment)
-
-    if experiment.status == ExperimentStatus.FAILED:
-        return OptimizationDetail(
-            experiment=experiment,
-            account_name=account_name,
-            gate=gate,
-            windows=[],
-            compounded_oos=None,
-            manifest=None,
-        )
-
-    trials_by_window: dict[int, list[OptimizationTrialRecord]] = {}
-    for trial in fetch_trials_for_experiment(conn, experiment_id=experiment_id):
-        trials_by_window.setdefault(trial.window_id, []).append(trial)
-
     return OptimizationDetail(
-        experiment=experiment,
-        account_name=account_name,
-        gate=gate,
-        windows=[
-            OptimizationWindowDetail(window=window, trials=trials_by_window.get(window.id, []))
-            for window in fetch_windows_for_experiment(conn, experiment_id=experiment_id)
-        ],
-        compounded_oos=fetch_compounded_oos(conn, experiment_id=experiment_id),
-        manifest=fetch_manifest_for_experiment(conn, experiment_id=experiment_id),
+        experiment=audit.experiment,
+        account_name=_account_name(conn, audit.experiment.account_id),
+        gate=_experiment_gate(audit.experiment),
+        windows=audit.windows,
+        compounded_oos=audit.compounded_oos,
+        manifest=audit.manifest,
     )
 
 
