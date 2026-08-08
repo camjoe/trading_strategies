@@ -92,18 +92,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/books` | `tests/src/trading/services/books/` |
 | `src/trading/services/universe` | `tests/src/trading/services/universe/` |
 
-### Targeted runs in GitHub Actions
-
-Use the **Targeted Tests** workflow (`targeted-tests.yml`) for focused validation on a branch without waiting for the full CI suite:
-
-```sh
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data"
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data,src/trading/services/promotion"
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="all" -f extra_args="--no-cov"
-```
-
-The workflow accepts a `suites` input (space- or comma-separated suite names) and an optional `extra_args` input for additional pytest flags.
-
 ## Quick Start
 
 Run the full suite from the repository root:
