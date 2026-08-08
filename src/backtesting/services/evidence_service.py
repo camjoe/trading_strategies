@@ -16,10 +16,10 @@ import sqlite3
 from statistics import median
 
 from backtesting.domain.metrics import max_drawdown_pct
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_latest_experiment_for_account_strategy,
 )
-from backtesting.repositories.report_repository import (
+from backtesting.repositories.runs import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,

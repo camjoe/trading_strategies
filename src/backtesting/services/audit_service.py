@@ -26,7 +26,7 @@ from backtesting.models.optimizer import (
     OptimizationTrialRecord,
     OptimizationWindowRecord,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
     fetch_manifest_for_experiment,
     fetch_recent_experiments as _fetch_recent_experiments,

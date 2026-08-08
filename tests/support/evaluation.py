@@ -4,7 +4,7 @@ from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizationWindowInsert,
 )
-from backtesting.repositories.optimization_repository import insert_experiment, insert_window
+from backtesting.repositories.optimization import insert_experiment, insert_window
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.repositories.snapshots import EquitySnapshotRepository
 

@@ -21,12 +21,13 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Layers
 
-- `repositories/`: SQL and row retrieval/persistence only.
-  - `backtest_repository.py`: write-side backtest run/trade/snapshot inserts.
-  - `leaderboard_repository.py`: leaderboard row/equity reads.
-  - `report_repository.py`: full report run/snapshot/trade reads.
-  - `report_repository.py` also exposes recent run-list reads used by backend service adapters.
-  - `optimization_repository.py`: walk-forward optimization experiment persistence (Tier-1: config, winner, holdout summary, promoted link).
+- `repositories/`: SQL and row retrieval/persistence only. One module per data area, as in
+  `trading/repositories/`.
+  - `runs.py`: `backtest_runs`, `backtest_executions`, and `backtest_equity_snapshots` — run/trade/snapshot
+    inserts plus the report, recent-run, and leaderboard reads over them.
+  - `optimization.py`: `optimization_experiments`, `optimization_windows`, `optimization_trials`, and
+    `optimization_run_manifests` — experiment config, winner, holdout summary, promoted link, and the
+    per-window/per-candidate audit tree.
 
 - `services/`: business flow, model mapping, orchestration.
   - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
@@ -75,6 +76,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Naming Convention
 
-- Repository modules end with `_repository.py` and live in `repositories/`.
+- Repository modules live in `repositories/` and are named for the data area they own
+  (`runs`, `optimization`) — the same convention as `trading/repositories/`, with no `_repository` suffix.
 - Service modules end with `_service.py` and live in `services/`.
 - Domain helper modules live in `domain/` and use capability names (`metrics`, `windowing`, etc.).

@@ -21,15 +21,15 @@ from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizerConfig,
 )
-from backtesting.repositories.backtest_repository import insert_backtest_run
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
-    fetch_latest_for_account,
     fetch_manifest_for_experiment,
+    fetch_recent_experiments,
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
     insert_experiment,
 )
+from backtesting.repositories.runs import insert_backtest_run
 from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -228,8 +228,7 @@ class TestFailFast:
                 conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
             )
 
-        record = fetch_latest_for_account(conn, account_id=account_id)
-        assert record is not None
+        record = fetch_recent_experiments(conn, limit=1)[0]
         assert record.status == ExperimentStatus.FAILED
         assert record.failure_stage == FailureStage.WINDOW_SEARCH
         assert record.window_count == 1  # the first window completed before the second failed
@@ -266,8 +265,7 @@ class TestFailFast:
                 conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
             )
 
-        record = fetch_latest_for_account(conn, account_id=account_id)
-        assert record is not None
+        record = fetch_recent_experiments(conn, limit=1)[0]
         assert record.status == ExperimentStatus.FAILED
         assert record.failure_stage == FailureStage.HOLDOUT
         assert record.window_count > 0  # every window completed before the holdout ran

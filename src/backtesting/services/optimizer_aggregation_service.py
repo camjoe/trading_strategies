@@ -15,8 +15,8 @@ from datetime import date
 
 from backtesting.domain.optimization.aggregation import compound_oos_returns, period_return_pct
 from backtesting.models.optimizer import CompoundedOOSSeries, OOSReturnSegment
-from backtesting.repositories.optimization_repository import fetch_windows_for_experiment
-from backtesting.repositories.report_repository import fetch_backtest_run_equity_bounds
+from backtesting.repositories.optimization import fetch_windows_for_experiment
+from backtesting.repositories.runs import fetch_backtest_run_equity_bounds
 
 
 def fetch_oos_segments(conn: sqlite3.Connection, *, experiment_id: int) -> list[OOSReturnSegment] | None:

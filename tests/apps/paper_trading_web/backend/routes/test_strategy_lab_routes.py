@@ -13,7 +13,7 @@ from backtesting.models.optimizer import (
     OptimizationTrialInsert,
     OptimizationWindowInsert,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     insert_experiment,
     insert_trial,
     insert_window,

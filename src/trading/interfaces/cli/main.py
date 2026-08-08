@@ -11,7 +11,7 @@ from backtesting.backtest import (
 )
 from backtesting.models import BacktestBatchConfig, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
     fetch_manifest_for_experiment,
     fetch_trials_for_experiment,

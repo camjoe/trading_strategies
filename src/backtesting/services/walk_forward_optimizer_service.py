@@ -35,7 +35,7 @@ from backtesting.models.optimizer import (
     WalkForwardSplit,
     WindowSelection,
 )
-from backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     insert_experiment,
     insert_manifest,
     insert_trial,

@@ -9,7 +9,7 @@ from backtesting.domain.metrics import (
     summarize_backtest_performance,
 )
 from backtesting.models.report import BacktestLeaderboardEntry
-from backtesting.repositories.leaderboard_repository import (
+from backtesting.repositories.runs import (
     fetch_equity_rows,
     fetch_leaderboard_rows,
     fetch_trade_rows,

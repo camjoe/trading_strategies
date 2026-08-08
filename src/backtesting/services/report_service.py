@@ -5,7 +5,7 @@ This service module owns:
 - ``fetch_backtest_report_data``: assembles a ``BacktestFullReport`` from
   persisted run, snapshot, and trade rows, including benchmark return and alpha
   calculation.
-- Thin wrappers around ``report_repository`` reads for latest-run and
+- Thin wrappers around ``repositories.runs`` reads for latest-run and
   recent-run lookups.
 """
 
@@ -27,7 +27,7 @@ from backtesting.models.report import (
     BacktestReportTrade,
     parse_warnings,
 )
-from backtesting.repositories.report_repository import (
+from backtesting.repositories.runs import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,

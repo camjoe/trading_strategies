@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-08-07
-Last Reviewed: 2026-08-07
+Last Reviewed: 2026-08-08
 Purpose: Inventory the `src/backtesting/` bounded context — the simulation and parameter-search subsystem that owns the backtest and optimizer tables, and the two service surfaces the trading side reads it through.
 Related: [Trading Package Map](trading-package-map.md), [Backtesting](../reference/backtesting.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
@@ -72,10 +72,8 @@ SQL only. The seven owned tables.
 
 | Module | Responsibility |
 |---|---|
-| `backtest_repository.py` | Backtest run rows, their executions, and equity snapshots |
-| `report_repository.py` | Report-shaped reads over a run and its snapshots/trades |
-| `leaderboard_repository.py` | Ranked reads across runs |
-| `optimization_repository.py` | Optimizer experiments, windows, trials, and run manifests |
+| `runs.py` | Backtest run rows, their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
+| `optimization.py` | Optimizer experiments, windows, trials, and run manifests |
 
 ## `models/`
 
