@@ -63,9 +63,9 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "docs/maps/trading-package-map.md",
         "src/trading",
         (
-            "src/trading/backtesting/domain",
-            "src/trading/backtesting/repositories",
-            "src/trading/backtesting/services",
+            "src/backtesting/domain",
+            "src/backtesting/repositories",
+            "src/backtesting/services",
             # models/ is directory-summarized by contract name (one contract per file),
             # not enumerated file-by-file; see the `### src/trading/models/` section.
             "src/trading/models",

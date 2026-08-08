@@ -40,5 +40,5 @@ Proceed recommendation: <one sentence>
 ## Repo references
 
 - `src/infrastructure/database/alembic/versions/`
-- `src/trading/backtesting/`
+- `src/backtesting/`
 - `apps/paper_trading_web/backend/`

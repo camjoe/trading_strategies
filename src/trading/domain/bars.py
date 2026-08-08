@@ -7,7 +7,7 @@ the same strategy evaluates differently in a backtest than it does against the
 market. That agreement is this module.
 
 Multi-ticker calendar alignment is a separate concern and lives with the engine
-that walks a calendar (``trading.backtesting.domain.bars``); this is the
+that walks a calendar (``backtesting.domain.bars``); this is the
 per-frame rule both paths share.
 
 Pure derivation: no provider, no connection, no I/O.

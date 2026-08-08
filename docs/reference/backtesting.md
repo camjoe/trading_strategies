@@ -9,7 +9,7 @@ Related: [ADR 016 Optimizer Experiments as Research Evidence](../adr/016-optimiz
 
 Backtesting reuses account metadata from paper trading while storing run, trade, and equity history
 in dedicated backtest tables. Package structure and layer ownership live in
-`src/trading/backtesting/README.md` and `docs/maps/trading-package-map.md`.
+`src/backtesting/README.md` and `docs/maps/trading-package-map.md`.
 
 Backtesting continues to use explicit SQL and the in-house engine because current needs are
 analytics-heavy and query-shape specific. Revisit a framework or ORM only if object-graph
@@ -269,4 +269,4 @@ Two consequences worth knowing:
 - `docs/reference/strategies.md`
 - `docs/reference/db-schema.md`
 - `docs/maps/trading-package-map.md`
-- `src/trading/backtesting/README.md`
+- `src/backtesting/README.md`

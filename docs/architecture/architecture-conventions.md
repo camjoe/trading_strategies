@@ -20,14 +20,21 @@ Primary flow:
 
 Do not invert this flow.
 
-Top-level package shape is intentionally **hybrid**:
+`src/trading/` holds **layers only**. A package that owns its own tables and needs its own
+stack to reach them is a bounded context and sits beside `trading/`, not inside it:
 
 1. The layered backbone above applies to main runtime behavior.
-2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`src/trading/backtesting`); broker adapters live at the repo-root `src/infrastructure/brokers/` package,
+2. **The test is table ownership.** `src/backtesting/` owns seven tables nothing else writes
+   (`backtest_runs`, `backtest_executions`, `backtest_equity_snapshots`, `optimization_experiments`,
+   `optimization_windows`, `optimization_trials`, `optimization_run_manifests`); every other package
+   under `src/trading/` shares `trading/repositories/`. That is why it is the only one, and the
+   criterion a future candidate has to meet. Its seam with `trading/` is enforced in both directions
+   by `layer_check` — reads cross at services, and shared lower layers (`trading.domain`,
+   `trading.models`, `trading.persistence`) are layering rather than crossing.
+3. Broker adapters live at the repo-root `src/infrastructure/brokers/` package,
    external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
    concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.
-3. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
+4. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
 
@@ -37,7 +44,7 @@ Allowed:
 2. `src/trading/services/*` importing `src/trading/repositories/*` and `src/trading/domain/*`
 3. `src/trading/repositories/*` importing `src/infrastructure/database/*` helpers
 4. Any layer importing `src/trading/persistence/*` — it sits below the repository
-   layer so services, both repository packages, and `trading/backtesting/*` can share
+   layer so services, both repository packages, and `backtesting/*` can share
    transaction scope and column encoding without borrowing from one another
 
 Disallowed:
@@ -62,7 +69,7 @@ packages** inside `src/trading/services/`, see [Service Ownership Map](service-o
 | `trading/models/` | The lowest layer — imports nothing from any other layer |
 | `trading/repositories/` | SQL reads/writes and row-level data access helpers |
 | `trading/persistence/` | Mechanics shared by all DB access — transaction scope, column encoding. Below the repository layer; imports nothing from `trading/` or `infrastructure/` |
-| `trading/backtesting/` | Bounded context; mirrors the same repository/service/domain layering |
+| `backtesting/` (repo root, beside `trading/`) | Bounded context owning the backtest + optimizer tables; mirrors the same repository/service/domain layering |
 | `infrastructure/database/` | DB infrastructure only: schema migration, connection gating, backend selection, path/config |
 | `infrastructure/config/` | File-backed static config assets (account profile presets) |
 | `infrastructure/brokers/` | Owns broker SDK imports and connection adapters |
@@ -104,7 +111,7 @@ package-name boundaries are enforced by `python -m scripts.checks.repo.layer_che
   `db-migration` skill (`.ai/skills/db-migration/`) for migration review and schema-change
   validation.
 - **`backtesting/`** — see [Backtesting](../reference/backtesting.md) and
-  `src/trading/backtesting/README.md`.
+  `src/backtesting/README.md`.
 
 ## Execution and Parameter Ownership
 

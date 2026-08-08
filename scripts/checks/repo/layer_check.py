@@ -86,7 +86,7 @@ LAYER_RULES: list[LayerRule] = [
     LayerRule(
         label="trading/services → no backtesting repository imports (cross the seam at its services)",
         source_glob="src/trading/services/**/*.py",
-        forbidden_prefixes=("trading.backtesting.repositories.",),
+        forbidden_prefixes=("backtesting.repositories.",),
         # backtesting is a bounded context: a service reaching past its services
         # into its tables couples to a schema it does not own. Reads go through
         # backtesting.services — evidence_service for strategy evidence,
@@ -100,13 +100,13 @@ LAYER_RULES: list[LayerRule] = [
         exceptions=("src/trading/services/strategy_catalog/optimizer_promotion.py",),
     ),
     LayerRule(
-        label="trading/backtesting/services → no direct database imports",
-        source_glob="src/trading/backtesting/services/**/*.py",
+        label="backtesting/services → no direct database imports",
+        source_glob="src/backtesting/services/**/*.py",
         forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
-        label="trading/backtesting/services → no trading repository imports (cross the seam at its services)",
-        source_glob="src/trading/backtesting/services/**/*.py",
+        label="backtesting/services → no trading repository imports (cross the seam at its services)",
+        source_glob="src/backtesting/services/**/*.py",
         forbidden_prefixes=("trading.repositories.",),
         # The mirror of the trading/services rule above: backtesting reads the
         # account, book, and strategy it is running against through trading's
@@ -142,7 +142,7 @@ LAYER_RULES: list[LayerRule] = [
             "trading.services.",
             "trading.repositories.",
             "trading.interfaces.",
-            "trading.backtesting.",
+            "backtesting.",
             "infrastructure.",
         ),
     ),
@@ -154,7 +154,7 @@ LAYER_RULES: list[LayerRule] = [
             "trading.services.",
             "trading.repositories.",
             "trading.interfaces.",
-            "trading.backtesting.",
+            "backtesting.",
             "infrastructure.",
         ),
     ),
@@ -172,8 +172,25 @@ LAYER_RULES: list[LayerRule] = [
         exceptions=(
             "src/trading/interfaces/cli/main.py",
             "src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py",
-            "src/trading/backtesting/backtest.py",
         ),
+    ),
+    LayerRule(
+        # Mirrors the src/trading rule above: relocating backtesting out of
+        # src/trading/ took it outside that glob, and the guard has to follow it.
+        label="backtesting → no direct market-data adapter imports (wire at composition roots)",
+        source_glob="src/backtesting/**/*.py",
+        forbidden_prefixes=("infrastructure.market_data.",),
+        exceptions=("src/backtesting/backtest.py",),
+    ),
+    LayerRule(
+        label="backtesting → no direct broker SDK imports",
+        source_glob="src/backtesting/**/*.py",
+        forbidden_prefixes=("ib_async", "ibapi"),
+    ),
+    LayerRule(
+        label="backtesting → no direct external-data SDK imports",
+        source_glob="src/backtesting/**/*.py",
+        forbidden_prefixes=("praw", "pytrends", "vaderSentiment", "newsapi"),
     ),
     LayerRule(
         label="apps/paper_trading_web/routes → no direct feature-provider imports",
@@ -181,9 +198,9 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("infrastructure.feature_providers.",),
     ),
     LayerRule(
-        label="apps/paper_trading_web/routes → no direct trading.backtesting.domain imports",
+        label="apps/paper_trading_web/routes → no direct backtesting.domain imports",
         source_glob="apps/paper_trading_web/backend/routes/**/*.py",
-        forbidden_prefixes=("trading.backtesting.domain.",),
+        forbidden_prefixes=("backtesting.domain.",),
     ),
     LayerRule(
         label="trading → no direct broker SDK imports",

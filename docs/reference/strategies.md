@@ -127,4 +127,4 @@ later commit does not retract it from public Git history.
 
 - `docs/reference/backtesting.md`
 - `docs/reference/sentiment-signals.md`
-- `src/trading/backtesting/README.md`
+- `src/backtesting/README.md`

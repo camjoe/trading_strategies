@@ -20,8 +20,8 @@ IMPORT_ENTRYPOINTS = [
     "trading.services.evaluation",
     "trading.services.reporting",
     "trading.services.promotion.actions",
-    "trading.backtesting",
-    "trading.backtesting.domain.metrics",
+    "backtesting",
+    "backtesting.domain.metrics",
 ]
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.backtesting.backtest import backtest_report_full, preview_backtest_warnings, run_backtest
+from backtesting.backtest import backtest_report_full, preview_backtest_warnings, run_backtest
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest
 from ..services.accounts.backtests import (

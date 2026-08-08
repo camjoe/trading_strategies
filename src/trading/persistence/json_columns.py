@@ -4,7 +4,7 @@ One spelling per value: keys sorted, no insignificant whitespace. Rows written b
 different code paths into the same column then hold identical text for identical
 data, which is what makes a column diffable and what makes any hash taken over its
 contents stable — see ``params_fingerprint`` in
-``trading.backtesting.domain.optimization.search``.
+``backtesting.domain.optimization.search``.
 
 ``sort_keys`` is a no-op for the columns holding a JSON *list* (``trade_symbols``,
 ``universe_tickers_json``); routing those through the same function anyway means a

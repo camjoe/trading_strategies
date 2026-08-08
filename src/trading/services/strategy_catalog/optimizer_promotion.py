@@ -21,8 +21,8 @@ import json
 import sqlite3
 from typing import Any
 
-from trading.backtesting.optimizer_models import ExperimentStatus, OptimizationExperimentRecord
-from trading.backtesting.repositories.optimization_repository import (
+from backtesting.optimizer_models import ExperimentStatus, OptimizationExperimentRecord
+from backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     set_promoted_strategy,
 )

@@ -46,7 +46,7 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `README.md` | Repo overview, setup, how to run | Project setup, major new packages added |
 | `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
 | `src/trading/README.md` | `src/trading/` package overview and layering summary | Top-level `src/trading/` structure changes |
-| `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
+| `src/backtesting/README.md` | Backtesting subsystem orientation | `src/backtesting/` entry points change |
 | `src/trading/interfaces/runtime/README.md` | Runtime surface index: which modules are runnable (scheduled/operator/worker) vs library | A runtime job, scheduling, or data-ops module is added/moved |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
@@ -84,7 +84,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/trading/backtesting/` interface, safeguards, or evaluation methodology changes |
+| `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/backtesting/` interface, safeguards, or evaluation methodology changes |
 | `docs/reference/backtest-live-divergence.md` | Where the simulation engine and live runtime execute differently, what that does to walk-forward selection, and the trade-budget/pacing machinery | Either execution path's sizing, trade-count, or risk-stop behaviour changes, or the intended use of the optimizer changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Numbered Alembic migration system: revisions, operator commands, runtime verification | `src/infrastructure/database/alembic/`, `migration_runner.py`, or migration conventions change |

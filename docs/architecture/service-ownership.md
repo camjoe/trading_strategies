@@ -36,7 +36,7 @@ where it goes.
 | `fixtures/` | Deterministic synthetic data seeding for generated databases (the offline demo story and the sandbox test bed). | Does not own production writes — it drives the owning service for every derived record. |
 
 Stale-backtest remediation lives in the backtesting bounded context
-(`trading.backtesting.services`), not a service here.
+(`backtesting.services`), not a service here.
 
 ## Internal layouts worth calling out
 

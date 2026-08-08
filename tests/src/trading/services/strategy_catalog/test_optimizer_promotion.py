@@ -13,17 +13,16 @@ from datetime import date
 
 import pytest
 
-from tests.support.repositories import insert_repository_account
-from trading.backtesting.domain.optimization.search import params_fingerprint
-from trading.backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
-from trading.backtesting.optimizer_models import (
+from backtesting.domain.optimization.search import params_fingerprint
+from backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
+from backtesting.optimizer_models import (
     ExperimentStatus,
     FailureStage,
     OptimizationExperimentInsert,
     OptimizerConfig,
 )
-from trading.backtesting.repositories.backtest_repository import insert_backtest_run
-from trading.backtesting.repositories.optimization_repository import (
+from backtesting.repositories.backtest_repository import insert_backtest_run
+from backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     fetch_latest_for_account,
     fetch_manifest_for_experiment,
@@ -31,7 +30,8 @@ from trading.backtesting.repositories.optimization_repository import (
     fetch_windows_for_experiment,
     insert_experiment,
 )
-from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 from trading.services.universe import DEFAULT_TICKERS_FILE
