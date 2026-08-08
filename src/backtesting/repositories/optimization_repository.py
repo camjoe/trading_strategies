@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     ExperimentStatus,
     OptimizationExperimentInsert,
     OptimizationExperimentRecord,

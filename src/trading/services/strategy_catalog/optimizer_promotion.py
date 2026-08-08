@@ -21,7 +21,7 @@ import json
 import sqlite3
 from typing import Any
 
-from backtesting.optimizer_models import ExperimentStatus, OptimizationExperimentRecord
+from backtesting.models.optimizer import ExperimentStatus, OptimizationExperimentRecord
 from backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     set_promoted_strategy,

@@ -8,7 +8,7 @@ from datetime import date
 import pytest
 
 from backtesting.domain.optimization.aggregation import compound_oos_returns, period_return_pct
-from backtesting.optimizer_models import OOSReturnSegment
+from backtesting.models.optimizer import OOSReturnSegment
 
 
 def _segment(index: int, start: date, end: date, ret: float) -> OOSReturnSegment:

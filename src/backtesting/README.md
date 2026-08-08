@@ -49,7 +49,12 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `optimization/`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
     is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
-- `models.py` (package root): typed dataclasses for result and config contracts. Key types: `BacktestConfig`, `BacktestResult`, `WalkForwardConfig`, `WalkForwardSummary`, `BacktestBatchConfig`. `BacktestResult` and `WalkForwardSummary` each expose a `to_payload(*, display_name_fn=None) -> dict` method that produces a JSON-ready dict; pass an optional `display_name_fn` to remap account names for UI presentation.
+- `models/`: passive contracts, one module per area — `backtest.py` (a run's config and result),
+  `optimizer.py` (search config and everything an experiment persists), `report.py` (operator-facing
+  report and leaderboard shapes). The package root re-exports the stable public types, mirroring
+  `trading/models/`. `BacktestResult` and `OptimizationSummary` each expose
+  `to_payload(*, display_name_fn=None) -> dict`; pass `display_name_fn` to remap account names for
+  UI presentation.
 
 ## Hook-Up Flow
 
@@ -59,7 +64,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
    alternative strategies receive `ExternalFeatureBundle` values from
    `src/infrastructure/feature_providers/` providers.
-5. Backtesting-local models live in `models.py` and `report_models.py`; shared cross-runtime
+5. Backtesting-local models live in `models/`; shared cross-runtime
    contracts remain in `src/trading/models/`.
 
 ## Workflows

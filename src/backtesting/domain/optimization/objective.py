@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from backtesting.optimizer_models import CandidateResult
+from backtesting.models.optimizer import CandidateResult
 from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.domain.exceptions import ValidationError
 

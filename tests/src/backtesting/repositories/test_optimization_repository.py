@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     MANIFEST_V1,
     OptimizationExperimentInsert,
     OptimizationManifestInsert,

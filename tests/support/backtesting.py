@@ -4,7 +4,7 @@ import pandas as pd
 
 from backtesting.backtest import BacktestConfig
 from backtesting.models import BacktestResult
-from backtesting.report_models import BacktestLeaderboardEntry
+from backtesting.models.report import BacktestLeaderboardEntry
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account

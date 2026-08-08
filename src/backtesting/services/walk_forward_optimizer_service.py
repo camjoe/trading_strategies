@@ -19,7 +19,7 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     MANIFEST_V1,
     CandidateResult,
     ExperimentStatus,

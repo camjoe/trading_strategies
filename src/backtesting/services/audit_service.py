@@ -18,7 +18,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     CompoundedOOSSeries,
     ExperimentStatus,
     OptimizationExperimentRecord,

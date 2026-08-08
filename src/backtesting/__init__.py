@@ -18,7 +18,7 @@ from backtesting.backtest import (
     run_backtest,
     run_backtest_batch,
 )
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestLeaderboardEntry,
     BacktestReportSnapshot,

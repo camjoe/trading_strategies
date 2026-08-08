@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from backtesting.optimizer_models import OptimizationExperimentInsert, OptimizationWindowInsert
+from backtesting.models.optimizer import OptimizationExperimentInsert, OptimizationWindowInsert
 from backtesting.repositories.backtest_repository import insert_backtest_snapshot
 from backtesting.repositories.optimization_repository import insert_experiment, insert_window
 from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos

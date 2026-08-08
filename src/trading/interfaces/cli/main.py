@@ -10,7 +10,7 @@ from backtesting.backtest import (
     run_backtest_metrics_only,
 )
 from backtesting.models import BacktestBatchConfig, BacktestConfig
-from backtesting.optimizer_models import OptimizerConfig
+from backtesting.models.optimizer import OptimizerConfig
 from backtesting.repositories.optimization_repository import (
     fetch_experiment_by_id,
     fetch_manifest_for_experiment,

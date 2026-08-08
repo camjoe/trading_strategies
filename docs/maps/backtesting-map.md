@@ -77,13 +77,17 @@ SQL only. The seven owned tables.
 | `leaderboard_repository.py` | Ranked reads across runs |
 | `optimization_repository.py` | Optimizer experiments, windows, trials, and run manifests |
 
-## Data contracts
+## `models/`
+
+Passive contracts, one module per area. The package root re-exports the stable public types,
+mirroring `trading/models/`. These belong to the seven tables this context owns; `trading/models/`
+holds the contracts for the tables `trading/repositories/` owns.
 
 | Module | Responsibility |
 |---|---|
-| `models.py` | Backtest configuration and batch contracts (`BacktestConfig`, `BacktestBatchConfig`) |
-| `optimizer_models.py` | Optimizer configuration and persisted experiment/window/trial/manifest records |
-| `report_models.py` | Report and summary shapes returned to operator surfaces |
+| `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
+| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs, plus OOS aggregation shapes |
+| `report.py` | Report and leaderboard shapes returned to operator surfaces |
 
 ## Related
 

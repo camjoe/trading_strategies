@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from paper_trading_web.backend.schemas.strategy_lab import MAX_CANDIDATE_BUDGET
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizationSummary,
     OptimizationTrialInsert,

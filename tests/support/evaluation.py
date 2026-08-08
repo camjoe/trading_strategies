@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     OptimizationExperimentInsert,
     OptimizationWindowInsert,
 )

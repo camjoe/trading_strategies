@@ -20,7 +20,7 @@ from backtesting.domain.metrics import (
     max_drawdown_pct,
     summarize_backtest_performance,
 )
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,

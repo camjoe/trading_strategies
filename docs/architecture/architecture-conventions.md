@@ -122,13 +122,15 @@ package-name boundaries are enforced by `python -m scripts.checks.repo.layer_che
     area names and service packages. Neither is drift — nothing here constrains module filenames
     beyond `snake_case`, `infrastructure/` diverges the same way, and both packages follow the
     documented `fetch_*`/`insert_*` verbs.
-  - It keeps its data contracts in three root-level `*_models.py` modules rather than a `models/`
-    package, and they follow the `*Config`/`*Insert`/`*Record` suffixes. [ADR 005](../adr/005-models-as-lowest-data-layer.md)
-    governs `trading/models/` and does not reach across contexts; moving these into
-    `trading/models/` would make trading's lowest layer own contracts for seven tables it never
-    writes. The size is also in band — `optimizer_models.py` is 494 lines against
-    `trading/models/books.py` at 433, and ADR 005 moved *toward* grouped feature modules, which is
-    what these already are.
+  - Its data contracts stay in **its own** `backtesting/models/` package — feature modules with a
+    re-exporting root, the same arrangement as `trading/models/`, following the same
+    `*Config`/`*Insert`/`*Record` suffixes. Sharing the *shape* is worth it for discoverability;
+    sharing the *location* is not. [ADR 005](../adr/005-models-as-lowest-data-layer.md) governs
+    `trading/models/` and does not reach across contexts, and moving these in would make trading's
+    lowest layer own contracts for seven tables it never writes.
+  - Module size is not a reason to split one: `models/optimizer.py` is 494 lines against
+    `trading/models/books.py` at 433. ADR 005 moved *toward* grouped feature modules, so a module
+    holding one coherent area is the target state, not drift from it.
 
 ## Execution and Parameter Ownership
 

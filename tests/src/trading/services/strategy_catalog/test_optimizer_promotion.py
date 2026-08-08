@@ -15,7 +15,7 @@ import pytest
 
 from backtesting.domain.optimization.search import params_fingerprint
 from backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
-from backtesting.optimizer_models import (
+from backtesting.models.optimizer import (
     ExperimentStatus,
     FailureStage,
     OptimizationExperimentInsert,

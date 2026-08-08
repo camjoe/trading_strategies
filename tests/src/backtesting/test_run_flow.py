@@ -6,7 +6,7 @@ import pytest
 import backtesting.backtest as backtest_module
 import backtesting.services.execution_service as execution_service
 import backtesting.services.report_service as report_service
-from backtesting.report_models import (
+from backtesting.models.report import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,

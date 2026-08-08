@@ -3,7 +3,7 @@ from __future__ import annotations
 from calendar import monthrange
 from datetime import date, timedelta
 
-from backtesting.optimizer_models import WalkForwardSplit
+from backtesting.models.optimizer import WalkForwardSplit
 from trading.domain.exceptions import ValidationError
 
 

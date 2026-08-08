@@ -9,7 +9,7 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
+from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from backtesting.repositories.backtest_repository import (
     insert_backtest_run,
     insert_backtest_snapshot,

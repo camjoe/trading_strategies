@@ -2,7 +2,7 @@ import pytest
 
 import backtesting.backtest as backtest_module
 from backtesting.models import BacktestBatchConfig
-from backtesting.report_models import BacktestLeaderboardEntry
+from backtesting.models.report import BacktestLeaderboardEntry
 from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
 
 
