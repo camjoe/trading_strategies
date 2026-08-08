@@ -132,9 +132,20 @@ def insert_backtest_snapshot(
     commit_unit_of_work(conn)
 
 
-def fetch_recent_backtest_runs(conn: sqlite3.Connection, *, limit: int) -> list[dict[str, object]]:
-    # Standalone-only: rolling-window (walk-forward) runs live in backtest_runs
-    # too, but must not surface as generic recent backtests.
+def fetch_backtest_runs(
+    conn: sqlite3.Connection,
+    *,
+    limit: int,
+    account_name: str | None = None,
+) -> list[dict[str, object]]:
+    """Standalone runs newest first, for one account or across all of them.
+
+    Standalone-only: walk-forward OOS and holdout runs live in ``backtest_runs``
+    too, but they are optimizer internals and must not surface as backtest history.
+
+    Callers wanting the latest single run pass ``limit=1`` and read the first row —
+    "newest" is this ordering, so a separate query for it would be the same query.
+    """
     rows = conn.execute(
         f"""
         SELECT {_REPORT_COLUMNS}
@@ -142,47 +153,13 @@ def fetch_recent_backtest_runs(conn: sqlite3.Connection, *, limit: int) -> list[
         JOIN accounts a ON a.id = r.account_id
         LEFT JOIN strategies s ON s.id = r.strategy_id
         WHERE r.purpose = ?
+          AND (? IS NULL OR a.name = ?)
         ORDER BY r.id DESC
         LIMIT ?
         """,
-        (BACKTEST_PURPOSE_STANDALONE, int(limit)),
+        (BACKTEST_PURPOSE_STANDALONE, account_name, account_name, int(limit)),
     ).fetchall()
     return [dict(row) for row in rows]
-
-
-def fetch_latest_backtest_run_for_account(conn: sqlite3.Connection, *, account_name: str) -> dict[str, object] | None:
-    row = conn.execute(
-        f"""
-        SELECT {_REPORT_COLUMNS}
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        LEFT JOIN strategies s ON s.id = r.strategy_id
-        WHERE a.name = ?
-          AND r.purpose = ?
-        ORDER BY r.id DESC
-        LIMIT 1
-        """,
-        (account_name, BACKTEST_PURPOSE_STANDALONE),
-    ).fetchone()
-    return None if row is None else dict(row)
-
-
-def fetch_latest_backtest_run_id_for_account(conn: sqlite3.Connection, *, account_name: str) -> int | None:
-    row = conn.execute(
-        """
-        SELECT r.id
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        WHERE a.name = ?
-          AND r.purpose = ?
-        ORDER BY r.id DESC
-        LIMIT 1
-        """,
-        (account_name, BACKTEST_PURPOSE_STANDALONE),
-    ).fetchone()
-    if row is None:
-        return None
-    return int(row["id"])
 
 
 def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> dict[str, object] | None:

@@ -96,8 +96,9 @@ def test_fetch_backtest_report_data_raises_when_no_snapshots(monkeypatch: pytest
 
 
 def test_fetch_latest_backtest_run_for_account_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(report_service, "_repo_fetch_latest_backtest_run_for_account", lambda *_a, **_k: None)
+    monkeypatch.setattr(report_service, "fetch_backtest_runs", lambda *_a, **_k: [])
     assert report_service.fetch_latest_backtest_run_for_account(object(), account_name="acct") is None
+    assert report_service.fetch_latest_backtest_run_id_for_account(object(), account_name="acct") is None
 
 
 def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -113,11 +114,13 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "fee_per_trade": "0.5",
         "tickers_file": "default.txt",
     }
-    monkeypatch.setattr(report_service, "_repo_fetch_latest_backtest_run_for_account", lambda *_a, **_k: row)
-    monkeypatch.setattr(report_service, "_repo_fetch_recent_backtest_runs", lambda *_a, **_k: [row, row])
+    monkeypatch.setattr(
+        report_service, "fetch_backtest_runs", lambda *_a, **kw: [row] if kw["limit"] == 1 else [row, row]
+    )
 
     latest = report_service.fetch_latest_backtest_run_for_account(object(), account_name="acct")
     recent = report_service.fetch_recent_backtest_runs(object(), limit=2)
+    latest_id = report_service.fetch_latest_backtest_run_id_for_account(object(), account_name="acct")
 
     assert latest == {
         "runId": 12,
@@ -132,6 +135,8 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(monkeypatch
         "tickersFile": "default.txt",
     }
     assert recent == [latest, latest]
+    # The id read is the same row, projected differently — not a second query.
+    assert latest_id == 12
 
 
 def test_report_summary_splits_the_stored_warnings_column(monkeypatch: pytest.MonkeyPatch) -> None:

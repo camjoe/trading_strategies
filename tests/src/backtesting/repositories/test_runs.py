@@ -12,10 +12,8 @@ from backtesting.repositories.runs import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
-    fetch_latest_backtest_run_for_account,
-    fetch_latest_backtest_run_id_for_account,
+    fetch_backtest_runs,
     fetch_leaderboard_rows,
-    fetch_recent_backtest_runs,
     insert_backtest_run,
     insert_backtest_snapshot,
     insert_backtest_trade,
@@ -182,51 +180,49 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
     assert isinstance(trade_rows, list)
 
 
-def test_fetch_recent_backtest_runs_respects_limit(conn: sqlite3.Connection) -> None:
+def test_fetch_backtest_runs_orders_newest_first_and_respects_limit(conn: sqlite3.Connection) -> None:
     _insert_account_and_runs(conn, "acct_recent", 3)
 
-    rows = fetch_recent_backtest_runs(conn, limit=2)
+    rows = fetch_backtest_runs(conn, limit=2)
 
+    assert [row["run_name"] for row in rows] == ["run_2", "run_1"]
+
+
+def test_fetch_backtest_runs_scopes_to_one_account(conn: sqlite3.Connection) -> None:
+    _insert_account_and_runs(conn, "acct_scoped", 2)
+    _insert_account_and_runs(conn, "acct_other", 2)
+
+    rows = fetch_backtest_runs(conn, limit=10, account_name="acct_scoped")
+
+    assert {row["account_name"] for row in rows} == {"acct_scoped"}
     assert len(rows) == 2
-    # Results are ordered newest-first (DESC by id).
-    assert rows[0]["run_name"] == "run_2"
-    assert rows[1]["run_name"] == "run_1"
 
 
-def test_fetch_latest_backtest_run_for_account_returns_latest_row(conn: sqlite3.Connection) -> None:
-    _insert_account_and_runs(conn, "acct_latest_row", 2)
+def test_fetch_backtest_runs_spans_accounts_when_unscoped(conn: sqlite3.Connection) -> None:
+    _insert_account_and_runs(conn, "acct_a", 1)
+    _insert_account_and_runs(conn, "acct_b", 1)
 
-    row = fetch_latest_backtest_run_for_account(conn, account_name="acct_latest_row")
+    rows = fetch_backtest_runs(conn, limit=10)
 
-    assert row is not None
-    assert row["run_name"] == "run_1"
-    assert row["account_name"] == "acct_latest_row"
+    assert {row["account_name"] for row in rows} == {"acct_a", "acct_b"}
 
 
-def test_fetch_latest_backtest_run_for_account_returns_none_when_no_runs(conn: sqlite3.Connection) -> None:
+def test_fetch_backtest_runs_limit_one_is_the_latest_run(conn: sqlite3.Connection) -> None:
+    """The "latest run" read is this query with limit=1, not a query of its own."""
+    run_ids = _insert_account_and_runs(conn, "acct_latest_row", 2)
+
+    rows = fetch_backtest_runs(conn, limit=1, account_name="acct_latest_row")
+
+    assert len(rows) == 1
+    assert rows[0]["id"] == run_ids[-1]
+    assert rows[0]["run_name"] == "run_1"
+
+
+def test_fetch_backtest_runs_returns_nothing_for_an_account_with_no_runs(conn: sqlite3.Connection) -> None:
     create_account(conn, "acct_empty_runs", "trend_v1", 1_000.0, "SPY")
     conn.commit()
 
-    row = fetch_latest_backtest_run_for_account(conn, account_name="acct_empty_runs")
-
-    assert row is None
-
-
-def test_fetch_latest_backtest_run_id_for_account_returns_int(conn: sqlite3.Connection) -> None:
-    run_ids = _insert_account_and_runs(conn, "acct_run_id", 2)
-
-    result = fetch_latest_backtest_run_id_for_account(conn, account_name="acct_run_id")
-
-    assert result == run_ids[-1]
-
-
-def test_fetch_latest_backtest_run_id_for_account_returns_none_when_no_runs(conn: sqlite3.Connection) -> None:
-    create_account(conn, "acct_no_runs_id", "trend_v1", 1_000.0, "SPY")
-    conn.commit()
-
-    result = fetch_latest_backtest_run_id_for_account(conn, account_name="acct_no_runs_id")
-
-    assert result is None
+    assert fetch_backtest_runs(conn, limit=1, account_name="acct_empty_runs") == []
 
 
 # ---------------------------------------------------------------------------
