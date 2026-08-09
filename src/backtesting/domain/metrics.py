@@ -10,6 +10,7 @@ from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
 from trading.domain.accounting import normalize_trade_fields
+from trading.domain.returns import total_return_pct
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
@@ -34,15 +35,6 @@ def equity_curve_from_rows(snapshot_rows: Sequence[Mapping[str, object]]) -> lis
     which every metric here would have to re-filter.
     """
     return [value for value in (row_float(row, "equity") for row in snapshot_rows) if value is not None]
-
-
-def total_return_pct(*, first_equity: float, last_equity: float) -> float:
-    """Total return across an interval, from its first and last equity marks (percent).
-
-    The one definition of total return: a standalone run, a leaderboard row, and an
-    optimizer window all measure it here, so the three cannot drift apart.
-    """
-    return ((last_equity / first_equity) - 1.0) * PERCENT_SCALE
 
 
 def max_drawdown_pct(equity_curve: list[float]) -> float:

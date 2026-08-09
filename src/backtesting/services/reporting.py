@@ -19,7 +19,6 @@ from backtesting.domain.metrics import (
     equity_curve_from_rows,
     max_drawdown_pct,
     summarize_backtest_performance,
-    total_return_pct,
 )
 from backtesting.models.report import (
     BacktestFullReport,
@@ -39,6 +38,7 @@ from backtesting.repositories.runs import (
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.domain.exceptions import NotFoundError
+from trading.domain.returns import total_return_pct
 from trading.domain.strategies.resolution import validate_strategy_name
 
 

@@ -13,11 +13,11 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-from backtesting.domain.metrics import total_return_pct
 from backtesting.domain.optimization import compound_oos_returns
 from backtesting.models.optimizer import CompoundedOOSSeries, OOSReturnSegment
 from backtesting.repositories.optimization import fetch_windows_for_experiment
 from backtesting.repositories.runs import fetch_run_equity_bounds
+from trading.domain.returns import total_return_pct
 
 
 def fetch_oos_segments(conn: sqlite3.Connection, *, experiment_id: int) -> list[OOSReturnSegment] | None:

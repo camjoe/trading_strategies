@@ -13,13 +13,7 @@ from backtesting.domain.metrics import (
     sharpe_ratio,
     sortino_ratio,
     summarize_backtest_performance,
-    total_return_pct,
 )
-
-
-def test_total_return_pct_matches_first_last_equity() -> None:
-    assert total_return_pct(first_equity=10_000.0, last_equity=11_000.0) == pytest.approx(10.0)
-    assert total_return_pct(first_equity=10_000.0, last_equity=9_500.0) == pytest.approx(-5.0)
 
 
 def test_max_drawdown_handles_empty_and_non_positive_peak() -> None:

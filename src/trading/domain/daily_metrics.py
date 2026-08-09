@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from common.constants import ANNUALIZATION_FACTOR, BASIS_POINTS_SCALE
+from trading.domain.returns import total_return_pct
 
 # Trailing window (in scored sessions, including the current day) the daily
 # risk-adjusted score is computed over — roughly one trading month.
@@ -80,7 +81,7 @@ def compute_daily_book_metrics(
 
     return_pct: float | None = None
     if prev_equity is not None and prev_equity != 0 and end_equity is not None:
-        return_pct = (end_equity / prev_equity - 1.0) * 100.0
+        return_pct = total_return_pct(first_equity=prev_equity, last_equity=end_equity)
 
     turnover_pct: float | None = None
     if trades and end_equity is not None and end_equity != 0:

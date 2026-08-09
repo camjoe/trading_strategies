@@ -15,7 +15,6 @@ from backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
     summarize_backtest_performance,
-    total_return_pct,
 )
 from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.domain.simulation_math import (
@@ -30,6 +29,7 @@ from backtesting.repositories.runs import insert_run, insert_snapshot, insert_tr
 from backtesting.services.run_inputs import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
+from trading.domain.returns import total_return_pct
 from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
