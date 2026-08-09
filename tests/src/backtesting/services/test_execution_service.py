@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack, contextmanager
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -8,88 +9,95 @@ import pandas as pd
 import pytest
 
 import backtesting.services.execution_service as execution_service
-from tests.support.backtesting import bars_from_closes
+from backtesting.models import BacktestConfig
+from tests.support.backtesting import bars_from_closes, make_backtest_config
+
+# The service resolves its account through ``get_account``, which returns a typed
+# ``AccountRecord``; a namespace stands in for one.
+_ACCOUNT = SimpleNamespace(id=1, benchmark_ticker="SPY", initial_cash=1000.0)
+_SPEC = SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={})
 
 
-def _base_cfg() -> SimpleNamespace:
-    return SimpleNamespace(
-        account_name="acct",
-        start="2026-01-01",
-        end="2026-01-03",
-        lookback_months=None,
-        allow_approximate_leaps=False,
-        slippage_bps=0.0,
-        fee_per_trade=0.0,
-    )
+def _base_cfg(**overrides) -> BacktestConfig:
+    # Frictionless by default: these tests assert exact share counts, which
+    # slippage would shift by a share without saying anything about the subject.
+    options = {"start": "2026-01-01", "end": "2026-01-03", "slippage_bps": 0.0, "fee_per_trade": 0.0}
+    return make_backtest_config("acct", **{**options, **overrides})
+
+
+@contextmanager
+def _patched_service(
+    *,
+    tickers: list[str],
+    resolve_signal_fn=None,
+    strategy_spec_fn=None,
+    active_strategy_fn=None,
+    choose_buy_qty_fn=None,
+    insert_run_fn=None,
+    insert_trade_fn=None,
+    patch_strategy: bool = True,
+    dates: tuple[date, date] = (date(2026, 1, 1), date(2026, 1, 3)),
+):
+    """Stand in for every collaborator ``run_backtest`` resolves for itself.
+
+    The service reaches its account, dates, universe, book, sizing, and writes
+    through module-level imports rather than injected callables, so a unit test
+    substitutes them here instead of threading them through the call.
+
+    ``patch_strategy=False`` leaves ``resolve_strategy`` and the metrics real, for
+    tests whose subject is what a genuine strategy spec does with the bars.
+    """
+    replacements: dict[str, object] = {
+        "get_account": lambda _conn, _name: _ACCOUNT,
+        "get_default_book": lambda _conn, *, account_id: None,
+        "resolve_backtest_dates": lambda _start, _end, _lookback: dates,
+        "resolve_universe": lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
+        "active_strategy_for_account": active_strategy_fn or (lambda _conn, _account_id: "trend"),
+        "insert_run": insert_run_fn or (lambda *_args, **_kwargs: 1),
+        "insert_snapshot": lambda *_args, **_kwargs: None,
+        "insert_trade": insert_trade_fn or (lambda *_args, **_kwargs: None),
+    }
+    if patch_strategy:
+        replacements["resolve_strategy"] = strategy_spec_fn or (lambda _name: _SPEC)
+        replacements["benchmark_return_pct"] = lambda _series, _cash: 1.0
+        replacements["max_drawdown_pct"] = lambda _curve: -2.0
+    if resolve_signal_fn is not None:
+        replacements["evaluate_signal"] = resolve_signal_fn
+    if choose_buy_qty_fn is not None:
+        replacements["choose_buy_qty"] = choose_buy_qty_fn
+
+    with ExitStack() as stack:
+        for target, replacement in replacements.items():
+            stack.enter_context(patch.object(execution_service, target, replacement))
+        yield
 
 
 def test_execution_service_rejects_short_history() -> None:
-    cfg = _base_cfg()
     short_index = pd.date_range("2026-01-01", periods=2, freq="B")
 
-    with pytest.raises(ValueError, match="Need at least 3 trading days"):
+    with pytest.raises(ValueError, match="Need at least 3 trading days"), _patched_service(tickers=["AAPL"]):
         execution_service.run_backtest(
             conn=object(),
-            cfg=cfg,
-            get_account_fn=lambda _conn, _name: {
-                "benchmark_ticker": "SPY",
-                "id": 1,
-                "initial_cash": 1000.0,
-                "strategy": "trend",
-            },
-            resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
-            warnings_for_config_fn=lambda _account, _allow: [],
-            resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
+            cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
                 pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_index)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0]),
             persist=False,
-            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
 
 def test_execution_service_returns_result_for_hold_only_run() -> None:
-    cfg = _base_cfg()
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
-    with (
-        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
-        patch.object(
-            execution_service,
-            "resolve_strategy",
-            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
-        ),
-        patch.object(
-            execution_service,
-            "benchmark_return_pct",
-            lambda _series, _cash: 1.0,
-        ),
-        patch.object(
-            execution_service,
-            "max_drawdown_pct",
-            lambda _curve: -2.0,
-        ),
-        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 77),
-        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
-    ):
+    with _patched_service(tickers=["AAPL"], insert_run_fn=lambda *_args, **_kwargs: 77):
         result = execution_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
-            cfg=cfg,
-            get_account_fn=lambda _conn, _name: {
-                "benchmark_ticker": "SPY",
-                "id": 1,
-                "initial_cash": 1000.0,
-                "strategy": "trend",
-            },
-            resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
-            warnings_for_config_fn=lambda _account, _allow: ["w1"],
-            resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
+            cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
                 pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
-            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
     assert result.run_id == 77
@@ -105,45 +113,25 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
     resolved: list[str] = []
 
-    def _active_should_not_run(_conn, _account_id, *, fallback):  # pragma: no cover - must not be called
+    def _active_should_not_run(_conn, _account_id):  # pragma: no cover - must not be called
         raise AssertionError("active_strategy_for_account must not run when strategy override is set")
 
-    with (
-        patch.object(execution_service, "active_strategy_for_account", _active_should_not_run),
-        patch.object(
-            execution_service,
-            "resolve_strategy",
-            lambda name: (
-                resolved.append(name),
-                SimpleNamespace(indicators=(), required_features=(), strategy_id=name, default_params={}),
-            )[1],
-        ),
-        patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
-        patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
-        patch.object(
-            execution_service,
-            "insert_run",
-            lambda _conn, *, strategy_name, **_kwargs: (resolved.append(f"fk:{strategy_name}"), 88)[1],
-        ),
-        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
+    with _patched_service(
+        tickers=["AAPL"],
+        active_strategy_fn=_active_should_not_run,
+        strategy_spec_fn=lambda name: (
+            resolved.append(name),
+            SimpleNamespace(indicators=(), required_features=(), strategy_id=name, default_params={}),
+        )[1],
+        insert_run_fn=lambda _conn, *, strategy_name, **_kwargs: (resolved.append(f"fk:{strategy_name}"), 88)[1],
     ):
         result = execution_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=cfg,
-            get_account_fn=lambda _conn, _name: {
-                "benchmark_ticker": "SPY",
-                "id": 1,
-                "initial_cash": 1000.0,
-                "strategy": "trend",
-            },
-            resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
-            warnings_for_config_fn=lambda _account, _allow: [],
-            resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
                 pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
-            get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
     assert result.run_id == 88
@@ -152,12 +140,7 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _row_optional_float unit tests
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# Buy-path skip guards (require patching resolve_signal to return "buy")
+# Buy-path skip guards (require patching evaluate_signal to return "buy")
 # ---------------------------------------------------------------------------
 
 
@@ -166,7 +149,6 @@ def _patched_run_backtest(
     close_data: dict,
     resolve_signal_fn,
     choose_buy_qty_fn=None,
-    account: dict | None = None,
     insert_trade_fn=None,
 ):
     """Run a minimal backtest with all I/O patched; returns BacktestResult.
@@ -174,38 +156,19 @@ def _patched_run_backtest(
     The universe is taken from ``close_data`` so multi-ticker bars — where cash
     has to be shared between simultaneous buy signals — can be exercised.
     """
-    if account is None:
-        account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
     tickers = list(close_data)
-    kwargs = dict(
-        conn=SimpleNamespace(commit=lambda: None),
-        cfg=_base_cfg(),
-        get_account_fn=lambda _conn, _name: account,
-        resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
-        warnings_for_config_fn=lambda _account, _allow: [],
-        resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
-        fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
-        get_default_book_fn=lambda _conn, *, account_id: None,
-    )
-    if choose_buy_qty_fn is not None:
-        kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
-
-    with (
-        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
-        patch.object(
-            execution_service,
-            "resolve_strategy",
-            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
-        ),
-        patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
-        patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
-        patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
-        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 1),
-        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
-        patch.object(execution_service, "insert_trade", insert_trade_fn or (lambda *_args, **_kwargs: None)),
+    with _patched_service(
+        tickers=tickers,
+        resolve_signal_fn=resolve_signal_fn,
+        choose_buy_qty_fn=choose_buy_qty_fn,
+        insert_trade_fn=insert_trade_fn,
     ):
-        return execution_service.run_backtest(**kwargs)
+        return execution_service.run_backtest(
+            conn=SimpleNamespace(commit=lambda: None),
+            cfg=_base_cfg(),
+            fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
+            fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
+        )
 
 
 def test_execution_service_buy_skip_when_price_is_zero() -> None:
@@ -284,42 +247,30 @@ def test_execution_service_sell_skip_when_price_is_zero() -> None:
 
 
 def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx, series: pd.Series):
-    account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
-    cfg = SimpleNamespace(
-        account_name="acct_warmup",
-        tickers_file="t.txt",
-        universe_history_dir=None,
-        start=scoring_start.isoformat(),
-        end=end.isoformat(),
-        lookback_months=None,
-        slippage_bps=0.0,
-        fee_per_trade=0.0,
-        run_name=None,
-        allow_approximate_leaps=False,
-        strategy="trend",
-        purpose="standalone",
-        param_override=None,
-        warmup_months=warmup_months,
-    )
+    cfg = _base_cfg(start=scoring_start.isoformat(), end=end.isoformat())
+    cfg.strategy = "trend"
+    cfg.warmup_months = warmup_months
     frame = pd.DataFrame({"AAPL": series})
 
     # Realistic fetch: return only the bars within the requested [start, end] range.
     def fetch_bars(_tickers, start, end_):
         return bars_from_closes(frame.loc[pd.Timestamp(start) : pd.Timestamp(end_)])
 
-    return execution_service.run_backtest(
-        SimpleNamespace(commit=lambda: None),
-        cfg,
-        get_account_fn=lambda _conn, _name: account,
-        resolve_backtest_dates_fn=lambda _s, _e, _l: (scoring_start, end),
-        warnings_for_config_fn=lambda _account, _allow: [],
-        resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {}, ["AAPL"], []),
-        fetch_bar_history_fn=fetch_bars,
-        fetch_benchmark_close_fn=lambda _t, _s, _e: pd.Series([100.0] * len(idx), index=idx),
-        persist=False,
+    # The real trend spec, not a stub: the subject is whether its 30-bar warm-up
+    # requirement is met at the scoring-window start.
+    with _patched_service(
+        tickers=["AAPL"],
         choose_buy_qty_fn=lambda *_args, **_kwargs: 2,
-        get_default_book_fn=lambda _conn, *, account_id: None,
-    )
+        patch_strategy=False,
+        dates=(scoring_start, end),
+    ):
+        return execution_service.run_backtest(
+            SimpleNamespace(commit=lambda: None),
+            cfg,
+            fetch_bar_history_fn=fetch_bars,
+            fetch_benchmark_close_fn=lambda _t, _s, _e: pd.Series([100.0] * len(idx), index=idx),
+            persist=False,
+        )
 
 
 def test_warmup_enables_signals_in_a_short_window() -> None:
@@ -487,36 +438,19 @@ def _patched_run_backtest_with_frames(
     Lets a test hand tickers genuinely ragged histories, which is the shape that
     produces missing prices in the first place.
     """
-    account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
-    kwargs = dict(
-        conn=SimpleNamespace(commit=lambda: None, rollback=lambda: None),
-        cfg=_base_cfg(),
-        get_account_fn=lambda _conn, _name: account,
-        resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 7)),
-        warnings_for_config_fn=lambda _account, _allow: [],
-        resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {}, tickers, []),
-        fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
-        get_default_book_fn=lambda _conn, *, account_id: None,
-    )
-    if choose_buy_qty_fn is not None:
-        kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
-
-    with (
-        patch.object(execution_service, "active_strategy_for_account", lambda _conn, _account_id: "trend"),
-        patch.object(
-            execution_service,
-            "resolve_strategy",
-            lambda _name: SimpleNamespace(indicators=(), required_features=(), strategy_id="trend", default_params={}),
-        ),
-        patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
-        patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
-        patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
-        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 1),
-        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
-        patch.object(execution_service, "insert_trade", insert_trade_fn or (lambda *_args, **_kwargs: None)),
+    with _patched_service(
+        tickers=tickers,
+        resolve_signal_fn=resolve_signal_fn,
+        choose_buy_qty_fn=choose_buy_qty_fn,
+        insert_trade_fn=insert_trade_fn,
+        dates=(date(2026, 1, 1), date(2026, 1, 7)),
     ):
-        return execution_service.run_backtest(**kwargs)
+        return execution_service.run_backtest(
+            conn=SimpleNamespace(commit=lambda: None, rollback=lambda: None),
+            cfg=_base_cfg(),
+            fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
+            fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
+        )
 
 
 def test_tradeable_price_rejects_missing_and_non_positive_prices() -> None:

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
 
-from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -11,69 +9,15 @@ from backtesting.models import (
 )
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
 from backtesting.services import (
-    build_monthly_universe,
     fetch_backtest_leaderboard_entries,
     fetch_backtest_report_data,
     fetch_bar_history,
     fetch_benchmark_close,
-    resolve_backtest_dates,
     run_backtest as run_backtest_impl,
 )
-from common.tickers import load_tickers_from_file
 from infrastructure.market_data.factory import build_provider
-from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.domain.strategies.resolution import resolve_strategy
-from trading.models.books import BookRecord
-from trading.services.accounts import get_account
-from trading.services.books.book_assignments import get_default_book
 from trading.services.market_data import build_feature_provider
-
-
-def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
-    # Execution settings are book-owned (revision 0004); the account's default
-    # book carries the settings a backtest simulates under.
-    return build_backtest_warnings(
-        risk_policy=book.risk_policy if book is not None else None,
-        instrument_mode=book.instrument_mode if book is not None else None,
-        allow_approximate_leaps=allow_approximate_leaps,
-    )
-
-
-def _resolve_universe(
-    cfg: BacktestConfig,
-    start_date: date,
-    end_date: date,
-) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
-    default_tickers = load_tickers_from_file(cfg.tickers_file)
-    month_to_tickers, all_tickers, warnings = build_monthly_universe(
-        default_tickers,
-        start_date,
-        end_date,
-        cfg.universe_history_dir,
-    )
-
-    if cfg.universe_history_dir:
-        warnings.append(
-            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
-        )
-
-    return default_tickers, month_to_tickers, all_tickers, warnings
-
-
-def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
-    account = get_account(conn, cfg.account_name)
-    default_book = get_default_book(conn, account_id=account.id)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
-
-    _default_tickers, _month_to_tickers, _all_tickers, universe_warnings = _resolve_universe(
-        cfg,
-        start_date,
-        end_date,
-    )
-    warnings.extend(universe_warnings)
-
-    return warnings
 
 
 def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: bool) -> BacktestResult:
@@ -84,10 +28,6 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
     return run_backtest_impl(
         conn,
         cfg,
-        get_account_fn=get_account,
-        resolve_backtest_dates_fn=resolve_backtest_dates,
-        warnings_for_config_fn=_warnings_for_config,
-        resolve_universe_fn=_resolve_universe,
         fetch_bar_history_fn=lambda tickers, start_date, end_date: fetch_bar_history(
             tickers, start_date, end_date, provider=provider
         ),
@@ -95,7 +35,6 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
             benchmark_ticker, start_date, end_date, provider=provider
         ),
         persist=persist,
-        choose_buy_qty_fn=choose_buy_qty,
         feature_provider=feature_provider,
     )
 

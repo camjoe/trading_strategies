@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from backtesting.models import BacktestConfig
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 from trading.models.market_data import BAR_CLOSE
@@ -139,3 +140,26 @@ def build_monthly_universe(
         all_tickers.update(tickers)
 
     return month_to_tickers, sorted(all_tickers), warnings
+
+
+def resolve_universe(
+    cfg: BacktestConfig,
+    start_date: date,
+    end_date: date,
+) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
+    """The run's universe: default tickers, the per-month membership, every ticker
+    the run may touch, and any warnings raised while resolving them."""
+    default_tickers = load_tickers_from_file(cfg.tickers_file)
+    month_to_tickers, all_tickers, warnings = build_monthly_universe(
+        default_tickers,
+        start_date,
+        end_date,
+        cfg.universe_history_dir,
+    )
+
+    if cfg.universe_history_dir:
+        warnings.append(
+            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
+        )
+
+    return default_tickers, month_to_tickers, all_tickers, warnings

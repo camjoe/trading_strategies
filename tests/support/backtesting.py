@@ -4,8 +4,8 @@ from datetime import date
 
 import pandas as pd
 
-from backtesting.backtest import BacktestConfig
-from backtesting.models import BacktestResult
+import backtesting.services.backtest_data_service as backtest_data_service
+from backtesting.models import BacktestConfig, BacktestResult
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from trading.models import AccountConfig
@@ -95,7 +95,9 @@ def install_backtest_market_data(
     tickers: list[str],
     benchmark_values: list[float],
 ) -> None:
-    monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: tickers)
+    # The universe is resolved in the data service; bars and the benchmark are
+    # fetched through the composition root's provider-bound lambdas.
+    monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
         backtest_module,
         "fetch_bar_history",

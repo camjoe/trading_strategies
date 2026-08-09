@@ -12,6 +12,7 @@ import pandas as pd
 
 from backtesting.domain.bars import build_bar_panel
 from backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, summarize_backtest_performance
+from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.domain.simulation_math import (
     compute_market_value,
     compute_unrealized_pnl,
@@ -19,24 +20,47 @@ from backtesting.domain.simulation_math import (
     update_on_sell,
 )
 from backtesting.domain.windowing import shift_months
-from backtesting.models import BacktestResult
+from backtesting.models import BacktestConfig, BacktestResult
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
-from common.coercion import row_expect_float, row_expect_int, row_expect_str
+from backtesting.services.backtest_data_service import resolve_backtest_dates, resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
-from trading.domain.auto_trading_policy import (
-    allocate_buy_quantities as default_allocate_buy_quantities,
-    choose_buy_qty as default_choose_buy_qty,
-)
+from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
     build_signal_inputs,
 )
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
+from trading.services.accounts import get_account
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
-AccountRow = Mapping[str, object]
+
+def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
+    # Execution settings are book-owned (revision 0004); the account's default
+    # book carries the settings a backtest simulates under.
+    return build_backtest_warnings(
+        risk_policy=book.risk_policy if book is not None else None,
+        instrument_mode=book.instrument_mode if book is not None else None,
+        allow_approximate_leaps=allow_approximate_leaps,
+    )
+
+
+def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+    """The warnings a run under this config would raise, without running it.
+
+    Resolves the same book settings and universe the run would, so a preview and
+    the run it precedes cannot disagree about what they warn on.
+    """
+    account = get_account(conn, cfg.account_name)
+    default_book = get_default_book(conn, account_id=account.id)
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+
+    warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
+    *_universe, universe_warnings = resolve_universe(cfg, start_date, end_date)
+    warnings.extend(universe_warnings)
+    return warnings
 
 
 def _tradeable_price(raw: Any) -> float | None:
@@ -81,9 +105,14 @@ class _ExecutionContext:
     slippage_multiplier_buy: float
     slippage_multiplier_sell: float
     persist: bool
-    choose_buy_qty_fn: Callable[..., int]
-    allocate_buy_quantities_fn: Callable[..., dict[str, int]]
     default_book: Any
+    all_tickers: list[str]
+    default_tickers: list[str]
+    month_to_tickers: dict[str, list[str]]
+    signal_inputs: dict[str, Any]
+    strategy_name: str
+    effective_params: dict[str, Any]
+    feature_bundle: Any
 
 
 def _record_trade(
@@ -184,7 +213,7 @@ def _execute_buys(
         exec_px = px * ctx.slippage_multiplier_buy
         if exec_px <= 0:
             continue
-        requested_qty = ctx.choose_buy_qty_fn(
+        requested_qty = choose_buy_qty(
             state.cash,
             exec_px,
             ctx.cfg.fee_per_trade,
@@ -196,7 +225,7 @@ def _execute_buys(
         if requested_qty >= 1:
             sized_buys.append((ticker, exec_px, requested_qty))
 
-    granted = ctx.allocate_buy_quantities_fn(sized_buys, cash=state.cash, fee_per_trade=ctx.cfg.fee_per_trade)
+    granted = allocate_buy_quantities(sized_buys, cash=state.cash, fee_per_trade=ctx.cfg.fee_per_trade)
     for ticker, exec_px, requested_qty in sized_buys:
         qty_int = granted.get(ticker, 0)
         if qty_int < 1:
@@ -219,6 +248,126 @@ def _execute_buys(
         )
 
 
+def _evaluate_signals(
+    ctx: _ExecutionContext,
+    tickers: list[str],
+    *,
+    signal_date: Any,
+    signal_index: int,
+) -> dict[str, str]:
+    """Each ticker's decision for the coming bar, read off the signal bar's state."""
+    signals: dict[str, str] = {}
+    for ticker in tickers:
+        feature_history = (
+            None if ctx.feature_bundle is None else ctx.feature_bundle.history_for_ticker(ticker, signal_date)
+        )
+        closes, indicators, priced_bars = ctx.signal_inputs[ticker]
+        view = IndicatorView(
+            closes=closes,
+            indicators=indicators,
+            index=signal_index,
+            priced_bars=priced_bars,
+        )
+        signals[ticker] = evaluate_signal(ctx.strategy_name, view, ctx.effective_params, feature_history)
+    return signals
+
+
+def _record_snapshot(
+    ctx: _ExecutionContext,
+    state: _PortfolioState,
+    *,
+    snapshot_date: Any,
+    market_value: float,
+    equity: float,
+    unrealized_pnl: float,
+) -> None:
+    if not ctx.persist:
+        return
+    insert_snapshot(
+        ctx.conn,
+        run_id=ctx.run_id,
+        snapshot_time=snapshot_date.date().isoformat(),
+        cash=state.cash,
+        market_value=market_value,
+        equity=equity,
+        realized_pnl=state.realized_pnl,
+        unrealized_pnl=unrealized_pnl,
+    )
+
+
+def _simulate_bars(
+    ctx: _ExecutionContext,
+    state: _PortfolioState,
+    *,
+    close: pd.DataFrame,
+    dates: list,
+    scoring_idx: int,
+) -> list[float]:
+    """Advance the portfolio one bar at a time and return the equity curve.
+
+    Opens on the scoring bar's mark, then resolves each later bar in three phases:
+    decide, sell, buy. Deciding first keeps every signal a function of the same
+    pre-trade state; selling before buying makes the day's proceeds available to
+    every buy rather than only to tickers later in the iteration order.
+    """
+    first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in ctx.all_tickers}
+    first_mv = compute_market_value(state.positions, first_prices)
+    first_equity = state.cash + first_mv
+    _record_snapshot(
+        ctx,
+        state,
+        snapshot_date=dates[scoring_idx],
+        market_value=first_mv,
+        equity=first_equity,
+        unrealized_pnl=0.0,
+    )
+    equity_curve: list[float] = [first_equity]
+
+    for index in range(scoring_idx + 1, len(dates)):
+        signal_date = dates[index - 1]
+        trade_date = dates[index]
+        trade_prices = close.loc[trade_date]
+
+        month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
+        active_tickers = ctx.month_to_tickers.get(month_key, ctx.default_tickers)
+        held_tickers = [ticker for ticker, qty in state.positions.items() if qty > 0]
+        strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
+
+        signals = _evaluate_signals(ctx, strategy_tickers, signal_date=signal_date, signal_index=index - 1)
+        _execute_sells(
+            ctx,
+            state,
+            trade_date=trade_date,
+            trade_prices=trade_prices,
+            signals=signals,
+            tickers=strategy_tickers,
+        )
+        _execute_buys(
+            ctx,
+            state,
+            trade_date=trade_date,
+            trade_prices=trade_prices,
+            signals=signals,
+            tickers=strategy_tickers,
+            active_tickers=active_tickers,
+        )
+
+        marks = {ticker: float(trade_prices[ticker]) for ticker in ctx.all_tickers}
+        market_value = compute_market_value(state.positions, marks)
+        equity = state.cash + market_value
+        _record_snapshot(
+            ctx,
+            state,
+            snapshot_date=trade_date,
+            market_value=market_value,
+            equity=equity,
+            unrealized_pnl=compute_unrealized_pnl(state.positions, state.avg_cost, marks),
+        )
+        equity_curve.append(equity)
+
+    return equity_curve
+
+
 def _first_scoring_index(dates: list, scoring_start: date) -> int:
     """Index of the first loaded bar that falls on/after the scoring window start.
     Earlier bars are warm-up history. With no warm-up this is 0 (bar zero)."""
@@ -228,61 +377,44 @@ def _first_scoring_index(dates: list, scoring_start: date) -> int:
     raise ValueError("No trading days fall within the scoring window.")
 
 
-def run_backtest(
+@dataclass(frozen=True)
+class _RunInputs:
+    """Everything resolved before the first bar: the window, the universe, the
+    strategy and its precomputed indicators, and the frozen benchmark return."""
+
+    account_id: int
+    initial_cash: float
+    benchmark_ticker: str
+    benchmark_return: float | None
+    start_date: date
+    end_date: date
+    warmup_months: int
+    warnings: list[str]
+    close: pd.DataFrame
+    default_book: Any
+    all_tickers: list[str]
+    default_tickers: list[str]
+    month_to_tickers: dict[str, list[str]]
+    strategy_key: str
+    strategy_name: str
+    effective_params: dict[str, Any]
+    signal_inputs: dict[str, Any]
+    feature_bundle: Any
+
+
+def _resolve_strategy_inputs(
     conn: sqlite3.Connection,
-    cfg,
+    cfg: BacktestConfig,
     *,
-    get_account_fn: Callable[[sqlite3.Connection, str], AccountRow],
-    resolve_backtest_dates_fn: Callable[..., tuple[date, date]],
-    warnings_for_config_fn: Callable[[Any, bool], list[str]],
-    resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
-    fetch_bar_history_fn: Callable[..., Mapping[str, Any]],
-    fetch_benchmark_close_fn: Callable[..., object],
-    persist: bool = True,
-    choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
-    allocate_buy_quantities_fn: Callable[..., dict[str, int]] = default_allocate_buy_quantities,
-    get_default_book_fn: Callable[..., Any] = get_default_book,
-    feature_provider: FeatureDataProvider | None = None,
-) -> BacktestResult:
-    """Simulate one backtest over the configured window and return its metrics.
-
-    With ``persist=False`` no run, execution, or snapshot row is written and the
-    result carries ``run_id=0``; the walk-forward optimizer evaluates training
-    candidates that way so a grid search leaves no stored evidence behind.
-    """
-    account = get_account_fn(conn, cfg.account_name)
-    # Execution settings are book-owned (revision 0004): the account's default
-    # book supplies the risk/sizing knobs the simulation runs under.
-    default_book = get_default_book_fn(conn, account_id=row_expect_int(account, "id"))
-    start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = warnings_for_config_fn(default_book, cfg.allow_approximate_leaps)
-
-    # Optional indicator warm-up: pull extra history before the scoring window so
-    # signals are warm at the window start. Only price history reaches back this far;
-    # scoring (returns/trades/snapshots) still starts at start_date.
-    warmup_months = getattr(cfg, "warmup_months", 0) or 0
-    data_start_date = shift_months(start_date, -warmup_months) if warmup_months > 0 else start_date
-
-    default_tickers, month_to_tickers, all_tickers, universe_warnings = resolve_universe_fn(
-        cfg,
-        start_date,
-        end_date,
-    )
-    warnings.extend(universe_warnings)
-
-    # Bars, not closes: the panel keeps each ticker's full range available for
-    # indicators, while `close` stays the endpoint view the simulation prices at.
-    panel = build_bar_panel(cast(Any, fetch_bar_history_fn(all_tickers, data_start_date, end_date)), all_tickers)
-    close = panel.close
-    if len(close.index) < 3:
-        raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
-
-    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
-    account_id = row_expect_int(account, "id")
-    initial_cash = row_expect_float(account, "initial_cash")
+    account_id: int,
+    panel: Any,
+    all_tickers: list[str],
+) -> tuple[Any, str, dict[str, Any], dict[str, Any]]:
+    """The strategy this run simulates, its effective parameters, and its
+    indicators precomputed once per ticker."""
     # An explicit override backtests a specific strategy (e.g. a rotation
     # challenger); otherwise the account's active strategy is used.
-    strategy_override = getattr(cfg, "strategy", None)
+    strategy_override = cfg.strategy
     strategy_name = (
         strategy_override.strip()
         if strategy_override and strategy_override.strip()
@@ -291,14 +423,13 @@ def run_backtest(
     strategy_spec = resolve_strategy(strategy_name)
     # A param override (walk-forward optimizer candidates) is merged over the
     # strategy's catalog defaults for this run only; the catalog is never mutated.
-    param_override = getattr(cfg, "param_override", None)
+    param_override = cfg.param_override
     effective_params = (
         strategy_spec.default_params if not param_override else {**strategy_spec.default_params, **param_override}
     )
 
-    # The strategy's declared indicators, computed once per ticker for the whole
-    # run. Deriving them inside the signal would recompute the same rolling
-    # windows on every bar to keep only their last value.
+    # Computed once for the whole run: deriving indicators inside the signal would
+    # recompute the same rolling windows on every bar to keep only their last value.
     #
     # Computed from each ticker's own bars (`panel.source`), not from its
     # calendar-aligned frame, then carried onto the shared calendar — otherwise a
@@ -312,6 +443,59 @@ def run_backtest(
         )
         for ticker in all_tickers
     }
+    return strategy_spec, strategy_name, effective_params, signal_inputs
+
+
+def _resolve_run_inputs(
+    conn: sqlite3.Connection,
+    cfg: BacktestConfig,
+    *,
+    fetch_bar_history_fn: Callable[..., Mapping[str, Any]],
+    fetch_benchmark_close_fn: Callable[..., object],
+    feature_provider: FeatureDataProvider | None,
+) -> _RunInputs:
+    """Resolve the run's inputs and fetch its market data.
+
+    Every external read the run needs happens here, before the write transaction
+    opens, so that transaction covers only in-memory simulation and its writes.
+    """
+    account = get_account(conn, cfg.account_name)
+    # Execution settings are book-owned (revision 0004): the account's default
+    # book supplies the risk/sizing knobs the simulation runs under.
+    default_book = get_default_book(conn, account_id=account.id)
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
+
+    # Optional indicator warm-up: pull extra history before the scoring window so
+    # signals are warm at the window start. Only price history reaches back this far;
+    # scoring (returns/trades/snapshots) still starts at start_date.
+    warmup_months = cfg.warmup_months or 0
+    data_start_date = shift_months(start_date, -warmup_months) if warmup_months > 0 else start_date
+
+    default_tickers, month_to_tickers, all_tickers, universe_warnings = resolve_universe(
+        cfg,
+        start_date,
+        end_date,
+    )
+    warnings.extend(universe_warnings)
+
+    # Bars, not closes: the panel keeps each ticker's full range available for
+    # indicators, while `close` stays the endpoint view the simulation prices at.
+    panel = build_bar_panel(cast(Any, fetch_bar_history_fn(all_tickers, data_start_date, end_date)), all_tickers)
+    close = panel.close
+    if len(close.index) < 3:
+        raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
+
+    benchmark_ticker = account.benchmark_ticker
+    account_id = account.id
+    initial_cash = account.initial_cash
+    strategy_spec, strategy_name, effective_params, signal_inputs = _resolve_strategy_inputs(
+        conn,
+        cfg,
+        account_id=account_id,
+        panel=panel,
+        all_tickers=all_tickers,
+    )
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
     # Frozen onto the run row below rather than left for readers to recompute: this
@@ -325,30 +509,90 @@ def run_backtest(
         feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
+    return _RunInputs(
+        account_id=account_id,
+        initial_cash=initial_cash,
+        benchmark_ticker=benchmark_ticker,
+        benchmark_return=benchmark_return,
+        start_date=start_date,
+        end_date=end_date,
+        warmup_months=warmup_months,
+        warnings=warnings,
+        close=close,
+        default_book=default_book,
+        all_tickers=all_tickers,
+        default_tickers=default_tickers,
+        month_to_tickers=month_to_tickers,
+        # backtest_runs stores a strategies FK, so aliases and display names must
+        # resolve to the seeded catalog key before the header is written.
+        strategy_key=strategy_spec.strategy_id,
+        strategy_name=strategy_name,
+        effective_params=effective_params,
+        signal_inputs=signal_inputs,
+        feature_bundle=feature_bundle,
+    )
+
+
+def _scoring_start_index(dates: list, inputs: _RunInputs) -> int:
+    """Where scoring begins: bar zero, or the first bar inside the window when
+    warm-up history was loaded ahead of it."""
+    if inputs.warmup_months <= 0:
+        return 0
+    scoring_idx = _first_scoring_index(dates, inputs.start_date)
+    if len(dates) - scoring_idx < 2:
+        raise ValueError("Not enough trading days in the scoring window after warm-up.")
+    return scoring_idx
+
+
+def run_backtest(
+    conn: sqlite3.Connection,
+    cfg: BacktestConfig,
+    *,
+    fetch_bar_history_fn: Callable[..., Mapping[str, Any]],
+    fetch_benchmark_close_fn: Callable[..., object],
+    persist: bool = True,
+    feature_provider: FeatureDataProvider | None = None,
+) -> BacktestResult:
+    """Simulate one backtest over the configured window and return its metrics.
+
+    The two fetch callables and ``feature_provider`` are the market-data seam: the
+    composition root binds a concrete provider into them, so nothing here reaches
+    for one itself.
+
+    With ``persist=False`` no run, execution, or snapshot row is written and the
+    result carries ``run_id=0``; the walk-forward optimizer evaluates training
+    candidates that way so a grid search leaves no stored evidence behind.
+    """
+    inputs = _resolve_run_inputs(
+        conn,
+        cfg,
+        fetch_bar_history_fn=fetch_bar_history_fn,
+        fetch_benchmark_close_fn=fetch_benchmark_close_fn,
+        feature_provider=feature_provider,
+    )
+
     # Wrap the header, first snapshot, and the simulate/persist loop in one
     # unit_of_work so an interrupted run leaves no partial result tree. All
     # external data was fetched above; this transaction covers only in-memory
     # simulation and its writes, never network I/O.
     with unit_of_work(conn):
-        # Pass the canonical strategy key: backtest_runs stores a strategies FK,
-        # so aliases/display names must resolve to the seeded catalog key first.
         run_id = (
             insert_run(
                 conn,
-                account_id=account_id,
-                strategy_name=strategy_spec.strategy_id,
-                start_date=start_date,
-                end_date=end_date,
+                account_id=inputs.account_id,
+                strategy_name=inputs.strategy_key,
+                start_date=inputs.start_date,
+                end_date=inputs.end_date,
                 cfg=cfg,
-                warnings=warnings,
-                benchmark_ticker=benchmark_ticker,
-                benchmark_return_pct=benchmark_return,
+                warnings=inputs.warnings,
+                benchmark_ticker=inputs.benchmark_ticker,
+                benchmark_return_pct=inputs.benchmark_return,
             )
             if persist
             else 0
         )
 
-        state = _PortfolioState(cash=initial_cash)
+        state = _PortfolioState(cash=inputs.initial_cash)
         ctx = _ExecutionContext(
             conn=conn,
             run_id=run_id,
@@ -356,121 +600,40 @@ def run_backtest(
             slippage_multiplier_buy=1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
             slippage_multiplier_sell=1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
             persist=persist,
-            choose_buy_qty_fn=choose_buy_qty_fn,
-            allocate_buy_quantities_fn=allocate_buy_quantities_fn,
-            default_book=default_book,
+            default_book=inputs.default_book,
+            all_tickers=inputs.all_tickers,
+            default_tickers=inputs.default_tickers,
+            month_to_tickers=inputs.month_to_tickers,
+            signal_inputs=inputs.signal_inputs,
+            strategy_name=inputs.strategy_name,
+            effective_params=inputs.effective_params,
+            feature_bundle=inputs.feature_bundle,
         )
-        positions = state.positions
 
-        equity_curve: list[float] = []
-
-        dates = list(close.index)
-        # Warm-up bars (before start_date) only initialize indicator history; scoring
-        # begins at the first bar within the window so returns exclude the lead-in.
-        # With no warm-up, scoring starts at bar zero — identical to the original path.
-        if warmup_months > 0:
-            scoring_idx = _first_scoring_index(dates, start_date)
-            if len(dates) - scoring_idx < 2:
-                raise ValueError("Not enough trading days in the scoring window after warm-up.")
-        else:
-            scoring_idx = 0
-
-        first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in all_tickers}
-        first_mv = compute_market_value(positions, first_prices)
-        first_equity = state.cash + first_mv
-        if persist:
-            insert_snapshot(
-                conn,
-                run_id=run_id,
-                snapshot_time=dates[scoring_idx].date().isoformat(),
-                cash=state.cash,
-                market_value=first_mv,
-                equity=first_equity,
-                realized_pnl=state.realized_pnl,
-                unrealized_pnl=0.0,
-            )
-        equity_curve.append(first_equity)
-
-        for idx in range(scoring_idx + 1, len(dates)):
-            signal_date = dates[idx - 1]
-            trade_date = dates[idx]
-
-            trade_prices = close.loc[trade_date]
-            month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
-            active_tickers = month_to_tickers.get(month_key, default_tickers)
-            held_tickers = [ticker for ticker, qty in positions.items() if qty > 0]
-            strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
-
-            # A bar resolves in three phases: decide, then sell, then buy. Deciding
-            # first keeps every signal a function of the same pre-trade state.
-            # Selling before buying makes the day's proceeds available to every
-            # buy rather than only to tickers later in the iteration order.
-            signals = {}
-            for ticker in strategy_tickers:
-                feature_history = (
-                    None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
-                )
-                closes, indicators, priced_bars = signal_inputs[ticker]
-                view = IndicatorView(
-                    closes=closes,
-                    indicators=indicators,
-                    index=idx - 1,
-                    priced_bars=priced_bars,
-                )
-                signals[ticker] = evaluate_signal(strategy_name, view, effective_params, feature_history)
-
-            _execute_sells(
-                ctx,
-                state,
-                trade_date=trade_date,
-                trade_prices=trade_prices,
-                signals=signals,
-                tickers=strategy_tickers,
-            )
-            _execute_buys(
-                ctx,
-                state,
-                trade_date=trade_date,
-                trade_prices=trade_prices,
-                signals=signals,
-                tickers=strategy_tickers,
-                active_tickers=active_tickers,
-            )
-
-            marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
-            market_value = compute_market_value(positions, marks)
-            unrealized_pnl = compute_unrealized_pnl(positions, state.avg_cost, marks)
-
-            equity = state.cash + market_value
-            equity_curve.append(equity)
-            if persist:
-                insert_snapshot(
-                    conn,
-                    run_id=run_id,
-                    snapshot_time=trade_date.date().isoformat(),
-                    cash=state.cash,
-                    market_value=market_value,
-                    equity=equity,
-                    realized_pnl=state.realized_pnl,
-                    unrealized_pnl=unrealized_pnl,
-                )
+        dates = list(inputs.close.index)
+        equity_curve = _simulate_bars(
+            ctx,
+            state,
+            close=inputs.close,
+            dates=dates,
+            scoring_idx=_scoring_start_index(dates, inputs),
+        )
 
     ending_equity = equity_curve[-1]
-    total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
-    alpha_pct = None if benchmark_return is None else total_return_pct - benchmark_return
+    total_return_pct = ((ending_equity / inputs.initial_cash) - 1.0) * 100.0
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)
 
     return BacktestResult(
         run_id=run_id,
         account_name=cfg.account_name,
-        start_date=start_date.isoformat(),
-        end_date=end_date.isoformat(),
-        tickers=all_tickers,
+        start_date=inputs.start_date.isoformat(),
+        end_date=inputs.end_date.isoformat(),
+        tickers=inputs.all_tickers,
         trade_count=state.trade_count,
         ending_equity=ending_equity,
         total_return_pct=total_return_pct,
-        benchmark_return_pct=benchmark_return,
-        alpha_pct=alpha_pct,
+        benchmark_return_pct=inputs.benchmark_return,
+        alpha_pct=None if inputs.benchmark_return is None else total_return_pct - inputs.benchmark_return,
         max_drawdown_pct=max_drawdown_pct(equity_curve),
         annualized_return_pct=performance.annualized_return_pct,
         sharpe_ratio=performance.sharpe_ratio,
@@ -479,5 +642,5 @@ def run_backtest(
         win_rate_pct=performance.win_rate_pct,
         profit_factor=performance.profit_factor,
         avg_trade_return_pct=performance.avg_trade_return_pct,
-        warnings=warnings,
+        warnings=inputs.warnings,
     )

@@ -155,7 +155,7 @@ def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
 
 def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_report_repo", "trend_v1", 10000.0, "SPY")
-    monkeypatch.setattr("backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("backtesting.services.backtest_data_service.load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(
         "backtesting.backtest.fetch_bar_history",
         lambda _tickers, _start, _end, **_kwargs: bars_from_closes(_fake_close_history(_tickers)),

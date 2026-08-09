@@ -2,6 +2,8 @@ import pandas as pd
 import pytest
 
 import backtesting.backtest as backtest_module
+import backtesting.services.backtest_data_service as backtest_data_service
+import backtesting.services.execution_service as execution_service
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
@@ -23,7 +25,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        warnings = backtest_module.preview_backtest_warnings(
+        warnings = execution_service.preview_backtest_warnings(
             conn,
             make_backtest_config("acct_preview_leaps", slippage_bps=0.0),
         )
@@ -44,7 +46,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
+        monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
             backtest_module,
             "fetch_bar_history",

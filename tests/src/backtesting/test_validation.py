@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 import backtesting.backtest as backtest_module
+import backtesting.services.backtest_data_service as backtest_data_service
 from tests.support.backtesting import bars_from_closes, create_backtest_account, make_backtest_config
 from tests.support.strategies import ensure_strategy_id_for_label
 
@@ -31,7 +32,7 @@ class TestBacktestValidationAndFailurePaths:
         create_backtest_account(conn, "acct_short")
 
         short_idx = pd.date_range("2026-01-01", periods=2, freq="B")
-        monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
+        monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
             backtest_module,
             "fetch_bar_history",
