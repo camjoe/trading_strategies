@@ -50,7 +50,7 @@ def _patched_service(
     replacements: dict[str, object] = {
         "get_account": lambda _conn, _name: _ACCOUNT,
         "get_default_book": lambda _conn, *, account_id: None,
-        "resolve_backtest_dates": lambda _start, _end, _lookback: dates,
+        "resolve_run_window": lambda _start, _end, _lookback: dates,
         "resolve_universe": lambda **_kwargs: RunUniverse(
             default_tickers=tickers,
             month_to_tickers={"2026-01": tickers},

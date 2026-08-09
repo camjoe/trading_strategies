@@ -11,34 +11,34 @@ from backtesting.services import backtest_data_service as backtest_data
 from trading.models.market_data import BAR_CLOSE
 
 
-def test_resolve_backtest_dates_conflict_raises() -> None:
+def test_resolve_run_window_conflict_raises() -> None:
     with pytest.raises(ValueError, match="Use either --start or --lookback-months"):
-        backtest_data.resolve_backtest_dates("2026-01-01", None, 1)
+        backtest_data.resolve_run_window("2026-01-01", None, 1)
 
 
-def test_resolve_backtest_dates_default_window() -> None:
-    start, end = backtest_data.resolve_backtest_dates(None, "2026-03-14", None)
+def test_resolve_run_window_default_window() -> None:
+    start, end = backtest_data.resolve_run_window(None, "2026-03-14", None)
     assert start == date(2026, 2, 11)
     assert end == date(2026, 3, 14)
 
 
-def test_resolve_backtest_dates_invalid_range_raises() -> None:
+def test_resolve_run_window_invalid_range_raises() -> None:
     with pytest.raises(ValueError, match="start date must be before end date"):
-        backtest_data.resolve_backtest_dates("2026-03-14", "2026-03-14", None)
+        backtest_data.resolve_run_window("2026-03-14", "2026-03-14", None)
 
 
-def test_resolve_backtest_dates_rejects_invalid_start_format() -> None:
+def test_resolve_run_window_rejects_invalid_start_format() -> None:
     with pytest.raises(ValueError, match="Invalid start date"):
-        backtest_data.resolve_backtest_dates("2026/03/14", None, None)
+        backtest_data.resolve_run_window("2026/03/14", None, None)
 
 
-def test_resolve_backtest_dates_rejects_non_positive_lookback() -> None:
+def test_resolve_run_window_rejects_non_positive_lookback() -> None:
     with pytest.raises(ValueError, match="lookback_months must be > 0"):
-        backtest_data.resolve_backtest_dates(None, "2026-03-14", 0)
+        backtest_data.resolve_run_window(None, "2026-03-14", 0)
 
 
-def test_resolve_backtest_dates_uses_as_of_when_end_missing() -> None:
-    start, end = backtest_data.resolve_backtest_dates(None, None, None, as_of=date(2026, 3, 20))
+def test_resolve_run_window_uses_as_of_when_end_missing() -> None:
+    start, end = backtest_data.resolve_run_window(None, None, None, as_of=date(2026, 3, 20))
 
     assert start == date(2026, 2, 17)
     assert end == date(2026, 3, 20)
@@ -49,8 +49,8 @@ def test_resolve_backtest_dates_uses_as_of_when_end_missing() -> None:
     as_of=st.dates(min_value=date(2000, 1, 1), max_value=date(2100, 12, 31)),
     lookback_months=st.integers(min_value=1, max_value=24),
 )
-def test_resolve_backtest_dates_lookback_property(as_of: date, lookback_months: int) -> None:
-    start, end = backtest_data.resolve_backtest_dates(
+def test_resolve_run_window_lookback_property(as_of: date, lookback_months: int) -> None:
+    start, end = backtest_data.resolve_run_window(
         start=None,
         end=None,
         lookback_months=lookback_months,

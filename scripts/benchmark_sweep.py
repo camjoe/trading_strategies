@@ -39,7 +39,7 @@ from backtesting.domain.optimization.search import generate_candidates
 from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
-from backtesting.services.backtest_data_service import resolve_backtest_dates
+from backtesting.services.backtest_data_service import resolve_run_window
 from backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
 from infrastructure.database.backend import SQLiteBackend, set_backend
 from infrastructure.database.config import get_db_path
@@ -173,7 +173,7 @@ def main() -> None:
 
     cfg = _optimizer_config(args, search_space)
     candidates = generate_candidates(search_space, budget=cfg.candidate_budget)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    start_date, end_date = resolve_run_window(cfg.start, cfg.end, cfg.lookback_months)
     splits, holdout = build_walk_forward_optimization_splits(
         start_date,
         end_date,

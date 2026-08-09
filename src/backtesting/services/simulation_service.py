@@ -22,7 +22,7 @@ from backtesting.domain.simulation_math import (
 from backtesting.domain.windowing import shift_months
 from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
-from backtesting.services.backtest_data_service import resolve_backtest_dates, resolve_universe
+from backtesting.services.backtest_data_service import resolve_run_window, resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
 from trading.domain.strategies.indicator_view import (
@@ -68,7 +68,7 @@ def _resolve_run_scope(conn: sqlite3.Connection, cfg: BacktestConfig) -> _RunSco
     # Execution settings are book-owned (revision 0004): the account's default
     # book supplies the risk/sizing knobs the simulation runs under.
     default_book = get_default_book(conn, account_id=account.id)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    start_date, end_date = resolve_run_window(cfg.start, cfg.end, cfg.lookback_months)
 
     warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
     universe = resolve_universe(
@@ -89,7 +89,7 @@ def _resolve_run_scope(conn: sqlite3.Connection, cfg: BacktestConfig) -> _RunSco
     )
 
 
-def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+def preview_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
     """The warnings a run under this config would raise, without running it.
 
     The run resolves its scope through the same function, so the two cannot

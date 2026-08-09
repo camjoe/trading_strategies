@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from backtesting.composition import run_backtest
 from backtesting.services.report_service import fetch_report
-from backtesting.services.simulation_service import preview_backtest_warnings
+from backtesting.services.simulation_service import preview_warnings
 from infrastructure.market_data.factory import build_provider
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest
@@ -65,7 +65,7 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
         resolved_account_name = payload.account.strip()
         payload = payload.model_copy(update={"account": resolved_account_name})
         try:
-            warnings = preview_backtest_warnings(conn, build_backtest_config_from_preflight_request(payload))
+            warnings = preview_warnings(conn, build_backtest_config_from_preflight_request(payload))
         except FileNotFoundError as error:
             # A missing tickers file is a route-specific transport error, not a
             # domain validation failure — keep the direct 400 mapping here.

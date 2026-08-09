@@ -21,7 +21,7 @@ def _parse_date(value: str, label: str) -> date:
         raise ValidationError(f"Invalid {label} date: {value}. Expected format is {DATE_FMT}.") from exc
 
 
-def resolve_backtest_dates(
+def resolve_run_window(
     start: str | None,
     end: str | None,
     lookback_months: int | None,

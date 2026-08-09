@@ -11,7 +11,7 @@ from trading.domain.exceptions import NotFoundError, ValidationError
 
 _BACKTEST_REPORT_FULL = "paper_trading_web.backend.routes.backtests.fetch_report"
 _RUN_BACKTEST = "paper_trading_web.backend.routes.backtests.run_backtest"
-_PREVIEW_BACKTEST_WARNINGS = "paper_trading_web.backend.routes.backtests.preview_backtest_warnings"
+_PREVIEW_BACKTEST_WARNINGS = "paper_trading_web.backend.routes.backtests.preview_warnings"
 
 
 class TestBacktestsRoutes:

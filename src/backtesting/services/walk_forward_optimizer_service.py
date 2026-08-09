@@ -41,7 +41,7 @@ from backtesting.repositories.optimization import (
     insert_trial,
     insert_window,
 )
-from backtesting.services.backtest_data_service import resolve_backtest_dates, resolve_universe
+from backtesting.services.backtest_data_service import resolve_run_window, resolve_universe
 from common.git import git_head_revision
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -114,7 +114,7 @@ def run_walk_forward_optimization(
     if unknown:
         raise ValidationError(f"search_space keys are not parameters of strategy '{cfg.strategy}': {sorted(unknown)}")
 
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    start_date, end_date = resolve_run_window(cfg.start, cfg.end, cfg.lookback_months)
     splits, holdout = build_walk_forward_optimization_splits(
         start_date,
         end_date,

@@ -15,7 +15,7 @@ from tests.support.backtesting import (
 
 
 class TestBacktestWarnings:
-    def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(self, conn) -> None:
+    def test_preview_warnings_includes_leaps_and_research_only_warning(self, conn) -> None:
         create_backtest_account(
             conn,
             "acct_preview_leaps",
@@ -27,7 +27,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        warnings = simulation_service.preview_backtest_warnings(
+        warnings = simulation_service.preview_warnings(
             conn,
             make_backtest_config("acct_preview_leaps", slippage_bps=0.0),
         )
