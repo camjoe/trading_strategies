@@ -89,12 +89,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+          cache: "pip"
+          cache-dependency-path: |
+            requirements-base.txt
+            requirements-dev.txt
 
       - name: Install Python dependencies and quality tools
-        run: uv pip install --system -r requirements-dev.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
 
       - name: Run Python lint, type, and test gates
         run: python -m scripts.run_checks python
@@ -161,12 +164,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+          cache: "pip"
+          cache-dependency-path: |
+            requirements-base.txt
+            requirements-dev.txt
 
       - name: Install Python dependencies
-        run: uv pip install --system -r requirements-dev.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
 
       - name: Run documentation and safety enforcement
         run: |
