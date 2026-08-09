@@ -1,9 +1,15 @@
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
+import backtesting.services.reporting as reporting
 from backtesting.models import BacktestBatchConfig
 from backtesting.models.report import BacktestLeaderboardEntry
-from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
+from tests.support.backtesting import (
+    create_backtest_account,
+    make_backtest_config,
+    make_backtest_result,
+    stub_market_data_provider,
+)
 
 
 class TestBacktestLeaderboardAndBatch:
@@ -17,29 +23,26 @@ class TestBacktestLeaderboardAndBatch:
 
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_trend", run_name="lb-trend"),
+            provider=stub_market_data_provider(),
         )
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_mean", run_name="lb-mean"),
+            provider=stub_market_data_provider(),
         )
 
-        leaderboard = backtest_module.backtest_leaderboard(conn, limit=10)
+        leaderboard = reporting.fetch_leaderboard(conn, limit=10)
         assert len(leaderboard) >= 2
-        assert leaderboard[0]["total_return_pct"] >= leaderboard[1]["total_return_pct"]
-        assert "max_drawdown_pct" in leaderboard[0]
-        assert "benchmark_return_pct" in leaderboard[0]
-        assert "alpha_pct" in leaderboard[0]
-        assert "sharpe_ratio" in leaderboard[0]
-        assert "profit_factor" in leaderboard[0]
+        assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="mean")
+        filtered = reporting.fetch_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
-        assert filtered[0]["account_name"] == "acct_lb_mean"
+        assert filtered[0].account_name == "acct_lb_mean"
 
-    def test_backtest_leaderboard_entries_returns_models(
+    def test_leaderboard_returns_typed_entries(
         self,
         conn,
         bt_market_data,
@@ -47,12 +50,13 @@ class TestBacktestLeaderboardAndBatch:
         create_backtest_account(conn, "acct_lb_entries")
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_entries", run_name="lb-entries"),
+            provider=stub_market_data_provider(),
         )
 
-        entries = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
+        entries = reporting.fetch_leaderboard(conn, limit=5, account_name="acct_lb_entries")
         assert len(entries) == 1
         entry = entries[0]
         assert isinstance(entry, BacktestLeaderboardEntry)
@@ -75,13 +79,13 @@ class TestBacktestLeaderboardAndBatch:
 
         seen_run_names: list[str | None] = []
 
-        def _fake_run_backtest(_conn, cfg):
+        def _fake_run_backtest(_conn, cfg, *, provider):
             seen_run_names.append(cfg.run_name)
             return results_map[cfg.account_name]
 
-        monkeypatch.setattr(backtest_module, "run_backtest", _fake_run_backtest)
+        monkeypatch.setattr(composition, "run_backtest", _fake_run_backtest)
 
-        results = backtest_module.run_backtest_batch(
+        results = composition.run_backtest_batch(
             conn,
             BacktestBatchConfig(
                 account_names=["acct_a", "acct_b"],
@@ -95,6 +99,7 @@ class TestBacktestLeaderboardAndBatch:
                 run_name_prefix="batch",
                 allow_approximate_leaps=False,
             ),
+            provider=stub_market_data_provider(),
         )
 
         assert [item.account_name for item in results] == ["acct_b", "acct_a"]

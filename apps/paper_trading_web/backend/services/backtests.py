@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backtesting.backtest import BacktestConfig
+from backtesting.models import BacktestConfig
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest
 

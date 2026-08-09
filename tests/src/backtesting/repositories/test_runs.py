@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from backtesting.backtest import run_backtest
+from backtesting.composition import run_backtest
 from backtesting.models import BacktestConfig
 from backtesting.repositories.runs import (
     fetch_leaderboard_rows,
@@ -18,7 +18,7 @@ from backtesting.repositories.runs import (
     insert_snapshot,
     insert_trade,
 )
-from tests.support.backtesting import bars_from_closes
+from tests.support.backtesting import bars_from_closes, stub_market_data_provider
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.services.accounts import create_account
 
@@ -155,13 +155,13 @@ def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
 
 def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_report_repo", "trend_v1", 10000.0, "SPY")
-    monkeypatch.setattr("backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("backtesting.services.run_inputs.load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(
-        "backtesting.backtest.fetch_bar_history",
+        "backtesting.composition.fetch_bar_history",
         lambda _tickers, _start, _end, **_kwargs: bars_from_closes(_fake_close_history(_tickers)),
     )
     monkeypatch.setattr(
-        "backtesting.backtest.fetch_benchmark_close",
+        "backtesting.composition.fetch_benchmark_close",
         lambda _ticker, _start, _end, **_kwargs: pd.Series(
             [100.0, 102.0],
             index=pd.date_range("2026-01-01", periods=2, freq="B"),
@@ -169,7 +169,7 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
     )
 
     cfg = _backtest_config("acct_report_repo", run_name="contract", end="2026-03-01", slippage_bps=1.0)
-    result = run_backtest(conn, cfg)
+    result = run_backtest(conn, cfg, provider=stub_market_data_provider())
 
     run_row = fetch_run(conn, result.run_id)
     snapshot_rows = fetch_snapshots(conn, result.run_id)

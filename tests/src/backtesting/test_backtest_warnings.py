@@ -1,17 +1,21 @@
 import pandas as pd
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
+import backtesting.services.reporting as reporting
+import backtesting.services.run_inputs as backtest_data_service
+import backtesting.services.simulation as simulation
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
     make_backtest_config,
     make_fake_close_history,
+    stub_market_data_provider,
 )
 
 
 class TestBacktestWarnings:
-    def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(self, conn) -> None:
+    def test_preview_warnings_includes_leaps_and_research_only_warning(self, conn) -> None:
         create_backtest_account(
             conn,
             "acct_preview_leaps",
@@ -23,7 +27,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        warnings = backtest_module.preview_backtest_warnings(
+        warnings = simulation.preview_warnings(
             conn,
             make_backtest_config("acct_preview_leaps", slippage_bps=0.0),
         )
@@ -44,14 +48,14 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
+        monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            composition,
             "fetch_bar_history",
             lambda _tickers, _start, _end, **_kwargs: bars_from_closes(make_fake_close_history(_tickers)),
         )
         monkeypatch.setattr(
-            backtest_module,
+            composition,
             "fetch_benchmark_close",
             lambda _ticker, _start, _end, **_kwargs: pd.Series(
                 [100.0, 102.0],
@@ -59,12 +63,13 @@ class TestBacktestWarnings:
             ),
         )
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_warn", run_name="warn-report"),
+            provider=stub_market_data_provider(),
         )
 
-        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
+        summary = reporting.fetch_report(conn, run_id=result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings

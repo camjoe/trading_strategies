@@ -1,63 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
+from backtesting.models import RunUniverse
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
-
-DATE_FMT = "%Y-%m-%d"
-
-
-def _parse_date(value: str, label: str) -> date:
-    try:
-        return datetime.strptime(value, DATE_FMT).date()
-    except ValueError as exc:
-        raise ValidationError(f"Invalid {label} date: {value}. Expected format is {DATE_FMT}.") from exc
-
-
-def resolve_backtest_dates(
-    start: str | None,
-    end: str | None,
-    lookback_months: int | None,
-    as_of: date | None = None,
-) -> tuple[date, date]:
-    if start and lookback_months is not None:
-        raise ValidationError("Use either --start or --lookback-months, not both.")
-
-    now = as_of or datetime.now(UTC).date()
-    end_date = _parse_date(end, "end") if end else now
-
-    if lookback_months is not None:
-        if lookback_months <= 0:
-            raise ValidationError("lookback_months must be > 0")
-        start_date = end_date - timedelta(days=int(lookback_months * 30.5))
-    elif start:
-        start_date = _parse_date(start, "start")
-    else:
-        start_date = end_date - timedelta(days=31)
-
-    if start_date >= end_date:
-        raise ValidationError("start date must be before end date")
-
-    return start_date, end_date
-
-
-def fetch_close_history(
-    tickers: list[str],
-    start_date: date,
-    end_date: date,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> pd.DataFrame:
-    if not tickers:
-        raise ValidationError("At least one ticker is required for backtesting.")
-    provider = require_provider(provider)
-    return provider.fetch_close_history(tickers, start_date, end_date)
 
 
 def fetch_bar_history(
@@ -83,11 +35,9 @@ def fetch_benchmark_close(
 ) -> pd.Series:
     """The benchmark's closing prices over the span.
 
-    Reads bars rather than the close-only endpoint so a backtest has exactly one
-    market-data path, with one set of gap-filling rules. Two paths over the same
-    prices means two cache entries, two downloads, and two chances to disagree
-    about which days exist — the hazard that ruled out keeping a close frame
-    alongside a separate bar lookup in the first place.
+    Derived from the bar history rather than the close-only endpoint, so a run has
+    one price path and one set of gap-filling rules. Two paths would mean two cache
+    entries that can disagree about which days exist.
     """
     frames = fetch_bar_history([benchmark_ticker], start_date, end_date, provider=provider)
     series = frames[benchmark_ticker][BAR_CLOSE].dropna()
@@ -110,7 +60,7 @@ def _iter_month_keys(start_date: date, end_date: date) -> list[str]:
     return keys
 
 
-def build_monthly_universe(
+def _build_monthly_universe(
     default_tickers: list[str],
     start_date: date,
     end_date: date,
@@ -152,3 +102,36 @@ def build_monthly_universe(
         all_tickers.update(tickers)
 
     return month_to_tickers, sorted(all_tickers), warnings
+
+
+def resolve_universe(
+    *,
+    tickers_file: str,
+    universe_history_dir: str | None,
+    start_date: date,
+    end_date: date,
+) -> RunUniverse:
+    """The run's universe, and any warnings raised resolving it.
+
+    Takes the two settings rather than a config object, so the backtest and
+    optimizer configs can both reach it.
+    """
+    default_tickers = load_tickers_from_file(tickers_file)
+    month_to_tickers, all_tickers, warnings = _build_monthly_universe(
+        default_tickers,
+        start_date,
+        end_date,
+        universe_history_dir,
+    )
+
+    if universe_history_dir:
+        warnings.append(
+            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
+        )
+
+    return RunUniverse(
+        default_tickers=default_tickers,
+        month_to_tickers=month_to_tickers,
+        all_tickers=all_tickers,
+        warnings=warnings,
+    )

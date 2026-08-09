@@ -20,6 +20,7 @@ from backtesting.models.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
+    RunUniverse,
 )
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "BacktestBatchConfig",
     "BacktestConfig",
     "BacktestResult",
+    "RunUniverse",
 ]

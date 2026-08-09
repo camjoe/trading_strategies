@@ -231,43 +231,60 @@ def fetch_leaderboard_rows(
     account_name: str | None,
     strategy: str | None,
 ) -> list[dict[str, object]]:
+    """The best *limit* standalone runs by total return, best first.
+
+    Ranking and the limit are both applied here, over every matching run — taking
+    the most recent *limit* rows and ordering those by return would answer a
+    different question, and a run whose best result is old would never appear.
+
+    Runs without usable equity bounds are dropped before the limit, so a full
+    board is returned whenever that many rankable runs exist.
+
+    *strategy* is a substring match, which is what reaches a base strategy's
+    promoted variants (filtering ``trend`` finds ``trend_v1`` runs) — variant keys
+    are operator-chosen and not in the code registry. The cost is that it also
+    matches unrelated keys containing the filter: ``trend`` returns
+    ``pullback_trend`` and ``volatility_filtered_trend`` runs too.
+    """
     rows = conn.execute(
         """
-        SELECT
-            r.id AS run_id,
-            r.run_name,
-            r.start_date,
-            r.end_date,
-            r.created_at,
-            a.name AS account_name,
-            COALESCE(s.strategy_key, 'unknown') AS strategy,
-            r.benchmark_return_pct,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_date ASC, s.id ASC
-                LIMIT 1
-            ) AS starting_equity,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_date DESC, s.id DESC
-                LIMIT 1
-            ) AS ending_equity,
-            (
-                SELECT COUNT(*)
-                FROM backtest_executions t
-                WHERE t.run_id = r.id
-            ) AS trade_count
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        LEFT JOIN strategies s ON s.id = r.strategy_id
-        WHERE r.purpose = ?
-          AND (? IS NULL OR a.name = ?)
-          AND (? IS NULL OR LOWER(COALESCE(s.strategy_key, 'unknown')) LIKE '%' || LOWER(?) || '%')
-        ORDER BY r.created_at DESC, r.id DESC
+        WITH ranked AS (
+            SELECT
+                r.id AS run_id,
+                r.run_name,
+                r.start_date,
+                r.end_date,
+                r.created_at,
+                a.name AS account_name,
+                COALESCE(s.strategy_key, 'unknown') AS strategy,
+                r.benchmark_return_pct,
+                (
+                    SELECT snap.equity
+                    FROM backtest_equity_snapshots snap
+                    WHERE snap.run_id = r.id
+                    ORDER BY snap.snapshot_date ASC, snap.id ASC
+                    LIMIT 1
+                ) AS starting_equity,
+                (
+                    SELECT snap.equity
+                    FROM backtest_equity_snapshots snap
+                    WHERE snap.run_id = r.id
+                    ORDER BY snap.snapshot_date DESC, snap.id DESC
+                    LIMIT 1
+                ) AS ending_equity
+            FROM backtest_runs r
+            JOIN accounts a ON a.id = r.account_id
+            LEFT JOIN strategies s ON s.id = r.strategy_id
+            WHERE r.purpose = ?
+              AND (? IS NULL OR a.name = ?)
+              AND (? IS NULL OR LOWER(COALESCE(s.strategy_key, 'unknown')) LIKE '%' || LOWER(?) || '%')
+        )
+        SELECT *
+        FROM ranked
+        WHERE starting_equity IS NOT NULL
+          AND ending_equity IS NOT NULL
+          AND starting_equity > 0
+        ORDER BY (ending_equity * 1.0 / starting_equity) DESC, run_id DESC
         LIMIT ?
         """,
         (BACKTEST_PURPOSE_STANDALONE, account_name, account_name, strategy, strategy, int(limit)),

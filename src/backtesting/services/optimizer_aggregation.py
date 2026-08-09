@@ -1,11 +1,11 @@
 """Read-side aggregation over a persisted walk-forward optimization experiment.
 
-Assembles the compounded out-of-sample series from the experiment's persisted
-windows (revision ``0022``): read each window's linked OOS run equity marks,
-derive its return, and compound the non-overlapping windows into one chronological
-series. Nothing is stored — the series is derived on read from the window rows and
-their ``backtest_runs`` OOS runs (link-don't-copy), so it stays consistent with the
-member runs.
+Nothing here is stored. Both shapes are derived on each read from the window rows
+(revision ``0022``) and the ``backtest_runs`` OOS runs they link to, so neither
+can drift from the runs it summarizes.
+
+Not a seam itself: it serves the two that are, ``evidence`` wanting the
+per-window segments and ``audit`` the compounded series.
 """
 
 from __future__ import annotations
@@ -20,12 +20,11 @@ from backtesting.repositories.runs import fetch_run_equity_bounds
 
 
 def fetch_oos_segments(conn: sqlite3.Connection, *, experiment_id: int) -> list[OOSReturnSegment] | None:
-    """Return one OOS segment per persisted window, or ``None`` if unavailable.
+    """One OOS segment per persisted window, or ``None``.
 
-    ``None`` when the experiment has no persisted windows (predates revision ``0022``)
-    or any window's OOS run has no equity snapshots — the record is only honest if
-    every window contributes, so a missing segment yields nothing rather than a
-    partial series.
+    All or nothing: ``None`` when the experiment has no persisted windows, or when
+    any window's OOS run has no equity snapshots. A partial series would read as a
+    complete record of a shorter experiment.
     """
     windows = fetch_windows_for_experiment(conn, experiment_id=experiment_id)
     if not windows:

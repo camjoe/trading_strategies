@@ -92,11 +92,10 @@ Accepted and shipped as the first slice:
   validation, tests) keep working unchanged, while the UI can match the type for
   404. A bare `ValueError` still surfaces as 500.
 - The user-facing entity-lookup not-found sources now raise it:
-  `services/accounts/mutations.get_account`, `backtesting/services/report_service`,
-  `backtesting/repositories/walk_forward_repository` (backtest run),
-  `backtesting/services/walk_forward_report_service` (group),
-  `services/autonomy_monitor/queries`, `services/admin/deletions`, and
-  `services/promotion/actions._fetch_review_or_raise`.
+  `services/accounts/mutations.get_account`, `backtesting/services/reporting`
+  (backtest run), `backtesting/services/optimization_experiment` (optimizer
+  account/strategy), `services/autonomy_monitor/queries`,
+  `services/admin/deletions`, and `services/promotion/actions._fetch_review_or_raise`.
 - One app-level handler in `apps/paper_trading_web/backend/main.py`:
   `NotFoundError -> 404`.
 - The not-found-only routes dropped their local 404 mapping
@@ -107,7 +106,7 @@ Accepted and shipped as the first slice:
 
 **Conversion principle.** Only "a requested entity does not exist" (a lookup
 miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
-(`backtest_data_service` bad directory path, `csv_export` invalid table — 400
+(`run_inputs` bad directory path, `csv_export` invalid table — 400
 -class) and *internal post-write integrity* checks (`repositories/promotion`
 "not found after insert", `services/promotion/actions` "not found after request
 creation", `services/books/accounting` fill-processing invariants — 500-class,
@@ -127,7 +126,7 @@ The second slice completes the migration for the remaining per-route
   checks), `services/accounts/mutations.py` and `queries.py` (empty-name,
   positive-id/limit, `initial_cash > 0`), `domain/strategy_signals.py`
   (unknown-strategy), `backtesting/domain/windowing.py` and
-  `backtesting/services/backtest_data_service.py` (date/lookback/universe
+  `backtesting/services/run_inputs.py` (date/lookback/universe
   checks), and `services/books/rotation/config_parser.py` (rotation object
   shape, lookback, schedule strategy names).
 - Routes dropped their blanket `except ValueError -> 400`: `routes/backtests.py`
@@ -145,7 +144,7 @@ The second slice completes the migration for the remaining per-route
 **Conversion principle (unchanged).** Only user-input validation becomes
 `ValidationError`. Deliberately left as bare `ValueError` -> 500: backtest
 domain-math invariants (`backtesting/domain/metrics.py`,
-`simulation_math.py`, `execution_service.py`), internal post-write integrity
+`simulation_math.py`, `simulation.py`), internal post-write integrity
 checks, and the generic `domain/rotation.py` list parser (also used on
 DB-sourced data, where a failure is an integrity error, not user input).
 Route-specific transport guards stay direct `HTTPException`: the preflight

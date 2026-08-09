@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import json
+from functools import partial
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backtesting.backtest import run_backtest, run_backtest_metrics_only
+from backtesting.composition import run_backtest, run_backtest_metrics_only
 from backtesting.models.optimizer import (
     CompoundedOOSSeries,
+    ExperimentWindowAudit,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
     OptimizationTrialRecord,
     OptimizerConfig,
 )
-from backtesting.services.audit_service import ExperimentWindowAudit
-from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.services.optimization_experiment import run_and_persist_optimization
+from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.domain.exceptions import NotFoundError
 from trading.services.strategy_catalog.mutations import (
     configure_strategy,
@@ -223,6 +225,7 @@ def api_optimization_detail(experiment_id: int) -> dict[str, object]:
 @router.post("/api/strategy-lab/optimizations")
 def api_run_optimization(payload: RunOptimizationRequest) -> dict[str, object]:
     with db_conn() as conn:
+        provider = build_provider()
         try:
             summary = run_and_persist_optimization(
                 conn,
@@ -245,8 +248,11 @@ def api_run_optimization(payload: RunOptimizationRequest) -> dict[str, object]:
                     candidate_budget=payload.candidateBudget,
                     warmup_months=payload.warmupMonths,
                 ),
-                run_metrics_only_fn=run_backtest_metrics_only,
-                run_persisted_fn=run_backtest,
+                # One provider for the whole sweep: its cumulative call guard is
+                # per instance, and a sweep runs a backtest per candidate per window.
+                run_metrics_only_fn=partial(run_backtest_metrics_only, provider=provider),
+                run_persisted_fn=partial(run_backtest, provider=provider),
+                market_data_provider=resolve_provider_name(),
             )
         except NotFoundError:
             raise

@@ -5,11 +5,12 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-import backtesting.backtest as backtest_module
-import backtesting.services.execution_service as execution_service
+import backtesting.composition as composition
+import backtesting.services.simulation as simulation
 from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
+    stub_market_data_provider,
 )
 from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
 
@@ -65,7 +66,7 @@ class TestBacktestProxyFeatureFlow:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         create_backtest_account(conn, "acct_topic", strategy="trend")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        install_backtest_market_data(monkeypatch, composition, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
         idx = pd.date_range("2026-01-01", periods=40, freq="B")
         feature_frame = pd.DataFrame(
@@ -99,7 +100,7 @@ class TestBacktestProxyFeatureFlow:
         # that declares features gets a bundle built and per-ticker history passed
         # to its signal � not any particular strategy.
         monkeypatch.setattr(
-            execution_service,
+            simulation,
             "resolve_strategy",
             lambda _name: SimpleNamespace(
                 indicators=(),
@@ -108,12 +109,12 @@ class TestBacktestProxyFeatureFlow:
                 default_params={},
             ),
         )
-        monkeypatch.setattr(backtest_module, "build_feature_provider", lambda **_kwargs: StubFeatureProvider())
-        monkeypatch.setattr(execution_service, "evaluate_signal", fake_signal)
+        monkeypatch.setattr(composition, "build_feature_provider", lambda **_kwargs: StubFeatureProvider())
+        monkeypatch.setattr(simulation, "evaluate_signal", fake_signal)
 
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
-            backtest_module.BacktestConfig(
+            composition.BacktestConfig(
                 account_name="acct_topic",
                 tickers_file="src/infrastructure/config/trade_universes/default.txt",
                 universe_history_dir=None,
@@ -125,6 +126,7 @@ class TestBacktestProxyFeatureFlow:
                 run_name="topic-proxy",
                 allow_approximate_leaps=False,
             ),
+            provider=stub_market_data_provider(),
         )
 
         assert call_count["n"] > 0

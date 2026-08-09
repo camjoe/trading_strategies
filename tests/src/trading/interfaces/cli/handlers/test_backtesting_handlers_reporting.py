@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+from backtesting.models.optimizer import ExperimentAudit, ExperimentWindowAudit
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from tests.support.backtesting import make_backtest_full_report
 from trading.domain.promotion_gate import evaluate_promotion_gate
@@ -15,7 +16,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
-    deps = {"backtest_report_full": lambda _conn, _run_id: make_backtest_full_report(run_id=42, run_name="smoke")}
+    deps = {"fetch_report": lambda _conn, *, run_id: make_backtest_full_report(run_id=42, run_name="smoke")}
 
     handle_backtest_report(object(), types.SimpleNamespace(run_id=42), fake_parser(), deps=deps)
 
@@ -28,7 +29,7 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
 def test_handle_backtest_report_joins_the_warning_list(capsys) -> None:
     """``summary.warnings`` is ``list[str]``; the line must read as prose, not a repr."""
     report = make_backtest_full_report(warnings=["daily bars only", "approximate leaps"])
-    deps = {"backtest_report_full": lambda _conn, _run_id: report}
+    deps = {"fetch_report": lambda _conn, *, run_id: report}
 
     handle_backtest_report(object(), types.SimpleNamespace(run_id=1), fake_parser(), deps=deps)
 
@@ -57,7 +58,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
         trade_count=3,
         created_at="2026-03-01",
     )
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: [row]}
+    deps = {"fetch_leaderboard": lambda *_a, **_kw: [row]}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
     handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
@@ -68,7 +69,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
 
 
 def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> None:
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: []}
+    deps = {"fetch_leaderboard": lambda *_a, **_kw: []}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
     handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
@@ -78,7 +79,7 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
 
 def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> None:
     deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(
+        "fetch_leaderboard": lambda *_a, **_kw: (_ for _ in ()).throw(
             ValueError("Unknown strategy 'mystery_strategy'")
         )
     }
@@ -99,7 +100,7 @@ class _RecordingParser:
 def test_handle_backtest_leaderboard_records_parser_error_without_printing_header(capsys) -> None:
     parser = _RecordingParser()
     deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
+        "fetch_leaderboard": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
     }
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
@@ -209,12 +210,14 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         compounded_return_pct=5.06,
         has_gaps=True,
     )
+    audit = ExperimentAudit(
+        experiment=_experiment_stub(),
+        windows=[ExperimentWindowAudit(window=window, trials=trials)],
+        compounded_oos=series,
+        manifest=_manifest_stub(),
+    )
     deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [window],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: series,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: _manifest_stub(),
+        "fetch_experiment_audit": lambda _conn, *, experiment_id: audit,
         "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
@@ -233,12 +236,9 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
 
 
 def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -> None:
+    audit = ExperimentAudit(experiment=_experiment_stub(), windows=[], compounded_oos=None, manifest=None)
     deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: None,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: None,
+        "fetch_experiment_audit": lambda _conn, *, experiment_id: audit,
         "evaluate_promotion_gate": evaluate_promotion_gate,
     }
 
@@ -250,17 +250,21 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
     assert "Provenance: unavailable" in out
 
 
-def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(capsys) -> None:
-    calls: list[str] = []
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(
+def test_handle_backtest_optimize_show_prints_failure_and_skips_the_audit_sections(capsys) -> None:
+    # A failed experiment never persisted an audit tree, so the service hands back
+    # empty windows and no series/manifest; the handler must stop after the header
+    # rather than print "none persisted" lines that read like data loss.
+    audit = ExperimentAudit(
+        experiment=_experiment_stub(
             status="failed", failure_stage="window_search", failure_message="No eligible candidate: too_few_trades"
         ),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: calls.append("windows"),
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: calls.append("trials"),
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: calls.append("compounded"),
+        windows=[],
+        compounded_oos=None,
+        manifest=None,
+    )
+    deps = {
+        "fetch_experiment_audit": lambda _conn, *, experiment_id: audit,
         "evaluate_promotion_gate": evaluate_promotion_gate,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: calls.append("manifest"),
     }
 
     handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)
@@ -268,15 +272,13 @@ def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(ca
     out = capsys.readouterr().out
     assert "status=failed" in out
     assert "Failed during window_search after 1 window(s): No eligible candidate: too_few_trades" in out
-    assert calls == []  # a failed experiment has no audit tree — those lookups are skipped
+    assert "Windows" not in out
+    assert "Compounded OOS" not in out
+    assert "Provenance" not in out
 
 
 def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: None,
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
-    }
+    deps = {"fetch_experiment_audit": lambda _conn, *, experiment_id: None}
 
     with pytest.raises(SystemExit, match="Optimization experiment not found: 5"):
         handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), deps=deps)

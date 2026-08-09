@@ -10,7 +10,7 @@ import pytest
 from backtesting.models.optimizer import OptimizationExperimentInsert, OptimizationWindowInsert
 from backtesting.repositories.optimization import insert_experiment, insert_window
 from backtesting.repositories.runs import insert_snapshot
-from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
+from backtesting.services.optimizer_aggregation import fetch_compounded_oos
 from tests.support.repositories import insert_repository_account
 
 

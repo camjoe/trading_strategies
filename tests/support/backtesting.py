@@ -4,13 +4,15 @@ from datetime import date
 
 import pandas as pd
 
-from backtesting.backtest import BacktestConfig
-from backtesting.models import BacktestResult
+import backtesting.services.run_inputs as backtest_data_service
+from backtesting.models import BacktestConfig, BacktestResult
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
+from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account
+from trading.services.market_data import MarketDataProvider
 
 
 def make_fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -88,21 +90,33 @@ def make_fake_bar_history(tickers: list[str]) -> dict[str, pd.DataFrame]:
     return frames
 
 
+def stub_market_data_provider() -> MarketDataProvider:
+    """A provider to satisfy the composition seam in tests.
+
+    ``install_backtest_market_data`` patches the fetch functions that would use
+    it, so nothing reads through this instance — but a run has to be handed one,
+    and the demo adapter makes no network calls if anything ever does.
+    """
+    return DemoMarketDataProvider()
+
+
 def install_backtest_market_data(
     monkeypatch,
-    backtest_module,
+    composition,
     *,
     tickers: list[str],
     benchmark_values: list[float],
 ) -> None:
-    monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: tickers)
+    # The universe is resolved in the data service; bars and the benchmark are
+    # fetched through the composition root's provider-bound lambdas.
+    monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
-        backtest_module,
+        composition,
         "fetch_bar_history",
         lambda _tickers, _start, _end, **_kwargs: make_fake_bar_history(_tickers),
     )
     monkeypatch.setattr(
-        backtest_module,
+        composition,
         "fetch_benchmark_close",
         lambda _ticker, _start, _end, **_kwargs: pd.Series(
             benchmark_values,
@@ -353,6 +367,7 @@ def make_backtest_full_report(
 
 __all__ = [
     "create_backtest_account",
+    "stub_market_data_provider",
     "bar_frame",
     "bars_from_closes",
     "install_backtest_market_data",

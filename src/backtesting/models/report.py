@@ -73,6 +73,42 @@ class BacktestReportSummary:
 
 
 @dataclass
+class BacktestRunSummary:
+    """A run's header row, without the metrics a full summary derives.
+
+    What a run listing shows: which run, for which account and strategy, over
+    which window, under which economics. Reading it costs one query and touches
+    no snapshot or trade rows.
+    """
+
+    run_id: int
+    run_name: str | None
+    account_name: str
+    strategy: str
+    start_date: str
+    end_date: str
+    created_at: str
+    slippage_bps: float
+    fee_per_trade: float
+    tickers_file: str
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> BacktestRunSummary:
+        return cls(
+            run_id=int(value["id"]),
+            run_name=None if value.get("run_name") is None else str(value["run_name"]),
+            account_name=str(value["account_name"]),
+            strategy=str(value["strategy"]),
+            start_date=str(value["start_date"]),
+            end_date=str(value["end_date"]),
+            created_at=str(value["created_at"]),
+            slippage_bps=float(value["slippage_bps"]),
+            fee_per_trade=float(value["fee_per_trade"]),
+            tickers_file=str(value["tickers_file"]),
+        )
+
+
+@dataclass
 class BacktestLeaderboardEntry:
     run_id: int
     run_name: str | None

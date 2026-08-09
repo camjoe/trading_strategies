@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -84,13 +85,18 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
-        label="trading/services → no backtesting repository imports (cross the seam at its services)",
-        source_glob="src/trading/services/**/*.py",
+        label="trading → no backtesting repository imports (cross the seam at its services)",
+        source_glob="src/trading/**/*.py",
         forbidden_prefixes=("backtesting.repositories.",),
-        # backtesting is a bounded context: a service reaching past its services
+        # backtesting is a bounded context: anything reaching past its services
         # into its tables couples to a schema it does not own. Reads go through
-        # backtesting.services — evidence_service for strategy evidence,
-        # audit_service for experiment records.
+        # backtesting.services — evidence for strategy evidence,
+        # audit for experiment records.
+        #
+        # The glob covers all of src/trading/, not just services/: the CLI had
+        # been assembling the experiment audit tree out of four repository reads,
+        # duplicating audit.fetch_experiment_audit, because an earlier
+        # services-only glob left interfaces/ unguarded.
         #
         # One crossing remains. optimizer_promotion.py orchestrates across both
         # contexts inside a single transaction: create the strategy variant, then
@@ -180,7 +186,7 @@ LAYER_RULES: list[LayerRule] = [
         label="backtesting → no direct market-data adapter imports (wire at composition roots)",
         source_glob="src/backtesting/**/*.py",
         forbidden_prefixes=("infrastructure.market_data.",),
-        exceptions=("src/backtesting/backtest.py",),
+        exceptions=("src/backtesting/composition.py",),
     ),
     LayerRule(
         label="backtesting → no direct broker SDK imports",
@@ -425,7 +431,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _use_utf8_stdout() -> None:
+    """Every rule label carries an arrow, so a violation is unprintable on cp1252."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> int:
+    _use_utf8_stdout()
     args = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
     exit_code = run_layer_check(repo_root)

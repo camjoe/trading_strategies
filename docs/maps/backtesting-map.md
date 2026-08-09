@@ -24,7 +24,7 @@ Enforced in both directions by `scripts/checks/repo/layer_check.py`.
 
 | Direction | How it crosses |
 |---|---|
-| trading → backtesting | At **services**: `evidence_service` for a strategy's research evidence, `audit_service` for an experiment's record. One exception — `src/trading/services/strategy_catalog/optimizer_promotion.py` writes the promoted link inside the caller's transaction. |
+| trading → backtesting | At **services**: `evidence` for a strategy's research evidence, `audit` for an experiment's record. One exception — `src/trading/services/strategy_catalog/optimizer_promotion.py` writes the promoted link inside the caller's transaction. |
 | backtesting → trading | At **services**: `find_account`, `get_default_book`, `resolve_or_draft_strategy_record`. |
 
 What backtesting takes from `trading.domain`, `trading.models`, and `trading.persistence` is
@@ -36,7 +36,7 @@ the strategy that actually trades.
 
 | Module | Responsibility |
 |---|---|
-| `backtest.py` | Public entrypoint used by the CLI and web app: run a backtest, preview its warnings, build a full report. Also the composition root where the concrete market-data adapter is wired. |
+| `composition.py` | Binds a caller-supplied market-data provider into a run (deriving the feature provider and the bar/benchmark fetches). The application builds the provider — one per invocation, so the adapter's cumulative call guard spans the whole sweep. Read surfaces are imported from `services/` directly. |
 
 ## `domain/`
 
@@ -48,7 +48,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure), plus `equity_curve_from_rows` to lift a curve out of snapshot rows |
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `simulation_math.py` | Fill, fee, and slippage arithmetic for simulated execution |
-| `windowing.py` | Walk-forward train/test split construction |
+| `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
 | `optimization/aggregation.py` | Roll per-window OOS results into experiment-level series |
 | `optimization/objective.py` | Objective functions a search ranks candidates by |
 | `optimization/search.py` | Candidate generation, canonical parameter JSON, and `params_fingerprint` |
@@ -57,14 +57,14 @@ Side-effect free: no I/O, no SQL, no service calls.
 
 | Module | Responsibility |
 |---|---|
-| `execution_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run |
-| `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
-| `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
-| `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |
-| `report_service.py` | Assemble a backtest report; benchmark and alpha come from the run row, so the read needs no market data |
-| `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
-| `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence, as `Evaluation*Evidence` records |
-| `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing |
+| `simulation.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
+| `run_inputs.py` | Read a run's inputs from outside: its universe (`RunUniverse`) from ticker files, its bars and benchmark closes from the provider |
+| `walk_forward_optimizer.py` | Drive a walk-forward parameter search (grid → freeze-on-train → OOS → holdout). Writes nothing — it returns an `OptimizationSummary` |
+| `optimization_experiment.py` | Run that search and persist what it found: the experiment row, its per-window/per-candidate audit tree, and the frozen manifest. A failed sweep still gets a row |
+| `optimizer_aggregation.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
+| `reporting.py` | Every operator-facing read over persisted runs: one run's full report or summary, the run listings, and the leaderboard that ranks runs against each other. Benchmark and alpha come from the run row, so none of it needs market data |
+| `evidence.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |
+| `audit.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
 
 ## `repositories/`
 
@@ -83,9 +83,9 @@ holds the contracts for the tables `trading/repositories/` owns.
 
 | Module | Responsibility |
 |---|---|
-| `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
-| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs, plus OOS aggregation shapes |
-| `report.py` | Report and leaderboard shapes returned to operator surfaces |
+| `backtest.py` | A run's config, resolved universe, and result (`BacktestConfig`, `RunUniverse`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
+| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs — plus the shapes derived from them on read: OOS aggregation and the `ExperimentAudit` tree |
+| `report.py` | Report, run-listing, and leaderboard shapes returned to operator surfaces |
 
 ## Related
 

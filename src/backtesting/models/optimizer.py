@@ -492,3 +492,26 @@ class OptimizationManifestRecord:
             engine_revision=row_str(values, "engine_revision"),
             created_at=row_expect_str(values, "created_at"),
         )
+
+
+@dataclass(frozen=True)
+class ExperimentWindowAudit:
+    """One walk-forward window and every candidate evaluated on its training interval."""
+
+    window: OptimizationWindowRecord
+    trials: list[OptimizationTrialRecord]
+
+
+@dataclass(frozen=True)
+class ExperimentAudit:
+    """Everything this package persisted about one experiment.
+
+    Assembled on read from the rows above rather than stored, like
+    ``CompoundedOOSSeries``. A failed experiment carries no windows, trials,
+    compounded series, or manifest — it never got far enough to persist a tree.
+    """
+
+    experiment: OptimizationExperimentRecord
+    windows: list[ExperimentWindowAudit]
+    compounded_oos: CompoundedOOSSeries | None
+    manifest: OptimizationManifestRecord | None

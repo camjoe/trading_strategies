@@ -1,13 +1,11 @@
-"""Research evidence for a strategy, summarized from this package's records.
+"""A strategy's research evidence, joined from this package's records.
 
-The read surface the trading side uses. Promotion and evaluation need to know what
-a strategy's research says, not how backtest runs, holdout runs, optimizer
-experiments, and OOS windows relate to one another — so the joining and the
-not-found handling live here, beside the tables, and the caller receives a finished
-``Evaluation*Evidence`` record.
+One of the two seams the trading side reads (the other is
+:mod:`backtesting.services.audit`).
 
-Those records are `trading.models.evaluation` contracts rather than types of this
-package's own: `models/` is the lowest layer, and the evidence is *for* evaluation.
+Returns ``trading.models.evaluation`` contracts rather than this package's own
+types: ``models/`` is the lowest layer, shared by both contexts, and the evidence
+is *for* evaluation.
 """
 
 from __future__ import annotations
@@ -16,6 +14,7 @@ import sqlite3
 from statistics import median
 
 from backtesting.domain.metrics import equity_curve_from_rows, max_drawdown_pct
+from backtesting.models.optimizer import OptimizationExperimentRecord
 from backtesting.repositories.optimization import (
     fetch_latest_experiment_for_account_strategy,
 )
@@ -24,36 +23,44 @@ from backtesting.repositories.runs import (
     fetch_snapshots,
     fetch_trades,
 )
-from backtesting.services.optimizer_aggregation_service import fetch_oos_segments
+from backtesting.services.optimizer_aggregation import fetch_oos_segments
 from common.coercion import row_float, row_str
 from trading.domain.returns import safe_return_pct
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationWalkForwardEvidence
 
 
-def build_backtest_evidence(
+def build_strategy_evidence(
     conn: sqlite3.Connection,
     *,
     account_id: int,
     requested_strategy: str,
-) -> EvaluationBacktestEvidence:
-    """Build backtest evidence from the strategy's latest experiment holdout run.
+) -> tuple[EvaluationBacktestEvidence, EvaluationWalkForwardEvidence]:
+    """Both evidence records for a strategy, off one lookup of its latest experiment.
 
-    The holdout is the one run whose parameters *and* date range were committed
-    before it executed (the forward-carried winner, evaluated once on data the
-    search never touched), which is why it — rather than a standalone backtest
-    over an operator-chosen range — is what promotion reads.
-
-    Caveat when the experiment *targeted* this strategy rather than producing it:
-    the holdout ran the tuned winner's parameters, not the strategy's defaults, so
-    the numbers are an upper bound for that strategy family. Evidence attributed
-    via ``promoted_strategy_id`` has no such gap — there the winner's parameters
-    are exactly the variant's.
+    Built as a pair because both read the same experiment row.
     """
     experiment = fetch_latest_experiment_for_account_strategy(
         conn,
         account_id=account_id,
         strategy_name=requested_strategy,
     )
+    return _backtest_evidence(conn, experiment), _walk_forward_evidence(conn, experiment)
+
+
+def _backtest_evidence(
+    conn: sqlite3.Connection,
+    experiment: OptimizationExperimentRecord | None,
+) -> EvaluationBacktestEvidence:
+    """Backtest evidence from the experiment's holdout run.
+
+    The holdout, not a standalone backtest: its parameters and its date range were
+    both committed before it executed.
+
+    An upper bound rather than a like-for-like reading when the experiment
+    *targeted* this strategy instead of producing it — the holdout ran the tuned
+    winner's parameters, not the strategy's defaults. Evidence attributed via
+    ``promoted_strategy_id`` has no such gap.
+    """
     if experiment is None or experiment.holdout_run_id is None:
         return EvaluationBacktestEvidence()
     run_id = experiment.holdout_run_id
@@ -62,14 +69,10 @@ def build_backtest_evidence(
     snapshots = fetch_snapshots(conn, run_id)
     trades = fetch_trades(conn, run_id)
     if run is None or not snapshots:
-        return EvaluationBacktestEvidence(
-            run_id=run_id,
-            available=False,
-        )
+        return EvaluationBacktestEvidence(run_id=run_id, available=False)
 
     starting_equity = row_float(snapshots[0], "equity")
     ending_equity = row_float(snapshots[-1], "equity")
-    curve = equity_curve_from_rows(snapshots)
     return EvaluationBacktestEvidence(
         available=True,
         run_id=run_id,
@@ -82,29 +85,20 @@ def build_backtest_evidence(
         starting_equity=starting_equity,
         ending_equity=ending_equity,
         total_return_pct=safe_return_pct(starting_equity, ending_equity),
-        max_drawdown_pct=max_drawdown_pct(curve),
+        max_drawdown_pct=max_drawdown_pct(equity_curve_from_rows(snapshots)),
         warnings=row_str(run, "warnings"),
     )
 
 
-def build_walk_forward_evidence(
+def _walk_forward_evidence(
     conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    requested_strategy: str,
+    experiment: OptimizationExperimentRecord | None,
 ) -> EvaluationWalkForwardEvidence:
-    """Build walk-forward evidence from the strategy's latest experiment windows.
+    """Walk-forward evidence from the experiment's windows.
 
-    Each window's return is derived from its persisted OOS run's equity marks
-    rather than a stored aggregate, so the distribution cannot drift from the runs
-    it summarizes. The windows measure the *process* — retune on each training
-    interval, then run out-of-sample — which is what walk-forward evidence is for.
+    Window returns come from each OOS run's equity marks, not a stored aggregate,
+    so the distribution cannot drift from the runs it summarizes.
     """
-    experiment = fetch_latest_experiment_for_account_strategy(
-        conn,
-        account_id=account_id,
-        strategy_name=requested_strategy,
-    )
     if experiment is None:
         return EvaluationWalkForwardEvidence()
 

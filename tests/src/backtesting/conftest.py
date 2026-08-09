@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
 from tests.support.backtesting import install_backtest_market_data
 
 
@@ -12,7 +12,7 @@ from tests.support.backtesting import install_backtest_market_data
 def bt_market_data(monkeypatch: pytest.MonkeyPatch) -> Callable[[list[str], list[float] | None], None]:
     """Factory that installs stub market data into the backtest module.
 
-    Removes the need to import and pass ``backtest_module`` and ``monkeypatch``
+    Removes the need to import and pass ``composition`` and ``monkeypatch``
     to ``install_backtest_market_data`` in every integration test.
 
     Usage::
@@ -26,7 +26,7 @@ def bt_market_data(monkeypatch: pytest.MonkeyPatch) -> Callable[[list[str], list
     def _install(tickers: list[str], benchmark_values: list[float] | None = None) -> None:
         install_backtest_market_data(
             monkeypatch,
-            backtest_module,
+            composition,
             tickers=tickers,
             benchmark_values=benchmark_values or [100.0, 105.0],
         )

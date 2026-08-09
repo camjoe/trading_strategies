@@ -118,15 +118,16 @@ package-name boundaries are enforced by `python -m scripts.checks.repo.layer_che
   backtesting is arranged inside is its own business. Recorded because it keeps getting re-asked:
 
   - It exposes **module-level repository functions** where `trading/repositories/` uses
-    `*Repository` classes, and names its services `*_service.py` where trading uses service
-    packages. Neither is drift — nothing here constrains module filenames beyond `snake_case`,
-    `infrastructure/` is mixed the same way, and both packages follow the documented
-    `fetch_*`/`insert_*` verbs.
+    `*Repository` classes, and names its modules for what they own with no layer suffix where
+    trading uses service packages. Neither is drift — nothing here constrains module filenames
+    beyond `snake_case`, `infrastructure/` is mixed the same way, and both packages follow the
+    documented `fetch_*`/`insert_*` verbs.
 
-    Backtesting's *repository modules* were renamed to area names (`runs.py`, `optimization.py`)
-    in 2026-08, dropping a `*_repository.py` suffix that repeated the package name. That aligned
-    the filenames with `trading/repositories/` because the old names were redundant on their own
-    terms, **not** because matching trading is required — the paragraph above still governs. The
+    Backtesting dropped both layer suffixes for the same reason: the suffix repeated the directory
+    it sat in. `repositories/*_repository.py` went in 2026-08 and `services/*_service.py` followed,
+    leaving `repositories/runs.py` and `services/reporting.py`. That aligned the repository
+    filenames with `trading/repositories/` because the old names were redundant on their own terms,
+    **not** because matching trading is required — the paragraph above still governs. The
     function-vs-class split was weighed at the same time and deliberately left alone: the classes
     hold only a connection and nothing subclasses or substitutes them, so converting would buy
     symmetry and no behaviour. **This says nothing about `trading/repositories/`,** whose

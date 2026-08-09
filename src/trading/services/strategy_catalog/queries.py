@@ -8,11 +8,11 @@ from dataclasses import dataclass
 
 from backtesting.models.optimizer import (
     CompoundedOOSSeries,
+    ExperimentWindowAudit,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
 )
-from backtesting.services.audit_service import (
-    ExperimentWindowAudit,
+from backtesting.services.audit import (
     fetch_experiment_audit,
     fetch_recent_experiments,
 )

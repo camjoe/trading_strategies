@@ -42,6 +42,21 @@ class BacktestConfig:
     warmup_months: int = 0
 
 
+@dataclass(frozen=True)
+class RunUniverse:
+    """The tickers a run may touch, and how membership changes month to month.
+
+    ``all_tickers`` is every ticker across every month, so price history is
+    fetched once for the whole run; ``month_to_tickers`` is what each month is
+    allowed to open positions in.
+    """
+
+    default_tickers: list[str]
+    month_to_tickers: dict[str, list[str]]
+    all_tickers: list[str]
+    warnings: list[str]
+
+
 @dataclass
 class BacktestResult:
     run_id: int
