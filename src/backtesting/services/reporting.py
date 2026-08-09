@@ -19,6 +19,7 @@ from backtesting.domain.metrics import (
     equity_curve_from_rows,
     max_drawdown_pct,
     summarize_backtest_performance,
+    total_return_pct,
 )
 from backtesting.models.report import (
     BacktestFullReport,
@@ -86,7 +87,7 @@ def _build_summary(
         trade_count=len(trades),
         starting_equity=first_equity,
         ending_equity=last_equity,
-        total_return_pct=((last_equity / first_equity) - 1.0) * 100.0,
+        total_return_pct=total_return_pct(first_equity=first_equity, last_equity=last_equity),
         max_drawdown_pct=max_drawdown,
         sharpe_ratio=performance.sharpe_ratio,
         sortino_ratio=performance.sortino_ratio,
@@ -210,7 +211,7 @@ def _leaderboard_entry(conn, row) -> BacktestLeaderboardEntry:
     trades = fetch_trades(conn, run_id)
     performance = summarize_backtest_performance(curve, trades)
 
-    total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
+    total_return = total_return_pct(first_equity=start_equity, last_equity=end_equity)
     # Frozen when the run executed; null when its benchmark window was too short.
     benchmark_ret = row_float(row, "benchmark_return_pct")
 
@@ -224,10 +225,10 @@ def _leaderboard_entry(conn, row) -> BacktestLeaderboardEntry:
         created_at=row_expect_str(row, "created_at"),
         trade_count=len(trades),
         ending_equity=end_equity,
-        total_return_pct=total_return_pct,
+        total_return_pct=total_return,
         max_drawdown_pct=max_drawdown_pct(curve),
         benchmark_return_pct=benchmark_ret,
-        alpha_pct=None if benchmark_ret is None else total_return_pct - benchmark_ret,
+        alpha_pct=None if benchmark_ret is None else total_return - benchmark_ret,
         sharpe_ratio=performance.sharpe_ratio,
         sortino_ratio=performance.sortino_ratio,
         calmar_ratio=performance.calmar_ratio,

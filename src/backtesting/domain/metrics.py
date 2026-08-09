@@ -38,6 +38,15 @@ def equity_curve_from_rows(snapshot_rows: Sequence[Mapping[str, object]]) -> lis
     return [value for value in (row_float(row, "equity") for row in snapshot_rows) if value is not None]
 
 
+def total_return_pct(*, first_equity: float, last_equity: float) -> float:
+    """Total return across an interval, from its first and last equity marks (percent).
+
+    The one definition of total return: a standalone run, a leaderboard row, and an
+    optimizer window all measure it here, so the three cannot drift apart.
+    """
+    return ((last_equity / first_equity) - 1.0) * PERCENT_SCALE
+
+
 def max_drawdown_pct(equity_curve: list[float]) -> float:
     if not equity_curve:
         return 0.0
@@ -80,7 +89,7 @@ def benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash
         return None
 
     equity = initial_cash * (end_px / start_px)
-    return ((equity / initial_cash) - 1.0) * PERCENT_SCALE
+    return total_return_pct(first_equity=initial_cash, last_equity=equity)
 
 
 def _equity_return_series(equity_curve: Sequence[float]) -> pd.Series:
@@ -130,14 +139,22 @@ def sortino_ratio(returns: pd.Series, *, risk_free_rate: float = 0.0) -> float |
     return float(excess_returns.mean() / downside_deviation * ANNUALIZATION_FACTOR)
 
 
-def calmar_ratio(*, annualized_return_pct: float | None, max_drawdown_pct_value: float) -> float | None:
-    if annualized_return_pct is None or max_drawdown_pct_value >= 0:
+def calmar_ratio(
+    *,
+    annualized_return_pct: float | None,
+    max_drawdown_pct_value: float,
+    drawdown_floor_pct: float = 0.0,
+) -> float | None:
+    """Annualized return per unit of max-drawdown magnitude, both in percent.
+
+    ``drawdown_floor_pct`` raises the denominator so a (near-)zero-drawdown result
+    stays finite and comparable. At the default floor of zero such a result has no
+    ratio at all and returns ``None``.
+    """
+    if annualized_return_pct is None:
         return None
-    max_drawdown = abs(max_drawdown_pct_value) / PERCENT_SCALE
-    if max_drawdown <= 0:
-        return None
-    annualized_return = annualized_return_pct / PERCENT_SCALE
-    return annualized_return / max_drawdown
+    denominator = max(abs(max_drawdown_pct_value), drawdown_floor_pct)
+    return None if denominator <= 0 else annualized_return_pct / denominator
 
 
 def _coerce_trade_float(value: object) -> float:

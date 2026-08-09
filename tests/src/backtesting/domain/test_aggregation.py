@@ -1,5 +1,4 @@
-"""Compounded OOS aggregation (pure domain math): compounding, gap detection,
-and the period-return helper."""
+"""Compounded OOS aggregation (pure domain math): compounding and gap detection."""
 
 from __future__ import annotations
 
@@ -7,17 +6,12 @@ from datetime import date
 
 import pytest
 
-from backtesting.domain.optimization.aggregation import compound_oos_returns, period_return_pct
+from backtesting.domain.optimization.aggregation import compound_oos_returns
 from backtesting.models.optimizer import OOSReturnSegment
 
 
 def _segment(index: int, start: date, end: date, ret: float) -> OOSReturnSegment:
     return OOSReturnSegment(window_index=index, test_start=start, test_end=end, return_pct=ret)
-
-
-def test_period_return_pct_matches_first_last_equity() -> None:
-    assert period_return_pct(first_equity=10_000.0, last_equity=11_000.0) == pytest.approx(10.0)
-    assert period_return_pct(first_equity=10_000.0, last_equity=9_500.0) == pytest.approx(-5.0)
 
 
 class TestCompound:

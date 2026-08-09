@@ -11,7 +11,12 @@ from typing import Any, Callable, cast
 import pandas as pd
 
 from backtesting.domain.bars import build_bar_panel
-from backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, summarize_backtest_performance
+from backtesting.domain.metrics import (
+    benchmark_return_pct,
+    max_drawdown_pct,
+    summarize_backtest_performance,
+    total_return_pct,
+)
 from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.domain.simulation_math import (
     compute_market_value,
@@ -617,7 +622,10 @@ def run_backtest(
         equity_curve = _simulate_bars(ctx, state, close=inputs.close, dates=dates, scoring_idx=scoring_idx)
 
     ending_equity = equity_curve[-1]
-    total_return_pct = ((ending_equity / scope.account.initial_cash) - 1.0) * 100.0
+    total_return = total_return_pct(
+        first_equity=scope.account.initial_cash,
+        last_equity=ending_equity,
+    )
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)
 
     return BacktestResult(
@@ -628,9 +636,9 @@ def run_backtest(
         tickers=scope.universe.all_tickers,
         trade_count=state.trade_count,
         ending_equity=ending_equity,
-        total_return_pct=total_return_pct,
+        total_return_pct=total_return,
         benchmark_return_pct=inputs.benchmark_return,
-        alpha_pct=None if inputs.benchmark_return is None else total_return_pct - inputs.benchmark_return,
+        alpha_pct=None if inputs.benchmark_return is None else total_return - inputs.benchmark_return,
         max_drawdown_pct=max_drawdown_pct(equity_curve),
         annualized_return_pct=performance.annualized_return_pct,
         sharpe_ratio=performance.sharpe_ratio,

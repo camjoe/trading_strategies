@@ -23,15 +23,6 @@ from backtesting.models.optimizer import (
 )
 
 
-def period_return_pct(*, first_equity: float, last_equity: float) -> float:
-    """Total return over an interval from its first and last equity marks (percent).
-
-    Matches the standalone backtest report's total-return definition, so a compounded
-    segment measures the same thing the optimizer's per-window OOS return did.
-    """
-    return ((last_equity / first_equity) - 1.0) * PERCENT_SCALE
-
-
 def compound_oos_returns(segments: list[OOSReturnSegment]) -> CompoundedOOSSeries:
     """Compound non-overlapping per-window OOS returns into a chronological series.
 

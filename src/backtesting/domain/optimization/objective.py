@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from backtesting.domain.metrics import calmar_ratio
 from backtesting.models.optimizer import CandidateResult
 from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.domain.exceptions import ValidationError
 
-# calmar_v1 divides annualized return (percent) by max-drawdown magnitude (percent). A
-# one-percentage-point floor keeps a (near-)zero-drawdown candidate finite and rankable
-# instead of dividing by ~0.
+# What makes the objective calmar_v1 rather than a plain Calmar ratio: a
+# one-percentage-point drawdown floor, so a (near-)zero-drawdown candidate stays
+# finite and rankable instead of dividing by ~0.
 CALMAR_V1_DRAWDOWN_FLOOR_PCT = 1.0
 
 # Eligibility gates applied before a candidate may be ranked. A candidate failing any
@@ -21,11 +22,6 @@ CALMAR_V1_DRAWDOWN_FLOOR_PCT = 1.0
 MIN_CANDIDATE_TRADES = 3
 # Reject candidates whose training drawdown breaches the shared risk floor.
 MAX_DRAWDOWN_ELIGIBILITY_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
-
-
-def calmar_v1_score(*, annualized_return_pct: float, max_drawdown_pct: float) -> float:
-    denominator = max(abs(max_drawdown_pct), CALMAR_V1_DRAWDOWN_FLOOR_PCT)
-    return annualized_return_pct / denominator
 
 
 def evaluate_candidate(
@@ -42,9 +38,10 @@ def evaluate_candidate(
     score = (
         None
         if rejection is not None or annualized_return_pct is None
-        else calmar_v1_score(
+        else calmar_ratio(
             annualized_return_pct=annualized_return_pct,
-            max_drawdown_pct=max_drawdown_pct,
+            max_drawdown_pct_value=max_drawdown_pct,
+            drawdown_floor_pct=CALMAR_V1_DRAWDOWN_FLOOR_PCT,
         )
     )
     return CandidateResult(

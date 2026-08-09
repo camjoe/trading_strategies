@@ -12,7 +12,6 @@ import pytest
 from backtesting.domain.optimization.objective import (
     MAX_DRAWDOWN_ELIGIBILITY_PCT,
     MIN_CANDIDATE_TRADES,
-    calmar_v1_score,
     evaluate_candidate,
     select_winner,
 )
@@ -82,8 +81,12 @@ class TestParamsFingerprint:
 
 class TestObjective:
     def test_calmar_v1_floor_keeps_low_drawdown_finite(self) -> None:
-        # Drawdown magnitude below the 1pp floor uses the floor as denominator.
-        assert calmar_v1_score(annualized_return_pct=10.0, max_drawdown_pct=-0.2) == 10.0
+        # Drawdown magnitude below the 1pp floor uses the floor as denominator, so a
+        # near-zero-drawdown candidate is still scored instead of dropping out.
+        result = evaluate_candidate(
+            index=0, params={}, annualized_return_pct=10.0, max_drawdown_pct=-0.2, trade_count=10
+        )
+        assert result.score == 10.0
 
     def test_rejects_too_few_trades(self) -> None:
         result = evaluate_candidate(

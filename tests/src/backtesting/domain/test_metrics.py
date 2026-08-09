@@ -13,7 +13,13 @@ from backtesting.domain.metrics import (
     sharpe_ratio,
     sortino_ratio,
     summarize_backtest_performance,
+    total_return_pct,
 )
+
+
+def test_total_return_pct_matches_first_last_equity() -> None:
+    assert total_return_pct(first_equity=10_000.0, last_equity=11_000.0) == pytest.approx(10.0)
+    assert total_return_pct(first_equity=10_000.0, last_equity=9_500.0) == pytest.approx(-5.0)
 
 
 def test_max_drawdown_handles_empty_and_non_positive_peak() -> None:
@@ -57,6 +63,10 @@ def test_risk_ratio_helpers_return_none_for_degenerate_inputs() -> None:
     assert sharpe_ratio(pd.Series([0.0, 0.0])) is None
     assert sortino_ratio(pd.Series([0.01, 0.02])) is None
     assert calmar_ratio(annualized_return_pct=10.0, max_drawdown_pct_value=0.0) is None
+    # A drawdown floor is what keeps the same degenerate input rankable for the optimizer.
+    assert calmar_ratio(
+        annualized_return_pct=10.0, max_drawdown_pct_value=0.0, drawdown_floor_pct=1.0
+    ) == pytest.approx(10.0)
 
 
 def test_summarize_backtest_performance_computes_trade_analytics() -> None:
