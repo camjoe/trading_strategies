@@ -2,6 +2,13 @@
   "schema_version": 2,
   "packages": [
     {
+      "name": "httpx",
+      "version": ">=0.28.1,<1.0.0",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "HTTP client backing the IBKR Client Portal Web API adapter for session validation, account and position queries, and order submission."
+    },
+    {
       "name": "ib_async",
       "version": "==2.1.0",
       "scope": "runtime",
@@ -98,13 +105,6 @@
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Database schema migration tool. Ops-only \u2014 the numbered SQLite migration commands use it to create, apply, and revert revisions; the application runtime never imports it."
-    },
-    {
-      "name": "httpx",
-      "version": ">=0.28.1,<1.0.0",
-      "scope": "runtime",
-      "group": "Developer Tooling",
-      "purpose": "HTTP client used in API and integration tests."
     },
     {
       "name": "httpx2",
