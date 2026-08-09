@@ -1,12 +1,12 @@
-"""Report service: full backtest report assembly.
+"""Report service: backtest report assembly.
 
-This service module owns:
+Assembles ``BacktestFullReport`` / ``BacktestReportSummary`` from persisted run,
+snapshot, and trade rows, plus the run-header reads behind latest-run and
+recent-run listings. Needs no market data — a run's benchmark return is read from
+its row, frozen there when the run executed.
 
-- ``fetch_backtest_report_data``: assembles a ``BacktestFullReport`` from
-  persisted run, snapshot, and trade rows. Needs no market data — the benchmark
-  return is read from the run row, frozen there when the run executed.
-- Thin wrappers around ``repositories.runs`` reads for latest-run and
-  recent-run lookups.
+Everything here returns typed models. Transport shaping (camelCase keys, display
+names) belongs to the surface that serves it, not to this package.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from backtesting.models.report import (
     BacktestReportSnapshot,
     BacktestReportSummary,
     BacktestReportTrade,
+    BacktestRunSummary,
     parse_warnings,
 )
 from backtesting.repositories.runs import (
@@ -35,7 +36,11 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 from trading.domain.exceptions import NotFoundError
 
 
-def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
+def _require_run_parts(
+    conn,
+    run_id: int,
+) -> tuple[Mapping[str, object], list[dict[str, object]], list[dict[str, object]]]:
+    """A run's header, snapshots, and trades — or the error a missing one warrants."""
     run = fetch_run(conn, run_id)
     if run is None:
         raise NotFoundError(f"Backtest run id {run_id} not found")
@@ -46,6 +51,14 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
     if not snapshots:
         raise ValueError(f"No snapshots found for backtest run {run_id}")
 
+    return run, snapshots, trades
+
+
+def _build_summary(
+    run: Mapping[str, object],
+    snapshots: list[dict[str, object]],
+    trades: list[dict[str, object]],
+) -> BacktestReportSummary:
     first_equity = row_expect_float(snapshots[0], "equity")
     last_equity = row_expect_float(snapshots[-1], "equity")
 
@@ -53,7 +66,7 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
     max_drawdown = max_drawdown_pct(curve)
     performance = summarize_backtest_performance(curve, trades)
 
-    summary = BacktestReportSummary(
+    return BacktestReportSummary(
         run_id=row_expect_int(run, "id"),
         run_name=row_str(run, "run_name"),
         account_name=row_expect_str(run, "account_name"),
@@ -77,6 +90,20 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
         profit_factor=performance.profit_factor,
         avg_trade_return_pct=performance.avg_trade_return_pct,
     )
+
+
+def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
+    """The run's summary alone.
+
+    Reads the same rows the full report does, but skips the per-snapshot and
+    per-trade model lists a summary caller would only discard.
+    """
+    return _build_summary(*_require_run_parts(conn, run_id))
+
+
+def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
+    run, snapshots, trades = _require_run_parts(conn, run_id)
+    summary = _build_summary(run, snapshots, trades)
 
     report_snapshots = [
         BacktestReportSnapshot(
@@ -122,31 +149,10 @@ def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int 
     return row_expect_int(rows[0], "id") if rows else None
 
 
-def _build_backtest_run_dict(row: Mapping[str, object]) -> dict[str, object]:
-    """Convert a backtest run row to a serialisable dict with raw (un-substituted) values."""
-    return {
-        "runId": row_expect_int(row, "id"),
-        "runName": row["run_name"],
-        "accountName": row_expect_str(row, "account_name"),
-        "strategy": row_expect_str(row, "strategy"),
-        "startDate": row["start_date"],
-        "endDate": row["end_date"],
-        "createdAt": row["created_at"],
-        "slippageBps": row_expect_float(row, "slippage_bps"),
-        "feePerTrade": row_expect_float(row, "fee_per_trade"),
-        "tickersFile": row["tickers_file"],
-    }
-
-
-def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> dict[str, object] | None:
+def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> BacktestRunSummary | None:
     rows = fetch_runs(conn, limit=1, account_name=account_name)
-    return _build_backtest_run_dict(rows[0]) if rows else None
+    return BacktestRunSummary.from_mapping(rows[0]) if rows else None
 
 
-def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
-    return [_build_backtest_run_dict(row) for row in fetch_runs(conn, limit=limit)]
-
-
-def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
-    """The run's summary only — no benchmark, so no market-data provider needed."""
-    return fetch_backtest_report_data(conn, run_id=run_id).summary
+def fetch_recent_backtest_runs(conn, *, limit: int) -> list[BacktestRunSummary]:
+    return [BacktestRunSummary.from_mapping(row) for row in fetch_runs(conn, limit=limit)]

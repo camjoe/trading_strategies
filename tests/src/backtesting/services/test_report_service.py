@@ -8,6 +8,31 @@ from backtesting.models.report import BacktestFullReport
 from tests.support.backtesting import create_backtest_account, make_backtest_config, seed_backtest_run
 
 
+def test_report_summary_does_not_build_the_per_row_models(conn, monkeypatch, bt_market_data) -> None:
+    """A summary caller must not pay for the snapshot and trade lists it discards.
+
+    It used to build the whole ``BacktestFullReport`` and return ``.summary``, so
+    the account-comparison page constructed a model per snapshot and per trade,
+    per account, and threw all of them away.
+    """
+    create_backtest_account(conn, "acct_summary_only")
+    bt_market_data(["AAPL"], [100.0, 102.0])
+    result = run_backtest(conn, make_backtest_config("acct_summary_only", run_name="summary-only"))
+
+    def _must_not_build(*_args, **_kwargs):
+        raise AssertionError("the summary path must not construct per-row report models")
+
+    monkeypatch.setattr(report_service, "BacktestReportSnapshot", _must_not_build)
+    monkeypatch.setattr(report_service, "BacktestReportTrade", _must_not_build)
+
+    summary = report_service.fetch_backtest_report_summary(conn, result.run_id)
+
+    assert summary.run_id == result.run_id
+    # The metrics still come off the full curve and trade list.
+    assert summary.trade_count > 0
+    assert summary.max_drawdown_pct <= 0.0
+
+
 def test_report_service_contract_builds_typed_model(conn, bt_market_data) -> None:
     create_backtest_account(conn, "acct_report_service")
     bt_market_data(["AAPL"], [100.0, 102.0])
@@ -90,25 +115,13 @@ def test_latest_and_recent_backtest_run_wrappers_map_repository_rows(conn) -> No
     latest_id = report_service.fetch_latest_backtest_run_id_for_account(conn, account_name="acct_wrappers")
 
     assert latest is not None
-    # camelCase keys are the transport shape the web app consumes.
-    assert latest["runId"] == newest
-    assert latest["runName"] == "weekly-run"
-    assert latest["accountName"] == "acct_wrappers"
-    assert latest["strategy"] == "trend_v1"
-    assert isinstance(latest["slippageBps"], float)
-    assert set(latest) == {
-        "runId",
-        "runName",
-        "accountName",
-        "strategy",
-        "startDate",
-        "endDate",
-        "createdAt",
-        "slippageBps",
-        "feePerTrade",
-        "tickersFile",
-    }
-    assert [row["runName"] for row in recent] == ["weekly-run", "older"]
+    # Typed records, not transport dicts: camelCase is the web app's business.
+    assert latest.run_id == newest
+    assert latest.run_name == "weekly-run"
+    assert latest.account_name == "acct_wrappers"
+    assert latest.strategy == "trend_v1"
+    assert isinstance(latest.slippage_bps, float)
+    assert [row.run_name for row in recent] == ["weekly-run", "older"]
     # The id read is the same row projected differently, not a second query.
     assert latest_id == newest
 

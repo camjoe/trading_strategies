@@ -61,7 +61,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |
-| `report_service.py` | Assemble a backtest report; benchmark and alpha come from the run row, so the read needs no market data |
+| `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
 | `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
 | `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence, as `Evaluation*Evidence` records |
 | `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing |
@@ -85,7 +85,7 @@ holds the contracts for the tables `trading/repositories/` owns.
 |---|---|
 | `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
 | `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs, plus OOS aggregation shapes |
-| `report.py` | Report and leaderboard shapes returned to operator surfaces |
+| `report.py` | Report, run-listing, and leaderboard shapes returned to operator surfaces |
 
 ## Related
 

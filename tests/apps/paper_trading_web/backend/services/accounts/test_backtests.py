@@ -4,14 +4,40 @@ from types import SimpleNamespace
 
 from paper_trading_web.backend.services.accounts import backtests as account_backtests
 
+from backtesting.models.report import BacktestRunSummary
 from common.time import utc_now_iso
 
 
-def test_fetch_recent_backtest_run_summaries_passthrough(monkeypatch, conn) -> None:
-    rows = [{"runId": 7, "accountName": "acct_local", "strategy": "trend"}]
-    monkeypatch.setattr(account_backtests, "fetch_recent_backtest_runs", lambda _conn, limit: rows)
+def test_fetch_recent_backtest_run_summaries_maps_records_to_transport_keys(monkeypatch, conn) -> None:
+    """camelCase is this layer's job: the backtesting package returns typed records."""
+    record = BacktestRunSummary(
+        run_id=7,
+        run_name="weekly",
+        account_name="acct_local",
+        strategy="trend",
+        start_date="2026-01-01",
+        end_date="2026-01-31",
+        created_at="2026-02-01T00:00:00Z",
+        slippage_bps=5.0,
+        fee_per_trade=0.25,
+        tickers_file="universe.txt",
+    )
+    monkeypatch.setattr(account_backtests, "fetch_recent_backtest_runs", lambda _conn, limit: [record])
 
-    assert account_backtests.fetch_recent_backtest_run_summaries(conn, limit=50) == rows
+    assert account_backtests.fetch_recent_backtest_run_summaries(conn, limit=50) == [
+        {
+            "runId": 7,
+            "runName": "weekly",
+            "accountName": "acct_local",
+            "strategy": "trend",
+            "startDate": "2026-01-01",
+            "endDate": "2026-01-31",
+            "createdAt": "2026-02-01T00:00:00Z",
+            "slippageBps": 5.0,
+            "feePerTrade": 0.25,
+            "tickersFile": "universe.txt",
+        }
+    ]
 
 
 def test_fetch_latest_backtest_summary_none_and_present(conn, create_account_row) -> None:

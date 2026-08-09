@@ -42,8 +42,9 @@ all read persisted rows and need no provider.
     Also previews the warnings a run would raise, sharing the resolution the run itself uses.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
     frozen benchmark.
-  - `report_service.py`: full report assembly into typed report models. Needs no market-data
-    provider — a run's benchmark return is read from its row, frozen there when it executed.
+  - `report_service.py`: report assembly into typed report models — the full report, the summary
+    alone for listings, and the run-header reads behind them. Needs no market-data provider — a
+    run's benchmark return is read from its row, frozen there when it executed.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
   - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence, joined and
     summarized here so evaluation never has to know how runs, holdouts, and experiments relate.

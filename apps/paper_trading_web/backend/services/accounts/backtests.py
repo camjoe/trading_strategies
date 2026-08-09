@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from backtesting.models.report import BacktestRunSummary
 from backtesting.services.report_service import (
     fetch_backtest_report_summary,
     fetch_latest_backtest_run_for_account,
@@ -10,12 +11,28 @@ from backtesting.services.report_service import (
 )
 
 
+def _run_payload(run: BacktestRunSummary) -> dict[str, object]:
+    return {
+        "runId": run.run_id,
+        "runName": run.run_name,
+        "accountName": run.account_name,
+        "strategy": run.strategy,
+        "startDate": run.start_date,
+        "endDate": run.end_date,
+        "createdAt": run.created_at,
+        "slippageBps": run.slippage_bps,
+        "feePerTrade": run.fee_per_trade,
+        "tickersFile": run.tickers_file,
+    }
+
+
 def fetch_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
-    return fetch_latest_backtest_run_for_account(conn, account_name=account_name)
+    run = fetch_latest_backtest_run_for_account(conn, account_name=account_name)
+    return None if run is None else _run_payload(run)
 
 
 def fetch_recent_backtest_run_summaries(conn: sqlite3.Connection, *, limit: int) -> list[dict[str, object]]:
-    return fetch_recent_backtest_runs(conn, limit=limit)
+    return [_run_payload(run) for run in fetch_recent_backtest_runs(conn, limit=limit)]
 
 
 def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
