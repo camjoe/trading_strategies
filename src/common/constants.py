@@ -22,8 +22,19 @@ TRADING_DAYS_PER_YEAR = 252
 ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 SECONDS_PER_DAY = 86_400
 
+# ---------------------------------------------------------------------------
+# Percent and basis-point scaling
+# ---------------------------------------------------------------------------
+
+# Decimal fraction -> operator-facing percent (0.05 -> 5.0).
+PERCENT_SCALE = 100.0
+
 # Divisor for converting basis points to a decimal fraction (1 bps = 0.0001)
 BASIS_POINTS_DIVISOR = 10_000
+
+# Decimal fraction -> basis points (0.0005 -> 5.0). The float counterpart to
+# BASIS_POINTS_DIVISOR, for readings reported in bps rather than consumed as a rate.
+BASIS_POINTS_SCALE = 10_000.0
 
 # ---------------------------------------------------------------------------
 # RSI indicator

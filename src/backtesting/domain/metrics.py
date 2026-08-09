@@ -6,12 +6,11 @@ from typing import Mapping, Sequence
 
 import pandas as pd
 
-from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from common.coercion import row_float
-from common.constants import ANNUALIZATION_FACTOR, TRADING_DAYS_PER_YEAR
-
-# Scale factor for converting decimal returns into operator-facing percentage values.
-PERCENT_SCALE = 100.0
+from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
+from trading.domain.accounting import apply_buy, apply_sell, normalize_trade_fields
+from trading.domain.returns import total_return_pct
+from trading.domain.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
@@ -80,7 +79,7 @@ def benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash
         return None
 
     equity = initial_cash * (end_px / start_px)
-    return ((equity / initial_cash) - 1.0) * PERCENT_SCALE
+    return total_return_pct(first_equity=initial_cash, last_equity=equity)
 
 
 def _equity_return_series(equity_curve: Sequence[float]) -> pd.Series:
@@ -106,14 +105,12 @@ def _annualized_return_pct(equity_curve: Sequence[float]) -> float | None:
 
 
 def sharpe_ratio(returns: pd.Series, *, risk_free_rate: float = 0.0) -> float | None:
-    if returns.empty:
-        return None
-    daily_risk_free_rate = risk_free_rate / float(TRADING_DAYS_PER_YEAR)
-    excess_returns = returns - daily_risk_free_rate
-    volatility = float(excess_returns.std(ddof=0))
-    if volatility <= 0:
-        return None
-    return float(excess_returns.mean() / volatility * ANNUALIZATION_FACTOR)
+    """The shared Sharpe over a pandas series — this is the boundary that converts.
+
+    ``trading.domain.risk_ratios`` owns the arithmetic and takes plain floats,
+    because the live runtime scores the same ratio without pandas.
+    """
+    return shared_sharpe_ratio([float(value) for value in returns], risk_free_rate=risk_free_rate)
 
 
 def sortino_ratio(returns: pd.Series, *, risk_free_rate: float = 0.0) -> float | None:
@@ -130,30 +127,22 @@ def sortino_ratio(returns: pd.Series, *, risk_free_rate: float = 0.0) -> float |
     return float(excess_returns.mean() / downside_deviation * ANNUALIZATION_FACTOR)
 
 
-def calmar_ratio(*, annualized_return_pct: float | None, max_drawdown_pct_value: float) -> float | None:
-    if annualized_return_pct is None or max_drawdown_pct_value >= 0:
+def calmar_ratio(
+    *,
+    annualized_return_pct: float | None,
+    max_drawdown_pct_value: float,
+    drawdown_floor_pct: float = 0.0,
+) -> float | None:
+    """Annualized return per unit of max-drawdown magnitude, both in percent.
+
+    ``drawdown_floor_pct`` raises the denominator so a (near-)zero-drawdown result
+    stays finite and comparable. At the default floor of zero such a result has no
+    ratio at all and returns ``None``.
+    """
+    if annualized_return_pct is None:
         return None
-    max_drawdown = abs(max_drawdown_pct_value) / PERCENT_SCALE
-    if max_drawdown <= 0:
-        return None
-    annualized_return = annualized_return_pct / PERCENT_SCALE
-    return annualized_return / max_drawdown
-
-
-def _coerce_trade_float(value: object) -> float:
-    if isinstance(value, (int, float, str)):
-        return float(value)
-    raise ValueError(f"Unsupported trade numeric value: {value!r}")
-
-
-def _normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
-    return (
-        str(trade["ticker"]).upper(),
-        str(trade["side"]).lower(),
-        _coerce_trade_float(trade["qty"]),
-        _coerce_trade_float(trade["price"]),
-        _coerce_trade_float(trade["fee"]),
-    )
+    denominator = max(abs(max_drawdown_pct_value), drawdown_floor_pct)
+    return None if denominator <= 0 else annualized_return_pct / denominator
 
 
 def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[float], list[float]]:
@@ -164,7 +153,7 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
     pnl_values: list[float] = []
     return_values: list[float] = []
     for trade in trades:
-        ticker, side, qty, price, fee = _normalize_trade_fields(trade)
+        ticker, side, qty, price, fee = normalize_trade_fields(trade)
         if qty <= 0:
             raise ValueError("Trade quantity must be > 0 for backtest metrics.")
         if price < 0:
@@ -172,15 +161,13 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
         if side == "buy":
             if price <= 0:
                 raise ValueError("Buy trade price must be > 0 for backtest metrics.")
-            cash = update_on_buy(ticker, qty, price, fee, positions, avg_cost, cash)
+            cash = apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
             continue
         if side != "sell":
             raise ValueError(f"Unsupported trade side {side!r} for backtest metrics.")
-        if qty > positions[ticker]:
-            raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {positions[ticker]}.")
         cost_basis = avg_cost[ticker] * qty
         pnl = ((price - avg_cost[ticker]) * qty) - fee
-        cash, realized_pnl = update_on_sell(
+        cash, realized_pnl = apply_sell(
             ticker,
             qty,
             price,

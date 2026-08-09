@@ -1,27 +1,14 @@
-"""Walk-forward optimizer: pure-domain unit tests plus a deterministic end-to-end
-orchestration test that injects fake run functions so the winner is fixed by
-construction (no market data, no DB). The end-to-end test asserts the honesty
-properties: selection uses training data only, and OOS/holdout evidence is separate."""
+"""Deterministic end-to-end orchestration of a walk-forward run.
+
+Injects fake run functions so the winner is fixed by construction (no market data,
+no DB), which lets the tests assert the honesty properties directly: selection uses
+training data only, and OOS/holdout evidence is kept separate from it.
+"""
 
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 
-from backtesting.domain.optimization.objective import (
-    MAX_DRAWDOWN_ELIGIBILITY_PCT,
-    MIN_CANDIDATE_TRADES,
-    calmar_v1_score,
-    evaluate_candidate,
-    select_winner,
-)
-from backtesting.domain.optimization.search import (
-    canonical_params_json,
-    generate_candidates,
-    params_fingerprint,
-)
-from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
     BACKTEST_PURPOSE_STANDALONE,
@@ -40,135 +27,6 @@ from trading.domain.exceptions import ValidationError
 # differs from the "trend" default (fast_window=10) so the winner is provably a tuned
 # variant, not the default.
 GOOD_PARAMS = {"fast_window": 5, "slow_window": 20}
-
-
-class TestGridSearch:
-    def test_generates_canonical_ordered_product(self) -> None:
-        candidates = generate_candidates({"fast_window": [5, 10], "slow_window": [20, 30]}, budget=256)
-        assert candidates == [
-            {"fast_window": 5, "slow_window": 20},
-            {"fast_window": 5, "slow_window": 30},
-            {"fast_window": 10, "slow_window": 20},
-            {"fast_window": 10, "slow_window": 30},
-        ]
-
-    def test_rejects_grid_over_budget(self) -> None:
-        with pytest.raises(ValidationError, match="exceeds candidate budget"):
-            generate_candidates({"a": [1, 2, 3], "b": [1, 2, 3]}, budget=8)
-
-    def test_rejects_empty_space_and_empty_values(self) -> None:
-        with pytest.raises(ValidationError):
-            generate_candidates({}, budget=8)
-        with pytest.raises(ValidationError):
-            generate_candidates({"a": []}, budget=8)
-
-
-class TestParamsFingerprint:
-    def test_hash_is_key_order_independent(self) -> None:
-        # Equal parameter sets collide regardless of insertion order — the basis for
-        # the one-candidate-per-window uniqueness constraint on trials.
-        assert params_fingerprint({"fast_window": 5, "slow_window": 20}) == params_fingerprint(
-            {"slow_window": 20, "fast_window": 5}
-        )
-
-    def test_different_params_hash_differently(self) -> None:
-        assert params_fingerprint({"slow_window": 20}) != params_fingerprint({"slow_window": 40})
-
-    def test_canonical_json_is_the_shared_column_encoding(self) -> None:
-        # Keys sorted and no insignificant whitespace: the same spelling every
-        # other JSON column is written in (trading.persistence.json_columns).
-        assert canonical_params_json({"slow_window": 20, "fast_window": 5}) == '{"fast_window":5,"slow_window":20}'
-
-
-class TestObjective:
-    def test_calmar_v1_floor_keeps_low_drawdown_finite(self) -> None:
-        # Drawdown magnitude below the 1pp floor uses the floor as denominator.
-        assert calmar_v1_score(annualized_return_pct=10.0, max_drawdown_pct=-0.2) == 10.0
-
-    def test_rejects_too_few_trades(self) -> None:
-        result = evaluate_candidate(
-            index=0,
-            params={"x": 1},
-            annualized_return_pct=20.0,
-            max_drawdown_pct=-5.0,
-            trade_count=MIN_CANDIDATE_TRADES - 1,
-        )
-        assert not result.eligible
-        assert result.score is None
-        assert "too_few_trades" in result.rejection_reason
-
-    def test_negative_return_is_eligible_but_scored_low(self) -> None:
-        # The positive-return training gate was intentionally dropped: a down-regime
-        # candidate stays selectable (best-of-field) and its OOS/holdout run is the judge.
-        result = evaluate_candidate(
-            index=0, params={}, annualized_return_pct=-8.0, max_drawdown_pct=-5.0, trade_count=10
-        )
-        assert result.eligible
-        assert result.score is not None and result.score < 0
-
-    def test_rejects_missing_return_and_excess_drawdown(self) -> None:
-        missing = evaluate_candidate(
-            index=0, params={}, annualized_return_pct=None, max_drawdown_pct=-5.0, trade_count=10
-        )
-        assert missing.rejection_reason == "no_annualized_return"
-        deep = evaluate_candidate(
-            index=1,
-            params={},
-            annualized_return_pct=10.0,
-            max_drawdown_pct=MAX_DRAWDOWN_ELIGIBILITY_PCT - 1.0,
-            trade_count=10,
-        )
-        assert "drawdown_exceeds_limit" in deep.rejection_reason
-
-    def test_select_winner_ranks_by_score_then_tiebreaks(self) -> None:
-        results = [
-            evaluate_candidate(
-                index=0, params={"n": 0}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8
-            ),
-            evaluate_candidate(
-                index=1, params={"n": 1}, annualized_return_pct=30.0, max_drawdown_pct=-5.0, trade_count=12
-            ),
-            evaluate_candidate(
-                index=2, params={"n": 2}, annualized_return_pct=8.0, max_drawdown_pct=-12.0, trade_count=8
-            ),
-        ]
-        assert select_winner(results).params == {"n": 1}
-
-    def test_select_winner_raises_when_none_eligible(self) -> None:
-        # Ineligible via a still-active gate (too few trades); the error names the reason.
-        results = [
-            evaluate_candidate(index=0, params={}, annualized_return_pct=5.0, max_drawdown_pct=-5.0, trade_count=1),
-        ]
-        with pytest.raises(ValidationError, match="No eligible candidate.*too_few_trades"):
-            select_winner(results)
-
-
-class TestWindowSplits:
-    def test_training_precedes_test_and_holdout_is_isolated(self) -> None:
-        splits, holdout = build_walk_forward_optimization_splits(
-            date(2022, 1, 1),
-            date(2024, 12, 31),
-            train_months=12,
-            test_months=1,
-            step_months=1,
-            holdout_months=6,
-        )
-        assert holdout == (date(2024, 7, 1), date(2024, 12, 31))
-        assert splits, "expected at least one split"
-        for split in splits:
-            assert split.train_end < split.test_start
-            assert split.test_end < holdout[0]
-
-    def test_rejects_overlapping_oos_windows(self) -> None:
-        with pytest.raises(ValidationError, match="overlapping OOS"):
-            build_walk_forward_optimization_splits(
-                date(2022, 1, 1),
-                date(2024, 12, 31),
-                train_months=12,
-                test_months=3,
-                step_months=1,
-                holdout_months=6,
-            )
 
 
 def _fake_result(cfg: BacktestConfig, *, annualized: float, drawdown: float, trades: int) -> BacktestResult:

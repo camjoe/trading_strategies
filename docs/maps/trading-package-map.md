@@ -265,7 +265,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `accounting.py` | Cash and equity accounting rules |
+| `accounting.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
 | `bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
 | `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
@@ -280,8 +280,9 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
-| `returns.py` | Return calculation math |
-| `portfolio_math.py` | Pure portfolio return math shared by analysis + reporting (market value/unrealized, return %, alpha) |
+| `returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
+| `risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
+| `portfolio_math.py` | Pure portfolio valuation and return math shared by analysis, reporting, and the backtester (market value/unrealized, return %, alpha); holds both the lenient operator-facing pass and the strict pair, deliberately unmerged |
 | `rotation/schedule.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |

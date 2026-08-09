@@ -14,6 +14,7 @@ from backtesting.domain.metrics import (
     sortino_ratio,
     summarize_backtest_performance,
 )
+from trading.domain.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 
 
 def test_max_drawdown_handles_empty_and_non_positive_peak() -> None:
@@ -52,11 +53,25 @@ def test_risk_ratios_handle_basic_series() -> None:
     assert calmar_ratio(annualized_return_pct=12.0, max_drawdown_pct_value=-6.0) == pytest.approx(2.0)
 
 
+def test_sharpe_over_pandas_matches_the_shared_implementation() -> None:
+    # This module's sharpe_ratio is the pandas boundary over
+    # trading.domain.risk_ratios. The live runtime scores the same ratio without
+    # pandas, and a backtest that disagreed with it would be measuring something
+    # else — so the agreement is asserted rather than assumed.
+    values = [0.01, -0.005, 0.02, -0.01, 0.015, 0.003, -0.002, 0.008]
+    assert sharpe_ratio(pd.Series(values)) == shared_sharpe_ratio(values)
+    assert sharpe_ratio(pd.Series(values), risk_free_rate=0.03) == shared_sharpe_ratio(values, risk_free_rate=0.03)
+
+
 def test_risk_ratio_helpers_return_none_for_degenerate_inputs() -> None:
     assert sharpe_ratio(pd.Series([], dtype=float)) is None
     assert sharpe_ratio(pd.Series([0.0, 0.0])) is None
     assert sortino_ratio(pd.Series([0.01, 0.02])) is None
     assert calmar_ratio(annualized_return_pct=10.0, max_drawdown_pct_value=0.0) is None
+    # A drawdown floor is what keeps the same degenerate input rankable for the optimizer.
+    assert calmar_ratio(
+        annualized_return_pct=10.0, max_drawdown_pct_value=0.0, drawdown_floor_pct=1.0
+    ) == pytest.approx(10.0)
 
 
 def test_summarize_backtest_performance_computes_trade_analytics() -> None:
@@ -118,7 +133,9 @@ def test_metrics_private_helpers_and_trade_numeric_guards() -> None:
             trades=[{"ticker": "AAPL", "side": "buy", "qty": 1.0, "price": 0.0, "fee": 0.0}],
         )
 
-    with pytest.raises(ValueError, match="Unsupported trade numeric value"):
+    # Rejected by the shared coercion in trading.domain.accounting, which the replay
+    # now uses so a persisted trade reads the same on the live and backtest paths.
+    with pytest.raises(ValueError, match="Expected float-convertible value"):
         summarize_backtest_performance(
             equity_curve=[1000.0, 1001.0],
             trades=[{"ticker": "AAPL", "side": "buy", "qty": object(), "price": 100.0, "fee": 0.0}],

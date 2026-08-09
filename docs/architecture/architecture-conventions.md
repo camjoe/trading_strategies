@@ -24,13 +24,21 @@ Do not invert this flow.
 stack to reach them is a bounded context and sits beside `trading/`, not inside it:
 
 1. The layered backbone above applies to main runtime behavior.
-2. **The test is table ownership.** `src/backtesting/` owns seven tables nothing else writes
-   (`backtest_runs`, `backtest_executions`, `backtest_equity_snapshots`, `optimization_experiments`,
-   `optimization_windows`, `optimization_trials`, `optimization_run_manifests`); every other package
-   under `src/trading/` shares `trading/repositories/`. That is why it is the only one, and the
-   criterion a future candidate has to meet. Its seam with `trading/` is enforced in both directions
+2. **The test is table ownership.** `src/backtesting/` owns seven tables whose only runtime writer
+   is its own repositories (`backtest_runs`, `backtest_executions`, `backtest_equity_snapshots`,
+   `optimization_experiments`, `optimization_windows`, `optimization_trials`,
+   `optimization_run_manifests`); every other package under `src/trading/` shares
+   `trading/repositories/`. That is why it is the only one, and the criterion a future candidate
+   has to meet. One exemption, and it is not a counterexample: `trading/repositories/fixture_seed.py`
+   writes the three `backtest_*` tables when generating a demo or sandbox database, because a
+   fixture needs research records that no operator flow produces. Nothing on the runtime path
+   writes them but `backtesting/repositories/`. Its seam with `trading/` is enforced in both directions
    by `layer_check` — reads cross at services, and shared lower layers (`trading.domain`,
-   `trading.models`, `trading.persistence`) are layering rather than crossing.
+   `trading.models`, `trading.persistence`) are layering rather than crossing. Where a
+   *calculation* both contexts need belongs is settled by
+   [ADR 020](../adr/020-shared-financial-math-ownership.md): `trading/domain/` owns it,
+   `common/` keeps unit scales only, and `backtesting/domain/` keeps what only a backtest
+   can compute.
 3. Broker adapters live at the repo-root `src/infrastructure/brokers/` package,
    external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
    concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.

@@ -296,8 +296,8 @@ class CompoundedOOSPoint:
     from the previous window (a step longer than the test window)."""
 
     window_index: int
-    test_start: str
-    test_end: str
+    test_start: date
+    test_end: date
     period_return_pct: float
     cumulative_return_pct: float
     gap_before: bool

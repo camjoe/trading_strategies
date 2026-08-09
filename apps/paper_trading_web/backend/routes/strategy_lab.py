@@ -158,8 +158,8 @@ def _compounded_payload(series: CompoundedOOSSeries | None) -> dict[str, object]
         "points": [
             {
                 "windowIndex": point.window_index,
-                "testStart": point.test_start,
-                "testEnd": point.test_end,
+                "testStart": point.test_start.isoformat(),
+                "testEnd": point.test_end.isoformat(),
                 "periodReturnPct": point.period_return_pct,
                 "cumulativeReturnPct": point.cumulative_return_pct,
                 "gapBefore": point.gap_before,

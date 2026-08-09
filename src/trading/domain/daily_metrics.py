@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from common.constants import ANNUALIZATION_FACTOR
-
-BASIS_POINTS = 10_000.0
+from common.constants import BASIS_POINTS_SCALE
+from trading.domain.returns import total_return_pct
+from trading.domain.risk_ratios import sharpe_ratio
 
 # Trailing window (in scored sessions, including the current day) the daily
 # risk-adjusted score is computed over — roughly one trading month.
@@ -82,7 +82,7 @@ def compute_daily_book_metrics(
 
     return_pct: float | None = None
     if prev_equity is not None and prev_equity != 0 and end_equity is not None:
-        return_pct = (end_equity / prev_equity - 1.0) * 100.0
+        return_pct = total_return_pct(first_equity=prev_equity, last_equity=end_equity)
 
     turnover_pct: float | None = None
     if trades and end_equity is not None and end_equity != 0:
@@ -103,25 +103,18 @@ def compute_daily_book_metrics(
 
 
 def _trailing_risk_adjusted_score(prior_returns: list[float], today_return: float | None) -> float | None:
-    """Annualized Sharpe ratio over the book's most recent daily returns.
+    """Annualized Sharpe over the book's most recent daily returns.
 
     Combines ``today_return`` (most recent) with ``prior_returns`` (already
-    most-recent-first), caps the series to ``RISK_ADJUSTED_WINDOW_SESSIONS``, and
-    returns ``mean / population_std * ANNUALIZATION_FACTOR`` — the same convention
-    as ``backtesting/domain/metrics.py::sharpe_ratio`` (risk-free rate 0). Returns
-    ``None`` when there are fewer than ``RISK_ADJUSTED_MIN_SESSIONS`` returns or
-    the returns have no dispersion (a zero-volatility Sharpe is undefined).
+    most-recent-first) and caps the series to ``RISK_ADJUSTED_WINDOW_SESSIONS``.
+    Below ``RISK_ADJUSTED_MIN_SESSIONS`` the sample is too small to mean anything,
+    which is a separate refusal from the one ``sharpe_ratio`` makes on dispersion.
     """
     series = ([today_return] if today_return is not None else []) + prior_returns
     window = series[:RISK_ADJUSTED_WINDOW_SESSIONS]
     if len(window) < RISK_ADJUSTED_MIN_SESSIONS:
         return None
-    mean = sum(window) / len(window)
-    variance = sum((value - mean) ** 2 for value in window) / len(window)
-    std = variance**0.5
-    if std <= 0:
-        return None
-    return mean / std * ANNUALIZATION_FACTOR
+    return sharpe_ratio(window)
 
 
 def _closing_trade_stats(trades: list[DailyTrade]) -> tuple[float | None, float | None]:
@@ -157,4 +150,4 @@ def _average_slippage_bps(trades: list[DailyTrade]) -> float | None:
             total_fraction += (trade.avg_fill_price - requested) / requested
         else:
             total_fraction += (requested - trade.avg_fill_price) / requested
-    return total_fraction / len(priced) * BASIS_POINTS
+    return total_fraction / len(priced) * BASIS_POINTS_SCALE

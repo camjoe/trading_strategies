@@ -11,20 +11,21 @@ from typing import Any, Callable, cast
 import pandas as pd
 
 from backtesting.domain.bars import build_bar_panel
-from backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, summarize_backtest_performance
-from backtesting.domain.risk_warnings import build_backtest_warnings
-from backtesting.domain.simulation_math import (
-    compute_market_value,
-    compute_unrealized_pnl,
-    update_on_buy,
-    update_on_sell,
+from backtesting.domain.metrics import (
+    benchmark_return_pct,
+    max_drawdown_pct,
+    summarize_backtest_performance,
 )
+from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.domain.windowing import resolve_run_window, shift_months
 from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from backtesting.services.run_inputs import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
+from trading.domain.accounting import apply_buy, apply_sell
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
+from trading.domain.portfolio_math import compute_market_value, compute_unrealized_pnl
+from trading.domain.returns import total_return_pct
 from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
@@ -201,7 +202,7 @@ def _execute_sells(
         if qty_float <= 0:
             continue
 
-        state.cash, state.realized_pnl = update_on_sell(
+        state.cash, state.realized_pnl = apply_sell(
             ticker,
             qty_float,
             exec_px,
@@ -265,7 +266,7 @@ def _execute_buys(
         if qty_int < 1:
             continue
 
-        state.cash = update_on_buy(
+        state.cash = apply_buy(
             ticker, float(qty_int), exec_px, ctx.cfg.fee_per_trade, state.positions, state.avg_cost, state.cash
         )
         _record_trade(
@@ -617,7 +618,10 @@ def run_backtest(
         equity_curve = _simulate_bars(ctx, state, close=inputs.close, dates=dates, scoring_idx=scoring_idx)
 
     ending_equity = equity_curve[-1]
-    total_return_pct = ((ending_equity / scope.account.initial_cash) - 1.0) * 100.0
+    total_return = total_return_pct(
+        first_equity=scope.account.initial_cash,
+        last_equity=ending_equity,
+    )
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)
 
     return BacktestResult(
@@ -628,9 +632,9 @@ def run_backtest(
         tickers=scope.universe.all_tickers,
         trade_count=state.trade_count,
         ending_equity=ending_equity,
-        total_return_pct=total_return_pct,
+        total_return_pct=total_return,
         benchmark_return_pct=inputs.benchmark_return,
-        alpha_pct=None if inputs.benchmark_return is None else total_return_pct - inputs.benchmark_return,
+        alpha_pct=None if inputs.benchmark_return is None else total_return - inputs.benchmark_return,
         max_drawdown_pct=max_drawdown_pct(equity_curve),
         annualized_return_pct=performance.annualized_return_pct,
         sharpe_ratio=performance.sharpe_ratio,

@@ -84,6 +84,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
+from trading.domain.returns import total_return_pct
 from trading.models.execution import (
     BookTradeCandidate,
     RiskGateConfig,
@@ -140,7 +141,7 @@ def point_in_time_drawdown_pct(*, total_equity: float, peak_equity: float | None
     effective_peak = max(peak_equity, total_equity) if peak_equity is not None else total_equity
     if effective_peak <= 0:
         return None
-    return (total_equity / effective_peak - 1.0) * 100.0
+    return total_return_pct(first_equity=effective_peak, last_equity=total_equity)
 
 
 def is_drawdown_breaker_tripped(*, drawdown_pct: float | None, max_drawdown_pct: float) -> bool:

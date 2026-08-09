@@ -13,7 +13,7 @@ from datetime import date
 from functools import partial
 from typing import Callable
 
-from backtesting.domain.optimization.search import canonical_params_json, params_fingerprint
+from backtesting.domain.optimization import params_fingerprint
 from backtesting.models.optimizer import (
     MANIFEST_V1,
     ExperimentStatus,
@@ -340,7 +340,7 @@ def _persist_windows_and_trials(conn: sqlite3.Connection, experiment_id: int, su
                 OptimizationTrialInsert(
                     window_id=window_id,
                     candidate_index=candidate.index,
-                    params_json=canonical_params_json(candidate.params),
+                    params_json=dumps_json_column(candidate.params),
                     params_hash=params_fingerprint(candidate.params),
                     objective_value=candidate.score,
                     annualized_return_pct=candidate.annualized_return_pct,

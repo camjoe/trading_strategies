@@ -117,6 +117,9 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/014-execution-mode-collapse.md` | One book-keyed runtime path; rotation scheduling is book-owned, continuous eval under cooldown | Reintroducing an account-mode path or account-owned rotation config |
 | `docs/adr/015-numbered-alembic-migrations.md` | Numbered Alembic revisions are the sole schema source; runtime verifies the head revision only, never migrates | Changing the migration approach, dependency scope, or runtime schema handling |
 | `docs/adr/017-ibkr-paper-broker-type.md` | IBKR paper is its own `broker_type` with a `DU` account assertion; `live_trading_enabled` guards real money only | Changing the broker guard model, or adding a paper path for the socket/TWS integration |
+| `docs/adr/018-broker-transport-venue-matrix.md` | Transport (web/socket) and venue (paper/live) are independent axes; an unknown `broker_type` fails instead of falling through to the simulator | Adding a broker transport or venue, or changing how `broker_type` resolves |
+| `docs/adr/019-rotation-score-components.md` | Rotation score components; `regime_fit` affinity is family-derived, not configured or evidence-derived | Changing the rotation score model or its weights |
+| `docs/adr/020-shared-financial-math-ownership.md` | Math shared by the live runtime and the backtester lives in `trading/domain`; `common/` keeps unit scales, `backtesting/domain` keeps what only a backtest can compute | Adding a metric or ledger calculation either context could need |
 
 ### Templates and Standards
 
