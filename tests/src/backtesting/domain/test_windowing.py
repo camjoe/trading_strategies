@@ -5,7 +5,12 @@ from datetime import date
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from backtesting.domain.windowing import add_months, resolve_run_window
+from backtesting.domain.windowing import (
+    add_months,
+    build_walk_forward_optimization_splits,
+    resolve_run_window,
+)
+from trading.domain.exceptions import ValidationError
 
 
 def test_add_months_clips_end_of_month_and_rejects_negative() -> None:
@@ -68,3 +73,31 @@ def test_resolve_run_window_lookback_property(as_of: date, lookback_months: int)
     # requested number of month boundaries however long those months happen to be.
     months_spanned = (end.year * 12 + end.month) - (start.year * 12 + start.month)
     assert months_spanned == lookback_months
+
+
+class TestWindowSplits:
+    def test_training_precedes_test_and_holdout_is_isolated(self) -> None:
+        splits, holdout = build_walk_forward_optimization_splits(
+            date(2022, 1, 1),
+            date(2024, 12, 31),
+            train_months=12,
+            test_months=1,
+            step_months=1,
+            holdout_months=6,
+        )
+        assert holdout == (date(2024, 7, 1), date(2024, 12, 31))
+        assert splits, "expected at least one split"
+        for split in splits:
+            assert split.train_end < split.test_start
+            assert split.test_end < holdout[0]
+
+    def test_rejects_overlapping_oos_windows(self) -> None:
+        with pytest.raises(ValidationError, match="overlapping OOS"):
+            build_walk_forward_optimization_splits(
+                date(2022, 1, 1),
+                date(2024, 12, 31),
+                train_months=12,
+                test_months=3,
+                step_months=1,
+                holdout_months=6,
+            )
