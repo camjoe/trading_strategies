@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 
 from common.coercion import row_float
 from common.constants import SETTLEMENT_TICKER
@@ -11,7 +12,14 @@ from trading.models import AccountState
 VALID_SIDES = {"buy", "sell"}
 
 
-def _normalize_trade_fields(trade: dict[str, object]) -> tuple[str, str, float, float, float]:
+def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
+    """A trade row's ``(ticker, side, qty, price, fee)``, coerced and case-normalized.
+
+    Shared with the backtest metrics replay so a persisted trade reads the same on
+    both paths. An absent or unparseable numeric becomes ``0.0``; callers reject it
+    on their own quantity and price rules, which differ (a $0 sell is valid for an
+    expired option, a $0 buy never is).
+    """
     return (
         str(trade["ticker"]).upper(),
         str(trade["side"]).lower(),
@@ -109,7 +117,7 @@ def _apply_trade_to_state(
     total_deposited: float,
     settlement_ticker: str | None,
 ) -> tuple[float, float, float]:
-    ticker, side, qty, price, fee = _normalize_trade_fields(trade)
+    ticker, side, qty, price, fee = normalize_trade_fields(trade)
     _validate_trade_values(qty, price, side=side)
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.

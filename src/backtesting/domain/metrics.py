@@ -9,6 +9,7 @@ import pandas as pd
 from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
+from trading.domain.accounting import normalize_trade_fields
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
@@ -154,22 +155,6 @@ def calmar_ratio(
     return None if denominator <= 0 else annualized_return_pct / denominator
 
 
-def _coerce_trade_float(value: object) -> float:
-    if isinstance(value, (int, float, str)):
-        return float(value)
-    raise ValueError(f"Unsupported trade numeric value: {value!r}")
-
-
-def _normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
-    return (
-        str(trade["ticker"]).upper(),
-        str(trade["side"]).lower(),
-        _coerce_trade_float(trade["qty"]),
-        _coerce_trade_float(trade["price"]),
-        _coerce_trade_float(trade["fee"]),
-    )
-
-
 def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[float], list[float]]:
     positions: dict[str, float] = defaultdict(float)
     avg_cost: dict[str, float] = defaultdict(float)
@@ -178,7 +163,7 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
     pnl_values: list[float] = []
     return_values: list[float] = []
     for trade in trades:
-        ticker, side, qty, price, fee = _normalize_trade_fields(trade)
+        ticker, side, qty, price, fee = normalize_trade_fields(trade)
         if qty <= 0:
             raise ValueError("Trade quantity must be > 0 for backtest metrics.")
         if price < 0:

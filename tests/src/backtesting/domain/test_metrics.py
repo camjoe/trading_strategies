@@ -128,7 +128,9 @@ def test_metrics_private_helpers_and_trade_numeric_guards() -> None:
             trades=[{"ticker": "AAPL", "side": "buy", "qty": 1.0, "price": 0.0, "fee": 0.0}],
         )
 
-    with pytest.raises(ValueError, match="Unsupported trade numeric value"):
+    # Rejected by the shared coercion in trading.domain.accounting, which the replay
+    # now uses so a persisted trade reads the same on the live and backtest paths.
+    with pytest.raises(ValueError, match="Expected float-convertible value"):
         summarize_backtest_performance(
             equity_curve=[1000.0, 1001.0],
             trades=[{"ticker": "AAPL", "side": "buy", "qty": object(), "price": 100.0, "fee": 0.0}],
