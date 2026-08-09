@@ -14,6 +14,7 @@ import sqlite3
 import pytest
 
 from tests.support.repositories import insert_repository_account
+from trading.models.orders import OrderInsert
 from trading.repositories.books import BookRepository
 from trading.repositories.orders import OrderRepository
 from trading.services.execution import submission
@@ -67,18 +68,20 @@ def test_apply_book_fill_commits_position_ledger_and_balances(conn, book_env) ->
 
 def _insert_order(conn, *, account_id, book_id, side, qty, price, when) -> int:
     return OrderRepository(conn).insert(
-        book_id=book_id,
-        account_id=account_id,
-        symbol="AAPL",
-        side=side,
-        qty=qty,
-        requested_price=price,
-        status="filled",
-        filled_qty=qty,
-        avg_fill_price=price,
-        commission=0.0,
-        submitted_at=when,
-        updated_at=when,
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol="AAPL",
+            side=side,
+            qty=qty,
+            requested_price=price,
+            status="filled",
+            filled_qty=qty,
+            avg_fill_price=price,
+            commission=0.0,
+            submitted_at=when,
+            updated_at=when,
+        )
     )
 
 

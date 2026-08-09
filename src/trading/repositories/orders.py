@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import fields
 
 from common.time import next_date_str
-from trading.models.orders import FillEventRecord, OrderRecord
+from trading.models.orders import FillEventRecord, OrderInsert, OrderRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
+
+# Derived rather than listed: the payload's field names are the column names, so
+# a new column is added in one place. OrderRecord subclasses OrderInsert, so this
+# also drops the two database-owned columns when a record is passed back in.
+_ORDER_INSERT_COLUMNS = tuple(field.name for field in fields(OrderInsert))
+_ORDER_INSERT_SQL = (
+    f"INSERT INTO orders ({', '.join(_ORDER_INSERT_COLUMNS)}) VALUES ({', '.join('?' for _ in _ORDER_INSERT_COLUMNS)})"
+)
 
 
 class BookAccountMismatchError(ValueError):
@@ -21,65 +30,18 @@ class OrderRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def insert(
-        self,
-        *,
-        book_id: int,
-        account_id: int,
-        strategy_id: int | None = None,
-        rotation_decision_id: int | None = None,
-        broker_order_id: str | None = None,
-        symbol: str,
-        side: str,
-        qty: float,
-        order_type: str = "market",
-        time_in_force: str = "day",
-        requested_price: float | None = None,
-        status: str,
-        filled_qty: float = 0.0,
-        avg_fill_price: float | None = None,
-        commission: float = 0.0,
-        submitted_at: str,
-        updated_at: str,
-        status_reason: str | None = None,
-    ) -> int:
+    def insert(self, order: OrderInsert) -> int:
         owner = self._conn.execute(
             "SELECT account_id FROM books WHERE id = ?",
-            (book_id,),
+            (order.book_id,),
         ).fetchone()
-        if owner is None or int(owner[0]) != account_id:
+        if owner is None or int(owner[0]) != order.account_id:
             raise BookAccountMismatchError(
-                f"Book {book_id} does not belong to account {account_id}; refusing to insert order."
+                f"Book {order.book_id} does not belong to account {order.account_id}; refusing to insert order."
             )
         cursor = self._conn.execute(
-            """
-            INSERT INTO orders (
-                book_id, account_id, strategy_id, rotation_decision_id, broker_order_id,
-                symbol, side, qty, order_type, time_in_force, requested_price, status,
-                filled_qty, avg_fill_price, commission, submitted_at, updated_at, status_reason
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                book_id,
-                account_id,
-                strategy_id,
-                rotation_decision_id,
-                broker_order_id,
-                symbol,
-                side,
-                qty,
-                order_type,
-                time_in_force,
-                requested_price,
-                status,
-                filled_qty,
-                avg_fill_price,
-                commission,
-                submitted_at,
-                updated_at,
-                status_reason,
-            ),
+            _ORDER_INSERT_SQL,
+            tuple(getattr(order, column) for column in _ORDER_INSERT_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)

@@ -7,6 +7,7 @@ rejections.
 
 from __future__ import annotations
 
+from trading.models.orders import OrderInsert
 from trading.repositories.orders import OrderRepository
 from trading.repositories.risk import RiskDecisionRepository
 from trading.services.analysis.daily_report import build_risk_gate_summary, build_submission_summary
@@ -30,16 +31,18 @@ def _insert_decision(conn, report_env, *, action: str, reason_code: str, date: s
 
 def _insert_order(conn, report_env, *, status: str, broker_order_id=None, status_reason=None, date=REPORT_DATE) -> int:
     return OrderRepository(conn).insert(
-        book_id=report_env.book_id,
-        account_id=report_env.account_id,
-        broker_order_id=broker_order_id,
-        symbol="AAPL",
-        side="buy",
-        qty=10.0,
-        status=status,
-        submitted_at=f"{date}T14:31:00Z",
-        updated_at=f"{date}T14:31:00Z",
-        status_reason=status_reason,
+        OrderInsert(
+            book_id=report_env.book_id,
+            account_id=report_env.account_id,
+            broker_order_id=broker_order_id,
+            symbol="AAPL",
+            side="buy",
+            qty=10.0,
+            status=status,
+            submitted_at=f"{date}T14:31:00Z",
+            updated_at=f"{date}T14:31:00Z",
+            status_reason=status_reason,
+        )
     )
 
 

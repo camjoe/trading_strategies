@@ -112,29 +112,44 @@ class FillEventRecord:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class OrderRecord:
-    """Persisted orders row (clean schema, book-keyed) materialized from the database."""
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrderInsert:
+    """The orders columns a caller supplies when creating a row.
 
-    id: int
+    Field names are the column names: `OrderRepository` builds both the INSERT
+    column list and its values from this class, so a field with no column is a
+    failed insert.
+    """
+
     book_id: int
     account_id: int
-    strategy_id: int | None
-    rotation_decision_id: int | None
-    broker_order_id: str | None
+    strategy_id: int | None = None
+    rotation_decision_id: int | None = None
+    broker_order_id: str | None = None
     symbol: str
     side: str
     qty: float
-    order_type: str
-    time_in_force: str
-    requested_price: float | None
+    order_type: str = OrderType.MARKET.value
+    time_in_force: str = TimeInForce.DAY.value
+    requested_price: float | None = None
     status: str
-    filled_qty: float
-    avg_fill_price: float | None
-    commission: float
+    filled_qty: float = 0.0
+    avg_fill_price: float | None = None
+    commission: float = 0.0
     submitted_at: str
     updated_at: str
     status_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrderRecord(OrderInsert):
+    """Persisted orders row (clean schema, book-keyed) materialized from the database.
+
+    The insert payload plus the two columns the database owns: `id` on write, and
+    `realized_pnl_delta` accrued afterwards by `OrderRepository.add_realized_pnl_delta`.
+    """
+
+    id: int
     # Realized P&L for a closing order (sell), net of commission. NULL for opening
     # orders (buys realize nothing) — so NOT NULL identifies a closing trade.
     realized_pnl_delta: float | None = None

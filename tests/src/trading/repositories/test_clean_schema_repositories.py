@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from common.time import utc_now_iso
+from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
@@ -260,15 +261,17 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     repo = OrderRepository(conn)
 
     order_id = repo.insert(
-        book_id=book_id,
-        account_id=account_id,
-        symbol="AAPL",
-        side="buy",
-        qty=2.0,
-        requested_price=100.0,
-        status="submitted",
-        submitted_at=NOW,
-        updated_at=NOW,
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol="AAPL",
+            side="buy",
+            qty=2.0,
+            requested_price=100.0,
+            status="submitted",
+            submitted_at=NOW,
+            updated_at=NOW,
+        )
     )
     assert [order.id for order in repo.fetch_open_for_account(account_id=account_id)] == [order_id]
 
@@ -282,14 +285,16 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     # Invariant 4: the order's book must belong to the order's account.
     with pytest.raises(BookAccountMismatchError):
         repo.insert(
-            book_id=book_id,
-            account_id=other_account_id,
-            symbol="MSFT",
-            side="buy",
-            qty=1.0,
-            status="submitted",
-            submitted_at=NOW,
-            updated_at=NOW,
+            OrderInsert(
+                book_id=book_id,
+                account_id=other_account_id,
+                symbol="MSFT",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at=NOW,
+                updated_at=NOW,
+            )
         )
 
 
@@ -376,14 +381,16 @@ def test_submission_count_sees_orders_that_never_filled(conn) -> None:
     repo = OrderRepository(conn)
     for index in range(3):
         repo.insert(
-            book_id=book_id,
-            account_id=account_id,
-            symbol=f"SYM{index}",
-            side="buy",
-            qty=1.0,
-            status="submitted",
-            submitted_at="2026-01-15T10:00:30Z",
-            updated_at="2026-01-15T10:00:30Z",
+            OrderInsert(
+                book_id=book_id,
+                account_id=account_id,
+                symbol=f"SYM{index}",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at="2026-01-15T10:00:30Z",
+                updated_at="2026-01-15T10:00:30Z",
+            )
         )
 
     window = {"start_iso": "2026-01-15T10:00:00Z", "end_iso": "2026-01-15T10:01:00Z"}

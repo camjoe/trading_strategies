@@ -30,6 +30,7 @@ import pandas as pd
 from common.constants import SETTLEMENT_TICKER
 from common.time import as_utc_iso
 from trading.models import AccountConfig
+from trading.models.orders import OrderInsert
 from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
@@ -180,18 +181,20 @@ def _apply_fill(
     orders = OrderRepository(conn)
     with unit_of_work(conn):
         order_id = orders.insert(
-            book_id=book_id,
-            account_id=account_id,
-            symbol=symbol,
-            side=side,
-            qty=qty,
-            requested_price=price,
-            status="filled",
-            filled_qty=qty,
-            avg_fill_price=price,
-            commission=FIXTURE_COMMISSION,
-            submitted_at=when_iso,
-            updated_at=when_iso,
+            OrderInsert(
+                book_id=book_id,
+                account_id=account_id,
+                symbol=symbol,
+                side=side,
+                qty=qty,
+                requested_price=price,
+                status="filled",
+                filled_qty=qty,
+                avg_fill_price=price,
+                commission=FIXTURE_COMMISSION,
+                submitted_at=when_iso,
+                updated_at=when_iso,
+            )
         )
         orders.insert_fill(
             order_id=order_id,

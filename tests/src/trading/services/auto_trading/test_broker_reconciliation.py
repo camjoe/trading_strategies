@@ -4,7 +4,7 @@ import trading.services.auto_trading.runtime as runtime_service
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 from tests.support.db_schema import memory_db_at_head
-from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderInsert, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -36,16 +36,18 @@ def _open_clean_order(
     """Seed an open clean orders row on the account's default book."""
     book_id = default_book_id(conn, account_id)
     order_id = OrderRepository(conn).insert(
-        book_id=book_id,
-        account_id=account_id,
-        broker_order_id=broker_order_id,
-        symbol=symbol,
-        side=side,
-        qty=qty,
-        requested_price=price,
-        status="submitted",
-        submitted_at="2024-01-01T00:00:00",
-        updated_at="2024-01-01T00:00:00",
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            broker_order_id=broker_order_id,
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            requested_price=price,
+            status="submitted",
+            submitted_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
     )
     return book_id, order_id
 

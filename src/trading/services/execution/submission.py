@@ -7,7 +7,7 @@ from common.time import utc_now_iso
 from trading.domain.book_accounting import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution import BookTradeIntent, SubmissionResult
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderInsert, OrderStatus
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -220,23 +220,25 @@ def submit_book_intents(
         # outside the transaction — network I/O must not hold a write lock.
         with unit_of_work(conn):
             order_id = order_repo.insert(
-                book_id=book_id,
-                account_id=account_id,
-                strategy_id=intent.strategy_id,
-                broker_order_id=placed.broker_order_id,
-                symbol=intent.symbol,
-                side=intent.side,
-                qty=float(intent.qty),
-                order_type=intent.order_type,
-                time_in_force=intent.time_in_force,
-                requested_price=intent.requested_price,
-                status=clean_order_status(placed.status),
-                filled_qty=float(placed.filled_qty),
-                avg_fill_price=placed.avg_fill_price,
-                commission=float(placed.commission),
-                submitted_at=placed.submitted_at or submitted_at,
-                updated_at=updated_at,
-                status_reason=placed.status_reason,
+                OrderInsert(
+                    book_id=book_id,
+                    account_id=account_id,
+                    strategy_id=intent.strategy_id,
+                    broker_order_id=placed.broker_order_id,
+                    symbol=intent.symbol,
+                    side=intent.side,
+                    qty=float(intent.qty),
+                    order_type=intent.order_type,
+                    time_in_force=intent.time_in_force,
+                    requested_price=intent.requested_price,
+                    status=clean_order_status(placed.status),
+                    filled_qty=float(placed.filled_qty),
+                    avg_fill_price=placed.avg_fill_price,
+                    commission=float(placed.commission),
+                    submitted_at=placed.submitted_at or submitted_at,
+                    updated_at=updated_at,
+                    status_reason=placed.status_reason,
+                )
             )
 
             # Fill rows are the only execution history (the trades table was retired
