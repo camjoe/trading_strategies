@@ -7,7 +7,7 @@ from common.time import utc_now_iso
 from trading.domain.book_accounting import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution import BookTradeIntent, SubmissionResult
-from trading.models.orders import BrokerOrder, OrderInsert, OrderStatus
+from trading.models.orders import OrderInsert, OrderRequest, OrderStatus
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -201,7 +201,7 @@ def submit_book_intents(
                 throttled = True
                 break
         submitted_at = utc_now_iso()
-        broker_order = BrokerOrder(
+        request = OrderRequest(
             account_id=account_id,
             ticker=intent.symbol,
             side=intent.side,
@@ -209,7 +209,7 @@ def submit_book_intents(
             price=float(intent.requested_price or 0.0),
         )
         try:
-            placed = broker.place_order(broker_order)
+            placed = broker.place_order(request)
         except Exception:
             kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
             break

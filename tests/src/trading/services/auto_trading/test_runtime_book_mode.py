@@ -8,7 +8,7 @@ from tests.src.trading.services.auto_trading.factories import FakeBroker, make_f
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.execution import BookTradeCandidate
 from trading.models.market_data import MarketInputs
-from trading.models.orders import OrderFill, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
@@ -541,12 +541,9 @@ def test_run_for_account_book_mode_submitted_order_with_no_broker_id_skips_broke
 
     class _NoBrokerIdBroker:
         def place_order(self, order):
-            order.broker_order_id = None
-            order.status = OrderStatus.SUBMITTED
-            order.filled_qty = 0.0
-            order.avg_fill_price = None
-            order.fills = []
-            return order
+            placed = BrokerOrder.from_request(order)
+            placed.status = OrderStatus.SUBMITTED
+            return placed
 
         def disconnect(self) -> None:
             return None
@@ -581,11 +578,10 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
 
     class _BrokerWithFill:
         def place_order(self, order):
-            order.broker_order_id = "fill-broker-order"
-            order.status = OrderStatus.SUBMITTED
-            order.filled_qty = 0.0
-            order.avg_fill_price = None
-            order.fills = [
+            placed = BrokerOrder.from_request(order)
+            placed.broker_order_id = "fill-broker-order"
+            placed.status = OrderStatus.SUBMITTED
+            placed.fills = [
                 OrderFill(
                     filled_qty=1.0,
                     fill_price=100.5,
@@ -594,7 +590,7 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
                     exec_id="fill-001",
                 )
             ]
-            return order
+            return placed
 
         def disconnect(self) -> None:
             return None

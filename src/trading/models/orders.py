@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
@@ -46,15 +46,11 @@ class OrderFill:
 
 
 @dataclass
-class BrokerOrder:
-    """Represents an order through its full lifecycle: creation → fills → final status.
+class OrderRequest:
+    """What a caller specifies when placing an order, and nothing a broker answers with.
 
-    Fields set by the caller before :meth:`BrokerConnection.place_order`:
-        account_id, ticker, side, qty, price, order_type, time_in_force
-
-    Fields set (or updated) by the broker after placement:
-        broker_order_id, status, filled_qty, avg_fill_price, commission,
-        submitted_at, updated_at, fills
+    The argument type of :meth:`BrokerConnection.place_order`. Adapters must treat it
+    as read-only — the placed order they return is a separate object.
     """
 
     account_id: int
@@ -66,7 +62,15 @@ class BrokerOrder:
     order_type: OrderType = OrderType.MARKET
     time_in_force: TimeInForce = TimeInForce.DAY
 
-    # Set after broker placement
+
+@dataclass
+class BrokerOrder(OrderRequest):
+    """An order as the broker knows it: the request plus what placement reported back.
+
+    Also what `get_open_trades` returns, where there is no originating request — the
+    adapter fills every field from the broker's own view of the order.
+    """
+
     broker_order_id: str | None = None
     status: OrderStatus = OrderStatus.PENDING
     filled_qty: float = 0.0
@@ -79,6 +83,11 @@ class BrokerOrder:
     # Broker-supplied reason for a terminal non-fill status (rejected / cancelled);
     # None until an adapter surfaces it. Persisted to orders.status_reason.
     status_reason: str | None = None
+
+    @classmethod
+    def from_request(cls, request: OrderRequest) -> BrokerOrder:
+        """An unplaced copy of *request* for an adapter to fill in as the broker answers."""
+        return cls(**{spec.name: getattr(request, spec.name) for spec in fields(OrderRequest)})
 
 
 @dataclass(frozen=True, slots=True)

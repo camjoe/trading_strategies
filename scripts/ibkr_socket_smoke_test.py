@@ -35,7 +35,7 @@ from infrastructure.brokers.ibkr_socket.adapter import IbkrSocketAdapter
 from infrastructure.brokers.ibkr_socket.factory import resolve_ibkr_socket_client_backend
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
 from infrastructure.brokers.ibkr_socket.ibapi_client import IbApiClient
-from trading.models.orders import BrokerOrder, OrderStatus, OrderType, TimeInForce
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType, TimeInForce
 
 # TWS paper trading port — the safe default for a smoke test.
 _DEFAULT_PORT = 7497
@@ -197,7 +197,7 @@ def run_paper_order_check(
     print(f"\npaper order        : {side.upper()} {qty:g} {normalized_symbol} @ {limit_price:.2f} LMT DAY", file=out)
 
     submitted = adapter.place_order(
-        BrokerOrder(
+        OrderRequest(
             account_id=0,
             ticker=normalized_symbol,
             side=side,
