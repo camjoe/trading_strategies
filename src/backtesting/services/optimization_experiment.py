@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import dataclass, replace
 from datetime import date
 from functools import partial
-from typing import Any, Callable
+from typing import Callable
 
 from backtesting.domain.optimization.search import canonical_params_json, params_fingerprint
 from backtesting.models.optimizer import (
@@ -40,6 +40,7 @@ from common.git import git_head_revision
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models import AccountRecord
+from trading.models.books import BookRecord
 from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.services.accounts import find_account
@@ -239,7 +240,7 @@ def _persist_experiment(
 class _ManifestInputs:
     """The manifest's facts that come from outside the database."""
 
-    book: Any
+    book: BookRecord | None
     universe: list[str]
     engine_revision: str | None
 

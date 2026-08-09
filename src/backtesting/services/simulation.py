@@ -25,16 +25,18 @@ from backtesting.repositories.runs import insert_run, insert_snapshot, insert_tr
 from backtesting.services.run_inputs import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
+from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
     build_signal_inputs,
 )
 from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
 from trading.services.accounts import get_account
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
-from trading.services.market_data import FeatureDataProvider, require_feature_provider
+from trading.services.market_data import FeatureBundle, FeatureDataProvider, require_feature_provider
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:
@@ -55,7 +57,7 @@ class _RunScope:
     a preview share it with the run it precedes.
     """
 
-    account: Any
+    account: AccountRecord
     default_book: BookRecord | None
     start_date: date
     end_date: date
@@ -142,7 +144,7 @@ class _ExecutionContext:
     signal_inputs: dict[str, Any]
     strategy_name: str
     effective_params: dict[str, Any]
-    feature_bundle: Any
+    feature_bundle: FeatureBundle | None
 
 
 def _record_trade(
@@ -426,7 +428,7 @@ class _RunInputs:
     strategy_name: str
     effective_params: dict[str, Any]
     signal_inputs: dict[str, Any]
-    feature_bundle: Any
+    feature_bundle: FeatureBundle | None
 
 
 def _resolve_strategy_inputs(
@@ -436,7 +438,7 @@ def _resolve_strategy_inputs(
     account_id: int,
     panel: Any,
     all_tickers: list[str],
-) -> tuple[Any, str, dict[str, Any], dict[str, Any]]:
+) -> tuple[StrategySpec, str, dict[str, Any], dict[str, Any]]:
     """The strategy this run simulates, its effective parameters, and its
     indicators precomputed once per ticker."""
     # An explicit override backtests a specific strategy (e.g. a rotation
