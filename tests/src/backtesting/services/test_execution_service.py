@@ -44,9 +44,7 @@ def test_execution_service_rejects_short_history() -> None:
                 pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_index)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0]),
-            insert_run_fn=lambda *_args, **_kwargs: 1,
-            insert_trade_fn=lambda *_args, **_kwargs: None,
-            insert_snapshot_fn=lambda *_args, **_kwargs: None,
+            persist=False,
             get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
@@ -72,6 +70,8 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
             "max_drawdown_pct",
             lambda _curve: -2.0,
         ),
+        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 77),
+        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
     ):
         result = execution_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
@@ -89,9 +89,6 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
                 pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
-            insert_run_fn=lambda *_args, **_kwargs: 77,
-            insert_trade_fn=lambda *_args, **_kwargs: None,
-            insert_snapshot_fn=lambda *_args, **_kwargs: None,
             get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
@@ -123,6 +120,12 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
         ),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
+        patch.object(
+            execution_service,
+            "insert_run",
+            lambda _conn, *, strategy_name, **_kwargs: (resolved.append(f"fk:{strategy_name}"), 88)[1],
+        ),
+        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
     ):
         result = execution_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
@@ -140,12 +143,6 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
                 pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]}, index=idx)
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
-            insert_run_fn=lambda _conn, _account_id, strategy_id, *_args, **_kwargs: (
-                resolved.append(f"fk:{strategy_id}"),
-                88,
-            )[1],
-            insert_trade_fn=lambda *_args, **_kwargs: None,
-            insert_snapshot_fn=lambda *_args, **_kwargs: None,
             get_default_book_fn=lambda _conn, *, account_id: None,
         )
 
@@ -189,9 +186,6 @@ def _patched_run_backtest(
         resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
         fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
         fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
-        insert_run_fn=lambda *_args, **_kwargs: 1,
-        insert_trade_fn=insert_trade_fn or (lambda *_args, **_kwargs: None),
-        insert_snapshot_fn=lambda *_args, **_kwargs: None,
         get_default_book_fn=lambda _conn, *, account_id: None,
     )
     if choose_buy_qty_fn is not None:
@@ -207,6 +201,9 @@ def _patched_run_backtest(
         patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
+        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 1),
+        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
+        patch.object(execution_service, "insert_trade", insert_trade_fn or (lambda *_args, **_kwargs: None)),
     ):
         return execution_service.run_backtest(**kwargs)
 
@@ -319,9 +316,7 @@ def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx,
         resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {}, ["AAPL"], []),
         fetch_bar_history_fn=fetch_bars,
         fetch_benchmark_close_fn=lambda _t, _s, _e: pd.Series([100.0] * len(idx), index=idx),
-        insert_run_fn=lambda *_args, **_kwargs: 1,
-        insert_trade_fn=lambda *_args, **_kwargs: None,
-        insert_snapshot_fn=lambda *_args, **_kwargs: None,
+        persist=False,
         choose_buy_qty_fn=lambda *_args, **_kwargs: 2,
         get_default_book_fn=lambda _conn, *, account_id: None,
     )
@@ -356,7 +351,7 @@ def test_warmup_enables_signals_in_a_short_window() -> None:
 def _recorded_trades():
     trades: list[tuple[str, str, float]] = []
 
-    def record(_conn, _run_id, _trade_time, ticker, side, qty, *_args, **_kwargs):
+    def record(_conn, *, ticker, side, qty, **_kwargs):
         trades.append((ticker, side, qty))
 
     return trades, record
@@ -502,9 +497,6 @@ def _patched_run_backtest_with_frames(
         resolve_universe_fn=lambda _cfg, _start, _end: (tickers, {}, tickers, []),
         fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
         fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
-        insert_run_fn=lambda *_args, **_kwargs: 1,
-        insert_trade_fn=insert_trade_fn or (lambda *_args, **_kwargs: None),
-        insert_snapshot_fn=lambda *_args, **_kwargs: None,
         get_default_book_fn=lambda _conn, *, account_id: None,
     )
     if choose_buy_qty_fn is not None:
@@ -520,6 +512,9 @@ def _patched_run_backtest_with_frames(
         patch.object(execution_service, "evaluate_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
         patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
+        patch.object(execution_service, "insert_run", lambda *_args, **_kwargs: 1),
+        patch.object(execution_service, "insert_snapshot", lambda *_args, **_kwargs: None),
+        patch.object(execution_service, "insert_trade", insert_trade_fn or (lambda *_args, **_kwargs: None)),
     ):
         return execution_service.run_backtest(**kwargs)
 

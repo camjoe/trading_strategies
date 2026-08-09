@@ -13,6 +13,7 @@ from collections.abc import Callable
 import pytest
 
 import backtesting.backtest as backtest_module
+import backtesting.services.execution_service as execution_service
 from tests.support.backtesting import create_backtest_account, make_backtest_config
 
 
@@ -52,13 +53,26 @@ class TestAtomicBacktestPersistence:
         assert snaps > 1
         assert result.run_id is not None
 
+    def test_metrics_only_run_writes_nothing(self, conn, bt_market_data) -> None:
+        # The walk-forward optimizer evaluates every grid candidate this way. If a
+        # training trial persisted, the search would file its own attempts as
+        # backtest evidence and pollute what promotion later reads.
+        create_backtest_account(conn, "acct_metrics_only")
+        bt_market_data(["AAPL"])
+
+        result = backtest_module.run_backtest_metrics_only(conn, make_backtest_config("acct_metrics_only"))
+
+        assert _research_row_counts(conn) == (0, 0, 0)
+        assert result.run_id == 0
+        assert result.ending_equity > 0
+
     def test_failure_at_header_leaves_tables_empty(self, conn, bt_market_data, monkeypatch) -> None:
         create_backtest_account(conn, "acct_atomic_header")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            execution_service,
             "insert_run",
-            _fail_on_nth_call(backtest_module.insert_run, nth=1),
+            _fail_on_nth_call(execution_service.insert_run, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -72,9 +86,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_snap")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            execution_service,
             "insert_snapshot",
-            _fail_on_nth_call(backtest_module.insert_snapshot, nth=1),
+            _fail_on_nth_call(execution_service.insert_snapshot, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -88,9 +102,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_trade")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            execution_service,
             "insert_trade",
-            _fail_on_nth_call(backtest_module.insert_trade, nth=1),
+            _fail_on_nth_call(execution_service.insert_trade, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -104,9 +118,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_late")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            execution_service,
             "insert_snapshot",
-            _fail_on_nth_call(backtest_module.insert_snapshot, nth=5),
+            _fail_on_nth_call(execution_service.insert_snapshot, nth=5),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):

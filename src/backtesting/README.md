@@ -62,7 +62,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 ## Hook-Up Flow
 
 1. Caller invokes the supported function in `backtest.py`.
-2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
+2. `backtest.py` wires the market-data and feature providers, then delegates to `services/`;
+   each service reaches its own tables through `repositories/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
    alternative strategies receive `ExternalFeatureBundle` values from

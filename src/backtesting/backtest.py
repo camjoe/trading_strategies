@@ -10,11 +10,6 @@ from backtesting.models import (
     BacktestResult,
 )
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
-from backtesting.repositories.runs import (
-    insert_run,
-    insert_snapshot,
-    insert_trade,
-)
 from backtesting.services import (
     build_monthly_universe,
     fetch_backtest_leaderboard_entries,
@@ -81,95 +76,9 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     return warnings
 
 
-def _persist_run(
-    conn: sqlite3.Connection,
-    account_id: int,
-    strategy_name: str,
-    start_date: date,
-    end_date: date,
-    cfg: BacktestConfig,
-    warnings: list[str],
-    benchmark_ticker: str,
-    benchmark_return_pct: float | None,
-) -> int:
-    return insert_run(
-        conn,
-        account_id=account_id,
-        strategy_name=strategy_name,
-        start_date=start_date,
-        end_date=end_date,
-        cfg=cfg,
-        warnings=warnings,
-        benchmark_ticker=benchmark_ticker,
-        benchmark_return_pct=benchmark_return_pct,
-    )
-
-
-def _persist_trade(
-    conn: sqlite3.Connection,
-    run_id: int,
-    trade_time: str,
-    ticker: str,
-    side: str,
-    qty: float,
-    price: float,
-    fee: float,
-    slippage_bps: float,
-    note: str | None,
-) -> None:
-    insert_trade(
-        conn,
-        run_id=run_id,
-        trade_time=trade_time,
-        ticker=ticker,
-        side=side,
-        qty=qty,
-        price=price,
-        fee=fee,
-        slippage_bps=slippage_bps,
-        note=note,
-    )
-
-
-def _persist_snapshot(
-    conn: sqlite3.Connection,
-    run_id: int,
-    snapshot_time: str,
-    cash: float,
-    market_value: float,
-    equity: float,
-    realized_pnl: float,
-    unrealized_pnl: float,
-) -> None:
-    insert_snapshot(
-        conn,
-        run_id=run_id,
-        snapshot_time=snapshot_time,
-        cash=cash,
-        market_value=market_value,
-        equity=equity,
-        realized_pnl=realized_pnl,
-        unrealized_pnl=unrealized_pnl,
-    )
-
-
-def _noop_insert_run(*_args: object, **_kwargs: object) -> int:
-    return 0
-
-
-def _noop_insert_trade(*_args: object, **_kwargs: object) -> None:
-    return None
-
-
-def _noop_insert_snapshot(*_args: object, **_kwargs: object) -> None:
-    return None
-
-
 def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: bool) -> BacktestResult:
     # Composition seam: build the market-data + feature providers once for the
     # run and inject them down the data path (no global access inside services).
-    # When persist is False the run computes metrics only (no run/trade/snapshot
-    # rows) — used by the walk-forward optimizer for training-candidate trials.
     provider = build_provider()
     feature_provider = build_feature_provider(market_data_provider=provider)
     return run_backtest_impl(
@@ -185,9 +94,7 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
         fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
             benchmark_ticker, start_date, end_date, provider=provider
         ),
-        insert_run_fn=_persist_run if persist else _noop_insert_run,
-        insert_trade_fn=_persist_trade if persist else _noop_insert_trade,
-        insert_snapshot_fn=_persist_snapshot if persist else _noop_insert_snapshot,
+        persist=persist,
         choose_buy_qty_fn=choose_buy_qty,
         feature_provider=feature_provider,
     )

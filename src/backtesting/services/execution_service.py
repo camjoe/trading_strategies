@@ -20,6 +20,7 @@ from backtesting.domain.simulation_math import (
 )
 from backtesting.domain.windowing import shift_months
 from backtesting.models import BacktestResult
+from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.auto_trading_policy import (
@@ -79,7 +80,7 @@ class _ExecutionContext:
     cfg: Any
     slippage_multiplier_buy: float
     slippage_multiplier_sell: float
-    insert_trade_fn: Any
+    persist: bool
     choose_buy_qty_fn: Callable[..., int]
     allocate_buy_quantities_fn: Callable[..., dict[str, int]]
     default_book: Any
@@ -97,18 +98,19 @@ def _record_trade(
     note: str,
 ) -> None:
     state.trade_count += 1
-    ctx.insert_trade_fn(
-        ctx.conn,
-        ctx.run_id,
-        trade_date.date().isoformat(),
-        ticker,
-        side,
-        qty,
-        exec_px,
-        ctx.cfg.fee_per_trade,
-        ctx.cfg.slippage_bps,
-        note,
-    )
+    if ctx.persist:
+        insert_trade(
+            ctx.conn,
+            run_id=ctx.run_id,
+            trade_time=trade_date.date().isoformat(),
+            ticker=ticker,
+            side=side,
+            qty=qty,
+            price=exec_px,
+            fee=ctx.cfg.fee_per_trade,
+            slippage_bps=ctx.cfg.slippage_bps,
+            note=note,
+        )
     state.executed_trades.append(
         {"ticker": ticker, "side": side, "qty": qty, "price": exec_px, "fee": ctx.cfg.fee_per_trade}
     )
@@ -236,14 +238,18 @@ def run_backtest(
     resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
     fetch_bar_history_fn: Callable[..., Mapping[str, Any]],
     fetch_benchmark_close_fn: Callable[..., object],
-    insert_run_fn: Callable[..., int],
-    insert_trade_fn,
-    insert_snapshot_fn,
+    persist: bool = True,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
     allocate_buy_quantities_fn: Callable[..., dict[str, int]] = default_allocate_buy_quantities,
     get_default_book_fn: Callable[..., Any] = get_default_book,
     feature_provider: FeatureDataProvider | None = None,
 ) -> BacktestResult:
+    """Simulate one backtest over the configured window and return its metrics.
+
+    With ``persist=False`` no run, execution, or snapshot row is written and the
+    result carries ``run_id=0``; the walk-forward optimizer evaluates training
+    candidates that way so a grid search leaves no stored evidence behind.
+    """
     account = get_account_fn(conn, cfg.account_name)
     # Execution settings are book-owned (revision 0004): the account's default
     # book supplies the risk/sizing knobs the simulation runs under.
@@ -326,16 +332,20 @@ def run_backtest(
     with unit_of_work(conn):
         # Pass the canonical strategy key: backtest_runs stores a strategies FK,
         # so aliases/display names must resolve to the seeded catalog key first.
-        run_id = insert_run_fn(
-            conn,
-            account_id,
-            strategy_spec.strategy_id,
-            start_date,
-            end_date,
-            cfg,
-            warnings,
-            benchmark_ticker,
-            benchmark_return,
+        run_id = (
+            insert_run(
+                conn,
+                account_id=account_id,
+                strategy_name=strategy_spec.strategy_id,
+                start_date=start_date,
+                end_date=end_date,
+                cfg=cfg,
+                warnings=warnings,
+                benchmark_ticker=benchmark_ticker,
+                benchmark_return_pct=benchmark_return,
+            )
+            if persist
+            else 0
         )
 
         state = _PortfolioState(cash=initial_cash)
@@ -345,7 +355,7 @@ def run_backtest(
             cfg=cfg,
             slippage_multiplier_buy=1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
             slippage_multiplier_sell=1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
-            insert_trade_fn=insert_trade_fn,
+            persist=persist,
             choose_buy_qty_fn=choose_buy_qty_fn,
             allocate_buy_quantities_fn=allocate_buy_quantities_fn,
             default_book=default_book,
@@ -368,16 +378,17 @@ def run_backtest(
         first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in all_tickers}
         first_mv = compute_market_value(positions, first_prices)
         first_equity = state.cash + first_mv
-        insert_snapshot_fn(
-            conn,
-            run_id,
-            dates[scoring_idx].date().isoformat(),
-            state.cash,
-            first_mv,
-            first_equity,
-            state.realized_pnl,
-            0.0,
-        )
+        if persist:
+            insert_snapshot(
+                conn,
+                run_id=run_id,
+                snapshot_time=dates[scoring_idx].date().isoformat(),
+                cash=state.cash,
+                market_value=first_mv,
+                equity=first_equity,
+                realized_pnl=state.realized_pnl,
+                unrealized_pnl=0.0,
+            )
         equity_curve.append(first_equity)
 
         for idx in range(scoring_idx + 1, len(dates)):
@@ -432,16 +443,17 @@ def run_backtest(
 
             equity = state.cash + market_value
             equity_curve.append(equity)
-            insert_snapshot_fn(
-                conn,
-                run_id,
-                trade_date.date().isoformat(),
-                state.cash,
-                market_value,
-                equity,
-                state.realized_pnl,
-                unrealized_pnl,
-            )
+            if persist:
+                insert_snapshot(
+                    conn,
+                    run_id=run_id,
+                    snapshot_time=trade_date.date().isoformat(),
+                    cash=state.cash,
+                    market_value=market_value,
+                    equity=equity,
+                    realized_pnl=state.realized_pnl,
+                    unrealized_pnl=unrealized_pnl,
+                )
 
     ending_equity = equity_curve[-1]
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
