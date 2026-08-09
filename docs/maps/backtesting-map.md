@@ -60,7 +60,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews the warnings a run would raise |
 | `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
-| `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |
+| `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
 | `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
 | `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
 | `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |

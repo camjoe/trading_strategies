@@ -39,7 +39,8 @@ need no provider.
     `optimization_run_manifests` — experiment config, winner, holdout summary, promoted link, and the
     per-window/per-candidate audit tree.
 
-- `services/`: business flow, model mapping, orchestration.
+- `services/`: business flow, model mapping, orchestration. Import from the owning module; the
+  package root re-exports nothing.
   - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
     is the engine's only market-data read — the benchmark series is derived from it, so a run has one
     price path and one set of gap-filling rules.
@@ -54,6 +55,8 @@ need no provider.
   - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence as one pair,
     so evaluation never has to know how runs, holdouts, and experiments relate.
   - `audit_service.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.
+  - `optimizer_aggregation_service.py`: not a seam — the OOS segments and compounded series the two
+    seams above read. Derived on each read, never stored.
 
 - `domain/`: pure reusable backtesting logic.
   - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
