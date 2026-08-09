@@ -8,10 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backtesting.services.evidence_service import (
-    build_backtest_evidence,
-    build_walk_forward_evidence,
-)
+from backtesting.services.evidence_service import build_strategy_evidence
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
@@ -35,7 +32,7 @@ def fetch_strategy_evaluation_for_account_row(
     requested_strategy = resolve_requested_strategy(conn, account, strategy_name)
     account_id = account.id
     basic = build_basic_scope(conn, account, requested_strategy)
-    backtest = build_backtest_evidence(
+    backtest, walk_forward = build_strategy_evidence(
         conn,
         account_id=account_id,
         requested_strategy=requested_strategy,
@@ -43,11 +40,6 @@ def fetch_strategy_evaluation_for_account_row(
     paper_live = build_paper_live_evidence(
         conn,
         account=account,
-        requested_strategy=requested_strategy,
-    )
-    walk_forward = build_walk_forward_evidence(
-        conn,
-        account_id=account_id,
         requested_strategy=requested_strategy,
     )
     confidence_settings = fetch_evaluation_confidence_settings(conn)

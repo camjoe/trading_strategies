@@ -1,20 +1,14 @@
-"""One experiment's persisted audit record, assembled from this package's tables.
+"""One experiment's persisted audit record, joined from this package's tables.
 
-The second half of the read surface the trading side uses (the first is
-:mod:`backtesting.services.evidence_service`). An operator surface wants
-"everything recorded about this run"; how experiments, windows, trials, the
-compounded OOS series, and the run manifest relate is this package's business, so
-the joining happens here and the caller gets a finished record.
+One of the two seams the trading side reads (the other is
+:mod:`backtesting.services.evidence_service`).
 
-``fetch_recent_experiments`` forwards to the repository without adding anything.
-That is deliberate: it is the seam, not indirection inside a layer stack.
-``layer_check`` bars ``src/trading/`` from importing this package's repositories,
-and the one caller cannot move here — it joins account names, which backtesting
-does not own. Deleting the forward leaves that caller no legal route.
+``fetch_recent_experiments`` forwards to the repository unchanged, and has to:
+``layer_check`` bars ``src/trading/`` from this package's repositories, and its
+one caller joins account names, which backtesting does not own.
 
-Repository reads are module-qualified (``optimization.fetch_...``). Both packages
-use the same ``fetch_*`` verbs, so a pass-through collides with the name it
-forwards to; qualifying beats aliasing one of them to a private-looking name.
+Repository reads are module-qualified because both packages use the same
+``fetch_*`` verbs, so a forward collides with the name it forwards to.
 """
 
 from __future__ import annotations

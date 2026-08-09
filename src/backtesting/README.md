@@ -51,8 +51,8 @@ need no provider.
     alone for listings, and the run-header reads behind them. Needs no market-data provider — a
     run's benchmark return is read from its row, frozen there when it executed.
   - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
-  - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence, joined and
-    summarized here so evaluation never has to know how runs, holdouts, and experiments relate.
+  - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence as one pair,
+    so evaluation never has to know how runs, holdouts, and experiments relate.
   - `audit_service.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.
 
 - `domain/`: pure reusable backtesting logic.
