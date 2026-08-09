@@ -18,6 +18,14 @@ _METRIC_COLUMNS = (
     "fees_total",
 )
 
+# Every record read joins the owning book to carry account_id alongside the
+# stored row; only the filter and ordering differ.
+_BOOK_ROWS_SELECT = """
+SELECT m.*, b.account_id AS account_id
+FROM daily_metrics m
+JOIN books b ON b.id = m.book_id
+"""
+
 
 class DailyMetricsRepository:
     """Book-keyed daily metrics with an account-level convenience path.
@@ -36,9 +44,6 @@ class DailyMetricsRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    def _record(self, row: sqlite3.Row) -> DailyMetricRecord:
-        return DailyMetricRecord.from_mapping(dict(row))
 
     def upsert(
         self,
@@ -104,31 +109,17 @@ class DailyMetricsRepository:
         that want an account total must aggregate additive fields themselves.
         """
         rows = self._conn.execute(
-            """
-            SELECT m.*, b.account_id AS account_id
-            FROM daily_metrics m
-            JOIN books b ON b.id = m.book_id
-            WHERE b.account_id = ?
-            ORDER BY m.metric_date DESC, m.id DESC
-            LIMIT ?
-            """,
+            _BOOK_ROWS_SELECT + "WHERE b.account_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
             (account_id, limit),
         ).fetchall()
-        return [self._record(row) for row in rows]
+        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_book(self, *, book_id: int, limit: int) -> list[DailyMetricRecord]:
         rows = self._conn.execute(
-            """
-            SELECT m.*, b.account_id AS account_id
-            FROM daily_metrics m
-            JOIN books b ON b.id = m.book_id
-            WHERE m.book_id = ?
-            ORDER BY m.metric_date DESC, m.id DESC
-            LIMIT ?
-            """,
+            _BOOK_ROWS_SELECT + "WHERE m.book_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
             (book_id, limit),
         ).fetchall()
-        return [self._record(row) for row in rows]
+        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_recent_returns_for_book(self, *, book_id: int, before_date: str, limit: int) -> list[float]:
         """Most-recent-first non-null daily returns strictly before ``before_date``.
@@ -160,15 +151,8 @@ class DailyMetricsRepository:
         end_date: str,
     ) -> list[DailyMetricRecord]:
         rows = self._conn.execute(
-            """
-            SELECT m.*, b.account_id AS account_id
-            FROM daily_metrics m
-            JOIN books b ON b.id = m.book_id
-            WHERE m.book_id = ?
-              AND m.metric_date >= ?
-              AND m.metric_date <= ?
-            ORDER BY m.metric_date ASC, m.id ASC
-            """,
+            _BOOK_ROWS_SELECT + "WHERE m.book_id = ? AND m.metric_date >= ? AND m.metric_date <= ? "
+            "ORDER BY m.metric_date ASC, m.id ASC",
             (book_id, start_date, end_date),
         ).fetchall()
-        return [self._record(row) for row in rows]
+        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]

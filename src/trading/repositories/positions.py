@@ -12,9 +12,6 @@ class PositionRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> PositionRecord:
-        return PositionRecord.from_mapping(dict(row))
-
     def upsert(
         self,
         *,
@@ -63,14 +60,14 @@ class PositionRepository:
             "SELECT * FROM positions WHERE book_id = ? AND symbol = ?",
             (book_id, symbol),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return PositionRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_for_book(self, *, book_id: int) -> list[PositionRecord]:
         rows = self._conn.execute(
             "SELECT * FROM positions WHERE book_id = ? ORDER BY symbol ASC",
             (book_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [PositionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_account(self, *, account_id: int) -> list[PositionRecord]:
         rows = self._conn.execute(
@@ -83,4 +80,4 @@ class PositionRepository:
             """,
             (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [PositionRecord.from_mapping(dict(row)) for row in rows]

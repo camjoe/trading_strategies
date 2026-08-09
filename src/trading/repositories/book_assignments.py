@@ -20,22 +20,19 @@ class BookAssignmentRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> BookStrategyAssignmentRecord:
-        return BookStrategyAssignmentRecord.from_mapping(dict(row))
-
     def fetch_open(self, *, book_id: int) -> BookStrategyAssignmentRecord | None:
         row = self._conn.execute(
             "SELECT * FROM book_strategy_history WHERE book_id = ? AND effective_to IS NULL",
             (book_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return BookStrategyAssignmentRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_history(self, *, book_id: int) -> list[BookStrategyAssignmentRecord]:
         rows = self._conn.execute(
             "SELECT * FROM book_strategy_history WHERE book_id = ? ORDER BY effective_from ASC, id ASC",
             (book_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [BookStrategyAssignmentRecord.from_mapping(dict(row)) for row in rows]
 
     def assign_strategy(
         self,

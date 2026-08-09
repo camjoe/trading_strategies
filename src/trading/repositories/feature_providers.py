@@ -12,9 +12,6 @@ class FeatureProviderRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> FeatureProviderRecord:
-        return FeatureProviderRecord.from_mapping(dict(row))
-
     def upsert(
         self,
         *,
@@ -42,10 +39,10 @@ class FeatureProviderRepository:
             "SELECT * FROM feature_providers WHERE provider_key = ?",
             (provider_key,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return FeatureProviderRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_enabled(self) -> list[FeatureProviderRecord]:
         rows = self._conn.execute(
             "SELECT * FROM feature_providers WHERE enabled = 1 ORDER BY provider_key ASC"
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [FeatureProviderRecord.from_mapping(dict(row)) for row in rows]

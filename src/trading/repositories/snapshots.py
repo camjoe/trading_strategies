@@ -61,9 +61,6 @@ class EquitySnapshotRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> EquitySnapshotRecord:
-        return EquitySnapshotRecord.from_mapping(dict(row))
-
     def insert(
         self,
         *,
@@ -120,7 +117,7 @@ class EquitySnapshotRepository:
             _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT ?",
             (account_id, limit),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [EquitySnapshotRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_history_for_book(self, *, book_id: int, limit: int) -> list[EquitySnapshotRecord]:
         rows = self._conn.execute(
@@ -135,7 +132,7 @@ class EquitySnapshotRepository:
             """,
             (book_id, limit),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [EquitySnapshotRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_count_between(self, *, account_id: int, start_iso: str, end_iso: str) -> int:
         row = self._conn.execute(
@@ -168,7 +165,7 @@ class EquitySnapshotRepository:
             _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
             (account_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_max_equity(self, *, account_id: int) -> float | None:
         """The account's highest rolled-up equity ever recorded, or None with no snapshots.
@@ -189,14 +186,14 @@ class EquitySnapshotRepository:
             _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
             (account_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_first_at_or_after(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
         row = self._conn.execute(
             _ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
             (account_id, iso),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_last_for_book_on_or_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
         """Latest raw snapshot for one book whose calendar date is <= ``date_str``.
@@ -228,11 +225,11 @@ class EquitySnapshotRepository:
             """,
             (book_id, before),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_last_at_or_before(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
         row = self._conn.execute(
             _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
             (account_id, iso),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None

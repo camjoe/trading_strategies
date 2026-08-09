@@ -12,9 +12,6 @@ class LedgerRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> LedgerEntryRecord:
-        return LedgerEntryRecord.from_mapping(dict(row))
-
     def insert(
         self,
         *,
@@ -52,7 +49,7 @@ class LedgerRepository:
             "SELECT * FROM ledger WHERE book_id = ? ORDER BY entry_time ASC, id ASC",
             (book_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [LedgerEntryRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_cash_events_for_account(self, *, account_id: int) -> list[LedgerEntryRecord]:
         """Deposit/withdrawal entries across all of the account's books, oldest first."""
@@ -66,11 +63,11 @@ class LedgerRepository:
             """,
             (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [LedgerEntryRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_by_reference(self, *, reference_type: str, reference_id: str) -> list[LedgerEntryRecord]:
         rows = self._conn.execute(
             "SELECT * FROM ledger WHERE reference_type = ? AND reference_id = ? ORDER BY id ASC",
             (reference_type, reference_id),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [LedgerEntryRecord.from_mapping(dict(row)) for row in rows]

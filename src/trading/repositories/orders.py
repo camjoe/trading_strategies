@@ -21,9 +21,6 @@ class OrderRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> OrderRecord:
-        return OrderRecord.from_mapping(dict(row))
-
     def insert(
         self,
         *,
@@ -168,7 +165,7 @@ class OrderRepository:
             "SELECT * FROM orders WHERE id = ?",
             (order_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return OrderRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
@@ -179,14 +176,14 @@ class OrderRepository:
             """,
             (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_book(self, *, book_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
             "SELECT * FROM orders WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
             (book_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: float) -> None:
         """Accumulate a closing fill's realized P&L onto its order.
@@ -213,7 +210,7 @@ class OrderRepository:
             "ORDER BY submitted_at ASC, id ASC",
             (account_id, date_str, next_date_str(date_str)),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
         """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD)."""
@@ -224,7 +221,7 @@ class OrderRepository:
             "ORDER BY submitted_at ASC, id ASC",
             (book_id, date_str, next_date_str(date_str)),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def update_status(
         self,
