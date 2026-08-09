@@ -71,7 +71,7 @@ need no provider.
     arithmetic and walk-forward train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
-  - `optimization/`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
+  - `optimization.py`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
     is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
 - `models/`: passive contracts, one module per area — `backtest.py` (a run's config and result),

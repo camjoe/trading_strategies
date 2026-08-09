@@ -49,9 +49,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `simulation_math.py` | Fill, fee, and slippage arithmetic for simulated execution |
 | `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
-| `optimization/aggregation.py` | Roll per-window OOS results into experiment-level series |
-| `optimization/objective.py` | Objective functions a search ranks candidates by |
-| `optimization/search.py` | Candidate generation, canonical parameter JSON, and `params_fingerprint` |
+| `optimization.py` | Candidate generation and `params_fingerprint`, the `calmar_v1` objective and winner selection, and compounding per-window OOS results into one series |
 
 ## `services/`
 
