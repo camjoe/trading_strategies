@@ -36,6 +36,44 @@ def test_leaderboard_service_ranks_by_total_return(conn) -> None:
     assert [entry.run_name for entry in entries] == ["stronger", "weaker"]
 
 
+def test_leaderboard_ranks_across_all_runs_not_just_the_newest(conn) -> None:
+    """The limit selects the best runs, not the newest ones.
+
+    Ranking used to happen in Python over whatever the SQL's ``created_at DESC``
+    ordering had already truncated to, so the best run fell off the board as soon
+    as ``limit`` newer runs existed — the opposite of what a leaderboard is for.
+    """
+    best = seed_backtest_run(conn, account_name="acct_deep", run_name="old-best", end_equity=9_000.0)
+    for index in range(5):
+        seed_backtest_run(
+            conn,
+            account_name="acct_deep",
+            run_name=f"newer-{index}",
+            end_equity=1_010.0,
+            create_account_first=False,
+        )
+
+    entries = _entries(conn, account_name="acct_deep", limit=3)
+
+    assert [entry.run_id for entry in entries][0] == best
+    assert len(entries) == 3
+
+
+def test_leaderboard_fills_the_limit_past_unrankable_runs(conn) -> None:
+    """A run with no equity marks is dropped before the limit, not after it."""
+    seed_backtest_run(conn, account_name="acct_fill", run_name="keep-1", end_equity=1_100.0)
+    orphan = seed_backtest_run(conn, account_name="acct_fill", run_name="orphan", create_account_first=False)
+    seed_backtest_run(
+        conn, account_name="acct_fill", run_name="keep-2", end_equity=1_050.0, create_account_first=False
+    )
+    conn.execute("DELETE FROM backtest_equity_snapshots WHERE run_id = ?", (orphan,))
+    conn.commit()
+
+    entries = _entries(conn, account_name="acct_fill", limit=2)
+
+    assert [entry.run_name for entry in entries] == ["keep-1", "keep-2"]
+
+
 def test_leaderboard_carries_the_stored_benchmark_and_derives_alpha(conn) -> None:
     # 1000 -> 1050 is +5%; the run's frozen benchmark is +1%, so alpha is +4%.
     seed_backtest_run(
