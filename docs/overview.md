@@ -62,7 +62,10 @@ experimental surfaces protected by explicit safety gates.
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
 - **Broker abstraction** — paper, IBKR Web API, and IBKR socket adapters behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
-- **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
+- **Feature providers** — news, social, and policy (ETF-proxy) sources. Only the policy provider
+  reaches a decision today, as the regime input to rotation's regime-fit component
+  (`services/books/rotation/metrics.py`); news and social are fetched and displayed but consumed by
+  no strategy. See [Built but not wired up](#built-but-not-wired-up).
 - **Runtime scheduler jobs** (challenger shadow evaluation, governance,
   health checks, reporting) plus a **CLI** and an optional **web UI** (`apps/paper_trading_web`).
 - **Operational settings** (evaluation confidence, promotion policy, trade throttles) and
@@ -74,6 +77,32 @@ experimental surfaces protected by explicit safety gates.
   `configure-strategy`, and `freeze-strategy` without a deploy.
 - **Cross-account portfolio risk rollup**: exposure, symbol concentration/overlap, and sector
   rollup via CLI, API, and a read-only Portfolio UI tab.
+
+## Built but not wired up
+
+Code that exists, passes tests, and is *not* reached by any CLI command, runtime job, or API route.
+Listed because it reads as working capability from the inside and as dead code from the outside, and
+is neither. Established by tracing every entrypoint (2026-08-09); re-derive rather than trust this
+list if it has aged.
+
+- **Sell selection exists twice.** `services/execution/selection/selection.py` selects sells inline
+  inside `select_signal_trade_candidates` — the path the trader actually runs — while
+  `prepare_sell_trade` in the same module implements the same ordering and closing-quantity rules
+  for a single sell and has no production caller. Its five tests pin behaviour that never executes,
+  so they are not the sell-side evidence they appear to be.
+- **News and social features reach no strategy.** `run_auto_trades.py` builds all three providers and
+  passes them down, but `build_feature_history_fn` returns features only for `strategy_style ==
+  "alternative"`, `_ALTERNATIVE_FEATURE_FETCHER_ATTRS` is empty, and all eight registered strategies
+  are `trend` or `mean_reversion`. Both fetchers therefore run per live trading run and their output
+  can never reach a signal function. No registered primitive declares `required_features`.
+- **Feature-provider enablement is not data.** The `feature_providers` table is written only by the
+  sandbox fixture seeder and read by nothing; the providers are constructed unconditionally at the
+  composition root. `services/fixtures/profiles.py` already says so at the field.
+- **Table preview.** `repositories/table_export.py` exposes `fetch_table_rows`/`TableRows` for an
+  operator preview alongside the CSV path. Only the CSV half is reachable, through
+  `scripts/data_ops/export_db_csv.py`; no route or command previews a table.
+- **`resolve_signal`** (`domain/strategies/resolution.py`) is a test-facing wrapper — production
+  calls `evaluate_signal` / `evaluate_signal_over_bars`.
 
 ## Known limitations
 
