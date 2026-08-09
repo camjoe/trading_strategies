@@ -20,5 +20,5 @@ The folder/file shuffle is the easy, low-value part of keeping docs healthy. The
 4. **Doc-authoring discipline at creation time.** `Type` / `Status` / `Last Reviewed` headers and "goes stale when" columns are cheap to add when writing a file and expensive to retrofit — and the staleness tooling is only as good as the headers feeding it. See [Documentation Authoring Standard](docs-authoring.md).
 
 Implemented enforcement lives in `scripts/checks/`, `scripts/documentation_ui/check.py`, and the
-`docs-enforcement` job in `.github/workflows/ci.yml`; see
+`static-checks` job in `.github/workflows/ci.yml`; see
 [`scripts-map.md`](../maps/scripts-map.md) for the current inventory.

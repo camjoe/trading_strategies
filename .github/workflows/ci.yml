@@ -19,7 +19,6 @@ on:
       - .editorconfig
       - .gitattributes
       - pytest.ini
-      - .coveragerc
       - pyproject.toml
       - ruff.toml
       - requirements-base.txt
@@ -54,7 +53,6 @@ jobs:
               - apps/paper_trading_web/__init__.py
               - tests/**
               - pytest.ini
-              - .coveragerc
               - pyproject.toml
               - ruff.toml
               - requirements-base.txt
@@ -142,6 +140,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload frontend coverage report
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
