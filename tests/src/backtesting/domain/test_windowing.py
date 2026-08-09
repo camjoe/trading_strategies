@@ -23,7 +23,7 @@ def test_resolve_run_window_conflict_raises() -> None:
 
 def test_resolve_run_window_default_window() -> None:
     start, end = resolve_run_window(None, "2026-03-14", None)
-    assert start == date(2026, 2, 11)
+    assert start == date(2026, 2, 14)
     assert end == date(2026, 3, 14)
 
 
@@ -45,7 +45,7 @@ def test_resolve_run_window_rejects_non_positive_lookback() -> None:
 def test_resolve_run_window_uses_as_of_when_end_missing() -> None:
     start, end = resolve_run_window(None, None, None, as_of=date(2026, 3, 20))
 
-    assert start == date(2026, 2, 17)
+    assert start == date(2026, 2, 20)
     assert end == date(2026, 3, 20)
 
 
@@ -64,4 +64,7 @@ def test_resolve_run_window_lookback_property(as_of: date, lookback_months: int)
 
     assert end == as_of
     assert start < end
-    assert (end - start).days == int(lookback_months * 30.5)
+    # Calendar months, not an approximate day count: the span is exactly the
+    # requested number of month boundaries however long those months happen to be.
+    months_spanned = (end.year * 12 + end.month) - (start.year * 12 + start.month)
+    assert months_spanned == lookback_months

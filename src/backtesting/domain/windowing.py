@@ -1,3 +1,10 @@
+"""Date-range and walk-forward window geometry.
+
+A month here is always a calendar month, never an approximate day count: a run
+window, a training interval, and a holdout are all measured with ``shift_months``
+so a boundary means the same thing wherever it is computed.
+"""
+
 from __future__ import annotations
 
 from calendar import monthrange
@@ -8,12 +15,30 @@ from trading.domain.exceptions import ValidationError
 
 _DATE_FMT = "%Y-%m-%d"
 
+# Run window used when a caller gives neither an explicit start nor a lookback.
+DEFAULT_RUN_WINDOW_MONTHS = 1
+
 
 def _parse_date(value: str, label: str) -> date:
     try:
         return datetime.strptime(value, _DATE_FMT).date()
     except ValueError as exc:
         raise ValidationError(f"Invalid {label} date: {value}. Expected format is {_DATE_FMT}.") from exc
+
+
+def shift_months(base: date, months: int) -> date:
+    """Shift a date by a signed number of months, clamping the day to the target month."""
+    month_index = (base.year * 12 + (base.month - 1)) + months
+    target_year = month_index // 12
+    target_month = (month_index % 12) + 1
+    target_day = min(base.day, monthrange(target_year, target_month)[1])
+    return date(target_year, target_month, target_day)
+
+
+def add_months(base: date, months: int) -> date:
+    if months < 0:
+        raise ValidationError("months must be >= 0")
+    return shift_months(base, months)
 
 
 def resolve_run_window(
@@ -32,31 +57,16 @@ def resolve_run_window(
     if lookback_months is not None:
         if lookback_months <= 0:
             raise ValidationError("lookback_months must be > 0")
-        start_date = end_date - timedelta(days=int(lookback_months * 30.5))
+        start_date = shift_months(end_date, -lookback_months)
     elif start:
         start_date = _parse_date(start, "start")
     else:
-        start_date = end_date - timedelta(days=31)
+        start_date = shift_months(end_date, -DEFAULT_RUN_WINDOW_MONTHS)
 
     if start_date >= end_date:
         raise ValidationError("start date must be before end date")
 
     return start_date, end_date
-
-
-def shift_months(base: date, months: int) -> date:
-    """Shift a date by a signed number of months, clamping the day to the target month."""
-    month_index = (base.year * 12 + (base.month - 1)) + months
-    target_year = month_index // 12
-    target_month = (month_index % 12) + 1
-    target_day = min(base.day, monthrange(target_year, target_month)[1])
-    return date(target_year, target_month, target_day)
-
-
-def add_months(base: date, months: int) -> date:
-    if months < 0:
-        raise ValidationError("months must be >= 0")
-    return shift_months(base, months)
 
 
 def build_walk_forward_optimization_splits(
