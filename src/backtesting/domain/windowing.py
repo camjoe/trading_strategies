@@ -1,10 +1,47 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from backtesting.models.optimizer import WalkForwardSplit
 from trading.domain.exceptions import ValidationError
+
+_DATE_FMT = "%Y-%m-%d"
+
+
+def _parse_date(value: str, label: str) -> date:
+    try:
+        return datetime.strptime(value, _DATE_FMT).date()
+    except ValueError as exc:
+        raise ValidationError(f"Invalid {label} date: {value}. Expected format is {_DATE_FMT}.") from exc
+
+
+def resolve_run_window(
+    start: str | None,
+    end: str | None,
+    lookback_months: int | None,
+    as_of: date | None = None,
+) -> tuple[date, date]:
+    """The (start, end) dates a run covers, from an explicit range or a lookback."""
+    if start and lookback_months is not None:
+        raise ValidationError("Use either --start or --lookback-months, not both.")
+
+    now = as_of or datetime.now(UTC).date()
+    end_date = _parse_date(end, "end") if end else now
+
+    if lookback_months is not None:
+        if lookback_months <= 0:
+            raise ValidationError("lookback_months must be > 0")
+        start_date = end_date - timedelta(days=int(lookback_months * 30.5))
+    elif start:
+        start_date = _parse_date(start, "start")
+    else:
+        start_date = end_date - timedelta(days=31)
+
+    if start_date >= end_date:
+        raise ValidationError("start date must be before end date")
+
+    return start_date, end_date
 
 
 def shift_months(base: date, months: int) -> date:

@@ -11,7 +11,7 @@ from backtesting.domain.optimization.search import (
     generate_candidates,
     params_fingerprint,
 )
-from backtesting.domain.windowing import build_walk_forward_optimization_splits
+from backtesting.domain.windowing import build_walk_forward_optimization_splits, resolve_run_window
 from backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
     BACKTEST_PURPOSE_STANDALONE,
@@ -41,7 +41,7 @@ from backtesting.repositories.optimization import (
     insert_trial,
     insert_window,
 )
-from backtesting.services.backtest_data_service import resolve_run_window, resolve_universe
+from backtesting.services.backtest_data_service import resolve_universe
 from common.git import git_head_revision
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError

@@ -41,10 +41,11 @@ need no provider.
 
 - `services/`: business flow, model mapping, orchestration. Import from the owning module; the
   package root re-exports nothing.
-  - `backtest_data_service.py`: everything a run needs resolved before it can simulate — its date
-    window, its universe (as a `RunUniverse`), and its bars. `fetch_bar_history` is the only
-    market-data read; the benchmark series is derived from it, so a run has one price path and one
-    set of gap-filling rules.
+  - `backtest_data_service.py`: reads a run's inputs from outside — its universe (as a
+    `RunUniverse`) from ticker files, its bars and benchmark closes from the provider.
+    `fetch_bar_history` is the only market-data read; the benchmark series is derived from it, so a
+    run has one price path and one set of gap-filling rules. The date window is pure arithmetic and
+    lives in `domain/windowing.py`.
   - `simulation_service.py`: run one backtest — resolve scope, fetch bars, simulate, persist. Also
     previews a run's warnings: preview and run resolve their scope through the same function, so
     they cannot disagree about what they warn on.
@@ -63,7 +64,8 @@ need no provider.
 - `domain/`: pure reusable backtesting logic.
   - `bars.py`: aligns per-ticker daily bar frames onto one trading calendar (`BarPanel`).
   - `metrics.py`: drawdown and benchmark-return calculations, plus `equity_curve_from_rows`.
-  - `windowing.py`: month arithmetic and walk-forward optimization train/test/holdout splits.
+  - `windowing.py`: a run's date window — resolved from an explicit range or a lookback — plus month
+    arithmetic and walk-forward train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
   - `optimization/`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*

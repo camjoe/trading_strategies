@@ -19,10 +19,10 @@ from backtesting.domain.simulation_math import (
     update_on_buy,
     update_on_sell,
 )
-from backtesting.domain.windowing import shift_months
+from backtesting.domain.windowing import resolve_run_window, shift_months
 from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
-from backtesting.services.backtest_data_service import resolve_run_window, resolve_universe
+from backtesting.services.backtest_data_service import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
 from trading.domain.strategies.indicator_view import (

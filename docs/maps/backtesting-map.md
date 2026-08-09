@@ -48,7 +48,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure), plus `equity_curve_from_rows` to lift a curve out of snapshot rows |
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `simulation_math.py` | Fill, fee, and slippage arithmetic for simulated execution |
-| `windowing.py` | Walk-forward train/test split construction |
+| `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
 | `optimization/aggregation.py` | Roll per-window OOS results into experiment-level series |
 | `optimization/objective.py` | Objective functions a search ranks candidates by |
 | `optimization/search.py` | Candidate generation, canonical parameter JSON, and `params_fingerprint` |
@@ -58,7 +58,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | Module | Responsibility |
 |---|---|
 | `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
-| `backtest_data_service.py` | Resolve a run's inputs before it simulates: date window, universe (`RunUniverse`), bar history, and benchmark closes |
+| `backtest_data_service.py` | Read a run's inputs from outside: its universe (`RunUniverse`) from ticker files, its bars and benchmark closes from the provider |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
 | `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
