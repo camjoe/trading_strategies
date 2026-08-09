@@ -14,7 +14,7 @@ import pytest
 
 import backtesting.composition as composition
 import backtesting.services.simulation_service as simulation_service
-from tests.support.backtesting import create_backtest_account, make_backtest_config
+from tests.support.backtesting import create_backtest_account, make_backtest_config, stub_market_data_provider
 
 
 def _fail_on_nth_call(real_fn: Callable[..., object], *, nth: int) -> Callable[..., object]:
@@ -45,7 +45,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_ok")
         bt_market_data(["AAPL"])
 
-        result = composition.run_backtest(conn, make_backtest_config("acct_atomic_ok"))
+        result = composition.run_backtest(
+            conn, make_backtest_config("acct_atomic_ok"), provider=stub_market_data_provider()
+        )
 
         runs, trades, snaps = _research_row_counts(conn)
         assert runs == 1
@@ -60,7 +62,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_metrics_only")
         bt_market_data(["AAPL"])
 
-        result = composition.run_backtest_metrics_only(conn, make_backtest_config("acct_metrics_only"))
+        result = composition.run_backtest_metrics_only(
+            conn, make_backtest_config("acct_metrics_only"), provider=stub_market_data_provider()
+        )
 
         assert _research_row_counts(conn) == (0, 0, 0)
         assert result.run_id == 0
@@ -76,7 +80,9 @@ class TestAtomicBacktestPersistence:
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
-            composition.run_backtest(conn, make_backtest_config("acct_atomic_header"))
+            composition.run_backtest(
+                conn, make_backtest_config("acct_atomic_header"), provider=stub_market_data_provider()
+            )
 
         assert _research_row_counts(conn) == (0, 0, 0)
 
@@ -92,7 +98,9 @@ class TestAtomicBacktestPersistence:
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
-            composition.run_backtest(conn, make_backtest_config("acct_atomic_snap"))
+            composition.run_backtest(
+                conn, make_backtest_config("acct_atomic_snap"), provider=stub_market_data_provider()
+            )
 
         assert _research_row_counts(conn) == (0, 0, 0)
 
@@ -108,7 +116,9 @@ class TestAtomicBacktestPersistence:
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
-            composition.run_backtest(conn, make_backtest_config("acct_atomic_trade"))
+            composition.run_backtest(
+                conn, make_backtest_config("acct_atomic_trade"), provider=stub_market_data_provider()
+            )
 
         assert _research_row_counts(conn) == (0, 0, 0)
 
@@ -124,6 +134,8 @@ class TestAtomicBacktestPersistence:
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
-            composition.run_backtest(conn, make_backtest_config("acct_atomic_late"))
+            composition.run_backtest(
+                conn, make_backtest_config("acct_atomic_late"), provider=stub_market_data_provider()
+            )
 
         assert _research_row_counts(conn) == (0, 0, 0)

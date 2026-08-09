@@ -10,6 +10,7 @@ import backtesting.services.simulation_service as simulation_service
 from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
+    stub_market_data_provider,
 )
 from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
 
@@ -125,6 +126,7 @@ class TestBacktestProxyFeatureFlow:
                 run_name="topic-proxy",
                 allow_approximate_leaps=False,
             ),
+            provider=stub_market_data_provider(),
         )
 
         assert call_count["n"] > 0

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backtesting.composition import backtest_report_full, run_backtest
+from backtesting.composition import run_backtest
+from backtesting.services.report_service import fetch_backtest_report_data
 from backtesting.services.simulation_service import preview_backtest_warnings
+from infrastructure.market_data.factory import build_provider
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest
 from ..services.accounts.backtests import (
@@ -39,7 +41,7 @@ def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
 def api_backtest_run_report(run_id: int) -> dict[str, object]:
     with db_conn() as conn:
         # NotFoundError -> 404 is handled by the app-level exception handler.
-        return backtest_report_full(conn, run_id).to_payload()
+        return fetch_backtest_report_data(conn, run_id=run_id).to_payload()
 
 
 @router.post("/api/backtests/run")
@@ -49,7 +51,11 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
         payload = payload.model_copy(update={"account": resolved_account_name})
         # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
         # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
-        result = run_backtest(conn, build_backtest_config_from_run_request(payload))
+        result = run_backtest(
+            conn,
+            build_backtest_config_from_run_request(payload),
+            provider=build_provider(),
+        )
         return result.to_payload()
 
 

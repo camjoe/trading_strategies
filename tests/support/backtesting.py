@@ -8,9 +8,11 @@ import backtesting.services.backtest_data_service as backtest_data_service
 from backtesting.models import BacktestConfig, BacktestResult
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
+from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts import create_account
+from trading.services.market_data import MarketDataProvider
 
 
 def make_fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -86,6 +88,16 @@ def make_fake_bar_history(tickers: list[str]) -> dict[str, pd.DataFrame]:
             }
         )[list(BAR_COLUMNS)]
     return frames
+
+
+def stub_market_data_provider() -> MarketDataProvider:
+    """A provider to satisfy the composition seam in tests.
+
+    ``install_backtest_market_data`` patches the fetch functions that would use
+    it, so nothing reads through this instance — but a run has to be handed one,
+    and the demo adapter makes no network calls if anything ever does.
+    """
+    return DemoMarketDataProvider()
 
 
 def install_backtest_market_data(
@@ -355,6 +367,7 @@ def make_backtest_full_report(
 
 __all__ = [
     "create_backtest_account",
+    "stub_market_data_provider",
     "bar_frame",
     "bars_from_closes",
     "install_backtest_market_data",

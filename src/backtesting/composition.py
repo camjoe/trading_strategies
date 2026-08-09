@@ -7,23 +7,23 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry
 from backtesting.services import (
-    fetch_backtest_leaderboard_entries,
-    fetch_backtest_report_data,
     fetch_bar_history,
     fetch_benchmark_close,
     run_backtest as run_backtest_impl,
 )
-from infrastructure.market_data.factory import build_provider
-from trading.domain.strategies.resolution import resolve_strategy
-from trading.services.market_data import build_feature_provider
+from trading.services.market_data import MarketDataProvider, build_feature_provider
 
 
-def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: bool) -> BacktestResult:
-    # Composition seam: build the market-data + feature providers once for the
-    # run and inject them down the data path (no global access inside services).
-    provider = build_provider()
+def _run_backtest(
+    conn: sqlite3.Connection,
+    cfg: BacktestConfig,
+    *,
+    provider: MarketDataProvider,
+    persist: bool,
+) -> BacktestResult:
+    # Binds one caller-supplied provider into the run's data path, so no service
+    # below reaches for a provider itself.
     feature_provider = build_feature_provider(market_data_provider=provider)
     return run_backtest_impl(
         conn,
@@ -39,55 +39,41 @@ def _run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig, *, persist: boo
     )
 
 
-def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
-    return _run_backtest(conn, cfg, persist=True)
+def run_backtest(
+    conn: sqlite3.Connection,
+    cfg: BacktestConfig,
+    *,
+    provider: MarketDataProvider,
+) -> BacktestResult:
+    """Run one backtest against *provider* and persist it.
+
+    The provider is supplied, never built here: the application entrypoint builds
+    one per invocation. A provider carries per-instance call guards (the yfinance
+    adapter's rate limiter caps cumulative calls for its own lifetime), so
+    building one per run would reset those guards on every run — and an optimizer
+    sweep runs one backtest per candidate per window.
+    """
+    return _run_backtest(conn, cfg, provider=provider, persist=True)
 
 
-def run_backtest_metrics_only(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
+def run_backtest_metrics_only(
+    conn: sqlite3.Connection,
+    cfg: BacktestConfig,
+    *,
+    provider: MarketDataProvider,
+) -> BacktestResult:
     """Run a simulation and return its metrics without persisting any run, trade, or
     snapshot rows. Lets the walk-forward optimizer evaluate grid candidates on training
     windows without polluting stored backtest evidence."""
-    return _run_backtest(conn, cfg, persist=False)
+    return _run_backtest(conn, cfg, provider=provider, persist=False)
 
 
-def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
-    """The full report, benchmark and alpha included.
-
-    Takes no provider: the benchmark return is read from the run row, frozen
-    there when the run executed, so reading a report touches no market data.
-    """
-    return fetch_backtest_report_data(conn, run_id=run_id)
-
-
-def _validated_strategy_filter(strategy: str | None) -> str | None:
-    if strategy is None:
-        return None
-    strategy_name = strategy.strip()
-    if not strategy_name:
-        return None
-    resolve_strategy(strategy_name)
-    return strategy_name
-
-
-def backtest_leaderboard_entries(
+def run_backtest_batch(
     conn: sqlite3.Connection,
+    cfg: BacktestBatchConfig,
     *,
-    limit: int = 10,
-    account_name: str | None = None,
-    strategy: str | None = None,
-) -> list[BacktestLeaderboardEntry]:
-    return [
-        entry
-        for entry, _starting_equity in fetch_backtest_leaderboard_entries(
-            conn,
-            limit=limit,
-            account_name=account_name,
-            strategy=_validated_strategy_filter(strategy),
-        )
-    ]
-
-
-def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> list[BacktestResult]:
+    provider: MarketDataProvider,
+) -> list[BacktestResult]:
     account_names = [name.strip() for name in cfg.account_names if name.strip()]
     if not account_names:
         raise ValueError("At least one account name is required.")
@@ -112,6 +98,7 @@ def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> li
                 run_name=run_name,
                 allow_approximate_leaps=cfg.allow_approximate_leaps,
             ),
+            provider=provider,
         )
         results.append(result)
 

@@ -1,9 +1,15 @@
 import pytest
 
 import backtesting.composition as composition
+import backtesting.services.leaderboard_service as leaderboard_service
 from backtesting.models import BacktestBatchConfig
 from backtesting.models.report import BacktestLeaderboardEntry
-from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
+from tests.support.backtesting import (
+    create_backtest_account,
+    make_backtest_config,
+    make_backtest_result,
+    stub_market_data_provider,
+)
 
 
 class TestBacktestLeaderboardAndBatch:
@@ -20,17 +26,19 @@ class TestBacktestLeaderboardAndBatch:
         composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_trend", run_name="lb-trend"),
+            provider=stub_market_data_provider(),
         )
         composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_mean", run_name="lb-mean"),
+            provider=stub_market_data_provider(),
         )
 
-        leaderboard = composition.backtest_leaderboard_entries(conn, limit=10)
+        leaderboard = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10)
         assert len(leaderboard) >= 2
         assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = composition.backtest_leaderboard_entries(conn, limit=10, strategy="mean")
+        filtered = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
         assert filtered[0].account_name == "acct_lb_mean"
 
@@ -45,9 +53,10 @@ class TestBacktestLeaderboardAndBatch:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_entries", run_name="lb-entries"),
+            provider=stub_market_data_provider(),
         )
 
-        entries = composition.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
+        entries = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
         assert len(entries) == 1
         entry = entries[0]
         assert isinstance(entry, BacktestLeaderboardEntry)
@@ -70,7 +79,7 @@ class TestBacktestLeaderboardAndBatch:
 
         seen_run_names: list[str | None] = []
 
-        def _fake_run_backtest(_conn, cfg):
+        def _fake_run_backtest(_conn, cfg, *, provider):
             seen_run_names.append(cfg.run_name)
             return results_map[cfg.account_name]
 
@@ -90,6 +99,7 @@ class TestBacktestLeaderboardAndBatch:
                 run_name_prefix="batch",
                 allow_approximate_leaps=False,
             ),
+            provider=stub_market_data_provider(),
         )
 
         assert [item.account_name for item in results] == ["acct_b", "acct_a"]

@@ -11,8 +11,8 @@ def test_main_backtest_report_dispatches(monkeypatch, capsys) -> None:
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
         cli_main,
-        "backtest_report_full",
-        lambda _conn, run_id: make_backtest_full_report(
+        "fetch_backtest_report_data",
+        lambda _conn, *, run_id: make_backtest_full_report(
             run_id=run_id,
             run_name="wf-1",
             warnings=["daily bars only"],
@@ -32,8 +32,8 @@ def test_main_backtest_report_without_warnings_omits_notes_line(monkeypatch, cap
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
         cli_main,
-        "backtest_report_full",
-        lambda _conn, run_id: make_backtest_full_report(run_id=run_id, run_name=None, warnings=[]),
+        "fetch_backtest_report_data",
+        lambda _conn, *, run_id: make_backtest_full_report(run_id=run_id, run_name=None, warnings=[]),
     )
 
     cli_main.main()
@@ -49,7 +49,7 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
         cli_main,
-        "backtest_leaderboard_entries",
+        "fetch_backtest_leaderboard_entries",
         lambda _conn, *, limit, account_name, strategy: [
             make_backtest_leaderboard_entry(
                 "acct1",
@@ -76,7 +76,7 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
 def test_main_backtest_leaderboard_no_rows_prints_message(monkeypatch, capsys) -> None:
     args = make_backtest_leaderboard_args()
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
-    monkeypatch.setattr(cli_main, "backtest_leaderboard_entries", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(cli_main, "fetch_backtest_leaderboard_entries", lambda *_args, **_kwargs: [])
 
     cli_main.main()
 

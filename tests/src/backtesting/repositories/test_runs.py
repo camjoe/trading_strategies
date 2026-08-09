@@ -18,7 +18,7 @@ from backtesting.repositories.runs import (
     insert_snapshot,
     insert_trade,
 )
-from tests.support.backtesting import bars_from_closes
+from tests.support.backtesting import bars_from_closes, stub_market_data_provider
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.services.accounts import create_account
 
@@ -169,7 +169,7 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
     )
 
     cfg = _backtest_config("acct_report_repo", run_name="contract", end="2026-03-01", slippage_bps=1.0)
-    result = run_backtest(conn, cfg)
+    result = run_backtest(conn, cfg, provider=stub_market_data_provider())
 
     run_row = fetch_run(conn, result.run_id)
     snapshot_rows = fetch_snapshots(conn, result.run_id)

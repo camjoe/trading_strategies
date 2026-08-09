@@ -5,6 +5,7 @@ import pytest
 
 import backtesting.composition as composition
 import backtesting.services.backtest_data_service as backtest_data_service
+import backtesting.services.leaderboard_service as leaderboard_service
 import backtesting.services.report_service as report_service
 import backtesting.services.simulation_service as simulation_service
 from backtesting.models.report import (
@@ -13,7 +14,7 @@ from backtesting.models.report import (
     BacktestReportSummary,
     BacktestReportTrade,
 )
-from tests.support.backtesting import create_backtest_account, make_backtest_config
+from tests.support.backtesting import create_backtest_account, make_backtest_config, stub_market_data_provider
 
 
 class TestBacktestRunFlow:
@@ -24,6 +25,7 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_bt", run_name="smoke"),
+            provider=stub_market_data_provider(),
         )
 
         assert result.run_id > 0
@@ -57,6 +59,7 @@ class TestBacktestRunFlow:
         result_without_opt_in = composition.run_backtest(
             conn,
             make_backtest_config("acct_leaps_bt"),
+            provider=stub_market_data_provider(),
         )
         assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
         assert any(
@@ -66,6 +69,7 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_leaps_bt", run_name="approx-ok", allow_approximate_leaps=True),
+            provider=stub_market_data_provider(),
         )
         assert any("LEAPs mode is approximated" in warning for warning in result.warnings)
         assert not any("opt-in was not enabled" in warning for warning in result.warnings)
@@ -77,9 +81,10 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_bt", slippage_bps=1.0, run_name="for-report"),
+            provider=stub_market_data_provider(),
         )
 
-        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
+        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
         assert summary["run_id"] == result.run_id
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
@@ -90,8 +95,12 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_bt_size_large", trade_size_pct=15.0, max_position_pct=30.0)
         bt_market_data(["AAPL"])
 
-        small = composition.run_backtest(conn, make_backtest_config("acct_bt_size_small", run_name="small"))
-        large = composition.run_backtest(conn, make_backtest_config("acct_bt_size_large", run_name="large"))
+        small = composition.run_backtest(
+            conn, make_backtest_config("acct_bt_size_small", run_name="small"), provider=stub_market_data_provider()
+        )
+        large = composition.run_backtest(
+            conn, make_backtest_config("acct_bt_size_large", run_name="large"), provider=stub_market_data_provider()
+        )
 
         small_qty = float(
             conn.execute(
@@ -115,6 +124,7 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_model", run_name="for-report-model"),
+            provider=stub_market_data_provider(),
         )
 
         summary = report_service.fetch_backtest_report_summary(conn, result.run_id)
@@ -141,6 +151,7 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_provider_seam", run_name="for-provider-seam"),
+            provider=stub_market_data_provider(),
         )
 
         def _fail(*_args, **_kwargs):
@@ -149,7 +160,7 @@ class TestBacktestRunFlow:
         monkeypatch.setattr(backtest_data_service, "fetch_benchmark_close", _fail)
         monkeypatch.setattr(backtest_data_service, "fetch_bar_history", _fail)
 
-        report = composition.backtest_report_full(conn, result.run_id)
+        report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
 
         assert report.benchmark_return_pct == pytest.approx(result.benchmark_return_pct)
         assert report.alpha_pct == pytest.approx(report.summary.total_return_pct - report.benchmark_return_pct)
@@ -161,9 +172,10 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_full", run_name="for-report-full"),
+            provider=stub_market_data_provider(),
         )
 
-        report = composition.backtest_report_full(conn, result.run_id)
+        report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
         assert isinstance(report, BacktestFullReport)
         assert isinstance(report.summary, BacktestReportSummary)
         assert report.summary.run_id == result.run_id
@@ -190,6 +202,7 @@ class TestBacktestRunFlow:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_strategy_snapshot", slippage_bps=1.0, run_name="strategy-snapshot"),
+            provider=stub_market_data_provider(),
         )
 
         from trading.services.accounts import set_account_strategy
@@ -200,10 +213,10 @@ class TestBacktestRunFlow:
         # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
-        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
+        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
-        filtered = composition.backtest_leaderboard_entries(conn, limit=10, strategy="trend")
+        filtered = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10, strategy="trend")
         assert any(entry.run_id == result.run_id for entry in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(
@@ -228,6 +241,7 @@ class TestBacktestRunFlow:
         composition.run_backtest(
             conn,
             make_backtest_config("acct_sig", run_name="sig-resolver"),
+            provider=stub_market_data_provider(),
         )
 
         assert call_count["n"] > 0
@@ -253,6 +267,7 @@ class TestBacktestRunFlow:
                 universe_history_dir=str(history_dir),
                 run_name="universe-reconstitution",
             ),
+            provider=stub_market_data_provider(),
         )
 
         assert any("Monthly universe reconstitution enabled" in warning for warning in result.warnings)

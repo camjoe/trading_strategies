@@ -25,7 +25,7 @@ def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys) -> Non
     monkeypatch.setattr(
         cli_main,
         "run_backtest",
-        lambda conn, cfg: captured.update({"conn": conn, "cfg": cfg}) or result,
+        lambda conn, cfg, *, provider: captured.update({"conn": conn, "cfg": cfg}) or result,
     )
 
     cli_main.main()
@@ -53,7 +53,7 @@ def test_main_backtest_without_benchmark_prints_unavailable(monkeypatch, capsys)
         alpha_pct=None,
         warnings=[],
     )
-    monkeypatch.setattr(cli_main, "run_backtest", lambda _conn, _cfg: result)
+    monkeypatch.setattr(cli_main, "run_backtest", lambda _conn, _cfg, *, provider: result)
 
     cli_main.main()
 
@@ -73,7 +73,7 @@ def test_main_backtest_batch_dispatches(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         cli_main,
         "run_backtest_batch",
-        lambda conn, cfg: captured.update({"conn": conn, "cfg": cfg}) or [result_a, result_b],
+        lambda conn, cfg, *, provider: captured.update({"conn": conn, "cfg": cfg}) or [result_a, result_b],
     )
 
     cli_main.main()

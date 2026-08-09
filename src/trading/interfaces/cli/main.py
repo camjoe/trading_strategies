@@ -3,21 +3,15 @@ from __future__ import annotations
 from functools import partial
 
 from backtesting.composition import (
-    backtest_leaderboard_entries,
-    backtest_report_full,
     run_backtest,
     run_backtest_batch,
     run_backtest_metrics_only,
 )
 from backtesting.models import BacktestBatchConfig, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
-from backtesting.repositories.optimization import (
-    fetch_experiment_by_id,
-    fetch_manifest_for_experiment,
-    fetch_trials_for_experiment,
-    fetch_windows_for_experiment,
-)
-from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
+from backtesting.services.audit_service import fetch_experiment_audit
+from backtesting.services.leaderboard_service import fetch_backtest_leaderboard_entries
+from backtesting.services.report_service import fetch_backtest_report_data
 from backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
 )
@@ -68,8 +62,10 @@ from trading.services.strategy_catalog import (
 
 def _handler_deps() -> dict[str, object]:
     # Keep runtime dependencies explicit so handlers are testable and monkeypatch-friendly.
-    # Composition root: build the market-data provider once and inject it into the
-    # reporting flows that read live prices/benchmarks (no global locator access).
+    # Composition root: build the market-data provider once per invocation and inject
+    # it into every flow that reads prices (no global locator access). One instance
+    # per invocation is what makes the adapter's cumulative call guard mean anything
+    # — an optimizer sweep runs a backtest per candidate, per window.
     provider = build_provider()
     return {
         "db_path": get_db_path(),
@@ -81,19 +77,15 @@ def _handler_deps() -> dict[str, object]:
         "BacktestBatchConfig": BacktestBatchConfig,
         "BacktestConfig": BacktestConfig,
         "OptimizerConfig": OptimizerConfig,
-        "backtest_leaderboard_entries": backtest_leaderboard_entries,
-        "backtest_report_full": backtest_report_full,
-        "run_backtest": run_backtest,
-        "run_backtest_metrics_only": run_backtest_metrics_only,
-        "run_backtest_batch": run_backtest_batch,
+        "backtest_leaderboard_entries": fetch_backtest_leaderboard_entries,
+        "backtest_report_full": fetch_backtest_report_data,
+        "run_backtest": partial(run_backtest, provider=provider),
+        "run_backtest_metrics_only": partial(run_backtest_metrics_only, provider=provider),
+        "run_backtest_batch": partial(run_backtest_batch, provider=provider),
         "run_walk_forward_optimization": partial(
             run_and_persist_optimization, market_data_provider=resolve_provider_name()
         ),
-        "fetch_optimization_experiment": fetch_experiment_by_id,
-        "fetch_optimization_windows": fetch_windows_for_experiment,
-        "fetch_optimization_trials": fetch_trials_for_experiment,
-        "fetch_compounded_oos": fetch_compounded_oos,
-        "fetch_optimization_manifest": fetch_manifest_for_experiment,
+        "fetch_experiment_audit": fetch_experiment_audit,
         "evaluate_promotion_gate": evaluate_promotion_gate,
         "promote_optimization_experiment": promote_optimization_experiment,
         "account_report": partial(account_report, provider=provider),

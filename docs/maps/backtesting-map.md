@@ -36,7 +36,7 @@ the strategy that actually trades.
 
 | Module | Responsibility |
 |---|---|
-| `composition.py` | The composition root: builds the market-data and feature providers and binds them into a run. Callers go through it only when they need a provider wired — the read surfaces are imported from `services/` directly. |
+| `composition.py` | Binds a caller-supplied market-data provider into a run (deriving the feature provider and the bar/benchmark fetches). The application builds the provider — one per invocation, so the adapter's cumulative call guard spans the whole sweep. Read surfaces are imported from `services/` directly. |
 
 ## `domain/`
 

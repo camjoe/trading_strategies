@@ -3,12 +3,14 @@ import pytest
 
 import backtesting.composition as composition
 import backtesting.services.backtest_data_service as backtest_data_service
+import backtesting.services.report_service as report_service
 import backtesting.services.simulation_service as simulation_service
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
     make_backtest_config,
     make_fake_close_history,
+    stub_market_data_provider,
 )
 
 
@@ -64,9 +66,10 @@ class TestBacktestWarnings:
         result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_warn", run_name="warn-report"),
+            provider=stub_market_data_provider(),
         )
 
-        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
+        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings

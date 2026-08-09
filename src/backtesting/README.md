@@ -16,13 +16,18 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Entry Points
 
-There is no single entrypoint. `composition.py` is the **composition root**: it builds the concrete
-market-data and feature providers and binds them into a run, which is why it holds `layer_check`'s
-only exemption from the no-adapter-imports rule.
+There is no single entrypoint. `composition.py` binds a market-data provider into a run: the caller
+supplies one, and it derives the feature provider and the bar/benchmark fetches from it.
 
-Go through `composition.py` when you need a provider wired — running a backtest or a batch. Import
-the rest from the service that owns it: reports, leaderboards, evidence, audits, and the optimizer
-all read persisted rows and need no provider.
+**The provider is built by the application, not here** — `cli/main.py`, the web routes, and
+`scripts/benchmark_sweep.py` each build one per invocation and pass it down. That placement is load
+bearing: a provider carries per-instance call guards (the yfinance adapter's rate limiter caps
+cumulative calls for its own lifetime), so building one per run would reset them on every run, and
+an optimizer sweep runs a backtest per candidate per window.
+
+Go through `composition.py` to run a backtest or a batch. Import everything else from the service
+that owns it: reports, leaderboards, evidence, audits, and the optimizer all read persisted rows and
+need no provider.
 
 ## Layers
 
@@ -68,10 +73,10 @@ all read persisted rows and need no provider.
 
 ## Hook-Up Flow
 
-1. A caller needing a provider goes through `composition.py`; every other caller imports the
-   owning service directly.
-2. `composition.py` builds the providers and binds them into `simulation_service.run_backtest`;
-   each service reaches its own tables through `repositories/`.
+1. The application builds a market-data provider and hands it to `composition.py` to run a
+   backtest; every other caller imports the owning service directly.
+2. `composition.py` binds that provider into `simulation_service.run_backtest`; each service
+   reaches its own tables through `repositories/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
    alternative strategies receive `ExternalFeatureBundle` values from

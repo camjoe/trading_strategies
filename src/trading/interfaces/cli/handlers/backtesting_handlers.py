@@ -62,7 +62,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
 
 
 def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["backtest_report_full"](conn, args.run_id)
+    report = deps["backtest_report_full"](conn, run_id=args.run_id)
     summary = report.summary
     print(
         f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
@@ -217,20 +217,16 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
 
 
 def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    experiment = deps["fetch_optimization_experiment"](conn, experiment_id=args.experiment_id)
-    if experiment is None:
+    audit = deps["fetch_experiment_audit"](conn, experiment_id=args.experiment_id)
+    if audit is None:
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
-    _print_experiment(experiment, evaluate_promotion_gate=deps["evaluate_promotion_gate"])
-    if experiment.status == "failed":
+    _print_experiment(audit.experiment, evaluate_promotion_gate=deps["evaluate_promotion_gate"])
+    if audit.experiment.status == "failed":
         return
-    windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
-    trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
-    _print_window_audit(windows, trials)
-    compounded = deps["fetch_compounded_oos"](conn, experiment_id=args.experiment_id)
-    _print_compounded_oos(compounded)
-    manifest = deps["fetch_optimization_manifest"](conn, experiment_id=args.experiment_id)
-    _print_manifest(manifest)
+    _print_window_audit(audit.windows)
+    _print_compounded_oos(audit.compounded_oos)
+    _print_manifest(audit.manifest)
 
 
 def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
@@ -300,20 +296,18 @@ def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
         print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
 
 
-def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
+def _print_window_audit(window_audits: list[Any]) -> None:
     """Print the persisted per-window / per-candidate audit trail.
 
     The multiple-testing record: every window's train/test boundaries plus each
     evaluated candidate's objective and eligibility — not just the winner."""
-    if not windows:
+    if not window_audits:
         print("Windows: none persisted (experiment predates per-window audit)")
         return
-    trials_by_window: dict[int, list[Any]] = {}
-    for trial in trials:
-        trials_by_window.setdefault(trial.window_id, []).append(trial)
-    print(f"Windows ({len(windows)}) with per-candidate trials:")
-    for window in windows:
-        window_trials = trials_by_window.get(window.id, [])
+    print(f"Windows ({len(window_audits)}) with per-candidate trials:")
+    for window_audit in window_audits:
+        window = window_audit.window
+        window_trials = window_audit.trials
         eligible = sum(1 for trial in window_trials if trial.eligible)
         winner = next((trial for trial in window_trials if trial.selected), None)
         winner_label = (

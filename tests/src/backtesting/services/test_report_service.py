@@ -5,7 +5,12 @@ import pytest
 import backtesting.services.report_service as report_service
 from backtesting.composition import run_backtest
 from backtesting.models.report import BacktestFullReport
-from tests.support.backtesting import create_backtest_account, make_backtest_config, seed_backtest_run
+from tests.support.backtesting import (
+    create_backtest_account,
+    make_backtest_config,
+    seed_backtest_run,
+    stub_market_data_provider,
+)
 
 
 def test_report_summary_does_not_build_the_per_row_models(conn, monkeypatch, bt_market_data) -> None:
@@ -17,7 +22,9 @@ def test_report_summary_does_not_build_the_per_row_models(conn, monkeypatch, bt_
     """
     create_backtest_account(conn, "acct_summary_only")
     bt_market_data(["AAPL"], [100.0, 102.0])
-    result = run_backtest(conn, make_backtest_config("acct_summary_only", run_name="summary-only"))
+    result = run_backtest(
+        conn, make_backtest_config("acct_summary_only", run_name="summary-only"), provider=stub_market_data_provider()
+    )
 
     def _must_not_build(*_args, **_kwargs):
         raise AssertionError("the summary path must not construct per-row report models")
@@ -37,7 +44,11 @@ def test_report_service_contract_builds_typed_model(conn, bt_market_data) -> Non
     create_backtest_account(conn, "acct_report_service")
     bt_market_data(["AAPL"], [100.0, 102.0])
 
-    result = run_backtest(conn, make_backtest_config("acct_report_service", slippage_bps=1.0, run_name="contract"))
+    result = run_backtest(
+        conn,
+        make_backtest_config("acct_report_service", slippage_bps=1.0, run_name="contract"),
+        provider=stub_market_data_provider(),
+    )
 
     report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
 
@@ -60,7 +71,11 @@ def test_report_reads_the_benchmark_frozen_on_the_run(conn, bt_market_data) -> N
     create_backtest_account(conn, "acct_report_frozen")
     bt_market_data(["AAPL"], [100.0, 102.0])
 
-    result = run_backtest(conn, make_backtest_config("acct_report_frozen", slippage_bps=1.0, run_name="frozen"))
+    result = run_backtest(
+        conn,
+        make_backtest_config("acct_report_frozen", slippage_bps=1.0, run_name="frozen"),
+        provider=stub_market_data_provider(),
+    )
 
     report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
 
@@ -73,7 +88,11 @@ def test_report_reports_no_alpha_when_the_benchmark_window_was_too_short(conn, b
     create_backtest_account(conn, "acct_report_null_bench")
     bt_market_data(["AAPL"], [100.0, 102.0])
 
-    result = run_backtest(conn, make_backtest_config("acct_report_null_bench", slippage_bps=1.0, run_name="nullbench"))
+    result = run_backtest(
+        conn,
+        make_backtest_config("acct_report_null_bench", slippage_bps=1.0, run_name="nullbench"),
+        provider=stub_market_data_provider(),
+    )
     conn.execute("UPDATE backtest_runs SET benchmark_return_pct = NULL WHERE id = ?", (result.run_id,))
     conn.commit()
 

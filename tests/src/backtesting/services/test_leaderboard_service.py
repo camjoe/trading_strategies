@@ -33,7 +33,7 @@ def test_leaderboard_service_ranks_by_total_return(conn) -> None:
 
     entries = _entries(conn, account_name="acct_rank")
 
-    assert [entry.run_name for entry, _start in entries] == ["stronger", "weaker"]
+    assert [entry.run_name for entry in entries] == ["stronger", "weaker"]
 
 
 def test_leaderboard_carries_the_stored_benchmark_and_derives_alpha(conn) -> None:
@@ -46,7 +46,7 @@ def test_leaderboard_carries_the_stored_benchmark_and_derives_alpha(conn) -> Non
         benchmark_return_pct=1.0,
     )
 
-    ((entry, _start),) = _entries(conn, account_name="acct_alpha")
+    (entry,) = _entries(conn, account_name="acct_alpha")
 
     assert entry.total_return_pct == pytest.approx(5.0)
     assert entry.benchmark_return_pct == pytest.approx(1.0)
@@ -57,7 +57,7 @@ def test_leaderboard_reports_no_alpha_when_the_benchmark_window_was_too_short(co
     # benchmark_return_pct() yields None on a window with fewer than two usable closes.
     seed_backtest_run(conn, account_name="acct_no_bench", benchmark_return_pct=None)
 
-    ((entry, _start),) = _entries(conn, account_name="acct_no_bench")
+    (entry,) = _entries(conn, account_name="acct_no_bench")
 
     assert entry.benchmark_return_pct is None
     assert entry.alpha_pct is None
@@ -70,7 +70,7 @@ def test_leaderboard_computes_trade_metrics_from_the_run_executions(conn) -> Non
         trades=[("AAPL", "buy", 1.0, 100.0), ("AAPL", "sell", 1.0, 110.0)],
     )
 
-    ((entry, _start),) = _entries(conn, account_name="acct_trades")
+    (entry,) = _entries(conn, account_name="acct_trades")
 
     assert entry.trade_count == 2
     assert entry.win_rate_pct == pytest.approx(100.0)
@@ -80,8 +80,8 @@ def test_leaderboard_filters_by_account_and_strategy(conn) -> None:
     seed_backtest_run(conn, account_name="acct_one", strategy_name="trend_v1")
     seed_backtest_run(conn, account_name="acct_two", strategy_name="mean_reversion_v1")
 
-    assert [e.account_name for e, _s in _entries(conn, account_name="acct_one")] == ["acct_one"]
-    assert [e.strategy for e, _s in _entries(conn, strategy="mean_reversion")] == ["mean_reversion_v1"]
+    assert [e.account_name for e in _entries(conn, account_name="acct_one")] == ["acct_one"]
+    assert [e.strategy for e in _entries(conn, strategy="mean_reversion")] == ["mean_reversion_v1"]
 
 
 def test_leaderboard_skips_a_run_with_no_equity_snapshots(conn) -> None:
@@ -97,4 +97,4 @@ def test_leaderboard_skips_a_run_with_no_equity_snapshots(conn) -> None:
 
     entries = _entries(conn, account_name="acct_partial")
 
-    assert [entry.run_id for entry, _start in entries] == [kept]
+    assert [entry.run_id for entry in entries] == [kept]

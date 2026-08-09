@@ -29,6 +29,7 @@ import json
 import sqlite3
 import time
 from datetime import date
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -42,6 +43,8 @@ from backtesting.services.backtest_data_service import resolve_backtest_dates
 from backtesting.services.walk_forward_optimizer_service import run_walk_forward_optimization
 from infrastructure.database.backend import SQLiteBackend, set_backend
 from infrastructure.database.config import get_db_path
+from infrastructure.market_data.factory import build_provider
+from trading.services.market_data import MarketDataProvider
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # An 8-point grid over a two-parameter strategy: small enough to finish while
@@ -133,6 +136,7 @@ def _time_single_backtest(
     conn: sqlite3.Connection,
     cfg: OptimizerConfig,
     *,
+    provider: MarketDataProvider,
     train_start: date,
     train_end: date,
     params: dict[str, Any],
@@ -207,6 +211,9 @@ def main() -> None:
         conn = sqlite3.connect(working_db)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
+        # One provider for the whole benchmark, so the timings measure simulation
+        # cost rather than repeated adapter construction.
+        provider = build_provider()
         try:
             if not args.skip_single:
                 first = splits[0]
@@ -214,10 +221,20 @@ def main() -> None:
                 # (imports, cache reads), the second is the steady-state cost that
                 # every later candidate in a window actually pays.
                 cold = _time_single_backtest(
-                    conn, cfg, train_start=first.train_start, train_end=first.train_end, params=candidates[0]
+                    conn,
+                    cfg,
+                    provider=provider,
+                    train_start=first.train_start,
+                    train_end=first.train_end,
+                    params=candidates[0],
                 )
                 warm = _time_single_backtest(
-                    conn, cfg, train_start=first.train_start, train_end=first.train_end, params=candidates[-1]
+                    conn,
+                    cfg,
+                    provider=provider,
+                    train_start=first.train_start,
+                    train_end=first.train_end,
+                    params=candidates[-1],
                 )
                 result["single_cold_seconds"] = round(cold, 4)
                 result["single_warm_seconds"] = round(warm, 4)
@@ -229,8 +246,8 @@ def main() -> None:
                 summary = run_walk_forward_optimization(
                     conn,
                     cfg,
-                    run_metrics_only_fn=run_backtest_metrics_only,
-                    run_persisted_fn=run_backtest,
+                    run_metrics_only_fn=partial(run_backtest_metrics_only, provider=provider),
+                    run_persisted_fn=partial(run_backtest, provider=provider),
                 )
                 elapsed = time.perf_counter() - started
                 total_runs = training_runs + supporting_runs
