@@ -92,7 +92,7 @@ def _build_summary(
     )
 
 
-def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
+def fetch_report_summary(conn, run_id: int) -> BacktestReportSummary:
     """The run's summary alone.
 
     Reads the same rows the full report does, but skips the per-snapshot and
@@ -101,7 +101,7 @@ def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
     return _build_summary(*_require_run_parts(conn, run_id))
 
 
-def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
+def fetch_report(conn, *, run_id: int) -> BacktestFullReport:
     run, snapshots, trades = _require_run_parts(conn, run_id)
     summary = _build_summary(run, snapshots, trades)
 
@@ -144,15 +144,15 @@ def fetch_backtest_report_data(conn, *, run_id: int) -> BacktestFullReport:
     )
 
 
-def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int | None:
+def fetch_latest_run_id_for_account(conn, *, account_name: str) -> int | None:
     rows = fetch_runs(conn, limit=1, account_name=account_name)
     return row_expect_int(rows[0], "id") if rows else None
 
 
-def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> BacktestRunSummary | None:
+def fetch_latest_run_for_account(conn, *, account_name: str) -> BacktestRunSummary | None:
     rows = fetch_runs(conn, limit=1, account_name=account_name)
     return BacktestRunSummary.from_mapping(rows[0]) if rows else None
 
 
-def fetch_recent_backtest_runs(conn, *, limit: int) -> list[BacktestRunSummary]:
+def fetch_recent_runs(conn, *, limit: int) -> list[BacktestRunSummary]:
     return [BacktestRunSummary.from_mapping(row) for row in fetch_runs(conn, limit=limit)]

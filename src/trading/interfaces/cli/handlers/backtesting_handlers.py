@@ -62,7 +62,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
 
 
 def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["backtest_report_full"](conn, run_id=args.run_id)
+    report = deps["fetch_report"](conn, run_id=args.run_id)
     summary = report.summary
     print(
         f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
@@ -98,7 +98,7 @@ def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
 
 def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
-        rows = deps["backtest_leaderboard_entries"](
+        rows = deps["fetch_leaderboard"](
             conn,
             limit=int(args.limit),
             account_name=args.account,

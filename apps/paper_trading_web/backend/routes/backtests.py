@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from backtesting.composition import run_backtest
-from backtesting.services.report_service import fetch_backtest_report_data
+from backtesting.services.report_service import fetch_report
 from backtesting.services.simulation_service import preview_backtest_warnings
 from infrastructure.market_data.factory import build_provider
 
@@ -41,7 +41,7 @@ def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
 def api_backtest_run_report(run_id: int) -> dict[str, object]:
     with db_conn() as conn:
         # NotFoundError -> 404 is handled by the app-level exception handler.
-        return fetch_backtest_report_data(conn, run_id=run_id).to_payload()
+        return fetch_report(conn, run_id=run_id).to_payload()
 
 
 @router.post("/api/backtests/run")

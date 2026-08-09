@@ -22,7 +22,7 @@ def test_fetch_recent_backtest_run_summaries_maps_records_to_transport_keys(monk
         fee_per_trade=0.25,
         tickers_file="universe.txt",
     )
-    monkeypatch.setattr(account_backtests, "fetch_recent_backtest_runs", lambda _conn, limit: [record])
+    monkeypatch.setattr(account_backtests, "fetch_recent_runs", lambda _conn, limit: [record])
 
     assert account_backtests.fetch_recent_backtest_run_summaries(conn, limit=50) == [
         {
@@ -97,7 +97,7 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
 
     monkeypatch.setattr(
         account_backtests,
-        "fetch_backtest_report_summary",
+        "fetch_report_summary",
         lambda _conn, _run_id: SimpleNamespace(
             run_id=99,
             end_date="2026-01-31",

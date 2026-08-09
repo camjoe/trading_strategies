@@ -84,7 +84,7 @@ class TestBacktestRunFlow:
             provider=stub_market_data_provider(),
         )
 
-        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
+        summary = report_service.fetch_report(conn, run_id=result.run_id).to_payload()
         assert summary["run_id"] == result.run_id
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
@@ -127,12 +127,12 @@ class TestBacktestRunFlow:
             provider=stub_market_data_provider(),
         )
 
-        summary = report_service.fetch_backtest_report_summary(conn, result.run_id)
+        summary = report_service.fetch_report_summary(conn, result.run_id)
         assert isinstance(summary, BacktestReportSummary)
         assert summary.run_id == result.run_id
         assert summary.account_name == "acct_report_model"
 
-    def test_backtest_report_full_reads_the_benchmark_without_market_data(
+    def test_report_reads_the_benchmark_without_market_data(
         self,
         conn,
         bt_market_data,
@@ -160,12 +160,12 @@ class TestBacktestRunFlow:
         monkeypatch.setattr(backtest_data_service, "fetch_benchmark_close", _fail)
         monkeypatch.setattr(backtest_data_service, "fetch_bar_history", _fail)
 
-        report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
+        report = report_service.fetch_report(conn, run_id=result.run_id)
 
         assert report.benchmark_return_pct == pytest.approx(result.benchmark_return_pct)
         assert report.alpha_pct == pytest.approx(report.summary.total_return_pct - report.benchmark_return_pct)
 
-    def test_backtest_report_full_returns_typed_model_and_payload(self, conn, bt_market_data) -> None:
+    def test_report_returns_typed_model_and_payload(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_full")
         bt_market_data(["AAPL"], [100.0, 104.0])
 
@@ -175,7 +175,7 @@ class TestBacktestRunFlow:
             provider=stub_market_data_provider(),
         )
 
-        report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
+        report = report_service.fetch_report(conn, run_id=result.run_id)
         assert isinstance(report, BacktestFullReport)
         assert isinstance(report.summary, BacktestReportSummary)
         assert report.summary.run_id == result.run_id
@@ -213,10 +213,10 @@ class TestBacktestRunFlow:
         # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
-        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
+        summary = report_service.fetch_report(conn, run_id=result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
-        filtered = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10, strategy="trend")
+        filtered = leaderboard_service.fetch_leaderboard(conn, limit=10, strategy="trend")
         assert any(entry.run_id == result.run_id for entry in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(

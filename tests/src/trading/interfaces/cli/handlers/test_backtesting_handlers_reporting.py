@@ -16,7 +16,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
-    deps = {"backtest_report_full": lambda _conn, *, run_id: make_backtest_full_report(run_id=42, run_name="smoke")}
+    deps = {"fetch_report": lambda _conn, *, run_id: make_backtest_full_report(run_id=42, run_name="smoke")}
 
     handle_backtest_report(object(), types.SimpleNamespace(run_id=42), fake_parser(), deps=deps)
 
@@ -29,7 +29,7 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
 def test_handle_backtest_report_joins_the_warning_list(capsys) -> None:
     """``summary.warnings`` is ``list[str]``; the line must read as prose, not a repr."""
     report = make_backtest_full_report(warnings=["daily bars only", "approximate leaps"])
-    deps = {"backtest_report_full": lambda _conn, *, run_id: report}
+    deps = {"fetch_report": lambda _conn, *, run_id: report}
 
     handle_backtest_report(object(), types.SimpleNamespace(run_id=1), fake_parser(), deps=deps)
 
@@ -58,7 +58,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
         trade_count=3,
         created_at="2026-03-01",
     )
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: [row]}
+    deps = {"fetch_leaderboard": lambda *_a, **_kw: [row]}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
     handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
@@ -69,7 +69,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
 
 
 def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> None:
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: []}
+    deps = {"fetch_leaderboard": lambda *_a, **_kw: []}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
     handle_backtest_leaderboard(object(), args, fake_parser(), deps=deps)
@@ -79,7 +79,7 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
 
 def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> None:
     deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(
+        "fetch_leaderboard": lambda *_a, **_kw: (_ for _ in ()).throw(
             ValueError("Unknown strategy 'mystery_strategy'")
         )
     }
@@ -100,7 +100,7 @@ class _RecordingParser:
 def test_handle_backtest_leaderboard_records_parser_error_without_printing_header(capsys) -> None:
     parser = _RecordingParser()
     deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
+        "fetch_leaderboard": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
     }
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 

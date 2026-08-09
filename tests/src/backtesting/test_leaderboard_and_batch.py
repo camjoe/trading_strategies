@@ -34,15 +34,15 @@ class TestBacktestLeaderboardAndBatch:
             provider=stub_market_data_provider(),
         )
 
-        leaderboard = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10)
+        leaderboard = leaderboard_service.fetch_leaderboard(conn, limit=10)
         assert len(leaderboard) >= 2
         assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=10, strategy="mean")
+        filtered = leaderboard_service.fetch_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
         assert filtered[0].account_name == "acct_lb_mean"
 
-    def test_backtest_leaderboard_entries_returns_models(
+    def test_leaderboard_returns_typed_entries(
         self,
         conn,
         bt_market_data,
@@ -56,7 +56,7 @@ class TestBacktestLeaderboardAndBatch:
             provider=stub_market_data_provider(),
         )
 
-        entries = leaderboard_service.fetch_backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
+        entries = leaderboard_service.fetch_leaderboard(conn, limit=5, account_name="acct_lb_entries")
         assert len(entries) == 1
         entry = entries[0]
         assert isinstance(entry, BacktestLeaderboardEntry)

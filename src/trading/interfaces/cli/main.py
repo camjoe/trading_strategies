@@ -10,8 +10,8 @@ from backtesting.composition import (
 from backtesting.models import BacktestBatchConfig, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit_service import fetch_experiment_audit
-from backtesting.services.leaderboard_service import fetch_backtest_leaderboard_entries
-from backtesting.services.report_service import fetch_backtest_report_data
+from backtesting.services.leaderboard_service import fetch_leaderboard
+from backtesting.services.report_service import fetch_report
 from backtesting.services.walk_forward_optimizer_service import (
     run_and_persist_optimization,
 )
@@ -77,8 +77,8 @@ def _handler_deps() -> dict[str, object]:
         "BacktestBatchConfig": BacktestBatchConfig,
         "BacktestConfig": BacktestConfig,
         "OptimizerConfig": OptimizerConfig,
-        "backtest_leaderboard_entries": fetch_backtest_leaderboard_entries,
-        "backtest_report_full": fetch_backtest_report_data,
+        "fetch_leaderboard": fetch_leaderboard,
+        "fetch_report": fetch_report,
         "run_backtest": partial(run_backtest, provider=provider),
         "run_backtest_metrics_only": partial(run_backtest_metrics_only, provider=provider),
         "run_backtest_batch": partial(run_backtest_batch, provider=provider),

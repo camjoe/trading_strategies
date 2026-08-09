@@ -26,7 +26,7 @@ def _validated_strategy_filter(strategy: str | None) -> str | None:
     return strategy_name
 
 
-def fetch_backtest_leaderboard_entries(
+def fetch_leaderboard(
     conn,
     *,
     limit: int = 10,

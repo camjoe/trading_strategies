@@ -7,7 +7,7 @@ from tests.support.backtesting import seed_backtest_run
 
 
 def _entries(conn, **kwargs):
-    return leaderboard_service.fetch_backtest_leaderboard_entries(
+    return leaderboard_service.fetch_leaderboard(
         conn,
         limit=kwargs.pop("limit", 10),
         account_name=kwargs.pop("account_name", None),

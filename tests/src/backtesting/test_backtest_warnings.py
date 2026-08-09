@@ -69,7 +69,7 @@ class TestBacktestWarnings:
             provider=stub_market_data_provider(),
         )
 
-        summary = report_service.fetch_backtest_report_data(conn, run_id=result.run_id).to_payload()
+        summary = report_service.fetch_report(conn, run_id=result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings
