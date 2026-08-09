@@ -30,7 +30,11 @@ stack to reach them is a bounded context and sits beside `trading/`, not inside 
    under `src/trading/` shares `trading/repositories/`. That is why it is the only one, and the
    criterion a future candidate has to meet. Its seam with `trading/` is enforced in both directions
    by `layer_check` — reads cross at services, and shared lower layers (`trading.domain`,
-   `trading.models`, `trading.persistence`) are layering rather than crossing.
+   `trading.models`, `trading.persistence`) are layering rather than crossing. Where a
+   *calculation* both contexts need belongs is settled by
+   [ADR 020](../adr/020-shared-financial-math-ownership.md): `trading/domain/` owns it,
+   `common/` keeps unit scales only, and `backtesting/domain/` keeps what only a backtest
+   can compute.
 3. Broker adapters live at the repo-root `src/infrastructure/brokers/` package,
    external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
    concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.
