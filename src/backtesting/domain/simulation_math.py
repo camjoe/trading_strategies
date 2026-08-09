@@ -1,27 +1,14 @@
-"""Ledger arithmetic for one simulated account: market value, fills, and P&L.
+"""Fill arithmetic for one simulated account.
 
 ``update_on_buy`` and ``update_on_sell`` mutate the ``positions`` and ``avg_cost``
 dicts they are handed and return only the values that cannot be updated in place
 (cash, and realized P&L on a sell). Callers own those dicts and see the change.
 
-The two valuation helpers differ on missing data by design: ``compute_market_value``
-prices what it can and skips the rest, while ``compute_unrealized_pnl`` raises,
-because an equity mark with a silently omitted holding is a wrong number rather
-than a partial one.
+Valuation lives in ``trading.domain.portfolio_math``, which the live runtime
+shares.
 """
 
 from __future__ import annotations
-
-
-def compute_market_value(positions: dict[str, float], prices: dict[str, float]) -> float:
-    """Total value of *positions* at *prices*, skipping tickers with no price."""
-    total = 0.0
-    for ticker, qty in positions.items():
-        px = prices.get(ticker)
-        if px is None:
-            continue
-        total += qty * px
-    return total
 
 
 def update_on_buy(
@@ -75,17 +62,3 @@ def update_on_sell(
         positions[ticker] = 0.0
         avg_cost[ticker] = 0.0
     return cash, realized_pnl
-
-
-def compute_unrealized_pnl(
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    marks: dict[str, float],
-) -> float:
-    """Open P&L across held positions. Raises ``KeyError`` if a holding has no mark."""
-    total = 0.0
-    for ticker, qty in positions.items():
-        if qty <= 0:
-            continue
-        total += (marks[ticker] - avg_cost[ticker]) * qty
-    return total

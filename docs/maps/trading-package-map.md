@@ -282,7 +282,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
 | `risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
-| `portfolio_math.py` | Pure portfolio return math shared by analysis + reporting (market value/unrealized, return %, alpha) |
+| `portfolio_math.py` | Pure portfolio valuation and return math shared by analysis, reporting, and the backtester (market value/unrealized, return %, alpha); holds both the lenient operator-facing pass and the strict pair, deliberately unmerged |
 | `rotation/schedule.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
