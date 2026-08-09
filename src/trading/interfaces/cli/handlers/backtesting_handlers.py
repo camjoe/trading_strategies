@@ -182,7 +182,7 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         return
 
     try:
-        summary = deps["run_walk_forward_optimization"](
+        summary = deps["run_and_persist_optimization"](
             conn,
             deps["OptimizerConfig"](
                 account_name=args.account,

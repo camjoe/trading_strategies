@@ -82,7 +82,7 @@ def _handler_deps() -> dict[str, object]:
         "run_backtest": partial(run_backtest, provider=provider),
         "run_backtest_metrics_only": partial(run_backtest_metrics_only, provider=provider),
         "run_backtest_batch": partial(run_backtest_batch, provider=provider),
-        "run_walk_forward_optimization": partial(
+        "run_and_persist_optimization": partial(
             run_and_persist_optimization, market_data_provider=resolve_provider_name()
         ),
         "fetch_experiment_audit": fetch_experiment_audit,

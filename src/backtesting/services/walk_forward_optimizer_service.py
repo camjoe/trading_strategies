@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date
+from functools import partial
 from typing import Any, Callable
 
 from backtesting.domain.optimization.objective import evaluate_candidate, select_winner
@@ -64,12 +65,9 @@ OPTIMIZER_RUN_NAME_PREFIX = "wfo"
 class OptimizationRunError(ValueError):
     """Internal signal that the window-search or holdout stage failed.
 
-    Never crosses this module's boundary as itself: ``run_and_persist_optimization``
-    catches it, persists a failed ``optimization_experiments`` row, and raises a
-    plain ``ValidationError`` referencing that row, so callers keep matching
-    ``except ValueError`` exactly as before. Carries the context needed to build
-    that failure row: which stage failed, how many windows completed first, and
-    the run's already-resolved date bounds.
+    Never leaves this module as itself: ``run_and_persist_optimization`` catches
+    it, records a failed experiment row, and re-raises a plain ``ValidationError``.
+    Its fields are what that row needs.
     """
 
     def __init__(
@@ -236,23 +234,18 @@ def run_and_persist_optimization(
     run_persisted_fn: RunFn,
     market_data_provider: str = "unknown",
 ) -> OptimizationSummary:
-    """Run one optimization experiment and persist its Tier-1 record.
+    """Run one optimization experiment and persist its record.
 
-    Resolves the account and strategy *before* running anything — an unknown
-    account/strategy fails immediately rather than after a full (possibly
-    expensive) optimization run. Runs the pure orchestration, then writes one
-    ``optimization_experiments`` row (config + forward-carried winner + OOS
-    aggregate + holdout summary) plus the per-window/candidate audit and the
-    frozen provenance manifest, and returns the summary with its ``experiment_id``
-    set — the handle a later promotion uses.
+    The account and strategy resolve *before* anything runs, so an unknown one
+    fails in a second rather than after a full sweep. The returned summary carries
+    the ``experiment_id`` a later promotion uses.
 
-    If the window-search or holdout stage raises, persists a failed experiment row
-    (status/stage/message; see ``OptimizationRunError``) instead of losing the
-    attempt, then raises ``ValidationError`` referencing that row's id.
+    A window-search or holdout failure still persists an experiment row, so a
+    failed attempt is diagnosable rather than lost; the raised ``ValidationError``
+    names it.
 
-    ``market_data_provider`` is the resolved provider name recorded on the manifest;
-    the composition root binds it (it is infrastructure knowledge the service must
-    not resolve itself).
+    ``market_data_provider`` is bound by the composition root — which provider is
+    configured is infrastructure knowledge this service must not resolve itself.
     """
     now = utc_now_iso()
     account = find_account(conn, cfg.account_name)
@@ -298,6 +291,35 @@ def run_and_persist_optimization(
     return replace(summary, experiment_id=experiment_id)
 
 
+def _experiment_insert_for(
+    cfg: OptimizerConfig,
+    *,
+    account: AccountRecord,
+    strategy_id: int | None,
+    primitive: str,
+) -> Callable[..., OptimizationExperimentInsert]:
+    """The config half of an experiment row, bound; callers add the outcome half.
+
+    Completed and failed rows record the same search configuration and differ only
+    in what they found. Building it once means a new config field cannot reach one
+    row and miss the other — and the failed path is the one nobody exercises.
+    """
+    return partial(
+        OptimizationExperimentInsert,
+        account_id=account.id,
+        strategy_id=strategy_id,
+        primitive=primitive,
+        objective_name=cfg.objective_name,
+        search_space_json=dumps_json_column(cfg.search_space),
+        candidate_budget=cfg.candidate_budget,
+        train_months=cfg.train_months,
+        test_months=cfg.test_months,
+        step_months=cfg.step_months,
+        holdout_months=cfg.holdout_months,
+        warmup_months=cfg.warmup_months,
+    )
+
+
 def _persist_failed_experiment(
     conn: sqlite3.Connection,
     cfg: OptimizerConfig,
@@ -313,18 +335,7 @@ def _persist_failed_experiment(
     No ``optimization_windows``/``optimization_trials``/manifest rows are written —
     a failed experiment gets exactly this one record, not a partial audit tree.
     """
-    payload = OptimizationExperimentInsert(
-        account_id=account.id,
-        strategy_id=strategy_id,
-        primitive=primitive,
-        objective_name=cfg.objective_name,
-        search_space_json=dumps_json_column(cfg.search_space),
-        candidate_budget=cfg.candidate_budget,
-        train_months=cfg.train_months,
-        test_months=cfg.test_months,
-        step_months=cfg.step_months,
-        holdout_months=cfg.holdout_months,
-        warmup_months=cfg.warmup_months,
+    payload = _experiment_insert_for(cfg, account=account, strategy_id=strategy_id, primitive=primitive)(
         start_date=error.start_date.isoformat(),
         end_date=error.end_date.isoformat(),
         window_count=error.windows_completed,
@@ -363,18 +374,7 @@ def _persist_experiment(
     start_date = summary.windows[0].split.train_start
     end_date = summary.holdout.holdout_end if summary.holdout is not None else summary.windows[-1].split.test_end
 
-    payload = OptimizationExperimentInsert(
-        account_id=account.id,
-        strategy_id=strategy_id,
-        primitive=primitive,
-        objective_name=cfg.objective_name,
-        search_space_json=dumps_json_column(cfg.search_space),
-        candidate_budget=cfg.candidate_budget,
-        train_months=cfg.train_months,
-        test_months=cfg.test_months,
-        step_months=cfg.step_months,
-        holdout_months=cfg.holdout_months,
-        warmup_months=cfg.warmup_months,
+    payload = _experiment_insert_for(cfg, account=account, strategy_id=strategy_id, primitive=primitive)(
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         window_count=len(summary.windows),
@@ -388,42 +388,82 @@ def _persist_experiment(
             summary.holdout.baseline.total_return_pct if summary.holdout is not None else None
         ),
     )
+
+    # Gathered before the transaction opens: the manifest reads ticker files off
+    # disk and shells out for the engine revision, and neither belongs inside an
+    # open write transaction.
+    manifest_inputs = _resolve_manifest_inputs(conn, cfg, account=account, start_date=start_date, end_date=end_date)
+
     # Experiment row + its per-window/per-candidate audit tree + the frozen
     # provenance manifest land atomically.
     with unit_of_work(conn):
         experiment_id = insert_experiment(conn, payload, created_at=now)
         _persist_windows_and_trials(conn, experiment_id, summary)
-        _persist_manifest(
+        insert_manifest(
             conn,
-            experiment_id=experiment_id,
-            cfg=cfg,
-            account=account,
-            start_date=start_date,
-            end_date=end_date,
-            market_data_provider=market_data_provider,
-            now=now,
+            _manifest_insert(
+                manifest_inputs,
+                experiment_id=experiment_id,
+                cfg=cfg,
+                account=account,
+                market_data_provider=market_data_provider,
+                now=now,
+            ),
+            created_at=now,
         )
     return experiment_id
 
 
-def _persist_manifest(
+@dataclass(frozen=True)
+class _ManifestInputs:
+    """The manifest's facts that come from outside the database."""
+
+    book: Any
+    universe: list[str]
+    engine_revision: str | None
+
+
+def _resolve_manifest_inputs(
     conn: sqlite3.Connection,
+    cfg: OptimizerConfig,
+    *,
+    account: AccountRecord,
+    start_date: date,
+    end_date: date,
+) -> _ManifestInputs:
+    return _ManifestInputs(
+        book=get_default_book(conn, account_id=account.id),
+        # Sorted and de-duplicated: a provenance record has to compare equal
+        # across runs that resolved the same membership.
+        universe=sorted(
+            set(
+                resolve_universe(
+                    tickers_file=cfg.tickers_file,
+                    universe_history_dir=cfg.universe_history_dir,
+                    start_date=start_date,
+                    end_date=end_date,
+                ).all_tickers
+            )
+        ),
+        engine_revision=git_head_revision(),
+    )
+
+
+def _manifest_insert(
+    inputs: _ManifestInputs,
     *,
     experiment_id: int,
     cfg: OptimizerConfig,
     account: AccountRecord,
-    start_date: date,
-    end_date: date,
     market_data_provider: str,
     now: str,
-) -> None:
-    """Freeze one provenance manifest for the run (see ``OptimizationManifestInsert``).
+) -> OptimizationManifestInsert:
+    """One frozen provenance manifest: the assumptions every candidate shared.
 
-    Snapshots the effective economics, the default book's risk/sizing knobs, the exact
-    resolved universe membership + lineage, the configured provider, and the engine
-    revision — the assumptions every candidate in this experiment shared.
+    Effective economics, the default book's risk/sizing knobs, the resolved
+    universe and its lineage, the provider, and the engine revision.
     """
-    book = get_default_book(conn, account_id=account.id)
+    book = inputs.book
     effective_execution = {
         "risk_policy": book.risk_policy if book is not None else None,
         "instrument_mode": book.instrument_mode if book is not None else None,
@@ -431,39 +471,23 @@ def _persist_manifest(
         "max_position_pct": book.max_position_pct if book is not None else None,
         "max_trades_per_run": book.max_trades_per_run if book is not None else None,
     }
-
-    universe = sorted(
-        set(
-            resolve_universe(
-                tickers_file=cfg.tickers_file,
-                universe_history_dir=cfg.universe_history_dir,
-                start_date=start_date,
-                end_date=end_date,
-            ).all_tickers
-        )
-    )
-
-    insert_manifest(
-        conn,
-        OptimizationManifestInsert(
-            experiment_id=experiment_id,
-            manifest_version=MANIFEST_V1,
-            account_name=account.name,
-            book_id=book.id if book is not None else None,
-            initial_cash=account.initial_cash,
-            benchmark_ticker=account.benchmark_ticker,
-            slippage_bps=cfg.slippage_bps,
-            fee_per_trade=cfg.fee_per_trade,
-            effective_execution_json=dumps_json_column(effective_execution),
-            tickers_file=cfg.tickers_file,
-            universe_history_dir=cfg.universe_history_dir,
-            universe_tickers_json=dumps_json_column(universe),
-            universe_size=len(universe),
-            market_data_provider=market_data_provider,
-            data_as_of=now,
-            engine_revision=git_head_revision(),
-        ),
-        created_at=now,
+    return OptimizationManifestInsert(
+        experiment_id=experiment_id,
+        manifest_version=MANIFEST_V1,
+        account_name=account.name,
+        book_id=book.id if book is not None else None,
+        initial_cash=account.initial_cash,
+        benchmark_ticker=account.benchmark_ticker,
+        slippage_bps=cfg.slippage_bps,
+        fee_per_trade=cfg.fee_per_trade,
+        effective_execution_json=dumps_json_column(effective_execution),
+        tickers_file=cfg.tickers_file,
+        universe_history_dir=cfg.universe_history_dir,
+        universe_tickers_json=dumps_json_column(inputs.universe),
+        universe_size=len(inputs.universe),
+        market_data_provider=market_data_provider,
+        data_as_of=now,
+        engine_revision=inputs.engine_revision,
     )
 
 
