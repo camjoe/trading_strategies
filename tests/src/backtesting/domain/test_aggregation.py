@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from backtesting.domain.optimization.aggregation import compound_oos_returns
+from backtesting.domain.optimization import compound_oos_returns
 from backtesting.models.optimizer import OOSReturnSegment
 
 

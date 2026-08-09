@@ -13,8 +13,7 @@ import sqlite3
 from datetime import date
 from typing import Any, Callable
 
-from backtesting.domain.optimization.objective import evaluate_candidate, select_winner
-from backtesting.domain.optimization.search import generate_candidates
+from backtesting.domain.optimization import evaluate_candidate, generate_candidates, select_winner
 from backtesting.domain.windowing import build_walk_forward_optimization_splits, resolve_run_window
 from backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,

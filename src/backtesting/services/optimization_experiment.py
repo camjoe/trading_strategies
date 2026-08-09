@@ -13,7 +13,7 @@ from datetime import date
 from functools import partial
 from typing import Callable
 
-from backtesting.domain.optimization.search import params_fingerprint
+from backtesting.domain.optimization import params_fingerprint
 from backtesting.models.optimizer import (
     MANIFEST_V1,
     ExperimentStatus,

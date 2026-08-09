@@ -9,13 +9,14 @@ from datetime import date
 
 import pytest
 
-from backtesting.domain.optimization.objective import (
+from backtesting.domain.optimization import (
     MAX_DRAWDOWN_ELIGIBILITY_PCT,
     MIN_CANDIDATE_TRADES,
     evaluate_candidate,
+    generate_candidates,
+    params_fingerprint,
     select_winner,
 )
-from backtesting.domain.optimization.search import generate_candidates, params_fingerprint
 from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,

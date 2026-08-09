@@ -35,7 +35,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from backtesting.composition import run_backtest, run_backtest_metrics_only
-from backtesting.domain.optimization.search import generate_candidates
+from backtesting.domain.optimization import generate_candidates
 from backtesting.domain.windowing import build_walk_forward_optimization_splits, resolve_run_window
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
