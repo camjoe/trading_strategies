@@ -45,8 +45,9 @@ need no provider.
     window, its universe (as a `RunUniverse`), and its bars. `fetch_bar_history` is the only
     market-data read; the benchmark series is derived from it, so a run has one price path and one
     set of gap-filling rules.
-  - `simulation_service.py`: run one backtest — resolve inputs, simulate the bars, persist the run.
-    Also previews the warnings a run would raise, sharing the resolution the run itself uses.
+  - `simulation_service.py`: run one backtest — resolve scope, fetch bars, simulate, persist. Also
+    previews a run's warnings: preview and run resolve their scope through the same function, so
+    they cannot disagree about what they warn on.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
     frozen benchmark.
   - `report_service.py`: report assembly into typed report models — the full report, the summary

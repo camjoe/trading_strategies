@@ -57,7 +57,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 
 | Module | Responsibility |
 |---|---|
-| `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews the warnings a run would raise |
+| `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
 | `backtest_data_service.py` | Resolve a run's inputs before it simulates: date window, universe (`RunUniverse`), bar history, and benchmark closes |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |

@@ -20,7 +20,7 @@ from backtesting.domain.simulation_math import (
     update_on_sell,
 )
 from backtesting.domain.windowing import shift_months
-from backtesting.models import BacktestConfig, BacktestResult
+from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from backtesting.services.backtest_data_service import resolve_backtest_dates, resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
@@ -47,13 +47,26 @@ def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool)
     )
 
 
-def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
-    """The warnings a run under this config would raise, without running it.
+@dataclass(frozen=True)
+class _RunScope:
+    """What a run is: whose account and book, over what window and universe.
 
-    Resolves the same book settings and universe the run would, so a preview and
-    the run it precedes cannot disagree about what they warn on.
+    Everything here is resolved without touching market data, which is what lets
+    a preview share it with the run it precedes.
     """
+
+    account: Any
+    default_book: BookRecord | None
+    start_date: date
+    end_date: date
+    universe: RunUniverse
+    warnings: list[str]
+
+
+def _resolve_run_scope(conn: sqlite3.Connection, cfg: BacktestConfig) -> _RunScope:
     account = get_account(conn, cfg.account_name)
+    # Execution settings are book-owned (revision 0004): the account's default
+    # book supplies the risk/sizing knobs the simulation runs under.
     default_book = get_default_book(conn, account_id=account.id)
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
 
@@ -65,18 +78,32 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
         end_date=end_date,
     )
     warnings.extend(universe.warnings)
-    return warnings
+
+    return _RunScope(
+        account=account,
+        default_book=default_book,
+        start_date=start_date,
+        end_date=end_date,
+        universe=universe,
+        warnings=warnings,
+    )
+
+
+def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+    """The warnings a run under this config would raise, without running it.
+
+    The run resolves its scope through the same function, so the two cannot
+    disagree about what they warn on.
+    """
+    return _resolve_run_scope(conn, cfg).warnings
 
 
 def _tradeable_price(raw: Any) -> float | None:
     """The bar's price if it can be traded on, else None.
 
-    A ticker has no price before its first bar — the panel leaves those days
-    empty rather than inventing one that predates the listing. NaN loses every
-    ordinary comparison, so a bare ``price <= 0`` check waves it through; it
-    then reaches ``choose_buy_qty`` and aborts the whole run with "cannot
-    convert float NaN to integer". Screening here keeps a universe that contains
-    a late listing runnable, skipping the ticker until it has a price.
+    Days before a ticker's first bar are empty, and NaN loses every ordinary
+    comparison — so a bare ``price <= 0`` guard passes it to ``choose_buy_qty``,
+    which aborts the whole run with "cannot convert float NaN to integer".
     """
     price = float(raw)
     if not math.isfinite(price) or price <= 0:
@@ -106,14 +133,12 @@ class _ExecutionContext:
 
     conn: sqlite3.Connection
     run_id: int
-    cfg: Any
+    cfg: BacktestConfig
     slippage_multiplier_buy: float
     slippage_multiplier_sell: float
     persist: bool
-    default_book: Any
-    all_tickers: list[str]
-    default_tickers: list[str]
-    month_to_tickers: dict[str, list[str]]
+    default_book: BookRecord | None
+    universe: RunUniverse
     signal_inputs: dict[str, Any]
     strategy_name: str
     effective_params: dict[str, Any]
@@ -315,7 +340,7 @@ def _simulate_bars(
     pre-trade state; selling before buying makes the day's proceeds available to
     every buy rather than only to tickers later in the iteration order.
     """
-    first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in ctx.all_tickers}
+    first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in ctx.universe.all_tickers}
     first_mv = compute_market_value(state.positions, first_prices)
     first_equity = state.cash + first_mv
     _record_snapshot(
@@ -334,7 +359,7 @@ def _simulate_bars(
         trade_prices = close.loc[trade_date]
 
         month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
-        active_tickers = ctx.month_to_tickers.get(month_key, ctx.default_tickers)
+        active_tickers = ctx.universe.month_to_tickers.get(month_key, ctx.universe.default_tickers)
         held_tickers = [ticker for ticker, qty in state.positions.items() if qty > 0]
         strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
 
@@ -357,7 +382,7 @@ def _simulate_bars(
             active_tickers=active_tickers,
         )
 
-        marks = {ticker: float(trade_prices[ticker]) for ticker in ctx.all_tickers}
+        marks = {ticker: float(trade_prices[ticker]) for ticker in ctx.universe.all_tickers}
         market_value = compute_market_value(state.positions, marks)
         equity = state.cash + market_value
         _record_snapshot(
@@ -373,11 +398,18 @@ def _simulate_bars(
     return equity_curve
 
 
-def _first_scoring_index(dates: list, scoring_start: date) -> int:
-    """Index of the first loaded bar that falls on/after the scoring window start.
-    Earlier bars are warm-up history. With no warm-up this is 0 (bar zero)."""
+def _scoring_start_index(dates: list, *, warmup_months: int, scoring_start: date) -> int:
+    """Index of the first bar inside the scoring window.
+
+    Bar zero without warm-up. With it, the earlier bars are lead-in that only
+    initializes indicators — returns, trades, and snapshots start here.
+    """
+    if warmup_months <= 0:
+        return 0
     for index, timestamp in enumerate(dates):
         if timestamp.date() >= scoring_start:
+            if len(dates) - index < 2:
+                raise ValueError("Not enough trading days in the scoring window after warm-up.")
             return index
     raise ValueError("No trading days fall within the scoring window.")
 
@@ -387,19 +419,9 @@ class _RunInputs:
     """Everything resolved before the first bar: the window, the universe, the
     strategy and its precomputed indicators, and the frozen benchmark return."""
 
-    account_id: int
-    initial_cash: float
-    benchmark_ticker: str
+    scope: _RunScope
     benchmark_return: float | None
-    start_date: date
-    end_date: date
-    warmup_months: int
-    warnings: list[str]
     close: pd.DataFrame
-    default_book: Any
-    all_tickers: list[str]
-    default_tickers: list[str]
-    month_to_tickers: dict[str, list[str]]
     strategy_key: str
     strategy_name: str
     effective_params: dict[str, Any]
@@ -464,76 +486,48 @@ def _resolve_run_inputs(
     Every external read the run needs happens here, before the write transaction
     opens, so that transaction covers only in-memory simulation and its writes.
     """
-    account = get_account(conn, cfg.account_name)
-    # Execution settings are book-owned (revision 0004): the account's default
-    # book supplies the risk/sizing knobs the simulation runs under.
-    default_book = get_default_book(conn, account_id=account.id)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
+    scope = _resolve_run_scope(conn, cfg)
+    all_tickers = scope.universe.all_tickers
 
     # Optional indicator warm-up: pull extra history before the scoring window so
     # signals are warm at the window start. Only price history reaches back this far;
     # scoring (returns/trades/snapshots) still starts at start_date.
     warmup_months = cfg.warmup_months or 0
-    data_start_date = shift_months(start_date, -warmup_months) if warmup_months > 0 else start_date
-
-    universe = resolve_universe(
-        tickers_file=cfg.tickers_file,
-        universe_history_dir=cfg.universe_history_dir,
-        start_date=start_date,
-        end_date=end_date,
-    )
-    default_tickers, month_to_tickers, all_tickers = (
-        universe.default_tickers,
-        universe.month_to_tickers,
-        universe.all_tickers,
-    )
-    warnings.extend(universe.warnings)
+    data_start = shift_months(scope.start_date, -warmup_months) if warmup_months > 0 else scope.start_date
 
     # Bars, not closes: the panel keeps each ticker's full range available for
     # indicators, while `close` stays the endpoint view the simulation prices at.
-    panel = build_bar_panel(cast(Any, fetch_bar_history_fn(all_tickers, data_start_date, end_date)), all_tickers)
+    panel = build_bar_panel(cast(Any, fetch_bar_history_fn(all_tickers, data_start, scope.end_date)), all_tickers)
     close = panel.close
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
-    benchmark_ticker = account.benchmark_ticker
-    account_id = account.id
-    initial_cash = account.initial_cash
     strategy_spec, strategy_name, effective_params, signal_inputs = _resolve_strategy_inputs(
         conn,
         cfg,
-        account_id=account_id,
+        account_id=scope.account.id,
         panel=panel,
         all_tickers=all_tickers,
     )
 
-    benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
+    benchmark_series = fetch_benchmark_close_fn(scope.account.benchmark_ticker, scope.start_date, scope.end_date)
     # Frozen onto the run row below rather than left for readers to recompute: this
     # is the only point where the provider and the run's own benchmark ticker are
     # both in hand.
-    benchmark_return = benchmark_return_pct(benchmark_series, initial_cash)
+    benchmark_return = benchmark_return_pct(benchmark_series, scope.account.initial_cash)
 
     feature_bundle = None
     if strategy_spec.required_features:
         active_feature_provider = require_feature_provider(feature_provider)
-        feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
-        warnings.extend(feature_bundle.warnings)
+        feature_bundle = active_feature_provider.build_feature_bundle(
+            all_tickers, scope.start_date, scope.end_date, close
+        )
+        scope.warnings.extend(feature_bundle.warnings)
 
     return _RunInputs(
-        account_id=account_id,
-        initial_cash=initial_cash,
-        benchmark_ticker=benchmark_ticker,
+        scope=scope,
         benchmark_return=benchmark_return,
-        start_date=start_date,
-        end_date=end_date,
-        warmup_months=warmup_months,
-        warnings=warnings,
         close=close,
-        default_book=default_book,
-        all_tickers=all_tickers,
-        default_tickers=default_tickers,
-        month_to_tickers=month_to_tickers,
         # backtest_runs stores a strategies FK, so aliases and display names must
         # resolve to the seeded catalog key before the header is written.
         strategy_key=strategy_spec.strategy_id,
@@ -542,17 +536,6 @@ def _resolve_run_inputs(
         signal_inputs=signal_inputs,
         feature_bundle=feature_bundle,
     )
-
-
-def _scoring_start_index(dates: list, inputs: _RunInputs) -> int:
-    """Where scoring begins: bar zero, or the first bar inside the window when
-    warm-up history was loaded ahead of it."""
-    if inputs.warmup_months <= 0:
-        return 0
-    scoring_idx = _first_scoring_index(dates, inputs.start_date)
-    if len(dates) - scoring_idx < 2:
-        raise ValueError("Not enough trading days in the scoring window after warm-up.")
-    return scoring_idx
 
 
 def run_backtest(
@@ -586,24 +569,32 @@ def run_backtest(
     # unit_of_work so an interrupted run leaves no partial result tree. All
     # external data was fetched above; this transaction covers only in-memory
     # simulation and its writes, never network I/O.
+    scope = inputs.scope
+    dates = list(inputs.close.index)
+    scoring_idx = _scoring_start_index(
+        dates,
+        warmup_months=cfg.warmup_months or 0,
+        scoring_start=scope.start_date,
+    )
+
     with unit_of_work(conn):
         run_id = (
             insert_run(
                 conn,
-                account_id=inputs.account_id,
+                account_id=scope.account.id,
                 strategy_name=inputs.strategy_key,
-                start_date=inputs.start_date,
-                end_date=inputs.end_date,
+                start_date=scope.start_date,
+                end_date=scope.end_date,
                 cfg=cfg,
-                warnings=inputs.warnings,
-                benchmark_ticker=inputs.benchmark_ticker,
+                warnings=scope.warnings,
+                benchmark_ticker=scope.account.benchmark_ticker,
                 benchmark_return_pct=inputs.benchmark_return,
             )
             if persist
             else 0
         )
 
-        state = _PortfolioState(cash=inputs.initial_cash)
+        state = _PortfolioState(cash=scope.account.initial_cash)
         ctx = _ExecutionContext(
             conn=conn,
             run_id=run_id,
@@ -611,35 +602,26 @@ def run_backtest(
             slippage_multiplier_buy=1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
             slippage_multiplier_sell=1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR),
             persist=persist,
-            default_book=inputs.default_book,
-            all_tickers=inputs.all_tickers,
-            default_tickers=inputs.default_tickers,
-            month_to_tickers=inputs.month_to_tickers,
+            default_book=scope.default_book,
+            universe=scope.universe,
             signal_inputs=inputs.signal_inputs,
             strategy_name=inputs.strategy_name,
             effective_params=inputs.effective_params,
             feature_bundle=inputs.feature_bundle,
         )
 
-        dates = list(inputs.close.index)
-        equity_curve = _simulate_bars(
-            ctx,
-            state,
-            close=inputs.close,
-            dates=dates,
-            scoring_idx=_scoring_start_index(dates, inputs),
-        )
+        equity_curve = _simulate_bars(ctx, state, close=inputs.close, dates=dates, scoring_idx=scoring_idx)
 
     ending_equity = equity_curve[-1]
-    total_return_pct = ((ending_equity / inputs.initial_cash) - 1.0) * 100.0
+    total_return_pct = ((ending_equity / scope.account.initial_cash) - 1.0) * 100.0
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)
 
     return BacktestResult(
         run_id=run_id,
         account_name=cfg.account_name,
-        start_date=inputs.start_date.isoformat(),
-        end_date=inputs.end_date.isoformat(),
-        tickers=inputs.all_tickers,
+        start_date=scope.start_date.isoformat(),
+        end_date=scope.end_date.isoformat(),
+        tickers=scope.universe.all_tickers,
         trade_count=state.trade_count,
         ending_equity=ending_equity,
         total_return_pct=total_return_pct,
@@ -653,5 +635,5 @@ def run_backtest(
         win_rate_pct=performance.win_rate_pct,
         profit_factor=performance.profit_factor,
         avg_trade_return_pct=performance.avg_trade_return_pct,
-        warnings=inputs.warnings,
+        warnings=scope.warnings,
     )
