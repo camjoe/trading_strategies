@@ -6,7 +6,7 @@ on:
       - main
       - develop
     paths:
-      - src/trading/**
+      - src/**
       - apps/trends/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/frontend/**
@@ -20,6 +20,8 @@ on:
       - .gitattributes
       - pytest.ini
       - .coveragerc
+      - pyproject.toml
+      - ruff.toml
       - requirements-base.txt
       - requirements-dev.txt
       - .github/workflows/ci.yml
@@ -46,13 +48,15 @@ jobs:
         with:
           filters: |
             python_related:
-              - src/trading/**
+              - src/**
               - apps/trends/**
               - apps/paper_trading_web/backend/**
               - apps/paper_trading_web/__init__.py
               - tests/**
               - pytest.ini
               - .coveragerc
+              - pyproject.toml
+              - ruff.toml
               - requirements-base.txt
               - requirements-dev.txt
               - .github/workflows/ci.yml
