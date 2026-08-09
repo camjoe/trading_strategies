@@ -15,11 +15,7 @@ from backtesting.domain.optimization.objective import (
     evaluate_candidate,
     select_winner,
 )
-from backtesting.domain.optimization.search import (
-    canonical_params_json,
-    generate_candidates,
-    params_fingerprint,
-)
+from backtesting.domain.optimization.search import generate_candidates, params_fingerprint
 from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import (
     BACKTEST_PURPOSE_FINAL_HOLDOUT,
@@ -72,11 +68,6 @@ class TestParamsFingerprint:
 
     def test_different_params_hash_differently(self) -> None:
         assert params_fingerprint({"slow_window": 20}) != params_fingerprint({"slow_window": 40})
-
-    def test_canonical_json_is_the_shared_column_encoding(self) -> None:
-        # Keys sorted and no insignificant whitespace: the same spelling every
-        # other JSON column is written in (trading.persistence.json_columns).
-        assert canonical_params_json({"slow_window": 20, "fast_window": 5}) == '{"fast_window":5,"slow_window":20}'
 
 
 class TestObjective:

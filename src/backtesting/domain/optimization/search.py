@@ -8,18 +8,14 @@ from trading.domain.exceptions import ValidationError
 from trading.persistence.json_columns import dumps_json_column
 
 
-def canonical_params_json(params: dict[str, Any]) -> str:
-    """The canonical JSON form persisted on a trial row and hashed by the fingerprint."""
-    return dumps_json_column(params)
-
-
 def params_fingerprint(params: dict[str, Any]) -> str:
     """Content hash of a candidate's parameters.
 
-    Two equal parameter sets collide by design — the basis for the
-    one-candidate-per-window uniqueness constraint on trials.
+    Hashes the same canonical JSON a trial row stores, so two equal parameter sets
+    collide by design — the basis for the one-candidate-per-window uniqueness
+    constraint on trials.
     """
-    return hashlib.sha256(canonical_params_json(params).encode("utf-8")).hexdigest()
+    return hashlib.sha256(dumps_json_column(params).encode("utf-8")).hexdigest()
 
 
 def generate_candidates(search_space: dict[str, list[Any]], *, budget: int) -> list[dict[str, Any]]:

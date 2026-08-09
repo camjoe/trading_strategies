@@ -31,8 +31,8 @@ def compound_oos_returns(segments: list[OOSReturnSegment]) -> CompoundedOOSSerie
         points.append(
             CompoundedOOSPoint(
                 window_index=segment.window_index,
-                test_start=segment.test_start.isoformat(),
-                test_end=segment.test_end.isoformat(),
+                test_start=segment.test_start,
+                test_end=segment.test_end,
                 period_return_pct=segment.return_pct,
                 cumulative_return_pct=(growth - 1.0) * PERCENT_SCALE,
                 gap_before=gap_before,

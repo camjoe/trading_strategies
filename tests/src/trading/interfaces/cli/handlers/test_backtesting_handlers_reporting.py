@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import types
+from datetime import date
 
 import pytest
 
@@ -192,16 +193,16 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         points=[
             types.SimpleNamespace(
                 window_index=1,
-                test_start="2022-07-01",
-                test_end="2022-07-31",
+                test_start=date(2022, 7, 1),
+                test_end=date(2022, 7, 31),
                 period_return_pct=2.0,
                 cumulative_return_pct=2.0,
                 gap_before=False,
             ),
             types.SimpleNamespace(
                 window_index=2,
-                test_start="2022-09-01",
-                test_end="2022-09-30",
+                test_start=date(2022, 9, 1),
+                test_end=date(2022, 9, 30),
                 period_return_pct=3.0,
                 cumulative_return_pct=5.06,
                 gap_before=True,

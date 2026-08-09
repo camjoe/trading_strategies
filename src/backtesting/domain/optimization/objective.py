@@ -32,7 +32,7 @@ def evaluate_candidate(
     rejection = _rejection_reason(annualized_return_pct, max_drawdown_pct, trade_count)
     score = (
         None
-        if rejection is not None or annualized_return_pct is None
+        if rejection is not None
         else calmar_ratio(
             annualized_return_pct=annualized_return_pct,
             max_drawdown_pct_value=max_drawdown_pct,
