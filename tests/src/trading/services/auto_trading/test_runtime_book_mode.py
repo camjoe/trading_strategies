@@ -7,6 +7,7 @@ import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.execution import BookTradeCandidate
+from trading.models.market_data import MarketInputs
 from trading.models.orders import OrderFill, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -111,9 +112,7 @@ def test_run_for_account_book_mode_applies_rotation_before_intent_generation(
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=Mock(),
@@ -160,9 +159,7 @@ def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env,
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=Mock(),
@@ -191,9 +188,7 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -293,9 +288,7 @@ def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkey
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -325,9 +318,7 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -373,9 +364,7 @@ def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(boo
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 0.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 0.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -420,9 +409,7 @@ def test_run_for_account_book_mode_kill_switch_reconciliation_mismatch(book_env,
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -477,9 +464,7 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -528,9 +513,7 @@ def test_run_for_account_book_mode_kill_switch_when_reconciliation_snapshot_miss
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -576,9 +559,7 @@ def test_run_for_account_book_mode_submitted_order_with_no_broker_id_skips_broke
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
@@ -626,9 +607,7 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,

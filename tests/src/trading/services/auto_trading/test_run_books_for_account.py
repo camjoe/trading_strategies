@@ -21,6 +21,7 @@ from tests.src.trading.services.auto_trading.factories import (
 )
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution import BookTradeIntent, GateResult, SubmissionResult
+from trading.models.market_data import MarketInputs
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_BROKER_API_ANOMALY,
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
@@ -137,9 +138,7 @@ def _run(recorder, *, prices=None):
     return runtime_service._run_books_for_account(
         object(),
         account=make_auto_trading_account(id=ACCOUNT_ID),
-        universe=["AAPL"],
-        prices=prices if prices is not None else {"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices=prices if prices is not None else {"AAPL": 100.0}),
         max_trades=5,
         fee=0.0,
         broker_factory=recorder.broker_factory,

@@ -3,13 +3,11 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from typing import Mapping
-
-import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.models import AccountRecord
 from trading.models.execution import BookTradeCandidate, BookTradeState
+from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
@@ -45,12 +43,9 @@ def generate_book_trade_intents(
     conn: sqlite3.Connection,
     *,
     account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
     selection_seed: str = "",
 ) -> list[BookTradeCandidate]:
@@ -97,7 +92,7 @@ def generate_book_trade_intents(
         if isinstance(book_symbols, list) and book_symbols:
             effective_universe = [str(symbol) for symbol in book_symbols]
         else:
-            effective_universe = universe
+            effective_universe = market.universe
         # Execution/risk knobs are book-owned (revision 0004).
         risk_policy = book.risk_policy.strip().lower()
         instrument_mode = book.instrument_mode.strip().lower()
@@ -105,7 +100,7 @@ def generate_book_trade_intents(
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sells = auto_trader_policy.order_risk_breaches(
             can_sell,
-            prices,
+            market.prices,
             state,
             risk_policy,
             book.stop_loss_pct,
@@ -123,9 +118,9 @@ def generate_book_trade_intents(
             state,
             forced_sells,
             effective_universe,
-            prices,
-            histories or {},
-            iv_rank_proxy,
+            market.prices,
+            market.histories,
+            market.iv_rank_proxy,
             instrument_mode,
             fee,
             max_trades=book_budget,

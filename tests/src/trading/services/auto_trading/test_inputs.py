@@ -9,6 +9,7 @@ from tests.src.trading.services.auto_trading.factories import make_feature_fetch
 from tests.support.backtesting import bar_frame
 from trading.models.accounts import AccountConfig
 from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 from trading.services.accounts import create_account
 
 
@@ -43,13 +44,13 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(auto_trading_inputs, "fetch_bar_histories", lambda _universe, **_kwargs: {"AAPL": bars})
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
-    universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs(["AAPL"])
-    assert universe == ["AAPL"]
-    assert prices == {"AAPL": 101.0}
-    assert iv_rank == {"AAPL": 50.0}
-    assert list(histories) == ["AAPL"]
+    market = auto_trading_service.resolve_market_inputs(["AAPL"])
+    assert market.universe == ["AAPL"]
+    assert market.prices == {"AAPL": 101.0}
+    assert market.iv_rank_proxy == {"AAPL": 50.0}
+    assert list(market.histories) == ["AAPL"]
 
-    def _fake_run_for_account(_conn, account_name, *_args, **_kwargs):
+    def _fake_run_for_account(_conn, *, account_name, **_kwargs):
         return AccountRunResult(
             account_name=account_name,
             submitted_count=2 if account_name == "acct1" else 1,
@@ -59,9 +60,7 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     results = auto_trading_service.run_accounts(
         conn=object(),
         account_names=["acct1", "acct2"],
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank,
+        market=market,
         max_trades=2,
         fee=0.0,
         broker_factory=lambda _: None,
@@ -113,13 +112,11 @@ def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest
     """Replaces the wrapper test that pinned a forwarding shim instead of the real call."""
     captured: dict[str, object] = {}
 
-    def _capture(conn, account_name, universe, prices, iv_rank_proxy, max_trades, fee, **kwargs):
+    def _capture(conn, *, account_name, market, max_trades, fee, **kwargs):
         captured.update(
             conn=conn,
             account_name=account_name,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
+            market=market,
             max_trades=max_trades,
             fee=fee,
             **kwargs,
@@ -134,12 +131,11 @@ def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest
     auto_trading_inputs.run_accounts(
         conn,
         account_names=["acct1"],
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={"AAPL": 50.0},
+        market=MarketInputs(
+            universe=["AAPL"], prices={"AAPL": 100.0}, iv_rank_proxy={"AAPL": 50.0}, histories={"AAPL": bars}
+        ),
         max_trades=5,
         fee=1.0,
-        histories={"AAPL": bars},
         broker_factory=lambda _: None,
         feature_fetchers=fetchers,
     )
@@ -149,7 +145,9 @@ def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest
     assert captured["max_trades"] == 5
     assert captured["fee"] == 1.0
     assert captured["feature_fetchers"] is fetchers
-    assert list(captured["histories"]) == ["AAPL"]  # type: ignore[arg-type]
+    forwarded = captured["market"]
+    assert isinstance(forwarded, MarketInputs)
+    assert list(forwarded.histories) == ["AAPL"]
     from common.time import parse_utc_iso
 
     naive = parse_utc_iso("2026-03-21T12:00:00")
