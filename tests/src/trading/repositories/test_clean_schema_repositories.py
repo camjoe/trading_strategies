@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from common.time import utc_now_iso
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
@@ -153,15 +154,27 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings(book_id=book_id, values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0})
-    book_repo.update_settings(book_id=book_id, values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0})
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0},
+        updated_at=utc_now_iso(),
+    )
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0},
+        updated_at=utc_now_iso(),
+    )
     execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings(book_id=book_id, values={"option_type": "call", "option_min_dte": 120})
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"option_type": "call", "option_min_dte": 120},
+        updated_at=utc_now_iso(),
+    )
     option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
     assert option.option_min_dte == 120
