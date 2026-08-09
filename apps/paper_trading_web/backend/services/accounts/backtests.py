@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from backtesting.models.report import BacktestRunSummary
-from backtesting.services.report_service import (
+from backtesting.services.reporting import (
     fetch_latest_run_for_account,
     fetch_latest_run_id_for_account,
     fetch_recent_runs,

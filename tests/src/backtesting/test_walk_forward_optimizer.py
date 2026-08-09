@@ -30,7 +30,7 @@ from backtesting.models import (
     BacktestResult,
 )
 from backtesting.models.optimizer import FailureStage, OptimizerConfig
-from backtesting.services.walk_forward_optimizer_service import (
+from backtesting.services.walk_forward_optimizer import (
     OptimizationRunError,
     run_walk_forward_optimization,
 )

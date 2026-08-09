@@ -24,7 +24,7 @@ Enforced in both directions by `scripts/checks/repo/layer_check.py`.
 
 | Direction | How it crosses |
 |---|---|
-| trading → backtesting | At **services**: `evidence_service` for a strategy's research evidence, `audit_service` for an experiment's record. One exception — `src/trading/services/strategy_catalog/optimizer_promotion.py` writes the promoted link inside the caller's transaction. |
+| trading → backtesting | At **services**: `evidence` for a strategy's research evidence, `audit` for an experiment's record. One exception — `src/trading/services/strategy_catalog/optimizer_promotion.py` writes the promoted link inside the caller's transaction. |
 | backtesting → trading | At **services**: `find_account`, `get_default_book`, `resolve_or_draft_strategy_record`. |
 
 What backtesting takes from `trading.domain`, `trading.models`, and `trading.persistence` is
@@ -57,15 +57,14 @@ Side-effect free: no I/O, no SQL, no service calls.
 
 | Module | Responsibility |
 |---|---|
-| `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
-| `backtest_data_service.py` | Read a run's inputs from outside: its universe (`RunUniverse`) from ticker files, its bars and benchmark closes from the provider |
-| `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search (grid → freeze-on-train → OOS → holdout). Writes nothing — it returns an `OptimizationSummary` |
-| `optimization_experiment_service.py` | Run that search and persist what it found: the experiment row, its per-window/per-candidate audit tree, and the frozen manifest. A failed sweep still gets a row |
-| `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
-| `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
-| `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
-| `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |
-| `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
+| `simulation.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
+| `run_inputs.py` | Read a run's inputs from outside: its universe (`RunUniverse`) from ticker files, its bars and benchmark closes from the provider |
+| `walk_forward_optimizer.py` | Drive a walk-forward parameter search (grid → freeze-on-train → OOS → holdout). Writes nothing — it returns an `OptimizationSummary` |
+| `optimization_experiment.py` | Run that search and persist what it found: the experiment row, its per-window/per-candidate audit tree, and the frozen manifest. A failed sweep still gets a row |
+| `optimizer_aggregation.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
+| `reporting.py` | Every operator-facing read over persisted runs: one run's full report or summary, the run listings, and the leaderboard that ranks runs against each other. Benchmark and alpha come from the run row, so none of it needs market data |
+| `evidence.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |
+| `audit.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
 
 ## `repositories/`
 

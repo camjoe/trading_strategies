@@ -1,7 +1,7 @@
 import pytest
 
 import backtesting.composition as composition
-import backtesting.services.leaderboard_service as leaderboard_service
+import backtesting.services.reporting as reporting
 from backtesting.models import BacktestBatchConfig
 from backtesting.models.report import BacktestLeaderboardEntry
 from tests.support.backtesting import (
@@ -34,11 +34,11 @@ class TestBacktestLeaderboardAndBatch:
             provider=stub_market_data_provider(),
         )
 
-        leaderboard = leaderboard_service.fetch_leaderboard(conn, limit=10)
+        leaderboard = reporting.fetch_leaderboard(conn, limit=10)
         assert len(leaderboard) >= 2
         assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = leaderboard_service.fetch_leaderboard(conn, limit=10, strategy="mean")
+        filtered = reporting.fetch_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
         assert filtered[0].account_name == "acct_lb_mean"
 
@@ -56,7 +56,7 @@ class TestBacktestLeaderboardAndBatch:
             provider=stub_market_data_provider(),
         )
 
-        entries = leaderboard_service.fetch_leaderboard(conn, limit=5, account_name="acct_lb_entries")
+        entries = reporting.fetch_leaderboard(conn, limit=5, account_name="acct_lb_entries")
         assert len(entries) == 1
         entry = entries[0]
         assert isinstance(entry, BacktestLeaderboardEntry)

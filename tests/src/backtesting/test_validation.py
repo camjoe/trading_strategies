@@ -2,9 +2,8 @@ import pandas as pd
 import pytest
 
 import backtesting.composition as composition
-import backtesting.services.backtest_data_service as backtest_data_service
-import backtesting.services.leaderboard_service as leaderboard_service
-import backtesting.services.report_service as report_service
+import backtesting.services.reporting as reporting
+import backtesting.services.run_inputs as backtest_data_service
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
@@ -55,7 +54,7 @@ class TestBacktestValidationAndFailurePaths:
 
     def test_backtest_report_missing_run_raises(self, conn) -> None:
         with pytest.raises(ValueError, match="Backtest run id 9999 not found"):
-            report_service.fetch_report(conn, run_id=9999).to_payload()
+            reporting.fetch_report(conn, run_id=9999).to_payload()
 
     def test_backtest_report_raises_when_snapshots_missing(self, conn) -> None:
         create_backtest_account(conn, "acct_no_snap")
@@ -85,15 +84,15 @@ class TestBacktestValidationAndFailurePaths:
         run_id = int(cursor.lastrowid)
 
         with pytest.raises(ValueError, match="No snapshots found"):
-            report_service.fetch_report(conn, run_id=run_id).to_payload()
+            reporting.fetch_report(conn, run_id=run_id).to_payload()
 
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):
-            leaderboard_service.fetch_leaderboard(conn, limit=0)
+            reporting.fetch_leaderboard(conn, limit=0)
 
     def test_backtest_leaderboard_rejects_unknown_strategy_filter(self, conn) -> None:
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
-            leaderboard_service.fetch_leaderboard(conn, limit=5, strategy="mystery_strategy")
+            reporting.fetch_leaderboard(conn, limit=5, strategy="mystery_strategy")
 
     def test_backtest_leaderboard_reports_the_benchmark_frozen_on_each_run(
         self,
@@ -115,7 +114,7 @@ class TestBacktestValidationAndFailurePaths:
             provider=stub_market_data_provider(),
         )
 
-        leaderboard = leaderboard_service.fetch_leaderboard(conn, limit=5, account_name="acct_lb_bench")
+        leaderboard = reporting.fetch_leaderboard(conn, limit=5, account_name="acct_lb_bench")
 
         assert len(leaderboard) == 1
         entry = leaderboard[0]
@@ -138,7 +137,7 @@ class TestBacktestValidationAndFailurePaths:
         conn.execute("UPDATE backtest_runs SET benchmark_return_pct = NULL WHERE id = ?", (result.run_id,))
         conn.commit()
 
-        leaderboard = leaderboard_service.fetch_leaderboard(conn, limit=5, account_name="acct_lb_nobench")
+        leaderboard = reporting.fetch_leaderboard(conn, limit=5, account_name="acct_lb_nobench")
 
         assert len(leaderboard) == 1
         assert leaderboard[0].benchmark_return_pct is None

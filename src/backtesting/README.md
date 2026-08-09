@@ -41,28 +41,27 @@ need no provider.
 
 - `services/`: business flow, model mapping, orchestration. Import from the owning module; the
   package root re-exports nothing.
-  - `backtest_data_service.py`: reads a run's inputs from outside — its universe (as a
+  - `run_inputs.py`: reads a run's inputs from outside — its universe (as a
     `RunUniverse`) from ticker files, its bars and benchmark closes from the provider.
     `fetch_bar_history` is the only market-data read; the benchmark series is derived from it, so a
     run has one price path and one set of gap-filling rules. The date window is pure arithmetic and
     lives in `domain/windowing.py`.
-  - `simulation_service.py`: run one backtest — resolve scope, fetch bars, simulate, persist. Also
+  - `simulation.py`: run one backtest — resolve scope, fetch bars, simulate, persist. Also
     previews a run's warnings: preview and run resolve their scope through the same function, so
     they cannot disagree about what they warn on.
-  - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
-    frozen benchmark.
-  - `report_service.py`: report assembly into typed report models — the full report, the summary
-    alone for listings, and the run-header reads behind them. Needs no market-data provider — a
-    run's benchmark return is read from its row, frozen there when it executed.
-  - `walk_forward_optimizer_service.py`: the walk-forward search itself (grid → freeze-on-train →
+  - `reporting.py`: every operator-facing read over persisted runs — one run's full report or
+    summary, the run listings, and the leaderboard. Same three tables and same performance math
+    throughout. Needs no market-data provider: a run's benchmark return is read from its row,
+    frozen there when it executed.
+  - `walk_forward_optimizer.py`: the walk-forward search itself (grid → freeze-on-train →
     OOS → holdout). Persists nothing and touches no repository, so a benchmark harness can run a
     full sweep without writing an experiment.
-  - `optimization_experiment_service.py`: runs that search and writes what it found — the
+  - `optimization_experiment.py`: runs that search and writes what it found — the
     experiment row, its audit tree, and the frozen provenance manifest.
-  - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence as one pair,
+  - `evidence.py`: **the seam.** A strategy's backtest and walk-forward evidence as one pair,
     so evaluation never has to know how runs, holdouts, and experiments relate.
-  - `audit_service.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.
-  - `optimizer_aggregation_service.py`: not a seam — the OOS segments and compounded series the two
+  - `audit.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.
+  - `optimizer_aggregation.py`: not a seam — the OOS segments and compounded series the two
     seams above read. Derived on each read, never stored.
 
 - `domain/`: pure reusable backtesting logic.
@@ -87,7 +86,7 @@ need no provider.
 
 1. The application builds a market-data provider and hands it to `composition.py` to run a
    backtest; every other caller imports the owning service directly.
-2. `composition.py` binds that provider into `simulation_service.run_backtest`; each service
+2. `composition.py` binds that provider into `simulation.run_backtest`; each service
    reaches its own tables through `repositories/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
@@ -104,7 +103,7 @@ need no provider.
 
 ## Naming Convention
 
-- Repository modules live in `repositories/` and are named for the data area they own
-  (`runs`, `optimization`) — the same convention as `trading/repositories/`, with no `_repository` suffix.
-- Service modules end with `_service.py` and live in `services/`.
-- Domain helper modules live in `domain/` and use capability names (`metrics`, `windowing`, etc.).
+- Modules are named for what they own, with no layer suffix — the directory already says the
+  layer. `repositories/runs.py`, not `runs_repository.py`; `services/reporting.py`, not
+  `reporting_service.py`.
+- Domain helper modules use capability names (`metrics`, `windowing`, etc.).

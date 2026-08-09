@@ -4,7 +4,7 @@ from datetime import date
 
 import pandas as pd
 
-import backtesting.services.backtest_data_service as backtest_data_service
+import backtesting.services.run_inputs as backtest_data_service
 from backtesting.models import BacktestConfig, BacktestResult
 from backtesting.models.report import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade

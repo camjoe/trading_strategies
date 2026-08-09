@@ -2,9 +2,9 @@ import pandas as pd
 import pytest
 
 import backtesting.composition as composition
-import backtesting.services.backtest_data_service as backtest_data_service
-import backtesting.services.report_service as report_service
-import backtesting.services.simulation_service as simulation_service
+import backtesting.services.reporting as reporting
+import backtesting.services.run_inputs as backtest_data_service
+import backtesting.services.simulation as simulation
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
@@ -27,7 +27,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        warnings = simulation_service.preview_warnings(
+        warnings = simulation.preview_warnings(
             conn,
             make_backtest_config("acct_preview_leaps", slippage_bps=0.0),
         )
@@ -69,7 +69,7 @@ class TestBacktestWarnings:
             provider=stub_market_data_provider(),
         )
 
-        summary = report_service.fetch_report(conn, run_id=result.run_id).to_payload()
+        summary = reporting.fetch_report(conn, run_id=result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings

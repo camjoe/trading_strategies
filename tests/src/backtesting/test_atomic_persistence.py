@@ -1,7 +1,7 @@
 """Program A Phase 1: a completed backtest persists all-or-nothing.
 
 The run header, executions, and equity snapshots are wrapped in one
-``unit_of_work`` (see ``simulation_service.run_backtest``). A failure at any write
+``unit_of_work`` (see ``simulation.run_backtest``). A failure at any write
 boundary must roll the whole result tree back, so an interrupted run never leaves
 a header that looks complete but has no children.
 """
@@ -13,7 +13,7 @@ from collections.abc import Callable
 import pytest
 
 import backtesting.composition as composition
-import backtesting.services.simulation_service as simulation_service
+import backtesting.services.simulation as simulation
 from tests.support.backtesting import create_backtest_account, make_backtest_config, stub_market_data_provider
 
 
@@ -74,9 +74,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_header")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            simulation_service,
+            simulation,
             "insert_run",
-            _fail_on_nth_call(simulation_service.insert_run, nth=1),
+            _fail_on_nth_call(simulation.insert_run, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -92,9 +92,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_snap")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            simulation_service,
+            simulation,
             "insert_snapshot",
-            _fail_on_nth_call(simulation_service.insert_snapshot, nth=1),
+            _fail_on_nth_call(simulation.insert_snapshot, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -110,9 +110,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_trade")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            simulation_service,
+            simulation,
             "insert_trade",
-            _fail_on_nth_call(simulation_service.insert_trade, nth=1),
+            _fail_on_nth_call(simulation.insert_trade, nth=1),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):
@@ -128,9 +128,9 @@ class TestAtomicBacktestPersistence:
         create_backtest_account(conn, "acct_atomic_late")
         bt_market_data(["AAPL"])
         monkeypatch.setattr(
-            simulation_service,
+            simulation,
             "insert_snapshot",
-            _fail_on_nth_call(simulation_service.insert_snapshot, nth=5),
+            _fail_on_nth_call(simulation.insert_snapshot, nth=5),
         )
 
         with pytest.raises(RuntimeError, match="injected backtest write failure"):

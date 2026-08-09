@@ -12,7 +12,7 @@ from backtesting.models.optimizer import (
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
 )
-from backtesting.services.audit_service import (
+from backtesting.services.audit import (
     fetch_experiment_audit,
     fetch_recent_experiments,
 )

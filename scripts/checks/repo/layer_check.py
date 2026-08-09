@@ -90,12 +90,12 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("backtesting.repositories.",),
         # backtesting is a bounded context: anything reaching past its services
         # into its tables couples to a schema it does not own. Reads go through
-        # backtesting.services — evidence_service for strategy evidence,
-        # audit_service for experiment records.
+        # backtesting.services — evidence for strategy evidence,
+        # audit for experiment records.
         #
         # The glob covers all of src/trading/, not just services/: the CLI had
         # been assembling the experiment audit tree out of four repository reads,
-        # duplicating audit_service.fetch_experiment_audit, because an earlier
+        # duplicating audit.fetch_experiment_audit, because an earlier
         # services-only glob left interfaces/ unguarded.
         #
         # One crossing remains. optimizer_promotion.py orchestrates across both

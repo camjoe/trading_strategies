@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from backtesting.composition import run_backtest
-from backtesting.services.report_service import fetch_report
-from backtesting.services.simulation_service import preview_warnings
+from backtesting.services.reporting import fetch_report
+from backtesting.services.simulation import preview_warnings
 from infrastructure.market_data.factory import build_provider
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest

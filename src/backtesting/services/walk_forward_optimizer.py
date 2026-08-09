@@ -2,7 +2,7 @@
 
 Persists nothing and touches no repository. What it returns is an
 ``OptimizationSummary`` — a record of what the search found, which
-:mod:`backtesting.services.optimization_experiment_service` turns into rows.
+:mod:`backtesting.services.optimization_experiment` turns into rows.
 Keeping the two apart is what lets a benchmark harness run a full sweep without
 writing an experiment.
 """

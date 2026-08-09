@@ -7,8 +7,8 @@ from backtesting.models import (
     BacktestConfig,
     BacktestResult,
 )
-from backtesting.services.backtest_data_service import fetch_bar_history, fetch_benchmark_close
-from backtesting.services.simulation_service import run_backtest as run_backtest_impl
+from backtesting.services.run_inputs import fetch_bar_history, fetch_benchmark_close
+from backtesting.services.simulation import run_backtest as run_backtest_impl
 from trading.services.market_data import MarketDataProvider, build_feature_provider
 
 

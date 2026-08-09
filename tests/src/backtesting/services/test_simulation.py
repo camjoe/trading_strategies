@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-import backtesting.services.simulation_service as simulation_service
+import backtesting.services.simulation as simulation
 from backtesting.models import BacktestConfig, RunUniverse
 from tests.support.backtesting import bars_from_closes, make_backtest_config
 
@@ -73,7 +73,7 @@ def _patched_service(
 
     with ExitStack() as stack:
         for target, replacement in replacements.items():
-            stack.enter_context(patch.object(simulation_service, target, replacement))
+            stack.enter_context(patch.object(simulation, target, replacement))
         yield
 
 
@@ -81,7 +81,7 @@ def test_simulation_service_rejects_short_history() -> None:
     short_index = pd.date_range("2026-01-01", periods=2, freq="B")
 
     with pytest.raises(ValueError, match="Need at least 3 trading days"), _patched_service(tickers=["AAPL"]):
-        simulation_service.run_backtest(
+        simulation.run_backtest(
             conn=object(),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -96,7 +96,7 @@ def test_simulation_service_returns_result_for_hold_only_run() -> None:
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
     with _patched_service(tickers=["AAPL"], insert_run_fn=lambda *_args, **_kwargs: 77):
-        result = simulation_service.run_backtest(
+        result = simulation.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -130,7 +130,7 @@ def test_simulation_service_strategy_override_bypasses_active_strategy() -> None
         )[1],
         insert_run_fn=lambda _conn, *, strategy_name, **_kwargs: (resolved.append(f"fk:{strategy_name}"), 88)[1],
     ):
-        result = simulation_service.run_backtest(
+        result = simulation.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=cfg,
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -168,7 +168,7 @@ def _patched_run_backtest(
         choose_buy_qty_fn=choose_buy_qty_fn,
         insert_trade_fn=insert_trade_fn,
     ):
-        return simulation_service.run_backtest(
+        return simulation.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
@@ -269,7 +269,7 @@ def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx,
         patch_strategy=False,
         dates=(scoring_start, end),
     ):
-        return simulation_service.run_backtest(
+        return simulation.run_backtest(
             SimpleNamespace(commit=lambda: None),
             cfg,
             fetch_bar_history_fn=fetch_bars,
@@ -450,7 +450,7 @@ def _patched_run_backtest_with_frames(
         insert_trade_fn=insert_trade_fn,
         dates=(date(2026, 1, 1), date(2026, 1, 7)),
     ):
-        return simulation_service.run_backtest(
+        return simulation.run_backtest(
             conn=SimpleNamespace(commit=lambda: None, rollback=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
@@ -459,8 +459,8 @@ def _patched_run_backtest_with_frames(
 
 
 def test_tradeable_price_rejects_missing_and_non_positive_prices() -> None:
-    assert simulation_service._tradeable_price(10.5) == 10.5
-    assert simulation_service._tradeable_price(float("nan")) is None
-    assert simulation_service._tradeable_price(float("inf")) is None
-    assert simulation_service._tradeable_price(0.0) is None
-    assert simulation_service._tradeable_price(-1.0) is None
+    assert simulation._tradeable_price(10.5) == 10.5
+    assert simulation._tradeable_price(float("nan")) is None
+    assert simulation._tradeable_price(float("inf")) is None
+    assert simulation._tradeable_price(0.0) is None
+    assert simulation._tradeable_price(-1.0) is None

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backtesting.services.evidence_service import build_strategy_evidence
+from backtesting.services.evidence import build_strategy_evidence
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact

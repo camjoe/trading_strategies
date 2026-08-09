@@ -1,7 +1,7 @@
 """One experiment's persisted audit record, joined from this package's tables.
 
 One of the two seams the trading side reads (the other is
-:mod:`backtesting.services.evidence_service`).
+:mod:`backtesting.services.evidence`).
 
 ``fetch_recent_experiments`` forwards to the repository unchanged, and has to:
 ``layer_check`` bars ``src/trading/`` from this package's repositories, and its
@@ -23,7 +23,7 @@ from backtesting.models.optimizer import (
     OptimizationTrialRecord,
 )
 from backtesting.repositories import optimization
-from backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
+from backtesting.services.optimizer_aggregation import fetch_compounded_oos
 
 
 def fetch_recent_experiments(conn: sqlite3.Connection, *, limit: int) -> list[OptimizationExperimentRecord]:

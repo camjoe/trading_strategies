@@ -4,8 +4,8 @@ Nothing here is stored. Both shapes are derived on each read from the window row
 (revision ``0022``) and the ``backtest_runs`` OOS runs they link to, so neither
 can drift from the runs it summarizes.
 
-Not a seam itself: it serves the two that are, ``evidence_service`` wanting the
-per-window segments and ``audit_service`` the compounded series.
+Not a seam itself: it serves the two that are, ``evidence`` wanting the
+per-window segments and ``audit`` the compounded series.
 """
 
 from __future__ import annotations

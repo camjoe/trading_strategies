@@ -1,7 +1,7 @@
 """A strategy's research evidence, joined from this package's records.
 
 One of the two seams the trading side reads (the other is
-:mod:`backtesting.services.audit_service`).
+:mod:`backtesting.services.audit`).
 
 Returns ``trading.models.evaluation`` contracts rather than this package's own
 types: ``models/`` is the lowest layer, shared by both contexts, and the evidence
@@ -23,7 +23,7 @@ from backtesting.repositories.runs import (
     fetch_snapshots,
     fetch_trades,
 )
-from backtesting.services.optimizer_aggregation_service import fetch_oos_segments
+from backtesting.services.optimizer_aggregation import fetch_oos_segments
 from common.coercion import row_float, row_str
 from trading.domain.returns import safe_return_pct
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationWalkForwardEvidence

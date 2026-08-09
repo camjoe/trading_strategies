@@ -1,6 +1,6 @@
 """Persisting one walk-forward experiment: the record, its audit tree, its manifest.
 
-Runs the search in :mod:`backtesting.services.walk_forward_optimizer_service` and
+Runs the search in :mod:`backtesting.services.walk_forward_optimizer` and
 writes what it found to the four ``optimization_*`` tables. A failed sweep still
 gets a row, so the attempt is diagnosable rather than lost.
 """
@@ -30,8 +30,8 @@ from backtesting.repositories.optimization import (
     insert_trial,
     insert_window,
 )
-from backtesting.services.backtest_data_service import resolve_universe
-from backtesting.services.walk_forward_optimizer_service import (
+from backtesting.services.run_inputs import resolve_universe
+from backtesting.services.walk_forward_optimizer import (
     OptimizationRunError,
     RunFn,
     run_walk_forward_optimization,
