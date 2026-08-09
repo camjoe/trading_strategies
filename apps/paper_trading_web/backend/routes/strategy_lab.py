@@ -8,12 +8,12 @@ from fastapi import APIRouter, HTTPException, Query
 from backtesting.composition import run_backtest, run_backtest_metrics_only
 from backtesting.models.optimizer import (
     CompoundedOOSSeries,
+    ExperimentWindowAudit,
     OptimizationExperimentRecord,
     OptimizationManifestRecord,
     OptimizationTrialRecord,
     OptimizerConfig,
 )
-from backtesting.services.audit_service import ExperimentWindowAudit
 from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
 from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.domain.exceptions import NotFoundError

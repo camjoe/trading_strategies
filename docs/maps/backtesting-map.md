@@ -64,7 +64,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
 | `leaderboard_service.py` | Rank persisted runs for the leaderboard surface |
 | `evidence_service.py` | **Seam.** A strategy's backtest and walk-forward evidence, as `Evaluation*Evidence` records |
-| `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing |
+| `audit_service.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
 
 ## `repositories/`
 
@@ -84,7 +84,7 @@ holds the contracts for the tables `trading/repositories/` owns.
 | Module | Responsibility |
 |---|---|
 | `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
-| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs, plus OOS aggregation shapes |
+| `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs — plus the shapes derived from them on read: OOS aggregation and the `ExperimentAudit` tree |
 | `report.py` | Report, run-listing, and leaderboard shapes returned to operator surfaces |
 
 ## Related

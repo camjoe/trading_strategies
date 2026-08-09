@@ -65,7 +65,8 @@ need no provider.
     is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
 - `models/`: passive contracts, one module per area — `backtest.py` (a run's config and result),
-  `optimizer.py` (search config and everything an experiment persists), `report.py` (operator-facing
+  `optimizer.py` (search config, everything an experiment persists, and the audit/OOS shapes derived
+  from those rows on read), `report.py` (operator-facing
   report and leaderboard shapes). The package root re-exports the stable public types, mirroring
   `trading/models/`. `BacktestResult` and `OptimizationSummary` each expose
   `to_payload(*, display_name_fn=None) -> dict`; pass `display_name_fn` to remap account names for

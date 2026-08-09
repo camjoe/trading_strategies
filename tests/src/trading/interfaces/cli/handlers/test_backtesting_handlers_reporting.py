@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from backtesting.services.audit_service import ExperimentAudit, ExperimentWindowAudit
+from backtesting.models.optimizer import ExperimentAudit, ExperimentWindowAudit
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
 from tests.support.backtesting import make_backtest_full_report
 from trading.domain.promotion_gate import evaluate_promotion_gate
