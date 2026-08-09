@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from common.constants import TRADING_DAYS_PER_YEAR
+from common.constants import PERCENT_SCALE, TRADING_DAYS_PER_YEAR
 from trading.domain.indicators import calculate_rs_rsi
 from trading.domain.strategies.contracts import (
     INDICATOR_KIND_RETURN_VOL,
@@ -30,9 +30,6 @@ from trading.domain.strategies.contracts import (
     IndicatorSpec,
     StrategyParams,
 )
-
-# Percent scaling for the annualized volatility indicator.
-PERCENT_SCALE = 100.0
 
 
 def _compute(series: pd.Series, spec: IndicatorSpec, window: int) -> pd.Series:

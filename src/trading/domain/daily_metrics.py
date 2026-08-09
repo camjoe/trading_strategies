@@ -18,9 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from common.constants import ANNUALIZATION_FACTOR
-
-BASIS_POINTS = 10_000.0
+from common.constants import ANNUALIZATION_FACTOR, BASIS_POINTS_SCALE
 
 # Trailing window (in scored sessions, including the current day) the daily
 # risk-adjusted score is computed over — roughly one trading month.
@@ -157,4 +155,4 @@ def _average_slippage_bps(trades: list[DailyTrade]) -> float | None:
             total_fraction += (trade.avg_fill_price - requested) / requested
         else:
             total_fraction += (requested - trade.avg_fill_price) / requested
-    return total_fraction / len(priced) * BASIS_POINTS
+    return total_fraction / len(priced) * BASIS_POINTS_SCALE

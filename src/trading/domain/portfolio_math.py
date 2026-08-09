@@ -8,8 +8,7 @@ layer where both can reach them without an upward import.
 
 from __future__ import annotations
 
-# Fraction -> percent conversion for return/alpha outputs.
-_PERCENT_SCALE = 100.0
+from common.constants import PERCENT_SCALE
 
 
 def compute_market_value_and_unrealized(
@@ -31,7 +30,7 @@ def compute_market_value_and_unrealized(
 def strategy_return_pct(equity: float, initial_cash: float) -> float:
     if not initial_cash:
         raise ValueError(f"Cannot compute return %: initial_cash is 0 (equity={equity:.2f})")
-    return ((equity / initial_cash) - 1.0) * _PERCENT_SCALE
+    return ((equity / initial_cash) - 1.0) * PERCENT_SCALE
 
 
 def benchmark_available(benchmark_equity: float | None, benchmark_return_pct: float | None) -> bool:

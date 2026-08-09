@@ -8,10 +8,7 @@ import pandas as pd
 
 from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from common.coercion import row_float
-from common.constants import ANNUALIZATION_FACTOR, TRADING_DAYS_PER_YEAR
-
-# Scale factor for converting decimal returns into operator-facing percentage values.
-PERCENT_SCALE = 100.0
+from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
