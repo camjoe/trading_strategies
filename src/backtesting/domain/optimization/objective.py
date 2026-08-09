@@ -13,14 +13,10 @@ from trading.domain.exceptions import ValidationError
 # finite and rankable instead of dividing by ~0.
 CALMAR_V1_DRAWDOWN_FLOOR_PCT = 1.0
 
-# Eligibility gates applied before a candidate may be ranked. A candidate failing any
-# gate is recorded with a rejection reason and can never be selected.
-#
-# The trade floor is deliberately lower than the promotion gate's
-# MIN_RESEARCH_BACKTEST_TRADE_COUNT: this counts trades in a single *training window*,
-# while promotion counts them across a full backtest.
+# Deliberately lower than the promotion gate's MIN_RESEARCH_BACKTEST_TRADE_COUNT: this
+# counts trades in a single training window, while promotion counts them across a full
+# backtest.
 MIN_CANDIDATE_TRADES = 3
-# Reject candidates whose training drawdown breaches the shared risk floor.
 MAX_DRAWDOWN_ELIGIBILITY_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
 
 
@@ -32,8 +28,7 @@ def evaluate_candidate(
     max_drawdown_pct: float,
     trade_count: int,
 ) -> CandidateResult:
-    """Score one training-interval result and record eligibility. Scores are computed
-    only for eligible candidates; ineligible ones carry a structured rejection reason."""
+    """Score one training-interval result and record whether it is eligible at all."""
     rejection = _rejection_reason(annualized_return_pct, max_drawdown_pct, trade_count)
     score = (
         None
@@ -61,10 +56,8 @@ def _rejection_reason(
     max_drawdown_pct: float,
     trade_count: int,
 ) -> str | None:
-    # No positive-return gate on training: a candidate that lost money in a down regime
-    # is still selectable (best-of-field), and its OOS/holdout run is the honest judge.
-    # We only reject candidates we cannot rank fairly: too little activity, no computable
-    # return, or a training drawdown past the hard risk floor.
+    # There is deliberately no positive-return gate: a candidate that lost money in a
+    # down regime stays selectable (best-of-field), and its OOS/holdout run is the judge.
     if trade_count < MIN_CANDIDATE_TRADES:
         return f"too_few_trades ({trade_count} < {MIN_CANDIDATE_TRADES})"
     if annualized_return_pct is None:
@@ -75,9 +68,11 @@ def _rejection_reason(
 
 
 def select_winner(results: list[CandidateResult]) -> CandidateResult:
-    """Pick the best eligible candidate. Raises if none are eligible — the process
-    never selects a rejected candidate ("least-bad" is not a valid selection). The
-    error summarizes why each candidate was rejected so a failed window is diagnosable."""
+    """Pick the best eligible candidate, raising when none are.
+
+    "Least-bad" is not a valid selection, so a window with no eligible candidate fails
+    rather than promoting a rejected one.
+    """
     eligible = [result for result in results if result.eligible]
     if not eligible:
         tally = Counter((result.rejection_reason or "unknown").split(" (")[0] for result in results)
@@ -90,9 +85,8 @@ def select_winner(results: list[CandidateResult]) -> CandidateResult:
 
 
 def _rank_key(result: CandidateResult) -> tuple[float, float, float, int, int]:
-    # Deterministic ordering (lowest tuple wins): higher score, then higher annualized
-    # return, then lower absolute drawdown, then more trades, then canonical candidate
-    # index. Sign-flipped where "higher is better" so ``min`` selects the winner.
+    # Lowest tuple wins, so every "higher is better" field is sign-flipped. Ties break
+    # on the candidate index, which makes the ordering deterministic across runs.
     return (
         -(result.score or 0.0),
         -(result.annualized_return_pct or 0.0),

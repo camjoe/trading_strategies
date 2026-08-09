@@ -1,14 +1,7 @@
 """Compounded out-of-sample aggregation for a walk-forward optimization run.
 
-Beyond the per-window distribution, this assembles a single chronological OOS
-series across an experiment's non-overlapping windows. Each OOS window runs on an
-independently reset account, so window returns are **compounded** (geometrically
-linked), never summed on equity. A window whose OOS interval does not immediately
-follow the previous one — a ``step_months`` longer than ``test_months`` — is
-flagged so the discontinuity is visible rather than silently smoothed over.
-
-Pure domain math: no I/O. The service layer reads each window's OOS equity marks
-and hands the resulting segments here.
+Pure domain math: the service layer reads each window's OOS equity marks and hands
+the resulting segments here.
 """
 
 from __future__ import annotations
@@ -24,13 +17,10 @@ from backtesting.models.optimizer import (
 
 
 def compound_oos_returns(segments: list[OOSReturnSegment]) -> CompoundedOOSSeries:
-    """Compound non-overlapping per-window OOS returns into a chronological series.
+    """Compound per-window OOS returns into a single chronological series.
 
-    Returns are multiplied (compounded), never summed on equity, because each OOS
-    window is an independently reset account. A window whose interval does not abut
-    the previous one is flagged ``gap_before`` so the time gap is disclosed. The
-    segments are assumed already in chronological order (the repository returns
-    windows by ``window_index``).
+    Segments must already be in chronological order and must not overlap. A segment
+    whose interval does not abut the previous one is flagged ``gap_before``.
     """
     points: list[CompoundedOOSPoint] = []
     growth = 1.0
