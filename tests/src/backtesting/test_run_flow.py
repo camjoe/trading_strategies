@@ -203,8 +203,8 @@ class TestBacktestRunFlow:
         summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
-        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend")
-        assert any(row["run_id"] == result.run_id for row in filtered)
+        filtered = backtest_module.backtest_leaderboard_entries(conn, limit=10, strategy="trend")
+        assert any(entry.run_id == result.run_id for entry in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(
         self, conn, monkeypatch: pytest.MonkeyPatch, bt_market_data

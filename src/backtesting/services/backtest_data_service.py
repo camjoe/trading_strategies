@@ -47,19 +47,6 @@ def resolve_backtest_dates(
     return start_date, end_date
 
 
-def fetch_close_history(
-    tickers: list[str],
-    start_date: date,
-    end_date: date,
-    *,
-    provider: MarketDataProvider | None = None,
-) -> pd.DataFrame:
-    if not tickers:
-        raise ValidationError("At least one ticker is required for backtesting.")
-    provider = require_provider(provider)
-    return provider.fetch_close_history(tickers, start_date, end_date)
-
-
 def fetch_bar_history(
     tickers: list[str],
     start_date: date,

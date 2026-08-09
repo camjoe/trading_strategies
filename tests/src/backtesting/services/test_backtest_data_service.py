@@ -8,26 +8,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from backtesting.services import backtest_data_service as backtest_data
-from infrastructure.market_data import YFinanceProvider
 from trading.models.market_data import BAR_CLOSE
-
-
-def _business_days(periods: int) -> pd.DatetimeIndex:
-    return pd.date_range("2026-01-01", periods=periods, freq="B")
-
-
-def test_load_tickers_from_file_parses_and_deduplicates(tmp_path: Path) -> None:
-    p = tmp_path / "tickers.txt"
-    p.write_text("# comment\nAAPL, msft\n\nAAPL\nNVDA", encoding="utf-8")
-
-    out = backtest_data.load_tickers_from_file(str(p))
-
-    assert out == ["AAPL", "MSFT", "NVDA"]
-
-
-def test_load_tickers_from_file_missing_raises(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="Ticker file not found"):
-        backtest_data.load_tickers_from_file(str(tmp_path / "missing.txt"))
 
 
 def test_resolve_backtest_dates_conflict_raises() -> None:
@@ -149,30 +130,6 @@ def test_build_monthly_universe_empty_snapshot_falls_back_with_warning(tmp_path:
     assert month_to_tickers["2026-01"] == ["MSFT"]
     assert all_tickers == ["MSFT"]
     assert any("is empty; falling back to default universe" in warning for warning in warnings)
-
-
-def test_fetch_close_history_validates_empty_tickers() -> None:
-    with pytest.raises(ValueError, match="At least one ticker is required"):
-        backtest_data.fetch_close_history([], date(2026, 1, 1), date(2026, 2, 1))
-
-
-def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    idx = _business_days(3)
-    # MultiIndex frame without Close level for the requested multi-ticker path.
-    hist = pd.DataFrame(
-        {
-            ("Open", "AAPL"): [1.0, 1.0, 1.0],
-            ("Open", "MSFT"): [1.0, 1.0, 1.0],
-        },
-        index=idx,
-    )
-
-    monkeypatch.setattr("infrastructure.market_data.yfinance_provider.yf.download", lambda **_kwargs: hist)
-
-    with pytest.raises(ValueError, match="missing Close column"):
-        backtest_data.fetch_close_history(
-            ["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 31), provider=YFinanceProvider()
-        )
 
 
 def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPatch) -> None:

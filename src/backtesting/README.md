@@ -31,8 +31,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 - `services/`: business flow, model mapping, orchestration.
   - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
-    is the engine's read; `fetch_close_history` still serves the benchmark series and the proxy
-    feature provider.
+    is the engine's only market-data read — the benchmark series is derived from it, so a run has one
+    price path and one set of gap-filling rules.
   - `execution_service.py`: single-run backtest orchestration.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
     frozen benchmark.

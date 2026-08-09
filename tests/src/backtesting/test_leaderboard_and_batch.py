@@ -26,18 +26,13 @@ class TestBacktestLeaderboardAndBatch:
             make_backtest_config("acct_lb_mean", run_name="lb-mean"),
         )
 
-        leaderboard = backtest_module.backtest_leaderboard(conn, limit=10)
+        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=10)
         assert len(leaderboard) >= 2
-        assert leaderboard[0]["total_return_pct"] >= leaderboard[1]["total_return_pct"]
-        assert "max_drawdown_pct" in leaderboard[0]
-        assert "benchmark_return_pct" in leaderboard[0]
-        assert "alpha_pct" in leaderboard[0]
-        assert "sharpe_ratio" in leaderboard[0]
-        assert "profit_factor" in leaderboard[0]
+        assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="mean")
+        filtered = backtest_module.backtest_leaderboard_entries(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
-        assert filtered[0]["account_name"] == "acct_lb_mean"
+        assert filtered[0].account_name == "acct_lb_mean"
 
     def test_backtest_leaderboard_entries_returns_models(
         self,

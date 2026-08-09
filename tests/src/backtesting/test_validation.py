@@ -79,11 +79,11 @@ class TestBacktestValidationAndFailurePaths:
 
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):
-            backtest_module.backtest_leaderboard(conn, limit=0)
+            backtest_module.backtest_leaderboard_entries(conn, limit=0)
 
     def test_backtest_leaderboard_rejects_unknown_strategy_filter(self, conn) -> None:
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
-            backtest_module.backtest_leaderboard(conn, limit=5, strategy="mystery_strategy")
+            backtest_module.backtest_leaderboard_entries(conn, limit=5, strategy="mystery_strategy")
 
     def test_backtest_leaderboard_reports_the_benchmark_frozen_on_each_run(
         self,
@@ -104,13 +104,12 @@ class TestBacktestValidationAndFailurePaths:
             make_backtest_config("acct_lb_bench", run_name="lb-benchmark"),
         )
 
-        leaderboard = backtest_module.backtest_leaderboard(conn, limit=5, account_name="acct_lb_bench")
+        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_bench")
 
         assert len(leaderboard) == 1
-        assert leaderboard[0]["benchmark_return_pct"] == pytest.approx(result.benchmark_return_pct)
-        assert leaderboard[0]["alpha_pct"] == pytest.approx(
-            leaderboard[0]["total_return_pct"] - leaderboard[0]["benchmark_return_pct"]
-        )
+        entry = leaderboard[0]
+        assert entry.benchmark_return_pct == pytest.approx(result.benchmark_return_pct)
+        assert entry.alpha_pct == pytest.approx(entry.total_return_pct - entry.benchmark_return_pct)
 
     def test_backtest_leaderboard_reports_no_alpha_when_a_run_stored_no_benchmark(
         self,
@@ -127,11 +126,11 @@ class TestBacktestValidationAndFailurePaths:
         conn.execute("UPDATE backtest_runs SET benchmark_return_pct = NULL WHERE id = ?", (result.run_id,))
         conn.commit()
 
-        leaderboard = backtest_module.backtest_leaderboard(conn, limit=5, account_name="acct_lb_nobench")
+        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_nobench")
 
         assert len(leaderboard) == 1
-        assert leaderboard[0]["benchmark_return_pct"] is None
-        assert leaderboard[0]["alpha_pct"] is None
+        assert leaderboard[0].benchmark_return_pct is None
+        assert leaderboard[0].alpha_pct is None
 
     def test_run_backtest_batch_requires_non_empty_account_names(self, conn) -> None:
         with pytest.raises(ValueError, match="At least one account name is required"):

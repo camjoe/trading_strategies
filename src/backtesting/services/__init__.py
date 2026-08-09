@@ -4,8 +4,6 @@ from backtesting.services.backtest_data_service import (
     build_monthly_universe,
     fetch_bar_history,
     fetch_benchmark_close,
-    fetch_close_history,
-    load_tickers_from_file,
     resolve_backtest_dates,
 )
 from backtesting.services.evidence_service import (
@@ -24,8 +22,6 @@ __all__ = [
     "fetch_backtest_report_data",
     "fetch_bar_history",
     "fetch_benchmark_close",
-    "fetch_close_history",
-    "load_tickers_from_file",
     "resolve_backtest_dates",
     "run_backtest",
 ]

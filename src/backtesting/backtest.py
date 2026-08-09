@@ -21,10 +21,10 @@ from backtesting.services import (
     fetch_backtest_report_data,
     fetch_bar_history,
     fetch_benchmark_close,
-    load_tickers_from_file,
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
 )
+from common.tickers import load_tickers_from_file
 from infrastructure.market_data.factory import build_provider
 from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.domain.strategies.resolution import resolve_strategy
@@ -223,47 +223,6 @@ def _validated_strategy_filter(strategy: str | None) -> str | None:
     return strategy_name
 
 
-def backtest_leaderboard(
-    conn: sqlite3.Connection,
-    *,
-    limit: int = 10,
-    account_name: str | None = None,
-    strategy: str | None = None,
-) -> list[dict[str, object]]:
-    strategy_filter = _validated_strategy_filter(strategy)
-    rows: list[dict[str, object]] = []
-    for entry, starting_equity in _fetch_backtest_leaderboard_entries(
-        conn,
-        limit=limit,
-        account_name=account_name,
-        strategy=strategy_filter,
-    ):
-        row: dict[str, object] = {
-            "run_id": entry.run_id,
-            "run_name": entry.run_name,
-            "account_name": entry.account_name,
-            "strategy": entry.strategy,
-            "start_date": entry.start_date,
-            "end_date": entry.end_date,
-            "created_at": entry.created_at,
-            "trade_count": entry.trade_count,
-            "ending_equity": entry.ending_equity,
-            "total_return_pct": entry.total_return_pct,
-            "max_drawdown_pct": entry.max_drawdown_pct,
-            "benchmark_return_pct": entry.benchmark_return_pct,
-            "alpha_pct": entry.alpha_pct,
-            "sharpe_ratio": entry.sharpe_ratio,
-            "sortino_ratio": entry.sortino_ratio,
-            "calmar_ratio": entry.calmar_ratio,
-            "win_rate_pct": entry.win_rate_pct,
-            "profit_factor": entry.profit_factor,
-            "avg_trade_return_pct": entry.avg_trade_return_pct,
-        }
-        row["starting_equity"] = starting_equity
-        rows.append(row)
-    return rows
-
-
 def backtest_leaderboard_entries(
     conn: sqlite3.Connection,
     *,
@@ -271,31 +230,15 @@ def backtest_leaderboard_entries(
     account_name: str | None = None,
     strategy: str | None = None,
 ) -> list[BacktestLeaderboardEntry]:
-    strategy_filter = _validated_strategy_filter(strategy)
     return [
         entry
-        for entry, _starting_equity in _fetch_backtest_leaderboard_entries(
+        for entry, _starting_equity in fetch_backtest_leaderboard_entries(
             conn,
             limit=limit,
             account_name=account_name,
-            strategy=strategy_filter,
+            strategy=_validated_strategy_filter(strategy),
         )
     ]
-
-
-def _fetch_backtest_leaderboard_entries(
-    conn: sqlite3.Connection,
-    *,
-    limit: int,
-    account_name: str | None,
-    strategy: str | None,
-) -> list[tuple[BacktestLeaderboardEntry, float]]:
-    return fetch_backtest_leaderboard_entries(
-        conn,
-        limit=limit,
-        account_name=account_name,
-        strategy=strategy,
-    )
 
 
 def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> list[BacktestResult]:
