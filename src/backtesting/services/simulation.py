@@ -92,10 +92,12 @@ def _resolve_run_scope(conn: sqlite3.Connection, cfg: BacktestConfig) -> _RunSco
 
 
 def preview_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
-    """The warnings a run under this config would raise, without running it.
+    """The config and universe warnings a run under this config would raise.
 
-    The run resolves its scope through the same function, so the two cannot
-    disagree about what they warn on.
+    The run resolves its scope through the same function, so these cannot
+    disagree. Not the whole set the run reports: warnings that need market data
+    to determine — an alternative strategy's feature-provider degradation — are
+    raised in ``_resolve_run_inputs`` and cannot be known without fetching.
     """
     return _resolve_run_scope(conn, cfg).warnings
 

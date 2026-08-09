@@ -38,7 +38,7 @@ from backtesting.repositories.runs import (
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.domain.exceptions import NotFoundError
-from trading.domain.strategies.resolution import resolve_strategy
+from trading.domain.strategies.resolution import validate_strategy_name
 
 
 def _require_run_parts(
@@ -164,18 +164,19 @@ def fetch_recent_runs(conn, *, limit: int) -> list[BacktestRunSummary]:
 
 
 def _validated_strategy_filter(strategy: str | None) -> str | None:
-    """The filter's canonical strategy name, or None for "no filter".
+    """The filter's canonical strategy key, or None for "no filter".
 
-    Resolving rejects an unknown name rather than returning an empty board, which
-    reads the same as "this strategy has no runs".
+    Runs store a strategies FK, so the board matches on the canonical key: an
+    alias or display name has to resolve to it here or it would match no row and
+    return an empty board, which reads the same as "this strategy has no runs".
+    An unknown name raises instead.
     """
     if strategy is None:
         return None
     strategy_name = strategy.strip()
     if not strategy_name:
         return None
-    resolve_strategy(strategy_name)
-    return strategy_name
+    return validate_strategy_name(strategy_name)
 
 
 def fetch_leaderboard(

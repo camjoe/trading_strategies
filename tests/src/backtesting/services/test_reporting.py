@@ -283,6 +283,19 @@ def test_leaderboard_filters_by_account_and_strategy(conn) -> None:
     assert [e.strategy for e in _entries(conn, strategy="mean_reversion")] == ["mean_reversion_v1"]
 
 
+def test_leaderboard_filter_resolves_an_alias_to_the_canonical_key(conn) -> None:
+    """An alias has to reach the runs it names.
+
+    Runs store the canonical strategy key, so a filter passed straight through
+    matches nothing and returns an empty board — which reads identically to "this
+    strategy has no runs" rather than "you used an alias".
+    """
+    seed_backtest_run(conn, account_name="acct_alias", strategy_name="trend")
+
+    assert [e.strategy for e in _entries(conn, strategy="momentum")] == ["trend"]
+    assert [e.strategy for e in _entries(conn, strategy="trend_v1")] == ["trend"]
+
+
 def test_leaderboard_skips_a_run_with_no_equity_snapshots(conn) -> None:
     """Starting equity comes from a subquery over the run's snapshots — no rows, no ranking.
 

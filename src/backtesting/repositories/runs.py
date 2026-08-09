@@ -239,6 +239,12 @@ def fetch_leaderboard_rows(
 
     Runs without usable equity bounds are dropped before the limit, so a full
     board is returned whenever that many rankable runs exist.
+
+    *strategy* is a substring match, which is what reaches a base strategy's
+    promoted variants (filtering ``trend`` finds ``trend_v1`` runs) — variant keys
+    are operator-chosen and not in the code registry. The cost is that it also
+    matches unrelated keys containing the filter: ``trend`` returns
+    ``pullback_trend`` and ``volatility_filtered_trend`` runs too.
     """
     rows = conn.execute(
         """
