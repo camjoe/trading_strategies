@@ -41,9 +41,8 @@ from backtesting.repositories.optimization import (
     insert_trial,
     insert_window,
 )
-from backtesting.services.backtest_data_service import build_monthly_universe, resolve_backtest_dates
+from backtesting.services.backtest_data_service import resolve_backtest_dates, resolve_universe
 from common.git import git_head_revision
-from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.strategies.resolution import resolve_strategy
@@ -433,11 +432,16 @@ def _persist_manifest(
         "max_trades_per_run": book.max_trades_per_run if book is not None else None,
     }
 
-    default_tickers = load_tickers_from_file(cfg.tickers_file)
-    _month_to_tickers, all_tickers, _warnings = build_monthly_universe(
-        default_tickers, start_date, end_date, cfg.universe_history_dir
+    universe = sorted(
+        set(
+            resolve_universe(
+                tickers_file=cfg.tickers_file,
+                universe_history_dir=cfg.universe_history_dir,
+                start_date=start_date,
+                end_date=end_date,
+            ).all_tickers
+        )
     )
-    universe = sorted(set(all_tickers))
 
     insert_manifest(
         conn,

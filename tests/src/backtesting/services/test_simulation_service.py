@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 import backtesting.services.simulation_service as simulation_service
-from backtesting.models import BacktestConfig
+from backtesting.models import BacktestConfig, RunUniverse
 from tests.support.backtesting import bars_from_closes, make_backtest_config
 
 # The service resolves its account through ``get_account``, which returns a typed
@@ -51,7 +51,12 @@ def _patched_service(
         "get_account": lambda _conn, _name: _ACCOUNT,
         "get_default_book": lambda _conn, *, account_id: None,
         "resolve_backtest_dates": lambda _start, _end, _lookback: dates,
-        "resolve_universe": lambda _cfg, _start, _end: (tickers, {"2026-01": tickers}, tickers, []),
+        "resolve_universe": lambda **_kwargs: RunUniverse(
+            default_tickers=tickers,
+            month_to_tickers={"2026-01": tickers},
+            all_tickers=tickers,
+            warnings=[],
+        ),
         "active_strategy_for_account": active_strategy_fn or (lambda _conn, _account_id: "trend"),
         "insert_run": insert_run_fn or (lambda *_args, **_kwargs: 1),
         "insert_snapshot": lambda *_args, **_kwargs: None,

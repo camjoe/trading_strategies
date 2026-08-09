@@ -63,7 +63,7 @@ def test_resolve_backtest_dates_lookback_property(as_of: date, lookback_months: 
 
 
 def test_build_monthly_universe_without_history_dir() -> None:
-    month_to_tickers, all_tickers, warnings = backtest_data.build_monthly_universe(
+    month_to_tickers, all_tickers, warnings = backtest_data._build_monthly_universe(
         default_tickers=["AAPL", "MSFT"],
         start_date=date(2026, 1, 15),
         end_date=date(2026, 3, 15),
@@ -80,7 +80,7 @@ def test_build_monthly_universe_with_missing_month_file_warns(tmp_path: Path) ->
     hist_dir.mkdir(parents=True)
     (hist_dir / "2026-01.txt").write_text("AAPL\n", encoding="utf-8")
 
-    month_to_tickers, all_tickers, warnings = backtest_data.build_monthly_universe(
+    month_to_tickers, all_tickers, warnings = backtest_data._build_monthly_universe(
         default_tickers=["MSFT"],
         start_date=date(2026, 1, 1),
         end_date=date(2026, 2, 15),
@@ -95,7 +95,7 @@ def test_build_monthly_universe_with_missing_month_file_warns(tmp_path: Path) ->
 
 def test_build_monthly_universe_rejects_empty_default_universe() -> None:
     with pytest.raises(ValueError, match="Default ticker universe is empty"):
-        backtest_data.build_monthly_universe(
+        backtest_data._build_monthly_universe(
             default_tickers=[],
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 31),
@@ -107,7 +107,7 @@ def test_build_monthly_universe_rejects_invalid_history_dir(tmp_path: Path) -> N
     missing = tmp_path / "does_not_exist"
 
     with pytest.raises(ValueError, match="Universe history directory not found"):
-        backtest_data.build_monthly_universe(
+        backtest_data._build_monthly_universe(
             default_tickers=["AAPL"],
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 31),
@@ -120,7 +120,7 @@ def test_build_monthly_universe_empty_snapshot_falls_back_with_warning(tmp_path:
     hist_dir.mkdir(parents=True)
     (hist_dir / "2026-01.txt").write_text("", encoding="utf-8")
 
-    month_to_tickers, all_tickers, warnings = backtest_data.build_monthly_universe(
+    month_to_tickers, all_tickers, warnings = backtest_data._build_monthly_universe(
         default_tickers=["MSFT"],
         start_date=date(2026, 1, 1),
         end_date=date(2026, 1, 31),

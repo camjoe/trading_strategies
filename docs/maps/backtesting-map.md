@@ -58,7 +58,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | Module | Responsibility |
 |---|---|
 | `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews the warnings a run would raise |
-| `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
+| `backtest_data_service.py` | Resolve a run's inputs before it simulates: date window, universe (`RunUniverse`), bar history, and benchmark closes |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |
 | `report_service.py` | Assemble a backtest report — full, or summary-only for listings; benchmark and alpha come from the run row, so the read needs no market data |
@@ -83,7 +83,7 @@ holds the contracts for the tables `trading/repositories/` owns.
 
 | Module | Responsibility |
 |---|---|
-| `backtest.py` | A run's config and result (`BacktestConfig`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
+| `backtest.py` | A run's config, resolved universe, and result (`BacktestConfig`, `RunUniverse`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
 | `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs — plus the shapes derived from them on read: OOS aggregation and the `ExperimentAudit` tree |
 | `report.py` | Report, run-listing, and leaderboard shapes returned to operator surfaces |
 

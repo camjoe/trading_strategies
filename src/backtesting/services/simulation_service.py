@@ -58,8 +58,13 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
 
     warnings = _warnings_for_config(default_book, cfg.allow_approximate_leaps)
-    *_universe, universe_warnings = resolve_universe(cfg, start_date, end_date)
-    warnings.extend(universe_warnings)
+    universe = resolve_universe(
+        tickers_file=cfg.tickers_file,
+        universe_history_dir=cfg.universe_history_dir,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    warnings.extend(universe.warnings)
     return warnings
 
 
@@ -472,12 +477,18 @@ def _resolve_run_inputs(
     warmup_months = cfg.warmup_months or 0
     data_start_date = shift_months(start_date, -warmup_months) if warmup_months > 0 else start_date
 
-    default_tickers, month_to_tickers, all_tickers, universe_warnings = resolve_universe(
-        cfg,
-        start_date,
-        end_date,
+    universe = resolve_universe(
+        tickers_file=cfg.tickers_file,
+        universe_history_dir=cfg.universe_history_dir,
+        start_date=start_date,
+        end_date=end_date,
     )
-    warnings.extend(universe_warnings)
+    default_tickers, month_to_tickers, all_tickers = (
+        universe.default_tickers,
+        universe.month_to_tickers,
+        universe.all_tickers,
+    )
+    warnings.extend(universe.warnings)
 
     # Bars, not closes: the panel keeps each ticker's full range available for
     # indicators, while `close` stays the endpoint view the simulation prices at.

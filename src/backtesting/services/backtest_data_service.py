@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtesting.models import BacktestConfig
+from backtesting.models import RunUniverse
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 from trading.models.market_data import BAR_CLOSE
@@ -71,11 +71,9 @@ def fetch_benchmark_close(
 ) -> pd.Series:
     """The benchmark's closing prices over the span.
 
-    Reads bars rather than the close-only endpoint so a backtest has exactly one
-    market-data path, with one set of gap-filling rules. Two paths over the same
-    prices means two cache entries, two downloads, and two chances to disagree
-    about which days exist — the hazard that ruled out keeping a close frame
-    alongside a separate bar lookup in the first place.
+    Derived from the bar history rather than the close-only endpoint, so a run has
+    one price path and one set of gap-filling rules. Two paths would mean two cache
+    entries that can disagree about which days exist.
     """
     frames = fetch_bar_history([benchmark_ticker], start_date, end_date, provider=provider)
     series = frames[benchmark_ticker][BAR_CLOSE].dropna()
@@ -98,7 +96,7 @@ def _iter_month_keys(start_date: date, end_date: date) -> list[str]:
     return keys
 
 
-def build_monthly_universe(
+def _build_monthly_universe(
     default_tickers: list[str],
     start_date: date,
     end_date: date,
@@ -143,23 +141,33 @@ def build_monthly_universe(
 
 
 def resolve_universe(
-    cfg: BacktestConfig,
+    *,
+    tickers_file: str,
+    universe_history_dir: str | None,
     start_date: date,
     end_date: date,
-) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
-    """The run's universe: default tickers, the per-month membership, every ticker
-    the run may touch, and any warnings raised while resolving them."""
-    default_tickers = load_tickers_from_file(cfg.tickers_file)
-    month_to_tickers, all_tickers, warnings = build_monthly_universe(
+) -> RunUniverse:
+    """The run's universe, and any warnings raised resolving it.
+
+    Takes the two settings rather than a config object, so the backtest and
+    optimizer configs can both reach it.
+    """
+    default_tickers = load_tickers_from_file(tickers_file)
+    month_to_tickers, all_tickers, warnings = _build_monthly_universe(
         default_tickers,
         start_date,
         end_date,
-        cfg.universe_history_dir,
+        universe_history_dir,
     )
 
-    if cfg.universe_history_dir:
+    if universe_history_dir:
         warnings.append(
             "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
         )
 
-    return default_tickers, month_to_tickers, all_tickers, warnings
+    return RunUniverse(
+        default_tickers=default_tickers,
+        month_to_tickers=month_to_tickers,
+        all_tickers=all_tickers,
+        warnings=warnings,
+    )

@@ -41,9 +41,10 @@ need no provider.
 
 - `services/`: business flow, model mapping, orchestration. Import from the owning module; the
   package root re-exports nothing.
-  - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
-    is the engine's only market-data read — the benchmark series is derived from it, so a run has one
-    price path and one set of gap-filling rules.
+  - `backtest_data_service.py`: everything a run needs resolved before it can simulate — its date
+    window, its universe (as a `RunUniverse`), and its bars. `fetch_bar_history` is the only
+    market-data read; the benchmark series is derived from it, so a run has one price path and one
+    set of gap-filling rules.
   - `simulation_service.py`: run one backtest — resolve inputs, simulate the bars, persist the run.
     Also previews the warnings a run would raise, sharing the resolution the run itself uses.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
