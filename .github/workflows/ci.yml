@@ -96,9 +96,6 @@ jobs:
       - name: Install Python dependencies and quality tools
         run: uv pip install --system -r requirements-dev.txt
 
-      - name: Run repository quality gates
-        run: python -m scripts.run_checks repo
-
       - name: Run Python lint, type, and test gates
         run: python -m scripts.run_checks python
 
@@ -147,9 +144,13 @@ jobs:
           name: frontend-coverage
           path: apps/paper_trading_web/frontend/coverage
 
-  docs-enforcement:
+  static-checks:
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.docs_enforcement_related == 'true'
+    if: >-
+      github.event_name != 'pull_request'
+      || needs.changes.outputs.python_related == 'true'
+      || needs.changes.outputs.frontend_related == 'true'
+      || needs.changes.outputs.docs_enforcement_related == 'true'
     runs-on: ubuntu-latest
 
     steps:

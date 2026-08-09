@@ -62,8 +62,8 @@ jobs:
       - name: Install pip-audit
         run: uv pip install --system pip-audit
 
-      - name: Run pip-audit for base dependencies
-        run: pip-audit -r requirements-base.txt
+      - name: Run pip-audit for base and dev dependencies
+        run: pip-audit -r requirements-dev.txt
 
   frontend-audit:
     needs: changes
