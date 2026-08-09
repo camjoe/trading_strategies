@@ -14,7 +14,7 @@ from backtesting.models.optimizer import (
     OptimizationTrialRecord,
     OptimizerConfig,
 )
-from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.services.optimization_experiment_service import run_and_persist_optimization
 from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.domain.exceptions import NotFoundError
 from trading.services.strategy_catalog.mutations import (

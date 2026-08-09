@@ -11,10 +11,8 @@ from backtesting.models import BacktestBatchConfig, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit_service import fetch_experiment_audit
 from backtesting.services.leaderboard_service import fetch_leaderboard
+from backtesting.services.optimization_experiment_service import run_and_persist_optimization
 from backtesting.services.report_service import fetch_report
-from backtesting.services.walk_forward_optimizer_service import (
-    run_and_persist_optimization,
-)
 from infrastructure.database.config import get_db_path
 from infrastructure.database.connection import db_session
 from infrastructure.market_data.factory import build_provider, resolve_provider_name

@@ -54,7 +54,11 @@ need no provider.
   - `report_service.py`: report assembly into typed report models — the full report, the summary
     alone for listings, and the run-header reads behind them. Needs no market-data provider — a
     run's benchmark return is read from its row, frozen there when it executed.
-  - `walk_forward_optimizer_service.py`: walk-forward optimization orchestration (grid → freeze-on-train → OOS/holdout) and Tier-1 experiment persistence.
+  - `walk_forward_optimizer_service.py`: the walk-forward search itself (grid → freeze-on-train →
+    OOS → holdout). Persists nothing and touches no repository, so a benchmark harness can run a
+    full sweep without writing an experiment.
+  - `optimization_experiment_service.py`: runs that search and writes what it found — the
+    experiment row, its audit tree, and the frozen provenance manifest.
   - `evidence_service.py`: **the seam.** A strategy's backtest and walk-forward evidence as one pair,
     so evaluation never has to know how runs, holdouts, and experiments relate.
   - `audit_service.py`: **the seam.** One experiment's audit record, plus the recent-experiments list.

@@ -30,7 +30,7 @@ from backtesting.repositories.optimization import (
     insert_experiment,
 )
 from backtesting.repositories.runs import insert_run
-from backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.services.optimization_experiment_service import run_and_persist_optimization
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
