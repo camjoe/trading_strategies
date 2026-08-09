@@ -1,9 +1,9 @@
 import pandas as pd
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
 import backtesting.services.backtest_data_service as backtest_data_service
-import backtesting.services.execution_service as execution_service
+import backtesting.services.simulation_service as simulation_service
 from tests.support.backtesting import (
     bars_from_closes,
     create_backtest_account,
@@ -25,7 +25,7 @@ class TestBacktestWarnings:
             option_type="call",
         )
 
-        warnings = execution_service.preview_backtest_warnings(
+        warnings = simulation_service.preview_backtest_warnings(
             conn,
             make_backtest_config("acct_preview_leaps", slippage_bps=0.0),
         )
@@ -48,12 +48,12 @@ class TestBacktestWarnings:
 
         monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            composition,
             "fetch_bar_history",
             lambda _tickers, _start, _end, **_kwargs: bars_from_closes(make_fake_close_history(_tickers)),
         )
         monkeypatch.setattr(
-            backtest_module,
+            composition,
             "fetch_benchmark_close",
             lambda _ticker, _start, _end, **_kwargs: pd.Series(
                 [100.0, 102.0],
@@ -61,12 +61,12 @@ class TestBacktestWarnings:
             ),
         )
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_warn", run_name="warn-report"),
         )
 
-        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
+        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings

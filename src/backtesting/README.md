@@ -16,8 +16,13 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Entry Points
 
-- `backtest.py`: supported internal package entrypoint.
-  - Orchestrates calls into service and repository layers.
+There is no single entrypoint. `composition.py` is the **composition root**: it builds the concrete
+market-data and feature providers and binds them into a run, which is why it holds `layer_check`'s
+only exemption from the no-adapter-imports rule.
+
+Go through `composition.py` when you need a provider wired — running a backtest or a batch. Import
+the rest from the service that owns it: reports, leaderboards, evidence, audits, and the optimizer
+all read persisted rows and need no provider.
 
 ## Layers
 
@@ -33,7 +38,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `backtest_data_service.py`: date resolution and market/universe data composition. `fetch_bar_history`
     is the engine's only market-data read — the benchmark series is derived from it, so a run has one
     price path and one set of gap-filling rules.
-  - `execution_service.py`: single-run backtest orchestration.
+  - `simulation_service.py`: run one backtest — resolve inputs, simulate the bars, persist the run.
+    Also previews the warnings a run would raise, sharing the resolution the run itself uses.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping, over the same
     frozen benchmark.
   - `report_service.py`: full report assembly into typed report models. Needs no market-data
@@ -61,8 +67,9 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Hook-Up Flow
 
-1. Caller invokes the supported function in `backtest.py`.
-2. `backtest.py` wires the market-data and feature providers, then delegates to `services/`;
+1. A caller needing a provider goes through `composition.py`; every other caller imports the
+   owning service directly.
+2. `composition.py` builds the providers and binds them into `simulation_service.run_backtest`;
    each service reaches its own tables through `repositories/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Strategy signal dispatch uses `trading.domain.strategies` (e.g. `resolution.resolve_strategy`);
@@ -73,7 +80,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 ## Workflows
 
-1. Start from `backtest.py` when tracing end-to-end execution.
+1. Start from `composition.py` when tracing a run end to end; start from the service when tracing a read.
 2. Place SQL-only logic in `repositories/` and orchestration in `services/`.
 3. Keep pure calculations in `domain/` and avoid persistence or transport concerns there.
 

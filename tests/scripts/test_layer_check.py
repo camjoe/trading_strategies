@@ -162,7 +162,7 @@ def test_trading_must_not_import_market_data_adapter(tmp_path: Path) -> None:
 def test_backtest_seam_may_import_market_data_adapter(tmp_path: Path) -> None:
     seam = tmp_path / "src" / "backtesting"
     seam.mkdir(parents=True)
-    _write_py(seam, "backtest.py", "from infrastructure.market_data.factory import build_provider\n")
+    _write_py(seam, "composition.py", "from infrastructure.market_data.factory import build_provider\n")
 
     violations = check_rule(tmp_path, _market_data_rule("src/backtesting/**/*.py"))
     assert violations == []

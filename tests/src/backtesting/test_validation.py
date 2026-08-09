@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
 import backtesting.services.backtest_data_service as backtest_data_service
 from tests.support.backtesting import bars_from_closes, create_backtest_account, make_backtest_config
 from tests.support.strategies import ensure_strategy_id_for_label
@@ -26,7 +26,7 @@ class TestBacktestValidationAndFailurePaths:
         bt_market_data(["AAPL"], [100.0, 101.0])
 
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
-            backtest_module.run_backtest(conn, make_backtest_config("acct_invalid_strategy"))
+            composition.run_backtest(conn, make_backtest_config("acct_invalid_strategy"))
 
     def test_run_backtest_rejects_too_short_close_history(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_backtest_account(conn, "acct_short")
@@ -34,7 +34,7 @@ class TestBacktestValidationAndFailurePaths:
         short_idx = pd.date_range("2026-01-01", periods=2, freq="B")
         monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
-            backtest_module,
+            composition,
             "fetch_bar_history",
             lambda _tickers, _start, _end, **_kwargs: bars_from_closes(
                 pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_idx)
@@ -42,11 +42,11 @@ class TestBacktestValidationAndFailurePaths:
         )
 
         with pytest.raises(ValueError, match="Need at least 3 trading days"):
-            backtest_module.run_backtest(conn, make_backtest_config("acct_short"))
+            composition.run_backtest(conn, make_backtest_config("acct_short"))
 
     def test_backtest_report_missing_run_raises(self, conn) -> None:
         with pytest.raises(ValueError, match="Backtest run id 9999 not found"):
-            backtest_module.backtest_report_full(conn, 9999).to_payload()
+            composition.backtest_report_full(conn, 9999).to_payload()
 
     def test_backtest_report_raises_when_snapshots_missing(self, conn) -> None:
         create_backtest_account(conn, "acct_no_snap")
@@ -76,15 +76,15 @@ class TestBacktestValidationAndFailurePaths:
         run_id = int(cursor.lastrowid)
 
         with pytest.raises(ValueError, match="No snapshots found"):
-            backtest_module.backtest_report_full(conn, run_id).to_payload()
+            composition.backtest_report_full(conn, run_id).to_payload()
 
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):
-            backtest_module.backtest_leaderboard_entries(conn, limit=0)
+            composition.backtest_leaderboard_entries(conn, limit=0)
 
     def test_backtest_leaderboard_rejects_unknown_strategy_filter(self, conn) -> None:
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
-            backtest_module.backtest_leaderboard_entries(conn, limit=5, strategy="mystery_strategy")
+            composition.backtest_leaderboard_entries(conn, limit=5, strategy="mystery_strategy")
 
     def test_backtest_leaderboard_reports_the_benchmark_frozen_on_each_run(
         self,
@@ -100,12 +100,12 @@ class TestBacktestValidationAndFailurePaths:
         create_backtest_account(conn, "acct_lb_bench")
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_bench", run_name="lb-benchmark"),
         )
 
-        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_bench")
+        leaderboard = composition.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_bench")
 
         assert len(leaderboard) == 1
         entry = leaderboard[0]
@@ -120,14 +120,14 @@ class TestBacktestValidationAndFailurePaths:
         create_backtest_account(conn, "acct_lb_nobench")
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_nobench", run_name="lb-no-benchmark"),
         )
         conn.execute("UPDATE backtest_runs SET benchmark_return_pct = NULL WHERE id = ?", (result.run_id,))
         conn.commit()
 
-        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_nobench")
+        leaderboard = composition.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_nobench")
 
         assert len(leaderboard) == 1
         assert leaderboard[0].benchmark_return_pct is None
@@ -135,9 +135,9 @@ class TestBacktestValidationAndFailurePaths:
 
     def test_run_backtest_batch_requires_non_empty_account_names(self, conn) -> None:
         with pytest.raises(ValueError, match="At least one account name is required"):
-            backtest_module.run_backtest_batch(
+            composition.run_backtest_batch(
                 conn,
-                backtest_module.BacktestBatchConfig(
+                composition.BacktestBatchConfig(
                     account_names=["  ", ""],
                     tickers_file="src/infrastructure/config/trade_universes/default.txt",
                     universe_history_dir=None,

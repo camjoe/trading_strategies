@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import backtesting.services.report_service as report_service
-from backtesting.backtest import run_backtest
+from backtesting.composition import run_backtest
 from backtesting.models.report import BacktestFullReport
 from tests.support.backtesting import create_backtest_account, make_backtest_config, seed_backtest_run
 

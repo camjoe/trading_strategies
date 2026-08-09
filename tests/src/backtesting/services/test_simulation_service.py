@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-import backtesting.services.execution_service as execution_service
+import backtesting.services.simulation_service as simulation_service
 from backtesting.models import BacktestConfig
 from tests.support.backtesting import bars_from_closes, make_backtest_config
 
@@ -68,15 +68,15 @@ def _patched_service(
 
     with ExitStack() as stack:
         for target, replacement in replacements.items():
-            stack.enter_context(patch.object(execution_service, target, replacement))
+            stack.enter_context(patch.object(simulation_service, target, replacement))
         yield
 
 
-def test_execution_service_rejects_short_history() -> None:
+def test_simulation_service_rejects_short_history() -> None:
     short_index = pd.date_range("2026-01-01", periods=2, freq="B")
 
     with pytest.raises(ValueError, match="Need at least 3 trading days"), _patched_service(tickers=["AAPL"]):
-        execution_service.run_backtest(
+        simulation_service.run_backtest(
             conn=object(),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -87,11 +87,11 @@ def test_execution_service_rejects_short_history() -> None:
         )
 
 
-def test_execution_service_returns_result_for_hold_only_run() -> None:
+def test_simulation_service_returns_result_for_hold_only_run() -> None:
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
     with _patched_service(tickers=["AAPL"], insert_run_fn=lambda *_args, **_kwargs: 77):
-        result = execution_service.run_backtest(
+        result = simulation_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -107,7 +107,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
     assert result.win_rate_pct is None
 
 
-def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
+def test_simulation_service_strategy_override_bypasses_active_strategy() -> None:
     cfg = _base_cfg()
     cfg.strategy = "  meanrev  "  # whitespace-trimmed override
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
@@ -125,7 +125,7 @@ def test_execution_service_strategy_override_bypasses_active_strategy() -> None:
         )[1],
         insert_run_fn=lambda _conn, *, strategy_name, **_kwargs: (resolved.append(f"fk:{strategy_name}"), 88)[1],
     ):
-        result = execution_service.run_backtest(
+        result = simulation_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=cfg,
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(
@@ -163,7 +163,7 @@ def _patched_run_backtest(
         choose_buy_qty_fn=choose_buy_qty_fn,
         insert_trade_fn=insert_trade_fn,
     ):
-        return execution_service.run_backtest(
+        return simulation_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: bars_from_closes(pd.DataFrame(close_data, index=idx)),
@@ -171,7 +171,7 @@ def _patched_run_backtest(
         )
 
 
-def test_execution_service_buy_skip_when_price_is_zero() -> None:
+def test_simulation_service_buy_skip_when_price_is_zero() -> None:
     """Buy signal is ignored when trade price is zero (line 135)."""
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
     result = _patched_run_backtest(
@@ -182,7 +182,7 @@ def test_execution_service_buy_skip_when_price_is_zero() -> None:
     assert result.trade_count == 0
 
 
-def test_execution_service_buy_skip_when_qty_less_than_one() -> None:
+def test_simulation_service_buy_skip_when_qty_less_than_one() -> None:
     """Buy signal is ignored when choose_buy_qty returns zero (line 151).
 
     Also exercises _row_optional_float with a missing key (lines 29-31), since
@@ -198,7 +198,7 @@ def test_execution_service_buy_skip_when_qty_less_than_one() -> None:
     assert result.trade_count == 0
 
 
-def test_execution_service_buy_is_scaled_down_when_required_exceeds_cash() -> None:
+def test_simulation_service_buy_is_scaled_down_when_required_exceeds_cash() -> None:
     """A request larger than cash is funded down to what cash affords, not dropped.
 
     Cash-constrained buys are partially filled rather than skipped, so the bar
@@ -223,7 +223,7 @@ def test_execution_service_buy_is_scaled_down_when_required_exceeds_cash() -> No
 # ---------------------------------------------------------------------------
 
 
-def test_execution_service_sell_skip_when_price_is_zero() -> None:
+def test_simulation_service_sell_skip_when_price_is_zero() -> None:
     """Sell signal is ignored when trade price is zero after a prior buy (line 184)."""
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
@@ -264,7 +264,7 @@ def _run_with_warmup(*, warmup_months: int, scoring_start: date, end: date, idx,
         patch_strategy=False,
         dates=(scoring_start, end),
     ):
-        return execution_service.run_backtest(
+        return simulation_service.run_backtest(
             SimpleNamespace(commit=lambda: None),
             cfg,
             fetch_bar_history_fn=fetch_bars,
@@ -445,7 +445,7 @@ def _patched_run_backtest_with_frames(
         insert_trade_fn=insert_trade_fn,
         dates=(date(2026, 1, 1), date(2026, 1, 7)),
     ):
-        return execution_service.run_backtest(
+        return simulation_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None, rollback=lambda: None),
             cfg=_base_cfg(),
             fetch_bar_history_fn=lambda _tickers, _start, _end: frames,
@@ -454,8 +454,8 @@ def _patched_run_backtest_with_frames(
 
 
 def test_tradeable_price_rejects_missing_and_non_positive_prices() -> None:
-    assert execution_service._tradeable_price(10.5) == 10.5
-    assert execution_service._tradeable_price(float("nan")) is None
-    assert execution_service._tradeable_price(float("inf")) is None
-    assert execution_service._tradeable_price(0.0) is None
-    assert execution_service._tradeable_price(-1.0) is None
+    assert simulation_service._tradeable_price(10.5) == 10.5
+    assert simulation_service._tradeable_price(float("nan")) is None
+    assert simulation_service._tradeable_price(float("inf")) is None
+    assert simulation_service._tradeable_price(0.0) is None
+    assert simulation_service._tradeable_price(-1.0) is None

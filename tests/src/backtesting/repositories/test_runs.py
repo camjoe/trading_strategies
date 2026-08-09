@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from backtesting.backtest import run_backtest
+from backtesting.composition import run_backtest
 from backtesting.models import BacktestConfig
 from backtesting.repositories.runs import (
     fetch_leaderboard_rows,
@@ -157,11 +157,11 @@ def test_report_reads_return_rows(conn: sqlite3.Connection, monkeypatch: pytest.
     create_account(conn, "acct_report_repo", "trend_v1", 10000.0, "SPY")
     monkeypatch.setattr("backtesting.services.backtest_data_service.load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(
-        "backtesting.backtest.fetch_bar_history",
+        "backtesting.composition.fetch_bar_history",
         lambda _tickers, _start, _end, **_kwargs: bars_from_closes(_fake_close_history(_tickers)),
     )
     monkeypatch.setattr(
-        "backtesting.backtest.fetch_benchmark_close",
+        "backtesting.composition.fetch_benchmark_close",
         lambda _ticker, _start, _end, **_kwargs: pd.Series(
             [100.0, 102.0],
             index=pd.date_range("2026-01-01", periods=2, freq="B"),

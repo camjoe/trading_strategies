@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backtesting.backtest import run_backtest, run_backtest_metrics_only
+from backtesting.composition import run_backtest, run_backtest_metrics_only
 from backtesting.models.optimizer import (
     CompoundedOOSSeries,
     OptimizationExperimentRecord,

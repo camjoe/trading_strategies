@@ -145,7 +145,7 @@ The second slice completes the migration for the remaining per-route
 **Conversion principle (unchanged).** Only user-input validation becomes
 `ValidationError`. Deliberately left as bare `ValueError` -> 500: backtest
 domain-math invariants (`backtesting/domain/metrics.py`,
-`simulation_math.py`, `execution_service.py`), internal post-write integrity
+`simulation_math.py`, `simulation_service.py`), internal post-write integrity
 checks, and the generic `domain/rotation.py` list parser (also used on
 DB-sourced data, where a failure is an integrity error, not user input).
 Route-specific transport guards stay direct `HTTPException`: the preflight

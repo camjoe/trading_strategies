@@ -36,7 +36,7 @@ the strategy that actually trades.
 
 | Module | Responsibility |
 |---|---|
-| `backtest.py` | Public entrypoint used by the CLI and web app: run a backtest, preview its warnings, build a full report. Also the composition root where the concrete market-data adapter is wired. |
+| `composition.py` | The composition root: builds the market-data and feature providers and binds them into a run. Callers go through it only when they need a provider wired — the read surfaces are imported from `services/` directly. |
 
 ## `domain/`
 
@@ -57,7 +57,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 
 | Module | Responsibility |
 |---|---|
-| `execution_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run |
+| `simulation_service.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews the warnings a run would raise |
 | `backtest_data_service.py` | Resolve dates, tickers, bar history, and benchmark closes for a run |
 | `walk_forward_optimizer_service.py` | Drive a walk-forward parameter search and persist the experiment |
 | `optimizer_aggregation_service.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series) |

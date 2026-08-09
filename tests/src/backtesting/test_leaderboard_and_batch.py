@@ -1,6 +1,6 @@
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
 from backtesting.models import BacktestBatchConfig
 from backtesting.models.report import BacktestLeaderboardEntry
 from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
@@ -17,20 +17,20 @@ class TestBacktestLeaderboardAndBatch:
 
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_trend", run_name="lb-trend"),
         )
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_mean", run_name="lb-mean"),
         )
 
-        leaderboard = backtest_module.backtest_leaderboard_entries(conn, limit=10)
+        leaderboard = composition.backtest_leaderboard_entries(conn, limit=10)
         assert len(leaderboard) >= 2
         assert leaderboard[0].total_return_pct >= leaderboard[1].total_return_pct
 
-        filtered = backtest_module.backtest_leaderboard_entries(conn, limit=10, strategy="mean")
+        filtered = composition.backtest_leaderboard_entries(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
         assert filtered[0].account_name == "acct_lb_mean"
 
@@ -42,12 +42,12 @@ class TestBacktestLeaderboardAndBatch:
         create_backtest_account(conn, "acct_lb_entries")
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_lb_entries", run_name="lb-entries"),
         )
 
-        entries = backtest_module.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
+        entries = composition.backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
         assert len(entries) == 1
         entry = entries[0]
         assert isinstance(entry, BacktestLeaderboardEntry)
@@ -74,9 +74,9 @@ class TestBacktestLeaderboardAndBatch:
             seen_run_names.append(cfg.run_name)
             return results_map[cfg.account_name]
 
-        monkeypatch.setattr(backtest_module, "run_backtest", _fake_run_backtest)
+        monkeypatch.setattr(composition, "run_backtest", _fake_run_backtest)
 
-        results = backtest_module.run_backtest_batch(
+        results = composition.run_backtest_batch(
             conn,
             BacktestBatchConfig(
                 account_names=["acct_a", "acct_b"],

@@ -443,7 +443,7 @@ def prepare_sell_trade(
 ) -> tuple[str, int, float] | None:
     """Prepare the first sellable ticker, closing the position outright.
 
-    A sell exits the whole position, matching ``execution_service._apply_sells``.
+    A sell exits the whole position, matching ``simulation_service._execute_sells``.
     """
     for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)

@@ -180,7 +180,7 @@ LAYER_RULES: list[LayerRule] = [
         label="backtesting → no direct market-data adapter imports (wire at composition roots)",
         source_glob="src/backtesting/**/*.py",
         forbidden_prefixes=("infrastructure.market_data.",),
-        exceptions=("src/backtesting/backtest.py",),
+        exceptions=("src/backtesting/composition.py",),
     ),
     LayerRule(
         label="backtesting → no direct broker SDK imports",

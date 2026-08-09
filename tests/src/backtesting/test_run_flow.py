@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import backtesting.backtest as backtest_module
+import backtesting.composition as composition
 import backtesting.services.backtest_data_service as backtest_data_service
-import backtesting.services.execution_service as execution_service
 import backtesting.services.report_service as report_service
+import backtesting.services.simulation_service as simulation_service
 from backtesting.models.report import (
     BacktestFullReport,
     BacktestReportSnapshot,
@@ -21,7 +21,7 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_bt")
         bt_market_data(["AAPL", "MSFT"], [100.0, 103.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_bt", run_name="smoke"),
         )
@@ -54,7 +54,7 @@ class TestBacktestRunFlow:
         )
         bt_market_data(["AAPL"], [100.0, 102.0])
 
-        result_without_opt_in = backtest_module.run_backtest(
+        result_without_opt_in = composition.run_backtest(
             conn,
             make_backtest_config("acct_leaps_bt"),
         )
@@ -63,7 +63,7 @@ class TestBacktestRunFlow:
             "LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings
         )
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_leaps_bt", run_name="approx-ok", allow_approximate_leaps=True),
         )
@@ -74,12 +74,12 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_report_bt")
         bt_market_data(["AAPL"])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_bt", slippage_bps=1.0, run_name="for-report"),
         )
 
-        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
+        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["run_id"] == result.run_id
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
@@ -90,8 +90,8 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_bt_size_large", trade_size_pct=15.0, max_position_pct=30.0)
         bt_market_data(["AAPL"])
 
-        small = backtest_module.run_backtest(conn, make_backtest_config("acct_bt_size_small", run_name="small"))
-        large = backtest_module.run_backtest(conn, make_backtest_config("acct_bt_size_large", run_name="large"))
+        small = composition.run_backtest(conn, make_backtest_config("acct_bt_size_small", run_name="small"))
+        large = composition.run_backtest(conn, make_backtest_config("acct_bt_size_large", run_name="large"))
 
         small_qty = float(
             conn.execute(
@@ -112,7 +112,7 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_report_model")
         bt_market_data(["AAPL"], [100.0, 104.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_model", run_name="for-report-model"),
         )
@@ -138,7 +138,7 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_report_provider_seam")
         bt_market_data(["AAPL"], [100.0, 104.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_provider_seam", run_name="for-provider-seam"),
         )
@@ -149,7 +149,7 @@ class TestBacktestRunFlow:
         monkeypatch.setattr(backtest_data_service, "fetch_benchmark_close", _fail)
         monkeypatch.setattr(backtest_data_service, "fetch_bar_history", _fail)
 
-        report = backtest_module.backtest_report_full(conn, result.run_id)
+        report = composition.backtest_report_full(conn, result.run_id)
 
         assert report.benchmark_return_pct == pytest.approx(result.benchmark_return_pct)
         assert report.alpha_pct == pytest.approx(report.summary.total_return_pct - report.benchmark_return_pct)
@@ -158,12 +158,12 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_report_full")
         bt_market_data(["AAPL"], [100.0, 104.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_report_full", run_name="for-report-full"),
         )
 
-        report = backtest_module.backtest_report_full(conn, result.run_id)
+        report = composition.backtest_report_full(conn, result.run_id)
         assert isinstance(report, BacktestFullReport)
         assert isinstance(report.summary, BacktestReportSummary)
         assert report.summary.run_id == result.run_id
@@ -187,7 +187,7 @@ class TestBacktestRunFlow:
         create_backtest_account(conn, "acct_strategy_snapshot")
         bt_market_data(["AAPL"], [100.0, 104.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config("acct_strategy_snapshot", slippage_bps=1.0, run_name="strategy-snapshot"),
         )
@@ -200,10 +200,10 @@ class TestBacktestRunFlow:
         # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
-        summary = backtest_module.backtest_report_full(conn, result.run_id).to_payload()
+        summary = composition.backtest_report_full(conn, result.run_id).to_payload()
         assert summary["strategy"] == "trend"
 
-        filtered = backtest_module.backtest_leaderboard_entries(conn, limit=10, strategy="trend")
+        filtered = composition.backtest_leaderboard_entries(conn, limit=10, strategy="trend")
         assert any(entry.run_id == result.run_id for entry in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(
@@ -223,9 +223,9 @@ class TestBacktestRunFlow:
             return "hold"
 
         bt_market_data(["AAPL"], [100.0, 101.0])
-        monkeypatch.setattr(execution_service, "evaluate_signal", fake_signal)
+        monkeypatch.setattr(simulation_service, "evaluate_signal", fake_signal)
 
-        backtest_module.run_backtest(
+        composition.run_backtest(
             conn,
             make_backtest_config("acct_sig", run_name="sig-resolver"),
         )
@@ -246,7 +246,7 @@ class TestBacktestRunFlow:
 
         bt_market_data(["AAPL", "MSFT"], [100.0, 101.0])
 
-        result = backtest_module.run_backtest(
+        result = composition.run_backtest(
             conn,
             make_backtest_config(
                 "acct_universe",

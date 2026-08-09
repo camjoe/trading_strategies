@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backtesting.backtest import backtest_report_full, run_backtest
-from backtesting.services.execution_service import preview_backtest_warnings
+from backtesting.composition import backtest_report_full, run_backtest
+from backtesting.services.simulation_service import preview_backtest_warnings
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest
 from ..services.accounts.backtests import (

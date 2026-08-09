@@ -104,7 +104,8 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change backtesting engine | `src/backtesting/backtest.py` |
+| Change backtesting engine | `src/backtesting/services/simulation_service.py` |
+| Wire a provider into a backtest | `src/backtesting/composition.py` |
 | Change backtest result models | `src/backtesting/models/` — `backtest.py`, `optimizer.py`, or `report.py` |
 | Change backtest persistence | `src/backtesting/repositories/` |
 | Change backtesting services | `src/backtesting/services/` |

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 
-from backtesting.backtest import (
+from backtesting.composition import (
     backtest_leaderboard_entries,
     backtest_report_full,
     run_backtest,

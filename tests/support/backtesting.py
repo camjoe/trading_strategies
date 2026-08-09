@@ -90,7 +90,7 @@ def make_fake_bar_history(tickers: list[str]) -> dict[str, pd.DataFrame]:
 
 def install_backtest_market_data(
     monkeypatch,
-    backtest_module,
+    composition,
     *,
     tickers: list[str],
     benchmark_values: list[float],
@@ -99,12 +99,12 @@ def install_backtest_market_data(
     # fetched through the composition root's provider-bound lambdas.
     monkeypatch.setattr(backtest_data_service, "load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
-        backtest_module,
+        composition,
         "fetch_bar_history",
         lambda _tickers, _start, _end, **_kwargs: make_fake_bar_history(_tickers),
     )
     monkeypatch.setattr(
-        backtest_module,
+        composition,
         "fetch_benchmark_close",
         lambda _ticker, _start, _end, **_kwargs: pd.Series(
             benchmark_values,

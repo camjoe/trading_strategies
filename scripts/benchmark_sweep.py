@@ -33,7 +33,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from backtesting.backtest import run_backtest, run_backtest_metrics_only
+from backtesting.composition import run_backtest, run_backtest_metrics_only
 from backtesting.domain.optimization.search import generate_candidates
 from backtesting.domain.windowing import build_walk_forward_optimization_splits
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig

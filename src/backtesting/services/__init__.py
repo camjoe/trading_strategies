@@ -11,9 +11,9 @@ from backtesting.services.evidence_service import (
     build_backtest_evidence,
     build_walk_forward_evidence,
 )
-from backtesting.services.execution_service import preview_backtest_warnings, run_backtest
 from backtesting.services.leaderboard_service import fetch_backtest_leaderboard_entries
 from backtesting.services.report_service import fetch_backtest_report_data
+from backtesting.services.simulation_service import preview_backtest_warnings, run_backtest
 
 __all__ = [
     "build_backtest_evidence",

@@ -236,7 +236,7 @@ read its last value.
 ## Execution Order Within a Bar
 
 A bar resolves in three phases: **evaluate every signal, then execute all sells, then execute buys**
-(the ordering rationale is on the loop in `backtesting/services/execution_service.py`). When cash
+(the ordering rationale is on the loop in `backtesting/services/simulation_service.py`). When cash
 cannot fund every buy signal, `allocate_buy_quantities` (`trading/domain/auto_trading_policy.py`)
 scales the whole set proportionally rather than picking an order the strategy never supplied.
 
