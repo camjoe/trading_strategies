@@ -53,7 +53,7 @@ Alternatives considered:
 - **Leave them duplicated and pin the pairs with equality tests.** Cheapest, and keeps the
   contexts independent. Rejected because a test that asserts two implementations agree is a
   standing tax that grows with every metric, and it does not stop a sixth copy appearing.
-- **A new sibling package (`src/finance/`) owned by neither context.** Conceptually clean.
+- **A new sibling package (src/finance/) owned by neither context.** Conceptually clean.
   Rejected because the conventions define the criterion for a package beside `trading/` as
   *table ownership*; a math package owns no tables and would not meet the bar the document
   sets. Adopting it would require amending that rule first.
@@ -92,15 +92,23 @@ domain-agnostic tooling, and cost-basis accounting is not that.
    want different behavior on `initial_cash == 0`, so this reconciles rather than merges.
 4. Move Sharpe to `trading/domain/`, taking the pure-Python implementation — `trading` does
    not depend on pandas and should not start.
-5. Fold `simulation_math`'s market-value and unrealized-P&L pair into
-   `portfolio_math.compute_market_value_and_unrealized`, choosing one missing-mark policy.
+5. Move `simulation_math`'s market-value and unrealized-P&L pair to `portfolio_math`
+   *without* folding them into `compute_market_value_and_unrealized`. Merging was the
+   original intent and is rejected: the lenient policy (skip an unpriced holding, read a
+   missing cost basis as zero) is what makes an operator's account view render over one
+   stale price, while the strict pair refuses, because a P&L quietly missing a holding is a
+   wrong number rather than an incomplete one. Neither can adopt the other's policy without
+   breaking its own caller, so the market-value loop stays written twice on purpose and a
+   test pins the disagreement.
 
 **Step 1 changes backtest behavior and must be decided, not assumed.** Adopting the live
-primitives brings their guards with them: whole-unit enforcement, and dropping a flat
-position's key instead of zeroing it. Whether the backtest should reject fractional
-quantities is a real question — the answer is probably yes, since divergence from live is the
-defect this ADR exists to close, but it is a behavior change and belongs in its own commit
-with its own test.
+primitives brings their guards with them: whole-unit enforcement, and retaining a closed
+position's stale average cost instead of zeroing it in place. (Key-dropping is
+`_compact_positions`, a live-path function the backtest does not call.) Whether the backtest
+should reject fractional quantities is a real question — the answer is probably yes, since
+divergence from live is the defect this ADR exists to close, but it is a behavior change and
+belongs in its own commit with its own test, and it needs a check that no persisted
+`backtest_executions` row already carries a fractional quantity.
 
 **What does not move.** The two `bars.py` modules are a deliberate, documented split —
 per-frame gap rules in `trading`, multi-ticker calendar alignment in `backtesting` — not a
