@@ -17,12 +17,12 @@ from backtesting.domain.metrics import (
     summarize_backtest_performance,
 )
 from backtesting.domain.risk_warnings import build_backtest_warnings
-from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from backtesting.domain.windowing import resolve_run_window, shift_months
 from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from backtesting.services.run_inputs import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
+from trading.domain.accounting import apply_buy, apply_sell
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
 from trading.domain.portfolio_math import compute_market_value, compute_unrealized_pnl
 from trading.domain.returns import total_return_pct
@@ -202,7 +202,7 @@ def _execute_sells(
         if qty_float <= 0:
             continue
 
-        state.cash, state.realized_pnl = update_on_sell(
+        state.cash, state.realized_pnl = apply_sell(
             ticker,
             qty_float,
             exec_px,
@@ -266,7 +266,7 @@ def _execute_buys(
         if qty_int < 1:
             continue
 
-        state.cash = update_on_buy(
+        state.cash = apply_buy(
             ticker, float(qty_int), exec_px, ctx.cfg.fee_per_trade, state.positions, state.avg_cost, state.cash
         )
         _record_trade(

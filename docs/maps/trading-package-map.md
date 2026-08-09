@@ -265,7 +265,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `accounting.py` | Cash and equity accounting rules |
+| `accounting.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
 | `bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
 | `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |

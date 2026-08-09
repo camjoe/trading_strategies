@@ -47,7 +47,6 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `bars.py` | Bar-series shaping and access helpers |
 | `metrics.py` | Performance math over an equity curve (returns, drawdown, Sharpe, exposure), plus `equity_curve_from_rows` to lift a curve out of snapshot rows |
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
-| `simulation_math.py` | Buy/sell fill arithmetic for simulated execution; valuation lives in `trading/domain/portfolio_math.py` |
 | `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
 | `optimization.py` | Candidate generation and `params_fingerprint`, the `calmar_v1` objective and winner selection, and compounding per-window OOS results into one series |
 

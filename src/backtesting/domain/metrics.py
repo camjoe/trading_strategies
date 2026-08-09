@@ -6,10 +6,9 @@ from typing import Mapping, Sequence
 
 import pandas as pd
 
-from backtesting.domain.simulation_math import update_on_buy, update_on_sell
 from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
-from trading.domain.accounting import normalize_trade_fields
+from trading.domain.accounting import apply_buy, apply_sell, normalize_trade_fields
 from trading.domain.returns import total_return_pct
 from trading.domain.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 
@@ -162,15 +161,13 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
         if side == "buy":
             if price <= 0:
                 raise ValueError("Buy trade price must be > 0 for backtest metrics.")
-            cash = update_on_buy(ticker, qty, price, fee, positions, avg_cost, cash)
+            cash = apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
             continue
         if side != "sell":
             raise ValueError(f"Unsupported trade side {side!r} for backtest metrics.")
-        if qty > positions[ticker]:
-            raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {positions[ticker]}.")
         cost_basis = avg_cost[ticker] * qty
         pnl = ((price - avg_cost[ticker]) * qty) - fee
-        cash, realized_pnl = update_on_sell(
+        cash, realized_pnl = apply_sell(
             ticker,
             qty,
             price,

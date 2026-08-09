@@ -52,7 +52,7 @@ def _require_whole_units(ticker: str, qty: float) -> None:
         raise ValueError(f"Fractional quantity {qty} for {ticker}: instrument quantities must be whole units.")
 
 
-def _apply_buy(
+def apply_buy(
     ticker: str,
     qty: float,
     price: float,
@@ -61,9 +61,19 @@ def _apply_buy(
     avg_cost: dict[str, float],
     cash: float,
 ) -> float:
+    """Apply a buy fill, returning the new cash balance.
+
+    Raises the position and re-averages its cost **in place** in the caller's
+    ``positions`` and ``avg_cost`` dicts. The fee is capitalized into the cost
+    basis, so ``avg_cost`` is what the shares actually cost to acquire.
+
+    Shared with the backtest so a simulated fill costs what a real one does.
+    """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     new_qty = old_qty + qty
+    if new_qty <= 0:
+        raise ValueError(f"Buy of {qty} for {ticker} leaves a non-positive position ({new_qty}); qty must be > 0.")
     old_value = old_qty * avg_cost[ticker]
     trade_value = qty * price + fee
     avg_cost[ticker] = (old_value + trade_value) / new_qty
@@ -71,7 +81,7 @@ def _apply_buy(
     return cash - trade_value
 
 
-def _apply_sell(
+def apply_sell(
     ticker: str,
     qty: float,
     price: float,
@@ -81,6 +91,15 @@ def _apply_sell(
     cash: float,
     realized: float,
 ) -> tuple[float, float]:
+    """Apply a sell fill, returning the new ``(cash, realized)`` pair.
+
+    Reduces the position **in place**. The fee is charged against realized P&L as
+    well as netted out of proceeds, so a round trip is costed on both legs. A
+    closed position keeps its stale ``avg_cost``; nothing reads it at zero
+    quantity, and ``_compact_positions`` drops the key on the live path.
+
+    Shared with the backtest so a simulated fill realizes what a real one does.
+    """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if qty > old_qty:
@@ -127,9 +146,9 @@ def _apply_trade_to_state(
         if side == "sell":
             return cash - (qty * price + fee), realized, total_deposited
     if side == "buy":
-        return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized, total_deposited
+        return apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized, total_deposited
     if side == "sell":
-        new_cash, new_realized = _apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
+        new_cash, new_realized = apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
         return new_cash, new_realized, total_deposited
     raise ValueError(f"Unsupported side: {side}")
 

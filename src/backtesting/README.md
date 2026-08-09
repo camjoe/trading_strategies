@@ -79,9 +79,10 @@ need no provider.
   - `windowing.py`: a run's date window — resolved from an explicit range or a lookback — plus month
     arithmetic and walk-forward train/test/holdout splits.
   - `risk_warnings.py`: safeguard/warning policy composition.
-  - `simulation_math.py`: buy/sell fill arithmetic — position, average cost, cash, and
-    realized P&L. Valuation is not here: `trading/domain/portfolio_math.py` owns market value
-    and unrealized P&L, which the live runtime shares.
+  - Fill and valuation math are **not** here. `trading/domain/accounting.py` owns the buy/sell
+    ledger primitives and `trading/domain/portfolio_math.py` owns market value and unrealized
+    P&L, both shared with the live runtime so a simulated fill costs and realizes what a real
+    one does — see [ADR 020](../../docs/adr/020-shared-financial-math-ownership.md).
   - `optimization.py`: candidate search, objective scoring, and OOS aggregation. The *promotion gate*
     is not here — it is promotion policy, so it lives at `trading/domain/promotion_gate.py`.
 
