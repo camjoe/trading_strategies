@@ -105,9 +105,6 @@ list if it has aged.
   sandbox fixture seeder and read by nothing; providers are constructed unconditionally at the
   composition root. Retained for the deferred work above. `services/fixtures/profiles.py` says so at
   the field.
-- **Table preview.** `repositories/table_export.py` exposes `fetch_table_rows`/`TableRows` for an
-  operator preview alongside the CSV path. Only the CSV half is reachable, through
-  `scripts/data_ops/export_db_csv.py`; no route or command previews a table.
 - **`resolve_signal`** (`domain/strategies/resolution.py`) is a test-facing wrapper — production
   calls `evaluate_signal` / `evaluate_signal_over_bars`.
 

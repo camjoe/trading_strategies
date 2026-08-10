@@ -1,11 +1,15 @@
+"""On-demand CSV export of a database table."""
+
 from __future__ import annotations
 
 import csv
 import io
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
-from trading.repositories.table_export import fetch_table_cursor
+from trading.repositories.table_export import DEFAULT_EXPORT_TABLES, fetch_table_cursor
+
+__all__ = ["DEFAULT_EXPORT_TABLES", "stream_table_csv"]
 
 
 def stream_table_csv(conn: sqlite3.Connection, table: str) -> Iterator[str]:
