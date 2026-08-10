@@ -77,6 +77,7 @@ class IbAsyncClient:
             orderType=order.order_type,
             lmtPrice=order.limit_price,
             tif=order.time_in_force,
+            orderRef=order.order_ref,
         )
         return _normalize_ib_async_trade(self._ib.placeOrder(contract, ib_order))
 
@@ -144,6 +145,7 @@ def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
         avg_fill_price=_optional_float(trade.orderStatus.avgFillPrice),
         fills=tuple(_normalize_ib_async_fill(fill) for fill in trade.fills),
         status_reason=_ib_async_status_reason(trade, status),
+        order_ref=str(getattr(trade.order, "orderRef", "") or ""),
     )
 
 

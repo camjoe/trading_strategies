@@ -94,6 +94,7 @@ class _NativeTradeState:
     avg_fill_price: float | None = None
     fills: dict[str, _NativeFillState] = field(default_factory=dict)
     status_reason: str | None = None
+    order_ref: str = ""
 
 
 @dataclass
@@ -197,6 +198,7 @@ class _IbApiCallbackState:
                 action=order.action,
                 total_quantity=order.total_quantity,
                 limit_price=order.limit_price,
+                order_ref=order.order_ref,
             )
             self._trades[order_id] = state
             return _trade_snapshot(state)
@@ -209,6 +211,7 @@ class _IbApiCallbackState:
         total_quantity: float,
         limit_price: float,
         status: str,
+        order_ref: str = "",
     ) -> None:
         with self._lock:
             state = self._trades.get(order_id)
@@ -219,6 +222,7 @@ class _IbApiCallbackState:
                     action=action,
                     total_quantity=total_quantity,
                     limit_price=limit_price,
+                    order_ref=order_ref,
                 )
                 self._trades[order_id] = state
             state.symbol = symbol
@@ -227,6 +231,10 @@ class _IbApiCallbackState:
             state.limit_price = limit_price
             if status:
                 state.status = status
+            # Only overwrite from a ref IB actually reported: a reconnect can
+            # replay openOrder without one, and the id placed with is the truth.
+            if order_ref:
+                state.order_ref = order_ref
 
     def begin_open_order_refresh(self) -> None:
         self.open_orders_complete.clear()
@@ -624,6 +632,7 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
             native_order.orderType = order.order_type
             native_order.lmtPrice = order.limit_price
             native_order.tif = order.time_in_force
+            native_order.orderRef = order.order_ref
             self.placeOrder(order_id, contract, native_order)
 
         def cancel_order(self, order_id: int) -> None:
@@ -663,6 +672,7 @@ def _build_native_app(callbacks: _IbApiCallbackState) -> _NativeIbApp:
                 total_quantity=_required_float(getattr(order, "totalQuantity", 0.0)),
                 limit_price=_required_float(getattr(order, "lmtPrice", 0.0)),
                 status=str(getattr(orderState, "status", "")),
+                order_ref=str(getattr(order, "orderRef", "") or ""),
             )
 
         def openOrderEnd(self) -> None:  # noqa: N802
@@ -779,6 +789,7 @@ def _trade_snapshot(state: _NativeTradeState) -> IbkrTrade:
         avg_fill_price=state.avg_fill_price,
         fills=fills,
         status_reason=state.status_reason,
+        order_ref=state.order_ref,
     )
 
 

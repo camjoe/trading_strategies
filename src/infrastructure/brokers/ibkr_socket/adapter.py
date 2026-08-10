@@ -111,6 +111,7 @@ class IbkrSocketAdapter(BrokerConnection):
             order_type="MKT" if order.order_type == OrderType.MARKET else "LMT",
             limit_price=order.price if order.order_type == OrderType.LIMIT else 0.0,
             time_in_force=order.time_in_force.value.upper(),
+            order_ref=order.client_order_id or "",
         )
         trade = self._client.place_order(request)
         now = utc_now_iso()
@@ -153,6 +154,8 @@ class IbkrSocketAdapter(BrokerConnection):
                 side=trade.action.lower(),
                 qty=trade.total_quantity,
                 price=trade.limit_price,
+                # IB echoes orderRef; empty for an order placed outside this system.
+                client_order_id=trade.order_ref or None,
                 broker_order_id=str(trade.order_id),
                 status=_map_ib_status(trade.status),
                 filled_qty=trade.filled,
