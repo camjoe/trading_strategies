@@ -309,6 +309,29 @@ def test_task_name_to_unit_name_kebab_cases_camelcase() -> None:
     assert scheduler_installer._task_name_to_unit_name(r"Trading\WeeklyDbBackup") == "weekly-db-backup"
 
 
+@pytest.mark.parametrize(
+    ("day", "cron_field", "systemd_abbr"),
+    [
+        ("Monday", "1", "Mon"),
+        ("Tuesday", "2", "Tue"),
+        ("Wednesday", "3", "Wed"),
+        ("Thursday", "4", "Thu"),
+        ("Friday", "5", "Fri"),
+        ("Saturday", "6", "Sat"),
+        # cron numbers Sunday 0, not 7.
+        ("Sunday", "0", "Sun"),
+    ],
+)
+def test_every_day_renders_for_cron_and_systemd(day: str, cron_field: str, systemd_abbr: str, tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name="t", module="pkg.mod", time="04:05", schedule_kind="weekly", day_of_week=day
+    )
+
+    cron_line = scheduler_installer.build_linux_cron_line(task, tmp_path, tmp_path / "python", tmp_path / "job.log")
+    assert cron_line.startswith(f"5 4 * * {cron_field} ")
+    assert scheduler_installer._systemd_calendar_expression(task) == f"{systemd_abbr} *-*-* 04:05:00"
+
+
 def test_systemd_calendar_expression_for_daily_and_weekly() -> None:
     daily = scheduler_installer.ScheduledTaskSpec(task_name="t", module="pkg.mod", time="13:05")
     weekly = scheduler_installer.ScheduledTaskSpec(
