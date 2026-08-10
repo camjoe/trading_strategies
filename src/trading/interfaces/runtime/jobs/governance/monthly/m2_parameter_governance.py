@@ -3,12 +3,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from common.git import get_repo_root
 from common.runtime_job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     logs_dir_for_repo,
     ts,
 )
@@ -23,15 +20,6 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
 
 JOB_NAME = "monthly_governance_m2_parameter_governance"
-
-
-def already_completed_this_month(log_dir: Path, tag: str) -> bool:
-    return already_completed_for_period(
-        log_dir=log_dir,
-        job_name=JOB_NAME,
-        period_tag=tag,
-        sentinel=COMPLETE_SENTINEL,
-    )
 
 
 @governance_job(
