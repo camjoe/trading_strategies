@@ -21,7 +21,7 @@ GROUP_BY_PACKAGE = {
     "sqlalchemy": "Developer Tooling",
     "fastapi": "Backend & Validation",
     "ib_async": "Data & Market Access",
-    "httpx": "Developer Tooling",
+    "httpx": "Data & Market Access",
     "httpx2": "Developer Tooling",
     "hypothesis": "Developer Tooling",
     "matplotlib": "Visualization",
@@ -50,6 +50,10 @@ PURPOSE_BY_PACKAGE = {
         "to create, apply, and revert revisions; the application runtime never imports it."
     ),
     "sqlalchemy": "SQL toolkit that backs Alembic's migration engine; used only by the ops-only migration tooling.",
+    "httpx": (
+        "HTTP client backing the IBKR Client Portal Web API adapter for session validation, "
+        "account and position queries, and order submission."
+    ),
     "httpx2": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests.",
     "ib_async": (
         "Async Interactive Brokers client used for broker connectivity, live account queries, "
