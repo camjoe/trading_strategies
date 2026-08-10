@@ -59,7 +59,7 @@ class TestUpdateAccountBenchmark:
         _insert(conn, "bench_acct")
         repo = AccountRepository(conn)
         row = repo.fetch_by_name("bench_acct")
-        repo.update_benchmark(account_id=row["id"], benchmark_ticker="QQQ", updated_at="2026-02-01T00:00:00")
+        repo.update(account_id=row["id"], values={"benchmark_ticker": "QQQ"}, updated_at="2026-02-01T00:00:00")
         updated = repo.fetch_by_name("bench_acct")
         assert updated["benchmark_ticker"] == "QQQ"
         stamped = conn.execute("SELECT updated_at FROM accounts WHERE id = ?", (row["id"],)).fetchone()

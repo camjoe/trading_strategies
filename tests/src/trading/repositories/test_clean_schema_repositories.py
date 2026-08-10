@@ -6,6 +6,9 @@ import sqlite3
 
 import pytest
 
+from common.time import utc_now_iso
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
+from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
@@ -153,15 +156,27 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings(book_id=book_id, values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0})
-    book_repo.update_settings(book_id=book_id, values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0})
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0},
+        updated_at=utc_now_iso(),
+    )
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0},
+        updated_at=utc_now_iso(),
+    )
     execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings(book_id=book_id, values={"option_type": "call", "option_min_dte": 120})
+    book_repo.update_settings(
+        book_id=book_id,
+        values={"option_type": "call", "option_min_dte": 120},
+        updated_at=utc_now_iso(),
+    )
     option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
     assert option.option_min_dte == 120
@@ -247,15 +262,17 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     repo = OrderRepository(conn)
 
     order_id = repo.insert(
-        book_id=book_id,
-        account_id=account_id,
-        symbol="AAPL",
-        side="buy",
-        qty=2.0,
-        requested_price=100.0,
-        status="submitted",
-        submitted_at=NOW,
-        updated_at=NOW,
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol="AAPL",
+            side="buy",
+            qty=2.0,
+            requested_price=100.0,
+            status="submitted",
+            submitted_at=NOW,
+            updated_at=NOW,
+        )
     )
     assert [order.id for order in repo.fetch_open_for_account(account_id=account_id)] == [order_id]
 
@@ -269,14 +286,16 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     # Invariant 4: the order's book must belong to the order's account.
     with pytest.raises(BookAccountMismatchError):
         repo.insert(
-            book_id=book_id,
-            account_id=other_account_id,
-            symbol="MSFT",
-            side="buy",
-            qty=1.0,
-            status="submitted",
-            submitted_at=NOW,
-            updated_at=NOW,
+            OrderInsert(
+                book_id=book_id,
+                account_id=other_account_id,
+                symbol="MSFT",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at=NOW,
+                updated_at=NOW,
+            )
         )
 
 
@@ -324,26 +343,30 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
 
     snapshots = RiskSnapshotRepository(conn)
     snapshots.insert(
-        account_id=account_id,
-        snapshot_time=NOW,
-        gross_exposure=1.2,
-        net_exposure=0.8,
-        max_symbol_concentration_pct=25.0,
-        max_sector_concentration_pct=40.0,
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time=NOW,
+            gross_exposure=1.2,
+            net_exposure=0.8,
+            max_symbol_concentration_pct=25.0,
+            max_sector_concentration_pct=40.0,
+        )
     )
     latest = snapshots.fetch_latest(account_id=account_id)
     assert latest is not None and latest.gross_exposure == pytest.approx(1.2)
 
     decisions = RiskDecisionRepository(conn)
     decisions.insert(
-        account_id=account_id,
-        book_id=book_id,
-        decision_time=NOW,
-        symbol="AAPL",
-        side="buy",
-        action="block",
-        reason_code="stale_price_data",
-        created_at=NOW,
+        RiskDecisionInsert(
+            account_id=account_id,
+            book_id=book_id,
+            decision_time=NOW,
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="stale_price_data",
+            created_at=NOW,
+        )
     )
     recent = decisions.fetch_recent(account_id=account_id)
     assert len(recent) == 1
@@ -363,14 +386,16 @@ def test_submission_count_sees_orders_that_never_filled(conn) -> None:
     repo = OrderRepository(conn)
     for index in range(3):
         repo.insert(
-            book_id=book_id,
-            account_id=account_id,
-            symbol=f"SYM{index}",
-            side="buy",
-            qty=1.0,
-            status="submitted",
-            submitted_at="2026-01-15T10:00:30Z",
-            updated_at="2026-01-15T10:00:30Z",
+            OrderInsert(
+                book_id=book_id,
+                account_id=account_id,
+                symbol=f"SYM{index}",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at="2026-01-15T10:00:30Z",
+                updated_at="2026-01-15T10:00:30Z",
+            )
         )
 
     window = {"start_iso": "2026-01-15T10:00:00Z", "end_iso": "2026-01-15T10:01:00Z"}

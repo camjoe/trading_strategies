@@ -6,9 +6,11 @@ from unittest.mock import Mock
 import pandas as pd
 
 import trading.services.execution.selection.book_intents as book_intents
+from common.time import utc_now_iso
 from tests.support.backtesting import bar_frame
 from tests.support.books import assign_test_book_strategy, insert_test_book
 from tests.support.repositories import insert_repository_account
+from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.strategies import StrategyRepository
@@ -63,9 +65,7 @@ def test_generate_book_trade_intents_uses_active_books_and_assignments(conn, mon
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 101.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 101.0}),
         max_trades=4,
         fee=0.0,
     )
@@ -90,12 +90,9 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     buy_intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 10.0}, histories={"AAPL": rising}),
         max_trades=2,
         fee=0.0,
-        histories={"AAPL": rising},
     )
     assert [(intent.side, intent.symbol) for intent in buy_intents] == [("buy", "AAPL")]
 
@@ -103,12 +100,9 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     hold_intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 10.0}, histories={"AAPL": flat}),
         max_trades=2,
         fee=0.0,
-        histories={"AAPL": flat},
     )
     assert hold_intents == []
 
@@ -133,12 +127,9 @@ def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> N
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 10.0}, histories={"AAPL": rising}),
         max_trades=2,
         fee=0.0,
-        histories={"AAPL": rising},
     )
 
     assert [(intent.side, intent.symbol) for intent in intents] == [("buy", "AAPL")]
@@ -195,9 +186,7 @@ def test_generate_book_trade_intents_returns_empty_without_active_books(conn) ->
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
     )
@@ -232,9 +221,7 @@ def _captured_book_universe(conn, monkeypatch, *, account_name: str, stored_symb
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=get_account(conn, account_name),
-        universe=["SPY", "QQQ"],
-        prices={"SPY": 500.0, "QQQ": 400.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["SPY", "QQQ"], prices={"SPY": 500.0, "QQQ": 400.0}),
         max_trades=1,
         fee=0.0,
     )
@@ -296,12 +283,13 @@ def test_generate_book_trade_intents_emits_more_than_one_trade_per_book(conn) ->
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL", "MSFT", "NVDA"],
-        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(
+            universe=["AAPL", "MSFT", "NVDA"],
+            prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+            histories=_rising_histories(),
+        ),
         max_trades=3,
         fee=0.0,
-        histories=_rising_histories(),
     )
 
     assert len(intents) == 3
@@ -314,12 +302,13 @@ def test_generate_book_trade_intents_respects_the_account_cap(conn) -> None:
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL", "MSFT", "NVDA"],
-        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(
+            universe=["AAPL", "MSFT", "NVDA"],
+            prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+            histories=_rising_histories(),
+        ),
         max_trades=2,
         fee=0.0,
-        histories=_rising_histories(),
     )
 
     assert len(intents) == 2
@@ -345,12 +334,9 @@ def _budget_winner(conn, account, *, seed: str) -> int:
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL"],
-        prices={"AAPL": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 10.0}, histories=_rising_histories()),
         max_trades=1,
         fee=0.0,
-        histories=_rising_histories(),
         selection_seed=seed,
     )
     assert len(intents) == 1
@@ -376,17 +362,18 @@ def test_account_trade_budget_claim_is_reproducible_from_the_seed(conn) -> None:
 def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
     """A book's own limit narrows the account cap."""
     book_id, account = _multi_signal_book(conn, account_name="acct_budget_book_cap")
-    BookRepository(conn).update_settings(book_id=book_id, values={"max_trades_per_run": 1})
+    BookRepository(conn).update_settings(book_id=book_id, values={"max_trades_per_run": 1}, updated_at=utc_now_iso())
 
     intents = book_intents.generate_book_trade_intents(
         conn,
         account=account,
-        universe=["AAPL", "MSFT", "NVDA"],
-        prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
-        iv_rank_proxy={},
+        market=MarketInputs(
+            universe=["AAPL", "MSFT", "NVDA"],
+            prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+            histories=_rising_histories(),
+        ),
         max_trades=3,
         fee=0.0,
-        histories=_rising_histories(),
     )
 
     assert len(intents) == 1

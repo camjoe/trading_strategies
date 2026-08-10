@@ -4,7 +4,7 @@ import trading.services.auto_trading.runtime as runtime_service
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 from tests.support.db_schema import memory_db_at_head
-from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders import ORDER_STATUS_PENDING, BrokerOrder, OrderFill, OrderInsert, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -36,18 +36,165 @@ def _open_clean_order(
     """Seed an open clean orders row on the account's default book."""
     book_id = default_book_id(conn, account_id)
     order_id = OrderRepository(conn).insert(
-        book_id=book_id,
-        account_id=account_id,
-        broker_order_id=broker_order_id,
-        symbol=symbol,
-        side=side,
-        qty=qty,
-        requested_price=price,
-        status="submitted",
-        submitted_at="2024-01-01T00:00:00",
-        updated_at="2024-01-01T00:00:00",
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            broker_order_id=broker_order_id,
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            requested_price=price,
+            status="submitted",
+            submitted_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
     )
     return book_id, order_id
+
+
+def _pending_clean_order(
+    conn,
+    *,
+    client_order_id: str,
+    account_id: int = 1,
+    symbol: str = "AAPL",
+    side: str = "buy",
+    qty: float = 10.0,
+    price: float = 150.0,
+) -> tuple[int, int]:
+    """Seed the row a crashed send leaves behind: pending, with no broker order id."""
+    book_id = default_book_id(conn, account_id)
+    order_id = OrderRepository(conn).insert(
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            client_order_id=client_order_id,
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            requested_price=price,
+            status=ORDER_STATUS_PENDING,
+            submitted_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+    )
+    return book_id, order_id
+
+
+class TestAdoptPendingOrders:
+    """The recovery path: an order the broker took whose confirmation never landed."""
+
+    def test_pending_row_is_adopted_and_filled_from_the_brokers_echoed_client_id(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _pending_clean_order(conn, client_order_id="ts-AAPL-BUY-1")
+
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        live = BrokerOrder(
+            account_id=1,
+            ticker="AAPL",
+            side="buy",
+            qty=10.0,
+            price=150.0,
+            client_order_id="ts-AAPL-BUY-1",
+            broker_order_id="77",
+            status=OrderStatus.FILLED,
+            filled_qty=10.0,
+            avg_fill_price=150.5,
+            commission=0.25,
+            fills=[
+                OrderFill(
+                    filled_qty=10.0,
+                    fill_price=150.5,
+                    fill_time="2024-01-02T10:00:00",
+                    commission=0.25,
+                    exec_id="exec-adopt",
+                )
+            ],
+        )
+
+        class _FakeBroker:
+            def get_open_trades(self):
+                return [live]
+
+            def disconnect(self):
+                pass
+
+        outcome = runtime_service.reconcile_open_broker_orders(
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
+        )
+
+        assert outcome.adopted_pending == 1
+        assert outcome.unresolved_pending_client_order_ids == []
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None
+        # The row now carries the broker's id, and the fill reached the book.
+        assert order.broker_order_id == "77"
+        assert order.status == "filled"
+        assert order.submitted_at == "2024-01-01T00:00:00"  # the send time, not the poll's
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 10.0
+
+    def test_pending_row_no_live_order_claims_is_reported_not_resolved(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _pending_clean_order(conn, client_order_id="ts-AAPL-BUY-2")
+
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        class _EmptyBroker:
+            def get_open_trades(self):
+                return []
+
+            def disconnect(self):
+                pass
+
+        outcome = runtime_service.reconcile_open_broker_orders(
+            conn, account, broker_factory=Mock(return_value=_EmptyBroker())
+        )
+
+        assert outcome.adopted_pending == 0
+        assert outcome.unresolved_pending_client_order_ids == ["ts-AAPL-BUY-2"]
+        # Untouched: it may have been rejected on the way in, or filled and aged off
+        # the broker's list. Guessing either way would misstate the book.
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None
+        assert order.status == ORDER_STATUS_PENDING
+        assert order.broker_order_id is None
+
+    def test_a_different_accounts_client_id_is_not_adopted(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _pending_clean_order(conn, client_order_id="ts-AAPL-BUY-3")
+
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        stranger = BrokerOrder(
+            account_id=1,
+            ticker="AAPL",
+            side="buy",
+            qty=10.0,
+            price=150.0,
+            client_order_id="someone-elses-order",
+            broker_order_id="88",
+            status=OrderStatus.FILLED,
+        )
+
+        class _FakeBroker:
+            def get_open_trades(self):
+                return [stranger]
+
+            def disconnect(self):
+                pass
+
+        outcome = runtime_service.reconcile_open_broker_orders(
+            conn, account, broker_factory=Mock(return_value=_FakeBroker())
+        )
+
+        assert outcome.adopted_pending == 0
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None
+        assert order.status == ORDER_STATUS_PENDING
 
 
 class TestReconcileOpenBrokerOrders:

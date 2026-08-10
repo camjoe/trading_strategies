@@ -8,6 +8,7 @@ from tests.src.trading.services.auto_trading.factories import (
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
@@ -20,9 +21,7 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
     executed = run_for_account(
         conn=object(),
         account_name="acct",
-        universe=["AAPL"],
-        prices={"AAPL": 101.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 101.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=broker_factory,
@@ -50,9 +49,7 @@ def test_run_for_account_delegates_to_book_path(monkeypatch) -> None:
     executed = run_for_account(
         conn=object(),
         account_name="acct",
-        universe=["AAPL"],
-        prices={"AAPL": 101.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 101.0}),
         max_trades=3,
         fee=0.0,
         broker_factory=broker_factory,

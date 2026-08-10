@@ -11,6 +11,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     run_auto_trades as module,
 )
 from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 
 
 class FakeConn:
@@ -44,7 +45,11 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         module,
         "resolve_market_inputs",
-        lambda _p, **_kwargs: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}, {}),
+        lambda _p, **_kwargs: MarketInputs(
+            universe=["AAPL", "MSFT"],
+            prices={"AAPL": 100.0, "MSFT": 200.0},
+            iv_rank_proxy={"AAPL": 40.0},
+        ),
     )
     monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
@@ -97,7 +102,9 @@ def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
 def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
     conn = FakeConn()
     install_main_args(monkeypatch)
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
     monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
@@ -127,7 +134,7 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     monkeypatch.setattr(
         auto_trading_module,
         "resolve_market_inputs",
-        lambda _path, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {"AAPL": 40.0}, {}),
+        lambda _path, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}, iv_rank_proxy={"AAPL": 40.0}),
     )
     monkeypatch.setattr(
         auto_trading_module,
@@ -147,7 +154,9 @@ def test_main_exits_non_zero_on_a_broker_anomaly(monkeypatch, capsys) -> None:
     """A broker failure mid-submission fails the step: real orders may be in an unknown state."""
     conn = FakeConn()
     install_main_args(monkeypatch, accounts="acct1,acct2")
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
     monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
@@ -174,7 +183,9 @@ def test_main_exits_non_zero_on_a_broker_anomaly(monkeypatch, capsys) -> None:
 def test_main_reports_a_closed_market_per_account(monkeypatch, capsys) -> None:
     """A shut market must not read as a quiet day, and must not read as a halt."""
     install_main_args(monkeypatch, accounts="acct1")
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
     monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
     monkeypatch.setattr(
@@ -191,7 +202,9 @@ def test_main_stays_green_for_a_non_broker_kill_switch(monkeypatch, capsys) -> N
     """Stale prices and reconciliation halts are controls working, not run failures."""
     conn = FakeConn()
     install_main_args(monkeypatch, accounts="acct1")
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
     monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(

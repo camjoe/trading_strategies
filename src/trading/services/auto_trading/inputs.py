@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Mapping
-
-import pandas as pd
+from collections.abc import Callable
 
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 from trading.services.accounts import get_account
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 from trading.services.auto_trading.runtime import run_for_account
@@ -68,7 +67,7 @@ def resolve_market_inputs(
     universe: list[str],
     *,
     provider: MarketDataProvider | None = None,
-) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, pd.DataFrame]]:
+) -> MarketInputs:
     if not universe:
         raise ValueError("Ticker universe is empty.")
 
@@ -79,22 +78,23 @@ def resolve_market_inputs(
     # One fetch pass feeds both signal evaluation and the IV-rank proxy (cached per run).
     histories = fetch_bar_histories(universe, provider=provider)
     iv_rank_proxy = build_iv_rank_proxy(universe, histories=histories)
-    return universe, prices, iv_rank_proxy, histories
+    return MarketInputs(
+        universe=universe,
+        prices=prices,
+        iv_rank_proxy=iv_rank_proxy,
+        histories=histories,
+    )
 
 
 def run_accounts(
     conn: sqlite3.Connection,
     *,
     account_names: list[str],
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.DataFrame] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
-    provider: MarketDataProvider | None = None,
 ) -> list[AccountRunResult]:
     """Run each account independently.
 
@@ -107,16 +107,12 @@ def run_accounts(
     for account_name in account_names:
         result = run_for_account(
             conn,
-            account_name,
-            universe,
-            prices,
-            iv_rank_proxy,
-            max_trades,
-            fee,
-            histories=histories,
+            account_name=account_name,
+            market=market,
+            max_trades=max_trades,
+            fee=fee,
             broker_factory=broker_factory,
             feature_fetchers=feature_fetchers,
-            provider=provider,
         )
         results.append(result)
     return results

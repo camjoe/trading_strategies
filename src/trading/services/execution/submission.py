@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import sqlite3
+import time
 from collections.abc import Callable, Sequence
 
 from common.time import utc_now_iso
 from trading.domain.book_accounting import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution import BookTradeIntent, SubmissionResult
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -22,6 +23,9 @@ from trading.services.operational_settings.enforcement import RuntimeTradeThrott
 # `fee` entry; the two sum to the net cash delta. `realized_pnl`/`cash_movement` from
 # the legacy ledger are intentionally NOT used — the clean `ledger` CHECK forbids them,
 # and realized P&L is derived for reporting, not a cash flow.
+# Marks a client order id as this system's when read back off a broker's order list.
+_CLIENT_ORDER_ID_PREFIX = "ts"
+
 LEDGER_ENTRY_TYPE_TRADE = "trade"
 LEDGER_ENTRY_TYPE_FEE = "fee"
 LEDGER_REFERENCE_TYPE_ORDER = "order"
@@ -41,6 +45,19 @@ _CLEAN_STATUS_BY_BROKER_STATUS: dict[OrderStatus, str] = {
 
 def clean_order_status(status: OrderStatus) -> str:
     return _CLEAN_STATUS_BY_BROKER_STATUS[status]
+
+
+def build_client_order_id(*, symbol: str, side: str) -> str:
+    """A client order id for one send, unique per account.
+
+    Both IBKR transports accept it (Web API ``cOID``, socket ``orderRef``) and echo
+    it back, so the format has to survive both: ASCII, no spaces. The nanosecond
+    clock is what makes it unique; the symbol and side are there so an operator
+    reading a broker's order list can tell what they are looking at.
+    """
+    normalized_symbol = symbol.strip().upper() or "UNKNOWN"
+    normalized_side = side.strip().upper() or "UNKNOWN"
+    return f"{_CLIENT_ORDER_ID_PREFIX}-{normalized_symbol}-{normalized_side}-{time.time_ns()}"
 
 
 def apply_book_fill(
@@ -201,35 +218,52 @@ def submit_book_intents(
                 throttled = True
                 break
         submitted_at = utc_now_iso()
-        broker_order = BrokerOrder(
-            account_id=account_id,
-            ticker=intent.symbol,
-            side=intent.side,
-            qty=float(intent.qty),
-            price=float(intent.requested_price or 0.0),
-        )
-        try:
-            placed = broker.place_order(broker_order)
-        except Exception:
-            kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
-            break
-
-        updated_at = placed.updated_at or utc_now_iso()
-        # One transaction per order: the order row, its fill rows, and the book
-        # accounting land together or not at all. The broker call above stays
-        # outside the transaction — network I/O must not hold a write lock.
-        with unit_of_work(conn):
-            order_id = order_repo.insert(
+        client_order_id = build_client_order_id(symbol=intent.symbol, side=intent.side)
+        # Committed before the send, not after it. A crash or timeout between here
+        # and the broker's answer leaves a pending row naming an order the broker
+        # may be holding; writing afterwards would leave nothing at all, and
+        # reconciliation cannot search for a broker_order_id that was never issued.
+        order_id = order_repo.insert(
+            OrderInsert(
                 book_id=book_id,
                 account_id=account_id,
                 strategy_id=intent.strategy_id,
-                broker_order_id=placed.broker_order_id,
+                client_order_id=client_order_id,
                 symbol=intent.symbol,
                 side=intent.side,
                 qty=float(intent.qty),
                 order_type=intent.order_type,
                 time_in_force=intent.time_in_force,
                 requested_price=intent.requested_price,
+                status=ORDER_STATUS_PENDING,
+                submitted_at=submitted_at,
+                updated_at=submitted_at,
+            )
+        )
+        request = OrderRequest(
+            account_id=account_id,
+            ticker=intent.symbol,
+            side=intent.side,
+            qty=float(intent.qty),
+            price=float(intent.requested_price or 0.0),
+            client_order_id=client_order_id,
+        )
+        try:
+            placed = broker.place_order(request)
+        except Exception:
+            # The row stays pending: reconciliation adopts it if the broker took the
+            # order, and reports it if no broker order carries its client id.
+            kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
+            break
+
+        updated_at = placed.updated_at or utc_now_iso()
+        # One transaction per order: completing the row, its fill rows, and the book
+        # accounting land together or not at all. The broker call above stays
+        # outside the transaction — network I/O must not hold a write lock.
+        with unit_of_work(conn):
+            order_repo.record_placement(
+                order_id=order_id,
+                broker_order_id=placed.broker_order_id,
                 status=clean_order_status(placed.status),
                 filled_qty=float(placed.filled_qty),
                 avg_fill_price=placed.avg_fill_price,

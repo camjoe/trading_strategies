@@ -6,7 +6,7 @@ from io import StringIO
 import pytest
 
 from scripts import ibkr_socket_smoke_test
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus
 
 
 class _FakeAdapter:
@@ -29,7 +29,7 @@ class _FakeAdapter:
         self.connected = False
         self.disconnected = False
         self.quoted: list[str] = []
-        self.placed: list[BrokerOrder] = []
+        self.placed: list[OrderRequest] = []
         self.cancelled: list[str] = []
         self.extra_open_trades: list[BrokerOrder] = []
 
@@ -66,10 +66,11 @@ class _FakeAdapter:
             *self.extra_open_trades,
         ]
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
         self.placed.append(order)
-        order.broker_order_id = self.submitted_order_id
-        order.status = OrderStatus.SUBMITTED
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = self.submitted_order_id
+        placed.status = OrderStatus.SUBMITTED
         if self.submitted_order_id and self.report_submitted_order:
             self.extra_open_trades.append(
                 BrokerOrder(
@@ -82,7 +83,7 @@ class _FakeAdapter:
                     status=OrderStatus.SUBMITTED,
                 )
             )
-        return order
+        return placed
 
     def cancel_order(self, broker_order_id: str) -> None:
         if self.cancel_error is not None:

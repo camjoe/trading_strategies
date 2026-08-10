@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from tests.support.account_records import make_account_record
-from trading.models.orders import BrokerOrder
+from trading.models.orders import OrderRequest
 
 
 def make_broker_account(**kwargs):
     return make_account_record(**kwargs)
 
 
-def make_broker_order(**kwargs) -> BrokerOrder:
+def make_order_request(**kwargs) -> OrderRequest:
     defaults = {
         "account_id": 1,
         "ticker": "AAPL",
@@ -17,10 +17,10 @@ def make_broker_order(**kwargs) -> BrokerOrder:
         "price": 150.0,
     }
     defaults.update(kwargs)
-    return BrokerOrder(**defaults)
+    return OrderRequest(**defaults)
 
 
 __all__ = [
     "make_broker_account",
-    "make_broker_order",
+    "make_order_request",
 ]

@@ -25,6 +25,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.workflow import run_auto_trader_group
 from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 
 TRADING_STEP_ID = "05_build_position_targets_by_book"
 
@@ -41,7 +42,7 @@ def _exit_code_for(monkeypatch, results: list[AccountRunResult]) -> int:
     monkeypatch.setattr(
         run_auto_trades,
         "resolve_market_inputs",
-        lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}),
+        lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
     )
     monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
     monkeypatch.setattr(run_auto_trades, "run_accounts", Mock(return_value=results))

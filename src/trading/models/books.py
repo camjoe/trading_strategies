@@ -359,24 +359,37 @@ class BookFillTransition:
 # --- Risk ---
 
 
-@dataclass(frozen=True, slots=True)
-class RiskDecisionRecord:
-    """Persisted risk_decisions row materialized from the database."""
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RiskDecisionInsert:
+    """The risk_decisions columns a caller supplies when creating a row.
 
-    id: int
+    Field names are the column names: `RiskDecisionRepository` builds both the
+    INSERT column list and its values from this class.
+    """
+
     account_id: int
-    book_id: int | None
+    book_id: int | None = None
     decision_time: str
-    symbol: str | None
-    side: str | None
+    symbol: str | None = None
+    side: str | None = None
     action: str
     reason_code: str
-    requested_qty: float | None
-    approved_qty: float | None
-    requested_notional: float | None
-    approved_notional: float | None
-    risk_payload_json: str
+    requested_qty: float | None = None
+    approved_qty: float | None = None
+    requested_notional: float | None = None
+    approved_notional: float | None = None
+    risk_payload_json: str = "{}"
     created_at: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RiskDecisionRecord(RiskDecisionInsert):
+    """Persisted risk_decisions row materialized from the database.
+
+    The insert payload plus the one column the database owns.
+    """
+
+    id: int
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> RiskDecisionRecord:
@@ -398,22 +411,35 @@ class RiskDecisionRecord:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class RiskSnapshotRecord:
-    """Persisted risk_snapshots row materialized from the database."""
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RiskSnapshotInsert:
+    """The risk_snapshots columns a caller supplies when creating a row.
 
-    id: int
+    Field names are the column names: `RiskSnapshotRepository` builds both the
+    INSERT column list and its values from this class.
+    """
+
     account_id: int
     snapshot_time: str
     gross_exposure: float
     net_exposure: float
     max_symbol_concentration_pct: float
     max_sector_concentration_pct: float
-    drawdown_pct: float | None
-    leverage_proxy: float | None
-    daily_loss_pct: float | None
-    kill_switch_triggered: int
-    risk_payload_json: str
+    drawdown_pct: float | None = None
+    leverage_proxy: float | None = None
+    daily_loss_pct: float | None = None
+    kill_switch_triggered: int = 0
+    risk_payload_json: str = "{}"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RiskSnapshotRecord(RiskSnapshotInsert):
+    """Persisted risk_snapshots row materialized from the database.
+
+    The insert payload plus the one column the database owns.
+    """
+
+    id: int
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> RiskSnapshotRecord:

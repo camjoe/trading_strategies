@@ -38,7 +38,7 @@ from common.time import normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderFill, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"
@@ -97,8 +97,8 @@ class IbkrSocketAdapter(BrokerConnection):
     # Order management
     # ------------------------------------------------------------------
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
-        """Submit *order* to IB and return it with ``status = SUBMITTED``.
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
+        """Submit *order* to IB and return the placed order with ``status = SUBMITTED``.
 
         Fills arrive asynchronously.  The caller must persist the returned
         SUBMITTED order and later reconcile fills via ``get_open_trades``.
@@ -111,14 +111,16 @@ class IbkrSocketAdapter(BrokerConnection):
             order_type="MKT" if order.order_type == OrderType.MARKET else "LMT",
             limit_price=order.price if order.order_type == OrderType.LIMIT else 0.0,
             time_in_force=order.time_in_force.value.upper(),
+            order_ref=order.client_order_id or "",
         )
         trade = self._client.place_order(request)
         now = utc_now_iso()
-        order.broker_order_id = str(trade.order_id)
-        order.status = OrderStatus.SUBMITTED
-        order.submitted_at = now
-        order.updated_at = now
-        return order
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = str(trade.order_id)
+        placed.status = OrderStatus.SUBMITTED
+        placed.submitted_at = now
+        placed.updated_at = now
+        return placed
 
     def cancel_order(self, broker_order_id: str) -> None:
         """Request cancellation of an open order by its IB order ID."""
@@ -152,6 +154,8 @@ class IbkrSocketAdapter(BrokerConnection):
                 side=trade.action.lower(),
                 qty=trade.total_quantity,
                 price=trade.limit_price,
+                # IB echoes orderRef; empty for an order placed outside this system.
+                client_order_id=trade.order_ref or None,
                 broker_order_id=str(trade.order_id),
                 status=_map_ib_status(trade.status),
                 filled_qty=trade.filled,

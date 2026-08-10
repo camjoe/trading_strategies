@@ -21,9 +21,6 @@ class StrategyRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> StrategyRecord:
-        return StrategyRecord.from_mapping(dict(row))
-
     def insert(
         self,
         *,
@@ -63,24 +60,24 @@ class StrategyRepository:
             "SELECT * FROM strategies WHERE id = ?",
             (strategy_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return StrategyRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_by_key(self, *, strategy_key: str) -> StrategyRecord | None:
         row = self._conn.execute(
             "SELECT * FROM strategies WHERE strategy_key = ?",
             (strategy_key,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return StrategyRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_all(self) -> list[StrategyRecord]:
         rows = self._conn.execute("SELECT * FROM strategies ORDER BY strategy_key ASC").fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [StrategyRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_enabled(self) -> list[StrategyRecord]:
         rows = self._conn.execute(
             "SELECT * FROM strategies WHERE enabled = 1 AND status != 'retired' ORDER BY strategy_key ASC"
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [StrategyRecord.from_mapping(dict(row)) for row in rows]
 
     def update_draft_knobs(
         self,

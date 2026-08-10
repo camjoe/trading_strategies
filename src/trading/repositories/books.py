@@ -3,7 +3,6 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
-from common.time import utc_now_iso
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
 
@@ -18,9 +17,6 @@ class BookRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    def _row_to_record(self, row: sqlite3.Row) -> BookRecord:
-        return BookRecord.from_mapping(dict(row))
 
     def insert(
         self,
@@ -97,7 +93,7 @@ class BookRepository:
             (book_id, trade_symbols, effective_from),
         )
 
-    def update_settings(self, *, book_id: int, values: Mapping[str, object]) -> None:
+    def update_settings(self, *, book_id: int, values: Mapping[str, object], updated_at: str) -> None:
         """Write ``values`` as a partial column update to one book; no-op when empty.
 
         Callers pass column name to value; deciding which settings to include
@@ -108,7 +104,7 @@ class BookRepository:
         assignments = ", ".join(f"{column} = ?" for column in values)
         self._conn.execute(
             f"UPDATE books SET {assignments}, updated_at = ? WHERE id = ?",
-            (*values.values(), utc_now_iso(), book_id),
+            (*values.values(), updated_at, book_id),
         )
         commit_unit_of_work(self._conn)
 
@@ -117,21 +113,21 @@ class BookRepository:
             "SELECT * FROM books WHERE id = ?",
             (book_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return BookRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_for_account(self, *, account_id: int) -> list[BookRecord]:
         rows = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? ORDER BY id ASC",
             (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [BookRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_default_for_account(self, *, account_id: int) -> BookRecord | None:
         row = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? AND is_default = 1",
             (account_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return BookRecord.from_mapping(dict(row)) if row is not None else None
 
     def update_status(self, *, book_id: int, status: str, updated_at: str) -> None:
         self._conn.execute(

@@ -86,19 +86,14 @@ def main() -> int:
         run_universe = (
             load_tickers_from_file(args.tickers_file) if args.tickers_file else resolve_run_universe(conn, accounts)
         )
-        universe, prices, iv_rank_proxy, histories = resolve_market_inputs(run_universe, provider=provider)
         results = run_accounts(
             conn,
             account_names=accounts,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
+            market=resolve_market_inputs(run_universe, provider=provider),
             max_trades=args.max_trades,
             fee=args.fee,
-            histories=histories,
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,
-            provider=provider,
         )
 
     for result in results:

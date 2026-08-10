@@ -6,6 +6,7 @@ from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
 from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
+from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -102,18 +103,20 @@ def record_trade(
     # book accounting are all-or-nothing.
     with unit_of_work(conn):
         order_id = order_repo.insert(
-            book_id=book.id,
-            account_id=account.id,
-            symbol=ticker,
-            side=side,
-            qty=float(qty),
-            requested_price=float(price),
-            status="filled",
-            filled_qty=float(qty),
-            avg_fill_price=float(price),
-            commission=float(fee),
-            submitted_at=entry_time,
-            updated_at=entry_time,
+            OrderInsert(
+                book_id=book.id,
+                account_id=account.id,
+                symbol=ticker,
+                side=side,
+                qty=float(qty),
+                requested_price=float(price),
+                status="filled",
+                filled_qty=float(qty),
+                avg_fill_price=float(price),
+                commission=float(fee),
+                submitted_at=entry_time,
+                updated_at=entry_time,
+            )
         )
         order_repo.insert_fill(
             order_id=order_id,

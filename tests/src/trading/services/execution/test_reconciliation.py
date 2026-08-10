@@ -5,7 +5,7 @@ import pytest
 from tests.src.trading.services.execution.helpers import insert_book_equity_snapshot
 from tests.support.repositories import insert_repository_account
 from trading.models.execution import BookTradeIntent
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.books import BookRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -24,15 +24,15 @@ NOW = "2026-07-05T12:00:00Z"
 
 
 class _FilledBroker:
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
-        order.broker_order_id = "B1"
-        order.status = OrderStatus.FILLED
-        order.filled_qty = order.qty
-        order.avg_fill_price = order.price
-        order.submitted_at = NOW
-        order.updated_at = NOW
-        order.fills = []
-        return order
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = "B1"
+        placed.status = OrderStatus.FILLED
+        placed.filled_qty = order.qty
+        placed.avg_fill_price = order.price
+        placed.submitted_at = NOW
+        placed.updated_at = NOW
+        return placed
 
 
 def _account_book(conn, *, equity: float) -> tuple[int, int]:

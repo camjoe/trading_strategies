@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import fields
 
 from common.time import next_date_str
-from trading.models.orders import FillEventRecord, OrderRecord
+from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
+
+# Derived rather than listed: the payload's field names are the column names, so
+# a new column is added in one place. OrderRecord subclasses OrderInsert, so this
+# also drops the two database-owned columns when a record is passed back in.
+_ORDER_INSERT_COLUMNS = tuple(field.name for field in fields(OrderInsert))
+_ORDER_INSERT_SQL = (
+    f"INSERT INTO orders ({', '.join(_ORDER_INSERT_COLUMNS)}) VALUES ({', '.join('?' for _ in _ORDER_INSERT_COLUMNS)})"
+)
 
 
 class BookAccountMismatchError(ValueError):
@@ -21,68 +30,18 @@ class OrderRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> OrderRecord:
-        return OrderRecord.from_mapping(dict(row))
-
-    def insert(
-        self,
-        *,
-        book_id: int,
-        account_id: int,
-        strategy_id: int | None = None,
-        rotation_decision_id: int | None = None,
-        broker_order_id: str | None = None,
-        symbol: str,
-        side: str,
-        qty: float,
-        order_type: str = "market",
-        time_in_force: str = "day",
-        requested_price: float | None = None,
-        status: str,
-        filled_qty: float = 0.0,
-        avg_fill_price: float | None = None,
-        commission: float = 0.0,
-        submitted_at: str,
-        updated_at: str,
-        status_reason: str | None = None,
-    ) -> int:
+    def insert(self, order: OrderInsert) -> int:
         owner = self._conn.execute(
             "SELECT account_id FROM books WHERE id = ?",
-            (book_id,),
+            (order.book_id,),
         ).fetchone()
-        if owner is None or int(owner[0]) != account_id:
+        if owner is None or int(owner[0]) != order.account_id:
             raise BookAccountMismatchError(
-                f"Book {book_id} does not belong to account {account_id}; refusing to insert order."
+                f"Book {order.book_id} does not belong to account {order.account_id}; refusing to insert order."
             )
         cursor = self._conn.execute(
-            """
-            INSERT INTO orders (
-                book_id, account_id, strategy_id, rotation_decision_id, broker_order_id,
-                symbol, side, qty, order_type, time_in_force, requested_price, status,
-                filled_qty, avg_fill_price, commission, submitted_at, updated_at, status_reason
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                book_id,
-                account_id,
-                strategy_id,
-                rotation_decision_id,
-                broker_order_id,
-                symbol,
-                side,
-                qty,
-                order_type,
-                time_in_force,
-                requested_price,
-                status,
-                filled_qty,
-                avg_fill_price,
-                commission,
-                submitted_at,
-                updated_at,
-                status_reason,
-            ),
+            _ORDER_INSERT_SQL,
+            tuple(getattr(order, column) for column in _ORDER_INSERT_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
@@ -168,7 +127,7 @@ class OrderRepository:
             "SELECT * FROM orders WHERE id = ?",
             (order_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return OrderRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
@@ -179,14 +138,14 @@ class OrderRepository:
             """,
             (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_for_book(self, *, book_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
             "SELECT * FROM orders WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
             (book_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: float) -> None:
         """Accumulate a closing fill's realized P&L onto its order.
@@ -213,7 +172,7 @@ class OrderRepository:
             "ORDER BY submitted_at ASC, id ASC",
             (account_id, date_str, next_date_str(date_str)),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
         """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD)."""
@@ -224,7 +183,69 @@ class OrderRepository:
             "ORDER BY submitted_at ASC, id ASC",
             (book_id, date_str, next_date_str(date_str)),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_pending_for_account(self, *, account_id: int) -> list[OrderRecord]:
+        """Rows written before a broker send that never received an answer.
+
+        Each one names an order the broker may or may not be holding. Only
+        `client_order_id` can settle which, so rows without one are unresolvable
+        and are excluded rather than offered to a matcher that cannot place them.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT * FROM orders
+            WHERE account_id = ? AND status = ? AND client_order_id IS NOT NULL
+            ORDER BY submitted_at ASC, id ASC
+            """,
+            (account_id, ORDER_STATUS_PENDING),
+        ).fetchall()
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+
+    def record_placement(
+        self,
+        *,
+        order_id: int,
+        broker_order_id: str | None,
+        status: str,
+        filled_qty: float,
+        avg_fill_price: float | None,
+        commission: float,
+        submitted_at: str,
+        updated_at: str,
+        status_reason: str | None = None,
+    ) -> None:
+        """Complete a pending row with what the broker answered.
+
+        Separate from `update_status` because only placement writes
+        `broker_order_id` and `commission`; later polls must not touch either.
+        """
+        self._conn.execute(
+            """
+            UPDATE orders
+            SET broker_order_id = ?,
+                status = ?,
+                filled_qty = ?,
+                avg_fill_price = ?,
+                commission = ?,
+                submitted_at = ?,
+                updated_at = ?,
+                status_reason = ?
+            WHERE id = ?
+            """,
+            (
+                broker_order_id,
+                status,
+                filled_qty,
+                avg_fill_price,
+                commission,
+                submitted_at,
+                updated_at,
+                status_reason,
+                order_id,
+            ),
+        )
+        commit_unit_of_work(self._conn)
 
     def update_status(
         self,

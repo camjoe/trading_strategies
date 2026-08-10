@@ -16,7 +16,7 @@ from infrastructure.brokers.ibkr_web import (
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderFill, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -42,7 +42,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
     def disconnect(self) -> None:
         self._client.disconnect()
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
         self._require_connected()
         contract = self._client.resolve_contract(order.ticker)
         trading_accounts = self._client.fetch_trade_accounts()
@@ -65,12 +65,13 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
 
         response = self._client.submit_order(payload)
         now = utc_now_iso()
-        order.broker_order_id = str(response["order_id"])
-        order.status = _map_ib_web_status(str(response.get("order_status", "Submitted")))
-        order.status_reason = self._fetch_terminal_status_reason(order.broker_order_id, order.status)
-        order.submitted_at = now
-        order.updated_at = now
-        return order
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = str(response["order_id"])
+        placed.status = _map_ib_web_status(str(response.get("order_status", "Submitted")))
+        placed.status_reason = self._fetch_terminal_status_reason(placed.broker_order_id, placed.status)
+        placed.submitted_at = now
+        placed.updated_at = now
+        return placed
 
     def cancel_order(self, broker_order_id: str) -> None:
         self._require_connected()
@@ -115,6 +116,9 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                     side=str(row.get("side") or "").strip().lower(),
                     qty=qty,
                     price=_coerce_number(row.get("price") or row.get("limitPrice")) or 0.0,
+                    # The cOID this system sent, echoed back — how reconciliation
+                    # matches an order whose confirmation never landed.
+                    client_order_id=str(row.get("cOID") or row.get("order_ref") or "").strip() or None,
                     broker_order_id=broker_order_id,
                     status=order_status,
                     filled_qty=filled_qty,
@@ -267,7 +271,16 @@ def _requires_manual_order_time(accounts_payload: dict[str, object], account_id:
     return _coerce_bool_flag(account_props.get("allowCustomerTime"))
 
 
-def _build_customer_order_id(order: BrokerOrder) -> str:
+def _build_customer_order_id(order: OrderRequest) -> str:
+    """The caller's client order id, or a locally minted one for direct callers.
+
+    IBKR requires a `cOID`, so this cannot simply pass None through. A caller that
+    supplies one (the submission path always does) gets it sent verbatim, which is
+    what lets reconciliation match its persisted row; the fallback only serves
+    callers that place an order without persisting it first, such as a smoke test.
+    """
+    if order.client_order_id:
+        return order.client_order_id
     symbol = order.ticker.strip().upper() or "UNKNOWN"
     side = order.side.strip().upper() or "UNKNOWN"
     return f"{_WEB_ORDER_ID_PREFIX}-{symbol}-{side}-{time.time_ns()}"

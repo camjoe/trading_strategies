@@ -7,7 +7,7 @@ from tests.support.account_records import make_account_record, make_book_record
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.accounts import AccountState
 from trading.models.execution import BookTradeCandidate
-from trading.models.orders import OrderStatus
+from trading.models.orders import BrokerOrder, OrderStatus
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
 MARKET_CLOSED_TIME_ISO = "2026-03-15T15:00:00Z"
@@ -71,12 +71,12 @@ class FakeBroker:
 
     @staticmethod
     def _fill_order(order):
-        order.broker_order_id = "fake-broker-order"
-        order.status = OrderStatus.FILLED
-        order.filled_qty = order.qty
-        order.avg_fill_price = order.price
-        order.fills = []
-        return order
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = "fake-broker-order"
+        placed.status = OrderStatus.FILLED
+        placed.filled_qty = order.qty
+        placed.avg_fill_price = order.price
+        return placed
 
 
 def make_book_trade_candidate(

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from trading.models.accounts import AccountConfig, AccountDeletionPreview, AccountInsert, AccountRecord, AccountState
 from trading.models.execution import RiskGatePosition
-from trading.models.orders import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType, TimeInForce
 from trading.models.parameters import ParameterEntry, ParameterGroup, ParameterSourceView
 from trading.models.portfolio import (
     AccountExposure,
@@ -38,6 +38,7 @@ __all__ = [
     "EquitySnapshotRecord",
     "GlobalSettingsRecord",
     "OrderFill",
+    "OrderRequest",
     "OrderStatus",
     "OrderType",
     "ParameterEntry",

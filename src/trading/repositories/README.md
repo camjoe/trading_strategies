@@ -42,6 +42,13 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
   otherwise.)
 - **Reads need no ceremony.** Only write methods commit, so query methods participate in any
   enclosing scope for free.
+- **A row becomes a record at the query**, written out as `Record.from_mapping(dict(row))` — the
+  same spelling `backtesting/repositories/` uses. Coercion belongs in the model's `from_mapping`,
+  not in a private per-class mapper; `promotion.py` maps its event rows by hand only because their
+  enum fields have no `from_mapping` yet.
+- **Writes take their timestamp from the caller.** `updated_at`/`created_at` are parameters, never
+  `utc_now_iso()` called inside a repository: several callers pass an event time (a fill, a ledger
+  entry) that is deliberately not the wall clock.
 - **`books.py`, `book_bridge.py`, `snapshots.py`, and `positions.py` carry the widest import
   fan-out** in the package. Changes to their signatures ripple broadly — prefer additive changes.
 

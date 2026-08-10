@@ -20,12 +20,9 @@ class GlobalSettingsRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> GlobalSettingsRecord:
-        return GlobalSettingsRecord.from_mapping(dict(row))
-
     def fetch(self) -> GlobalSettingsRecord | None:
         row = self._conn.execute("SELECT * FROM global_settings WHERE id = 1").fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return GlobalSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
     def _insert_change_event(
         self, *, settings_group: str, changed_fields: dict[str, dict[str, object]], created_at: str

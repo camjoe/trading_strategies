@@ -28,7 +28,7 @@ from infrastructure.brokers.ibkr_socket.ibapi_client import (
 )
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from tests.support.account_records import make_account_record
-from trading.models.orders import BrokerOrder, OrderStatus, OrderType
+from trading.models.orders import OrderRequest, OrderStatus, OrderType
 
 
 class _FakeStartupFetch:
@@ -46,10 +46,10 @@ def _make_account(**kwargs):
     return make_account_record(**kwargs)
 
 
-def _make_order(**kwargs) -> BrokerOrder:
+def _make_order(**kwargs) -> OrderRequest:
     defaults = dict(account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0)
     defaults.update(kwargs)
-    return BrokerOrder(**defaults)
+    return OrderRequest(**defaults)
 
 
 def _mock_ib_client() -> MagicMock:
@@ -235,6 +235,27 @@ class TestIbkrSocketAdapter:
         assert request.order_type == "LMT"
         assert request.limit_price == 148.0
 
+    def test_place_order_sends_the_client_order_id_as_order_ref(self):
+        """IB's orderRef is how a socket order is recognized if its answer is lost."""
+        adapter, client = _adapter_with_mock_client()
+        client.place_order.return_value = _socket_trade(order_id=3)
+
+        adapter.place_order(_make_order(client_order_id="ts-AAPL-BUY-1"))
+
+        assert client.place_order.call_args.args[0].order_ref == "ts-AAPL-BUY-1"
+
+    def test_open_trades_carry_the_echoed_order_ref_as_client_order_id(self):
+        adapter, client = _adapter_with_mock_client()
+        client.trades.return_value = [
+            _socket_trade(order_id=56, order_ref="ts-AAPL-BUY-2"),
+            # Placed outside this system: IB reports no ref, and nothing is invented.
+            _socket_trade(order_id=57, order_ref=""),
+        ]
+
+        result = adapter.get_open_trades()
+
+        assert [order.client_order_id for order in result] == ["ts-AAPL-BUY-2", None]
+
     def test_cancel_order_calls_client_cancel(self):
         adapter, client = _adapter_with_mock_client()
 
@@ -351,7 +372,9 @@ class TestIbAsyncClient:
         backend = MagicMock()
         backend.isConnected.return_value = True
         sdk_trade = SimpleNamespace(
-            order=SimpleNamespace(orderId=42, action="BUY", totalQuantity=10.0, lmtPrice=0.0),
+            order=SimpleNamespace(
+                orderId=42, action="BUY", totalQuantity=10.0, lmtPrice=0.0, orderRef="ts-AAPL-BUY-1"
+            ),
             orderStatus=SimpleNamespace(status="Submitted", filled=0.0, avgFillPrice=0.0),
             contract=SimpleNamespace(symbol="AAPL"),
             fills=[],
@@ -386,6 +409,7 @@ class TestIbAsyncClient:
             order_type="MKT",
             limit_price=0.0,
             time_in_force="DAY",
+            order_ref="ts-AAPL-BUY-1",
         )
 
         client.connect("127.0.0.1", 7497, client_id=7)
@@ -393,6 +417,8 @@ class TestIbAsyncClient:
         assert client.place_order(order_request).order_id == 42
         client.cancel_order(42)
         assert client.trades()[0].symbol == "AAPL"
+        # IB echoes orderRef; reconciliation matches a pending row on it.
+        assert client.trades()[0].order_ref == "ts-AAPL-BUY-1"
         assert client.positions() == [IbkrPosition(symbol="AAPL", quantity=3.0)]
         assert client.account_summary() == [IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")]
         assert client.quotes(["AAPL"]) == [IbkrQuote(symbol="AAPL", bid=149.0, ask=150.0, last=149.5)]
@@ -414,6 +440,7 @@ class TestIbAsyncClient:
             orderType="MKT",
             lmtPrice=0.0,
             tif="DAY",
+            orderRef="ts-AAPL-BUY-1",
         )
 
 
@@ -612,6 +639,7 @@ class TestIbApiClient:
             order_type="LMT",
             limit_price=150.0,
             time_in_force="DAY",
+            order_ref="ts-AAPL-BUY-1",
         )
 
         app.place_order(42, request)
@@ -627,7 +655,7 @@ class TestIbApiClient:
         app.openOrder(
             42,
             SimpleNamespace(symbol="AAPL"),
-            SimpleNamespace(action="BUY", totalQuantity=10.0, lmtPrice=150.0),
+            SimpleNamespace(action="BUY", totalQuantity=10.0, lmtPrice=150.0, orderRef="ts-AAPL-BUY-1"),
             SimpleNamespace(status="Submitted"),
         )
         app.orderStatus(42, "Filled", 10.0, 0.0, 149.5, 1, 0, 149.5, 1, "")
@@ -674,6 +702,7 @@ class TestIbApiClient:
         assert native_order.orderType == "LMT"
         assert native_order.lmtPrice == 150.0
         assert native_order.tif == "DAY"
+        assert native_order.orderRef == "ts-AAPL-BUY-1"
         assert app.cancelled[0] == 42
         assert isinstance(app.cancelled[1], FakeOrderCancel)
         assert app.open_orders_requested is True
@@ -693,6 +722,9 @@ class TestIbApiClient:
         assert app.market_data_cancelled == 8
         trade = callbacks.trades()[0]
         assert trade.status == "Filled"
+        # Placed with orderRef, echoed back on openOrder: the round trip that lets
+        # reconciliation recognize an order whose confirmation never landed.
+        assert trade.order_ref == "ts-AAPL-BUY-1"
         assert trade.fills[0].commission == 1.25
         assert callbacks.positions() == [IbkrPosition(symbol="AAPL", quantity=3.0)]
         assert callbacks.account_values() == [IbkrAccountValue(tag="NetLiquidation", value="1000", currency="USD")]

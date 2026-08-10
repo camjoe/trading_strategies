@@ -194,6 +194,7 @@ def configure_book(
         BookRepository(conn).update_settings(
             book_id=book.id,
             values={name: value for name, value in values.items() if value is not None},
+            updated_at=utc_now_iso(),
         )
         if config.trade_universes is not None:
             # Names are shorthand; the book stores the expansion (revision 0029).

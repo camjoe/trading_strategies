@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.persistence.json_columns import dumps_json_column
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ def persist_book_risk_snapshot(
     fetch_positions_for_account_fn: Callable[..., list[Any]],
     fetch_books_for_account_fn: Callable[..., list[Any]],
     fetch_max_equity_fn: Callable[..., float | None],
-    insert_risk_snapshot_fn: Callable[..., object],
+    insert_risk_snapshot_fn: Callable[[RiskSnapshotInsert], object],
     symbol_sector_map: dict[str, str],
 ) -> None:
     gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct, total_equity = (
@@ -76,20 +77,22 @@ def persist_book_risk_snapshot(
     )
     peak_equity = fetch_max_equity_fn(conn, account_id=account_id)
     insert_risk_snapshot_fn(
-        account_id=account_id,
-        snapshot_time=snapshot_time,
-        gross_exposure=gross_exposure,
-        net_exposure=net_exposure,
-        max_symbol_concentration_pct=max_symbol_concentration_pct,
-        max_sector_concentration_pct=max_sector_concentration_pct,
-        drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
-        leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
-        # daily_loss_pct is a single-day peak-to-trough figure; still needs
-        # intraday equity ticks this codebase does not persist (unlike
-        # drawdown_pct above, a trailing-history peak can't stand in for it).
-        daily_loss_pct=None,
-        kill_switch_triggered=1 if kill_switch_triggered else 0,
-        risk_payload_json=dumps_json_column(payload),
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            gross_exposure=gross_exposure,
+            net_exposure=net_exposure,
+            max_symbol_concentration_pct=max_symbol_concentration_pct,
+            max_sector_concentration_pct=max_sector_concentration_pct,
+            drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
+            leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
+            # daily_loss_pct is a single-day peak-to-trough figure; still needs
+            # intraday equity ticks this codebase does not persist (unlike
+            # drawdown_pct above, a trailing-history peak can't stand in for it).
+            daily_loss_pct=None,
+            kill_switch_triggered=1 if kill_switch_triggered else 0,
+            risk_payload_json=dumps_json_column(payload),
+        )
     )
 
 
@@ -99,7 +102,7 @@ def persist_normalized_risk_decisions(
     account_id: int,
     decision_time: str,
     risk_decisions: list[dict[str, Any]],
-    insert_risk_decision_fn: Callable[..., object],
+    insert_risk_decision_fn: Callable[[sqlite3.Connection, RiskDecisionInsert], object],
 ) -> None:
     for decision in risk_decisions:
         action = str(decision.get("action", "block")).strip().lower()
@@ -116,17 +119,19 @@ def persist_normalized_risk_decisions(
         approved_notional_value = decision.get("approved_notional")
         insert_risk_decision_fn(
             conn,
-            account_id=account_id,
-            book_id=book_id,
-            decision_time=decision_time,
-            symbol=symbol,
-            side=side,
-            action=action,
-            reason_code=reason_code,
-            requested_qty=float(requested_qty_value) if requested_qty_value is not None else None,
-            approved_qty=float(approved_qty_value) if approved_qty_value is not None else None,
-            requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
-            approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
-            risk_payload_json=dumps_json_column(decision),
-            created_at=decision_time,
+            RiskDecisionInsert(
+                account_id=account_id,
+                book_id=book_id,
+                decision_time=decision_time,
+                symbol=symbol,
+                side=side,
+                action=action,
+                reason_code=reason_code,
+                requested_qty=float(requested_qty_value) if requested_qty_value is not None else None,
+                approved_qty=float(approved_qty_value) if approved_qty_value is not None else None,
+                requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
+                approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
+                risk_payload_json=dumps_json_column(decision),
+                created_at=decision_time,
+            ),
         )

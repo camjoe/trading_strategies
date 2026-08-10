@@ -15,6 +15,9 @@ class IbkrOrderRequest:
     order_type: str
     limit_price: float
     time_in_force: str
+    # IB's orderRef, carrying the caller's client order id. IB echoes it on
+    # openOrder, which is what lets a sent-but-unconfirmed order be recognized.
+    order_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,8 @@ class IbkrTrade:
     avg_fill_price: float | None
     fills: tuple[IbkrFill, ...] = field(default_factory=tuple)
     status_reason: str | None = None
+    # Empty for an order placed outside this system, which carries no orderRef.
+    order_ref: str = ""
 
 
 @dataclass(frozen=True)

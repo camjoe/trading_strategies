@@ -5,10 +5,8 @@ from __future__ import annotations
 import logging
 import sqlite3
 from collections import defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import asdict
-
-import pandas as pd
 
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso, utc_now_iso
@@ -23,6 +21,7 @@ from trading.models.execution import (
     RiskGateConfig,
     RiskGateDecision,
 )
+from trading.models.market_data import MarketInputs
 from trading.services.accounts import get_account
 from trading.services.books.rotation.account_rotation import run_account_book_rotations
 from trading.services.books.sector_config import load_symbol_sector_map
@@ -42,7 +41,6 @@ from trading.services.execution.selection.selection import (
     build_feature_history_fn,
 )
 from trading.services.execution.submission import submit_book_intents
-from trading.services.market_data import MarketDataProvider
 from trading.services.operational_settings import enforce_runtime_trade_throttles
 
 logger = logging.getLogger(__name__)
@@ -77,13 +75,10 @@ def _run_books_for_account(
     conn: sqlite3.Connection,
     *,
     account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-    histories: Mapping[str, pd.DataFrame] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
     fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> AccountRunResult:
@@ -96,12 +91,9 @@ def _run_books_for_account(
     intents = generate_book_trade_intents(
         conn,
         account=account,
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank_proxy,
+        market=market,
         max_trades=max_trades,
         fee=fee,
-        histories=histories,
         feature_history_fn=feature_history_fn,
         # Seeded per run date, so candidate order is stable within a run and
         # reproducible from the audit trail, but does not favour the same names
@@ -130,10 +122,10 @@ def _run_books_for_account(
     # for the run (reconciliation is per-run, not
     # per-book). The batch gate then applies the notional caps + stale-price across all
     # books with reconcile=False, so cross-book exposure caps are enforced together.
-    mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=snapshot_time)
+    mark_account_to_market(conn, account_id=account_id, prices=market.prices, as_of=snapshot_time)
     reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id)
     gate = BookPreSubmitGate(
-        prices=prices,
+        prices=market.prices,
         snapshot_time=snapshot_time,
         reconcile=False,
         config=RiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
@@ -191,17 +183,13 @@ def _run_books_for_account(
 
 def run_for_account(
     conn: sqlite3.Connection,
+    *,
     account_name: str,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
-    *,
-    histories: Mapping[str, pd.DataFrame] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
-    provider: MarketDataProvider | None = None,
 ) -> AccountRunResult:
     """Run the account's trading books (the one execution path, ADR 014).
 
@@ -216,13 +204,10 @@ def run_for_account(
     return _run_books_for_account(
         conn,
         account=account,
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank_proxy,
+        market=market,
         max_trades=max_trades,
         fee=fee,
         broker_factory=broker_factory,
-        histories=histories,
         feature_history_fn=feature_history_fn,
         fetch_regime=feature_fetchers.fetch_policy,
     )

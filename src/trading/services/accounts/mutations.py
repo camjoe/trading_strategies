@@ -54,6 +54,7 @@ def _apply_book_settings_to_default_book(
     BookRepository(conn).update_settings(
         book_id=book.id,
         values={column: value for column, value in values.items() if value is not None},
+        updated_at=utc_now_iso(),
     )
 
 
@@ -222,9 +223,9 @@ def _apply_trade_symbols_to_default_book(
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
     account = get_account(conn, account_name)
-    AccountRepository(conn).update_benchmark(
+    AccountRepository(conn).update(
         account_id=account.id,
-        benchmark_ticker=benchmark_ticker.upper().strip(),
+        values={"benchmark_ticker": benchmark_ticker.upper().strip()},
         updated_at=utc_now_iso(),
     )
 
