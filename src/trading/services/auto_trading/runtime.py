@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from collections import defaultdict
 from collections.abc import Callable
@@ -28,10 +27,6 @@ from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
-from trading.services.execution.open_order_reconciliation import (
-    ReconciliationOutcome,
-    reconcile_open_orders_impl,
-)
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.reconciliation import reconcile_book_equity
 from trading.services.execution.risk import persist_book_run_audit
@@ -42,8 +37,6 @@ from trading.services.execution.selection.selection import (
 )
 from trading.services.execution.submission import submit_book_intents
 from trading.services.operational_settings import enforce_runtime_trade_throttles
-
-logger = logging.getLogger(__name__)
 
 # Risk-decision reason when the global trade throttle blocks further submissions.
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
@@ -210,32 +203,4 @@ def run_for_account(
         broker_factory=broker_factory,
         feature_history_fn=feature_history_fn,
         fetch_regime=feature_fetchers.fetch_policy,
-    )
-
-
-def reconcile_open_broker_orders(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-    *,
-    broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> ReconciliationOutcome:
-    """Poll the account broker for fill updates on all open persisted clean orders.
-
-    For each open ``orders`` row the broker reports fills on, this function:
-      - Inserts any new ``order_fills`` rows and applies them to the book
-        (positions/ledger/balances via the shared ``apply_book_fill``)
-      - Updates the ``orders`` row status/fill state
-
-    Returns a :class:`ReconciliationOutcome` carrying the count of orders newly
-    FILLED in this call, plus any open orders the broker did not report on. Fills
-    carry their own costs, and account history derives from the fill rows.
-
-    Called by the daily run before each equity snapshot. It is a no-op for paper
-    accounts, which fill synchronously and report no open trades; it is what keeps
-    the books honest for async brokers such as the IBKR socket path.
-    """
-    return reconcile_open_orders_impl(
-        conn,
-        account,
-        get_broker_for_account_fn=broker_factory,
     )

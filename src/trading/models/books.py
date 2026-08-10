@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
@@ -114,8 +115,23 @@ class BookRecord(Mapping[str, object]):
     def __len__(self) -> int:
         return len(self.__dataclass_fields__)
 
+    # --- Strategy assignment ---
 
-# --- Strategy assignment ---
+    def trade_symbol_list(self) -> list[str]:
+        """The book's resolved tickers, decoded from the stored JSON array.
+
+        The one reader of ``trade_symbols``. The run's fetch universe and each
+        book's selection universe are both derived from it, and they have to
+        agree: a symbol a book can pick is a symbol the run priced. Anything that
+        is not a JSON array reads as empty rather than raising — callers decide
+        what an empty universe means, and they differ.
+        """
+        if not self.trade_symbols:
+            return []
+        decoded = json.loads(self.trade_symbols)
+        if not isinstance(decoded, list):
+            return []
+        return [str(symbol) for symbol in decoded]
 
 
 @dataclass(frozen=True, slots=True)

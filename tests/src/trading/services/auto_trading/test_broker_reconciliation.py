@@ -1,6 +1,5 @@
 from unittest.mock import Mock
 
-import trading.services.auto_trading.runtime as runtime_service
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 from tests.support.db_schema import memory_db_at_head
@@ -8,6 +7,7 @@ from trading.models.orders import ORDER_STATUS_PENDING, BrokerOrder, OrderFill, 
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
+from trading.services.execution.open_order_reconciliation import reconcile_open_orders
 
 
 def _make_db():
@@ -120,9 +120,7 @@ class TestAdoptPendingOrders:
             def disconnect(self):
                 pass
 
-        outcome = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert outcome.adopted_pending == 1
         assert outcome.unresolved_pending_client_order_ids == []
@@ -150,9 +148,7 @@ class TestAdoptPendingOrders:
             def disconnect(self):
                 pass
 
-        outcome = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_EmptyBroker())
-        )
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_EmptyBroker()))
 
         assert outcome.adopted_pending == 0
         assert outcome.unresolved_pending_client_order_ids == ["ts-AAPL-BUY-2"]
@@ -187,9 +183,7 @@ class TestAdoptPendingOrders:
             def disconnect(self):
                 pass
 
-        outcome = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert outcome.adopted_pending == 0
         order = OrderRepository(conn).fetch_by_id(order_id=order_id)
@@ -204,7 +198,7 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="paper")
         mock_factory = Mock(return_value=PaperBrokerAdapter())
 
-        result = runtime_service.reconcile_open_broker_orders(conn, account, broker_factory=mock_factory)
+        result = reconcile_open_orders(conn, account, broker_factory=mock_factory)
 
         assert result.newly_filled == 0
         mock_factory.assert_called_once_with(account)
@@ -244,9 +238,7 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        count = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        count = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert count.newly_filled == 1
         # The clean order + book state were updated from the async fill.
@@ -295,12 +287,8 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         fake_broker = _FakeBroker()
-        first = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=fake_broker)
-        )
-        second = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=fake_broker)
-        )
+        first = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=fake_broker))
+        second = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=fake_broker))
 
         # Partial fill is not FILLED → newly_filled stays 0 across both polls.
         assert first.newly_filled == 0
@@ -326,9 +314,7 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 _FakeBroker._disconnect_calls += 1
 
-        result = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        result = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert result.newly_filled == 0
         assert _FakeBroker._disconnect_calls == 1
@@ -365,9 +351,7 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        count = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        count = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
         assert count.newly_filled == 0
 
         repo = OrderRepository(conn)
@@ -411,9 +395,7 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        outcome = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert outcome.unreported_broker_order_ids == ["ib-omitted"]
         assert outcome.has_unreported is True
@@ -451,9 +433,7 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        outcome = runtime_service.reconcile_open_broker_orders(
-            conn, account, broker_factory=Mock(return_value=_FakeBroker())
-        )
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_FakeBroker()))
 
         assert outcome.unreported_broker_order_ids == []
         assert outcome.has_unreported is False

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 
@@ -88,11 +87,9 @@ def generate_book_trade_intents(
         # assigned label for display and rotation bookkeeping.
         signal_primitive = resolved.primitive
         strategy_params = resolved.params
-        book_symbols: object = json.loads(book.trade_symbols) if book.trade_symbols else []
-        if isinstance(book_symbols, list) and book_symbols:
-            effective_universe = [str(symbol) for symbol in book_symbols]
-        else:
-            effective_universe = market.universe
+        # An empty book universe selects over the whole run universe; the fetch
+        # side reads the same empty list as contributing nothing.
+        effective_universe = book.trade_symbol_list() or market.universe
         # Execution/risk knobs are book-owned (revision 0004).
         risk_policy = book.risk_policy.strip().lower()
         instrument_mode = book.instrument_mode.strip().lower()

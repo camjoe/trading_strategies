@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections.abc import Callable
 
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
-from trading.models.books import BookRecord
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
 from trading.services.accounts import get_account
@@ -49,18 +47,11 @@ def resolve_run_universe(conn: sqlite3.Connection, account_names: list[str]) -> 
     for account_name in account_names:
         account = get_account(conn, account_name)
         for trading_book in enumerate_trading_books(conn, account_id=account.id):
-            for symbol in _book_symbols(trading_book.book):
+            for symbol in trading_book.book.trade_symbol_list():
                 seen[symbol] = None
     if not seen:
         raise ValueError(f"No trading book across {', '.join(account_names)} carries any symbol.")
     return list(seen)
-
-
-def _book_symbols(book: BookRecord) -> list[str]:
-    symbols = json.loads(book.trade_symbols) if book.trade_symbols else []
-    if not isinstance(symbols, list):
-        return []
-    return [str(symbol) for symbol in symbols]
 
 
 def resolve_market_inputs(

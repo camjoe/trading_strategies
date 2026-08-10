@@ -17,7 +17,7 @@ import sys
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
 from trading.services.accounts import get_account
-from trading.services.auto_trading import reconcile_open_broker_orders
+from trading.services.execution.open_order_reconciliation import reconcile_open_orders
 
 __all__ = ["main", "parse_args"]
 
@@ -39,7 +39,7 @@ def main() -> None:
     with db_session() as conn:
         for account_name in account_names:
             account = get_account(conn, account_name)
-            outcome = reconcile_open_broker_orders(
+            outcome = reconcile_open_orders(
                 conn,
                 account,
                 broker_factory=get_broker_for_account,

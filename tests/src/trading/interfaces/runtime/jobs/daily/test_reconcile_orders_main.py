@@ -31,7 +31,7 @@ def test_main_reconciles_each_account_and_reports_counts(monkeypatch, capsys) ->
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
     reconcile = Mock(side_effect=[ReconciliationOutcome(newly_filled=2), ReconciliationOutcome(newly_filled=0)])
-    monkeypatch.setattr(module, "reconcile_open_broker_orders", reconcile)
+    monkeypatch.setattr(module, "reconcile_open_orders", reconcile)
 
     module.main()
 
@@ -55,7 +55,7 @@ def test_main_warns_about_unreported_orders(monkeypatch, capsys) -> None:
     monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
     monkeypatch.setattr(
         module,
-        "reconcile_open_broker_orders",
+        "reconcile_open_orders",
         Mock(return_value=ReconciliationOutcome(newly_filled=0, unreported_broker_order_ids=["ib-7", "ib-9"])),
     )
 
@@ -72,7 +72,7 @@ def test_main_stays_quiet_when_every_order_is_accounted_for(monkeypatch, capsys)
     install_args(monkeypatch, "acct1")
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
-    monkeypatch.setattr(module, "reconcile_open_broker_orders", Mock(return_value=ReconciliationOutcome()))
+    monkeypatch.setattr(module, "reconcile_open_orders", Mock(return_value=ReconciliationOutcome()))
 
     module.main()
 
@@ -85,7 +85,7 @@ def test_main_skips_blank_account_names(monkeypatch, capsys) -> None:
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
     reconcile = Mock(return_value=ReconciliationOutcome())
-    monkeypatch.setattr(module, "reconcile_open_broker_orders", reconcile)
+    monkeypatch.setattr(module, "reconcile_open_orders", reconcile)
 
     module.main()
 
@@ -100,7 +100,7 @@ def test_main_closes_connection_when_reconciliation_fails(monkeypatch) -> None:
     monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
     monkeypatch.setattr(
         module,
-        "reconcile_open_broker_orders",
+        "reconcile_open_orders",
         Mock(side_effect=RuntimeError("broker unreachable")),
     )
 
