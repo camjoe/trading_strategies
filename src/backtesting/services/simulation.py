@@ -3,10 +3,10 @@ from __future__ import annotations
 import math
 import sqlite3
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import pandas as pd
 

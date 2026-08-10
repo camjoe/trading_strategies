@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG

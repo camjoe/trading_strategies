@@ -208,7 +208,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
 | `universe/resolver.py` | Trade-universe name resolution |
-| `table_export/csv_export.py` | On-demand CSV generation from a live table cursor (`stream_table_csv`) — stable surface is the `table_export` package root |
+| `table_export.py` | On-demand CSV generation from a live table cursor (`stream_table_csv`) |
 
 ---
 
@@ -238,7 +238,7 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
 | `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
-| `table_export.py` | Generic table row/CSV-cursor reads for the operator export/preview feature (`fetch_table_rows`, `fetch_table_cursor`) |
+| `table_export.py` | Generic table-cursor reads by table name for the operator CSV export (`fetch_table_cursor`) |
 
 ---
 

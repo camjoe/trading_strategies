@@ -10,8 +10,9 @@ writing an experiment.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from datetime import date
-from typing import Any, Callable
+from typing import Any
 
 from backtesting.domain.optimization import evaluate_candidate, generate_candidates, select_winner
 from backtesting.domain.windowing import build_walk_forward_optimization_splits, resolve_run_window

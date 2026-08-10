@@ -73,7 +73,7 @@ or `reconciliation`) instead of treating the package root as a facade.
 | Query Autonomy monitor status, artifacts, governance, and risk | `trading.services.autonomy_monitor` | Operator/dashboard read model over DB state and runtime artifacts |
 | Preview or delete an account (cascade) | `trading.services.accounts` | `deletions.py` — dry-run preview + cascade-backed delete |
 | Resolve trade universes | `trading.services.universe` | Universe name → ticker list |
-| Preview or export a DB table on demand (live query, no persisted files) | `trading.services.table_export` | `fetch_table_rows` (paged preview), `stream_table_csv` (CSV generator); reads via `trading.repositories.table_export` |
+| Export a DB table on demand (live query, no persisted files) | `trading.services.table_export` | `stream_table_csv` (CSV generator); reads via `trading.repositories.table_export` |
 
 ---
 

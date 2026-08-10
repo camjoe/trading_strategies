@@ -10,6 +10,20 @@ from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.registry import STRATEGY_REGISTRY
 
 
+def _first_sellable(
+    *,
+    sell_candidates: list[str],
+    forced_sells: list[str],
+    prices: dict[str, float],
+    positions: dict[str, float],
+) -> tuple[str, int, float] | None:
+    """The first trade the live sell walk would take, or None if it takes none."""
+    return next(
+        trade_execution_service.iter_sellable_trades(sell_candidates, forced_sells, prices, positions),
+        None,
+    )
+
+
 def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
@@ -97,27 +111,42 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
     assert [sel[1] for sel in result] == ["MSFT"]
 
 
-def test_prepare_sell_trade_closes_the_whole_position() -> None:
+def test_sellable_trade_closes_the_whole_position() -> None:
     """A sell exits the position outright."""
-    result = trade_execution_service.prepare_sell_trade(
+    result = _first_sellable(
         sell_candidates=[],
         forced_sells=["AAPL"],
         prices={"AAPL": 150.0},
-        state=SimpleNamespace(positions={"AAPL": 5.0}),
-        instrument_mode="leaps",
+        positions={"AAPL": 5.0},
     )
     assert result == ("AAPL", 5, 150.0)
 
 
-def test_prepare_sell_trade_prefers_a_risk_breach_over_a_signalled_exit() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_prefer_a_risk_breach_over_a_signalled_exit() -> None:
+    result = _first_sellable(
         sell_candidates=["MSFT"],
         forced_sells=["AAPL"],
         prices={"AAPL": 150.0, "MSFT": 200.0},
-        state=SimpleNamespace(positions={"AAPL": 5.0, "MSFT": 3.0}),
-        instrument_mode="equity",
+        positions={"AAPL": 5.0, "MSFT": 3.0},
     )
     assert result == ("AAPL", 5, 150.0)
+
+
+def test_sellable_trades_do_not_sell_a_duplicated_ticker_twice() -> None:
+    """A ticker listed twice yields once, because the walk sees the caller's close.
+
+    Consuming the walk without closing each position (collecting it up front, say)
+    would sell the same holding twice.
+    """
+    positions = {"AAPL": 5.0}
+    taken = []
+    for ticker, qty, price in trade_execution_service.iter_sellable_trades(
+        [], ["AAPL", "AAPL"], {"AAPL": 150.0}, positions
+    ):
+        taken.append((ticker, qty, price))
+        positions.pop(ticker, None)
+
+    assert taken == [("AAPL", 5, 150.0)]
 
 
 def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
@@ -136,24 +165,22 @@ def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
     assert result == []
 
 
-def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_skip_an_invalid_price() -> None:
+    result = _first_sellable(
         sell_candidates=["AAPL"],
         forced_sells=[],
         prices={"AAPL": 0.0},
-        state=SimpleNamespace(positions={"AAPL": 3.0}),
-        instrument_mode="equity",
+        positions={"AAPL": 3.0},
     )
     assert result is None
 
 
-def test_prepare_sell_trade_returns_none_for_a_sub_share_position() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_skip_a_sub_share_position() -> None:
+    result = _first_sellable(
         sell_candidates=["AAPL"],
         forced_sells=[],
         prices={"AAPL": 100.0},
-        state=SimpleNamespace(positions={"AAPL": 0.4}),
-        instrument_mode="equity",
+        positions={"AAPL": 0.4},
     )
     assert result is None
 
@@ -362,6 +389,109 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
     )
 
     assert selection == [("sell", "AAPL", 2, 95.0, None, None)]
+
+
+def test_prepare_trade_selection_stops_selling_at_the_trade_budget() -> None:
+    state = SimpleNamespace(
+        positions={"AAA": 5.0, "BBB": 5.0, "CCC": 5.0},
+        avg_cost={"AAA": 100.0, "BBB": 100.0, "CCC": 100.0},
+        cash=0.0,
+    )
+
+    selection = trade_execution_service.prepare_book_trades(
+        option_settings=make_option_settings(),
+        active_strategy=None,
+        params=None,
+        state=state,
+        forced_sells=["AAA", "BBB", "CCC"],
+        universe=[],
+        prices={"AAA": 10.0, "BBB": 20.0, "CCC": 30.0},
+        histories={},
+        iv_rank_proxy={},
+        instrument_mode="equity",
+        fee=0.0,
+        max_trades=2,
+        trade_size_pct=None,
+        max_position_pct=None,
+    )
+
+    assert selection == [
+        ("sell", "AAA", 5, 10.0, None, None),
+        ("sell", "BBB", 5, 20.0, None, None),
+    ]
+
+
+def test_prepare_trade_selection_funds_a_buy_from_the_same_runs_sell() -> None:
+    """The docstring's promise: sells go first so their proceeds fund the run's buys."""
+    state = SimpleNamespace(positions={"DOWN": 10.0}, avg_cost={"DOWN": 100.0}, cash=0.0)
+
+    selection = trade_execution_service.prepare_book_trades(
+        option_settings=make_option_settings(),
+        active_strategy="trend",
+        params={"fast_window": 10, "slow_window": 20},
+        state=state,
+        forced_sells=[],
+        universe=["UP", "DOWN"],
+        prices={"UP": 10.0, "DOWN": 100.0},
+        histories={"UP": _rising_history(), "DOWN": _sell_history()},
+        iv_rank_proxy={},
+        instrument_mode="equity",
+        fee=0.0,
+        max_trades=2,
+        trade_size_pct=None,
+        max_position_pct=None,
+    )
+
+    sides = [(side, ticker) for side, ticker, *_rest in selection]
+    # The book opens with no cash, so the buy exists only because the sell ran first.
+    assert sides == [("sell", "DOWN"), ("buy", "UP")]
+    assert selection[1][2] >= 1
+
+
+def test_prepare_trade_selection_hands_buys_the_post_sell_book(monkeypatch) -> None:
+    """Cash, positions and avg_cost handed to the buy pass reflect the sells above it.
+
+    Asserted at the handoff because the working book is internal to
+    ``prepare_book_trades`` — the returned selections show what was traded, not
+    the balances the buy sizing actually saw.
+    """
+    seen: dict[str, object] = {}
+
+    def _capture(*args, **_kwargs):
+        buy_state = args[5]
+        seen["cash"] = buy_state.cash
+        seen["positions"] = dict(buy_state.positions)
+        seen["avg_cost"] = dict(buy_state.avg_cost)
+        return []
+
+    monkeypatch.setattr(trade_execution_service, "prepare_buy_trades", _capture)
+    state = SimpleNamespace(
+        positions={"AAA": 4.0, "KEEP": 2.0},
+        avg_cost={"AAA": 90.0, "KEEP": 50.0},
+        cash=25.0,
+    )
+
+    trade_execution_service.prepare_book_trades(
+        option_settings=make_option_settings(),
+        active_strategy=None,
+        params=None,
+        state=state,
+        forced_sells=["AAA"],
+        universe=[],
+        prices={"AAA": 10.0},
+        histories={},
+        iv_rank_proxy={},
+        instrument_mode="equity",
+        fee=3.0,
+        max_trades=2,
+        trade_size_pct=None,
+        max_position_pct=None,
+    )
+
+    # 25 opening cash + (4 * 10) proceeds - 3 fee.
+    assert seen["cash"] == pytest.approx(62.0)
+    assert seen["positions"] == {"KEEP": 2.0}
+    assert seen["avg_cost"] == {"KEEP": 50.0}
 
 
 def test_prepare_trade_selection_returns_none_when_nothing_signals() -> None:

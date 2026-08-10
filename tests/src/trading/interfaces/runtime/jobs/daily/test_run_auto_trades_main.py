@@ -68,6 +68,14 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     assert "acct2: executed 2 trades" in out
     assert conn.closed is True
 
+    # Rotation's regime-fit component reads the policy fetcher, and an absent one
+    # degrades to a neutral score rather than failing, so only an assertion here
+    # catches it going missing.
+    fetchers = run_accounts_mock.call_args.kwargs["feature_fetchers"]
+    assert fetchers.fetch_policy is not None
+    assert fetchers.fetch_news is None
+    assert fetchers.fetch_social is None
+
 
 def test_main_additional_validation_paths(monkeypatch) -> None:
     install_main_args(monkeypatch, max_trades=2, accounts="  ,   ")

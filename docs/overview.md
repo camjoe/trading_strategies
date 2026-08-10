@@ -86,30 +86,18 @@ Listed because it reads as working capability from the inside and as dead code f
 is neither. Established by tracing every entrypoint (2026-08-09); re-derive rather than trust this
 list if it has aged.
 
-- **Sell selection exists twice.** `services/execution/selection/selection.py` selects sells inline
-  inside `select_signal_trade_candidates` — the path the trader actually runs — while
-  `prepare_sell_trade` in the same module implements the same ordering and closing-quantity rules
-  for a single sell and has no production caller. Its five tests pin behaviour that never executes,
-  so they are not the sell-side evidence they appear to be.
-- **Feature-driven strategies are deferred by decision, and the plumbing is still in the daily run.**
-  Signals reading external features were scoped and put on hold; the provider implementations stay
-  for when it resumes. What outlives the decision is the wiring: `run_auto_trades.py` constructs the
-  news and social providers and passes them into `FeatureFetcherSet` on every run, where nothing can
-  call them — `build_feature_history_fn` yields features only for `strategy_style == "alternative"`,
+- **Feature-driven strategies are deferred by decision.** Signals reading external features were
+  scoped and put on hold; the provider implementations stay in `infrastructure/feature_providers/`
+  for when it resumes, and `FeatureFetcherSet` keeps its shape. Nothing consumes news or social
+  today: `build_feature_history_fn` yields features only for `strategy_style == "alternative"`,
   `_ALTERNATIVE_FEATURE_FETCHER_ATTRS` is empty, and all eight registered strategies are `trend` or
-  `mean_reversion`. They are constructed, never invoked (so no per-run fetch), but building
-  `NewsFeatureProvider` does load a VADER sentiment lexicon. The **policy** provider is not in this
-  bucket: it is genuinely live, supplying `fetch_regime` to rotation's regime-fit component from both
-  the trading run and the shadow-eval job.
+  `mean_reversion`. The daily run no longer wires those two fetchers. The **policy** provider is not
+  in this bucket: it is genuinely live, supplying `fetch_regime` to rotation's regime-fit component
+  from both the trading run and the shadow-eval job.
 - **Feature-provider enablement is not data.** The `feature_providers` table is written only by the
   sandbox fixture seeder and read by nothing; providers are constructed unconditionally at the
   composition root. Retained for the deferred work above. `services/fixtures/profiles.py` says so at
   the field.
-- **Table preview.** `repositories/table_export.py` exposes `fetch_table_rows`/`TableRows` for an
-  operator preview alongside the CSV path. Only the CSV half is reachable, through
-  `scripts/data_ops/export_db_csv.py`; no route or command previews a table.
-- **`resolve_signal`** (`domain/strategies/resolution.py`) is a test-facing wrapper — production
-  calls `evaluate_signal` / `evaluate_signal_over_bars`.
 
 ## Known limitations
 

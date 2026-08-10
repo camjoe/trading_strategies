@@ -122,13 +122,3 @@ def evaluate_signal_over_bars(
     """Evaluate the most recent bar of a full OHLCV frame."""
     view = build_view_over_bars(strategy_name, bars, params)
     return evaluate_signal(strategy_name, view, params, feature_history)
-
-
-def resolve_signal(
-    strategy_name: str,
-    bars: pd.DataFrame,
-    feature_history: pd.DataFrame | None = None,
-) -> str:
-    """Resolve strategy labels to explicit signal models evaluated with default params."""
-    spec = resolve_strategy(strategy_name)
-    return evaluate_signal_over_bars(strategy_name, bars, spec.default_params, feature_history)

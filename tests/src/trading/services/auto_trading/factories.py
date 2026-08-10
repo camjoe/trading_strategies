@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Mapping
+from collections.abc import Callable, Mapping
 from unittest.mock import Mock
 
 from tests.support.account_records import make_account_record, make_book_record
@@ -56,10 +56,16 @@ def make_feature_fetchers(
     fetch_news: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_social: Callable[[str], ExternalFeatureBundle] | None = None,
 ) -> FeatureFetcherSet:
+    """Fetchers shaped like the composition root's: policy supplied, the rest absent.
+
+    News and social default to None because no registered strategy consumes them
+    and `run_auto_trades` no longer wires them. Pass one explicitly to exercise a
+    path that does.
+    """
     return FeatureFetcherSet(
         fetch_policy=fetch_policy or Mock(return_value=make_feature_bundle()),
-        fetch_news=fetch_news or Mock(return_value=make_feature_bundle()),
-        fetch_social=fetch_social or Mock(return_value=make_feature_bundle()),
+        fetch_news=fetch_news,
+        fetch_social=fetch_social,
     )
 
 

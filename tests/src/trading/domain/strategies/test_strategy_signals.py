@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from hypothesis import given, settings, strategies as st
 
+from tests.support.strategies import signal_with_default_params
 from trading.domain.strategies import indicator_view, resolution
 from trading.domain.strategies.registry import available_strategy_ids
 
@@ -44,7 +45,7 @@ def _assert_signal(
     expected: str,
     feature_history: pd.DataFrame | None = None,
 ) -> None:
-    assert resolution.resolve_signal(strategy_name, _bars(history), feature_history) == expected
+    assert signal_with_default_params(strategy_name, _bars(history), feature_history) == expected
 
 
 def test_available_strategy_ids_include_expanded_families() -> None:
@@ -140,9 +141,9 @@ def test_default_hold_when_short_history() -> None:
     _assert_signal("trend", history, "hold")
 
 
-def test_resolve_signal_rejects_unknown_strategy_name() -> None:
+def test_signal_evaluation_rejects_unknown_strategy_name() -> None:
     with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
-        resolution.resolve_signal("unknown_strategy", _bars(_series_range(1, 40)))
+        signal_with_default_params("unknown_strategy", _bars(_series_range(1, 40)))
 
 
 def test_evaluate_signal_explicit_params_override_defaults() -> None:
@@ -150,7 +151,7 @@ def test_evaluate_signal_explicit_params_override_defaults() -> None:
     spec = resolution.resolve_strategy("trend")
 
     default_signal = resolution.evaluate_signal_over_bars("trend", _bars(history), spec.default_params)
-    assert default_signal == resolution.resolve_signal("trend", _bars(history)) == "buy"
+    assert default_signal == signal_with_default_params("trend", _bars(history)) == "buy"
 
     # Swapping the windows inverts the SMA relationship, so explicit params flip buy → hold.
     overridden = resolution.evaluate_signal_over_bars("trend", _bars(history), {"fast_window": 20, "slow_window": 10})
@@ -162,7 +163,7 @@ def test_evaluate_signal_rejects_unknown_strategy_name() -> None:
         resolution.evaluate_signal_over_bars("unknown_strategy", _bars(_series_range(1, 40)), {})
 
 
-def test_fuzz_resolve_signal_outputs_known_actions() -> None:
+def test_fuzz_signal_evaluation_outputs_known_actions() -> None:
     rng = random.Random(42)
     strategies = available_strategy_ids()
 
@@ -176,7 +177,7 @@ def test_fuzz_resolve_signal_outputs_known_actions() -> None:
                 values.append(price)
 
             history = pd.Series(values)
-            signal = resolution.resolve_signal(strategy_id, _bars(history))
+            signal = signal_with_default_params(strategy_id, _bars(history))
             assert signal in {"buy", "sell", "hold"}
 
 
@@ -200,12 +201,12 @@ def test_fuzz_resolve_signal_outputs_known_actions() -> None:
         max_size=90,
     ),
 )
-def test_hypothesis_resolve_signal_outputs_known_actions(
+def test_hypothesis_signal_evaluation_outputs_known_actions(
     strategy_id: str,
     history_values: list[float],
 ) -> None:
     history = pd.Series(history_values)
-    signal = resolution.resolve_signal(strategy_id, _bars(history))
+    signal = signal_with_default_params(strategy_id, _bars(history))
     assert signal in {"buy", "sell", "hold"}
 
 
@@ -226,7 +227,7 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady()
         history.iloc[-1] = float("inf")
 
-        signal = resolution.resolve_signal(strategy_id, _bars(history))
+        signal = signal_with_default_params(strategy_id, _bars(history))
 
         assert signal == "hold"
 
@@ -238,7 +239,7 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady()
         history.iloc[-1] = float("-inf")
 
-        signal = resolution.resolve_signal(strategy_id, _bars(history))
+        signal = signal_with_default_params(strategy_id, _bars(history))
 
         assert signal == "hold"
 
@@ -246,19 +247,19 @@ class TestSignalInfAtLastPositionReturnsHold:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert resolution.resolve_signal("pullback_trend", _bars(history)) == "hold"
+        assert signal_with_default_params("pullback_trend", _bars(history)) == "hold"
 
     def test_inf_close_returns_hold_for_ma_crossover(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert resolution.resolve_signal("ma_crossover", _bars(history)) == "hold"
+        assert signal_with_default_params("ma_crossover", _bars(history)) == "hold"
 
     def test_inf_close_returns_hold_for_volatility_filtered_trend(self) -> None:
         history = _series_steady(length=80)
         history.iloc[-1] = float("inf")
 
-        assert resolution.resolve_signal("volatility_filtered_trend", _bars(history)) == "hold"
+        assert signal_with_default_params("volatility_filtered_trend", _bars(history)) == "hold"
 
 
 class TestSignalInfInSmaWindowReturnsHold:
@@ -270,26 +271,26 @@ class TestSignalInfInSmaWindowReturnsHold:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-5] = float("inf")
 
-        assert resolution.resolve_signal("trend", _bars(history)) == "hold"
+        assert signal_with_default_params("trend", _bars(history)) == "hold"
 
     def test_inf_in_mean_reversion_sma_window_returns_hold(self) -> None:
         # Without the sma_mid guard: sma_mid = inf → close < inf → spurious "buy".
         history = pd.Series([100.0] * 79 + [80.0])
         history.iloc[-15] = float("inf")
 
-        assert resolution.resolve_signal("mean_reversion", _bars(history)) == "hold"
+        assert signal_with_default_params("mean_reversion", _bars(history)) == "hold"
 
     def test_inf_in_breakout_prior_window_returns_hold(self) -> None:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-10] = float("inf")
 
-        assert resolution.resolve_signal("breakout", _bars(history)) == "hold"
+        assert signal_with_default_params("breakout", _bars(history)) == "hold"
 
     def test_inf_in_ma_crossover_window_returns_hold(self) -> None:
         history = _series_steady(length=80, base=100.0)
         history.iloc[-10] = float("inf")
 
-        assert resolution.resolve_signal("ma_crossover", _bars(history)) == "hold"
+        assert signal_with_default_params("ma_crossover", _bars(history)) == "hold"
 
 
 class TestFeatureValueInfGuard:
@@ -328,7 +329,7 @@ def test_hypothesis_inf_in_history_never_raises(
             history.iloc[pos] = float("inf")
 
     # Must not raise; output must be a valid signal token.
-    signal = resolution.resolve_signal(strategy_id, _bars(history))
+    signal = signal_with_default_params(strategy_id, _bars(history))
     assert signal in {"buy", "sell", "hold"}
 
 
@@ -428,18 +429,18 @@ def test_breakout_measures_against_true_highs_not_closing_highs() -> None:
     closes = pd.Series([100.0] * 39 + [101.0])
 
     # Flat bars: high equals close, so the last close clears the prior window.
-    assert resolution.resolve_signal("breakout", _bars(closes)) == "buy"
+    assert signal_with_default_params("breakout", _bars(closes)) == "buy"
 
     # Same closes, but the prior bars traded up to 5% above them intraday. The
     # final close no longer clears the highest high, so nothing broke out.
-    assert resolution.resolve_signal("breakout", _bars(closes, high_pct=0.05)) == "hold"
+    assert signal_with_default_params("breakout", _bars(closes, high_pct=0.05)) == "hold"
 
 
 def test_breakout_measures_breakdowns_against_true_lows() -> None:
     closes = pd.Series([100.0] * 39 + [99.0])
 
-    assert resolution.resolve_signal("breakout", _bars(closes)) == "sell"
-    assert resolution.resolve_signal("breakout", _bars(closes, low_pct=0.05)) == "hold"
+    assert signal_with_default_params("breakout", _bars(closes)) == "sell"
+    assert signal_with_default_params("breakout", _bars(closes, low_pct=0.05)) == "hold"
 
 
 def test_breakout_needs_bars_and_says_so_without_them() -> None:
@@ -447,7 +448,7 @@ def test_breakout_needs_bars_and_says_so_without_them() -> None:
     closes_only = pd.DataFrame({"close": pd.Series([100.0] * 40)})
 
     with pytest.raises(ValueError, match="needs bar column 'high'"):
-        resolution.resolve_signal("breakout", closes_only)
+        signal_with_default_params("breakout", closes_only)
 
 
 def test_reversion_labels_do_not_resolve_to_rsi() -> None:

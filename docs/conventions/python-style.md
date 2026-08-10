@@ -41,6 +41,10 @@ helpers should be annotated when it clarifies a non-obvious contract.
 
 - Prefer `X | None` over `Optional[X]` and lowercase builtins (`list[X]`, `dict[K, V]`)
   over `typing.List` etc.
+- Import the abstract collection types — `Mapping`, `Sequence`, `Iterable`, `Iterator`,
+  `Callable` — from `collections.abc`, not `typing`. These have no builtin spelling, so the
+  rule above does not reach them; ruff's `UP035` enforces it. `typing` still owns what has no
+  `collections.abc` equivalent: `Protocol`, `Any`, `cast`, `TYPE_CHECKING`, `TypeVar`.
 - `Iterator[X]` for generators and fixture return types; `Never`/`NoReturn` for always-raising
   functions; annotate `-> None` explicitly.
 - **Read-only collection protocols for parameters:** take `Mapping[K, V]` / `Sequence[T]` when the

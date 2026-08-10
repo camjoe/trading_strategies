@@ -1,11 +1,11 @@
-"""Read-only access to any table by name, for the operator export/preview feature.
+"""Read-only access to any table by name, for the operator CSV export.
 
 Deliberately not scoped to one business context: the operator chooses the table at
 runtime, so this module takes a table *name* where every other module in the package
 has its table fixed in the SQL it owns.
 
 A table name cannot be a bound parameter, so it is interpolated into the query. That
-is why both entry points resolve their table through :func:`require_table` first:
+is why the entry point resolves its table through :func:`require_table` first:
 :func:`normalize_table_name` strips the input to ``[a-z0-9_]`` and existence is
 checked against ``sqlite_master`` before any name reaches a statement. A new read
 added here must go through the same gate.
@@ -14,7 +14,6 @@ added here must go through the same gate.
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
 
 DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
     "accounts",
@@ -24,14 +23,6 @@ DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
     "backtest_runs",
     "backtest_executions",
 )
-
-
-@dataclass(frozen=True)
-class TableRows:
-    table: str
-    header: list[str]
-    rows: list[list[str]]
-    truncated: bool
 
 
 def normalize_table_name(name: str) -> str:
@@ -66,22 +57,6 @@ def require_table(conn: sqlite3.Connection, table: str) -> str:
     if not _table_exists(conn, normalized):
         raise ValueError(f"Table not found: {normalized}")
     return normalized
-
-
-def fetch_table_rows(conn: sqlite3.Connection, table: str, *, limit: int) -> TableRows:
-    normalized = require_table(conn, table)
-
-    query = f"{_ordered_select_sql(conn, normalized)} LIMIT ?"
-    cur = conn.execute(query, (limit + 1,))
-
-    header = [str(item[0]) for item in cur.description or []]
-    rows = [[str(cell) if cell is not None else "" for cell in row] for row in cur]
-
-    truncated = len(rows) > limit
-    if truncated:
-        rows = rows[:limit]
-
-    return TableRows(table=normalized, header=header, rows=rows, truncated=truncated)
 
 
 def fetch_table_cursor(conn: sqlite3.Connection, table: str) -> tuple[str, list[str], sqlite3.Cursor]:

@@ -39,38 +39,6 @@ class TestNameValidation:
             table_export.normalize_table_name("  ; ;  ")
 
 
-class TestFetchTableRows:
-    def test_fetch_table_rows_returns_headers_and_orders_by_id(self, sqlite_db_file: Path) -> None:
-        conn = sqlite3.connect(sqlite_db_file)
-        try:
-            result = table_export.fetch_table_rows(conn, "accounts", limit=10)
-        finally:
-            conn.close()
-
-        assert result.table == "accounts"
-        assert result.header == ["id", "name"]
-        assert result.rows == [["1", "first"], ["2", "second"]]
-        assert result.truncated is False
-
-    def test_fetch_table_rows_marks_truncated_when_over_limit(self, sqlite_db_file: Path) -> None:
-        conn = sqlite3.connect(sqlite_db_file)
-        try:
-            result = table_export.fetch_table_rows(conn, "accounts", limit=1)
-        finally:
-            conn.close()
-
-        assert result.rows == [["1", "first"]]
-        assert result.truncated is True
-
-    def test_fetch_table_rows_raises_for_unknown_table(self, sqlite_db_file: Path) -> None:
-        conn = sqlite3.connect(sqlite_db_file)
-        try:
-            with pytest.raises(ValueError, match="Table not found: missing"):
-                table_export.fetch_table_rows(conn, "missing", limit=10)
-        finally:
-            conn.close()
-
-
 class TestFetchTableCursor:
     def test_fetch_table_cursor_yields_header_and_rows_ordered_by_id(self, sqlite_db_file: Path) -> None:
         conn = sqlite3.connect(sqlite_db_file)
