@@ -10,6 +10,20 @@ from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.registry import STRATEGY_REGISTRY
 
 
+def _first_sellable(
+    *,
+    sell_candidates: list[str],
+    forced_sells: list[str],
+    prices: dict[str, float],
+    positions: dict[str, float],
+) -> tuple[str, int, float] | None:
+    """The first trade the live sell walk would take, or None if it takes none."""
+    return next(
+        trade_execution_service.iter_sellable_trades(sell_candidates, forced_sells, prices, positions),
+        None,
+    )
+
+
 def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
@@ -97,25 +111,23 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
     assert [sel[1] for sel in result] == ["MSFT"]
 
 
-def test_prepare_sell_trade_closes_the_whole_position() -> None:
+def test_sellable_trade_closes_the_whole_position() -> None:
     """A sell exits the position outright."""
-    result = trade_execution_service.prepare_sell_trade(
+    result = _first_sellable(
         sell_candidates=[],
         forced_sells=["AAPL"],
         prices={"AAPL": 150.0},
-        state=SimpleNamespace(positions={"AAPL": 5.0}),
-        instrument_mode="leaps",
+        positions={"AAPL": 5.0},
     )
     assert result == ("AAPL", 5, 150.0)
 
 
-def test_prepare_sell_trade_prefers_a_risk_breach_over_a_signalled_exit() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_prefer_a_risk_breach_over_a_signalled_exit() -> None:
+    result = _first_sellable(
         sell_candidates=["MSFT"],
         forced_sells=["AAPL"],
         prices={"AAPL": 150.0, "MSFT": 200.0},
-        state=SimpleNamespace(positions={"AAPL": 5.0, "MSFT": 3.0}),
-        instrument_mode="equity",
+        positions={"AAPL": 5.0, "MSFT": 3.0},
     )
     assert result == ("AAPL", 5, 150.0)
 
@@ -136,24 +148,22 @@ def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
     assert result == []
 
 
-def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_skip_an_invalid_price() -> None:
+    result = _first_sellable(
         sell_candidates=["AAPL"],
         forced_sells=[],
         prices={"AAPL": 0.0},
-        state=SimpleNamespace(positions={"AAPL": 3.0}),
-        instrument_mode="equity",
+        positions={"AAPL": 3.0},
     )
     assert result is None
 
 
-def test_prepare_sell_trade_returns_none_for_a_sub_share_position() -> None:
-    result = trade_execution_service.prepare_sell_trade(
+def test_sellable_trades_skip_a_sub_share_position() -> None:
+    result = _first_sellable(
         sell_candidates=["AAPL"],
         forced_sells=[],
         prices={"AAPL": 100.0},
-        state=SimpleNamespace(positions={"AAPL": 0.4}),
-        instrument_mode="equity",
+        positions={"AAPL": 0.4},
     )
     assert result is None
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Mapping, Protocol, cast
+from typing import Callable, Iterator, Mapping, Protocol, cast
 
 import pandas as pd
 
@@ -254,17 +254,13 @@ def prepare_book_trades(
     )
     selections: list[TradeSelection] = []
 
-    for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
+    for ticker, qty, price in iter_sellable_trades(
+        sell_candidates, forced_sells, prices, working.positions, selection_seed
+    ):
         if len(selections) >= max_trades:
             break
-        price = prices.get(ticker)
-        if price is None or price <= 0:
-            continue
-        qty = auto_trader_policy.closing_sell_qty(working.positions.get(ticker, 0.0))
-        if qty <= 0:
-            continue
-        selections.append(("sell", ticker, qty, float(price), None, None))
-        working.cash += (qty * float(price)) - fee
+        selections.append(("sell", ticker, qty, price, None, None))
+        working.cash += (qty * price) - fee
         working.positions.pop(ticker, None)
         working.avg_cost.pop(ticker, None)
 
@@ -433,26 +429,30 @@ def order_sell_candidates(
     return ordered
 
 
-def prepare_sell_trade(
+def iter_sellable_trades(
     sell_candidates: list[str],
     forced_sells: list[str],
-    prices: dict[str, float],
-    state: AccountStateLike,
-    instrument_mode: str,
+    prices: Mapping[str, float],
+    positions: Mapping[str, float],
     selection_seed: str = "",
-) -> tuple[str, int, float] | None:
-    """Prepare the first sellable ticker, closing the position outright.
+) -> Iterator[tuple[str, int, float]]:
+    """Yield ``(ticker, qty, price)`` per candidate that can actually be sold.
 
     A sell exits the whole position, matching ``simulation._execute_sells``.
+    Candidates with no usable price, or holding too little to close a whole
+    share, are skipped rather than ending the walk.
+
+    ``positions`` is read per candidate rather than up front, so a caller
+    closing positions as it consumes this sees its own writes — which is what
+    stops a ticker listed twice from being sold twice.
     """
     for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue
 
-        qty = auto_trader_policy.closing_sell_qty(state.positions[ticker])
+        qty = auto_trader_policy.closing_sell_qty(positions.get(ticker, 0.0))
         if qty <= 0:
             continue
 
-        return ticker, qty, float(price)
-    return None
+        yield ticker, qty, float(price)
