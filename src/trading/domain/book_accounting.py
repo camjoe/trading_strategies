@@ -6,7 +6,7 @@ from trading.models.books import BookFillTransition
 VALID_FILL_SIDES = {"buy", "sell"}
 
 
-def normalize_book_order_input(side: str, symbol: str) -> tuple[str, str]:
+def _normalize_book_order_input(side: str, symbol: str) -> tuple[str, str]:
     normalized_side = side.lower().strip()
     normalized_symbol = symbol.upper().strip()
     if normalized_side not in VALID_FILL_SIDES:
@@ -14,10 +14,6 @@ def normalize_book_order_input(side: str, symbol: str) -> tuple[str, str]:
     if not normalized_symbol:
         raise ValueError("symbol cannot be empty")
     return normalized_side, normalized_symbol
-
-
-def compute_book_equity(cash: float, market_value_by_symbol: dict[str, float]) -> float:
-    return float(cash) + sum(float(value) for value in market_value_by_symbol.values())
 
 
 def _validate_fill_values(*, side: str, qty: float, fill_price: float, commission: float) -> None:
@@ -60,7 +56,7 @@ def apply_book_fill_transition(
     cash: float,
     realized_pnl: float,
 ) -> BookFillTransition:
-    normalized_side, normalized_symbol = normalize_book_order_input(side, symbol)
+    normalized_side, normalized_symbol = _normalize_book_order_input(side, symbol)
     fill_qty = float(qty)
     fill_px = float(fill_price)
     fill_commission = float(commission)
