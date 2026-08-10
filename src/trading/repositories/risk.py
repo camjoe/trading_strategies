@@ -1,10 +1,29 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import fields
 
 from common.time import next_date_str
-from trading.models.books import RiskDecisionRecord, RiskSnapshotRecord
+from trading.models.books import (
+    RiskDecisionInsert,
+    RiskDecisionRecord,
+    RiskSnapshotInsert,
+    RiskSnapshotRecord,
+)
 from trading.persistence.unit_of_work import commit_unit_of_work
+
+
+def _insert_sql(table: str, columns: tuple[str, ...]) -> str:
+    return f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})"
+
+
+# Derived rather than listed: the payload's field names are the column names, so a
+# new column is added in one place. Each *Record subclasses its *Insert, so the
+# projection also drops `id` when a record is passed back in.
+_SNAPSHOT_COLUMNS = tuple(field.name for field in fields(RiskSnapshotInsert))
+_SNAPSHOT_INSERT_SQL = _insert_sql("risk_snapshots", _SNAPSHOT_COLUMNS)
+_DECISION_COLUMNS = tuple(field.name for field in fields(RiskDecisionInsert))
+_DECISION_INSERT_SQL = _insert_sql("risk_decisions", _DECISION_COLUMNS)
 
 
 class RiskSnapshotRepository:
@@ -22,44 +41,10 @@ class RiskSnapshotRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def insert(
-        self,
-        *,
-        account_id: int,
-        snapshot_time: str,
-        gross_exposure: float,
-        net_exposure: float,
-        max_symbol_concentration_pct: float,
-        max_sector_concentration_pct: float,
-        drawdown_pct: float | None = None,
-        leverage_proxy: float | None = None,
-        daily_loss_pct: float | None = None,
-        kill_switch_triggered: int = 0,
-        risk_payload_json: str = "{}",
-    ) -> int:
+    def insert(self, snapshot: RiskSnapshotInsert) -> int:
         cursor = self._conn.execute(
-            """
-            INSERT INTO risk_snapshots (
-                account_id, snapshot_time, gross_exposure, net_exposure,
-                max_symbol_concentration_pct, max_sector_concentration_pct,
-                drawdown_pct, leverage_proxy, daily_loss_pct,
-                kill_switch_triggered, risk_payload_json
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                account_id,
-                snapshot_time,
-                gross_exposure,
-                net_exposure,
-                max_symbol_concentration_pct,
-                max_sector_concentration_pct,
-                drawdown_pct,
-                leverage_proxy,
-                daily_loss_pct,
-                kill_switch_triggered,
-                risk_payload_json,
-            ),
+            _SNAPSHOT_INSERT_SQL,
+            tuple(getattr(snapshot, column) for column in _SNAPSHOT_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
@@ -93,47 +78,10 @@ class RiskDecisionRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def insert(
-        self,
-        *,
-        account_id: int,
-        book_id: int | None = None,
-        decision_time: str,
-        symbol: str | None = None,
-        side: str | None = None,
-        action: str,
-        reason_code: str,
-        requested_qty: float | None = None,
-        approved_qty: float | None = None,
-        requested_notional: float | None = None,
-        approved_notional: float | None = None,
-        risk_payload_json: str = "{}",
-        created_at: str,
-    ) -> int:
+    def insert(self, decision: RiskDecisionInsert) -> int:
         cursor = self._conn.execute(
-            """
-            INSERT INTO risk_decisions (
-                account_id, book_id, decision_time, symbol, side, action, reason_code,
-                requested_qty, approved_qty, requested_notional, approved_notional,
-                risk_payload_json, created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                account_id,
-                book_id,
-                decision_time,
-                symbol,
-                side,
-                action,
-                reason_code,
-                requested_qty,
-                approved_qty,
-                requested_notional,
-                approved_notional,
-                risk_payload_json,
-                created_at,
-            ),
+            _DECISION_INSERT_SQL,
+            tuple(getattr(decision, column) for column in _DECISION_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)

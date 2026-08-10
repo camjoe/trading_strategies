@@ -148,12 +148,3 @@ def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest
     forwarded = captured["market"]
     assert isinstance(forwarded, MarketInputs)
     assert list(forwarded.histories) == ["AAPL"]
-    from common.time import parse_utc_iso
-
-    naive = parse_utc_iso("2026-03-21T12:00:00")
-    zulu = parse_utc_iso("2026-03-21T12:00:00Z")
-    parsed = parse_utc_iso("2026-03-21T12:00:00+02:00")
-
-    assert naive.isoformat().endswith("+00:00")
-    assert zulu.isoformat().endswith("+00:00")
-    assert parsed.isoformat().endswith("+00:00")

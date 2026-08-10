@@ -7,6 +7,7 @@ rejections.
 
 from __future__ import annotations
 
+from trading.models.books import RiskDecisionInsert
 from trading.models.orders import OrderInsert
 from trading.repositories.orders import OrderRepository
 from trading.repositories.risk import RiskDecisionRepository
@@ -18,14 +19,16 @@ OTHER_DATE = "2026-05-06"
 
 def _insert_decision(conn, report_env, *, action: str, reason_code: str, date: str = REPORT_DATE) -> None:
     RiskDecisionRepository(conn).insert(
-        account_id=report_env.account_id,
-        book_id=report_env.book_id,
-        decision_time=f"{date}T14:30:00Z",
-        symbol="AAPL",
-        side="buy",
-        action=action,
-        reason_code=reason_code,
-        created_at=f"{date}T14:30:00Z",
+        RiskDecisionInsert(
+            account_id=report_env.account_id,
+            book_id=report_env.book_id,
+            decision_time=f"{date}T14:30:00Z",
+            symbol="AAPL",
+            side="buy",
+            action=action,
+            reason_code=reason_code,
+            created_at=f"{date}T14:30:00Z",
+        )
     )
 
 

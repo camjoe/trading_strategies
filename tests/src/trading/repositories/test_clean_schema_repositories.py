@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from common.time import utc_now_iso
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_assignments import BookAssignmentRepository
@@ -342,26 +343,30 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
 
     snapshots = RiskSnapshotRepository(conn)
     snapshots.insert(
-        account_id=account_id,
-        snapshot_time=NOW,
-        gross_exposure=1.2,
-        net_exposure=0.8,
-        max_symbol_concentration_pct=25.0,
-        max_sector_concentration_pct=40.0,
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time=NOW,
+            gross_exposure=1.2,
+            net_exposure=0.8,
+            max_symbol_concentration_pct=25.0,
+            max_sector_concentration_pct=40.0,
+        )
     )
     latest = snapshots.fetch_latest(account_id=account_id)
     assert latest is not None and latest.gross_exposure == pytest.approx(1.2)
 
     decisions = RiskDecisionRepository(conn)
     decisions.insert(
-        account_id=account_id,
-        book_id=book_id,
-        decision_time=NOW,
-        symbol="AAPL",
-        side="buy",
-        action="block",
-        reason_code="stale_price_data",
-        created_at=NOW,
+        RiskDecisionInsert(
+            account_id=account_id,
+            book_id=book_id,
+            decision_time=NOW,
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="stale_price_data",
+            created_at=NOW,
+        )
     )
     recent = decisions.fetch_recent(account_id=account_id)
     assert len(recent) == 1

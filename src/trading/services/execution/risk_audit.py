@@ -35,7 +35,7 @@ def persist_book_run_audit(
         account_id=account_id,
         decision_time=snapshot_time,
         risk_decisions=audit.risk_decisions,
-        insert_risk_decision_fn=lambda c, **kwargs: RiskDecisionRepository(c).insert(**kwargs),
+        insert_risk_decision_fn=lambda c, decision: RiskDecisionRepository(c).insert(decision),
     )
     # Exposure is sourced from the clean book positions/equity (the submission path's
     # source of truth); persisted to the account-keyed risk_snapshots table.
