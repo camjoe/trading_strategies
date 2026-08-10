@@ -134,10 +134,13 @@ class BookPreSubmitGate:
 
         # Decisions are 1:1 with the input intents, in order — map each back to its
         # BookTradeIntent, applying the rescaled qty where the gate trimmed it.
+        # strict: the domain gate keeps that 1:1 by appending exactly one decision
+        # per branch of its loop. Were that ever to slip, a silent zip would drop
+        # the surplus intents from every bucket — neither approved nor blocked.
         approved: list[BookTradeIntent] = []
         blocked: list[BookTradeIntent] = []
         rescaled: list[BookTradeIntent] = []
-        for original, decision in zip(intents, result.decisions):
+        for original, decision in zip(intents, result.decisions, strict=True):
             if decision.action == "block":
                 blocked.append(original)
             elif decision.action == "rescale":
