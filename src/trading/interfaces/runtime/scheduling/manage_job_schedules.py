@@ -12,7 +12,6 @@ from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
     ScheduledTaskSpec,
-    ScheduleKind,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
 )
@@ -41,27 +40,6 @@ def _default_python() -> str:
         if venv_python.exists():
             return str(venv_python)
     return sys.executable
-
-
-def _scheduled_task(
-    *,
-    task_name: str,
-    module: str,
-    time: str,
-    log_name: str,
-    args: tuple[str, ...] = (),
-    schedule_kind: ScheduleKind = "daily",
-    day_of_week: str | None = None,
-) -> ScheduledTaskSpec:
-    return ScheduledTaskSpec(
-        task_name=task_name,
-        module=module,
-        time=time,
-        schedule_kind=schedule_kind,
-        day_of_week=day_of_week,
-        args=args,
-        log_name=log_name,
-    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -186,7 +164,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 
     if args.daily_paper_trading_time:
         tasks.append(
-            _scheduled_task(
+            ScheduledTaskSpec(
                 task_name=args.daily_paper_trading_task_name,
                 module=DAILY_PAPER_TRADING_MODULE,
                 time=args.daily_paper_trading_time,
@@ -209,7 +187,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
     if shadow_eval_time:
         shadow_eval_args = ("--enable-run",) if args.enable_daily_challenger_shadow_eval or auto_shadow_eval else ()
         tasks.append(
-            _scheduled_task(
+            ScheduledTaskSpec(
                 task_name=args.daily_challenger_shadow_eval_task_name,
                 module=DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
                 time=shadow_eval_time,
@@ -220,7 +198,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 
     if args.health_check_time:
         tasks.append(
-            _scheduled_task(
+            ScheduledTaskSpec(
                 task_name=args.health_check_task_name,
                 module=DAILY_TRADER_HEALTH_CHECK_MODULE,
                 time=args.health_check_time,
@@ -231,7 +209,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 
     if args.weekly_db_backup_time:
         tasks.append(
-            _scheduled_task(
+            ScheduledTaskSpec(
                 task_name=args.weekly_db_backup_task_name,
                 module=WEEKLY_DB_BACKUP_MODULE,
                 time=args.weekly_db_backup_time,
