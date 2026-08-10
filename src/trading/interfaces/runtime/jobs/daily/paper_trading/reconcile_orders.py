@@ -45,6 +45,21 @@ def main() -> None:
                 broker_factory=get_broker_for_account,
             )
             print(f"{account_name}: reconciled {outcome.newly_filled} newly filled order(s)")
+            if outcome.adopted_pending:
+                print(
+                    f"{account_name}: adopted {outcome.adopted_pending} order(s) the broker was "
+                    f"carrying but this database had only as pending"
+                )
+            if outcome.has_unresolved_pending:
+                # Sent, and the broker's order list does not carry it. It may have
+                # been rejected on the way in, or filled and already aged off the
+                # list — the difference matters to the book, so an operator checks.
+                ids = ", ".join(outcome.unresolved_pending_client_order_ids)
+                print(
+                    f"{account_name}: WARNING {len(outcome.unresolved_pending_client_order_ids)} order(s) "
+                    f"were sent but never confirmed and no live broker order claims them: {ids}",
+                    file=sys.stderr,
+                )
             if outcome.has_unreported:
                 # Left open deliberately: an unreported order may have expired
                 # unfilled or may have filled on a day nothing ran, and guessing

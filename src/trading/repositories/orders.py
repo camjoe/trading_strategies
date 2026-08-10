@@ -4,7 +4,7 @@ import sqlite3
 from dataclasses import fields
 
 from common.time import next_date_str
-from trading.models.orders import FillEventRecord, OrderInsert, OrderRecord
+from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Derived rather than listed: the payload's field names are the column names, so
@@ -184,6 +184,68 @@ class OrderRepository:
             (book_id, date_str, next_date_str(date_str)),
         ).fetchall()
         return [OrderRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_pending_for_account(self, *, account_id: int) -> list[OrderRecord]:
+        """Rows written before a broker send that never received an answer.
+
+        Each one names an order the broker may or may not be holding. Only
+        `client_order_id` can settle which, so rows without one are unresolvable
+        and are excluded rather than offered to a matcher that cannot place them.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT * FROM orders
+            WHERE account_id = ? AND status = ? AND client_order_id IS NOT NULL
+            ORDER BY submitted_at ASC, id ASC
+            """,
+            (account_id, ORDER_STATUS_PENDING),
+        ).fetchall()
+        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+
+    def record_placement(
+        self,
+        *,
+        order_id: int,
+        broker_order_id: str | None,
+        status: str,
+        filled_qty: float,
+        avg_fill_price: float | None,
+        commission: float,
+        submitted_at: str,
+        updated_at: str,
+        status_reason: str | None = None,
+    ) -> None:
+        """Complete a pending row with what the broker answered.
+
+        Separate from `update_status` because only placement writes
+        `broker_order_id` and `commission`; later polls must not touch either.
+        """
+        self._conn.execute(
+            """
+            UPDATE orders
+            SET broker_order_id = ?,
+                status = ?,
+                filled_qty = ?,
+                avg_fill_price = ?,
+                commission = ?,
+                submitted_at = ?,
+                updated_at = ?,
+                status_reason = ?
+            WHERE id = ?
+            """,
+            (
+                broker_order_id,
+                status,
+                filled_qty,
+                avg_fill_price,
+                commission,
+                submitted_at,
+                updated_at,
+                status_reason,
+                order_id,
+            ),
+        )
+        commit_unit_of_work(self._conn)
 
     def update_status(
         self,

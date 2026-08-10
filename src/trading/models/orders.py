@@ -8,6 +8,13 @@ from enum import Enum
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
 
+# The `orders.status` value for a row written before its broker send: the order
+# may or may not have reached the broker, and `client_order_id` is what identifies
+# it if it did. Deliberately NOT the same state as a broker reporting
+# `OrderStatus.PENDING` (IBKR PendingSubmit), which means the broker definitely
+# holds the order — that still collapses to 'submitted'.
+ORDER_STATUS_PENDING = "pending"
+
 
 class OrderStatus(Enum):
     PENDING = "pending"
@@ -61,6 +68,10 @@ class OrderRequest:
     price: float
     order_type: OrderType = OrderType.MARKET
     time_in_force: TimeInForce = TimeInForce.DAY
+    # Caller-generated identity carried to the broker (Web API `cOID`, socket
+    # `orderRef`) and echoed back, so an order sent but never confirmed can still
+    # be matched to its persisted row.
+    client_order_id: str | None = None
 
 
 @dataclass
@@ -135,6 +146,9 @@ class OrderInsert:
     strategy_id: int | None = None
     rotation_decision_id: int | None = None
     broker_order_id: str | None = None
+    # Set before the broker send and echoed back by the broker; the only thing
+    # that identifies an order on both sides before `broker_order_id` exists.
+    client_order_id: str | None = None
     symbol: str
     side: str
     qty: float
@@ -172,6 +186,7 @@ class OrderRecord(OrderInsert):
             strategy_id=row_int(values, "strategy_id"),
             rotation_decision_id=row_int(values, "rotation_decision_id"),
             broker_order_id=row_str(values, "broker_order_id"),
+            client_order_id=row_str(values, "client_order_id"),
             symbol=row_expect_str(values, "symbol"),
             side=row_expect_str(values, "side"),
             qty=row_expect_float(values, "qty"),

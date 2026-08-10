@@ -480,8 +480,16 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     assert int(row["kill_switch_triggered"]) == 1
     payload = json.loads(row["risk_payload_json"])
     assert "broker_api_anomaly" in payload["kill_switch_reasons"]
-    # The broker raised before any order was persisted → no clean order row.
-    assert OrderRepository(conn).fetch_for_book(book_id=book_id) == []
+    # The row is written before the send, so a broker that raises leaves a pending
+    # order behind rather than nothing. That is the point: the send may still have
+    # reached IB, and the client order id is what lets reconciliation find out.
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert orders[0].status == "pending"
+    assert orders[0].broker_order_id is None
+    assert orders[0].client_order_id is not None
+    # It is not a submission: a sent-but-unconfirmed order has executed nothing.
+    assert executed.submitted_count == 0
     decision_row = conn.execute(
         """
         SELECT action, reason_code
