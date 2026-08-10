@@ -121,6 +121,14 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
     assert tasks[2].args == ("--max-age-hours", "24.0")
     assert tasks[3].schedule_kind == "weekly"
     assert tasks[3].day_of_week == "Sunday"
+    # The scheduler invokes `python -m <module>`, so a wrong path here registers a
+    # task that runs nothing.
+    assert [task.module for task in tasks] == [
+        "trading.interfaces.runtime.jobs.daily.paper_trading",
+        "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval",
+        "trading.interfaces.runtime.jobs.daily.trader_health",
+        "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup",
+    ]
     # The generated cron line and systemd unit redirect output to this file, so a
     # wrong name sends a scheduled job's output somewhere nobody looks.
     assert [task.log_name for task in tasks] == [

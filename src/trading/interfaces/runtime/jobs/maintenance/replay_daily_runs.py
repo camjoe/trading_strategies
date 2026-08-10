@@ -36,10 +36,9 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.daily.paper_trading import already_completed_today
-from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo, ts
+from trading.interfaces.runtime.jobs.job_helpers import DAILY_PAPER_TRADING_MODULE, logs_dir_for_repo, ts
 
 REPO_ROOT = get_repo_root(__file__)
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 
 
 def parse_args() -> argparse.Namespace:

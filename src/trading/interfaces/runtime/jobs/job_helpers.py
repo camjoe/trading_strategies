@@ -34,6 +34,9 @@ ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
+WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
 def logs_dir_for_repo(repo_root: Path) -> Path:

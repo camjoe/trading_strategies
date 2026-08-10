@@ -9,16 +9,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from common.git import get_repo_root
-from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
+from trading.interfaces.runtime.jobs.job_helpers import (
+    DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+    DAILY_PAPER_TRADING_MODULE,
+    DAILY_TRADER_HEALTH_CHECK_MODULE,
+    WEEKLY_DB_BACKUP_MODULE,
+)
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
     ScheduledTaskSpec,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
 )
-
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
-DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
-WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
 DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME = r"Trading\DailyChallengerShadowEval"
