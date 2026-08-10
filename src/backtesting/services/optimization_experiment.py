@@ -8,10 +8,10 @@ gets a row, so the attempt is diagnosable rather than lost.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import date
 from functools import partial
-from typing import Callable
 
 from backtesting.domain.optimization import params_fingerprint
 from backtesting.models.optimizer import (

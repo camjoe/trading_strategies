@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
 from common.paths import DB_BACKUPS_DIR
 from infrastructure.database.backend import SQLiteBackend, get_backend

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Mapping
+from collections.abc import Callable, Mapping
 from unittest.mock import Mock
 
 from tests.support.account_records import make_account_record, make_book_record

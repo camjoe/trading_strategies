@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Callable, Iterator, Mapping, Protocol, cast
+from typing import Protocol, cast
 
 import pandas as pd
 

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Callable
 
 from common.time import as_utc_iso, parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError

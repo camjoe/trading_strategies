@@ -1,9 +1,13 @@
 line-length = 119
 
 [lint]
-# Add import sorting (I) on top of Ruff's default E/F rules. extend-select keeps
-# the defaults; a bare `select` would replace them and silently drop E/F.
-extend-select = ["I"]
+# Add import sorting (I) and UP035 on top of Ruff's default E/F rules. extend-select
+# keeps the defaults; a bare `select` would replace them and silently drop E/F.
+#
+# UP035 only, not the whole UP set: the rest of pyupgrade includes UP017
+# (timezone.utc -> UTC), which touches timestamp handling that `src/common/time.py`
+# owns and is not a mechanical import change.
+extend-select = ["I", "UP035"]
 
 [lint.isort]
 # Keep aliased members on their existing shared `from` line instead of splitting

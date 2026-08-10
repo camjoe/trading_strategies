@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 # backtest_runs.purpose vocabulary: what kind of evidence a run represents.
 # standalone is the exploration corpus; walk_forward_oos and final_holdout are

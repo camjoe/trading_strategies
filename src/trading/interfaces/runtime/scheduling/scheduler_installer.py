@@ -8,9 +8,10 @@ import platform
 import re
 import shlex
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
 
 WINDOWS_DAYS = {
     "monday": "MON",
