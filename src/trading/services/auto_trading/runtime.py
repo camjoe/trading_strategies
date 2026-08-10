@@ -34,7 +34,7 @@ from trading.services.execution.open_order_reconciliation import (
 )
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.reconciliation import reconcile_book_equity
-from trading.services.execution.risk_audit import persist_book_run_audit
+from trading.services.execution.risk import persist_book_run_audit
 from trading.services.execution.selection.book_intents import generate_book_trade_intents
 from trading.services.execution.selection.selection import (
     FeatureHistoryFn,

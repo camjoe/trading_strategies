@@ -1,28 +1,35 @@
-"""Book-keyed risk persistence helpers for runtime auto-trading (multi-book mode)."""
+"""Book-keyed risk persistence for runtime auto-trading (multi-book mode).
+
+Exposure is derived from already-fetched rows, so the arithmetic behind
+``risk_snapshots`` — concentration, leverage, drawdown — is testable without a
+database, while the persistence around it reads and writes through the
+repositories directly, as every other module in this package does.
+"""
 
 from __future__ import annotations
 
-import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Sequence
 from typing import Any
 
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
 from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
+from trading.models.execution import BookRunAudit
 from trading.persistence.json_columns import dumps_json_column
-
-logger = logging.getLogger(__name__)
+from trading.repositories.books import BookRepository
+from trading.repositories.positions import PositionRepository
+from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.services.books.sector_config import load_symbol_sector_map
 
 
 def compute_current_exposure_snapshot(
-    conn: sqlite3.Connection,
     *,
-    account_id: int,
-    fetch_positions_for_account_fn: Callable[..., list[Any]],
-    fetch_books_for_account_fn: Callable[..., list[Any]],
+    position_rows: Sequence[Any],
+    book_rows: Sequence[Any],
     symbol_sector_map: dict[str, str],
 ) -> tuple[float, float, float, float, float]:
-    position_rows = fetch_positions_for_account_fn(conn, account_id=account_id)
+    """Gross, net, symbol/sector concentration and total equity over the given rows."""
     gross_exposure = 0.0
     net_exposure = 0.0
     symbol_exposure: dict[str, float] = {}
@@ -38,7 +45,6 @@ def compute_current_exposure_snapshot(
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
 
-    book_rows = fetch_books_for_account_fn(conn, account_id=account_id)
     total_equity = sum(float(b.current_equity) for b in book_rows)
     max_symbol_concentration_pct = 0.0
     max_sector_concentration_pct = 0.0
@@ -53,46 +59,40 @@ def _compute_leverage_proxy(*, gross_exposure: float, total_equity: float) -> fl
     return gross_exposure / total_equity if total_equity > 0 else None
 
 
-def persist_book_risk_snapshot(
-    conn: sqlite3.Connection,
+def build_risk_snapshot(
     *,
     account_id: int,
     snapshot_time: str,
     kill_switch_triggered: bool,
     payload: dict[str, object],
-    fetch_positions_for_account_fn: Callable[..., list[Any]],
-    fetch_books_for_account_fn: Callable[..., list[Any]],
-    fetch_max_equity_fn: Callable[..., float | None],
-    insert_risk_snapshot_fn: Callable[[RiskSnapshotInsert], object],
+    position_rows: Sequence[Any],
+    book_rows: Sequence[Any],
+    peak_equity: float | None,
     symbol_sector_map: dict[str, str],
-) -> None:
+) -> RiskSnapshotInsert:
+    """Derive the account's risk snapshot row from already-fetched rows."""
     gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct, total_equity = (
         compute_current_exposure_snapshot(
-            conn,
-            account_id=account_id,
-            fetch_positions_for_account_fn=fetch_positions_for_account_fn,
-            fetch_books_for_account_fn=fetch_books_for_account_fn,
+            position_rows=position_rows,
+            book_rows=book_rows,
             symbol_sector_map=symbol_sector_map,
         )
     )
-    peak_equity = fetch_max_equity_fn(conn, account_id=account_id)
-    insert_risk_snapshot_fn(
-        RiskSnapshotInsert(
-            account_id=account_id,
-            snapshot_time=snapshot_time,
-            gross_exposure=gross_exposure,
-            net_exposure=net_exposure,
-            max_symbol_concentration_pct=max_symbol_concentration_pct,
-            max_sector_concentration_pct=max_sector_concentration_pct,
-            drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
-            leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
-            # daily_loss_pct is a single-day peak-to-trough figure; still needs
-            # intraday equity ticks this codebase does not persist (unlike
-            # drawdown_pct above, a trailing-history peak can't stand in for it).
-            daily_loss_pct=None,
-            kill_switch_triggered=1 if kill_switch_triggered else 0,
-            risk_payload_json=dumps_json_column(payload),
-        )
+    return RiskSnapshotInsert(
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        gross_exposure=gross_exposure,
+        net_exposure=net_exposure,
+        max_symbol_concentration_pct=max_symbol_concentration_pct,
+        max_sector_concentration_pct=max_sector_concentration_pct,
+        drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
+        leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
+        # daily_loss_pct is a single-day peak-to-trough figure; still needs
+        # intraday equity ticks this codebase does not persist (unlike
+        # drawdown_pct above, a trailing-history peak can't stand in for it).
+        daily_loss_pct=None,
+        kill_switch_triggered=1 if kill_switch_triggered else 0,
+        risk_payload_json=dumps_json_column(payload),
     )
 
 
@@ -102,8 +102,8 @@ def persist_normalized_risk_decisions(
     account_id: int,
     decision_time: str,
     risk_decisions: list[dict[str, Any]],
-    insert_risk_decision_fn: Callable[[sqlite3.Connection, RiskDecisionInsert], object],
 ) -> None:
+    repository = RiskDecisionRepository(conn)
     for decision in risk_decisions:
         action = str(decision.get("action", "block")).strip().lower()
         reason_code = str(decision.get("reason_code", "unspecified")).strip().lower()
@@ -117,8 +117,7 @@ def persist_normalized_risk_decisions(
         approved_qty_value = decision.get("approved_qty")
         requested_notional_value = decision.get("requested_notional")
         approved_notional_value = decision.get("approved_notional")
-        insert_risk_decision_fn(
-            conn,
+        repository.insert(
             RiskDecisionInsert(
                 account_id=account_id,
                 book_id=book_id,
@@ -133,5 +132,42 @@ def persist_normalized_risk_decisions(
                 approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
                 risk_payload_json=dumps_json_column(decision),
                 created_at=decision_time,
-            ),
+            )
         )
+
+
+def persist_book_run_audit(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    snapshot_time: str,
+    audit: BookRunAudit,
+) -> None:
+    """Persist one book run's risk audit: normalized decisions, then the snapshot.
+
+    Exposure is sourced from the clean book positions/equity — the submission
+    path's source of truth — and persisted to the account-keyed risk_snapshots
+    table.
+    """
+    persist_normalized_risk_decisions(
+        conn,
+        account_id=account_id,
+        decision_time=snapshot_time,
+        risk_decisions=audit.risk_decisions,
+    )
+    RiskSnapshotRepository(conn).insert(
+        build_risk_snapshot(
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            kill_switch_triggered=bool(audit.kill_switch_reasons),
+            payload={
+                "kill_switch_reasons": audit.kill_switch_reasons,
+                "risk_decisions": audit.risk_decisions,
+                "summary": audit.summary(),
+            },
+            position_rows=PositionRepository(conn).fetch_for_account(account_id=account_id),
+            book_rows=BookRepository(conn).fetch_for_account(account_id=account_id),
+            peak_equity=EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id),
+            symbol_sector_map=load_symbol_sector_map(),
+        )
+    )
