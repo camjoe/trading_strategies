@@ -14,12 +14,16 @@ from trading.repositories.book_rotation_settings import BookRotationSettingsRepo
 from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
-from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
 DEFAULT_ROLLING_WINDOW_DAYS = 30
 DEFAULT_MIN_TRADES_IN_WINDOW = 20
 DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS = 25.0
 DEFAULT_ROTATION_COOLDOWN_DAYS = 7
+
+
+# Scoring weights default to the model's, so the flat fields here and
+# RotationScoreWeights cannot drift into two different untuned policies.
+_DEFAULT_WEIGHTS = RotationScoreWeights()
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,10 +33,10 @@ class RotationPolicyConfig:
     outperformance_threshold_bps: float = DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS
     cooldown_days: int = DEFAULT_ROTATION_COOLDOWN_DAYS
     config_version: str | None = None
-    risk_adjusted_return_weight: float = 1.0
-    stability_weight: float = 0.25
-    drawdown_penalty_weight: float = 0.20
-    regime_fit_weight: float = 0.10
+    risk_adjusted_return_weight: float = _DEFAULT_WEIGHTS.risk_adjusted_return_weight
+    stability_weight: float = _DEFAULT_WEIGHTS.stability_weight
+    drawdown_penalty_weight: float = _DEFAULT_WEIGHTS.drawdown_penalty_weight
+    regime_fit_weight: float = _DEFAULT_WEIGHTS.regime_fit_weight
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,8 +47,6 @@ class RotationRunResult:
     decision_time: str
     decision: RotationDecision
     rotated: bool
-    window_start_date: str
-    window_end_date: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +97,15 @@ def resolve_default_book_rotation_schedule(conn: sqlite3.Connection, *, account_
     return resolve_book_rotation_schedule(conn, book_id=book.id)
 
 
+def _tuned[T](stored: T | None, default: T) -> T:
+    """The book's stored setting, or the code default when the column is NULL.
+
+    A NULL column means untuned, so it falls back; ``0`` and ``0.0`` are real
+    operator choices and must not.
+    """
+    return default if stored is None else stored
+
+
 def resolve_rotation_policy_config(
     conn: sqlite3.Connection,
     *,
@@ -114,30 +125,16 @@ def resolve_rotation_policy_config(
         return RotationPolicyConfig(rolling_window_days=rolling_window_days, config_version=config_version)
     return RotationPolicyConfig(
         rolling_window_days=rolling_window_days,
-        min_trades_in_window=(
-            record.min_trades_in_window if record.min_trades_in_window is not None else defaults.min_trades_in_window
-        ),
-        outperformance_threshold_bps=(
-            record.outperformance_threshold_bps
-            if record.outperformance_threshold_bps is not None
-            else defaults.outperformance_threshold_bps
-        ),
-        cooldown_days=record.cooldown_days if record.cooldown_days is not None else defaults.cooldown_days,
         config_version=config_version,
-        risk_adjusted_return_weight=(
-            record.risk_adjusted_return_weight
-            if record.risk_adjusted_return_weight is not None
-            else defaults.risk_adjusted_return_weight
+        min_trades_in_window=_tuned(record.min_trades_in_window, defaults.min_trades_in_window),
+        outperformance_threshold_bps=_tuned(
+            record.outperformance_threshold_bps, defaults.outperformance_threshold_bps
         ),
-        stability_weight=record.stability_weight if record.stability_weight is not None else defaults.stability_weight,
-        drawdown_penalty_weight=(
-            record.drawdown_penalty_weight
-            if record.drawdown_penalty_weight is not None
-            else defaults.drawdown_penalty_weight
-        ),
-        regime_fit_weight=(
-            record.regime_fit_weight if record.regime_fit_weight is not None else defaults.regime_fit_weight
-        ),
+        cooldown_days=_tuned(record.cooldown_days, defaults.cooldown_days),
+        risk_adjusted_return_weight=_tuned(record.risk_adjusted_return_weight, defaults.risk_adjusted_return_weight),
+        stability_weight=_tuned(record.stability_weight, defaults.stability_weight),
+        drawdown_penalty_weight=_tuned(record.drawdown_penalty_weight, defaults.drawdown_penalty_weight),
+        regime_fit_weight=_tuned(record.regime_fit_weight, defaults.regime_fit_weight),
     )
 
 
@@ -148,10 +145,6 @@ def _weights_from_config(config: RotationPolicyConfig) -> RotationScoreWeights:
         drawdown_penalty_weight=float(config.drawdown_penalty_weight),
         regime_fit_weight=float(config.regime_fit_weight),
     )
-
-
-def _resolve_window_bounds(*, as_of_iso: str, rolling_window_days: int) -> tuple[str, str]:
-    return _resolve_window_bounds_shared(as_of_iso=as_of_iso, rolling_window_days=rolling_window_days)
 
 
 def _is_cooldown_active(
@@ -179,7 +172,7 @@ def _normalize_challengers(
     return [challenger for challenger in challengers if challenger.strategy_name != incumbent_strategy]
 
 
-def book_cooldown_active(
+def _book_cooldown_active(
     conn: sqlite3.Connection,
     *,
     book_id: int,
@@ -199,7 +192,7 @@ def book_cooldown_active(
     )
 
 
-def evaluate_book_rotation(
+def _evaluate_book_rotation(
     conn: sqlite3.Connection,
     *,
     book_id: int,
@@ -256,11 +249,7 @@ def evaluate_and_apply_book_rotation(
         raise ValueError(f"No incumbent assignment found for book_id={book_id}.")
 
     incumbent_strategy = assignment.strategy_name.strip()
-    window_start_date, window_end_date = _resolve_window_bounds(
-        as_of_iso=now_iso,
-        rolling_window_days=max(1, int(config.rolling_window_days)),
-    )
-    cooldown_active = book_cooldown_active(
+    cooldown_active = _book_cooldown_active(
         conn,
         book_id=book_id,
         decision_time=now_iso,
@@ -272,7 +261,7 @@ def evaluate_and_apply_book_rotation(
         challengers=challengers,
     )
     with unit_of_work(conn):
-        decision, decision_id = evaluate_book_rotation(
+        decision, decision_id = _evaluate_book_rotation(
             conn,
             book_id=book_id,
             incumbent=incumbent,
@@ -298,6 +287,4 @@ def evaluate_and_apply_book_rotation(
         decision_time=now_iso,
         decision=decision,
         rotated=rotated,
-        window_start_date=window_start_date,
-        window_end_date=window_end_date,
     )
