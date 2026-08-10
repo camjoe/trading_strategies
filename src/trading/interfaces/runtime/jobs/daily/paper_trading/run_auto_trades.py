@@ -7,9 +7,7 @@ from common.git import get_repo_root
 from common.tickers import load_tickers_from_file
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
-from infrastructure.feature_providers.news_provider import NewsFeatureProvider
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
-from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
@@ -73,14 +71,12 @@ def main() -> int:
     # Composition root: build the market-data provider once and inject it through
     # the market-input + rotation paths (no global locator access inside services).
     provider = build_provider()
+    # Policy only. News and social reach no strategy while feature-driven signals
+    # are deferred, and wiring a fetcher no caller can reach only costs a lexicon
+    # load — see docs/overview.md, "Built but not wired up". Both providers stay in
+    # infrastructure/feature_providers/ for when that work resumes.
     policy_provider = PolicyFeatureProvider(market_data_provider=provider)
-    news_provider = NewsFeatureProvider()
-    social_provider = SocialFeatureProvider()
-    feature_fetchers = FeatureFetcherSet(
-        fetch_policy=policy_provider.get_features,
-        fetch_news=news_provider.get_features,
-        fetch_social=social_provider.get_features,
-    )
+    feature_fetchers = FeatureFetcherSet(fetch_policy=policy_provider.get_features)
 
     with db_session() as conn:
         run_universe = (
