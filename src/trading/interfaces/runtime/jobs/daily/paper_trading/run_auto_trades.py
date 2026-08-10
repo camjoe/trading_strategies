@@ -71,10 +71,7 @@ def main() -> int:
     # Composition root: build the market-data provider once and inject it through
     # the market-input + rotation paths (no global locator access inside services).
     provider = build_provider()
-    # Policy only. News and social reach no strategy while feature-driven signals
-    # are deferred, and wiring a fetcher no caller can reach only costs a lexicon
-    # load — see docs/overview.md, "Built but not wired up". Both providers stay in
-    # infrastructure/feature_providers/ for when that work resumes.
+    # Policy only: no registered strategy consumes news or social features.
     policy_provider = PolicyFeatureProvider(market_data_provider=provider)
     feature_fetchers = FeatureFetcherSet(fetch_policy=policy_provider.get_features)
 

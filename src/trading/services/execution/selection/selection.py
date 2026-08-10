@@ -410,7 +410,7 @@ def prepare_buy_trades(
     ]
 
 
-def order_sell_candidates(
+def _order_sell_candidates(
     sell_candidates: list[str],
     forced_sells: list[str],
     selection_seed: str = "",
@@ -446,7 +446,7 @@ def iter_sellable_trades(
     closing positions as it consumes this sees its own writes — which is what
     stops a ticker listed twice from being sold twice.
     """
-    for ticker in order_sell_candidates(sell_candidates, forced_sells, selection_seed):
+    for ticker in _order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue

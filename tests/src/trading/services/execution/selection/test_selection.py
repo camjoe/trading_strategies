@@ -132,6 +132,23 @@ def test_sellable_trades_prefer_a_risk_breach_over_a_signalled_exit() -> None:
     assert result == ("AAPL", 5, 150.0)
 
 
+def test_sellable_trades_do_not_sell_a_duplicated_ticker_twice() -> None:
+    """A ticker listed twice yields once, because the walk sees the caller's close.
+
+    Consuming the walk without closing each position (collecting it up front, say)
+    would sell the same holding twice.
+    """
+    positions = {"AAPL": 5.0}
+    taken = []
+    for ticker, qty, price in trade_execution_service.iter_sellable_trades(
+        [], ["AAPL", "AAPL"], {"AAPL": 150.0}, positions
+    ):
+        taken.append((ticker, qty, price))
+        positions.pop(ticker, None)
+
+    assert taken == [("AAPL", 5, 150.0)]
+
+
 def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
     result = trade_execution_service.prepare_buy_trades(
         option_settings=make_option_settings(),
