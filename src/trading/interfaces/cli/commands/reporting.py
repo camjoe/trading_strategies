@@ -4,16 +4,6 @@ import argparse
 
 
 def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")
-    p_trade.add_argument("--account", required=True, help="Account name")
-    p_trade.add_argument("--side", required=True, choices=["buy", "sell"], help="Order side")
-    p_trade.add_argument("--ticker", required=True, help="Ticker symbol")
-    p_trade.add_argument("--qty", type=float, required=True, help="Trade quantity")
-    p_trade.add_argument("--price", type=float, required=True, help="Execution price")
-    p_trade.add_argument("--fee", type=float, default=0.0, help="Optional trading fee")
-    p_trade.add_argument("--time", default=None, help="Optional trade time (ISO string)")
-    p_trade.add_argument("--note", default=None, help="Optional trade note")
-
     p_report = sub.add_parser("report", help="Show account status and open positions.")
     p_report.add_argument("--account", required=True, help="Account name")
 
