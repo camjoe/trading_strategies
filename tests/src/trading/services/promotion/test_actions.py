@@ -28,7 +28,7 @@ def test_execute_promotion_review_request_persists_frozen_snapshot(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -67,7 +67,7 @@ def test_execute_promotion_review_action_closes_open_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -101,7 +101,7 @@ def test_execute_promotion_review_request_canonicalizes_strategy_for_open_review
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -172,7 +172,7 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -198,7 +198,7 @@ def test_execute_promotion_review_request_requires_strategy_id(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name="rsi"),
             _ready_assessment(account_name=account_name, strategy_name="rsi"),
@@ -216,7 +216,7 @@ def test_execute_promotion_review_action_adds_note_without_closing_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -248,7 +248,7 @@ def test_execute_promotion_review_action_rejects_non_ready_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             replace(
@@ -273,7 +273,7 @@ def test_execute_promotion_review_action_blocks_approval_when_not_ready_for_live
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             replace(
@@ -295,7 +295,7 @@ def test_execute_promotion_review_action_raises_for_closed_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -315,7 +315,7 @@ def test_execute_promotion_review_action_rolls_back_event_for_stale_open_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),

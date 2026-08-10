@@ -29,8 +29,6 @@ PROMOTION_REVIEW_ACTION_APPROVE = "approve"
 PROMOTION_REVIEW_ACTION_REJECT = "reject"
 PROMOTION_REVIEW_ACTION_NOTE = "note"
 
-_fetch_promotion_snapshot = fetch_promotion_snapshot
-
 
 def _require_request_context(
     artifact: StrategyEvaluationArtifact,
@@ -98,7 +96,7 @@ def execute_promotion_review_request(
     requested_by: str | None = None,
     note: str | None = None,
 ) -> PromotionReviewRecord:
-    artifact, assessment = _fetch_promotion_snapshot(
+    artifact, assessment = fetch_promotion_snapshot(
         conn,
         account_name=account_name,
         strategy_name=strategy_name,
