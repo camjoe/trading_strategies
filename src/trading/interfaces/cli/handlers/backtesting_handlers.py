@@ -2,18 +2,29 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from functools import partial
 from typing import Any
+
+from backtesting.composition import run_backtest, run_backtest_batch, run_backtest_metrics_only
+from backtesting.models import BacktestBatchConfig, BacktestConfig
+from backtesting.models.optimizer import OptimizerConfig
+from backtesting.services.audit import fetch_experiment_audit
+from backtesting.services.optimization_experiment import run_and_persist_optimization
+from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from trading.domain.promotion_gate import evaluate_promotion_gate
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.strategy_catalog import promote_optimization_experiment
 
 
 def _format_metric(value: float | None, *, suffix: str = "") -> str:
     return "n/a" if value is None else f"{value:.2f}{suffix}"
 
 
-def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        result = deps["run_backtest"](
+        result = run_backtest(
             conn,
-            deps["BacktestConfig"](
+            BacktestConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -26,6 +37,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
                 strategy=args.strategy,
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -61,8 +73,8 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
             print(f"- {warning}")
 
 
-def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["fetch_report"](conn, run_id=args.run_id)
+def handle_backtest_report(conn, args, parser, *, ctx: CliContext) -> None:
+    report = fetch_report(conn, run_id=args.run_id)
     summary = report.summary
     print(
         f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
@@ -96,9 +108,9 @@ def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
         print(f"Safeguards / notes: {' | '.join(summary.warnings)}")
 
 
-def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_leaderboard(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        rows = deps["fetch_leaderboard"](
+        rows = fetch_leaderboard(
             conn,
             limit=int(args.limit),
             account_name=args.account,
@@ -140,12 +152,12 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> 
         )
 
 
-def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_batch(conn, args, parser, *, ctx: CliContext) -> None:
     account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
     try:
-        results = deps["run_backtest_batch"](
+        results = run_backtest_batch(
             conn,
-            deps["BacktestBatchConfig"](
+            BacktestBatchConfig(
                 account_names=account_names,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -157,6 +169,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 run_name_prefix=args.run_name_prefix,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -171,7 +184,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
         )
 
 
-def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_optimize(conn, args, parser, *, ctx: CliContext) -> None:
     try:
         search_space = json.loads(args.search_space)
     except json.JSONDecodeError as error:
@@ -182,9 +195,9 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         return
 
     try:
-        summary = deps["run_and_persist_optimization"](
+        summary = run_and_persist_optimization(
             conn,
-            deps["OptimizerConfig"](
+            OptimizerConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -203,8 +216,9 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
                 candidate_budget=args.candidate_budget,
                 warmup_months=args.warmup_months,
             ),
-            run_metrics_only_fn=deps["run_backtest_metrics_only"],
-            run_persisted_fn=deps["run_backtest"],
+            run_metrics_only_fn=partial(run_backtest_metrics_only, provider=ctx.provider),
+            run_persisted_fn=partial(run_backtest, provider=ctx.provider),
+            market_data_provider=ctx.provider_name,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -216,12 +230,12 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         print(f"Promote its winner with: backtest-optimize-promote {summary.experiment_id} --key <new_key>")
 
 
-def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    audit = deps["fetch_experiment_audit"](conn, experiment_id=args.experiment_id)
+def handle_backtest_optimize_show(conn, args, parser, *, ctx: CliContext) -> None:
+    audit = fetch_experiment_audit(conn, experiment_id=args.experiment_id)
     if audit is None:
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
-    _print_experiment(audit.experiment, evaluate_promotion_gate=deps["evaluate_promotion_gate"])
+    _print_experiment(audit.experiment, evaluate_promotion_gate=evaluate_promotion_gate)
     if audit.experiment.status == "failed":
         return
     _print_window_audit(audit.windows)
@@ -229,9 +243,9 @@ def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -
     _print_manifest(audit.manifest)
 
 
-def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_optimize_promote(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        variant = deps["promote_optimization_experiment"](
+        variant = promote_optimization_experiment(
             conn,
             experiment_id=args.experiment_id,
             new_strategy_key=args.key,

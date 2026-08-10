@@ -4,7 +4,8 @@ import types
 
 import pytest
 
-from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
+import trading.interfaces.cli.handlers.accounts_handlers as module
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
 from trading.interfaces.cli.handlers.accounts_handlers import (
     handle_configure_account,
     handle_create_account,
@@ -47,16 +48,18 @@ def _config_args(**kwargs) -> types.SimpleNamespace:
 
 
 def test_handle_init_prints_db_path(capsys) -> None:
-    handle_init(None, types.SimpleNamespace(), fake_parser(), deps={"db_path": "/data/paper.db"})
-    assert "/data/paper.db" in capsys.readouterr().out
+    ctx = make_ctx(db_path="/data/paper.db")
+    handle_init(None, types.SimpleNamespace(), fake_parser(), ctx=ctx)
+    # Rendered by the platform: a Path prints with the local separator.
+    assert str(ctx.db_path) in capsys.readouterr().out
 
 
-def test_handle_create_account_calls_create_account_dep() -> None:
+def test_handle_create_account_calls_create_account_dep(monkeypatch) -> None:
     calls: list = []
-    deps = {"create_account": lambda *a, **kw: calls.append((a, kw))}
+    patch_services(monkeypatch, module, create_account=lambda *a, **kw: calls.append((a, kw)))
     args = _config_args(name="alice", strategy="trend", initial_cash=10000.0, benchmark="spy")
 
-    handle_create_account(object(), args, fake_parser(), deps=deps)
+    handle_create_account(object(), args, fake_parser(), ctx=make_ctx())
 
     assert len(calls) == 1
     positional, _ = calls[0]
@@ -65,20 +68,24 @@ def test_handle_create_account_calls_create_account_dep() -> None:
     assert positional[3] == 10000.0
 
 
-def test_handle_create_account_routes_invalid_strategy_to_parser_error() -> None:
-    deps = {"create_account": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery'"))}
+def test_handle_create_account_routes_invalid_strategy_to_parser_error(monkeypatch) -> None:
+    patch_services(
+        monkeypatch,
+        module,
+        create_account=lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery'")),
+    )
     args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery'"):
-        handle_create_account(object(), args, fake_parser(), deps=deps)
+        handle_create_account(object(), args, fake_parser(), ctx=make_ctx())
 
 
-def test_handle_configure_account_calls_configure_account_dep() -> None:
+def test_handle_configure_account_calls_configure_account_dep(monkeypatch) -> None:
     calls: list = []
-    deps = {"configure_account": lambda *a, **kw: calls.append(kw)}
+    patch_services(monkeypatch, module, configure_account=lambda *a, **kw: calls.append(kw))
     args = _config_args(account="bob")
 
-    handle_configure_account(object(), args, fake_parser(), deps=deps)
+    handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
 
     assert calls[0]["account_name"] == "bob"
 
@@ -88,47 +95,49 @@ def test_handle_configure_account_routes_value_error_to_parser_error() -> None:
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
 
     with pytest.raises(SystemExit):
-        handle_configure_account(object(), args, fake_parser(), deps={})
+        handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
 
 
-def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
+def test_handle_set_benchmark_calls_dep_with_correct_args(monkeypatch) -> None:
     calls: list = []
-    deps = {"set_benchmark": lambda _conn, account, benchmark: calls.append((account, benchmark))}
+    patch_services(
+        monkeypatch, module, set_benchmark=lambda _conn, account, benchmark: calls.append((account, benchmark))
+    )
     args = types.SimpleNamespace(account="alice", benchmark="qqq")
 
-    handle_set_benchmark(object(), args, fake_parser(), deps=deps)
+    handle_set_benchmark(object(), args, fake_parser(), ctx=make_ctx())
 
     assert calls == [("alice", "qqq")]
 
 
-def test_handle_list_accounts_prints_lines(capsys) -> None:
+def test_handle_list_accounts_prints_lines(capsys, monkeypatch) -> None:
     conn = object()
-    deps = {"list_accounts": lambda c: ["[1] acct1", "[2] acct2"]}
+    patch_services(monkeypatch, module, list_accounts=lambda c: ["[1] acct1", "[2] acct2"])
 
-    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), deps=deps)
+    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "[1] acct1" in out
     assert "[2] acct2" in out
 
 
-def test_handle_list_accounts_prints_empty_message(capsys) -> None:
+def test_handle_list_accounts_prints_empty_message(capsys, monkeypatch) -> None:
     conn = object()
-    deps = {"list_accounts": lambda c: []}
+    patch_services(monkeypatch, module, list_accounts=lambda c: [])
 
-    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), deps=deps)
+    handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), ctx=make_ctx())
 
     assert "No accounts found." in capsys.readouterr().out
 
 
-def test_handle_trade_delegates_all_fields_to_record_trade_dep() -> None:
+def test_handle_trade_delegates_all_fields_to_record_trade_dep(monkeypatch) -> None:
     calls: list = []
-    deps = {"record_trade": lambda *_a, **kw: calls.append(kw)}
+    patch_services(monkeypatch, module, record_trade=lambda *_a, **kw: calls.append(kw))
     args = types.SimpleNamespace(
         account="alice", side="buy", ticker="AAPL", qty=10, price=150.0, fee=1.0, time=None, note="test"
     )
 
-    handle_trade(object(), args, fake_parser(), deps=deps)
+    handle_trade(object(), args, fake_parser(), ctx=make_ctx())
 
     assert calls[0]["account_name"] == "alice"
     assert calls[0]["ticker"] == "AAPL"
@@ -143,12 +152,14 @@ class _RecordingParser:
         self.message = msg
 
 
-def test_handle_create_account_records_parser_error_without_printing_success(capsys) -> None:
+def test_handle_create_account_records_parser_error_without_printing_success(capsys, monkeypatch) -> None:
     parser = _RecordingParser()
-    deps = {"create_account": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad create"))}
+    patch_services(
+        monkeypatch, module, create_account=lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad create"))
+    )
     args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
 
-    handle_create_account(object(), args, parser, deps=deps)
+    handle_create_account(object(), args, parser, ctx=make_ctx())
 
     assert parser.message == "bad create"
     assert "Created account" not in capsys.readouterr().out
@@ -158,7 +169,7 @@ def test_handle_configure_account_records_parser_error_without_printing_success(
     parser = _RecordingParser()
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
 
-    handle_configure_account(object(), args, parser, deps={})
+    handle_configure_account(object(), args, parser, ctx=make_ctx())
 
     assert parser.message == "Use only one of --learning-enabled or --learning-disabled"
     assert "Updated account configuration" not in capsys.readouterr().out

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from trading.interfaces.cli.handlers.accounts_handlers import (
     handle_configure_account,
     handle_create_account,
@@ -19,6 +17,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_optimize_show,
     handle_backtest_report,
 )
+from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
     handle_parameters,
@@ -90,11 +89,11 @@ def dispatch_command(
     args,
     parser,
     *,
-    deps: dict[str, Any],
+    ctx: CliContext,
 ) -> None:
     command_handler = COMMAND_HANDLERS.get(args.command)
     if command_handler is None:
         parser.error(f"Unsupported command: {args.command}")
         return
 
-    command_handler(conn, args, parser, deps=deps)
+    command_handler(conn, args, parser, ctx=ctx)

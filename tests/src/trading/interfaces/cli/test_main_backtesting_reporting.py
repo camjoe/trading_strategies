@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import trading.interfaces.cli.handlers.backtesting_handlers as backtesting_handlers
 from tests.src.trading.interfaces.cli.factories import make_backtest_leaderboard_args, make_backtest_report_args
 from tests.src.trading.interfaces.cli.helpers import install_main_harness
 from tests.support.backtesting import make_backtest_full_report, make_backtest_leaderboard_entry
@@ -10,7 +11,7 @@ def test_main_backtest_report_dispatches(monkeypatch, capsys) -> None:
     args = make_backtest_report_args(run_id=11)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
+        backtesting_handlers,
         "fetch_report",
         lambda _conn, *, run_id: make_backtest_full_report(
             run_id=run_id,
@@ -31,7 +32,7 @@ def test_main_backtest_report_without_warnings_omits_notes_line(monkeypatch, cap
     args = make_backtest_report_args(run_id=99)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
+        backtesting_handlers,
         "fetch_report",
         lambda _conn, *, run_id: make_backtest_full_report(run_id=run_id, run_name=None, warnings=[]),
     )
@@ -48,7 +49,7 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
     args = make_backtest_leaderboard_args(limit=5, strategy="trend")
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
+        backtesting_handlers,
         "fetch_leaderboard",
         lambda _conn, *, limit, account_name, strategy: [
             make_backtest_leaderboard_entry(
@@ -76,7 +77,7 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
 def test_main_backtest_leaderboard_no_rows_prints_message(monkeypatch, capsys) -> None:
     args = make_backtest_leaderboard_args()
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
-    monkeypatch.setattr(cli_main, "fetch_leaderboard", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(backtesting_handlers, "fetch_leaderboard", lambda *_args, **_kwargs: [])
 
     cli_main.main()
 

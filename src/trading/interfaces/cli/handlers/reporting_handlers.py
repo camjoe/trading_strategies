@@ -1,18 +1,33 @@
 from __future__ import annotations
 
-from typing import Any
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.parameters import show_parameters
+from trading.services.promotion import (
+    execute_promotion_review_action,
+    execute_promotion_review_request,
+    show_promotion_review_history,
+    show_promotion_status,
+)
+from trading.services.reporting import (
+    account_report,
+    compare_strategies,
+    show_portfolio_concentration,
+    show_portfolio_exposure,
+    show_snapshots,
+    snapshot_account,
+)
 
 
-def handle_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["account_report"](conn, args.account)
+def handle_report(conn, args, parser, *, ctx: CliContext) -> None:
+    account_report(conn, args.account, provider=ctx.provider)
 
 
-def handle_promotion_status(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_promotion_status"](conn, args.account, args.strategy)
+def handle_promotion_status(conn, args, parser, *, ctx: CliContext) -> None:
+    show_promotion_status(conn, args.account, args.strategy)
 
 
-def handle_promotion_request_review(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    review = deps["execute_promotion_review_request"](
+def handle_promotion_request_review(conn, args, parser, *, ctx: CliContext) -> None:
+    review = execute_promotion_review_request(
         conn,
         account_name=args.account,
         strategy_name=args.strategy,
@@ -25,8 +40,8 @@ def handle_promotion_request_review(conn, args, parser, *, deps: dict[str, Any])
     )
 
 
-def handle_promotion_review_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_promotion_review_history"](
+def handle_promotion_review_history(conn, args, parser, *, ctx: CliContext) -> None:
+    show_promotion_review_history(
         conn,
         args.account,
         args.strategy,
@@ -34,8 +49,8 @@ def handle_promotion_review_history(conn, args, parser, *, deps: dict[str, Any])
     )
 
 
-def handle_promotion_review_action(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    review = deps["execute_promotion_review_action"](
+def handle_promotion_review_action(conn, args, parser, *, ctx: CliContext) -> None:
+    review = execute_promotion_review_action(
         conn,
         review_id=args.review_id,
         action=args.action,
@@ -45,25 +60,25 @@ def handle_promotion_review_action(conn, args, parser, *, deps: dict[str, Any]) 
     print(f"Updated promotion review #{review.id} to state={review.review_state}.")
 
 
-def handle_snapshot(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["snapshot_account"](conn, args.account, args.time)
+def handle_snapshot(conn, args, parser, *, ctx: CliContext) -> None:
+    snapshot_account(conn, args.account, args.time, provider=ctx.provider)
 
 
-def handle_snapshot_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_snapshots"](conn, args.account, args.limit)
+def handle_snapshot_history(conn, args, parser, *, ctx: CliContext) -> None:
+    show_snapshots(conn, args.account, args.limit)
 
 
-def handle_portfolio_exposure(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_portfolio_exposure"](conn)
+def handle_portfolio_exposure(conn, args, parser, *, ctx: CliContext) -> None:
+    show_portfolio_exposure(conn)
 
 
-def handle_portfolio_concentration(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_portfolio_concentration"](conn)
+def handle_portfolio_concentration(conn, args, parser, *, ctx: CliContext) -> None:
+    show_portfolio_concentration(conn)
 
 
-def handle_parameters(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_parameters"](conn, args.account)
+def handle_parameters(conn, args, parser, *, ctx: CliContext) -> None:
+    show_parameters(conn, args.account)
 
 
-def handle_compare_strategies(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["compare_strategies"](conn, args.lookback)
+def handle_compare_strategies(conn, args, parser, *, ctx: CliContext) -> None:
+    compare_strategies(conn, args.lookback, provider=ctx.provider)
