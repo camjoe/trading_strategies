@@ -13,7 +13,6 @@ from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import BookAccountMismatchError, OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -338,7 +337,7 @@ def test_position_and_ledger_round_trips(conn) -> None:
         ledger.insert(book_id=book_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
 
 
-def test_risk_and_feature_provider_round_trips(conn) -> None:
+def test_risk_round_trips(conn) -> None:
     account_id, book_id = _insert_book(conn)
 
     snapshots = RiskSnapshotRepository(conn)
@@ -371,13 +370,6 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
     recent = decisions.fetch_recent(account_id=account_id)
     assert len(recent) == 1
     assert recent[0].action == "block"
-
-    providers = FeatureProviderRepository(conn)
-    providers.upsert(provider_key="news", enabled=1, created_at=NOW, updated_at=NOW)
-    providers.upsert(provider_key="news", enabled=0, created_at=NOW, updated_at=NOW)
-    assert providers.fetch_enabled() == []
-    fetched_provider = providers.fetch_by_key(provider_key="news")
-    assert fetched_provider is not None and fetched_provider.enabled == 0
 
 
 def test_submission_count_sees_orders_that_never_filled(conn) -> None:

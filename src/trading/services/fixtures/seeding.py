@@ -34,7 +34,6 @@ from trading.models.orders import OrderInsert
 from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
-from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -391,15 +390,6 @@ def _seed_settings(conn: sqlite3.Connection, *, profile: FixtureProfile, now_iso
             conn,
             runtime_max_trades_per_day=FIXTURE_MAX_TRADES_PER_DAY,
             runtime_max_trades_per_minute=FIXTURE_MAX_TRADES_PER_MINUTE,
-            updated_at=now_iso,
-        )
-
-    for provider_key in profile.feature_providers:
-        FeatureProviderRepository(conn).upsert(
-            provider_key=provider_key,
-            enabled=1,
-            config_json=dumps_json_column({"source": "fixture"}),
-            created_at=now_iso,
             updated_at=now_iso,
         )
 

@@ -117,11 +117,6 @@ class FixtureProfile:
     name: str
     business_days: int
     accounts: tuple[FixtureAccount, ...]
-    # Provider keys to enable in `feature_providers`. No registered strategy reads
-    # these today (the alternative-style primitives were retired), so a row here
-    # changes no behaviour — the sandbox seeds one so the table is not left empty,
-    # which its coverage gate treats as an unreviewed gap.
-    feature_providers: tuple[str, ...] = ()
     # Whether to write the `global_settings` singleton. The demo leaves it unset
     # so it exercises the code-default path.
     seed_global_settings: bool = False
@@ -282,7 +277,6 @@ SANDBOX_PROFILE = FixtureProfile(
     ),
     # Named for the provider, not for a strategy: the previous value here was
     # "news_sentiment", a strategy id that no longer resolves.
-    feature_providers=("news",),
     seed_global_settings=True,
     backtest_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),
     promotion_review_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),

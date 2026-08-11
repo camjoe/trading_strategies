@@ -88,7 +88,6 @@ and reporting services alike.
 | Module | Responsibility |
 |---|---|
 | `strategies.py` | Strategy catalog rows: primitive + knobs, draft/frozen lifecycle, label → row id resolution |
-| `feature_providers.py` | Feature-provider enablement and config records |
 
 ### Promotion
 

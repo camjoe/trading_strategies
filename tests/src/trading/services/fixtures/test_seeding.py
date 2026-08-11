@@ -27,6 +27,9 @@ KNOWN_EMPTY_SANDBOX_TABLES = {
     "risk_snapshots": "requires driving the risk pass",
     "risk_decisions": "requires driving the risk pass",
     "rotation_decisions": "requires driving the rotation engine",
+    # No code reads or writes it; its repository and record were deleted
+    # 2026-08-10. Drop the table in the migration squash.
+    "feature_providers": "unused table awaiting removal",
 }
 
 
