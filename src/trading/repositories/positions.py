@@ -55,29 +55,19 @@ class PositionRepository:
         )
         commit_unit_of_work(self._conn)
 
+    def _fetch(self, filter_sql: str, params: tuple[object, ...]) -> list[PositionRecord]:
+        rows = self._conn.execute(f"SELECT p.* FROM positions p {filter_sql}", params).fetchall()
+        return [PositionRecord.from_mapping(dict(row)) for row in rows]
+
     def fetch(self, *, book_id: int, symbol: str) -> PositionRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM positions WHERE book_id = ? AND symbol = ?",
-            (book_id, symbol),
-        ).fetchone()
-        return PositionRecord.from_mapping(dict(row)) if row is not None else None
+        found = self._fetch("WHERE p.book_id = ? AND p.symbol = ?", (book_id, symbol))
+        return found[0] if found else None
 
     def fetch_for_book(self, *, book_id: int) -> list[PositionRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM positions WHERE book_id = ? ORDER BY symbol ASC",
-            (book_id,),
-        ).fetchall()
-        return [PositionRecord.from_mapping(dict(row)) for row in rows]
+        return self._fetch("WHERE p.book_id = ? ORDER BY p.symbol ASC", (book_id,))
 
     def fetch_for_account(self, *, account_id: int) -> list[PositionRecord]:
-        rows = self._conn.execute(
-            """
-            SELECT p.*
-            FROM positions p
-            JOIN books u ON u.id = p.book_id
-            WHERE u.account_id = ?
-            ORDER BY p.book_id ASC, p.symbol ASC
-            """,
+        return self._fetch(
+            "JOIN books b ON b.id = p.book_id WHERE b.account_id = ? ORDER BY p.book_id ASC, p.symbol ASC",
             (account_id,),
-        ).fetchall()
-        return [PositionRecord.from_mapping(dict(row)) for row in rows]
+        )
