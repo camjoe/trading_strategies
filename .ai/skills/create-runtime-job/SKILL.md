@@ -43,7 +43,7 @@ Fill the matching template from [templates.md](templates.md), placed at:
 
 Use the shared harness (`run_runtime_job_main` / `run_runtime_job_with_args` from
 `tests/src/trading/interfaces/runtime/jobs/loaders.py`) — see [templates.md](templates.md). Patch lifecycle
-seams (`resolve_accounts`, `load_runtime_eligible_account_names`, `db_session`) on the
+seams (`resolve_accounts`, `load_account_names`, `db_session`) on the
 `job_runner._core` submodule, where those lookups live; patch the job's own body helper on
 the job module.
 

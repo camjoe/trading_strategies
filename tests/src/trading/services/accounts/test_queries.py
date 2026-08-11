@@ -68,10 +68,10 @@ class TestAccountQueryGuards:
         with pytest.raises(ValueError, match="limit must be positive"):
             list_account_snapshots(conn, acct["id"], limit=0)
 
-    def test_load_runtime_eligible_account_names_returns_list(self, conn) -> None:
-        # conn sets the global backend to a test DB so load_runtime_eligible_account_names
+    def test_load_account_names_returns_list(self, conn) -> None:
+        # conn sets the global backend to a test DB so load_account_names
         # does not hit the real on-disk database.
-        from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
+        from trading.services.accounts.runtime_loader import load_account_names
 
-        result = load_runtime_eligible_account_names()
+        result = load_account_names()
         assert isinstance(result, list)

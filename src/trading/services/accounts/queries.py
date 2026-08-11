@@ -29,7 +29,7 @@ def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
 
 
 def list_account_names(conn: sqlite3.Connection) -> list[str]:
-    return AccountRepository(conn).fetch_names()
+    return [account.name for account in AccountRepository(conn).fetch_all()]
 
 
 def get_latest_account_snapshot(

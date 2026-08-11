@@ -33,7 +33,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     week_tag,
     write_artifact,
 )
-from trading.services.accounts import load_runtime_eligible_account_names
+from trading.services.accounts import load_account_names
 
 REPO_ROOT = get_repo_root(__file__)
 
@@ -213,7 +213,7 @@ def _prepare_run(
 def _resolve_or_exit(accounts_arg: str) -> list[str] | int:
     """Resolve accounts, returning an exit code on failure instead of the list."""
     try:
-        accounts = resolve_accounts(accounts_arg, load_runtime_eligible_account_names())
+        accounts = resolve_accounts(accounts_arg, load_account_names())
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1

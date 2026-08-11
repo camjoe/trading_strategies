@@ -52,7 +52,7 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
 
 
 try:
-    from trading.services.accounts import load_runtime_eligible_account_names
+    from trading.services.accounts import load_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())
@@ -100,7 +100,7 @@ def main() -> int:
         )
         return 0
 
-    all_accounts = load_runtime_eligible_account_names()
+    all_accounts = load_account_names()
     try:
         context = build_run_context(
             args,

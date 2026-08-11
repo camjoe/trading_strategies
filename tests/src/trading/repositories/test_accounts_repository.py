@@ -114,17 +114,6 @@ class TestUpdateAccountFields:
         assert updated["benchmark_ticker"] == "QQQ"
 
 
-class TestFetchAllAccountNames:
-    def test_returns_sorted_names(self, conn) -> None:
-        _insert(conn, "zulu")
-        _insert(conn, "alpha")
-        _insert(conn, "mike")
-        assert AccountRepository(conn).fetch_names() == ["alpha", "mike", "zulu"]
-
-    def test_empty_table_returns_empty(self, conn) -> None:
-        assert AccountRepository(conn).fetch_names() == []
-
-
 def _account_id(conn, name: str = "count_acct") -> int:
     return insert_repository_account(conn, name=name)
 

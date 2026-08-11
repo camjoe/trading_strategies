@@ -134,7 +134,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
-| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
+| `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |

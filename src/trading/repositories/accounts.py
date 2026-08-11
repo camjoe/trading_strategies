@@ -33,10 +33,6 @@ class AccountRepository:
         row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
         return AccountRecord.from_mapping(dict(row)) if row is not None else None
 
-    def fetch_names(self) -> list[str]:
-        rows = self._conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-        return [str(row["name"]) for row in rows]
-
     def insert(self, account: AccountInsert) -> None:
         self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
         commit_unit_of_work(self._conn)

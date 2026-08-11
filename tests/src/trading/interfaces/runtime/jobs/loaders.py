@@ -145,7 +145,7 @@ def load_single_artifact_json(artifacts_dir: Path, pattern: str) -> dict[str, ob
 
 def set_runtime_eligible_accounts(monkeypatch, module_name: str, accounts: list[str]) -> None:
     monkeypatch.setattr(
-        f"{module_name}.load_runtime_eligible_account_names",
+        f"{module_name}.load_account_names",
         lambda: list(accounts),
     )
 
@@ -183,8 +183,8 @@ def stub_runtime_job_basics(
         if hasattr(target, "ensure_db"):
             monkeypatch.setattr(target, "ensure_db", lambda: resolved_conn)
     for target in (module, job_runner):
-        if hasattr(target, "load_runtime_eligible_account_names"):
-            monkeypatch.setattr(target, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
+        if hasattr(target, "load_account_names"):
+            monkeypatch.setattr(target, "load_account_names", lambda: list(resolved_accounts))
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 
