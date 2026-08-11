@@ -7,11 +7,11 @@ import sqlite3
 from dataclasses import dataclass
 
 from common.coercion import expect_float, expect_int
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.accounts import AccountConfig
 from trading.models.books import BookRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository

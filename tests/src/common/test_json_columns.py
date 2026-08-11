@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 
-from trading.persistence.json_columns import dumps_json_column
+import pytest
+
+from common.json_columns import dumps_json_column, row_json_object
 
 
 class TestDumpsJsonColumn:
@@ -22,3 +24,16 @@ class TestDumpsJsonColumn:
         payload = {"z": [1, 2], "a": {"nested": True}, "n": None}
 
         assert json.loads(dumps_json_column(payload)) == payload
+
+
+class TestRowJsonObject:
+    def test_missing_value_reads_as_an_empty_object(self) -> None:
+        assert row_json_object({"payload": None}, "payload") == {}
+
+    def test_decodes_an_object(self) -> None:
+        assert row_json_object({"payload": '{"a":1}'}, "payload") == {"a": 1}
+
+    @pytest.mark.parametrize("stored", ["[1, 2, 3]", '"text"', "7"])
+    def test_rejects_any_shape_that_is_not_an_object(self, stored: str) -> None:
+        with pytest.raises(ValueError, match="Expected a JSON object in column 'payload'"):
+            row_json_object({"payload": stored}, "payload")

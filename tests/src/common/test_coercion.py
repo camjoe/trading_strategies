@@ -101,16 +101,3 @@ def test_row_helpers_coerce_and_expect(sample_row: sqlite3.Row) -> None:
 def test_row_expect_helpers_reject_null_values(sample_row: sqlite3.Row) -> None:
     with pytest.raises(ValueError, match="missing cannot be null"):
         coercion.row_expect_str(sample_row, "missing")
-
-
-class TestRowJsonObject:
-    def test_missing_value_reads_as_an_empty_object(self) -> None:
-        assert coercion.row_json_object({"payload": None}, "payload") == {}
-
-    def test_decodes_an_object(self) -> None:
-        assert coercion.row_json_object({"payload": '{"a":1}'}, "payload") == {"a": 1}
-
-    @pytest.mark.parametrize("stored", ["[1, 2, 3]", '"text"', "7"])
-    def test_rejects_any_shape_that_is_not_an_object(self, stored: str) -> None:
-        with pytest.raises(ValueError, match="Expected a JSON object in column 'payload'"):
-            coercion.row_json_object({"payload": stored}, "payload")

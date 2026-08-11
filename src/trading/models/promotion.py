@@ -6,7 +6,8 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_int, row_json_object
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_int
+from common.json_columns import row_json_object
 from trading.models.evaluation import BacktestFreshness
 
 

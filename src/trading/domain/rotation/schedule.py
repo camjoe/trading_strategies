@@ -5,6 +5,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from common.json_columns import dumps_json_column
 from common.time import parse_utc_iso
 
 if TYPE_CHECKING:
@@ -71,4 +72,4 @@ def parse_rotation_schedule(raw_value: object | None) -> list[str]:
 
 
 def dump_rotation_schedule(schedule: list[str]) -> str:
-    return json.dumps(schedule, separators=(",", ":"))
+    return dumps_json_column(schedule)

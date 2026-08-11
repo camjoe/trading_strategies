@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_json_object, row_str
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.json_columns import row_json_object
 
 # Which global_settings upsert wrote a global_settings_change_events row.
 GLOBAL_SETTINGS_GROUP_THROTTLE = "throttle"

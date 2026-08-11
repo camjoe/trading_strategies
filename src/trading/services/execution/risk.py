@@ -12,10 +12,10 @@ import sqlite3
 from collections.abc import Sequence
 from typing import Any
 
+from common.json_columns import dumps_json_column
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
 from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.models.execution import BookRunAudit
-from trading.persistence.json_columns import dumps_json_column
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository

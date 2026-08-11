@@ -37,11 +37,11 @@ from backtesting.services.walk_forward_optimizer import (
     run_walk_forward_optimization,
 )
 from common.git import git_head_revision
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.services.accounts import find_account
 from trading.services.books.book_assignments import get_default_book

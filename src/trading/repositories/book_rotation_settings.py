@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
+from common.json_columns import dumps_json_column
 from trading.models.books import (
     BOOK_ROTATION_SETTINGS_GROUP_POLICY,
     BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING,
@@ -10,7 +11,6 @@ from trading.models.books import (
     BookRotationSettingsRecord,
 )
 from trading.persistence.change_events import diff_changed_fields
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Rotation is the one remaining 1:1 settings table (large, coherent, sparse).

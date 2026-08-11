@@ -24,9 +24,7 @@ No domain dependencies; usable from any layer.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
-from typing import Any
 
 
 def coerce_str(value: object | None) -> str | None:
@@ -112,19 +110,3 @@ def row_int(row: Mapping[str, object], key: str) -> int | None:
 
 def row_expect_int(row: Mapping[str, object], key: str) -> int:
     return expect_int(row[key], key)
-
-
-def row_json_object(row: Mapping[str, object], key: str) -> dict[str, Any]:
-    """Decode a JSON *object* column, rejecting any other shape.
-
-    Returns ``dict[str, Any]`` because a decoded payload's value types are only
-    known to its caller; the guard here is the outer shape, which several callers
-    would otherwise assume. A NULL column reads as an empty dict.
-    """
-    raw = row[key]
-    if raw is None:
-        return {}
-    payload = json.loads(str(raw))
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected a JSON object in column '{key}'.")
-    return payload

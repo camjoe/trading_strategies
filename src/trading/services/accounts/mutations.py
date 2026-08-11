@@ -3,11 +3,11 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import expect_float, expect_int
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository

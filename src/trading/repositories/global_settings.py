@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
+from common.json_columns import dumps_json_column
 from trading.models.settings import (
     GLOBAL_SETTINGS_GROUP_EVALUATION,
     GLOBAL_SETTINGS_GROUP_PROMOTION,
@@ -11,7 +12,6 @@ from trading.models.settings import (
     GlobalSettingsRecord,
 )
 from trading.persistence.change_events import diff_changed_fields
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # global_settings holds one row. Every write targets it and the schema enforces

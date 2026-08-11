@@ -14,11 +14,11 @@ import sqlite3
 from collections.abc import Mapping
 from typing import Any
 
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive, validate_params_against_primitive
 from trading.models.strategy import StrategyRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.repositories.strategies import StrategyRepository
 
 

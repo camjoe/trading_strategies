@@ -29,6 +29,7 @@ import pandas as pd
 
 from backtesting.services.fixture_seed import seed_fixture_backtest
 from common.constants import SETTLEMENT_TICKER
+from common.json_columns import dumps_json_column
 from common.time import as_utc_iso
 from trading.models import AccountConfig
 from trading.models.evaluation import EvaluationBasicScope, StrategyEvaluationArtifact
@@ -40,7 +41,6 @@ from trading.models.promotion import (
     PromotionStage,
     PromotionStatus,
 )
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository

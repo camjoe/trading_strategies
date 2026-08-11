@@ -24,9 +24,9 @@ from backtesting.models.optimizer import (
     OOSReturnSegment,
 )
 from common.constants import PERCENT_SCALE
+from common.json_columns import dumps_json_column
 from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
 from trading.domain.exceptions import ValidationError
-from trading.persistence.json_columns import dumps_json_column
 
 # What makes the objective calmar_v1 rather than a plain Calmar ratio: a
 # one-percentage-point drawdown floor, so a (near-)zero-drawdown candidate stays

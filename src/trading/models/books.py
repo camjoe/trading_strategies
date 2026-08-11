@@ -12,9 +12,9 @@ from common.coercion import (
     row_expect_str,
     row_float,
     row_int,
-    row_json_object,
     row_str,
 )
+from common.json_columns import row_json_object
 
 # Which book_rotation_settings upsert wrote a book_rotation_settings_change_events row.
 BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING = "scheduling"

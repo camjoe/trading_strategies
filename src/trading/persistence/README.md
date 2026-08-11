@@ -28,24 +28,7 @@ The package imports nothing from `trading/` or `infrastructure/`, enforced by it
 | Module | Responsibility |
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope + the `commit_unit_of_work` helper every repository write calls |
-| `json_columns.py` | The one spelling for JSON written to a column — `dumps_json_column` (the reader is `common.coercion.row_json_object`, so models can use it too) |
 | `change_events.py` | The old/new field diff behind the settings change-event trail |
-
-### JSON columns
-
-`dumps_json_column` sorts keys and emits no insignificant whitespace, so identical data
-written by different code paths lands as identical text. That is what makes a column diffable
-and what makes a hash over its contents stable — `params_fingerprint` in the walk-forward
-optimizer is a SHA-256 over exactly this encoding.
-
-Every JSON column write in `src/trading/` routes through it, with one deliberate exception:
-`domain/rotation/schedule.py:dump_rotation_schedule`. Its value is a *list*, so `sort_keys` is
-a no-op and its output is already byte-identical to the codec's — converting it would buy
-nothing and would make `domain/` import a persistence module, which no domain code does today.
-
-Uses that are **not** column writes stay on plain `json.dumps`: the market-data file cache,
-runtime job artifacts and log lines, and notification bodies. Those are read by humans or by
-other systems, and several want `indent=2`.
 
 ## Usage
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.json_columns import dumps_json_column
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR,
@@ -11,7 +12,6 @@ from trading.models.promotion import (
     PromotionReviewRecord,
     PromotionReviewState,
 )
-from trading.persistence.json_columns import dumps_json_column
 
 
 def _db_optional_text(value: str | None) -> str:
