@@ -33,6 +33,7 @@ from trading.models import AccountConfig
 from trading.models.orders import OrderInsert
 from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
@@ -103,9 +104,65 @@ def _snapshot_time(stamp: pd.Timestamp) -> str:
     return as_utc_iso(datetime.combine(stamp.date(), time(hour=SNAPSHOT_CLOSE_HOUR), tzinfo=timezone.utc))
 
 
+def _fund_additional_book(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    default_book_id: int,
+    name: str,
+    trade_symbols: str,
+    opening_cash: float,
+    now_iso: str,
+) -> int:
+    """Create a non-default book, moving its opening cash off the default book.
+
+    The account's capital is conserved: whatever the new book opens with is
+    debited from the default book account creation made, so the sum across books
+    still equals `accounts.initial_cash` and account-level replay stays
+    consistent.
+
+    The debit includes the default book's `start_equity`, not just its balances.
+    Carve-outs happen before any trade, so the capital the default book
+    *started* with is the capital left after funding the sleeves — leaving
+    `start_equity` at the account's whole opening balance would make the default
+    book's return read as a loss the size of the sleeves.
+    """
+    books = BookRepository(conn)
+    default_book = books.fetch_by_id(book_id=default_book_id)
+    if default_book is None:
+        raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
+    remaining = default_book.current_cash - opening_cash
+    if remaining < 0:
+        raise ValueError(
+            f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
+            f"{default_book.current_cash:.2f}."
+        )
+
+    book_id = books.insert(
+        account_id=account_id,
+        name=name,
+        is_default=0,
+        start_equity=opening_cash,
+        current_cash=opening_cash,
+        current_equity=opening_cash,
+        trade_symbols=trade_symbols,
+        created_at=now_iso,
+        updated_at=now_iso,
+    )
+    books.update(
+        book_id=default_book_id,
+        values={
+            "start_equity": default_book.start_equity - opening_cash,
+            "current_cash": remaining,
+            "current_equity": remaining,
+        },
+        updated_at=now_iso,
+    )
+    return book_id
+
+
 def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_iso: str) -> list[_AccountPlan]:
     """Create every account, its bootstrapped default book, and any extra books."""
-    repo = FixtureSeedRepository(conn)
     plans: list[_AccountPlan] = []
     for spec in profile.accounts:
         create_account(
@@ -122,13 +179,18 @@ def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_i
         account_id = get_account(conn, spec.name).id
         # Every generated account is paper with live trading off; the Live
         # Trading Safety Guard forbids a seeder ever leaving it otherwise.
-        repo.set_account_paper_safety(account_id=account_id, now_iso=now_iso)
+        AccountRepository(conn).update(
+            account_id=account_id,
+            values={"broker_type": "paper", "live_trading_enabled": 0},
+            updated_at=now_iso,
+        )
 
         book_id_of_default = default_book_id(conn, account_id=account_id)
         plan = _AccountPlan(account_id=account_id, spec=spec)
         plan.books.append(_BookPlan(book_id=book_id_of_default, trades=spec.trades))
         for extra in spec.extra_books:
-            book_id = repo.fund_additional_book(
+            book_id = _fund_additional_book(
+                conn,
                 account_id=account_id,
                 default_book_id=book_id_of_default,
                 name=extra.name,

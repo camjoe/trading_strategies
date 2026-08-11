@@ -1,14 +1,15 @@
 """Persistence operations for generated fixture databases (demo and sandbox).
 
-Deliberately narrow. This holds only the writes that have no production writer
-to route through — the research and review records a running system produces
-through the backtest and promotion engines, plus the sleeve carve-out a fixture
-needs but no operator flow exposes. Everything a running system derives
-(fills, positions, ledger entries, book balances, snapshots, metrics) is written
-by its owning service, not here; see ``trading.services.fixtures.seeding``.
+Deliberately narrow. Only the two records whose production writers a fixture
+cannot drive: a backtest run (``backtesting.repositories.runs.insert_run``
+stamps its own ``created_at``, so a deterministic fixture cannot use it) and a
+promotion review (``PromotionReviewRepository.insert_review`` builds its row
+from real ``PromotionAssessment``/``StrategyEvaluationArtifact`` objects, which
+a fixture has no way to produce).
 
-Reads belong to the repository that owns the table: the seeder resolves its
-accounts and default books through the ordinary account and book surfaces.
+Everything else the seeder needs goes through the owning repository —
+see ``trading.services.fixtures.seeding``. Close either gap above and this
+module goes with it.
 """
 
 from __future__ import annotations
@@ -34,71 +35,6 @@ class FixtureSeedRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    def set_account_paper_safety(self, *, account_id: int, now_iso: str) -> None:
-        """Force a fixture account to paper with live trading disabled.
-
-        Required by the Live Trading Safety Guard: no seeder may ever leave
-        `live_trading_enabled` set, and every generated account is paper.
-        """
-        self._conn.execute(
-            "UPDATE accounts SET broker_type = 'paper', live_trading_enabled = 0, updated_at = ? WHERE id = ?",
-            (now_iso, account_id),
-        )
-        commit_unit_of_work(self._conn)
-
-    def fund_additional_book(
-        self,
-        *,
-        account_id: int,
-        default_book_id: int,
-        name: str,
-        trade_symbols: str,
-        opening_cash: float,
-        now_iso: str,
-    ) -> int:
-        """Create a non-default book, moving its opening cash off the default book.
-
-        The account's capital is conserved: whatever the new book opens with is
-        debited from the default book that account creation bootstrapped, so the
-        sum across books still equals `accounts.initial_cash` and account-level
-        replay stays consistent.
-
-        The debit includes the default book's `start_equity`, not just its
-        balances. Carve-outs happen before any trade, so the capital the default
-        book *started* with is the capital left after funding the sleeves —
-        leaving `start_equity` at the account's whole opening balance would make
-        the default book's return read as a loss the size of the sleeves.
-        """
-        default_book = self._conn.execute(
-            "SELECT start_equity, current_cash FROM books WHERE id = ?", (default_book_id,)
-        ).fetchone()
-        if default_book is None:
-            raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
-        remaining = float(default_book["current_cash"]) - opening_cash
-        if remaining < 0:
-            raise ValueError(
-                f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
-                f"{float(default_book['current_cash']):.2f}."
-            )
-        remaining_start_equity = float(default_book["start_equity"]) - opening_cash
-
-        cursor = self._conn.execute(
-            """INSERT INTO books
-               (account_id, name, status, is_default, start_equity, current_cash, current_equity,
-                trade_symbols, created_at, updated_at)
-               VALUES (?, ?, 'active', 0, ?, ?, ?, ?, ?, ?)""",
-            (account_id, name, opening_cash, opening_cash, opening_cash, trade_symbols, now_iso, now_iso),
-        )
-        book_id = cursor.lastrowid
-        if book_id is None:
-            raise ValueError(f"Expected a book id after inserting fixture book '{name}'.")
-        self._conn.execute(
-            "UPDATE books SET start_equity = ?, current_cash = ?, current_equity = ?, updated_at = ? WHERE id = ?",
-            (remaining_start_equity, remaining, remaining, now_iso, default_book_id),
-        )
-        commit_unit_of_work(self._conn)
-        return int(book_id)
 
     def insert_backtest(
         self,
