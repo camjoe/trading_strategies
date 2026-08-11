@@ -20,8 +20,8 @@ def _account_with_book(conn, name: str = "metrics_acct") -> tuple[int, int]:
     return account_id, _book_id(conn, account_id)
 
 
-def _upsert(conn, *, book_id: int, metric_date: str, return_pct: float = 1.0) -> int:
-    return DailyMetricsRepository(conn).upsert(
+def _upsert(conn, *, book_id: int, metric_date: str, return_pct: float = 1.0) -> None:
+    DailyMetricsRepository(conn).upsert(
         book_id=book_id,
         metric_date=metric_date,
         return_pct=return_pct,
@@ -38,17 +38,22 @@ def _upsert(conn, *, book_id: int, metric_date: str, return_pct: float = 1.0) ->
     )
 
 
-class TestUpsert:
-    def test_insert_returns_id(self, conn) -> None:
-        _, bk_id = _account_with_book(conn)
-        row_id = _upsert(conn, book_id=bk_id, metric_date="2026-01-01")
-        assert row_id > 0
+def _stored_ids(conn, book_id: int) -> list[int]:
+    return [int(r["id"]) for r in conn.execute("SELECT id FROM daily_metrics WHERE book_id = ?", (book_id,))]
 
-    def test_second_upsert_returns_same_id(self, conn) -> None:
+
+class TestUpsert:
+    def test_insert_stores_one_row(self, conn) -> None:
         _, bk_id = _account_with_book(conn)
-        id_a = _upsert(conn, book_id=bk_id, metric_date="2026-01-01")
-        id_b = _upsert(conn, book_id=bk_id, metric_date="2026-01-01", return_pct=2.0)
-        assert id_a == id_b
+        _upsert(conn, book_id=bk_id, metric_date="2026-01-01")
+        assert len(_stored_ids(conn, bk_id)) == 1
+
+    def test_second_upsert_reuses_the_same_row(self, conn) -> None:
+        _, bk_id = _account_with_book(conn)
+        _upsert(conn, book_id=bk_id, metric_date="2026-01-01")
+        before = _stored_ids(conn, bk_id)
+        _upsert(conn, book_id=bk_id, metric_date="2026-01-01", return_pct=2.0)
+        assert _stored_ids(conn, bk_id) == before
 
     def test_upsert_updates_existing_values(self, conn) -> None:
         acct_id, bk_id = _account_with_book(conn)
@@ -61,44 +66,9 @@ class TestUpsert:
     def test_rows_are_distinct_per_book(self, conn) -> None:
         acct_id, bk_a = _account_with_book(conn)
         bk_b = _book_id(conn, acct_id, name="second")
-        id_a = _upsert(conn, book_id=bk_a, metric_date="2026-01-01")
-        id_b = _upsert(conn, book_id=bk_b, metric_date="2026-01-01")
-        assert id_a != id_b
-
-    def test_raises_on_insert_failure(self) -> None:
-        class _Cursor:
-            lastrowid = None
-            rowcount = 1
-
-            def fetchone(self):
-                return None
-
-            def fetchall(self):
-                return []
-
-        class _Conn:
-            def execute(self, *_a, **_kw):
-                return _Cursor()
-
-            def commit(self):
-                pass
-
-        with pytest.raises(ValueError, match="Expected daily_metrics id after upsert"):
-            DailyMetricsRepository(_Conn()).upsert(
-                book_id=1,
-                metric_date="2026-01-01",
-                return_pct=None,
-                drawdown_pct=None,
-                turnover_pct=None,
-                slippage_bps=None,
-                hit_rate=None,
-                expectancy=None,
-                risk_adjusted_score=None,
-                trade_count=None,
-                fees_total=None,
-                created_at="2026-01-01T00:00:00Z",
-                updated_at="2026-01-01T00:00:00Z",
-            )
+        _upsert(conn, book_id=bk_a, metric_date="2026-01-01")
+        _upsert(conn, book_id=bk_b, metric_date="2026-01-01")
+        assert _stored_ids(conn, bk_a) != _stored_ids(conn, bk_b)
 
 
 class TestFetchForAccount:
