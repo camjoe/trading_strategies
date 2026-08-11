@@ -8,6 +8,16 @@ LEAPS_PROFIT_TAKE_HELP = "LEAPs/options profit-take percent"
 LEAPS_MAX_LOSS_HELP = "LEAPs/options maximum tolerated loss percent"
 
 
+def add_account_arg(p: argparse.ArgumentParser) -> None:
+    """Add the required account selector every account-scoped command takes."""
+    p.add_argument("--account", required=True, help="Account name")
+
+
+def add_book_arg(p: argparse.ArgumentParser) -> None:
+    """Add the optional book selector, defaulting to the account's default book."""
+    p.add_argument("--book", default=None, help="Book name (default: the account's default book)")
+
+
 def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
     """Add shared account option/risk arguments to a sub-parser."""
     p.add_argument("--display-name", default=None, help=DISPLAY_NAME_HELP)

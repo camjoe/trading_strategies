@@ -59,6 +59,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
+| `handlers/context.py` | Shared request-scoped context resolver for CLI handlers |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
 | `handlers/settings_handlers.py` | Business dispatch for settings edit commands — merges partial flags over current effective values |
 | `handlers/strategy_catalog_handlers.py` | Business dispatch for strategy-catalog CLI commands |
@@ -160,7 +161,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
 | `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
-| `execution/risk_audit.py` | Repository wiring that persists one book run's normalized risk decisions and account risk snapshot |
 | `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
 | `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |

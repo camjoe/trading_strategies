@@ -4,7 +4,8 @@ import types
 
 import pytest
 
-from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser
+import trading.interfaces.cli.handlers.settings_handlers as module
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
     handle_book_rotation_history,
@@ -18,20 +19,22 @@ from trading.interfaces.cli.handlers.settings_handlers import (
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 
 
-def test_handle_configure_throttle_merges_over_current(capsys) -> None:
+def test_handle_configure_throttle_merges_over_current(capsys, monkeypatch) -> None:
     calls: dict = {}
-    deps = {
-        "fetch_runtime_throttle_settings": lambda _conn: RuntimeThrottleSettings(
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_runtime_throttle_settings=lambda _conn: RuntimeThrottleSettings(
             max_trades_per_day=10, max_trades_per_minute=2
         ),
-        "set_runtime_throttle_settings": lambda _conn, **kwargs: calls.update(kwargs),
-    }
+        set_runtime_throttle_settings=lambda _conn, **kwargs: calls.update(kwargs),
+    )
 
     handle_configure_throttle(
         object(),
         types.SimpleNamespace(max_trades_per_day=25),
         fake_parser(),
-        deps=deps,
+        ctx=make_ctx(),
     )
 
     assert calls["runtime_max_trades_per_day"] == 25
@@ -39,18 +42,20 @@ def test_handle_configure_throttle_merges_over_current(capsys) -> None:
     assert "max_trades_per_day=25" in capsys.readouterr().out
 
 
-def test_handle_configure_evaluation_merges_partial_flags(capsys) -> None:
+def test_handle_configure_evaluation_merges_partial_flags(capsys, monkeypatch) -> None:
     calls: dict = {}
-    deps = {
-        "fetch_evaluation_confidence_settings": lambda _conn: EvaluationConfidenceSettings(),
-        "set_evaluation_confidence_settings": lambda _conn, **kwargs: calls.update(kwargs),
-    }
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_evaluation_confidence_settings=lambda _conn: EvaluationConfidenceSettings(),
+        set_evaluation_confidence_settings=lambda _conn, **kwargs: calls.update(kwargs),
+    )
 
     handle_configure_evaluation(
         object(),
         types.SimpleNamespace(backtest_evidence_weight=0.7, paper_live_evidence_weight=0.3),
         fake_parser(),
-        deps=deps,
+        ctx=make_ctx(),
     )
 
     assert calls["backtest_evidence_weight"] == 0.7
@@ -60,7 +65,7 @@ def test_handle_configure_evaluation_merges_partial_flags(capsys) -> None:
     assert "backtest_evidence_weight=0.7" in capsys.readouterr().out
 
 
-def test_handle_configure_book_rotation_policy_passes_only_provided_flags(capsys) -> None:
+def test_handle_configure_book_rotation_policy_passes_only_provided_flags(capsys, monkeypatch) -> None:
     calls: dict = {}
 
     def fake_update(_conn, *, account_name, book_name, updates):
@@ -77,11 +82,12 @@ def test_handle_configure_book_rotation_policy_passes_only_provided_flags(capsys
             regime_fit_weight=None,
         )
 
+    patch_services(monkeypatch, module, update_book_rotation_policy=fake_update)
     handle_configure_book_rotation_policy(
         object(),
         types.SimpleNamespace(account="acct1", book=None, cooldown_days=10, stability_weight=0.4),
         fake_parser(),
-        deps={"update_book_rotation_policy": fake_update},
+        ctx=make_ctx(),
     )
 
     assert calls["account_name"] == "acct1"
@@ -98,7 +104,7 @@ def test_handle_configure_book_rotation_policy_requires_a_flag() -> None:
             object(),
             types.SimpleNamespace(account="acct1", book=None),
             fake_parser(),
-            deps={},
+            ctx=make_ctx(),
         )
 
 
@@ -110,10 +116,10 @@ def test_global_configure_handlers_require_a_flag(handler) -> None:
     # A zero-flag invocation must error rather than silently persisting the
     # current effective values (which would pin code defaults into the DB).
     with pytest.raises(SystemExit):
-        handler(object(), types.SimpleNamespace(), fake_parser(), deps={})
+        handler(object(), types.SimpleNamespace(), fake_parser(), ctx=make_ctx())
 
 
-def test_handle_configure_book_rotation_maps_flags_to_fields(capsys) -> None:
+def test_handle_configure_book_rotation_maps_flags_to_fields(capsys, monkeypatch) -> None:
     calls: dict = {}
 
     def fake_update(_conn, *, account_name, book_name, updates):
@@ -125,11 +131,12 @@ def test_handle_configure_book_rotation_maps_flags_to_fields(capsys) -> None:
             rotation_lookback_days=None,
         )
 
+    patch_services(monkeypatch, module, update_book_rotation_scheduling=fake_update)
     handle_configure_book_rotation(
         object(),
         types.SimpleNamespace(account="acct1", book=None, enabled=True, schedule=["trend", "meanrev"]),
         fake_parser(),
-        deps={"update_book_rotation_scheduling": fake_update},
+        ctx=make_ctx(),
     )
 
     assert calls["account_name"] == "acct1"
@@ -145,32 +152,34 @@ def test_handle_configure_book_rotation_requires_a_flag() -> None:
             object(),
             types.SimpleNamespace(account="acct1", book=None),
             fake_parser(),
-            deps={},
+            ctx=make_ctx(),
         )
 
 
-def test_handle_settings_history_passes_limit() -> None:
+def test_handle_settings_history_passes_limit(monkeypatch) -> None:
     calls: dict = {}
-    deps = {"show_global_settings_history": lambda _conn, *, limit: calls.update({"limit": limit})}
+    patch_services(
+        monkeypatch, module, show_global_settings_history=lambda _conn, *, limit: calls.update({"limit": limit})
+    )
 
-    handle_settings_history(object(), types.SimpleNamespace(limit=5), fake_parser(), deps=deps)
+    handle_settings_history(object(), types.SimpleNamespace(limit=5), fake_parser(), ctx=make_ctx())
 
     assert calls["limit"] == 5
 
 
-def test_handle_book_rotation_history_passes_account_book_and_limit() -> None:
+def test_handle_book_rotation_history_passes_account_book_and_limit(monkeypatch) -> None:
     calls: dict = {}
 
     def fake_show(_conn, *, account_name, book_name, limit):
         calls.update({"account_name": account_name, "book_name": book_name, "limit": limit})
 
-    deps = {"show_book_rotation_history": fake_show}
+    patch_services(monkeypatch, module, show_book_rotation_history=fake_show)
 
     handle_book_rotation_history(
         object(),
         types.SimpleNamespace(account="acct1", book="core", limit=10),
         fake_parser(),
-        deps=deps,
+        ctx=make_ctx(),
     )
 
     assert calls == {"account_name": "acct1", "book_name": "core", "limit": 10}

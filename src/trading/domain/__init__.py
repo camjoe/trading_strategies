@@ -13,8 +13,6 @@ from trading.domain.auto_trading_policy import (
 )
 from trading.domain.book_accounting import (
     apply_book_fill_transition,
-    compute_book_equity,
-    normalize_book_order_input,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.returns import safe_return_pct
@@ -38,6 +36,4 @@ __all__ = [
     "dump_rotation_schedule",
     "parse_rotation_schedule",
     "apply_book_fill_transition",
-    "compute_book_equity",
-    "normalize_book_order_input",
 ]

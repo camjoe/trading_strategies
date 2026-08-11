@@ -150,8 +150,12 @@ def apply_book_fill(
         # Book balances: cash is authoritative (incremental); equity is cash + the sum of
         # position market values (fill-marked until the NAV-marking pass in 2c-2).
         book = book_repo.fetch_by_id(book_id=book_id)
-        prior_cash = book.current_cash if book is not None else 0.0
-        new_cash = prior_cash + transition.cash_delta
+        if book is None:
+            # Reading a missing book as zero cash would invent a balance, and the
+            # balance write would silently match no row while the position and
+            # ledger entries above it stand. Raising rolls the whole fill back.
+            raise LookupError(f"Book {book_id} does not exist; cannot apply a fill to it.")
+        new_cash = book.current_cash + transition.cash_delta
         market_value = sum(position.market_value for position in position_repo.fetch_for_book(book_id=book_id))
         book_repo.update_balances(
             book_id=book_id,

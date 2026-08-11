@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 from dataclasses import replace
-from pathlib import Path
 from typing import TypedDict
 
 from common.git import get_repo_root
@@ -17,7 +16,6 @@ from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyLeaderboardBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     logs_dir_for_repo,
     ts,
 )
@@ -32,15 +30,6 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w1_leaderboard"
-
-
-def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    return already_completed_for_period(
-        log_dir=log_dir,
-        job_name=JOB_NAME,
-        period_tag=tag,
-        sentinel=COMPLETE_SENTINEL,
-    )
 
 
 def _add_window_arg(parser: argparse.ArgumentParser) -> None:

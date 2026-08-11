@@ -29,8 +29,6 @@ PROMOTION_REVIEW_ACTION_APPROVE = "approve"
 PROMOTION_REVIEW_ACTION_REJECT = "reject"
 PROMOTION_REVIEW_ACTION_NOTE = "note"
 
-_fetch_promotion_snapshot = fetch_promotion_snapshot
-
 
 def _require_request_context(
     artifact: StrategyEvaluationArtifact,
@@ -81,52 +79,6 @@ def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> Promo
     return review
 
 
-def _record_review_event(
-    conn: sqlite3.Connection,
-    *,
-    review_id: int,
-    event_type: PromotionReviewEventType,
-    actor_name: str | None,
-    from_review_state: PromotionReviewState | None,
-    to_review_state: PromotionReviewState | None,
-    note: str | None,
-    event_payload: dict[str, object],
-    created_at: str,
-) -> None:
-    PromotionReviewRepository(conn).insert_event(
-        review_id=review_id,
-        event_type=event_type,
-        actor_name=actor_name,
-        from_review_state=from_review_state,
-        to_review_state=to_review_state,
-        note=note,
-        event_payload=event_payload,
-        created_at=created_at,
-    )
-
-
-def _update_review(
-    conn: sqlite3.Connection,
-    *,
-    review_id: int,
-    expected_review_state: PromotionReviewState,
-    review_state: PromotionReviewState,
-    reviewed_by: str | None,
-    operator_summary_note: str | None,
-    updated_at: str,
-    closed_at: str | None,
-) -> PromotionReviewRecord:
-    return PromotionReviewRepository(conn).update_review(
-        review_id=review_id,
-        expected_review_state=expected_review_state,
-        review_state=review_state,
-        reviewed_by=reviewed_by,
-        operator_summary_note=operator_summary_note,
-        updated_at=updated_at,
-        closed_at=closed_at,
-    )
-
-
 def _request_event_payload(assessment: PromotionAssessment) -> dict[str, object]:
     return {
         "ready_for_live": assessment.ready_for_live,
@@ -144,7 +96,7 @@ def execute_promotion_review_request(
     requested_by: str | None = None,
     note: str | None = None,
 ) -> PromotionReviewRecord:
-    artifact, assessment = _fetch_promotion_snapshot(
+    artifact, assessment = fetch_promotion_snapshot(
         conn,
         account_name=account_name,
         strategy_name=strategy_name,
@@ -177,8 +129,7 @@ def execute_promotion_review_request(
             operator_summary_note=normalized_note,
             created_at=created_at,
         )
-        _record_review_event(
-            conn,
+        repo.insert_event(
             review_id=review.id,
             event_type=PromotionReviewEventType.REQUESTED,
             actor_name=normalized_requested_by,
@@ -221,9 +172,9 @@ def _execute_promotion_review_note(
     note: str | None,
     updated_at: str,
 ) -> PromotionReviewRecord:
+    repo = PromotionReviewRepository(conn)
     with unit_of_work(conn):
-        _record_review_event(
-            conn,
+        repo.insert_event(
             review_id=review.id,
             event_type=PromotionReviewEventType.NOTE_ADDED,
             actor_name=actor_name,
@@ -233,8 +184,7 @@ def _execute_promotion_review_note(
             event_payload={},
             created_at=updated_at,
         )
-        return _update_review(
-            conn,
+        return repo.update_review(
             review_id=review.id,
             expected_review_state=PromotionReviewState.REQUESTED,
             review_state=review.review_state,
@@ -270,9 +220,9 @@ def execute_promotion_review_action(
 
     next_state, event_type = _resolve_review_closure(action, ready_for_live=review.ready_for_live)
 
+    repo = PromotionReviewRepository(conn)
     with unit_of_work(conn):
-        _record_review_event(
-            conn,
+        repo.insert_event(
             review_id=review_id,
             event_type=event_type,
             actor_name=normalized_actor_name,
@@ -282,8 +232,7 @@ def execute_promotion_review_action(
             event_payload={},
             created_at=updated_at,
         )
-        return _update_review(
-            conn,
+        return repo.update_review(
             review_id=review_id,
             expected_review_state=review.review_state,
             review_state=next_state,

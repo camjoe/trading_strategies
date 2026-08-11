@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import trading.interfaces.cli.handlers.backtesting_handlers as backtesting_handlers
 from tests.src.trading.interfaces.cli.factories import (
     make_backtest_args,
     make_backtest_batch_args,
@@ -23,7 +24,7 @@ def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys) -> Non
         warnings=["daily bars only"],
     )
     monkeypatch.setattr(
-        cli_main,
+        backtesting_handlers,
         "run_backtest",
         lambda conn, cfg, *, provider: captured.update({"conn": conn, "cfg": cfg}) or result,
     )
@@ -53,7 +54,7 @@ def test_main_backtest_without_benchmark_prints_unavailable(monkeypatch, capsys)
         alpha_pct=None,
         warnings=[],
     )
-    monkeypatch.setattr(cli_main, "run_backtest", lambda _conn, _cfg, *, provider: result)
+    monkeypatch.setattr(backtesting_handlers, "run_backtest", lambda _conn, _cfg, *, provider: result)
 
     cli_main.main()
 
@@ -71,7 +72,7 @@ def test_main_backtest_batch_dispatches(monkeypatch, capsys) -> None:
     result_a = make_backtest_result(account_name="acct2", run_id=22, total_return_pct=3.0, max_drawdown_pct=-1.0)
     result_b = make_backtest_result(account_name="acct1", run_id=21, total_return_pct=1.0, max_drawdown_pct=-1.0)
     monkeypatch.setattr(
-        cli_main,
+        backtesting_handlers,
         "run_backtest_batch",
         lambda conn, cfg, *, provider: captured.update({"conn": conn, "cfg": cfg}) or [result_a, result_b],
     )

@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import trading.interfaces.cli.handlers.accounts_handlers as accounts_handlers
 from tests.src.trading.interfaces.cli.helpers import configure_account_args, install_main_harness
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from trading.interfaces.cli import main as cli_main
@@ -26,7 +27,7 @@ def test_main_trade_dispatches_and_closes_connection(monkeypatch, capsys) -> Non
         captured["conn"] = conn
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr(cli_main, "record_trade", fake_record_trade)
+    monkeypatch.setattr(accounts_handlers, "record_trade", fake_record_trade)
 
     cli_main.main()
 
@@ -49,7 +50,7 @@ def test_main_configure_account_conflicting_learning_flags_errors(monkeypatch) -
     args = configure_account_args(learning_enabled=True, learning_disabled=True)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
+        accounts_handlers,
         "configure_account",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
     )
@@ -89,7 +90,7 @@ def test_main_create_account_defaults_learning_disabled(monkeypatch) -> None:
         captured["benchmark"] = benchmark
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr(cli_main, "create_account", fake_create_account)
+    monkeypatch.setattr(accounts_handlers, "create_account", fake_create_account)
 
     cli_main.main()
 
@@ -112,7 +113,7 @@ def test_main_configure_account_success_path_prints_update(monkeypatch, capsys) 
         captured["account_name"] = account_name
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr(cli_main, "configure_account", fake_configure_account)
+    monkeypatch.setattr(accounts_handlers, "configure_account", fake_configure_account)
 
     cli_main.main()
 
@@ -133,7 +134,7 @@ def test_main_set_benchmark_uppercases_print(monkeypatch, capsys) -> None:
         captured["account"] = account
         captured["benchmark"] = benchmark
 
-    monkeypatch.setattr(cli_main, "set_benchmark", fake_set_benchmark)
+    monkeypatch.setattr(accounts_handlers, "set_benchmark", fake_set_benchmark)
 
     cli_main.main()
 
@@ -147,7 +148,7 @@ def test_main_list_accounts_dispatches(monkeypatch) -> None:
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     captured = {}
 
-    monkeypatch.setattr(cli_main, "list_accounts", lambda conn: captured.update({"conn": conn}))
+    monkeypatch.setattr(accounts_handlers, "list_accounts", lambda conn: captured.update({"conn": conn}))
 
     cli_main.main()
 
@@ -177,7 +178,7 @@ def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
         router_module,
         "dispatch_command",
         lambda conn, args, parser, **kwargs: dispatched.update(
-            {"command": args.command, "db_path": kwargs["deps"]["db_path"]}
+            {"command": args.command, "db_path": str(kwargs["ctx"].db_path)}
         ),
     )
 

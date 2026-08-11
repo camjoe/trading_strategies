@@ -29,10 +29,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
 
 from common.coercion import row_expect_int
 from common.time import utc_now_iso
+from trading.domain.broker_connection import BrokerConnection
 from trading.models import AccountRecord
 from trading.models.orders import BrokerOrder, OrderFill, OrderRecord, OrderStatus
 from trading.persistence.unit_of_work import unit_of_work
@@ -78,13 +78,23 @@ def resolve_reconciliation_exec_id(
     return f"{broker_order_id}:{fill.fill_time}:{fill.filled_qty}:{fill.fill_price}:{fill_index}"
 
 
-def reconcile_open_orders_impl(
+def reconcile_open_orders(
     conn: sqlite3.Connection,
     account: AccountRecord,
     *,
-    get_broker_for_account_fn: Callable[..., Any],
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> ReconciliationOutcome:
-    broker = get_broker_for_account_fn(account)
+    """Poll the account broker for fills on every open persisted order.
+
+    For each open ``orders`` row the broker reports fills on: insert any new
+    ``order_fills`` rows and apply them to the book (positions/ledger/balances
+    via the shared ``apply_book_fill``), then update the row's status.
+
+    Called by the daily run before each equity snapshot. A no-op for paper
+    accounts, which fill synchronously and report no open trades; it is what
+    keeps the books honest for async brokers such as the IBKR socket path.
+    """
+    broker = broker_factory(account)
     account_id = row_expect_int(account, "id")
     order_repo = OrderRepository(conn)
 
@@ -116,10 +126,15 @@ def reconcile_open_orders_impl(
         )
 
         for live in live_orders:
-            persisted = open_by_broker_id.get(live.broker_order_id)
+            # An order the broker reports without an id cannot be matched to a
+            # persisted row, and its id is what makes a synthesized exec_id unique.
+            broker_order_id = live.broker_order_id
+            if broker_order_id is None:
+                continue
+            persisted = open_by_broker_id.get(broker_order_id)
             if persisted is None:
                 continue
-            reported_broker_order_ids.add(live.broker_order_id)
+            reported_broker_order_ids.add(broker_order_id)
 
             # One transaction per broker order: every new fill's book effect and
             # the final status update land together, so a crash cannot leave a
@@ -130,7 +145,7 @@ def reconcile_open_orders_impl(
                 seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
                 for fill_index, fill in enumerate(live.fills):
                     exec_id = resolve_reconciliation_exec_id(
-                        broker_order_id=live.broker_order_id,
+                        broker_order_id=broker_order_id,
                         fill=fill,
                         fill_index=fill_index,
                     )

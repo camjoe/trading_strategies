@@ -54,3 +54,15 @@ namespaces = true
 # Any, and the run reports far fewer errors than exist.
 mypy_path = "src:apps/paper_trading_web/backend"
 explicit_package_bases = true
+
+# A "type: ignore" that no longer suppresses anything is worse than none: it
+# silently swallows the next real error on that line. Nine of fourteen had gone
+# stale before this was turned on.
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# The official IBKR SDK is optional and not installed here, so its imports read
+# as unused ignores under --ignore-missing-imports. They are load-bearing
+# without that flag, and once the SDK is present.
+module = "infrastructure.brokers.ibkr_socket.ibapi_client"
+warn_unused_ignores = false

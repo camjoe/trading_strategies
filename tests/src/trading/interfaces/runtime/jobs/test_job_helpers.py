@@ -142,6 +142,32 @@ def test_already_completed_for_period_checks_older_completed_logs(tmp_path: Path
     )
 
 
+def test_already_completed_for_period_is_false_without_a_matching_log(tmp_path: Path):
+    assert (
+        already_completed_for_period(
+            log_dir=tmp_path,
+            job_name="job",
+            period_tag="2026_06",
+            sentinel="COMPLETE",
+        )
+        is False
+    )
+
+
+def test_already_completed_for_period_is_false_when_the_log_lacks_the_sentinel(tmp_path: Path):
+    (tmp_path / "job_2026_06_20260601_000000.log").write_text("incomplete run\n", encoding="utf-8")
+
+    assert (
+        already_completed_for_period(
+            log_dir=tmp_path,
+            job_name="job",
+            period_tag="2026_06",
+            sentinel="COMPLETE",
+        )
+        is False
+    )
+
+
 def test_latest_log_contains_sentinel_returns_false_without_matches(tmp_path: Path):
     assert latest_log_contains_sentinel(tmp_path, "missing_*.log", "COMPLETE") is False
 

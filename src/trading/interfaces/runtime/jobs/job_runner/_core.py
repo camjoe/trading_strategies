@@ -22,7 +22,6 @@ from typing import Literal
 from common.git import get_repo_root
 from infrastructure.database.connection import DBConnection, db_session
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     day_tag,
     is_env_truthy,
     logs_dir_for_repo,
@@ -303,14 +302,17 @@ def _run_per_account_job(
     }
     tee_line(prep.log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
-    if not prep.args.force_run and already_completed_for_period(
+    # Same guard as the other two flows; this one also leaves an artifact saying
+    # the run was skipped, which is why it wraps the helper rather than being it.
+    if skip_if_already_completed_for_period(
+        log_path=prep.log_path,
         log_dir=prep.logs_dir,
         job_name=job_name,
+        period_name=period,
         period_tag=prep.tag,
         sentinel=sentinel,
+        force_run=bool(prep.args.force_run),
     ):
-        message = f"{job_name}: already completed this {period}; skipping duplicate run."
-        tee_line(prep.log_path, f"[{ts()}] SKIP: {message}")
         write_artifact(
             prep.artifact_path,
             {
@@ -321,7 +323,6 @@ def _run_per_account_job(
                 "finished_at": ts(),
             },
         )
-        print(message)
         return 0
 
     try:

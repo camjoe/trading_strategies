@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from trading.interfaces.cli.commands.options import add_account_arg
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
@@ -39,7 +40,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         "backtest",
         help="Run a historical backtest for an existing account configuration.",
     )
-    p_backtest.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_backtest)
     _add_shared_backtest_args(p_backtest)
     p_backtest.add_argument(
         "--strategy",
@@ -95,7 +96,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
             " evidence against the strategy's default parameters."
         ),
     )
-    p_optimize.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_optimize)
     p_optimize.add_argument("--strategy", required=True, help="Strategy to optimize (catalog key or alias)")
     p_optimize.add_argument(
         "--search-space",

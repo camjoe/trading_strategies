@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from common.git import get_repo_root
 from common.runtime_job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.governance.payload_models import (
@@ -13,7 +11,6 @@ from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     logs_dir_for_repo,
     ts,
 )
@@ -28,15 +25,6 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w2_promotion_review"
-
-
-def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    return already_completed_for_period(
-        log_dir=log_dir,
-        job_name=JOB_NAME,
-        period_tag=tag,
-        sentinel=COMPLETE_SENTINEL,
-    )
 
 
 @governance_job(

@@ -36,6 +36,11 @@ BASIS_POINTS_DIVISOR = 10_000
 # BASIS_POINTS_DIVISOR, for readings reported in bps rather than consumed as a rate.
 BASIS_POINTS_SCALE = 10_000.0
 
+# Percentage points -> basis points (0.25pp -> 25 bps). Shares the value of
+# PERCENT_SCALE and means something different: this one converts between two
+# already-scaled readings, where PERCENT_SCALE scales a decimal fraction up.
+PERCENT_POINTS_TO_BASIS_POINTS = BASIS_POINTS_SCALE / PERCENT_SCALE
+
 # ---------------------------------------------------------------------------
 # RSI indicator
 # ---------------------------------------------------------------------------

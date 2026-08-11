@@ -11,36 +11,29 @@ import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NamedTuple
 
-WINDOWS_DAYS = {
-    "monday": "MON",
-    "tuesday": "TUE",
-    "wednesday": "WED",
-    "thursday": "THU",
-    "friday": "FRI",
-    "saturday": "SAT",
-    "sunday": "SUN",
-}
 
-CRON_DAYS = {
-    "monday": 1,
-    "tuesday": 2,
-    "wednesday": 3,
-    "thursday": 4,
-    "friday": 5,
-    "saturday": 6,
-    "sunday": 0,
-}
+class DaySpellings(NamedTuple):
+    """How one weekday is written for each backend that needs a mapping.
 
-SYSTEMD_CALENDAR_DAYS = {
-    "monday": "Mon",
-    "tuesday": "Tue",
-    "wednesday": "Wed",
-    "thursday": "Thu",
-    "friday": "Fri",
-    "saturday": "Sat",
-    "sunday": "Sun",
+    Windows is absent because Task Scheduler takes the title-cased day name
+    directly, so it renders from the key. Keeping all backends in one table is
+    what stops a day being added for cron and forgotten for systemd.
+    """
+
+    cron: int
+    systemd: str
+
+
+DAYS: dict[str, DaySpellings] = {
+    "monday": DaySpellings(cron=1, systemd="Mon"),
+    "tuesday": DaySpellings(cron=2, systemd="Tue"),
+    "wednesday": DaySpellings(cron=3, systemd="Wed"),
+    "thursday": DaySpellings(cron=4, systemd="Thu"),
+    "friday": DaySpellings(cron=5, systemd="Fri"),
+    "saturday": DaySpellings(cron=6, systemd="Sat"),
+    "sunday": DaySpellings(cron=0, systemd="Sun"),
 }
 
 ScheduleKind = Literal["daily", "weekly"]
@@ -59,8 +52,8 @@ class ScheduledTaskSpec:
 
 def validate_day(day: str) -> str:
     key = day.strip().lower()
-    if key not in WINDOWS_DAYS:
-        allowed = ", ".join(name.title() for name in WINDOWS_DAYS)
+    if key not in DAYS:
+        allowed = ", ".join(name.title() for name in DAYS)
         raise ValueError(f"Invalid day '{day}'. Use one of: {allowed}")
     return key
 
@@ -139,12 +132,14 @@ def _systemd_calendar_expression(task: ScheduledTaskSpec) -> str:
     if task.schedule_kind == "weekly":
         if task.day_of_week is None:
             raise ValueError(f"Weekly task '{task.task_name}' requires day_of_week")
-        day_abbr = SYSTEMD_CALENDAR_DAYS[validate_day(task.day_of_week)]
+        day_abbr = DAYS[validate_day(task.day_of_week)].systemd
         return f"{day_abbr} *-*-* {hour:02d}:{minute:02d}:00"
     return f"*-*-* {hour:02d}:{minute:02d}:00"
 
 
 def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path) -> str:
+    # Validates the time, and the day when weekly; the rendered values below
+    # come from the task itself, so only the raising matters here.
     _schedule_expression(task)
     argument = subprocess.list2cmdline(["-m", task.module, *task.args])
     if task.schedule_kind == "weekly":
@@ -172,7 +167,7 @@ def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, pyt
 
 def build_linux_cron_line(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path, log_path: Path) -> str:
     hour, minute, cron_day = _schedule_expression(task)
-    schedule_expr = f"{minute} {hour} * * *" if cron_day is None else f"{minute} {hour} * * {CRON_DAYS[cron_day]}"
+    schedule_expr = f"{minute} {hour} * * *" if cron_day is None else f"{minute} {hour} * * {DAYS[cron_day].cron}"
     command_parts = [str(python_exe), "-m", task.module, *task.args]
     command = " ".join(shlex.quote(part) for part in command_parts)
     marker = f"# {task.task_name}"

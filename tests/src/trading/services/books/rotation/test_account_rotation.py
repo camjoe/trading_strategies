@@ -68,7 +68,7 @@ def _set_up_book(conn, *, account_name: str, live_trading_enabled: bool) -> int:
 def _approve_meanrev(conn, *, account_name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "meanrev"),
             PromotionAssessment(

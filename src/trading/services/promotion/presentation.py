@@ -11,11 +11,28 @@ import sqlite3
 from trading.models.evaluation import BacktestFreshness
 from trading.models.promotion import PromotionAssessment
 from trading.services.promotion.assessment import fetch_promotion_assessment
-from trading.services.promotion.helpers import NONE_TEXT, render_bool, render_section
 from trading.services.promotion.history import (
     PromotionReviewHistoryEntry,
     fetch_promotion_review_history,
 )
+
+_YES_TEXT = "yes"
+_NO_TEXT = "no"
+NONE_TEXT = "none"
+
+
+def render_bool(value: bool) -> str:
+    return _YES_TEXT if value else _NO_TEXT
+
+
+def render_section(title: str, items: list[str]) -> list[str]:
+    lines = [f"{title}:"]
+    if not items:
+        lines.append(f"- {NONE_TEXT}")
+        return lines
+    for item in items:
+        lines.append(f"- {item}")
+    return lines
 
 
 def _format_backtest_freshness(freshness: BacktestFreshness | None) -> str:

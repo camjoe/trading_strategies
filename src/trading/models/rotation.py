@@ -18,19 +18,6 @@ class BookRotationConfig:
     schedule: list[str] | None = None
     lookback_days: int | None = None
 
-    def to_db_dict(self) -> dict[str, object]:
-        """Map fields to ``book_rotation_settings`` column values.
-
-        The list-valued ``rotation_schedule`` column is returned as a raw
-        list; JSON encoding is applied by the writer via
-        ``trading.domain.rotation.schedule.dump_rotation_schedule``.
-        """
-        return {
-            "rotation_enabled": self.enabled,
-            "rotation_schedule": self.schedule,
-            "rotation_lookback_days": self.lookback_days,
-        }
-
 
 @dataclass(frozen=True, slots=True)
 class RotationScoreWeights:

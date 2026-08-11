@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+from common.constants import PERCENT_POINTS_TO_BASIS_POINTS
 from trading.models.rotation import (
     RotationDecision,
     RotationScoreWeights,
     RotationStrategyMetrics,
     RotationStrategyScore,
 )
-
-# Conversion factor from percentage points to basis points.
-PERCENT_TO_BASIS_POINTS = 100.0
 
 
 def _compute_score(
@@ -78,7 +76,7 @@ def evaluate_champion_challenger_rotation(
 
     outperformance_bps = (
         best_challenger.risk_adjusted_return - incumbent_score.risk_adjusted_return
-    ) * PERCENT_TO_BASIS_POINTS
+    ) * PERCENT_POINTS_TO_BASIS_POINTS
     sample_size_gate_passed = best_challenger.trade_count >= int(min_trades_in_window)
     outperformance_gate_passed = outperformance_bps >= float(outperformance_threshold_bps)
     score_superiority_gate_passed = best_challenger.score > incumbent_score.score

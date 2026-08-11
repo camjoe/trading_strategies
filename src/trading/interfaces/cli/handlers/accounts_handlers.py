@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from typing import Any
-
+from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
+from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
+from trading.services.execution.ledger import record_trade
 
 
-def handle_init(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    print(f"Initialized: {deps['db_path']}")
+def handle_init(conn, args, parser, *, ctx: CliContext) -> None:
+    print(f"Initialized: {ctx.db_path}")
 
 
-def handle_create_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_create_account(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        deps["create_account"](
+        create_account(
             conn,
             args.name,
             args.strategy,
@@ -25,14 +26,14 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
     print(f"Created account '{args.name}' for strategy '{args.strategy}' with benchmark '{args.benchmark.upper()}'.")
 
 
-def handle_configure_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_account(conn, args, parser, *, ctx: CliContext) -> None:
     try:
         config = common_account_config_kwargs(args, include_learning_disabled=True)
     except ValueError as error:
         parser.error(str(error))
         return
 
-    deps["configure_account"](
+    configure_account(
         conn,
         account_name=args.account,
         config=config,
@@ -40,13 +41,13 @@ def handle_configure_account(conn, args, parser, *, deps: dict[str, Any]) -> Non
     print(f"Updated account configuration for '{args.account}'.")
 
 
-def handle_set_benchmark(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["set_benchmark"](conn, args.account, args.benchmark)
+def handle_set_benchmark(conn, args, parser, *, ctx: CliContext) -> None:
+    set_benchmark(conn, args.account, args.benchmark)
     print(f"Updated benchmark for '{args.account}' to '{args.benchmark.upper()}'.")
 
 
-def handle_list_accounts(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    lines = deps["list_accounts"](conn)
+def handle_list_accounts(conn, args, parser, *, ctx: CliContext) -> None:
+    lines = list_accounts(conn)
     if not lines:
         print("No accounts found.")
         return
@@ -54,8 +55,8 @@ def handle_list_accounts(conn, args, parser, *, deps: dict[str, Any]) -> None:
         print(line)
 
 
-def handle_trade(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["record_trade"](
+def handle_trade(conn, args, parser, *, ctx: CliContext) -> None:
+    record_trade(
         conn,
         account_name=args.account,
         side=args.side,
