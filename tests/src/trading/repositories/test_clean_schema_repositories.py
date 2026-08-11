@@ -331,7 +331,7 @@ def test_position_and_ledger_round_trips(conn) -> None:
     )
     entries = ledger.fetch_for_book(book_id=book_id)
     assert [entry.entry_type for entry in entries] == ["deposit", "trade"]
-    assert len(ledger.fetch_by_reference(reference_type="order", reference_id="7")) == 1
+    assert [(entry.reference_type, entry.reference_id) for entry in entries] == [(None, None), ("order", "7")]
 
     with pytest.raises(sqlite3.IntegrityError):
         ledger.insert(book_id=book_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
