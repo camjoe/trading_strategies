@@ -2,10 +2,13 @@
 
 Deliberately narrow. This holds only the writes that have no production writer
 to route through — the research and review records a running system produces
-through the backtest and promotion engines, plus the book bootstrap a fixture
+through the backtest and promotion engines, plus the sleeve carve-out a fixture
 needs but no operator flow exposes. Everything a running system derives
 (fills, positions, ledger entries, book balances, snapshots, metrics) is written
 by its owning service, not here; see ``trading.services.fixtures.seeding``.
+
+Reads belong to the repository that owns the table: the seeder resolves its
+accounts and default books through the ordinary account and book surfaces.
 """
 
 from __future__ import annotations
@@ -32,21 +35,7 @@ class FixtureSeedRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def account_id(self, name: str) -> int:
-        row = self._conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
-        if row is None:
-            raise ValueError(f"Fixture account '{name}' was not created.")
-        return int(row["id"])
-
-    def default_book_id(self, account_id: int) -> int:
-        row = self._conn.execute(
-            "SELECT id FROM books WHERE account_id = ? AND is_default = 1", (account_id,)
-        ).fetchone()
-        if row is None:
-            raise ValueError(f"Default book missing for fixture account {account_id}.")
-        return int(row["id"])
-
-    def set_account_paper_safety(self, account_id: int, *, now_iso: str) -> None:
+    def set_account_paper_safety(self, *, account_id: int, now_iso: str) -> None:
         """Force a fixture account to paper with live trading disabled.
 
         Required by the Live Trading Safety Guard: no seeder may ever leave
@@ -56,6 +45,7 @@ class FixtureSeedRepository:
             "UPDATE accounts SET broker_type = 'paper', live_trading_enabled = 0, updated_at = ? WHERE id = ?",
             (now_iso, account_id),
         )
+        commit_unit_of_work(self._conn)
 
     def fund_additional_book(
         self,
@@ -118,6 +108,7 @@ class FixtureSeedRepository:
         start_date: str,
         end_date: str,
         snapshots: Sequence[tuple[str, float]],
+        execution_margin_days: int,
         now_iso: str,
     ) -> None:
         strategy = self._conn.execute("SELECT id FROM strategies WHERE strategy_key = ?", (strategy_key,)).fetchone()
@@ -134,8 +125,8 @@ class FixtureSeedRepository:
         run_id = cursor.lastrowid
         if run_id is None:
             raise ValueError("Expected a run id after inserting the fixture backtest.")
-        first_date = snapshots[4][0]
-        last_date = snapshots[-5][0]
+        first_date = snapshots[execution_margin_days - 1][0]
+        last_date = snapshots[-execution_margin_days][0]
         opening_equity = snapshots[0][1]
         self._conn.execute(
             """INSERT INTO backtest_executions
@@ -164,6 +155,7 @@ class FixtureSeedRepository:
                     0.0,
                 ),
             )
+        commit_unit_of_work(self._conn)
 
     def insert_promotion_review(self, *, account_id: int, account_name: str, strategy_key: str, now_iso: str) -> None:
         strategy = self._conn.execute("SELECT id FROM strategies WHERE strategy_key = ?", (strategy_key,)).fetchone()
@@ -206,3 +198,4 @@ class FixtureSeedRepository:
                        'Generated fixture review request.', ?)""",
             (review_id, now_iso),
         )
+        commit_unit_of_work(self._conn)

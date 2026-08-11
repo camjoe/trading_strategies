@@ -41,6 +41,7 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy
+from trading.services.books.default_book import default_book_id
 from trading.services.execution.ledger import record_trade
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.submission import apply_book_fill
@@ -118,18 +119,18 @@ def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_i
                 trade_universes=list(spec.trade_universes),
             ),
         )
-        account_id = repo.account_id(spec.name)
+        account_id = get_account(conn, spec.name).id
         # Every generated account is paper with live trading off; the Live
         # Trading Safety Guard forbids a seeder ever leaving it otherwise.
-        repo.set_account_paper_safety(account_id, now_iso=now_iso)
+        repo.set_account_paper_safety(account_id=account_id, now_iso=now_iso)
 
-        default_book_id = repo.default_book_id(account_id)
+        book_id_of_default = default_book_id(conn, account_id=account_id)
         plan = _AccountPlan(account_id=account_id, spec=spec)
-        plan.books.append(_BookPlan(book_id=default_book_id, trades=spec.trades))
+        plan.books.append(_BookPlan(book_id=book_id_of_default, trades=spec.trades))
         for extra in spec.extra_books:
             book_id = repo.fund_additional_book(
                 account_id=account_id,
-                default_book_id=default_book_id,
+                default_book_id=book_id_of_default,
                 name=extra.name,
                 trade_symbols=dumps_json_column(resolve_trade_symbols(list(spec.trade_universes))),
                 opening_cash=extra.opening_cash,
@@ -365,6 +366,7 @@ def _seed_research_records(
             start_date=curve[0][0],
             end_date=curve[-1][0],
             snapshots=curve,
+            execution_margin_days=_BACKTEST_EXECUTION_MARGIN_DAYS,
             now_iso=now_iso,
         )
 
