@@ -168,8 +168,8 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
 
 
 def test_require_helpers_raise_when_a_row_is_missing(monkeypatch) -> None:
-    # JSON column decoding moved to trading.persistence.json_columns; its own
-    # tests cover the payload-shape guard this used to assert here.
+    # JSON column decoding moved to common.json_columns; its own tests cover the
+    # payload-shape guard this used to assert here.
     monkeypatch.setattr(PromotionReviewRepository, "fetch_by_id", lambda self, *, review_id: None)
     with pytest.raises(ValueError, match="Promotion review 7 not found after update"):
         PromotionReviewRepository(object())._require_review(review_id=7, context="update")
