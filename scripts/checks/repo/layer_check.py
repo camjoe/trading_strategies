@@ -126,6 +126,16 @@ LAYER_RULES: list[LayerRule] = [
         # is same-layer.
     ),
     LayerRule(
+        label="src → fixture seeding is entry-point-only",
+        source_glob="src/**/*.py",
+        forbidden_prefixes=("trading.services.fixtures",),
+        # Generated demo/sandbox databases are an operator tool, reached from the
+        # scripts/ entry points and tests. Nothing shipped in src/ may build a
+        # runtime behaviour on synthetic data, so the package stays unreachable
+        # from application code even though it sits under services/.
+        excluded_prefixes=("src/trading/services/fixtures/",),
+    ),
+    LayerRule(
         label="trading/domain → no repository imports",
         source_glob="src/trading/domain/**/*.py",
         forbidden_prefixes=("trading.repositories.",),

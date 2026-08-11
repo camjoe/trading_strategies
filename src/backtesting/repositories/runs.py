@@ -34,11 +34,12 @@ def insert_run(
     warnings: list[str],
     benchmark_ticker: str,
     benchmark_return_pct: float | None,
+    created_at: str | None = None,
 ) -> int:
     # The backtested strategy is a strategies FK. The caller
     # passes the canonical strategy key (resolved via resolve_strategy in the
     # service); the catalog row is seeded, so this is a lookup, not a create.
-    created_at = utc_now_iso()
+    created_at = created_at or utc_now_iso()
     strategy_id = StrategyRepository(conn).ensure_id_for_label(label=strategy_name, now_iso=created_at)
     cursor = conn.execute(
         """

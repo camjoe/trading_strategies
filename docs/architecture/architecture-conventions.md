@@ -87,6 +87,11 @@ packages** inside `src/trading/services/`, see [Service Ownership Map](service-o
 Layer direction, broker SDK, external-data SDK, market-data adapter, and retired runtime
 package-name boundaries are enforced by `python -m scripts.checks.repo.layer_check`.
 
+`trading/services/fixtures/` is an operator tool, not application code: it generates demo and
+sandbox databases full of synthetic records. `layer_check` forbids importing it from anywhere
+under `src/`, so no runtime behaviour can come to depend on generated data. Reach it from a
+`scripts/` entry point or a test.
+
 ### Detail the one-line rules do not carry
 
 - **`domain/`** holds logic plus DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
