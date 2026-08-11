@@ -27,6 +27,7 @@ from datetime import date, datetime, time, timezone
 
 import pandas as pd
 
+from backtesting.services.fixture_seed import seed_fixture_backtest
 from common.constants import SETTLEMENT_TICKER
 from common.time import as_utc_iso
 from trading.models import AccountConfig
@@ -422,12 +423,13 @@ def _seed_research_records(
         curve = sorted((row.snapshot_time[:10], row.equity) for row in history)
         if len(curve) <= _BACKTEST_EXECUTION_MARGIN_DAYS * 2:
             raise ValueError(f"Profile '{profile.name}' is too short to anchor a fixture backtest curve.")
-        repo.insert_backtest(
+        seed_fixture_backtest(
+            conn,
             account_id=plan.account_id,
+            account_name=account_name,
             strategy_key=plan.spec.strategy,
-            start_date=curve[0][0],
-            end_date=curve[-1][0],
-            snapshots=curve,
+            benchmark_ticker=plan.spec.benchmark,
+            curve=curve,
             execution_margin_days=_BACKTEST_EXECUTION_MARGIN_DAYS,
             now_iso=now_iso,
         )

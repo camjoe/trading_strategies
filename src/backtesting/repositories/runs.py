@@ -35,6 +35,7 @@ def insert_run(
     benchmark_ticker: str,
     benchmark_return_pct: float | None,
     created_at: str | None = None,
+    notes: str = "First working backtest version: deterministic daily-bar simulator.",
 ) -> int:
     # The backtested strategy is a strategies FK. The caller
     # passes the canonical strategy key (resolved via resolve_strategy in the
@@ -72,7 +73,7 @@ def insert_run(
             float(cfg.slippage_bps),
             float(cfg.fee_per_trade),
             cfg.tickers_file,
-            "First working backtest version: deterministic daily-bar simulator.",
+            notes,
             " | ".join(warnings),
             benchmark_ticker,
             benchmark_return_pct,
