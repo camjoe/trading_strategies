@@ -110,13 +110,16 @@ class OrderRepository:
         ).fetchall()
         return [FillEventRecord.from_mapping(dict(row)) for row in rows]
 
-    def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
-        """Global fill count in a time window — realized trading, for the per-day throttle."""
+    def _count_between(self, *, table: str, time_column: str, start_iso: str, end_iso: str) -> int:
         row = self._conn.execute(
-            "SELECT COUNT(*) FROM order_fills WHERE fill_time >= ? AND fill_time <= ?",
+            f"SELECT COUNT(*) FROM {table} WHERE {time_column} >= ? AND {time_column} <= ?",
             (start_iso, end_iso),
         ).fetchone()
         return 0 if row is None else int(row[0])
+
+    def fetch_fill_count_between(self, *, start_iso: str, end_iso: str) -> int:
+        """Global fill count in a time window — realized trading, for the per-day throttle."""
+        return self._count_between(table="order_fills", time_column="fill_time", start_iso=start_iso, end_iso=end_iso)
 
     def fetch_submission_count_between(self, *, start_iso: str, end_iso: str) -> int:
         """Global submitted-order count in a time window — request rate, for broker pacing.
@@ -124,22 +127,15 @@ class OrderRepository:
         Diverges from the fill count against any broker where an order can sit
         unfilled; they agree only because paper fills are instantaneous.
         """
-        row = self._conn.execute(
-            "SELECT COUNT(*) FROM orders WHERE submitted_at >= ? AND submitted_at <= ?",
-            (start_iso, end_iso),
-        ).fetchone()
-        return 0 if row is None else int(row[0])
-
-    def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM orders WHERE id = ?",
-            (order_id,),
-        ).fetchone()
-        return OrderRecord.from_mapping(dict(row)) if row is not None else None
+        return self._count_between(table="orders", time_column="submitted_at", start_iso=start_iso, end_iso=end_iso)
 
     def _fetch(self, filter_sql: str, params: tuple[object, ...]) -> list[OrderRecord]:
         rows = self._conn.execute(f"SELECT * FROM orders {filter_sql}", params).fetchall()
         return [OrderRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
+        found = self._fetch("WHERE id = ?", (order_id,))
+        return found[0] if found else None
 
     def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
         return self._fetch(
