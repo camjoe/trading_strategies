@@ -48,7 +48,8 @@ def _account_names(conn: sqlite3.Connection) -> dict[int, str]:
 
 
 def _account_name(conn: sqlite3.Connection, account_id: int) -> str:
-    return _account_names(conn).get(account_id, f"account #{account_id}")
+    account = AccountRepository(conn).fetch_by_id(account_id=account_id)
+    return account.name if account is not None else f"account #{account_id}"
 
 
 def fetch_optimization_history(

@@ -29,8 +29,12 @@ class AccountRepository:
         rows = self._conn.execute("SELECT * FROM accounts ORDER BY name ASC").fetchall()
         return [AccountRecord.from_mapping(dict(row)) for row in rows]
 
-    def fetch_by_name(self, name: str) -> AccountRecord | None:
-        row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    def fetch_by_id(self, *, account_id: int) -> AccountRecord | None:
+        row = self._conn.execute("SELECT * FROM accounts WHERE id = ?", (account_id,)).fetchone()
+        return AccountRecord.from_mapping(dict(row)) if row is not None else None
+
+    def fetch_by_name(self, *, account_name: str) -> AccountRecord | None:
+        row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (account_name,)).fetchone()
         return AccountRecord.from_mapping(dict(row)) if row is not None else None
 
     def insert(self, account: AccountInsert) -> None:
@@ -48,7 +52,7 @@ class AccountRepository:
         )
         commit_unit_of_work(self._conn)
 
-    def delete_by_name(self, account_name: str) -> AccountRecord | None:
+    def delete_by_name(self, *, account_name: str) -> AccountRecord | None:
         """Delete one account and return it; database cascades remove owned rows."""
         row = self._conn.execute(
             "DELETE FROM accounts WHERE name = ? RETURNING *",

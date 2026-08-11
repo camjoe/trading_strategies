@@ -47,7 +47,7 @@ ROTATION_SCHEDULING_FIELDS = (
 
 
 def _resolve_book_id(conn: sqlite3.Connection, *, account_name: str, book_name: str | None) -> int:
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     if book_name is None:

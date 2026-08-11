@@ -57,7 +57,7 @@ def _require_account_and_book(
     account_name: str,
     book_name: str,
 ) -> BookRecord:
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     for book in BookRepository(conn).fetch_for_account(account_id=account.id):
@@ -110,7 +110,7 @@ def fetch_account_book_configurations(
     *,
     account_name: str,
 ) -> tuple[BookConfigurationView, ...]:
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     return tuple(_view(conn, book) for book in BookRepository(conn).fetch_for_account(account_id=account.id))

@@ -21,7 +21,7 @@ def _require_positive_account_id(account_id: int) -> None:
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return AccountRepository(conn).fetch_by_name(normalize_account_name(name))
+    return AccountRepository(conn).fetch_by_name(account_name=normalize_account_name(name))
 
 
 def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
