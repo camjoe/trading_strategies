@@ -111,6 +111,12 @@ def _create_account(
         cfg.iv_rank_max,
     )
 
+    # Resolve before any write: an unresolvable universe name fails here rather
+    # than after the account row exists.
+    symbols = (
+        resolve_trade_symbols(cfg.trade_universes) if cfg.trade_universes is not None else default_trade_symbols()
+    )
+
     created_ts = utc_now_iso()
     try:
         AccountRepository(conn).insert(
@@ -126,9 +132,20 @@ def _create_account(
     except sqlite3.IntegrityError as exc:
         raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
 
-    # Bootstrap the default book and open its assignment so the new account
-    # trades from day one (books are the execution primitive; ADR 010/014).
+    # Create the default book and open its assignment so the new account trades
+    # from day one (books are the execution primitive; ADR 010/014).
     account = get_account(conn, name)
+    BookRepository(conn).insert(
+        account_id=account.id,
+        name="default",
+        is_default=1,
+        start_equity=float(initial_cash),
+        current_cash=float(initial_cash),
+        current_equity=float(initial_cash),
+        trade_symbols=_serialize_trade_symbols(symbols),
+        created_at=created_ts,
+        updated_at=created_ts,
+    )
     sync_default_book_assignment(
         conn,
         account_id=account.id,
@@ -136,8 +153,7 @@ def _create_account(
         now_iso=utc_now_iso(),
     )
     # Execution/option settings are book columns (revisions 0004/0005): apply
-    # the validated create-time values to the default book the bootstrap just
-    # ensured.
+    # the validated create-time values to the book just created.
     _apply_book_settings_to_default_book(
         conn,
         account_id=account.id,
@@ -167,13 +183,6 @@ def _create_account(
             "goal_period": normalize_lower(cfg.goal_period or "monthly"),
         },
     )
-    # Always land a resolved symbol list: the bootstrap leaves the book empty
-    # (it cannot resolve a universe name), so a new account with no universes
-    # named would otherwise trade nothing.
-    if cfg.trade_universes is not None:
-        _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
-    else:
-        _apply_trade_symbols_to_default_book(conn, account_id=account.id, symbols=default_trade_symbols())
 
 
 def create_account(

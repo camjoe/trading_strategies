@@ -4,7 +4,6 @@ import sqlite3
 
 from trading.models.portfolio import DailyMetricRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import default_book_id
 
 _METRIC_COLUMNS = (
     "return_pct",
@@ -28,7 +27,7 @@ JOIN books b ON b.id = m.book_id
 
 
 class DailyMetricsRepository:
-    """Book-keyed daily metrics with an account-level convenience path.
+    """Book-keyed daily metrics.
 
     Grain: **book-native, non-additive**. Daily percentages (return, drawdown,
     turnover, hit rate) do not sum across books, so there is no account roll-up:
@@ -37,9 +36,7 @@ class DailyMetricsRepository:
     SUM roll-up) and ``RiskSnapshotRepository`` (account-emergent); see
     docs/reference/performance-and-risk-tables.md.
 
-    Storage keys on ``book_id`` (UNIQUE per book+metric_date). Account-level
-    rows live on the account's default book, created (bootstrapped) on first
-    write.
+    Storage keys on ``book_id`` (UNIQUE per book+metric_date).
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -48,8 +45,7 @@ class DailyMetricsRepository:
     def upsert(
         self,
         *,
-        account_id: int,
-        book_id: int | None,
+        book_id: int,
         metric_date: str,
         return_pct: float | None,
         drawdown_pct: float | None,
@@ -63,8 +59,6 @@ class DailyMetricsRepository:
         created_at: str,
         updated_at: str,
     ) -> int:
-        resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, account_id)
-
         update_set = ", ".join(f"{column} = excluded.{column}" for column in _METRIC_COLUMNS)
         self._conn.execute(
             f"""
@@ -77,7 +71,7 @@ class DailyMetricsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                resolved_book_id,
+                book_id,
                 metric_date,
                 return_pct,
                 drawdown_pct,
@@ -95,7 +89,7 @@ class DailyMetricsRepository:
         commit_unit_of_work(self._conn)
         row = self._conn.execute(
             "SELECT id FROM daily_metrics WHERE book_id = ? AND metric_date = ?",
-            (resolved_book_id, metric_date),
+            (book_id, metric_date),
         ).fetchone()
         if row is None:
             raise ValueError("Expected daily_metrics id after upsert.")

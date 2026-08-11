@@ -1,11 +1,14 @@
 """Idempotent bridging resolution into the book-keyed tables.
 
-Resolves an account to its default book, creating it bare on first write:
+Resolves an account to its default book, creating it bare if it is missing:
 execution/option settings are DDL defaults on the books columns, and the
 rotation settings row is intentionally absent — a missing row means code
 defaults.
 
-This retires only if a future refactor makes callers book-native end to end.
+`create_account` now creates the book itself, so the bootstrap branch fires
+only for accounts that predate that change; `ensure_default_books` is the
+repair path for them. Once those are repaired this is a pure lookup, which
+`BookRepository.fetch_default_for_account` already provides.
 """
 
 from __future__ import annotations

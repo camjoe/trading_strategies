@@ -136,7 +136,6 @@ def build_rotation_book_env(
     # Two metric rows for rotation scoring
     for metric_date, created_at in [("2026-05-03", "2026-05-03T23:59:00Z"), ("2026-05-04", "2026-05-04T23:59:00Z")]:
         DailyMetricsRepository(conn).upsert(
-            account_id=account_id,
             book_id=book_id,
             metric_date=metric_date,
             return_pct=0.5,

@@ -21,7 +21,6 @@ REPORT_DATE = "2026-05-07"
 def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assign_test_book_strategy(conn, book_id=report_env.book_id, strategy_name="Momentum")
     DailyMetricsRepository(conn).upsert(
-        account_id=report_env.account_id,
         book_id=report_env.book_id,
         metric_date=REPORT_DATE,
         return_pct=1.5,
