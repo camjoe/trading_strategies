@@ -10,7 +10,7 @@ from trading.models.books import (
     BookRotationSettingsRecord,
 )
 from trading.persistence.change_events import diff_changed_fields
-from trading.persistence.json_columns import dumps_json_column, read_json_object
+from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Rotation is the one remaining 1:1 settings table (large, coherent, sparse).
@@ -58,16 +58,7 @@ class BookRotationSettingsRepository:
             """,
             (book_id, limit),
         ).fetchall()
-        return [
-            BookRotationSettingsChangeEvent(
-                id=int(row["id"]),
-                book_id=int(row["book_id"]),
-                settings_group=str(row["settings_group"]),
-                changed_fields=read_json_object(row, "changed_fields"),
-                created_at=str(row["created_at"]),
-            )
-            for row in rows
-        ]
+        return [BookRotationSettingsChangeEvent.from_mapping(dict(row)) for row in rows]
 
     def _upsert_group(
         self,

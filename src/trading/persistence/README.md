@@ -28,7 +28,7 @@ The package imports nothing from `trading/` or `infrastructure/`, enforced by it
 | Module | Responsibility |
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope + the `commit_unit_of_work` helper every repository write calls |
-| `json_columns.py` | The one spelling for JSON stored in a column — `dumps_json_column` / `read_json_object` |
+| `json_columns.py` | The one spelling for JSON written to a column — `dumps_json_column` (the reader is `common.coercion.row_json_object`, so models can use it too) |
 | `change_events.py` | The old/new field diff behind the settings change-event trail |
 
 ### JSON columns

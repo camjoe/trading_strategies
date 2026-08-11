@@ -6,7 +6,15 @@ import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import (
+    row_expect_float,
+    row_expect_int,
+    row_expect_str,
+    row_float,
+    row_int,
+    row_json_object,
+    row_str,
+)
 
 # Which book_rotation_settings upsert wrote a book_rotation_settings_change_events row.
 BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING = "scheduling"
@@ -246,6 +254,16 @@ class BookRotationSettingsChangeEvent:
     settings_group: str
     changed_fields: dict[str, dict[str, object]]
     created_at: str
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, object]) -> BookRotationSettingsChangeEvent:
+        return cls(
+            id=row_expect_int(values, "id"),
+            book_id=row_expect_int(values, "book_id"),
+            settings_group=row_expect_str(values, "settings_group"),
+            changed_fields=row_json_object(values, "changed_fields"),
+            created_at=row_expect_str(values, "created_at"),
+        )
 
 
 @dataclass(frozen=True, slots=True)

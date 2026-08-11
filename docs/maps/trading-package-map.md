@@ -251,7 +251,7 @@ Owns *using* a connection; `infrastructure/database/` owns *getting* one. See
 | Module | Responsibility |
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
-| `json_columns.py` | Canonical JSON encoding for column storage (`dumps_json_column`, `read_json_object`) — keys sorted, no insignificant whitespace |
+| `json_columns.py` | Canonical JSON encoding for column storage (`dumps_json_column`) — keys sorted, no insignificant whitespace |
 | `change_events.py` | The old/new field diff behind the settings change-event trail |
 
 ---

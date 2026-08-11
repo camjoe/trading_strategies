@@ -11,7 +11,7 @@ from trading.models.settings import (
     GlobalSettingsRecord,
 )
 from trading.persistence.change_events import diff_changed_fields
-from trading.persistence.json_columns import dumps_json_column, read_json_object
+from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # global_settings holds one row. Every write targets it and the schema enforces
@@ -52,15 +52,7 @@ class GlobalSettingsRepository:
             """,
             (limit,),
         ).fetchall()
-        return [
-            GlobalSettingsChangeEvent(
-                id=int(row["id"]),
-                settings_group=str(row["settings_group"]),
-                changed_fields=read_json_object(row, "changed_fields"),
-                created_at=str(row["created_at"]),
-            )
-            for row in rows
-        ]
+        return [GlobalSettingsChangeEvent.from_mapping(dict(row)) for row in rows]
 
     def _upsert_group(self, *, values: Mapping[str, object], settings_group: str, updated_at: str) -> None:
         """Write one settings group to the singleton row and record what changed.
