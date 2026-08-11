@@ -223,7 +223,6 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
-| `fixture_seed.py` | Fixture-only writes with no production writer to route through (research records, review records, book bootstrap) |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
 | `orders.py` | Clean-schema orders table (unifies broker + book orders) |

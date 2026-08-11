@@ -31,15 +31,24 @@ from backtesting.services.fixture_seed import seed_fixture_backtest
 from common.constants import SETTLEMENT_TICKER
 from common.time import as_utc_iso
 from trading.models import AccountConfig
+from trading.models.evaluation import EvaluationBasicScope, StrategyEvaluationArtifact
 from trading.models.orders import OrderInsert
+from trading.models.promotion import (
+    PromotionAssessment,
+    PromotionReviewEventType,
+    PromotionReviewState,
+    PromotionStage,
+    PromotionStatus,
+)
 from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy
@@ -74,6 +83,10 @@ FIXTURE_MAX_TRADES_PER_MINUTE = 5
 # The synthetic backtest's sample executions are keyed off snapshots this far
 # inside the curve, so both land on days the curve actually covers.
 _BACKTEST_EXECUTION_MARGIN_DAYS = 5
+
+# Marks every generated promotion review as operator-visible synthetic evidence.
+FIXTURE_ACTOR = "generated-fixture"
+FIXTURE_PROMOTION_CONFIDENCE = 0.82
 
 
 @dataclass
@@ -405,6 +418,66 @@ def _run_history(
             )
 
 
+def _seed_promotion_review(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    account_name: str,
+    strategy_key: str,
+    now_iso: str,
+) -> None:
+    """Request a promotion review the way the operator flow does.
+
+    The evidence is synthetic but structurally real — a whole assessment and
+    evaluation artifact rather than a stub payload — so anything reading a
+    generated review sees the shape production writes. A review with no events
+    is unreachable in the real workflow, so the request event follows.
+    """
+    strategy = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_key)
+    if strategy is None:
+        raise ValueError(f"Fixture strategy '{strategy_key}' is missing.")
+
+    assessment = PromotionAssessment(
+        account_name=account_name,
+        strategy_name=strategy_key,
+        evaluation_generated_at=now_iso,
+        stage=PromotionStage.PROMOTION_REVIEW,
+        status=PromotionStatus.READY_FOR_REVIEW,
+        overall_confidence=FIXTURE_PROMOTION_CONFIDENCE,
+    )
+    evaluation = StrategyEvaluationArtifact(
+        basic=EvaluationBasicScope(
+            account_id=account_id,
+            account_name=account_name,
+            requested_strategy=strategy_key,
+        ),
+    )
+    repo = PromotionReviewRepository(conn)
+    review = repo.insert_review(
+        assessment=assessment,
+        evaluation=evaluation,
+        strategy_id=strategy.id,
+        requested_by=FIXTURE_ACTOR,
+        operator_summary_note="Synthetic sample evidence only; not suitable for live-trading decisions.",
+        created_at=now_iso,
+    )
+    repo.insert_event(
+        review_id=review.id,
+        event_type=PromotionReviewEventType.REQUESTED,
+        actor_name=FIXTURE_ACTOR,
+        from_review_state=None,
+        to_review_state=PromotionReviewState.REQUESTED,
+        note="Generated fixture review request.",
+        event_payload={
+            "ready_for_live": assessment.ready_for_live,
+            "assessment_stage": assessment.stage,
+            "assessment_status": assessment.status,
+            "overall_confidence": assessment.overall_confidence,
+        },
+        created_at=now_iso,
+    )
+
+
 def _seed_research_records(
     conn: sqlite3.Connection,
     *,
@@ -413,7 +486,6 @@ def _seed_research_records(
     now_iso: str,
 ) -> None:
     """Backtest runs and promotion reviews for the accounts the profile names."""
-    repo = FixtureSeedRepository(conn)
     snapshots = EquitySnapshotRepository(conn)
     by_name = {plan.spec.name: plan for plan in plans}
 
@@ -436,7 +508,8 @@ def _seed_research_records(
 
     for account_name in profile.promotion_review_accounts:
         plan = by_name[account_name]
-        repo.insert_promotion_review(
+        _seed_promotion_review(
+            conn,
             account_id=plan.account_id,
             account_name=account_name,
             strategy_key=plan.spec.strategy,
