@@ -394,3 +394,40 @@ def test_submission_count_sees_orders_that_never_filled(conn) -> None:
     assert repo.fetch_submission_count_between(**window) == 3
     assert repo.fetch_fill_count_between(**window) == 0
     assert repo.fetch_submission_count_between(start_iso="2026-01-15T11:00:00Z", end_iso="2026-01-15T11:01:00Z") == 0
+
+
+def _submit_order(conn, *, account_id: int, book_id: int, symbol: str, status: str, submitted_at: str) -> int:
+    return OrderRepository(conn).insert(
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol=symbol,
+            side="buy",
+            qty=1.0,
+            status=status,
+            submitted_at=submitted_at,
+            updated_at=submitted_at,
+        )
+    )
+
+
+def test_status_filtered_fetches_include_partially_filled_orders(conn) -> None:
+    """Both status filters span two statuses; a partial fill is real trading and a live order."""
+    account_id, book_id = _insert_book(conn, name="partials")
+    day = "2026-07-03"
+    for symbol, status in (
+        ("FILLED", "filled"),
+        ("PARTIAL", "partially_filled"),
+        ("SUBMITTED", "submitted"),
+        ("CANCELLED", "cancelled"),
+    ):
+        _submit_order(
+            conn, account_id=account_id, book_id=book_id, symbol=symbol, status=status, submitted_at=f"{day}T12:00:00Z"
+        )
+
+    repo = OrderRepository(conn)
+    filled = repo.fetch_filled_for_book_on_date(book_id=book_id, date_str=day)
+    assert sorted(order.symbol for order in filled) == ["FILLED", "PARTIAL"]
+
+    still_open = repo.fetch_open_for_account(account_id=account_id)
+    assert sorted(order.symbol for order in still_open) == ["PARTIAL", "SUBMITTED"]

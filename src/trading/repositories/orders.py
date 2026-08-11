@@ -4,7 +4,7 @@ import sqlite3
 from dataclasses import fields
 
 from common.time import next_date_str
-from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord
+from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord, OrderStatus
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Derived rather than listed: the payload's field names are the column names, so
@@ -14,6 +14,14 @@ _ORDER_INSERT_COLUMNS = tuple(field.name for field in fields(OrderInsert))
 _ORDER_INSERT_SQL = (
     f"INSERT INTO orders ({', '.join(_ORDER_INSERT_COLUMNS)}) VALUES ({', '.join('?' for _ in _ORDER_INSERT_COLUMNS)})"
 )
+
+# Taken from the enum so the stored vocabulary has one spelling.
+_OPEN_STATUSES = (OrderStatus.SUBMITTED.value, OrderStatus.PARTIALLY_FILLED.value)
+_FILLED_STATUSES = (OrderStatus.FILLED.value, OrderStatus.PARTIALLY_FILLED.value)
+
+
+def _status_placeholders(statuses: tuple[str, ...]) -> str:
+    return ", ".join("?" for _ in statuses)
 
 
 class BookAccountMismatchError(ValueError):
@@ -129,23 +137,22 @@ class OrderRepository:
         ).fetchone()
         return OrderRecord.from_mapping(dict(row)) if row is not None else None
 
-    def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
-        rows = self._conn.execute(
-            """
-            SELECT * FROM orders
-            WHERE account_id = ? AND status IN ('submitted', 'partially_filled')
-            ORDER BY submitted_at DESC, id DESC
-            """,
-            (account_id,),
-        ).fetchall()
+    def _fetch(self, filter_sql: str, params: tuple[object, ...]) -> list[OrderRecord]:
+        rows = self._conn.execute(f"SELECT * FROM orders {filter_sql}", params).fetchall()
         return [OrderRecord.from_mapping(dict(row)) for row in rows]
 
+    def fetch_open_for_account(self, *, account_id: int) -> list[OrderRecord]:
+        return self._fetch(
+            f"WHERE account_id = ? AND status IN ({_status_placeholders(_OPEN_STATUSES)}) "
+            "ORDER BY submitted_at DESC, id DESC",
+            (account_id, *_OPEN_STATUSES),
+        )
+
     def fetch_for_book(self, *, book_id: int) -> list[OrderRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM orders WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
+        return self._fetch(
+            "WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
             (book_id,),
-        ).fetchall()
-        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+        )
 
     def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: float) -> None:
         """Accumulate a closing fill's realized P&L onto its order.
@@ -166,24 +173,19 @@ class OrderRepository:
         Unlike ``fetch_filled_for_book_on_date`` this keeps all statuses — rejected
         and cancelled orders are the interesting ones when watching a live broker.
         """
-        rows = self._conn.execute(
-            "SELECT * FROM orders "
-            "WHERE account_id = ? AND submitted_at >= ? AND submitted_at < ? "
-            "ORDER BY submitted_at ASC, id ASC",
+        return self._fetch(
+            "WHERE account_id = ? AND submitted_at >= ? AND submitted_at < ? ORDER BY submitted_at ASC, id ASC",
             (account_id, date_str, next_date_str(date_str)),
-        ).fetchall()
-        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+        )
 
     def fetch_filled_for_book_on_date(self, *, book_id: int, date_str: str) -> list[OrderRecord]:
         """Return the book's filled/partially-filled orders submitted on ``date_str`` (YYYY-MM-DD)."""
-        rows = self._conn.execute(
-            "SELECT * FROM orders "
+        return self._fetch(
             "WHERE book_id = ? AND submitted_at >= ? AND submitted_at < ? "
-            "AND status IN ('filled', 'partially_filled') "
+            f"AND status IN ({_status_placeholders(_FILLED_STATUSES)}) "
             "ORDER BY submitted_at ASC, id ASC",
-            (book_id, date_str, next_date_str(date_str)),
-        ).fetchall()
-        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+            (book_id, date_str, next_date_str(date_str), *_FILLED_STATUSES),
+        )
 
     def fetch_pending_for_account(self, *, account_id: int) -> list[OrderRecord]:
         """Rows written before a broker send that never received an answer.
@@ -192,15 +194,10 @@ class OrderRepository:
         `client_order_id` can settle which, so rows without one are unresolvable
         and are excluded rather than offered to a matcher that cannot place them.
         """
-        rows = self._conn.execute(
-            """
-            SELECT * FROM orders
-            WHERE account_id = ? AND status = ? AND client_order_id IS NOT NULL
-            ORDER BY submitted_at ASC, id ASC
-            """,
+        return self._fetch(
+            "WHERE account_id = ? AND status = ? AND client_order_id IS NOT NULL ORDER BY submitted_at ASC, id ASC",
             (account_id, ORDER_STATUS_PENDING),
-        ).fetchall()
-        return [OrderRecord.from_mapping(dict(row)) for row in rows]
+        )
 
     def record_placement(
         self,
