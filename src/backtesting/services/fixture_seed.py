@@ -1,12 +1,7 @@
 """Seed one synthetic backtest run for a generated fixture database.
 
-Lives in this context because `backtest_runs`, `backtest_executions`, and
-`backtest_equity_snapshots` are its tables. `layer_check` stops `trading/` from
-importing `backtesting.repositories`, so the trading-side fixture seeder crosses
-at this service — the same seam its evidence and audit reads use.
-
-Every row is deterministic and obviously synthetic: `tickers_file` carries the
-`synthetic:` marker so a generated run is never mistaken for real research.
+Every row is deterministic, and `tickers_file` carries the `synthetic:` marker so a
+generated run is never mistaken for real research.
 """
 
 from __future__ import annotations

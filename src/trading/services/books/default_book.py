@@ -1,9 +1,7 @@
 """Resolve an account to its default book.
 
-The successor to the retired ``repositories/book_bridge.py``. That module
-bootstrapped a missing book; this one raises, because every account created
-since gets its book in ``create_account``. Run ``ensure_default_books`` to
-repair accounts that predate it.
+Raises rather than creating one: ``create_account`` makes the book, and
+``ensure_default_books`` repairs accounts that predate that.
 """
 
 from __future__ import annotations

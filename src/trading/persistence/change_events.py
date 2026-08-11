@@ -1,15 +1,8 @@
 """The field diff behind the settings change-event trail.
 
 `global_settings` and `book_rotation_settings` each record an audit row per operator
-edit, holding the fields whose values actually changed. The diff is the same for both,
-so it lives here; the surrounding writes stay in each repository, which owns its own
-tables and their keys (`id = 1` against `book_id`, and only the book table's audit row
-carries a scope column). Encoding the result is :func:`common.json_columns.dumps_json_column`.
-
-Both repositories build that write the same way — read current, upsert the group's
-columns, diff, record the event. Two is similarity, not duplication: collapsing it would
-mean parameterizing four table names into a package that owns none. A third settings
-table with an audit trail is the point to reconsider.
+edit, holding the fields whose values actually changed. Encoding the result for its
+column is :func:`common.json_columns.dumps_json_column`.
 """
 
 from __future__ import annotations
