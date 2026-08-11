@@ -39,8 +39,8 @@ class BookRepository:
         Execution, risk, goal, and option settings are not arguments here. They
         are columns on `books` (revisions 0004/0005) that every one of them
         either defaults or nulls at creation, and callers apply them afterwards
-        through `update`. The two other insert paths — `book_bridge`'s
-        default-book bootstrap and the fixture seeder — write these same columns.
+        through `update`. The fixture seeder is the one other insert path, and
+        it writes these same columns.
         """
         cursor = self._conn.execute(
             """

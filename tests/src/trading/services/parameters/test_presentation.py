@@ -37,7 +37,7 @@ def test_show_book_rotation_history_prints_no_changes_message(
     account_id = insert_repository_account(conn, name="history_acct")
     insert_test_book(conn, account_id=account_id, name="book_a")
 
-    events = show_book_rotation_history(conn, account_name="history_acct")
+    events = show_book_rotation_history(conn, account_name="history_acct", book_name="book_a")
 
     assert events == []
     assert "No rotation settings changes recorded for account history_acct." in capsys.readouterr().out

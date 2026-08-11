@@ -195,10 +195,10 @@ class TestFetchLatestRotateAction:
 
 
 def test_fetch_selected_strategy_timeline_orders_incumbent_and_selected(conn) -> None:
-    from trading.repositories.book_bridge import default_book_id
+    from tests.support.books import ensure_default_book_id
 
     account_id = _account_id(conn, "rot_dec_timeline")
-    book_id = default_book_id(conn, account_id)
+    book_id = ensure_default_book_id(conn, account_id)
     repo = RotationDecisionRepository(conn)
 
     def _book_decision(*, at: str, incumbent: str, selected: str) -> None:

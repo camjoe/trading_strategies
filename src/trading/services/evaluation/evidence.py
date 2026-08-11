@@ -22,10 +22,10 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
+from trading.services.books.default_book import default_book_id
 from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
@@ -179,7 +179,7 @@ def _book_strategy_evidence(
     if earliest_snapshot is None or latest_snapshot is None:
         return EvaluationPaperLiveEvidence()
 
-    book_id = default_book_id(conn, account_id)
+    book_id = default_book_id(conn, account_id=account_id)
     timeline = _book_strategy_window_timeline(
         conn,
         account=account,

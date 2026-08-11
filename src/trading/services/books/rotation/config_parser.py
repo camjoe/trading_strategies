@@ -9,9 +9,9 @@ from trading.domain.exceptions import ValidationError
 from trading.domain.rotation.schedule import dump_rotation_schedule, parse_rotation_schedule
 from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.rotation import BookRotationConfig
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.services.accounts import get_account
+from trading.services.books.default_book import default_book_id
 
 
 def _validated_strategy_name(value: str | None, field_name: str) -> str | None:
@@ -69,7 +69,7 @@ def apply_book_rotation_settings(conn: sqlite3.Connection, name: str, settings: 
     assert isinstance(raw, Mapping)  # parse rejects non-mapping values
 
     account = get_account(conn, name)
-    book_id = default_book_id(conn, account.id)
+    book_id = default_book_id(conn, account_id=account.id)
     repository = BookRotationSettingsRepository(conn)
     current = repository.fetch(book_id=book_id)
 

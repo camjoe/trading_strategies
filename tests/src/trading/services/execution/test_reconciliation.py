@@ -3,10 +3,10 @@ from __future__ import annotations
 import pytest
 
 from tests.src.trading.services.execution.helpers import insert_book_equity_snapshot
+from tests.support.books import ensure_default_book_id
 from tests.support.repositories import insert_repository_account
 from trading.models.execution import BookTradeIntent
 from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.books import BookRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
@@ -123,7 +123,7 @@ def test_book_and_account_accounting_agree_and_reconcile(conn):
     """
     account_name = "confirm_acct"
     account_id = insert_repository_account(conn, name=account_name, initial_cash=10_000.0)
-    book_id = default_book_id(conn, account_id)  # bootstraps the book at initial_cash
+    book_id = ensure_default_book_id(conn, account_id)  # bootstraps the book at initial_cash
 
     # The same buy through both paths: the legacy account ledger and the clean book path.
     record_trade(
@@ -167,8 +167,8 @@ def test_book_and_account_accounting_agree_and_reconcile(conn):
     assert nav.current_equity == pytest.approx(account_equity)
 
     # Snapshot written from the INDEPENDENT account source → reconciles clean.
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=NOW,
         cash=state.cash,
         market_value=account_equity - state.cash,

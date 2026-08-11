@@ -1,10 +1,10 @@
 from unittest.mock import Mock
 
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
+from tests.support.books import ensure_default_book_id
 from tests.support.brokers import make_broker_account
 from tests.support.db_schema import memory_db_at_head
 from trading.models.orders import ORDER_STATUS_PENDING, BrokerOrder, OrderFill, OrderInsert, OrderStatus
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.open_order_reconciliation import reconcile_open_orders
@@ -34,7 +34,7 @@ def _open_clean_order(
     price: float = 150.0,
 ) -> tuple[int, int]:
     """Seed an open clean orders row on the account's default book."""
-    book_id = default_book_id(conn, account_id)
+    book_id = ensure_default_book_id(conn, account_id)
     order_id = OrderRepository(conn).insert(
         OrderInsert(
             book_id=book_id,
@@ -63,7 +63,7 @@ def _pending_clean_order(
     price: float = 150.0,
 ) -> tuple[int, int]:
     """Seed the row a crashed send leaves behind: pending, with no broker order id."""
-    book_id = default_book_id(conn, account_id)
+    book_id = ensure_default_book_id(conn, account_id)
     order_id = OrderRepository(conn).insert(
         OrderInsert(
             book_id=book_id,

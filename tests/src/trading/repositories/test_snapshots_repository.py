@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.books import ensure_default_book_id
 from tests.support.repositories import insert_repository_account
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -11,8 +12,8 @@ def _account_id(conn, name: str = "snap_acct") -> int:
 
 
 def _insert(conn, account_id: int, *, snapshot_time: str, equity: float) -> None:
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=snapshot_time,
         cash=equity,
         market_value=0.0,
@@ -26,8 +27,8 @@ class TestInsert:
     def test_inserted_row_is_fetchable(self, conn) -> None:
         acct_id = _account_id(conn)
         repo = EquitySnapshotRepository(conn)
-        repo.insert(
-            account_id=acct_id,
+        repo.insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-01-01T10:00:00",
             cash=4500.0,
             market_value=500.0,
@@ -94,8 +95,8 @@ class TestFetchHistory:
 
     def test_all_columns_present(self, conn) -> None:
         acct_id = _account_id(conn)
-        EquitySnapshotRepository(conn).insert(
-            account_id=acct_id,
+        EquitySnapshotRepository(conn).insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-03-01T00:00:00",
             cash=3000.0,
             market_value=700.0,
@@ -134,8 +135,8 @@ class TestFetchLatest:
         acct_id = _account_id(conn, "details_acct")
         assert EquitySnapshotRepository(conn).fetch_latest(account_id=acct_id) is None
 
-        EquitySnapshotRepository(conn).insert(
-            account_id=acct_id,
+        EquitySnapshotRepository(conn).insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-02-01T12:00:00",
             cash=1250.0,
             market_value=750.0,
@@ -211,9 +212,9 @@ class TestBookDateBoundReads:
     """
 
     def _book_id(self, conn, account_id: int) -> int:
-        from trading.repositories.book_bridge import default_book_id
+        from tests.support.books import ensure_default_book_id
 
-        return default_book_id(conn, account_id)
+        return ensure_default_book_id(conn, account_id)
 
     def _seed_mixed_spellings(self, conn, account_id: int) -> int:
         book_id = self._book_id(conn, account_id)

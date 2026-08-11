@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from scripts.data_ops.check_cash_invariant import invariant_payload
+from tests.support.books import ensure_default_book_id
 from tests.support.db_schema import memory_db_at_head
-from trading.repositories.book_bridge import default_book_id
 
 
 def _seed_account_with_default_book(conn: sqlite3.Connection, *, name: str, initial_cash: float) -> int:
@@ -14,7 +14,7 @@ def _seed_account_with_default_book(conn: sqlite3.Connection, *, name: str, init
         (name, initial_cash),
     )
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()["id"])
-    return default_book_id(conn, account_id)
+    return ensure_default_book_id(conn, account_id)
 
 
 def _insert_ledger(conn: sqlite3.Connection, *, book_id: int, entry_type: str, amount: float) -> None:

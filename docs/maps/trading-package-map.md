@@ -237,7 +237,6 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
-| `book_bridge.py` | Interim bridge reaching the book-keyed tables from account-keyed callers (account → default book) |
 | `table_export.py` | Generic table-cursor reads by table name for the operator CSV export (`fetch_table_cursor`) |
 
 ---

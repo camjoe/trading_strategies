@@ -18,10 +18,10 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.books import BookAssignmentView, BookRecord, TradingBook
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.services.books.default_book import default_book_id
 
 
 def _view_from_open_record(conn: sqlite3.Connection, *, book_id: int) -> BookAssignmentView | None:
@@ -125,7 +125,7 @@ def sync_default_book_assignment(
     A no-op when the open assignment already matches, keeping the
     ``effective_from``/``effective_to`` history free of same-strategy churn.
     """
-    book_id = default_book_id(conn, int(account_id))
+    book_id = default_book_id(conn, account_id=int(account_id))
     current = open_assignment_for_book(conn, book_id=book_id)
     if current is not None and current.strategy_name == strategy_name.strip().lower():
         return current

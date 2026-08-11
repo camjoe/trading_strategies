@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from tests.support.books import ensure_default_book_id
 from tests.support.seed.accounts import ACCT_TREND, seed_account_id
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -50,8 +51,8 @@ def seed_snapshots(conn: sqlite3.Connection) -> None:
         (SNAPSHOT_T2, 9_200.0, 800.0, 10_050.0, 0.0, 50.0),
         (SNAPSHOT_T3, 9_000.0, 1_100.0, 10_100.0, 100.0, 50.0),
     ]:
-        repo.insert(
-            account_id=acct_id,
+        repo.insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time=snapshot_time,
             cash=cash,
             market_value=market_value,

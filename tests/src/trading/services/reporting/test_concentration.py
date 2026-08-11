@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.services.analysis import concentration as concentration_module
 from trading.services.reporting import show_portfolio_concentration
@@ -27,7 +27,7 @@ def test_prints_symbol_sector_and_overlap_lines(
 ) -> None:
     monkeypatch.setattr(concentration_module, "load_symbol_sector_map", lambda: {"AAPL": "tech"})
     PositionRepository(conn).upsert(
-        book_id=default_book_id(conn, int(reporting_account["id"])),
+        book_id=ensure_default_book_id(conn, int(reporting_account["id"])),
         symbol="AAPL",
         qty=2.0,
         avg_cost=100.0,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tests.support.books import ensure_default_book_id
 from trading.models.evaluation import (
     BacktestFreshness,
     EvaluationBacktestEvidence,
@@ -37,8 +38,8 @@ def insert_trade(
 
 def insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -> None:
     # Snapshots are book-keyed; the repository resolves the default book.
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=snapshot_time,
         cash=equity,
         market_value=0.0,

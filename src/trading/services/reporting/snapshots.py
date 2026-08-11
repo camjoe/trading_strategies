@@ -13,6 +13,7 @@ from common.time import utc_now_iso
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import get_account, list_account_snapshots
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
+from trading.services.books.default_book import default_book_id
 from trading.services.market_data import MarketDataProvider
 from trading.services.reporting.account import account_report
 
@@ -27,8 +28,8 @@ def snapshot_account(
     account = get_account(conn, account_name)
     stats, _ = account_report(conn, account_name, provider=provider)
     resolved_time = snapshot_time or utc_now_iso()
-    EquitySnapshotRepository(conn).insert(
-        account_id=account.id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=default_book_id(conn, account_id=account.id),
         snapshot_time=resolved_time,
         cash=stats["cash"],
         market_value=stats["market_value"],

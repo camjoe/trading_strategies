@@ -34,9 +34,9 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
   calls `conn.commit()` directly. A hard commit inside a scope would end the transaction early and
   silently defeat the rollback guarantee — see
   [Database Transactions](../../../docs/reference/database-transactions.md).
-- **`book_bridge.py` and `promotion.py` deliberately do not commit at all** — they leave the commit
-  to their caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
-  oversight; don't "fix" them by adding a commit without checking callers.
+- **`promotion.py` deliberately does not commit at all** — it leaves the commit
+  to its caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
+  oversight; don't "fix" it by adding a commit without checking callers.
   (`book_strategy_history.py` opens its own scope internally, so it commits when called standalone
   and joins an outer scope otherwise.)
 - **Reads need no ceremony.** Only write methods commit, so query methods participate in any
@@ -48,7 +48,7 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
 - **Writes take their timestamp from the caller.** `updated_at`/`created_at` are parameters, never
   `utc_now_iso()` called inside a repository: several callers pass an event time (a fill, a ledger
   entry) that is deliberately not the wall clock.
-- **`books.py`, `book_bridge.py`, `snapshots.py`, and `positions.py` carry the widest import
+- **`books.py`, `snapshots.py`, and `positions.py` carry the widest import
   fan-out** in the package. Changes to their signatures ripple broadly — prefer additive changes.
 
 ## Modules
@@ -107,7 +107,6 @@ These belong to no single context and stay at the root deliberately.
 |---|---|
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
 | `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
-| `book_bridge.py` | **Transitional.** Bridges legacy account-keyed access into the book-keyed tables (account → default book). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
 | `table_export.py` | Generic read-only table-cursor access by table name for the operator CSV export — not scoped to one business context by design |
 
 ## Usage

@@ -5,7 +5,6 @@ import sqlite3
 from common.time import next_date_str
 from trading.models.portfolio import EquitySnapshotRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import default_book_id
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
 # summed balances. Degenerates to the raw row while an account has only its
@@ -53,35 +52,12 @@ class EquitySnapshotRepository:
     `RiskSnapshotRepository` (account-emergent); see
     docs/reference/performance-and-risk-tables.md.
 
-    `insert` is the account-keyed convenience writer: it resolves
-    (bootstrapping if needed) the account's default book. `insert_for_book`
-    is the book-keyed writer.
+    Writes are book-keyed only. Choosing which book an account-scoped caller
+    means is service work — see `services/books/default_book.py`.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    def insert(
-        self,
-        *,
-        account_id: int,
-        snapshot_time: str,
-        cash: float,
-        market_value: float,
-        equity: float,
-        realized_pnl: float,
-        unrealized_pnl: float,
-    ) -> None:
-        book_id = default_book_id(self._conn, account_id)
-        self.insert_for_book(
-            book_id=book_id,
-            snapshot_time=snapshot_time,
-            cash=cash,
-            market_value=market_value,
-            equity=equity,
-            realized_pnl=realized_pnl,
-            unrealized_pnl=unrealized_pnl,
-        )
 
     def insert_for_book(
         self,
