@@ -16,8 +16,7 @@ several contexts, so filing them under one owner would misstate who owns them.
 Every module in this package **owns one area's SQL**. Nothing else does.
 
 Owning "one area" is not the same as owning one table: `promotion.py` and `risk.py` each own two,
-`book_bridge.py` resolves across two, `fixture_seed.py` writes nine, and `table_export.py` is
-table-agnostic by design. Those are a different granularity, not a different kind of thing, and each
+`fixture_seed.py` writes nine, and `table_export.py` is table-agnostic by design. Those are a different granularity, not a different kind of thing, and each
 says so in its module docstring.
 
 Anything without SQL of its own belongs elsewhere. Mechanics every repository shares — transaction
@@ -37,9 +36,9 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
   [Database Transactions](../../../docs/reference/database-transactions.md).
 - **`book_bridge.py` and `promotion.py` deliberately do not commit at all** — they leave the commit
   to their caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
-  oversight; don't "fix" them by adding a commit without checking callers. (`book_assignments.py`
-  opens its own scope internally, so it commits when called standalone and joins an outer scope
-  otherwise.)
+  oversight; don't "fix" them by adding a commit without checking callers.
+  (`book_strategy_history.py` opens its own scope internally, so it commits when called standalone
+  and joins an outer scope otherwise.)
 - **Reads need no ceremony.** Only write methods commit, so query methods participate in any
   enclosing scope for free.
 - **A row becomes a record at the query**, written out as `Record.from_mapping(dict(row))` — the
@@ -59,7 +58,7 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
 | Module | Responsibility |
 |---|---|
 | `books.py` | Strategy books: bounded capital pools that own cash, positions, and settings |
-| `book_assignments.py` | Book↔strategy assignment and lifecycle records |
+| `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `rotation_decisions.py` | Champion/challenger rotation decision records |
 
@@ -88,7 +87,7 @@ and reporting services alike.
 
 | Module | Responsibility |
 |---|---|
-| `strategies.py` | Strategy catalog rows: primitive + knobs, draft/frozen lifecycle |
+| `strategies.py` | Strategy catalog rows: primitive + knobs, draft/frozen lifecycle, label → row id resolution |
 | `feature_providers.py` | Feature-provider enablement and config records |
 
 ### Promotion
@@ -108,7 +107,7 @@ These belong to no single context and stay at the root deliberately.
 |---|---|
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
 | `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
-| `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
+| `book_bridge.py` | **Transitional.** Bridges legacy account-keyed access into the book-keyed tables (account → default book). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
 | `table_export.py` | Generic read-only table-cursor access by table name for the operator CSV export — not scoped to one business context by design |
 
 ## Usage

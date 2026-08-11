@@ -6,7 +6,7 @@ import trading.services.books.rotation.engine as rotation_service
 from tests.support.books import assign_test_book_strategy, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.models.rotation import RotationStrategyMetrics
-from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.books.rotation.engine import (
@@ -70,7 +70,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
 
     # The *book* assignment is updated on rotate —
     # book_strategy_history is the single effective-dated assignment history.
-    book_assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    book_assignment = BookStrategyHistoryRepository(conn).fetch_open(book_id=book_id)
     assert book_assignment is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)
     assert strategy is not None
@@ -122,7 +122,7 @@ def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> No
     assert result.decision.rotation_action == "hold"
     assert result.decision.decision_reason == "cooldown_active"
 
-    held = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    held = BookStrategyHistoryRepository(conn).fetch_open(book_id=book_id)
     assert held is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=held.strategy_id)
     assert strategy is not None
@@ -158,7 +158,7 @@ def test_rotation_rolls_back_decision_when_assignment_fails(conn, monkeypatch) -
         )
 
     assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id) is None
-    assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    assignment = BookStrategyHistoryRepository(conn).fetch_open(book_id=book_id)
     assert assignment is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=assignment.strategy_id)
     assert strategy is not None

@@ -10,8 +10,8 @@ from common.time import utc_now_iso
 from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
-from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
@@ -130,7 +130,7 @@ def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
     _, book_id = _insert_book(conn)
     first = _insert_strategy(conn, key="trend_v1")
     second = _insert_strategy(conn, key="meanrev_v1")
-    repo = BookAssignmentRepository(conn)
+    repo = BookStrategyHistoryRepository(conn)
 
     repo.assign_strategy(book_id=book_id, strategy_id=first, effective_from=NOW, created_at=NOW, updated_at=NOW)
     repo.assign_strategy(
@@ -156,12 +156,12 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings(
+    book_repo.update(
         book_id=book_id,
         values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0},
         updated_at=utc_now_iso(),
     )
-    book_repo.update_settings(
+    book_repo.update(
         book_id=book_id,
         values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0},
         updated_at=utc_now_iso(),
@@ -172,7 +172,7 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings(
+    book_repo.update(
         book_id=book_id,
         values={"option_type": "call", "option_min_dte": 120},
         updated_at=utc_now_iso(),

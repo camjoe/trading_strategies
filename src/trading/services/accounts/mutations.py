@@ -51,7 +51,7 @@ def _apply_book_settings_to_default_book(
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update_settings(
+    BookRepository(conn).update(
         book_id=book.id,
         values={column: value for column, value in values.items() if value is not None},
         updated_at=utc_now_iso(),

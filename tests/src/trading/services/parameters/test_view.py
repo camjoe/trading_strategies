@@ -11,7 +11,7 @@ from tests.support.books import insert_test_book, set_test_book_rotation_schedul
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.models.parameters import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
 from trading.services.operational_settings import set_runtime_throttle_settings
 from trading.services.parameters import fetch_parameter_source_view, update_book_rotation_policy
@@ -172,7 +172,7 @@ class TestBookRotationSchedulingDisplay:
 
 class TestStrategyGroups:
     def test_strategy_rows_appear(self, conn: sqlite3.Connection) -> None:
-        strategy_id_for_label(conn, "trend", now_iso=utc_now_iso())
+        StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso=utc_now_iso())
         conn.commit()
 
         view = fetch_parameter_source_view(conn)

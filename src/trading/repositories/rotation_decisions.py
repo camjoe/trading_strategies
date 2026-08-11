@@ -5,7 +5,7 @@ import sqlite3
 from common.time import next_date_str
 from trading.models.books import RotationDecisionRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 # Reads join strategies to emit the label columns
 # (incumbent_strategy / challenger_strategy / selected_strategy) alongside the
@@ -28,7 +28,7 @@ class RotationDecisionRepository:
     """Book-keyed rotation decisions.
 
     Storage uses strategy-id FKs and first-class score columns; strategy
-    labels are bridged to strategies rows via book_bridge.
+    labels resolve to strategies rows via `StrategyRepository.ensure_id_for_label`.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -56,6 +56,7 @@ class RotationDecisionRepository:
         (the default book and any additional books alike) records its decisions
         keyed on ``book_id``.
         """
+        strategies = StrategyRepository(self._conn)
         cursor = self._conn.execute(
             """
             INSERT INTO rotation_decisions (
@@ -77,9 +78,9 @@ class RotationDecisionRepository:
             (
                 book_id,
                 decision_time,
-                strategy_id_for_label(self._conn, incumbent_strategy, now_iso=created_at),
-                strategy_id_for_label(self._conn, challenger_strategy, now_iso=created_at),
-                strategy_id_for_label(self._conn, selected_strategy, now_iso=created_at),
+                strategies.ensure_id_for_label(label=incumbent_strategy, now_iso=created_at),
+                strategies.ensure_id_for_label(label=challenger_strategy, now_iso=created_at),
+                strategies.ensure_id_for_label(label=selected_strategy, now_iso=created_at),
                 rotation_action,
                 cooldown_active,
                 score_components_json,

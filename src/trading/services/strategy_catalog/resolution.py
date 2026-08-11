@@ -23,7 +23,6 @@ from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.strategy import StrategyRecord
-from trading.repositories.book_bridge import strategy_id_for_label
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -111,7 +110,7 @@ def resolve_or_draft_strategy_record(
 
     Returns ``None`` only when ``label`` is empty.
     """
-    strategy_id = strategy_id_for_label(conn, label, now_iso=now_iso)
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=label, now_iso=now_iso)
     if strategy_id is None:
         return None
     return StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id)

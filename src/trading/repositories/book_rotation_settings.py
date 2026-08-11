@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 
 from trading.models.books import (
     BOOK_ROTATION_SETTINGS_GROUP_POLICY,
@@ -68,6 +69,45 @@ class BookRotationSettingsRepository:
             for row in rows
         ]
 
+    def _upsert_group(
+        self,
+        *,
+        book_id: int,
+        values: Mapping[str, object],
+        settings_group: str,
+        created_at: str,
+        updated_at: str,
+    ) -> None:
+        """Write one settings group and record what changed.
+
+        `ON CONFLICT` assigns only the named columns, so the other group keeps
+        its stored values; a fresh row takes DDL defaults for the columns this
+        write omits. Column names come from the calling method, never a caller.
+        """
+        current = self.fetch(book_id=book_id)
+        columns = tuple(values)
+        placeholders = ", ".join("?" for _ in range(len(columns) + 3))
+        assignments = ", ".join(f"{column} = excluded.{column}" for column in columns)
+        self._conn.execute(
+            f"""
+            INSERT INTO book_rotation_settings (
+                book_id, {", ".join(columns)}, created_at, updated_at
+            )
+            VALUES ({placeholders})
+            ON CONFLICT(book_id) DO UPDATE SET
+                {assignments},
+                updated_at = excluded.updated_at
+            """,
+            (book_id, *values.values(), created_at, updated_at),
+        )
+        self._insert_change_event(
+            book_id=book_id,
+            settings_group=settings_group,
+            changed_fields=diff_changed_fields(current=current, new_values=dict(values)),
+            created_at=updated_at,
+        )
+        commit_unit_of_work(self._conn)
+
     def upsert_rotation_scheduling(
         self,
         *,
@@ -78,44 +118,17 @@ class BookRotationSettingsRepository:
         created_at: str,
         updated_at: str,
     ) -> None:
-        current = self.fetch(book_id=book_id)
-        new_values = {
-            "rotation_enabled": rotation_enabled,
-            "rotation_lookback_days": rotation_lookback_days,
-            "rotation_schedule": rotation_schedule,
-        }
-        # Scheduling-only write: policy columns keep their values when the
-        # row already exists; a fresh row gets policy NULLs (code defaults).
-        self._conn.execute(
-            """
-            INSERT INTO book_rotation_settings (
-                book_id, rotation_enabled, rotation_lookback_days, rotation_schedule,
-                created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(book_id) DO UPDATE SET
-                rotation_enabled = excluded.rotation_enabled,
-                rotation_lookback_days = excluded.rotation_lookback_days,
-                rotation_schedule = excluded.rotation_schedule,
-                updated_at = excluded.updated_at
-            """,
-            (
-                book_id,
-                rotation_enabled,
-                rotation_lookback_days,
-                rotation_schedule,
-                created_at,
-                updated_at,
-            ),
-        )
-        changed = diff_changed_fields(current=current, new_values=new_values)
-        self._insert_change_event(
+        self._upsert_group(
             book_id=book_id,
+            values={
+                "rotation_enabled": rotation_enabled,
+                "rotation_lookback_days": rotation_lookback_days,
+                "rotation_schedule": rotation_schedule,
+            },
             settings_group=BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING,
-            changed_fields=changed,
-            created_at=updated_at,
+            created_at=created_at,
+            updated_at=updated_at,
         )
-        commit_unit_of_work(self._conn)
 
     def upsert_rotation_policy(
         self,
@@ -131,55 +144,18 @@ class BookRotationSettingsRepository:
         created_at: str,
         updated_at: str,
     ) -> None:
-        current = self.fetch(book_id=book_id)
-        new_values = {
-            "min_trades_in_window": min_trades_in_window,
-            "outperformance_threshold_bps": outperformance_threshold_bps,
-            "cooldown_days": cooldown_days,
-            "risk_adjusted_return_weight": risk_adjusted_return_weight,
-            "stability_weight": stability_weight,
-            "drawdown_penalty_weight": drawdown_penalty_weight,
-            "regime_fit_weight": regime_fit_weight,
-        }
-        # Policy-only write: scheduling columns keep their values when the
-        # row already exists; a fresh row gets scheduling defaults.
-        self._conn.execute(
-            """
-            INSERT INTO book_rotation_settings (
-                book_id, min_trades_in_window, outperformance_threshold_bps,
-                cooldown_days, risk_adjusted_return_weight, stability_weight,
-                drawdown_penalty_weight, regime_fit_weight,
-                created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(book_id) DO UPDATE SET
-                min_trades_in_window = excluded.min_trades_in_window,
-                outperformance_threshold_bps = excluded.outperformance_threshold_bps,
-                cooldown_days = excluded.cooldown_days,
-                risk_adjusted_return_weight = excluded.risk_adjusted_return_weight,
-                stability_weight = excluded.stability_weight,
-                drawdown_penalty_weight = excluded.drawdown_penalty_weight,
-                regime_fit_weight = excluded.regime_fit_weight,
-                updated_at = excluded.updated_at
-            """,
-            (
-                book_id,
-                min_trades_in_window,
-                outperformance_threshold_bps,
-                cooldown_days,
-                risk_adjusted_return_weight,
-                stability_weight,
-                drawdown_penalty_weight,
-                regime_fit_weight,
-                created_at,
-                updated_at,
-            ),
-        )
-        changed = diff_changed_fields(current=current, new_values=new_values)
-        self._insert_change_event(
+        self._upsert_group(
             book_id=book_id,
+            values={
+                "min_trades_in_window": min_trades_in_window,
+                "outperformance_threshold_bps": outperformance_threshold_bps,
+                "cooldown_days": cooldown_days,
+                "risk_adjusted_return_weight": risk_adjusted_return_weight,
+                "stability_weight": stability_weight,
+                "drawdown_penalty_weight": drawdown_penalty_weight,
+                "regime_fit_weight": regime_fit_weight,
+            },
             settings_group=BOOK_ROTATION_SETTINGS_GROUP_POLICY,
-            changed_fields=changed,
-            created_at=updated_at,
+            created_at=created_at,
+            updated_at=updated_at,
         )
-        commit_unit_of_work(self._conn)

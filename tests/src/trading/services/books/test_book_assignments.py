@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from tests.support.books import assign_test_book_strategy, insert_test_book
 from tests.support.repositories import insert_repository_account
-from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.services.books.book_assignments import (
     active_strategy_for_account,
     assign_book_strategy,
@@ -29,7 +29,7 @@ def test_assign_book_strategy_roundtrips(conn) -> None:
     view = assign_book_strategy(conn, book_id=book_id, strategy_name="meanrev", now_iso=NOW)
 
     assert view.strategy_name == "meanrev"
-    record = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    record = BookStrategyHistoryRepository(conn).fetch_open(book_id=book_id)
     assert record is not None
     assert record.strategy_id == view.strategy_id
     read_back = open_assignment_for_book(conn, book_id=book_id)

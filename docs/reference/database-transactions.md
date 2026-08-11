@@ -93,10 +93,12 @@ The broker/network call that produces the data must stay **outside** the
   guards it, but only behaviorally and only for the repositories it names — it
   does not scan for the pattern, so a service that hard-commits will not be
   caught.
-- **A few repositories intentionally do not commit at all** — `book_bridge`,
-  `promotion`, and `book_assignments` leave the commit to their caller. That is a
+- **A few repositories intentionally do not commit at all** — `book_bridge` and
+  `promotion` leave the commit to their caller. That is a
   deliberate caller-owned boundary, not an oversight; do not "fix" them by adding
-  a commit without checking the callers. The caller discharging that duty still
+  a commit without checking the callers. (`book_strategy_history` is not one of
+  them: it opens its own `unit_of_work` scope, so it commits standalone and joins
+  an outer scope otherwise.) The caller discharging that duty still
   uses `commit_unit_of_work`, not `conn.commit()` — see `_resolve_book_id` in
   `services/parameters/mutations.py`, which commits `book_bridge`'s default-book
   bootstrap.

@@ -191,7 +191,7 @@ def configure_book(
         if config.option_type is not None:
             values["option_type"] = normalize_option_type(config.option_type)
 
-        BookRepository(conn).update_settings(
+        BookRepository(conn).update(
             book_id=book.id,
             values={name: value for name, value in values.items() if value is not None},
             updated_at=utc_now_iso(),

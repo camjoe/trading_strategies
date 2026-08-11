@@ -14,7 +14,7 @@ from datetime import date
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
 from common.time import utc_now_iso
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 _RUN_COLUMNS = """
     r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
@@ -39,7 +39,7 @@ def insert_run(
     # passes the canonical strategy key (resolved via resolve_strategy in the
     # service); the catalog row is seeded, so this is a lookup, not a create.
     created_at = utc_now_iso()
-    strategy_id = strategy_id_for_label(conn, strategy_name, now_iso=created_at)
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=strategy_name, now_iso=created_at)
     cursor = conn.execute(
         """
         INSERT INTO backtest_runs (

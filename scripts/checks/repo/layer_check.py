@@ -122,8 +122,8 @@ LAYER_RULES: list[LayerRule] = [
         # share with the live path to be testing the same thing.
         #
         # backtesting/repositories/ is deliberately outside this rule: a repository
-        # calling trading's book_bridge is same-layer, which is what that bridging
-        # helper is for.
+        # calling trading's repositories (StrategyRepository for label resolution,
+        # book_bridge for the default book) is same-layer.
     ),
     LayerRule(
         label="trading/domain → no repository imports",

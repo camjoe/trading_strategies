@@ -11,7 +11,7 @@ from trading.models.evaluation import (
     EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 from trading.services.accounts import get_account
 from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
@@ -135,7 +135,7 @@ def _bundle(risk_on_score: float | None) -> ExternalFeatureBundle:
 def test_build_rotation_strategy_metrics_computes_regime_fit_on_match(conn, monkeypatch) -> None:
     insert_repository_account(conn, name="acct_metrics_regime_match")
     account = get_account(conn, "acct_metrics_regime_match")
-    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso="2026-07-26T00:00:00Z")
     monkeypatch.setattr(
         _FETCH_TARGET,
         lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
@@ -154,7 +154,7 @@ def test_build_rotation_strategy_metrics_computes_regime_fit_on_match(conn, monk
 def test_build_rotation_strategy_metrics_regime_fit_neutral_on_mismatch(conn, monkeypatch) -> None:
     insert_repository_account(conn, name="acct_metrics_regime_mismatch")
     account = get_account(conn, "acct_metrics_regime_mismatch")
-    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso="2026-07-26T00:00:00Z")
     monkeypatch.setattr(
         _FETCH_TARGET,
         lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
@@ -173,7 +173,7 @@ def test_build_rotation_strategy_metrics_regime_fit_neutral_on_mismatch(conn, mo
 def test_build_rotation_strategy_metrics_regime_fit_neutral_when_unavailable(conn, monkeypatch) -> None:
     insert_repository_account(conn, name="acct_metrics_regime_unavailable")
     account = get_account(conn, "acct_metrics_regime_unavailable")
-    strategy_id_for_label(conn, "trend", now_iso="2026-07-26T00:00:00Z")
+    StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso="2026-07-26T00:00:00Z")
     monkeypatch.setattr(
         _FETCH_TARGET,
         lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),

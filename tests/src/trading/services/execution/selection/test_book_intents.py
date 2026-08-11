@@ -362,7 +362,7 @@ def test_account_trade_budget_claim_is_reproducible_from_the_seed(conn) -> None:
 def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
     """A book's own limit narrows the account cap."""
     book_id, account = _multi_signal_book(conn, account_name="acct_budget_book_cap")
-    BookRepository(conn).update_settings(book_id=book_id, values={"max_trades_per_run": 1}, updated_at=utc_now_iso())
+    BookRepository(conn).update(book_id=book_id, values={"max_trades_per_run": 1}, updated_at=utc_now_iso())
 
     intents = book_intents.generate_book_trade_intents(
         conn,
