@@ -40,6 +40,26 @@ _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND = _ACCOUNT_VIEW_SELECT.replace(
     "WHERE b.account_id = ?\n  AND s.snapshot_time <= ?",
 )
 
+# The raw stored row for one book — no roll-up, so `id` and `book_id` are real.
+_BOOK_ROW_SELECT = """
+SELECT s.id AS id, b.account_id AS account_id, s.book_id AS book_id, s.snapshot_time AS snapshot_time,
+       s.cash AS cash, s.market_value AS market_value, s.equity AS equity,
+       s.realized_pnl AS realized_pnl, s.unrealized_pnl AS unrealized_pnl
+FROM equity_snapshots s
+JOIN books b ON b.id = s.book_id
+"""
+
+_SNAPSHOT_TIME_COUNT = """
+SELECT COUNT(DISTINCT s.snapshot_time) AS snapshot_count
+FROM equity_snapshots s
+JOIN books b ON b.id = s.book_id
+"""
+
+# The account view aliases its id column, so it orders on the bare name.
+_ACCOUNT_NEWEST_FIRST = "s.snapshot_time DESC, id DESC"
+_ACCOUNT_OLDEST_FIRST = "s.snapshot_time ASC, id ASC"
+_BOOK_NEWEST_FIRST = "s.snapshot_time DESC, s.id DESC"
+
 
 class EquitySnapshotRepository:
     """Book-keyed snapshot storage with account-level roll-up reads.
@@ -81,67 +101,39 @@ class EquitySnapshotRepository:
         )
         commit_unit_of_work(self._conn)
 
-    def fetch_recent_equity(self, *, account_id: int, limit: int) -> list[float]:
-        rows = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT ?",
-            (account_id, limit),
-        ).fetchall()
-        return [float(row["equity"]) for row in rows]
+    def _fetch_one(self, select: str, order: str, params: tuple[object, ...]) -> EquitySnapshotRecord | None:
+        row = self._conn.execute(f"{select} ORDER BY {order} LIMIT 1", params).fetchone()
+        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+
+    def _count_snapshot_times(self, filter_sql: str, params: tuple[object, ...]) -> int:
+        row = self._conn.execute(_SNAPSHOT_TIME_COUNT + filter_sql, params).fetchone()
+        return int(row["snapshot_count"]) if row is not None else 0
 
     def fetch_history(self, *, account_id: int, limit: int) -> list[EquitySnapshotRecord]:
         rows = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT ?",
+            f"{_ACCOUNT_VIEW_SELECT} ORDER BY {_ACCOUNT_NEWEST_FIRST} LIMIT ?",
             (account_id, limit),
         ).fetchall()
         return [EquitySnapshotRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_history_for_book(self, *, book_id: int, limit: int) -> list[EquitySnapshotRecord]:
         rows = self._conn.execute(
-            """
-            SELECT s.id, b.account_id, s.book_id, s.snapshot_time, s.cash,
-                   s.market_value, s.equity, s.realized_pnl, s.unrealized_pnl
-            FROM equity_snapshots s
-            JOIN books b ON b.id = s.book_id
-            WHERE s.book_id = ?
-            ORDER BY s.snapshot_time DESC, s.id DESC
-            LIMIT ?
-            """,
+            f"{_BOOK_ROW_SELECT} WHERE s.book_id = ? ORDER BY {_BOOK_NEWEST_FIRST} LIMIT ?",
             (book_id, limit),
         ).fetchall()
         return [EquitySnapshotRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_count_between(self, *, account_id: int, start_iso: str, end_iso: str) -> int:
-        row = self._conn.execute(
-            """
-            SELECT COUNT(DISTINCT s.snapshot_time) AS snapshot_count
-            FROM equity_snapshots s
-            JOIN books b ON b.id = s.book_id
-            WHERE b.account_id = ?
-              AND s.snapshot_time >= ?
-              AND s.snapshot_time <= ?
-            """,
+        return self._count_snapshot_times(
+            "WHERE b.account_id = ? AND s.snapshot_time >= ? AND s.snapshot_time <= ?",
             (account_id, start_iso, end_iso),
-        ).fetchone()
-        return int(row["snapshot_count"]) if row is not None else 0
+        )
 
     def fetch_count(self, *, account_id: int) -> int:
-        row = self._conn.execute(
-            """
-            SELECT COUNT(DISTINCT s.snapshot_time) AS snapshot_count
-            FROM equity_snapshots s
-            JOIN books b ON b.id = s.book_id
-            WHERE b.account_id = ?
-            """,
-            (account_id,),
-        ).fetchone()
-        return int(row["snapshot_count"]) if row is not None else 0
+        return self._count_snapshot_times("WHERE b.account_id = ?", (account_id,))
 
     def fetch_latest(self, *, account_id: int) -> EquitySnapshotRecord | None:
-        row = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
-            (account_id,),
-        ).fetchone()
-        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+        return self._fetch_one(_ACCOUNT_VIEW_SELECT, _ACCOUNT_NEWEST_FIRST, (account_id,))
 
     def fetch_max_equity(self, *, account_id: int) -> float | None:
         """The account's highest rolled-up equity ever recorded, or None with no snapshots.
@@ -158,18 +150,10 @@ class EquitySnapshotRepository:
         return float(value) if value is not None else None
 
     def fetch_earliest(self, *, account_id: int) -> EquitySnapshotRecord | None:
-        row = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
-            (account_id,),
-        ).fetchone()
-        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+        return self._fetch_one(_ACCOUNT_VIEW_SELECT, _ACCOUNT_OLDEST_FIRST, (account_id,))
 
     def fetch_first_at_or_after(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
-        row = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
-            (account_id, iso),
-        ).fetchone()
-        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+        return self._fetch_one(_ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND, _ACCOUNT_OLDEST_FIRST, (account_id, iso))
 
     def fetch_last_for_book_on_or_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
         """Latest raw snapshot for one book whose calendar date is <= ``date_str``.
@@ -188,24 +172,11 @@ class EquitySnapshotRepository:
         ``before`` is a bare ``YYYY-MM-DD``, which sorts below every stored
         timestamp on that day, so the bound excludes the whole day.
         """
-        row = self._conn.execute(
-            """
-            SELECT s.id AS id, b.account_id AS account_id, s.book_id AS book_id, s.snapshot_time AS snapshot_time,
-                   s.cash AS cash, s.market_value AS market_value, s.equity AS equity,
-                   s.realized_pnl AS realized_pnl, s.unrealized_pnl AS unrealized_pnl
-            FROM equity_snapshots s
-            JOIN books b ON b.id = s.book_id
-            WHERE s.book_id = ? AND s.snapshot_time < ?
-            ORDER BY s.snapshot_time DESC, s.id DESC
-            LIMIT 1
-            """,
+        return self._fetch_one(
+            f"{_BOOK_ROW_SELECT} WHERE s.book_id = ? AND s.snapshot_time < ?",
+            _BOOK_NEWEST_FIRST,
             (book_id, before),
-        ).fetchone()
-        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+        )
 
     def fetch_last_at_or_before(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
-        row = self._conn.execute(
-            _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
-            (account_id, iso),
-        ).fetchone()
-        return EquitySnapshotRecord.from_mapping(dict(row)) if row is not None else None
+        return self._fetch_one(_ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND, _ACCOUNT_NEWEST_FIRST, (account_id, iso))

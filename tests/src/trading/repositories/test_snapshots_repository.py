@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.books import ensure_default_book_id
+from tests.support.books import ensure_default_book_id, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -58,33 +58,6 @@ class TestFetchMaxEquity:
         assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=acct_id) is None
 
 
-class TestFetchRecentEquity:
-    def test_returns_newest_first(self, conn) -> None:
-        acct_id = _account_id(conn)
-        _insert(conn, acct_id, snapshot_time="2026-01-01T00:00:00", equity=1000.0)
-        _insert(conn, acct_id, snapshot_time="2026-01-03T00:00:00", equity=1200.0)
-        _insert(conn, acct_id, snapshot_time="2026-01-02T00:00:00", equity=1100.0)
-        equities = EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=3)
-        assert equities == pytest.approx([1200.0, 1100.0, 1000.0])
-
-    def test_limit_respected(self, conn) -> None:
-        acct_id = _account_id(conn)
-        for i in range(5):
-            _insert(conn, acct_id, snapshot_time=f"2026-01-0{i + 1}T00:00:00", equity=float(i * 100))
-        equities = EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=2)
-        assert len(equities) == 2
-
-    def test_empty_when_no_snapshots(self, conn) -> None:
-        acct_id = _account_id(conn)
-        assert EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=10) == []
-
-    def test_isolated_per_account(self, conn) -> None:
-        acct_a = _account_id(conn, "snap_a")
-        acct_b = _account_id(conn, "snap_b")
-        _insert(conn, acct_a, snapshot_time="2026-01-01T00:00:00", equity=999.0)
-        assert EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_b, limit=10) == []
-
-
 class TestFetchHistory:
     def test_returns_newest_first(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -108,6 +81,21 @@ class TestFetchHistory:
         assert row.snapshot_time == "2026-03-01T00:00:00"
         assert row.market_value == pytest.approx(700.0)
         assert row.unrealized_pnl == pytest.approx(50.0)
+
+    def test_limit_respected(self, conn) -> None:
+        acct_id = _account_id(conn)
+        for index in range(5):
+            _insert(conn, acct_id, snapshot_time=f"2026-01-0{index + 1}T00:00:00", equity=float(index * 100))
+        assert len(EquitySnapshotRepository(conn).fetch_history(account_id=acct_id, limit=2)) == 2
+
+    def test_empty_when_no_snapshots(self, conn) -> None:
+        assert EquitySnapshotRepository(conn).fetch_history(account_id=_account_id(conn), limit=10) == []
+
+    def test_isolated_per_account(self, conn) -> None:
+        acct_a = _account_id(conn, "snap_a")
+        acct_b = _account_id(conn, "snap_b")
+        _insert(conn, acct_a, snapshot_time="2026-01-01T00:00:00", equity=999.0)
+        assert EquitySnapshotRepository(conn).fetch_history(account_id=acct_b, limit=10) == []
 
 
 class TestFetchLatest:
@@ -269,3 +257,51 @@ class TestBookDateBoundReads:
             )
             is None
         )
+
+
+class TestAccountRollUpAcrossBooks:
+    """The account view SUMs across an account's books — the reason it exists."""
+
+    def _two_books_at_one_time(self, conn) -> int:
+        account_id = _account_id(conn, "rollup_acct")
+        repo = EquitySnapshotRepository(conn)
+        for book_id, equity in (
+            (ensure_default_book_id(conn, account_id), 1000.0),
+            (insert_test_book(conn, account_id=account_id, name="sleeve"), 250.0),
+        ):
+            repo.insert_for_book(
+                book_id=book_id,
+                snapshot_time="2026-02-01T00:00:00",
+                cash=equity,
+                market_value=equity * 2,
+                equity=equity,
+                realized_pnl=1.0,
+                unrealized_pnl=2.0,
+            )
+        return account_id
+
+    def test_balances_sum_across_books(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        rolled = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
+        assert rolled is not None
+        assert rolled.equity == pytest.approx(1250.0)
+        assert rolled.cash == pytest.approx(1250.0)
+        assert rolled.market_value == pytest.approx(2500.0)
+        assert rolled.realized_pnl == pytest.approx(2.0)
+        assert rolled.unrealized_pnl == pytest.approx(4.0)
+
+    def test_multi_book_aggregate_is_not_addressable(self, conn) -> None:
+        """id and book_id are NULL together so an aggregate is never mistaken for a stored row."""
+        account_id = self._two_books_at_one_time(conn)
+        rolled = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
+        assert rolled is not None
+        assert rolled.id is None
+        assert rolled.book_id is None
+
+    def test_one_snapshot_time_across_two_books_counts_once(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        assert EquitySnapshotRepository(conn).fetch_count(account_id=account_id) == 1
+
+    def test_max_equity_uses_the_rolled_up_total(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id) == pytest.approx(1250.0)

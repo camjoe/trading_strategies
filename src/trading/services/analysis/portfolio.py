@@ -38,10 +38,11 @@ def _infer_overall_trend_impl(
     current_equity: float,
     lookback: int,
 ) -> str:
-    history = EquitySnapshotRepository(conn).fetch_recent_equity(
+    snapshots = EquitySnapshotRepository(conn).fetch_history(
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
+    history = [snapshot.equity for snapshot in snapshots]
     history.reverse()
     history.append(current_equity)
 
