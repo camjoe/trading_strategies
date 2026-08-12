@@ -115,12 +115,6 @@ class StrategyRepository:
         rows = self._conn.execute("SELECT * FROM strategies ORDER BY strategy_key ASC").fetchall()
         return [StrategyRecord.from_mapping(dict(row)) for row in rows]
 
-    def fetch_enabled(self) -> list[StrategyRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM strategies WHERE enabled = 1 AND status != 'retired' ORDER BY strategy_key ASC"
-        ).fetchall()
-        return [StrategyRecord.from_mapping(dict(row)) for row in rows]
-
     def update_draft_knobs(
         self,
         *,

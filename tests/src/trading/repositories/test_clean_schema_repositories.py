@@ -100,8 +100,14 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
             updated_at=NOW,
         )
 
+    # Freezing is one-way: it only acts on a draft, so a second call is a no-op.
+    frozen = repo.fetch_by_id(strategy_id=strategy_id)
+    repo.freeze(strategy_id=strategy_id, updated_at="2026-09-09T00:00:00Z")
+    assert repo.fetch_by_id(strategy_id=strategy_id) == frozen
+
     repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
-    assert repo.fetch_enabled() == []
+    disabled = repo.fetch_by_id(strategy_id=strategy_id)
+    assert disabled is not None and disabled.enabled == 0
 
 
 def test_immutability_guard_leaves_an_enclosing_unit_of_work_intact(conn) -> None:
