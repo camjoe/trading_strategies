@@ -38,6 +38,20 @@ class TestNameValidation:
         with pytest.raises(ValueError, match="Table name cannot be empty"):
             table_export.normalize_table_name("  ; ;  ")
 
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("tbl٣", "tbl"),  # Arabic-Indic digit: isalnum() accepts it, ASCII does not
+            ("café", "caf"),  # accented letter
+            # str.lower() folds the Kelvin sign to an ASCII 'k' before the filter runs, so
+            # case folding alone can turn a non-ASCII name into an ASCII one. Only the
+            # sqlite_master lookup decides whether the result names a real table.
+            ("Kelvin", "kelvin"),
+        ],
+    )
+    def test_normalize_table_name_keeps_only_ascii(self, name: str, expected: str) -> None:
+        assert table_export.normalize_table_name(name) == expected
+
 
 class TestFetchTableCursor:
     def test_fetch_table_cursor_yields_header_and_rows_ordered_by_id(self, sqlite_db_file: Path) -> None:

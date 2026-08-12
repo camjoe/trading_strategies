@@ -5,10 +5,12 @@ runtime, so this module takes a table *name* where every other module in the pac
 has its table fixed in the SQL it owns.
 
 A table name cannot be a bound parameter, so it is interpolated into the query. That
-is why the entry point resolves its table through :func:`require_table` first:
-:func:`normalize_table_name` strips the input to ``[a-z0-9_]`` and existence is
-checked against ``sqlite_master`` before any name reaches a statement. A new read
-added here must go through the same gate.
+is why the entry point resolves its table through :func:`require_table` first. The
+gate is existence: the normalized name must match a row in ``sqlite_master``, matched
+by bound parameter, so only a name the database already carries reaches a statement.
+:func:`normalize_table_name` narrows the input to ``[a-z0-9_]`` ahead of that, which
+rejects early rather than carrying the check. A new read added here must go through
+the same gate.
 """
 
 from __future__ import annotations
@@ -26,7 +28,10 @@ DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
 
 
 def normalize_table_name(name: str) -> str:
-    cleaned = "".join(ch for ch in name.strip().lower() if ch.isalnum() or ch == "_")
+    # ASCII-only: str.isalnum() accepts any Unicode alphanumeric, and str.lower()
+    # folds some non-ASCII characters into ASCII ones, so neither narrows to the
+    # identifier shape on its own.
+    cleaned = "".join(ch for ch in name.strip().lower() if ch.isascii() and (ch.isalnum() or ch == "_"))
     if not cleaned:
         raise ValueError("Table name cannot be empty.")
     return cleaned
