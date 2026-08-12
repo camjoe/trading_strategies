@@ -7,6 +7,7 @@ from collections.abc import Mapping
 
 from common.coercion import row_float
 from common.constants import SETTLEMENT_TICKER
+from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
 
@@ -60,14 +61,12 @@ def apply_buy(
     """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
-    new_qty = old_qty + qty
-    if new_qty <= 0:
-        raise ValueError(f"Buy of {qty} for {ticker} leaves a non-positive position ({new_qty}); qty must be > 0.")
-    old_value = old_qty * avg_cost[ticker]
-    trade_value = qty * price + fee
-    avg_cost[ticker] = (old_value + trade_value) / new_qty
-    positions[ticker] = new_qty
-    return cash - trade_value
+    if old_qty + qty <= 0:
+        raise ValueError(f"Buy of {qty} for {ticker} leaves a non-positive position ({old_qty + qty}); qty must be > 0.")
+    delta = buy_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
+    positions[ticker] = delta.ending_qty
+    avg_cost[ticker] = delta.ending_avg_cost
+    return cash + delta.cash_delta
 
 
 def apply_sell(
@@ -90,11 +89,9 @@ def apply_sell(
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
-    proceeds = qty * price - fee
-    cash += proceeds
-    realized += (price - avg_cost[ticker]) * qty - fee
-    positions[ticker] = old_qty - qty
-    return cash, realized
+    delta = sell_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
+    positions[ticker] = delta.ending_qty
+    return cash + delta.cash_delta, realized + delta.realized_delta
 
 
 def _compact_positions(

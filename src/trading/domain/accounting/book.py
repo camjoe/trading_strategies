@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import normalize_order_input, validate_order_values
 from trading.models.books import BookFillTransition
 
@@ -60,19 +61,22 @@ def apply_book_fill_transition(
         raise ValueError(f"Invalid sell for {normalized_symbol}: trying to sell {fill_qty}, holding {starting_qty}.")
 
     if normalized_side == "buy":
-        trade_value = fill_qty * fill_px + fill_commission
-        ending_qty = starting_qty + fill_qty
-        old_value = starting_qty * starting_avg_cost
-        ending_avg_cost = (old_value + trade_value) / ending_qty
-        cash_delta = -trade_value
+        buy = buy_position_delta(
+            position_qty=starting_qty, position_avg_cost=starting_avg_cost, qty=fill_qty, price=fill_px, fee=fill_commission
+        )
+        ending_qty = buy.ending_qty
+        ending_avg_cost = buy.ending_avg_cost
+        cash_delta = buy.cash_delta
         realized_pnl_delta = 0.0
     else:
-        proceeds = fill_qty * fill_px - fill_commission
-        ending_qty = starting_qty - fill_qty
+        sell = sell_position_delta(
+            position_qty=starting_qty, position_avg_cost=starting_avg_cost, qty=fill_qty, price=fill_px, fee=fill_commission
+        )
+        ending_qty = sell.ending_qty
         # A fully closed position resets its average cost; a partial sell keeps it.
         ending_avg_cost = 0.0 if ending_qty == 0 else starting_avg_cost
-        cash_delta = proceeds
-        realized_pnl_delta = (fill_px - starting_avg_cost) * fill_qty - fill_commission
+        cash_delta = sell.cash_delta
+        realized_pnl_delta = sell.realized_delta
 
     ending_cash = starting_cash + cash_delta
     ending_realized_pnl = starting_realized_pnl + realized_pnl_delta
