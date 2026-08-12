@@ -181,7 +181,6 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Task | Where |
 |---|---|
 | Back up the DB | `python -m scripts.data_ops.backup_db` |
-| Export DB table to CSV | `python -m scripts.data_ops.export_db_csv --table accounts` |
 | Inspect schema | `python -m scripts.data_ops.describe_db_schema` |
 | Launch the UI | `python -m scripts.launch_ui` |
 

@@ -112,7 +112,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | Module | Responsibility |
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
-| `csv_export.py` | Resolves the DB connection for the CSV export CLI (`open_db_connection`); row/CSV logic lives in `trading.services.table_export` |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
@@ -208,7 +207,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
 | `universe/resolver.py` | Trade-universe name resolution |
-| `table_export.py` | On-demand CSV generation from a live table cursor (`stream_table_csv`) |
 
 ---
 
@@ -235,7 +233,6 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
-| `table_export.py` | Generic table-cursor reads by table name for the operator CSV export (`fetch_table_cursor`) |
 
 ---
 

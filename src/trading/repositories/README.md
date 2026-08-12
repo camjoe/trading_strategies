@@ -16,9 +16,8 @@ several contexts, so filing them under one owner would misstate who owns them.
 Every module in this package **owns one area's SQL**. Nothing else does.
 
 Owning "one area" is not the same as owning one table: `promotion.py` and `risk.py` each own two,
-`books.py` also owns `book_universe_history`, and `table_export.py` is table-agnostic by design.
-Those are a different granularity, not a different kind of thing, and each says so in its module
-docstring.
+`books.py` also owns `book_universe_history`. That is a different granularity, not a different
+kind of thing, and each says so in its module docstring.
 
 Anything without SQL of its own belongs elsewhere. Mechanics every repository shares — transaction
 scope, column encoding — live in [`trading/persistence/`](../persistence/), which sits *below* this
@@ -107,7 +106,6 @@ These belong to no single context and stay at the root deliberately.
 | Module | Responsibility |
 |---|---|
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
-| `table_export.py` | Generic read-only table-cursor access by table name for the operator CSV export — not scoped to one business context by design |
 
 ## Usage
 

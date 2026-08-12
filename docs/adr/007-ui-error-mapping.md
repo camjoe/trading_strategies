@@ -106,11 +106,15 @@ Accepted and shipped as the first slice:
 
 **Conversion principle.** Only "a requested entity does not exist" (a lookup
 miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
-(`run_inputs` bad directory path, `csv_export` invalid table — 400
--class) and *internal post-write integrity* checks (`repositories/promotion`
-"not found after insert", `services/promotion/actions` "not found after request
+(`run_inputs` bad directory path — 400-class) and *internal post-write
+integrity* checks (`services/promotion/actions` "not found after request
 creation", `services/books/accounting` fill-processing invariants — 500-class,
 not user not-found).
+
+The original text cited two more examples that no longer exist: `csv_export`'s
+invalid-table rejection, removed with the CSV export, and
+`repositories/promotion`'s "not found after insert", removed when its writes
+moved to `RETURNING`. The principle is unchanged.
 
 ### Phase 2 — implemented
 
