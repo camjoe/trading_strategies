@@ -4,9 +4,11 @@ from types import SimpleNamespace
 
 from tests.support.repositories import insert_repository_account
 from trading.domain.rotation.schedule import dump_rotation_schedule
+from trading.models.books import RotationDecisionRecord
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import assign_book_strategy
 
@@ -42,6 +44,12 @@ def ensure_default_book_id(conn, account_id: int, *, now: str = _BOOTSTRAP_TIMES
     if cursor.rowcount == 0:
         raise ValueError(f"Account {account_id} does not exist; cannot create its default book.")
     return int(cursor.lastrowid)
+
+
+def latest_rotation_decision(conn, book_id: int) -> RotationDecisionRecord | None:
+    """The book's most recent rotation decision, or None when it has never rotated."""
+    found = RotationDecisionRepository(conn).fetch_for_book(book_id=book_id, limit=1)
+    return found[0] if found else None
 
 
 def insert_test_book(
@@ -196,6 +204,7 @@ def build_rotation_book_env(
 
 __all__ = [
     "ensure_default_book_id",
+    "latest_rotation_decision",
     "insert_test_book",
     "assign_test_book_strategy",
     "set_test_book_rotation_scheduling",

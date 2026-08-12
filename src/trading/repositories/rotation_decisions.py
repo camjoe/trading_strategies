@@ -95,13 +95,6 @@ class RotationDecisionRepository:
             raise ValueError("Expected rotation_decisions id after insert.")
         return int(cursor.lastrowid)
 
-    def fetch_latest_for_book(self, *, book_id: int) -> RotationDecisionRecord | None:
-        rows = self._conn.execute(
-            _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT 1",
-            (book_id,),
-        ).fetchall()
-        return RotationDecisionRecord.from_mapping(dict(rows[0])) if rows else None
-
     def fetch_for_book(self, *, book_id: int, limit: int) -> list[RotationDecisionRecord]:
         rows = self._conn.execute(
             _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
