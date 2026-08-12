@@ -266,6 +266,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
+| `accounting/validation.py` | Shared order-input validation (`normalize_order_input`, `validate_order_values`, `ensure_sufficient_cash_for_buy`) for both trade replay and book fills |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |

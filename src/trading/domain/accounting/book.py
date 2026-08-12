@@ -1,30 +1,9 @@
+"""Pure book-fill accounting — builds a ``BookFillTransition``, no I/O."""
+
 from __future__ import annotations
 
+from trading.domain.accounting.validation import normalize_order_input, validate_order_values
 from trading.models.books import BookFillTransition
-
-# Supported order directions for book fills.
-VALID_FILL_SIDES = {"buy", "sell"}
-
-
-def _normalize_book_order_input(side: str, symbol: str) -> tuple[str, str]:
-    normalized_side = side.lower().strip()
-    normalized_symbol = symbol.upper().strip()
-    if normalized_side not in VALID_FILL_SIDES:
-        raise ValueError("side must be one of: buy, sell")
-    if not normalized_symbol:
-        raise ValueError("symbol cannot be empty")
-    return normalized_side, normalized_symbol
-
-
-def _validate_fill_values(*, side: str, qty: float, fill_price: float, commission: float) -> None:
-    if qty <= 0:
-        raise ValueError("Fill quantity must be > 0.")
-    if side == "buy" and fill_price <= 0:
-        raise ValueError("Fill price must be > 0 for buys.")
-    if fill_price < 0:
-        raise ValueError("Fill price must be >= 0.")
-    if commission < 0:
-        raise ValueError("Commission must be >= 0.")
 
 
 def _compute_slippage_amount(
@@ -34,6 +13,11 @@ def _compute_slippage_amount(
     fill_price: float,
     requested_price: float | None,
 ) -> float:
+    """Fill cost versus the requested price, signed so positive is worse for the book.
+
+    A buy filled above request or a sell filled below it is positive slippage. No
+    requested price means slippage is not measurable, so return ``0.0``.
+    """
     if requested_price is None:
         return 0.0
     expected_notional = float(requested_price) * qty
@@ -56,7 +40,7 @@ def apply_book_fill_transition(
     cash: float,
     realized_pnl: float,
 ) -> BookFillTransition:
-    normalized_side, normalized_symbol = _normalize_book_order_input(side, symbol)
+    normalized_side, normalized_symbol = normalize_order_input(side, symbol, require_symbol=True)
     fill_qty = float(qty)
     fill_px = float(fill_price)
     fill_commission = float(commission)
@@ -65,11 +49,12 @@ def apply_book_fill_transition(
     starting_cash = float(cash)
     starting_realized_pnl = float(realized_pnl)
 
-    _validate_fill_values(
+    validate_order_values(
         side=normalized_side,
         qty=fill_qty,
-        fill_price=fill_px,
+        price=fill_px,
         commission=fill_commission,
+        noun="Fill",
     )
     if normalized_side == "sell" and fill_qty > starting_qty:
         raise ValueError(f"Invalid sell for {normalized_symbol}: trying to sell {fill_qty}, holding {starting_qty}.")
@@ -84,6 +69,7 @@ def apply_book_fill_transition(
     else:
         proceeds = fill_qty * fill_px - fill_commission
         ending_qty = starting_qty - fill_qty
+        # A fully closed position resets its average cost; a partial sell keeps it.
         ending_avg_cost = 0.0 if ending_qty == 0 else starting_avg_cost
         cash_delta = proceeds
         realized_pnl_delta = (fill_px - starting_avg_cost) * fill_qty - fill_commission
