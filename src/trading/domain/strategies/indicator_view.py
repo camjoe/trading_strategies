@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from common.constants import PERCENT_SCALE, TRADING_DAYS_PER_YEAR
-from trading.domain.indicators import calculate_rs_rsi
+from trading.domain.strategies.indicators import calculate_rs_rsi
 from trading.domain.strategies.contracts import (
     INDICATOR_KIND_RETURN_VOL,
     INDICATOR_KIND_ROLLING_MAX,

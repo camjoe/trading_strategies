@@ -84,7 +84,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from trading.domain.returns import total_return_pct
+from trading.domain.metrics.returns import total_return_pct
 from trading.models.execution import (
     BookTradeCandidate,
     RiskGateConfig,

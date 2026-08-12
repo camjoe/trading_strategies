@@ -11,7 +11,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import row_expect_int, row_float
-from trading.domain.portfolio_math import alpha_pct, benchmark_available
+from trading.domain.metrics.portfolio_math import alpha_pct, benchmark_available
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.repositories.books import BookRepository

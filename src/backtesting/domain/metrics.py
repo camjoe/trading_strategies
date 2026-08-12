@@ -8,9 +8,9 @@ import pandas as pd
 
 from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
-from trading.domain.accounting import apply_buy, apply_sell, normalize_trade_fields
-from trading.domain.returns import total_return_pct
-from trading.domain.risk_ratios import sharpe_ratio as shared_sharpe_ratio
+from trading.domain.accounting.account import apply_buy, apply_sell, normalize_trade_fields
+from trading.domain.metrics.returns import total_return_pct
+from trading.domain.metrics.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
@@ -107,7 +107,7 @@ def _annualized_return_pct(equity_curve: Sequence[float]) -> float | None:
 def sharpe_ratio(returns: pd.Series, *, risk_free_rate: float = 0.0) -> float | None:
     """The shared Sharpe over a pandas series — this is the boundary that converts.
 
-    ``trading.domain.risk_ratios`` owns the arithmetic and takes plain floats,
+    ``trading.domain.metrics.risk_ratios`` owns the arithmetic and takes plain floats,
     because the live runtime scores the same ratio without pandas.
     """
     return shared_sharpe_ratio([float(value) for value in returns], risk_free_rate=risk_free_rate)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.domain.daily_metrics import (
+from trading.domain.metrics.daily_metrics import (
     RISK_ADJUSTED_WINDOW_SESSIONS,
     DailyTrade,
     compute_daily_book_metrics,

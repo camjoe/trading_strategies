@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.domain.promotion_policy import assess_promotion_readiness
+from trading.domain.promotion.policy import assess_promotion_readiness
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import PromotionAssessment
 from trading.services.evaluation import fetch_strategy_evaluation

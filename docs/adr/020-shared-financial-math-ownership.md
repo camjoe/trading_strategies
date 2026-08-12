@@ -30,8 +30,8 @@ five instances:
    `trading/domain/daily_metrics.py::_trailing_risk_adjusted_score` in pure Python. The
    latter's docstring asserts it matches the former.
 3. **Total return, four ways.** `backtesting.domain.metrics.total_return_pct` (raises on zero),
-   `trading.domain.returns.safe_return_pct` (returns `None`),
-   `trading.domain.portfolio_math.strategy_return_pct` (raises `ValueError`), and an inline
+   `trading.domain.metrics.returns.safe_return_pct` (returns `None`),
+   `trading.domain.metrics.portfolio_math.strategy_return_pct` (raises `ValueError`), and an inline
    copy in `daily_metrics.py`.
 4. **`_normalize_trade_fields`, twice** — same name and signature in `accounting.py` and
    `metrics.py`, with different coercion policies (`row_float(...) or 0.0` versus a raising

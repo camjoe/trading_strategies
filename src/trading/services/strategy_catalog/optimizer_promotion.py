@@ -27,7 +27,7 @@ from backtesting.repositories.optimization import (
     set_promoted_strategy,
 )
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.domain.promotion_gate import evaluate_promotion_gate
+from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.models.strategy import StrategyRecord
 from trading.persistence.unit_of_work import unit_of_work
 from trading.services.strategy_catalog.mutations import create_strategy_variant, freeze_strategy

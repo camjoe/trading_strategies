@@ -12,7 +12,7 @@ from dataclasses import fields
 from typing import TYPE_CHECKING
 
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
-from trading.domain.promotion_policy import PromotionPolicySettings
+from trading.domain.promotion.policy import PromotionPolicySettings
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 

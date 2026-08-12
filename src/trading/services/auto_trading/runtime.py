@@ -11,7 +11,7 @@ from common.coercion import row_expect_int
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
-from trading.domain.market_hours import is_regular_us_equity_market_open
+from trading.domain.market.hours import is_regular_us_equity_market_open
 from trading.models import AccountRecord
 from trading.models.execution import (
     AccountRunResult,

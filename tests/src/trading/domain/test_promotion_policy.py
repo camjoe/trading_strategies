@@ -1,4 +1,4 @@
-from trading.domain.promotion_policy import PromotionPolicySettings, assess_promotion_readiness
+from trading.domain.promotion.policy import PromotionPolicySettings, assess_promotion_readiness
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,

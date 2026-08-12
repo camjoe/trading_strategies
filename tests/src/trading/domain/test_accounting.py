@@ -1,6 +1,6 @@
 import pytest
 
-from trading.domain.accounting import apply_buy, apply_sell, compute_account_state
+from trading.domain.accounting.account import apply_buy, apply_sell, compute_account_state
 
 
 class TestApplyBuy:

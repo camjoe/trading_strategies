@@ -259,29 +259,29 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `accounting.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
-| `bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
-| `daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
-| `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
+| `exceptions.py` | Domain-level exception types |
+| `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
+| `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
+| `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
+| `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
+| `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
 | `evaluation/risk_limits.py` | Risk limit policy rules and validation for evaluation workflows |
-| `exceptions.py` | Domain-level exception types |
-| `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
-| `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
-| `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
-| `promotion_gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
-| `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
-| `returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
-| `risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
-| `portfolio_math.py` | Pure portfolio valuation and return math shared by analysis, reporting, and the backtester (market value/unrealized, return %, alpha); holds both the lenient operator-facing pass and the strict pair, deliberately unmerged |
+| `market/hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
+| `market/bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
+| `metrics/returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
+| `metrics/risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
+| `metrics/portfolio_math.py` | Pure portfolio valuation and return math shared by analysis, reporting, and the backtester (market value/unrealized, return %, alpha); holds both the lenient operator-facing pass and the strict pair, deliberately unmerged |
+| `metrics/daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
+| `promotion/gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
+| `promotion/policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `rotation/schedule.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
-| `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
-| `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation/policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
 | `rotation/score_components.py` | Pure stability and drawdown-penalty derivations for rotation scoring |
+| `strategies/indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
 | `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
 | `strategies/indicator_view.py` | Precompute a strategy's declared indicators over one ticker's bars (`build_signal_inputs`) and read them one bar at a time (`IndicatorView`) |
 | `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |

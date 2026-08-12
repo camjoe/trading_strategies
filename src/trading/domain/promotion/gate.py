@@ -1,6 +1,6 @@
 """The quality bar an optimizer experiment must clear before it may be promoted.
 
-Distinct from :mod:`trading.domain.promotion_policy`, which asks whether a strategy
+Distinct from :mod:`trading.domain.promotion.policy`, which asks whether a strategy
 is ready to go live given an evaluation artifact. This asks the earlier question:
 did a parameter search actually find an edge, or did it find noise? Its inputs are
 an experiment's out-of-sample and holdout results, not a strategy's live evidence.

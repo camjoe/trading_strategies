@@ -22,10 +22,10 @@ from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from backtesting.services.run_inputs import resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
-from trading.domain.accounting import apply_buy, apply_sell
+from trading.domain.accounting.account import apply_buy, apply_sell
 from trading.domain.auto_trading_policy import allocate_buy_quantities, choose_buy_qty
-from trading.domain.portfolio_math import compute_market_value, compute_unrealized_pnl
-from trading.domain.returns import total_return_pct
+from trading.domain.metrics.portfolio_math import compute_market_value, compute_unrealized_pnl
+from trading.domain.metrics.returns import total_return_pct
 from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.indicator_view import (
     IndicatorView,

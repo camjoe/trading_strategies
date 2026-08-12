@@ -176,7 +176,7 @@ ACCOUNT_CONFIG_FIELD_NAMES = tuple(field.name for field in fields(AccountConfig)
 class AccountState:
     """Snapshot of a single account's ledger state after replaying its trade history.
 
-    Produced by :func:`trading.domain.accounting.compute_account_state`.
+    Produced by :func:`trading.domain.accounting.account.compute_account_state`.
 
     Attributes
     ----------

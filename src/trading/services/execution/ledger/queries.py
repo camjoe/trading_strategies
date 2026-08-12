@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER
-from trading.domain.accounting import compute_account_state
+from trading.domain.accounting.account import compute_account_state
 from trading.models import AccountState
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository

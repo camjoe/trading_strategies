@@ -3,7 +3,7 @@ comparisons against the strategy's own default."""
 
 from __future__ import annotations
 
-from trading.domain.promotion_gate import evaluate_promotion_gate
+from trading.domain.promotion.gate import evaluate_promotion_gate
 
 
 def _gate(

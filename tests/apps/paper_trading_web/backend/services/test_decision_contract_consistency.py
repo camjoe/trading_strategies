@@ -8,7 +8,7 @@ import pytest
 from paper_trading_web.backend.services.evaluation import build_evaluation_summary_payload
 
 from trading.domain.evaluation.decision_score import derive_decision_score
-from trading.domain.promotion_policy import assess_promotion_readiness
+from trading.domain.promotion.policy import assess_promotion_readiness
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,

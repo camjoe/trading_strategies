@@ -1,4 +1,4 @@
-"""Tests for trading.domain.bars — the per-frame bar gap-filling contract.
+"""Tests for trading.domain.market.bars — the per-frame bar gap-filling contract.
 
 Both the simulation engine and the live runtime read frames through this rule.
 A change here changes what a strategy sees in *both*, which is the point: the
@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.domain.bars import normalize_bar_frame
+from trading.domain.market.bars import normalize_bar_frame
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 
