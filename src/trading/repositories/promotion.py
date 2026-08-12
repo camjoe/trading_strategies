@@ -22,21 +22,6 @@ class PromotionReviewRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _require_review(self, *, review_id: int, context: str) -> PromotionReviewRecord:
-        review = self.fetch_by_id(review_id=review_id)
-        if review is None:
-            raise ValueError(f"Promotion review {review_id} not found after {context}.")
-        return review
-
-    def _require_event(self, *, event_id: int) -> PromotionReviewEvent:
-        row = self._conn.execute(
-            "SELECT * FROM promotion_review_events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
-        if row is None:
-            raise ValueError(f"Promotion review event {event_id} not found after insert.")
-        return PromotionReviewEvent.from_mapping(dict(row))
-
     def insert_review(
         self,
         *,
@@ -80,6 +65,7 @@ class PromotionReviewRepository:
                 updated_at,
                 closed_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING *
             """,
             (
                 evaluation.basic.account_id,
@@ -104,10 +90,7 @@ class PromotionReviewRepository:
                 None,
             ),
         )
-        review_id = cursor.lastrowid
-        if not isinstance(review_id, int):
-            raise ValueError("Expected integer promotion review id after insert.")
-        return self._require_review(review_id=review_id, context="insert")
+        return PromotionReviewRecord.from_mapping(dict(cursor.fetchone()))
 
     def fetch_by_id(self, *, review_id: int) -> PromotionReviewRecord | None:
         row = self._conn.execute(
@@ -166,12 +149,11 @@ class PromotionReviewRepository:
         event_payload: dict[str, object],
         created_at: str,
     ) -> PromotionReviewEvent:
+        # An aggregate without GROUP BY always yields exactly one row.
         next_seq_row = self._conn.execute(
             "SELECT COALESCE(MAX(event_seq), 0) + 1 AS next_seq FROM promotion_review_events WHERE review_id = ?",
             (review_id,),
         ).fetchone()
-        if next_seq_row is None:
-            raise ValueError(f"Unable to compute next event sequence for review {review_id}.")
         event_seq = int(next_seq_row["next_seq"])
         cursor = self._conn.execute(
             """
@@ -187,6 +169,7 @@ class PromotionReviewRepository:
                 event_payload,
                 created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING *
             """,
             (
                 review_id,
@@ -201,10 +184,7 @@ class PromotionReviewRepository:
                 created_at,
             ),
         )
-        event_id = cursor.lastrowid
-        if not isinstance(event_id, int):
-            raise ValueError("Expected integer promotion review event id after insert.")
-        return self._require_event(event_id=event_id)
+        return PromotionReviewEvent.from_mapping(dict(cursor.fetchone()))
 
     def fetch_events(self, *, review_id: int) -> list[PromotionReviewEvent]:
         rows = self._conn.execute(
@@ -234,6 +214,7 @@ class PromotionReviewRepository:
             UPDATE promotion_reviews
             SET review_state = ?, reviewed_by = ?, operator_summary_note = ?, updated_at = ?, closed_at = ?
             WHERE id = ? AND review_state = ?
+            RETURNING *
             """,
             (
                 review_state,
@@ -245,6 +226,7 @@ class PromotionReviewRepository:
                 expected_review_state,
             ),
         )
-        if cursor.rowcount == 0:
+        updated = cursor.fetchone()
+        if updated is None:
             raise ValueError(f"Promotion review {review_id} was already closed.")
-        return self._require_review(review_id=review_id, context="update")
+        return PromotionReviewRecord.from_mapping(dict(updated))
