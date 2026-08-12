@@ -136,7 +136,7 @@ def test_main_returns_1_when_book_lookup_raises(monkeypatch, tmp_path: Path) -> 
 
 
 def test_weekly_allocation_review_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: [])
     monkeypatch.setattr(sys, "argv", ["w3_allocation_review", "--repo-root", str(tmp_path)])
 
     with pytest.raises(SystemExit) as excinfo:

@@ -29,10 +29,10 @@ stack to reach them is a bounded context and sits beside `trading/`, not inside 
    `optimization_experiments`, `optimization_windows`, `optimization_trials`,
    `optimization_run_manifests`); every other package under `src/trading/` shares
    `trading/repositories/`. That is why it is the only one, and the criterion a future candidate
-   has to meet. One exemption, and it is not a counterexample: `trading/repositories/fixture_seed.py`
-   writes the three `backtest_*` tables when generating a demo or sandbox database, because a
-   fixture needs research records that no operator flow produces. Nothing on the runtime path
-   writes them but `backtesting/repositories/`. Its seam with `trading/` is enforced in both directions
+   has to meet. Nothing outside `backtesting/` writes those tables — the fixture seeder used to,
+   with hand-written SQL that the import-based rule could not see, and now crosses at
+   `backtesting.services.fixture_seed` like every other reader.
+   Its seam with `trading/` is enforced in both directions
    by `layer_check` — reads cross at services, and shared lower layers (`trading.domain`,
    `trading.models`, `trading.persistence`) are layering rather than crossing. Where a
    *calculation* both contexts need belongs is settled by
@@ -86,6 +86,11 @@ packages** inside `src/trading/services/`, see [Service Ownership Map](service-o
 
 Layer direction, broker SDK, external-data SDK, market-data adapter, and retired runtime
 package-name boundaries are enforced by `python -m scripts.checks.repo.layer_check`.
+
+`trading/services/fixtures/` is an operator tool, not application code: it generates demo and
+sandbox databases full of synthetic records. `layer_check` forbids importing it from anywhere
+under `src/`, so no runtime behaviour can come to depend on generated data. Reach it from a
+`scripts/` entry point or a test.
 
 ### Detail the one-line rules do not carry
 

@@ -16,9 +16,8 @@ several contexts, so filing them under one owner would misstate who owns them.
 Every module in this package **owns one area's SQL**. Nothing else does.
 
 Owning "one area" is not the same as owning one table: `promotion.py` and `risk.py` each own two,
-`book_bridge.py` resolves across two, `fixture_seed.py` writes nine, and `table_export.py` is
-table-agnostic by design. Those are a different granularity, not a different kind of thing, and each
-says so in its module docstring.
+`books.py` also owns `book_universe_history`. That is a different granularity, not a different
+kind of thing, and each says so in its module docstring.
 
 Anything without SQL of its own belongs elsewhere. Mechanics every repository shares — transaction
 scope, column encoding — live in [`trading/persistence/`](../persistence/), which sits *below* this
@@ -35,21 +34,22 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
   calls `conn.commit()` directly. A hard commit inside a scope would end the transaction early and
   silently defeat the rollback guarantee — see
   [Database Transactions](../../../docs/reference/database-transactions.md).
-- **`book_bridge.py` and `promotion.py` deliberately do not commit at all** — they leave the commit
-  to their caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
-  oversight; don't "fix" them by adding a commit without checking callers. (`book_assignments.py`
-  opens its own scope internally, so it commits when called standalone and joins an outer scope
-  otherwise.)
+- **`promotion.py` deliberately does not commit at all** — it leaves the commit
+  to its caller's `unit_of_work` scope. That is a deliberate caller-owned boundary, not an
+  oversight; don't "fix" it by adding a commit without checking callers.
+  (`book_strategy_history.py` opens its own scope internally, so it commits when called standalone
+  and joins an outer scope otherwise.)
 - **Reads need no ceremony.** Only write methods commit, so query methods participate in any
   enclosing scope for free.
 - **A row becomes a record at the query**, written out as `Record.from_mapping(dict(row))` — the
   same spelling `backtesting/repositories/` uses. Coercion belongs in the model's `from_mapping`,
-  not in a private per-class mapper; `promotion.py` maps its event rows by hand only because their
-  enum fields have no `from_mapping` yet.
+  never in a private per-class mapper. Every record and event model has one, enum and JSON columns
+  included; `common.coercion` carries the readers a model is allowed to reach for, because
+  `trading/models/` sits below `trading/persistence/` and cannot import it.
 - **Writes take their timestamp from the caller.** `updated_at`/`created_at` are parameters, never
   `utc_now_iso()` called inside a repository: several callers pass an event time (a fill, a ledger
   entry) that is deliberately not the wall clock.
-- **`books.py`, `book_bridge.py`, `snapshots.py`, and `positions.py` carry the widest import
+- **`books.py`, `snapshots.py`, and `positions.py` carry the widest import
   fan-out** in the package. Changes to their signatures ripple broadly — prefer additive changes.
 
 ## Modules
@@ -59,7 +59,7 @@ rows is `domain/`; connection, schema, backend, and path concerns are `infrastru
 | Module | Responsibility |
 |---|---|
 | `books.py` | Strategy books: bounded capital pools that own cash, positions, and settings |
-| `book_assignments.py` | Book↔strategy assignment and lifecycle records |
+| `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `rotation_decisions.py` | Champion/challenger rotation decision records |
 
@@ -88,8 +88,7 @@ and reporting services alike.
 
 | Module | Responsibility |
 |---|---|
-| `strategies.py` | Strategy catalog rows: primitive + knobs, draft/frozen lifecycle |
-| `feature_providers.py` | Feature-provider enablement and config records |
+| `strategies.py` | Strategy catalog rows: primitive + knobs, draft/frozen lifecycle, label → row id resolution |
 
 ### Promotion
 
@@ -107,9 +106,6 @@ These belong to no single context and stay at the root deliberately.
 | Module | Responsibility |
 |---|---|
 | `global_settings.py` | Single-row global settings (throttles, evaluation, promotion thresholds) |
-| `fixture_seed.py` | Fixture-only writes with no production writer to route through (backtest/promotion records, non-default book bootstrap) |
-| `book_bridge.py` | **Transitional.** Bridges legacy account/label access into the book-keyed tables (account → default book, strategy label → catalog row). Retires only once callers are book-native end to end — treat it as a seam, not a permanent home. |
-| `table_export.py` | Generic read-only table-cursor access by table name for the operator CSV export — not scoped to one business context by design |
 
 ## Usage
 

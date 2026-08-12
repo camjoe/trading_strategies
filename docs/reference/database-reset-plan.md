@@ -129,7 +129,7 @@ seeder's coverage. `seed_demo_database` populates `accounts`, `books`, `strategi
 `equity_snapshots`, `daily_metrics`, `promotion_reviews`, `backtest_runs`,
 `backtest_equity_snapshots`, and `backtest_executions`.
 
-It leaves empty: `ledger`, `global_settings`, `feature_providers`, `book_rotation_settings`,
+It leaves empty: `ledger`, `global_settings`, `book_rotation_settings`,
 `risk_snapshots`, `risk_decisions`, `rotation_decisions`, `promotion_review_events`, all four
 `optimization_*` tables, and both `*_change_events` tables. Those gaps are the work list for the
 `sandbox` profile.
@@ -230,7 +230,7 @@ code that builds the sandbox re-establishes dev configuration after the reset. T
 | `books` | 8 | Execution/risk/option settings columns, required `trade_symbols` | Reseed |
 | `strategies` | 11 | Strategy catalog: code primitive + tuned `params_json`, draft/frozen/retired | Reseed + export `params_json` |
 | `book_rotation_settings` | 8 | Sparse per-book rotation scheduling and champion/challenger overrides | Reseed |
-| `feature_providers` | 0 | Enabled external feature providers | Reseed |
+| `feature_providers` | 0 | Unused since 2026-08-10; drop it in the squash | Do not reseed |
 | `global_settings` | 0 | Singleton row of runtime/evaluation/promotion overrides | Reseed |
 
 `strategies` is the one that most resembles "losing our strategies", and it is the one table that

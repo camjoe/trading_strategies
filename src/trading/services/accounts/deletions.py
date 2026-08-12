@@ -15,7 +15,7 @@ def preview_account_deletion(
     """Describe the cascade impact before one account is deleted."""
     normalized_name = normalize_account_name(account_name)
     repo = AccountRepository(conn)
-    account = repo.fetch_by_name(normalized_name)
+    account = repo.fetch_by_name(account_name=normalized_name)
     if account is None:
         raise NotFoundError(f"Account '{normalized_name}' not found.")
     # accounts.strategy was dropped in revision 0008; the preview shows the
@@ -32,7 +32,7 @@ def preview_account_deletion(
 def delete_account(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
     """Delete one account and rely on database cascades for its owned rows."""
     normalized_name = normalize_account_name(account_name)
-    deleted = AccountRepository(conn).delete_by_name(normalized_name)
+    deleted = AccountRepository(conn).delete_by_name(account_name=normalized_name)
     if deleted is None:
         raise NotFoundError(f"Account '{normalized_name}' not found.")
     return deleted

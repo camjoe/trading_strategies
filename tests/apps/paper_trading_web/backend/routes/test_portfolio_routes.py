@@ -6,7 +6,7 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -36,8 +36,8 @@ def test_returns_exposure_and_concentration_payload(
     seed_account("alpha")
     seed_account("beta")
     alpha_id = _account_id(api_conn, "alpha")
-    EquitySnapshotRepository(api_conn).insert(
-        account_id=alpha_id,
+    EquitySnapshotRepository(api_conn).insert_for_book(
+        book_id=ensure_default_book_id(api_conn, alpha_id),
         snapshot_time="2026-07-09T00:00:00Z",
         cash=4_000.0,
         market_value=1_000.0,
@@ -46,7 +46,7 @@ def test_returns_exposure_and_concentration_payload(
         unrealized_pnl=0.0,
     )
     PositionRepository(api_conn).upsert(
-        book_id=default_book_id(api_conn, alpha_id),
+        book_id=ensure_default_book_id(api_conn, alpha_id),
         symbol="AAPL",
         qty=5.0,
         avg_cost=180.0,

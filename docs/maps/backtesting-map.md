@@ -56,6 +56,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 |---|---|
 | `simulation.py` | Run one backtest: price the universe, evaluate signals, simulate fills, persist the run. Also previews a run's warnings off the same resolved scope |
 | `run_inputs.py` | Read a run's inputs from outside: its universe (`RunUniverse`) from ticker files, its bars and benchmark closes from the provider |
+| `fixture_seed.py` | Seed one synthetic backtest run for a generated fixture database |
 | `walk_forward_optimizer.py` | Drive a walk-forward parameter search (grid → freeze-on-train → OOS → holdout). Writes nothing — it returns an `OptimizationSummary` |
 | `optimization_experiment.py` | Run that search and persist what it found: the experiment row, its per-window/per-candidate audit tree, and the frozen manifest. A failed sweep still gets a row |
 | `optimizer_aggregation.py` | Read-side aggregation over a persisted experiment (OOS segments, compounded series). Internal to this package — the two seams read it, nothing outside does |

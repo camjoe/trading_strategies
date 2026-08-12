@@ -14,7 +14,7 @@ from datetime import date
 from backtesting.models import BACKTEST_PURPOSE_STANDALONE, BacktestConfig
 from common.time import utc_now_iso
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 _RUN_COLUMNS = """
     r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
@@ -34,12 +34,14 @@ def insert_run(
     warnings: list[str],
     benchmark_ticker: str,
     benchmark_return_pct: float | None,
+    created_at: str | None = None,
+    notes: str = "First working backtest version: deterministic daily-bar simulator.",
 ) -> int:
     # The backtested strategy is a strategies FK. The caller
     # passes the canonical strategy key (resolved via resolve_strategy in the
     # service); the catalog row is seeded, so this is a lookup, not a create.
-    created_at = utc_now_iso()
-    strategy_id = strategy_id_for_label(conn, strategy_name, now_iso=created_at)
+    created_at = created_at or utc_now_iso()
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=strategy_name, now_iso=created_at)
     cursor = conn.execute(
         """
         INSERT INTO backtest_runs (
@@ -71,7 +73,7 @@ def insert_run(
             float(cfg.slippage_bps),
             float(cfg.fee_per_trade),
             cfg.tickers_file,
-            "First working backtest version: deterministic daily-bar simulator.",
+            notes,
             " | ".join(warnings),
             benchmark_ticker,
             benchmark_return_pct,

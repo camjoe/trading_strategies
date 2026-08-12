@@ -23,7 +23,7 @@ from backtesting.repositories.optimization import (
     set_promoted_strategy,
 )
 from tests.support.repositories import insert_repository_account
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 
 def _payload(account_id: int, **overrides) -> OptimizationExperimentInsert:
@@ -76,7 +76,7 @@ def test_fetch_missing_returns_none(conn) -> None:
 def test_set_promoted_strategy_records_the_link(conn) -> None:
     account_id = insert_repository_account(conn, name="opt_promote")
     experiment_id = insert_experiment(conn, _payload(account_id), created_at="2026-07-24T00:00:00Z")
-    strategy_id = strategy_id_for_label(conn, "trend", now_iso="2026-07-24T00:00:00Z")
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso="2026-07-24T00:00:00Z")
 
     set_promoted_strategy(conn, experiment_id=experiment_id, strategy_id=strategy_id)
 

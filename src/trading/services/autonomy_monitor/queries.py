@@ -165,7 +165,7 @@ def fetch_autonomy_account_detail(
 
     Raises NotFoundError if account not found.
     """
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
 

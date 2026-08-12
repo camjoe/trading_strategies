@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.books import insert_test_book
+from tests.support.books import insert_test_book, latest_rotation_decision
 from tests.support.repositories import insert_repository_account
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 
@@ -89,7 +89,7 @@ class TestFetchLatest:
     def test_returns_none_when_no_decisions(self, conn) -> None:
         acct_id = _account_id(conn)
         bk_id = _book_id(conn, acct_id)
-        assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_id) is None
+        assert latest_rotation_decision(conn, bk_id) is None
 
     def test_returns_most_recent_by_decision_time(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -97,7 +97,7 @@ class TestFetchLatest:
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T09:00:00Z", decision_reason="first")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T11:00:00Z", decision_reason="latest")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z", decision_reason="middle")
-        row = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_id)
+        row = latest_rotation_decision(conn, bk_id)
         assert row is not None
         assert row.decision_reason == "latest"
 
@@ -106,7 +106,7 @@ class TestFetchLatest:
         slv_a = _book_id(conn, acct_id)
         bk_b = insert_test_book(conn, account_id=acct_id, name="book_b")
         _insert(conn, book_id=slv_a, decision_time="2026-01-01T10:00:00Z", decision_reason="for_a")
-        assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_b) is None
+        assert latest_rotation_decision(conn, bk_b) is None
 
 
 class TestFetchForBook:
@@ -195,10 +195,10 @@ class TestFetchLatestRotateAction:
 
 
 def test_fetch_selected_strategy_timeline_orders_incumbent_and_selected(conn) -> None:
-    from trading.repositories.book_bridge import default_book_id
+    from tests.support.books import ensure_default_book_id
 
     account_id = _account_id(conn, "rot_dec_timeline")
-    book_id = default_book_id(conn, account_id)
+    book_id = ensure_default_book_id(conn, account_id)
     repo = RotationDecisionRepository(conn)
 
     def _book_decision(*, at: str, incumbent: str, selected: str) -> None:

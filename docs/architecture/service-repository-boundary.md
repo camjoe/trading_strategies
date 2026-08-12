@@ -130,7 +130,7 @@ For `accounts`:
 
 - repository remains responsible for:
   - `fetch_by_name`
-  - `fetch`
+  - `fetch_by_id`
   - `fetch_all`
   - `update`
 - service should expose:

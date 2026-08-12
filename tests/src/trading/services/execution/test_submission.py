@@ -395,6 +395,33 @@ def test_sell_reduces_position_and_credits_ledger(conn, book_env):
     assert result.filled_count == 1
 
 
+def test_selling_the_whole_position_removes_its_row(conn, book_env):
+    """A closed position must leave no row: exposure and mark-to-market read every row."""
+    account_id, book_id = book_env
+    PositionRepository(conn).upsert(
+        book_id=book_id,
+        symbol="AAPL",
+        qty=10.0,
+        avg_cost=100.0,
+        market_value=1000.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-07-05T09:00:00Z",
+    )
+
+    submit_book_intents(
+        conn,
+        book_id=book_id,
+        account_id=account_id,
+        intents=[_intent(book_id, account_id, side="sell", qty=10.0, price=110.0)],
+        broker=FakeBroker(status=OrderStatus.FILLED, avg_fill_price=110.0),
+        gate=AllowAllGate(),
+        fee=0.0,
+    )
+
+    assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is None
+    assert PositionRepository(conn).fetch_for_book(book_id=book_id) == []
+
+
 # --- 2c-1: book balance maintenance -----------------------------------------
 
 # book_env seeds the default book with 10_000 cash / 10_000 equity.

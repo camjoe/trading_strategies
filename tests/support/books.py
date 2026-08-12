@@ -4,13 +4,52 @@ from types import SimpleNamespace
 
 from tests.support.repositories import insert_repository_account
 from trading.domain.rotation.schedule import dump_rotation_schedule
+from trading.models.books import RotationDecisionRecord
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import assign_book_strategy
 
 DEFAULT_BOOK_TIMESTAMP = "2026-05-03T00:00:00Z"
+_BOOTSTRAP_TIMESTAMP = "2026-01-01T00:00:00Z"
+
+
+def ensure_default_book_id(conn, account_id: int, *, now: str = _BOOTSTRAP_TIMESTAMP) -> int:
+    """Return the account's default book id, creating one funded from the account when missing.
+
+    Production creates the default book in ``create_account``; this covers
+    fixtures that raw-insert an account row instead. Balances come from
+    ``accounts.initial_cash``, so replayed trade history has cash to spend.
+    """
+    row = conn.execute(
+        "SELECT id FROM books WHERE account_id = ? AND is_default = 1",
+        (int(account_id),),
+    ).fetchone()
+    if row is not None:
+        return int(row[0])
+    cursor = conn.execute(
+        """
+        INSERT INTO books (
+            account_id, name, status, is_default, start_equity, current_cash, current_equity,
+            trade_symbols, created_at, updated_at
+        )
+        SELECT id, 'default', 'active', 1, initial_cash, initial_cash, initial_cash,
+               '["AAPL","MSFT"]', ?, ?
+        FROM accounts WHERE id = ?
+        """,
+        (now, now, int(account_id)),
+    )
+    if cursor.rowcount == 0:
+        raise ValueError(f"Account {account_id} does not exist; cannot create its default book.")
+    return int(cursor.lastrowid)
+
+
+def latest_rotation_decision(conn, book_id: int) -> RotationDecisionRecord | None:
+    """The book's most recent rotation decision, or None when it has never rotated."""
+    found = RotationDecisionRepository(conn).fetch_for_book(book_id=book_id, limit=1)
+    return found[0] if found else None
 
 
 def insert_test_book(
@@ -91,8 +130,8 @@ def build_book_env(
     """
     account_id = insert_repository_account(conn, name=account_name)
     book_id = insert_test_book(conn, account_id=account_id, start_equity=start_equity)
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=book_id,
         snapshot_time=snapshot_time,
         cash=start_equity,
         market_value=0.0,
@@ -136,7 +175,6 @@ def build_rotation_book_env(
     # Two metric rows for rotation scoring
     for metric_date, created_at in [("2026-05-03", "2026-05-03T23:59:00Z"), ("2026-05-04", "2026-05-04T23:59:00Z")]:
         DailyMetricsRepository(conn).upsert(
-            account_id=account_id,
             book_id=book_id,
             metric_date=metric_date,
             return_pct=0.5,
@@ -152,8 +190,8 @@ def build_rotation_book_env(
             updated_at=created_at,
         )
 
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=book_id,
         snapshot_time=snapshot_time,
         cash=start_equity,
         market_value=0.0,
@@ -165,6 +203,8 @@ def build_rotation_book_env(
 
 
 __all__ = [
+    "ensure_default_book_id",
+    "latest_rotation_decision",
     "insert_test_book",
     "assign_test_book_strategy",
     "set_test_book_rotation_scheduling",

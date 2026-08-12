@@ -28,12 +28,26 @@ def _insert(conn, name: str) -> None:
 class TestFetchAccountByName:
     def test_returns_row_for_existing_account(self, conn) -> None:
         _insert(conn, "acct_a")
-        row = AccountRepository(conn).fetch_by_name("acct_a")
+        row = AccountRepository(conn).fetch_by_name(account_name="acct_a")
         assert row is not None
         assert row["name"] == "acct_a"
 
     def test_returns_none_for_missing_account(self, conn) -> None:
-        assert AccountRepository(conn).fetch_by_name("ghost") is None
+        assert AccountRepository(conn).fetch_by_name(account_name="ghost") is None
+
+
+class TestFetchAccountById:
+    def test_returns_row_for_existing_account(self, conn) -> None:
+        _insert(conn, "acct_a")
+        repo = AccountRepository(conn)
+        existing = repo.fetch_by_name(account_name="acct_a")
+        assert existing is not None
+        row = repo.fetch_by_id(account_id=existing.id)
+        assert row is not None
+        assert row["name"] == "acct_a"
+
+    def test_returns_none_for_missing_account(self, conn) -> None:
+        assert AccountRepository(conn).fetch_by_id(account_id=999999) is None
 
 
 class TestInsertAccount:
@@ -47,7 +61,7 @@ class TestInsertAccount:
                 descriptive_name="Full Account",
             ),
         )
-        row = AccountRepository(conn).fetch_by_name("full_acct")
+        row = AccountRepository(conn).fetch_by_name(account_name="full_acct")
         assert row is not None
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
@@ -58,9 +72,9 @@ class TestUpdateAccountBenchmark:
     def test_updates_benchmark_ticker(self, conn) -> None:
         _insert(conn, "bench_acct")
         repo = AccountRepository(conn)
-        row = repo.fetch_by_name("bench_acct")
+        row = repo.fetch_by_name(account_name="bench_acct")
         repo.update(account_id=row["id"], values={"benchmark_ticker": "QQQ"}, updated_at="2026-02-01T00:00:00")
-        updated = repo.fetch_by_name("bench_acct")
+        updated = repo.fetch_by_name(account_name="bench_acct")
         assert updated["benchmark_ticker"] == "QQQ"
         stamped = conn.execute("SELECT updated_at FROM accounts WHERE id = ?", (row["id"],)).fetchone()
         assert stamped["updated_at"] == "2026-02-01T00:00:00"
@@ -89,13 +103,13 @@ class TestUpdateAccountFields:
     def test_updates_single_field(self, conn) -> None:
         _insert(conn, "upd_acct")
         repo = AccountRepository(conn)
-        row = repo.fetch_by_name("upd_acct")
+        row = repo.fetch_by_name(account_name="upd_acct")
         repo.update(
             account_id=row["id"],
             values={"descriptive_name": "Renamed"},
             updated_at="2026-02-01T00:00:00",
         )
-        updated = repo.fetch_by_name("upd_acct")
+        updated = repo.fetch_by_name(account_name="upd_acct")
         assert updated["descriptive_name"] == "Renamed"
         stamped = conn.execute("SELECT updated_at FROM accounts WHERE id = ?", (row["id"],)).fetchone()
         assert stamped["updated_at"] == "2026-02-01T00:00:00"
@@ -103,26 +117,15 @@ class TestUpdateAccountFields:
     def test_updates_multiple_fields(self, conn) -> None:
         _insert(conn, "multi_upd")
         repo = AccountRepository(conn)
-        row = repo.fetch_by_name("multi_upd")
+        row = repo.fetch_by_name(account_name="multi_upd")
         repo.update(
             account_id=row["id"],
             values={"descriptive_name": "Multi", "benchmark_ticker": "QQQ"},
             updated_at="2026-02-01T00:00:00",
         )
-        updated = repo.fetch_by_name("multi_upd")
+        updated = repo.fetch_by_name(account_name="multi_upd")
         assert updated["descriptive_name"] == "Multi"
         assert updated["benchmark_ticker"] == "QQQ"
-
-
-class TestFetchAllAccountNames:
-    def test_returns_sorted_names(self, conn) -> None:
-        _insert(conn, "zulu")
-        _insert(conn, "alpha")
-        _insert(conn, "mike")
-        assert AccountRepository(conn).fetch_names() == ["alpha", "mike", "zulu"]
-
-    def test_empty_table_returns_empty(self, conn) -> None:
-        assert AccountRepository(conn).fetch_names() == []
 
 
 def _account_id(conn, name: str = "count_acct") -> int:
@@ -165,7 +168,7 @@ class TestDeleteByName:
         run_id = _insert_backtest_run(conn, account_id=acct_id)
 
         repo = AccountRepository(conn)
-        deleted = repo.delete_by_name("count_acct")
+        deleted = repo.delete_by_name(account_name="count_acct")
 
         assert deleted is not None
         assert deleted.name == "count_acct"
@@ -176,9 +179,9 @@ class TestDeleteByName:
     def test_does_not_remove_other_accounts(self, conn) -> None:
         _account_id(conn, "del_a")
         acct_b = _account_id(conn, "del_b")
-        AccountRepository(conn).delete_by_name("del_a")
+        AccountRepository(conn).delete_by_name(account_name="del_a")
         row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_b,)).fetchone()
         assert row is not None
 
     def test_returns_none_for_missing_account(self, conn) -> None:
-        assert AccountRepository(conn).delete_by_name("missing") is None
+        assert AccountRepository(conn).delete_by_name(account_name="missing") is None

@@ -81,14 +81,9 @@ Backup and export:
 ```sh
 python -m trading.interfaces.runtime.data_ops.admin backup-db
 python -m scripts.data_ops.backup_db
-python -m scripts.data_ops.export_db_csv --table accounts
 ```
 
-`export_db_csv` generates CSV on demand from the live database (one table per
-invocation); pass `--out <path>` to save it, or omit `--out` to print to stdout.
-Nothing is written to disk unless `--out` is given.
-
-Canonical admin/export modules live in `src/trading/interfaces/runtime/data_ops/`.
+Canonical admin modules live in `src/trading/interfaces/runtime/data_ops/`.
 The `scripts.data_ops.*` commands are convenience wrappers around those
 canonical runtime data-op modules and should not be treated as the ownership
 source.

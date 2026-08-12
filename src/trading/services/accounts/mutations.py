@@ -3,11 +3,11 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import expect_float, expect_int
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
@@ -51,7 +51,7 @@ def _apply_book_settings_to_default_book(
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update_settings(
+    BookRepository(conn).update(
         book_id=book.id,
         values={column: value for column, value in values.items() if value is not None},
         updated_at=utc_now_iso(),
@@ -111,6 +111,12 @@ def _create_account(
         cfg.iv_rank_max,
     )
 
+    # Resolve before any write: an unresolvable universe name fails here rather
+    # than after the account row exists.
+    symbols = (
+        resolve_trade_symbols(cfg.trade_universes) if cfg.trade_universes is not None else default_trade_symbols()
+    )
+
     created_ts = utc_now_iso()
     try:
         AccountRepository(conn).insert(
@@ -126,9 +132,20 @@ def _create_account(
     except sqlite3.IntegrityError as exc:
         raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
 
-    # Bootstrap the default book and open its assignment so the new account
-    # trades from day one (books are the execution primitive; ADR 010/014).
+    # Create the default book and open its assignment so the new account trades
+    # from day one (books are the execution primitive; ADR 010/014).
     account = get_account(conn, name)
+    BookRepository(conn).insert(
+        account_id=account.id,
+        name="default",
+        is_default=1,
+        start_equity=float(initial_cash),
+        current_cash=float(initial_cash),
+        current_equity=float(initial_cash),
+        trade_symbols=_serialize_trade_symbols(symbols),
+        created_at=created_ts,
+        updated_at=created_ts,
+    )
     sync_default_book_assignment(
         conn,
         account_id=account.id,
@@ -136,8 +153,7 @@ def _create_account(
         now_iso=utc_now_iso(),
     )
     # Execution/option settings are book columns (revisions 0004/0005): apply
-    # the validated create-time values to the default book the bootstrap just
-    # ensured.
+    # the validated create-time values to the book just created.
     _apply_book_settings_to_default_book(
         conn,
         account_id=account.id,
@@ -167,13 +183,6 @@ def _create_account(
             "goal_period": normalize_lower(cfg.goal_period or "monthly"),
         },
     )
-    # Always land a resolved symbol list: the bootstrap leaves the book empty
-    # (it cannot resolve a universe name), so a new account with no universes
-    # named would otherwise trade nothing.
-    if cfg.trade_universes is not None:
-        _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
-    else:
-        _apply_trade_symbols_to_default_book(conn, account_id=account.id, symbols=default_trade_symbols())
 
 
 def create_account(

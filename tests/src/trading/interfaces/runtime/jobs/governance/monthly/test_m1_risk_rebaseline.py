@@ -143,7 +143,7 @@ def test_main_returns_1_when_snapshot_lookup_raises(monkeypatch, tmp_path: Path)
 def test_monthly_risk_rebaseline_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
     import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: [])
     monkeypatch.setattr(sys, "argv", ["m1_risk_rebaseline", "--repo-root", str(tmp_path)])
 
     with pytest.raises(SystemExit) as excinfo:

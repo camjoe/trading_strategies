@@ -6,7 +6,7 @@ from trading.models.books import BookStrategyAssignmentRecord
 from trading.persistence.unit_of_work import unit_of_work
 
 
-class BookAssignmentRepository:
+class BookStrategyHistoryRepository:
     """SQL access for book_strategy_history.
 
     The book's *incumbent* is by definition its open assignment — the row with

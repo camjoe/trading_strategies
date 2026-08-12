@@ -18,11 +18,11 @@ import pandas as pd
 
 from common.time import utc_now_iso
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.strategies import StrategyRepository
 
 
 def ensure_strategy_id_for_label(conn: sqlite3.Connection, label: str, *, now_iso: str | None = None) -> int:
-    strategy_id = strategy_id_for_label(conn, label, now_iso=now_iso or utc_now_iso())
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=label, now_iso=now_iso or utc_now_iso())
     assert strategy_id is not None  # non-empty label always resolves or draft-creates
     return strategy_id
 

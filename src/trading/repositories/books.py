@@ -39,8 +39,8 @@ class BookRepository:
         Execution, risk, goal, and option settings are not arguments here. They
         are columns on `books` (revisions 0004/0005) that every one of them
         either defaults or nulls at creation, and callers apply them afterwards
-        through `update_settings`. The two other insert paths — `book_bridge`'s
-        default-book bootstrap and the fixture seeder — write these same columns.
+        through `update`. The fixture seeder is the one other insert path, and
+        it writes these same columns.
         """
         cursor = self._conn.execute(
             """
@@ -93,10 +93,10 @@ class BookRepository:
             (book_id, trade_symbols, effective_from),
         )
 
-    def update_settings(self, *, book_id: int, values: Mapping[str, object], updated_at: str) -> None:
+    def update(self, *, book_id: int, values: Mapping[str, object], updated_at: str) -> None:
         """Write ``values`` as a partial column update to one book; no-op when empty.
 
-        Callers pass column name to value; deciding which settings to include
+        Callers pass column name to value; deciding which columns to include
         (and so which to leave at their current value) is theirs.
         """
         if not values:
@@ -130,11 +130,7 @@ class BookRepository:
         return BookRecord.from_mapping(dict(row)) if row is not None else None
 
     def update_status(self, *, book_id: int, status: str, updated_at: str) -> None:
-        self._conn.execute(
-            "UPDATE books SET status = ?, updated_at = ? WHERE id = ?",
-            (status, updated_at, book_id),
-        )
-        commit_unit_of_work(self._conn)
+        self.update(book_id=book_id, values={"status": status}, updated_at=updated_at)
 
     def update_trade_symbols(self, *, book_id: int, trade_symbols: str, updated_at: str) -> None:
         """Set the book's universes and record the change in the history table."""
@@ -153,12 +149,8 @@ class BookRepository:
         current_equity: float,
         updated_at: str,
     ) -> None:
-        self._conn.execute(
-            """
-            UPDATE books
-            SET current_cash = ?, current_equity = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (current_cash, current_equity, updated_at, book_id),
+        self.update(
+            book_id=book_id,
+            values={"current_cash": current_cash, "current_equity": current_equity},
+            updated_at=updated_at,
         )
-        commit_unit_of_work(self._conn)

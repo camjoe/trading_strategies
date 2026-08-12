@@ -10,6 +10,23 @@ class StrategyImmutableError(ValueError):
     """Raised when attempting to modify the knobs of a non-draft strategy row."""
 
 
+def _draft_primitive(key: str) -> str:
+    """Canonical primitive id for a drafted label.
+
+    A draft records the canonical code primitive its label resolves to (e.g.
+    ``momentum`` -> ``trend``) so the catalog stays internally consistent. An
+    unrecognized label keeps the raw key as a placeholder primitive, which the
+    catalog resolver reports as unresolvable at read time. Style and required
+    features are code-owned (``PrimitiveSpec``) and no longer stored.
+    """
+    from trading.domain.strategies.resolution import resolve_strategy
+
+    try:
+        return resolve_strategy(key).strategy_id
+    except ValueError:
+        return key
+
+
 class StrategyRepository:
     """SQL access for the strategies catalog (a strategy = primitive + knobs).
 
@@ -55,6 +72,31 @@ class StrategyRepository:
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
 
+    def ensure_id_for_label(self, *, label: str | None, now_iso: str, create: bool = True) -> int | None:
+        """Resolve a strategy label to a catalog row id, drafting the row when unknown.
+
+        Leaves the commit to the caller's ``unit_of_work`` scope, unlike every
+        other write here.
+        """
+        if label is None or not label.strip():
+            return None
+        key = label.strip().lower()
+        row = self._conn.execute("SELECT id FROM strategies WHERE strategy_key = ?", (key,)).fetchone()
+        if row is not None:
+            return int(row[0])
+        if not create:
+            return None
+        cursor = self._conn.execute(
+            """
+            INSERT INTO strategies (
+                strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+            )
+            VALUES (?, ?, '{}', 'draft', 1, ?, ?)
+            """,
+            (key, _draft_primitive(key), now_iso, now_iso),
+        )
+        return int(cursor.lastrowid or 0)
+
     def fetch_by_id(self, *, strategy_id: int) -> StrategyRecord | None:
         row = self._conn.execute(
             "SELECT * FROM strategies WHERE id = ?",
@@ -71,12 +113,6 @@ class StrategyRepository:
 
     def fetch_all(self) -> list[StrategyRecord]:
         rows = self._conn.execute("SELECT * FROM strategies ORDER BY strategy_key ASC").fetchall()
-        return [StrategyRecord.from_mapping(dict(row)) for row in rows]
-
-    def fetch_enabled(self) -> list[StrategyRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM strategies WHERE enabled = 1 AND status != 'retired' ORDER BY strategy_key ASC"
-        ).fetchall()
         return [StrategyRecord.from_mapping(dict(row)) for row in rows]
 
     def update_draft_knobs(

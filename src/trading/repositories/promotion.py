@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.json_columns import dumps_json_column
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR,
@@ -10,22 +11,7 @@ from trading.models.promotion import (
     PromotionReviewEventType,
     PromotionReviewRecord,
     PromotionReviewState,
-    PromotionStage,
-    PromotionStatus,
 )
-from trading.persistence.json_columns import dumps_json_column, read_json_object
-
-
-def _row_text(row: sqlite3.Row, key: str) -> str | None:
-    value = row[key]
-    if value is None:
-        return None
-    text = str(value)
-    return text if text else None
-
-
-def _opt_review_state(value: str | None) -> PromotionReviewState | None:
-    return None if value is None else PromotionReviewState(value)
 
 
 def _db_optional_text(value: str | None) -> str:
@@ -35,66 +21,6 @@ def _db_optional_text(value: str | None) -> str:
 class PromotionReviewRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
-
-    @staticmethod
-    def _map_review_row(row: sqlite3.Row) -> PromotionReviewRecord:
-        # sqlite3.Row is a sequence, not a Mapping — the JSON column readers take
-        # the mapping side of that boundary, as models' from_mapping does.
-        values = dict(row)
-        return PromotionReviewRecord(
-            id=int(row["id"]),
-            account_id=int(row["account_id"]),
-            account_name_snapshot=str(row["account_name_snapshot"]),
-            strategy_id=int(row["strategy_id"]) if row["strategy_id"] is not None else None,
-            strategy_name=str(row["strategy_name"]),
-            review_state=PromotionReviewState(str(row["review_state"])),
-            assessment_stage=PromotionStage(str(row["assessment_stage"])),
-            assessment_status=PromotionStatus(str(row["assessment_status"])),
-            ready_for_live=bool(int(row["ready_for_live"])),
-            overall_confidence=float(row["overall_confidence"]),
-            live_trading_enabled_snapshot=bool(int(row["live_trading_enabled_snapshot"])),
-            promotion_assessment_version=str(row["promotion_assessment_version"]),
-            evaluation_artifact_version=str(row["evaluation_artifact_version"]),
-            frozen_assessment_payload=read_json_object(values, "frozen_assessment_payload"),
-            frozen_evaluation_payload=read_json_object(values, "frozen_evaluation_payload"),
-            requested_by=_row_text(row, "requested_by"),
-            reviewed_by=_row_text(row, "reviewed_by"),
-            operator_summary_note=_row_text(row, "operator_summary_note"),
-            created_at=str(row["created_at"]),
-            updated_at=str(row["updated_at"]),
-            closed_at=_row_text(row, "closed_at"),
-        )
-
-    @staticmethod
-    def _map_event_row(row: sqlite3.Row) -> PromotionReviewEvent:
-        return PromotionReviewEvent(
-            id=int(row["id"]),
-            review_id=int(row["review_id"]),
-            event_seq=int(row["event_seq"]),
-            event_type=PromotionReviewEventType(str(row["event_type"])),
-            actor_type=str(row["actor_type"]),
-            actor_name=_row_text(row, "actor_name"),
-            from_review_state=_opt_review_state(_row_text(row, "from_review_state")),
-            to_review_state=_opt_review_state(_row_text(row, "to_review_state")),
-            note=_row_text(row, "note"),
-            event_payload=read_json_object(dict(row), "event_payload"),
-            created_at=str(row["created_at"]),
-        )
-
-    def _require_review(self, *, review_id: int, context: str) -> PromotionReviewRecord:
-        review = self.fetch_by_id(review_id=review_id)
-        if review is None:
-            raise ValueError(f"Promotion review {review_id} not found after {context}.")
-        return review
-
-    def _require_event(self, *, event_id: int) -> PromotionReviewEvent:
-        row = self._conn.execute(
-            "SELECT * FROM promotion_review_events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
-        if row is None:
-            raise ValueError(f"Promotion review event {event_id} not found after insert.")
-        return self._map_event_row(row)
 
     def insert_review(
         self,
@@ -139,6 +65,7 @@ class PromotionReviewRepository:
                 updated_at,
                 closed_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING *
             """,
             (
                 evaluation.basic.account_id,
@@ -163,17 +90,14 @@ class PromotionReviewRepository:
                 None,
             ),
         )
-        review_id = cursor.lastrowid
-        if not isinstance(review_id, int):
-            raise ValueError("Expected integer promotion review id after insert.")
-        return self._require_review(review_id=review_id, context="insert")
+        return PromotionReviewRecord.from_mapping(dict(cursor.fetchone()))
 
     def fetch_by_id(self, *, review_id: int) -> PromotionReviewRecord | None:
         row = self._conn.execute(
             "SELECT * FROM promotion_reviews WHERE id = ?",
             (review_id,),
         ).fetchone()
-        return None if row is None else self._map_review_row(row)
+        return None if row is None else PromotionReviewRecord.from_mapping(dict(row))
 
     def fetch_open(
         self,
@@ -191,7 +115,7 @@ class PromotionReviewRepository:
             """,
             (account_id, strategy_name, PromotionReviewState.REQUESTED),
         ).fetchone()
-        return None if row is None else self._map_review_row(row)
+        return None if row is None else PromotionReviewRecord.from_mapping(dict(row))
 
     def fetch_for_account(
         self,
@@ -211,7 +135,7 @@ class PromotionReviewRepository:
             params += (strategy_name,)
         query.extend(["ORDER BY created_at DESC, id DESC", "LIMIT ?"])
         rows = self._conn.execute("\n".join(query), params + (limit,)).fetchall()
-        return [self._map_review_row(row) for row in rows]
+        return [PromotionReviewRecord.from_mapping(dict(row)) for row in rows]
 
     def insert_event(
         self,
@@ -225,12 +149,11 @@ class PromotionReviewRepository:
         event_payload: dict[str, object],
         created_at: str,
     ) -> PromotionReviewEvent:
+        # An aggregate without GROUP BY always yields exactly one row.
         next_seq_row = self._conn.execute(
             "SELECT COALESCE(MAX(event_seq), 0) + 1 AS next_seq FROM promotion_review_events WHERE review_id = ?",
             (review_id,),
         ).fetchone()
-        if next_seq_row is None:
-            raise ValueError(f"Unable to compute next event sequence for review {review_id}.")
         event_seq = int(next_seq_row["next_seq"])
         cursor = self._conn.execute(
             """
@@ -246,6 +169,7 @@ class PromotionReviewRepository:
                 event_payload,
                 created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING *
             """,
             (
                 review_id,
@@ -260,10 +184,7 @@ class PromotionReviewRepository:
                 created_at,
             ),
         )
-        event_id = cursor.lastrowid
-        if not isinstance(event_id, int):
-            raise ValueError("Expected integer promotion review event id after insert.")
-        return self._require_event(event_id=event_id)
+        return PromotionReviewEvent.from_mapping(dict(cursor.fetchone()))
 
     def fetch_events(self, *, review_id: int) -> list[PromotionReviewEvent]:
         rows = self._conn.execute(
@@ -275,7 +196,7 @@ class PromotionReviewRepository:
             """,
             (review_id,),
         ).fetchall()
-        return [self._map_event_row(row) for row in rows]
+        return [PromotionReviewEvent.from_mapping(dict(row)) for row in rows]
 
     def update_review(
         self,
@@ -293,6 +214,7 @@ class PromotionReviewRepository:
             UPDATE promotion_reviews
             SET review_state = ?, reviewed_by = ?, operator_summary_note = ?, updated_at = ?, closed_at = ?
             WHERE id = ? AND review_state = ?
+            RETURNING *
             """,
             (
                 review_state,
@@ -304,6 +226,7 @@ class PromotionReviewRepository:
                 expected_review_state,
             ),
         )
-        if cursor.rowcount == 0:
+        updated = cursor.fetchone()
+        if updated is None:
             raise ValueError(f"Promotion review {review_id} was already closed.")
-        return self._require_review(review_id=review_id, context="update")
+        return PromotionReviewRecord.from_mapping(dict(updated))

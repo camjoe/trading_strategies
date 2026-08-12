@@ -122,8 +122,18 @@ LAYER_RULES: list[LayerRule] = [
         # share with the live path to be testing the same thing.
         #
         # backtesting/repositories/ is deliberately outside this rule: a repository
-        # calling trading's book_bridge is same-layer, which is what that bridging
-        # helper is for.
+        # calling trading's repositories (StrategyRepository for label resolution)
+        # is same-layer.
+    ),
+    LayerRule(
+        label="src → fixture seeding is entry-point-only",
+        source_glob="src/**/*.py",
+        forbidden_prefixes=("trading.services.fixtures",),
+        # Generated demo/sandbox databases are an operator tool, reached from the
+        # scripts/ entry points and tests. Nothing shipped in src/ may build a
+        # runtime behaviour on synthetic data, so the package stays unreachable
+        # from application code even though it sits under services/.
+        excluded_prefixes=("src/trading/services/fixtures/",),
     ),
     LayerRule(
         label="trading/domain → no repository imports",

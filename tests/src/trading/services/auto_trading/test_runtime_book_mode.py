@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
+from tests.support.books import latest_rotation_decision
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.models.execution import BookTradeCandidate
 from trading.models.market_data import MarketInputs
@@ -121,7 +122,7 @@ def test_run_for_account_book_mode_applies_rotation_before_intent_generation(
 
     assert executed.submitted_count == 0
     assert captured["active_strategy"] == "meanrev"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
+    latest_decision = latest_rotation_decision(conn, book_id)
     assert latest_decision is not None
     assert latest_decision.rotation_action == "rotate"
     assert latest_decision.selected_strategy == "meanrev"
@@ -168,7 +169,7 @@ def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env,
 
     assert executed.submitted_count == 0
     assert captured["active_strategy"] == "trend"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
+    latest_decision = latest_rotation_decision(conn, book_id)
     assert latest_decision is not None
     assert latest_decision.rotation_action == "hold"
     assert latest_decision.decision_reason == "cooldown_active"

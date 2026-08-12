@@ -4,7 +4,6 @@ import sqlite3
 
 from trading.models.portfolio import DailyMetricRecord
 from trading.persistence.unit_of_work import commit_unit_of_work
-from trading.repositories.book_bridge import default_book_id
 
 _METRIC_COLUMNS = (
     "return_pct",
@@ -28,7 +27,7 @@ JOIN books b ON b.id = m.book_id
 
 
 class DailyMetricsRepository:
-    """Book-keyed daily metrics with an account-level convenience path.
+    """Book-keyed daily metrics.
 
     Grain: **book-native, non-additive**. Daily percentages (return, drawdown,
     turnover, hit rate) do not sum across books, so there is no account roll-up:
@@ -37,9 +36,7 @@ class DailyMetricsRepository:
     SUM roll-up) and ``RiskSnapshotRepository`` (account-emergent); see
     docs/reference/performance-and-risk-tables.md.
 
-    Storage keys on ``book_id`` (UNIQUE per book+metric_date). Account-level
-    rows live on the account's default book, created (bootstrapped) on first
-    write.
+    Storage keys on ``book_id`` (UNIQUE per book+metric_date).
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -48,8 +45,7 @@ class DailyMetricsRepository:
     def upsert(
         self,
         *,
-        account_id: int,
-        book_id: int | None,
+        book_id: int,
         metric_date: str,
         return_pct: float | None,
         drawdown_pct: float | None,
@@ -62,22 +58,21 @@ class DailyMetricsRepository:
         fees_total: float | None,
         created_at: str,
         updated_at: str,
-    ) -> int:
-        resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, account_id)
-
+    ) -> None:
         update_set = ", ".join(f"{column} = excluded.{column}" for column in _METRIC_COLUMNS)
+        placeholders = ", ".join("?" for _ in range(len(_METRIC_COLUMNS) + 4))
         self._conn.execute(
             f"""
             INSERT INTO daily_metrics (
                 book_id, metric_date, {", ".join(_METRIC_COLUMNS)}, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ({placeholders})
             ON CONFLICT(book_id, metric_date) DO UPDATE SET
                 {update_set},
                 updated_at = excluded.updated_at
             """,
             (
-                resolved_book_id,
+                book_id,
                 metric_date,
                 return_pct,
                 drawdown_pct,
@@ -93,33 +88,22 @@ class DailyMetricsRepository:
             ),
         )
         commit_unit_of_work(self._conn)
-        row = self._conn.execute(
-            "SELECT id FROM daily_metrics WHERE book_id = ? AND metric_date = ?",
-            (resolved_book_id, metric_date),
-        ).fetchone()
-        if row is None:
-            raise ValueError("Expected daily_metrics id after upsert.")
-        return int(row[0])
+
+    def _fetch(self, filter_sql: str, params: tuple[object, ...]) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(_BOOK_ROWS_SELECT + filter_sql, params).fetchall()
+        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_book_rows_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:
-        """Return per-book daily-metric rows for the account (NOT an aggregate).
-
-        Daily percentages don't sum across books, so this is a flat list of each
-        book's rows (most recent first), not a rolled-up account row. Callers
-        that want an account total must aggregate additive fields themselves.
-        """
-        rows = self._conn.execute(
-            _BOOK_ROWS_SELECT + "WHERE b.account_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
+        return self._fetch(
+            "WHERE b.account_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
             (account_id, limit),
-        ).fetchall()
-        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
+        )
 
     def fetch_for_book(self, *, book_id: int, limit: int) -> list[DailyMetricRecord]:
-        rows = self._conn.execute(
-            _BOOK_ROWS_SELECT + "WHERE m.book_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
+        return self._fetch(
+            "WHERE m.book_id = ? ORDER BY m.metric_date DESC, m.id DESC LIMIT ?",
             (book_id, limit),
-        ).fetchall()
-        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
+        )
 
     def fetch_recent_returns_for_book(self, *, book_id: int, before_date: str, limit: int) -> list[float]:
         """Most-recent-first non-null daily returns strictly before ``before_date``.
@@ -150,9 +134,7 @@ class DailyMetricsRepository:
         start_date: str,
         end_date: str,
     ) -> list[DailyMetricRecord]:
-        rows = self._conn.execute(
-            _BOOK_ROWS_SELECT + "WHERE m.book_id = ? AND m.metric_date >= ? AND m.metric_date <= ? "
-            "ORDER BY m.metric_date ASC, m.id ASC",
+        return self._fetch(
+            "WHERE m.book_id = ? AND m.metric_date >= ? AND m.metric_date <= ? ORDER BY m.metric_date ASC, m.id ASC",
             (book_id, start_date, end_date),
-        ).fetchall()
-        return [DailyMetricRecord.from_mapping(dict(row)) for row in rows]
+        )

@@ -70,7 +70,7 @@ def _runtime_harness(monkeypatch, conn):
             raise error
 
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
+        f"{DAILY_PAPER_TRADING_MODULE}.load_account_names",
         lambda: list(state.accounts),
     )
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.stream_command", _stream)
@@ -603,7 +603,7 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
     original_import = builtins.__import__
 
     def _fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "trading.services.accounts" and "load_runtime_eligible_account_names" in fromlist:
+        if name == "trading.services.accounts" and "load_account_names" in fromlist:
             raise ImportError("boom")
         return original_import(name, globals, locals, fromlist, level)
 

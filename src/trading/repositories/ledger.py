@@ -64,10 +64,3 @@ class LedgerRepository:
             (account_id,),
         ).fetchall()
         return [LedgerEntryRecord.from_mapping(dict(row)) for row in rows]
-
-    def fetch_by_reference(self, *, reference_type: str, reference_id: str) -> list[LedgerEntryRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM ledger WHERE reference_type = ? AND reference_id = ? ORDER BY id ASC",
-            (reference_type, reference_id),
-        ).fetchall()
-        return [LedgerEntryRecord.from_mapping(dict(row)) for row in rows]

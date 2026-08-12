@@ -1,9 +1,8 @@
 """The field diff behind the settings change-event trail.
 
 `global_settings` and `book_rotation_settings` each record an audit row per operator
-edit, holding the fields whose values actually changed. The diff is the same for
-both; only the table and its scope column differ, so each repository keeps its own
-literal SQL. Encoding the result for its column is :mod:`trading.persistence.json_columns`.
+edit, holding the fields whose values actually changed. Encoding the result for its
+column is :func:`common.json_columns.dumps_json_column`.
 """
 
 from __future__ import annotations

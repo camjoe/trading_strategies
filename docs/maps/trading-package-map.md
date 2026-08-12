@@ -112,7 +112,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | Module | Responsibility |
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
-| `csv_export.py` | Resolves the DB connection for the CSV export CLI (`open_db_connection`); row/CSV logic lives in `trading.services.table_export` |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
@@ -134,7 +133,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
-| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
+| `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |
@@ -201,6 +200,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`) — merges persisted rotation settings over code defaults |
+| `books/default_book.py` | Resolve an account to its default book (`default_book_id`) |
 | `books/operations.py` | Book-attributed operational reads for interface consumers (`fetch_book_operational_data`) |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/queries.py` | Read-side contracts for the catalog operator surfaces (catalog + primitive listings, optimization history, strategy payload shaping) |
@@ -208,7 +208,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
 | `universe/resolver.py` | Trade-universe name resolution |
-| `table_export.py` | On-demand CSV generation from a live table cursor (`stream_table_csv`) |
 
 ---
 
@@ -223,8 +222,6 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
-| `fixture_seed.py` | Fixture-only writes with no production writer to route through (research records, review records, book bootstrap) |
-| `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
 | `orders.py` | Clean-schema orders table (unifies broker + book orders) |
@@ -236,9 +233,7 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs) |
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
-| `book_assignments.py` | Book-strategy assignment and lifecycle records |
-| `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
-| `table_export.py` | Generic table-cursor reads by table name for the operator CSV export (`fetch_table_cursor`) |
+| `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
 
 ---
 
@@ -254,7 +249,6 @@ Owns *using* a connection; `infrastructure/database/` owns *getting* one. See
 | Module | Responsibility |
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
-| `json_columns.py` | Canonical JSON encoding for column storage (`dumps_json_column`, `read_json_object`) — keys sorted, no insignificant whitespace |
 | `change_events.py` | The old/new field diff behind the settings change-event trail |
 
 ---

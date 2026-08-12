@@ -42,7 +42,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 | `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols` (revisions `0004`–`0008`, `0029`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
-| `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
+| `feature_providers` | Unused. Nothing reads or writes it since 2026-08-10; kept only until the migration squash can drop it | — |
 | `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
 | `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |

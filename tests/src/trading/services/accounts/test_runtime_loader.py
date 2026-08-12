@@ -13,7 +13,7 @@ import pytest
 
 from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import SchemaVersionError, ensure_db
-from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
+from trading.services.accounts.runtime_loader import load_account_names
 
 
 def test_loader_returns_account_names(configured_backend: SQLiteBackend) -> None:
@@ -27,10 +27,10 @@ def test_loader_returns_account_names(configured_backend: SQLiteBackend) -> None
     finally:
         conn.close()
 
-    assert load_runtime_eligible_account_names() == ["runtime-acct"]
+    assert load_account_names() == ["runtime-acct"]
 
 
 def test_loader_rejects_a_database_off_the_expected_revision(tmp_path: Path) -> None:
     with use_backend(SQLiteBackend(tmp_path / "unversioned.db")):
         with pytest.raises(SchemaVersionError, match="manage_db_migrations status"):
-            load_runtime_eligible_account_names()
+            load_account_names()

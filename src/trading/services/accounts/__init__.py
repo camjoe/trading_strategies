@@ -43,7 +43,7 @@ from trading.services.accounts.queries import (
     list_account_records,
     list_account_snapshots,
 )
-from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
+from trading.services.accounts.runtime_loader import load_account_names
 
 __all__ = [
     "AccountAlreadyExistsError",
@@ -66,7 +66,7 @@ __all__ = [
     "list_account_names",
     "list_account_records",
     "list_account_snapshots",
-    "load_runtime_eligible_account_names",
+    "load_account_names",
     "preview_account_deletion",
     "RISK_POLICIES",
     "set_account_strategy",

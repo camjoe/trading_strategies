@@ -5,6 +5,7 @@ from backtesting.models.optimizer import (
     OptimizationWindowInsert,
 )
 from backtesting.repositories.optimization import insert_experiment, insert_window
+from tests.support.books import ensure_default_book_id
 from tests.support.strategies import ensure_strategy_id_for_label
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -159,8 +160,8 @@ def insert_account_snapshot(
     unrealized_pnl: float,
 ) -> None:
     # Snapshots are book-keyed; the repository resolves the default book.
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=snapshot_time,
         cash=cash,
         market_value=market_value,

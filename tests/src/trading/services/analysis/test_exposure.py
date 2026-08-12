@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 
 from tests.support.analysis import make_analysis_account
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.analysis import fetch_portfolio_exposure
@@ -21,8 +21,8 @@ def insert_exposure_snapshot(
     cash: float,
     market_value: float,
 ) -> None:
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=snapshot_time,
         cash=cash,
         market_value=market_value,
@@ -34,7 +34,7 @@ def insert_exposure_snapshot(
 
 def upsert_position(conn: sqlite3.Connection, *, account_id: int, symbol: str) -> None:
     PositionRepository(conn).upsert(
-        book_id=default_book_id(conn, account_id),
+        book_id=ensure_default_book_id(conn, account_id),
         symbol=symbol,
         qty=1.0,
         avg_cost=100.0,

@@ -94,10 +94,11 @@ list if it has aged.
   `mean_reversion`. The daily run no longer wires those two fetchers. The **policy** provider is not
   in this bucket: it is genuinely live, supplying `fetch_regime` to rotation's regime-fit component
   from both the trading run and the shadow-eval job.
-- **Feature-provider enablement is not data.** The `feature_providers` table is written only by the
-  sandbox fixture seeder and read by nothing; providers are constructed unconditionally at the
-  composition root. Retained for the deferred work above. `services/fixtures/profiles.py` says so at
-  the field.
+- **Feature-provider enablement is not data.** Providers are constructed unconditionally at the
+  composition root, so nothing ever read the `feature_providers` table. Its repository, record, and
+  fixture seeding were deleted on 2026-08-10; the table itself stays until the migration squash.
+  Re-enabling the deferred work above needs no catalog — only the provider implementations, which
+  are untouched.
 
 ## Known limitations
 

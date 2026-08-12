@@ -179,7 +179,7 @@ def _run(monkeypatch, tmp_path: Path, args: tuple[str, ...]) -> int:
 
 
 def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: list(accounts))
 
 
 def test_reports_disabled_runs(monkeypatch, tmp_path, capsys) -> None:

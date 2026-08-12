@@ -7,11 +7,11 @@ import sqlite3
 from dataclasses import dataclass
 
 from common.coercion import expect_float, expect_int
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.accounts import AccountConfig
 from trading.models.books import BookRecord
-from trading.persistence.json_columns import dumps_json_column
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
@@ -57,7 +57,7 @@ def _require_account_and_book(
     account_name: str,
     book_name: str,
 ) -> BookRecord:
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     for book in BookRepository(conn).fetch_for_account(account_id=account.id):
@@ -110,7 +110,7 @@ def fetch_account_book_configurations(
     *,
     account_name: str,
 ) -> tuple[BookConfigurationView, ...]:
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     return tuple(_view(conn, book) for book in BookRepository(conn).fetch_for_account(account_id=account.id))
@@ -191,7 +191,7 @@ def configure_book(
         if config.option_type is not None:
             values["option_type"] = normalize_option_type(config.option_type)
 
-        BookRepository(conn).update_settings(
+        BookRepository(conn).update(
             book_id=book.id,
             values={name: value for name, value in values.items() if value is not None},
             updated_at=utc_now_iso(),

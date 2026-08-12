@@ -5,10 +5,10 @@ import json
 import pytest
 
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_rotation_settings import (
     BookRotationSettingsRepository,
 )
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
@@ -71,7 +71,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
 
     # Repair-path books open with no assignment (accounts.strategy was
     # dropped in revision 0008); operators assign explicitly.
-    assignment = BookAssignmentRepository(conn).fetch_open(book_id=book.id)
+    assignment = BookStrategyHistoryRepository(conn).fetch_open(book_id=book.id)
     assert assignment is None
 
 
@@ -88,4 +88,4 @@ def test_ensure_default_books_skips_unknown_legacy_strategy_label(conn) -> None:
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     assert book is not None
     # Unknown label → no assignment opened; book still bootstrapped.
-    assert BookAssignmentRepository(conn).fetch_open(book_id=book.id) is None
+    assert BookStrategyHistoryRepository(conn).fetch_open(book_id=book.id) is None

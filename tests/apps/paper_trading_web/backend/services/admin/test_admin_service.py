@@ -5,6 +5,7 @@ from paper_trading_web.backend.services import admin as services_admin
 from paper_trading_web.backend.services.admin import create_account_with_rotation
 
 from common.time import utc_now_iso
+from tests.support.books import ensure_default_book_id
 from trading.domain import AccountAlreadyExistsError
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -28,8 +29,8 @@ def test_delete_managed_account_removes_related_rows(conn, create_account_row) -
         price=100.0,
         trade_time="2026-01-02T00:00:00Z",
     )
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time="2026-01-02T00:00:00Z",
         cash=900.0,
         market_value=100.0,

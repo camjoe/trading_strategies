@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from tests.support.books import ensure_default_book_id
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.reporting import show_portfolio_exposure
 
@@ -22,8 +23,8 @@ def test_prints_account_lines_and_totals(
     reporting_account: sqlite3.Row,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    EquitySnapshotRepository(conn).insert(
-        account_id=int(reporting_account["id"]),
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, int(reporting_account["id"])),
         snapshot_time="2026-07-02T00:00:00Z",
         cash=750.0,
         market_value=250.0,

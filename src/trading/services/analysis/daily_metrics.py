@@ -76,7 +76,6 @@ def write_daily_metrics_for_account(
                 prior_returns=prior_returns,
             )
             metrics.upsert(
-                account_id=account.id,
                 book_id=book.id,
                 metric_date=metric_date,
                 return_pct=computed.return_pct,
