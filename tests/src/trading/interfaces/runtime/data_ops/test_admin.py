@@ -128,7 +128,7 @@ class TestHelpersAndCommands:
         closed = {"value": False}
         conn = SimpleNamespace(close=lambda: closed.__setitem__("value", True))
         monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
-        monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
+        monkeypatch.setattr(admin, "fetch_account_listing_lines", lambda _conn: [])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
         assert closed["value"] is True
@@ -137,7 +137,7 @@ class TestHelpersAndCommands:
     def test_cmd_list_accounts_prints_rows(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         conn = SimpleNamespace(close=lambda: None)
         monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
-        monkeypatch.setattr(admin, "list_accounts", lambda _conn: ["[1] acct1", "[2] acct2"])
+        monkeypatch.setattr(admin, "fetch_account_listing_lines", lambda _conn: ["[1] acct1", "[2] acct2"])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
         out = capsys.readouterr().out
@@ -247,7 +247,7 @@ def test_admin_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
 
     conn = SimpleNamespace(close=lambda: None)
     monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
-    monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
+    monkeypatch.setattr(admin, "fetch_account_listing_lines", lambda _conn: [])
     monkeypatch.setattr(sys, "argv", ["admin", "list-accounts"])
 
     with pytest.raises(SystemExit) as excinfo:

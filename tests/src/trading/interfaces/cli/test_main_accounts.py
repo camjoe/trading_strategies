@@ -148,7 +148,7 @@ def test_main_list_accounts_dispatches(monkeypatch) -> None:
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     captured = {}
 
-    monkeypatch.setattr(accounts_handlers, "list_accounts", lambda conn: captured.update({"conn": conn}))
+    monkeypatch.setattr(accounts_handlers, "fetch_account_listing_lines", lambda conn: captured.update({"conn": conn}))
 
     cli_main.main()
 

@@ -112,7 +112,7 @@ def test_handle_set_benchmark_calls_dep_with_correct_args(monkeypatch) -> None:
 
 def test_handle_list_accounts_prints_lines(capsys, monkeypatch) -> None:
     conn = object()
-    patch_services(monkeypatch, module, list_accounts=lambda c: ["[1] acct1", "[2] acct2"])
+    patch_services(monkeypatch, module, fetch_account_listing_lines=lambda c: ["[1] acct1", "[2] acct2"])
 
     handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), ctx=make_ctx())
 
@@ -123,7 +123,7 @@ def test_handle_list_accounts_prints_lines(capsys, monkeypatch) -> None:
 
 def test_handle_list_accounts_prints_empty_message(capsys, monkeypatch) -> None:
     conn = object()
-    patch_services(monkeypatch, module, list_accounts=lambda c: [])
+    patch_services(monkeypatch, module, fetch_account_listing_lines=lambda c: [])
 
     handle_list_accounts(conn, types.SimpleNamespace(), fake_parser(), ctx=make_ctx())
 

@@ -9,7 +9,7 @@ from trading.services.accounts.presentation import build_account_listing_lines
 from trading.services.books.book_assignments import active_strategy_for_account
 
 
-def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[str]:
+def fetch_account_listing_lines(conn: sqlite3.Connection, by_strategy: bool = True) -> list[str]:
     accounts = AccountRepository(conn).fetch_all()
     if not accounts:
         return []

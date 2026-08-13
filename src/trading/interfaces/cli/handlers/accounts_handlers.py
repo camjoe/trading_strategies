@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
+from trading.services.accounts import configure_account, create_account, fetch_account_listing_lines, set_benchmark
 from trading.services.execution.ledger import record_trade
 
 
@@ -47,7 +47,7 @@ def handle_set_benchmark(conn, args, parser, *, ctx: CliContext) -> None:
 
 
 def handle_list_accounts(conn, args, parser, *, ctx: CliContext) -> None:
-    lines = list_accounts(conn)
+    lines = fetch_account_listing_lines(conn)
     if not lines:
         print("No accounts found.")
         return
