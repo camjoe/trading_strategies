@@ -71,7 +71,7 @@ holds. Off when ``drawdown_pct`` is ``None``. Unlike the four caps above,
 **Intents are evaluated in order and each approval consumes capacity**, so list
 order decides who is filled when a cap binds — across books as well as within
 one. Both orders are seeded per run date rather than taken from a natural key
-(``domain.auto_trading_policy.order_signal_candidates`` for tickers,
+(``domain.auto_trading.fairness.order_signal_candidates`` for tickers,
 ``order_capacity_claimants`` for books): stable within a day, varied across days.
 
 Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``

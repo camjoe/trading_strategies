@@ -27,7 +27,7 @@ def _first_sellable(
 def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", choose_buy_qty):
+    with patch.object(trade_execution_service, "choose_buy_qty", choose_buy_qty):
         result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="equity",
@@ -49,17 +49,17 @@ def test_prepare_buy_trade_leaps() -> None:
     option_settings = make_option_settings(max_contracts_per_trade=2)
     with (
         patch.object(
-            trade_execution_service.auto_trader_policy,
+            trade_execution_service,
             "option_candidate_allowed",
             Mock(return_value=(True, 0.4, 30.0)),
         ),
         patch.object(
-            trade_execution_service.auto_trader_policy,
+            trade_execution_service,
             "estimate_option_premium",
             Mock(return_value=120.0),
         ),
         patch.object(
-            trade_execution_service.auto_trader_policy,
+            trade_execution_service,
             "choose_buy_qty",
             Mock(return_value=4),
         ),
@@ -88,13 +88,13 @@ def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> N
         return False, 0.4, 25.0
 
     with (
-        patch.object(trade_execution_service.auto_trader_policy, "option_candidate_allowed", _fake_allowed),
+        patch.object(trade_execution_service, "option_candidate_allowed", _fake_allowed),
         patch.object(
-            trade_execution_service.auto_trader_policy,
+            trade_execution_service,
             "estimate_option_premium",
             Mock(return_value=100.0),
         ),
-        patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=1)),
+        patch.object(trade_execution_service, "choose_buy_qty", Mock(return_value=1)),
     ):
         result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
@@ -275,7 +275,7 @@ def test_current_position_value_returns_zero_when_no_position_and_uses_helper_wh
 
 
 def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> None:
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=0)):
+    with patch.object(trade_execution_service, "choose_buy_qty", Mock(return_value=0)):
         result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),
             instrument_mode="equity",
@@ -294,13 +294,13 @@ def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> No
 def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_limits() -> None:
     with (
         patch.object(
-            trade_execution_service.auto_trader_policy,
+            trade_execution_service,
             "option_candidate_allowed",
             Mock(return_value=(True, 0.4, 20.0)),
         ),
-        patch.object(trade_execution_service.auto_trader_policy, "estimate_option_premium", Mock(return_value=50.0)),
-        patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", Mock(return_value=3)),
-        patch.object(trade_execution_service.auto_trader_policy, "apply_leaps_buy_qty_limits", Mock(return_value=0)),
+        patch.object(trade_execution_service, "estimate_option_premium", Mock(return_value=50.0)),
+        patch.object(trade_execution_service, "choose_buy_qty", Mock(return_value=3)),
+        patch.object(trade_execution_service, "apply_leaps_buy_qty_limits", Mock(return_value=0)),
     ):
         invalid_price_result = trade_execution_service.prepare_buy_trades(
             option_settings=make_option_settings(),

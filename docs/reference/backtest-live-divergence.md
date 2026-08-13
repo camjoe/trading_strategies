@@ -76,7 +76,7 @@ qty_float = float(state.positions[ticker])
 
 [`selection.py:386`](../../src/trading/services/execution/selection/selection.py) sells
 `choose_sell_qty(...)`, which is `random.randint(1, min(MAX_ORDER_QTY, qty))` with
-`MAX_ORDER_QTY = 5` ([`auto_trading_policy.py:15`](../../src/trading/domain/auto_trading_policy.py)).
+`MAX_ORDER_QTY = 5` (src/trading/domain/auto_trading).
 
 `choose_sell_qty` has exactly one call site. `MAX_ORDER_QTY` carries no history beyond the
 `trading/` → `src/trading/` relocation, which places it before the current book/strategy design —
@@ -97,7 +97,7 @@ draw, while the position continues to move against the book. The backtest never 
 because it does not model stops at all.
 
 Two further defects in the same path
-([`auto_trading_policy.py:245`](../../src/trading/domain/auto_trading_policy.py)):
+(src/trading/domain/auto_trading):
 
 - `choose_sell_ticker_by_risk` returns `random.choice(...)` over the breached positions, so when
   three positions breach, two are ignored entirely that run.

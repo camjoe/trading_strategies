@@ -35,9 +35,16 @@ Baseline PEP 8 (whitespace, blank lines, comparison idioms, comprehensions, f-st
 
 ## Type hints
 
-Public production/tooling functions must carry return annotations, and modules must use
-`from __future__ import annotations`; `python_conventions_check` enforces both. Private
-helpers should be annotated when it clarifies a non-obvious contract.
+Public production/tooling functions must carry return annotations;
+`python_conventions_check` enforces this. Private helpers should be annotated when it
+clarifies a non-obvious contract.
+
+`from __future__ import annotations` is **no longer required**. The repo targets Python
+3.14+ (`requires-python`), where PEP 649 makes annotation evaluation lazy by default —
+that already gives forward references, `TYPE_CHECKING`-only imports for cycle-breaking,
+and no import-time cost, while keeping annotations resolvable for runtime introspection.
+The future import only opts back into the older stringized behavior, so it adds nothing.
+Existing occurrences are harmless and may stay; new modules do not need it.
 
 - Prefer `X | None` over `Optional[X]` and lowercase builtins (`list[X]`, `dict[K, V]`)
   over `typing.List` etc.

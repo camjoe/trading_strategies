@@ -22,12 +22,6 @@ def test_valid_module_passes(tmp_path: Path) -> None:
     assert check_file(path).problems == []
 
 
-def test_missing_future_annotations_is_reported(tmp_path: Path) -> None:
-    path = write_file(tmp_path / "src/example.py", "def public() -> int:\n    return 1\n")
-
-    assert check_file(path).problems == ["missing `from __future__ import annotations`"]
-
-
 def test_public_function_without_return_annotation_is_reported(tmp_path: Path) -> None:
     path = write_file(
         tmp_path / "src/example.py",

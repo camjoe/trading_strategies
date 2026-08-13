@@ -52,7 +52,7 @@ def test_generate_book_trade_intents_uses_active_books_and_assignments(conn, mon
     account = get_account(conn, account_name)
 
     monkeypatch.setattr(
-        book_intents.auto_trader_policy,
+        book_intents,
         "order_risk_breaches",
         lambda *_args, **_kwargs: [],
     )
@@ -207,7 +207,7 @@ def _captured_book_universe(conn, monkeypatch, *, account_name: str, stored_symb
     captured: list[list[str]] = []
 
     monkeypatch.setattr(
-        book_intents.auto_trader_policy,
+        book_intents,
         "order_risk_breaches",
         lambda *_args, **_kwargs: [],
     )

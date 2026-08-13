@@ -12,7 +12,7 @@ from trading.domain.strategies.indicator_view import (
 from trading.domain.strategies.registry import STRATEGY_REGISTRY, available_strategy_ids
 
 
-def _invalid_strategy_error(strategy_name: str) -> ValueError:
+def _invalid_strategy_error(strategy_name: str) -> ValidationError:
     available = ", ".join(available_strategy_ids())
     return ValidationError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
 

@@ -4,7 +4,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
-from trading.domain.accounting.account import _ensure_sufficient_cash_for_buy, _normalize_order_input
+from trading.domain.accounting.validation import ensure_sufficient_cash_for_buy, normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work
@@ -74,7 +74,7 @@ def record_trade(
 
     del note
     account = get_account(conn, account_name)
-    side, ticker = _normalize_order_input(side, ticker)
+    side, ticker = normalize_order_input(side, ticker)
     book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
     if book is None:
         raise NotFoundError(f"Default book missing for account '{account_name}'.")
@@ -91,7 +91,7 @@ def record_trade(
         return
 
     if side == "buy":
-        _ensure_sufficient_cash_for_buy(side, qty, price, fee, book.current_cash)
+        ensure_sufficient_cash_for_buy(side, qty, price, fee, book.current_cash)
     else:
         position = PositionRepository(conn).fetch(book_id=book.id, symbol=ticker)
         held = position.qty if position is not None else 0.0

@@ -7,7 +7,7 @@ import surface unless a tightly scoped internal import is clearer.
 
 from __future__ import annotations
 
-from trading.domain.auto_trading_policy import (
+from trading.domain.auto_trading.sizing import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
 )

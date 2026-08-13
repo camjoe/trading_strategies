@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from common.constants import BASIS_POINTS_SCALE
+from common.constants import BASIS_POINTS_SCALE, PERCENT_SCALE
 from trading.domain.metrics.returns import total_return_pct
 from trading.domain.metrics.risk_ratios import sharpe_ratio
 
@@ -86,7 +86,7 @@ def compute_daily_book_metrics(
 
     turnover_pct: float | None = None
     if trades and end_equity is not None and end_equity != 0:
-        turnover_pct = notional / end_equity * 100.0
+        turnover_pct = notional / end_equity * PERCENT_SCALE
 
     hit_rate, expectancy = _closing_trade_stats(trades)
 

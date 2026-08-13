@@ -7,9 +7,9 @@ from collections.abc import Mapping
 
 from common.coercion import row_float
 from common.constants import SETTLEMENT_TICKER
+from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
+from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
-
-VALID_SIDES = {"buy", "sell"}
 
 
 def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
@@ -29,18 +29,8 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
     )
 
 
-def _validate_trade_values(qty: float, price: float, *, side: str = "buy") -> None:
-    if qty <= 0:
-        raise ValueError("Trade quantity must be > 0.")
-    # Sells at $0 are valid (e.g. expired options); buys must have a positive price.
-    if side == "buy" and price <= 0:
-        raise ValueError("Trade price must be > 0.")
-    if price < 0:
-        raise ValueError("Trade price must be >= 0.")
-
-
 def _require_whole_units(ticker: str, qty: float) -> None:
-    """Instrument quantities are whole units, as sized in ``domain.auto_trading_policy``.
+    """Instrument quantities are whole units, as sized in ``domain.auto_trading.sizing``.
 
     ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
     is what makes a fully-sold position read as flat. A fractional quantity leaves float
@@ -71,14 +61,14 @@ def apply_buy(
     """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
-    new_qty = old_qty + qty
-    if new_qty <= 0:
-        raise ValueError(f"Buy of {qty} for {ticker} leaves a non-positive position ({new_qty}); qty must be > 0.")
-    old_value = old_qty * avg_cost[ticker]
-    trade_value = qty * price + fee
-    avg_cost[ticker] = (old_value + trade_value) / new_qty
-    positions[ticker] = new_qty
-    return cash - trade_value
+    if old_qty + qty <= 0:
+        raise ValueError(
+            f"Buy of {qty} for {ticker} leaves a non-positive position ({old_qty + qty}); qty must be > 0."
+        )
+    delta = buy_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
+    positions[ticker] = delta.ending_qty
+    avg_cost[ticker] = delta.ending_avg_cost
+    return cash + delta.cash_delta
 
 
 def apply_sell(
@@ -93,22 +83,19 @@ def apply_sell(
 ) -> tuple[float, float]:
     """Apply a sell fill, returning the new ``(cash, realized)`` pair.
 
-    Reduces the position **in place**. The fee is charged against realized P&L as
-    well as netted out of proceeds, so a round trip is costed on both legs. A
-    closed position keeps its stale ``avg_cost``; nothing reads it at zero
-    quantity, and ``_compact_positions`` drops the key on the live path.
-
-    Shared with the backtest so a simulated fill realizes what a real one does.
+    Reduces the position **in place**. The fee is charged against realized P&L and
+    netted out of proceeds, so a round trip is costed on both legs. Shared with the
+    backtest so a simulated fill realizes what a real one does.
     """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
-    proceeds = qty * price - fee
-    cash += proceeds
-    realized += (price - avg_cost[ticker]) * qty - fee
-    positions[ticker] = old_qty - qty
-    return cash, realized
+    delta = sell_position_delta(
+        position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee
+    )
+    positions[ticker] = delta.ending_qty
+    return cash + delta.cash_delta, realized + delta.realized_delta
 
 
 def _compact_positions(
@@ -116,11 +103,9 @@ def _compact_positions(
 ) -> tuple[dict[str, float], dict[str, float]]:
     """Drop sold-out positions, keeping the average cost of the ones still open.
 
-    ``qty > 0`` is the single definition of "still open", and it is exact only
-    because quantities are whole units — see :func:`_require_whole_units`. A
-    closed position's stale ``avg_cost`` is dropped here rather than cleared on
-    the sell: at zero quantity nothing reads it (``old_qty * avg_cost`` is 0 for
-    the next buy, and a sell against no holding raises first).
+    A closed position's stale ``avg_cost`` is dropped here rather than cleared on
+    the sell: at zero quantity nothing reads it. Exact ``qty > 0`` requires whole
+    units — see :func:`_require_whole_units`.
     """
     open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
     open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
@@ -137,7 +122,7 @@ def _apply_trade_to_state(
     settlement_ticker: str | None,
 ) -> tuple[float, float, float]:
     ticker, side, qty, price, fee = normalize_trade_fields(trade)
-    _validate_trade_values(qty, price, side=side)
+    validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
         if side == "buy":
@@ -151,28 +136,6 @@ def _apply_trade_to_state(
         new_cash, new_realized = apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
         return new_cash, new_realized, total_deposited
     raise ValueError(f"Unsupported side: {side}")
-
-
-def _normalize_order_input(side: str, ticker: str) -> tuple[str, str]:
-    normalized_side = side.lower().strip()
-    normalized_ticker = ticker.upper().strip()
-    if normalized_side not in VALID_SIDES:
-        raise ValueError("side must be one of: buy, sell")
-    return normalized_side, normalized_ticker
-
-
-def _ensure_sufficient_cash_for_buy(
-    side: str,
-    qty: float,
-    price: float,
-    fee: float,
-    available_cash: float,
-) -> None:
-    if side != "buy":
-        return
-    required_cash = qty * price + fee
-    if required_cash > available_cash:
-        raise ValueError(f"Insufficient cash: need {required_cash:.2f}, available {available_cash:.2f}.")
 
 
 def compute_account_state(

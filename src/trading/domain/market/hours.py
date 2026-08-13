@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from dateutil.easter import easter
+
 US_EQUITY_MARKET_TIMEZONE = ZoneInfo("America/New_York")
 US_EQUITY_MARKET_OPEN_TIME = time(hour=9, minute=30)
 US_EQUITY_MARKET_CLOSE_TIME = time(hour=16, minute=0)
@@ -105,21 +107,4 @@ def _last_weekday_of_month(year: int, month: int, *, weekday: int) -> date:
 
 
 def _good_friday(year: int) -> date:
-    return _easter_sunday(year) - timedelta(days=2)
-
-
-def _easter_sunday(year: int) -> date:
-    century = year // 100
-    year_in_century = year % 100
-    leap_centuries = century // 4
-    century_remainder = century % 4
-    correction = (century + 8) // 25
-    moon_offset = (century - correction + 1) // 3
-    epact = (19 * (year % 19) + century - leap_centuries - moon_offset + 15) % 30
-    leap_years = year_in_century // 4
-    year_remainder = year_in_century % 4
-    weekday_offset = (32 + 2 * century_remainder + 2 * leap_years - epact - year_remainder) % 7
-    month_adjustment = (year % 19 + 11 * epact + 22 * weekday_offset) // 451
-    month = (epact + weekday_offset - 7 * month_adjustment + 114) // 31
-    day = ((epact + weekday_offset - 7 * month_adjustment + 114) % 31) + 1
-    return date(year, month, day)
+    return easter(year) - timedelta(days=2)

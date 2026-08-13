@@ -3,9 +3,9 @@
 One threshold, applied at two independent stages of the research pipeline, so the
 two gates cannot silently drift apart:
 
-- optimizer candidate eligibility (``domain/optimization/objective.py``) rejects a
+- optimizer candidate eligibility (``backtesting/domain/optimization.py``) rejects a
   training candidate whose drawdown breaches the floor, so it can never be selected;
-- the promotion research gate (``domain/promotion_policy.py``) seeds its
+- the promotion research gate (``domain/promotion/policy.py``) seeds its
   operator-tunable default from the same value.
 
 The promotion side stays overridable per operator settings while the optimizer's is

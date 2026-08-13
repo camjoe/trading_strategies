@@ -21,14 +21,7 @@ from common.constants import (
 
 
 def calculate_macd(history: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Calculate MACD, signal line, and histogram.
-
-    Args:
-        history: Historical close price series.
-
-    Returns:
-        Tuple of (macd, signal, histogram) series.
-    """
+    """MACD, signal line, and histogram (in that order) over a close-price history."""
     close = history.replace([math.inf, -math.inf], float("nan"))
     ema_fast = close.ewm(span=MACD_FAST_SPAN, adjust=False).mean()
     ema_slow = close.ewm(span=MACD_SLOW_SPAN, adjust=False).mean()
@@ -39,15 +32,7 @@ def calculate_macd(history: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]
 
 
 def calculate_rs_rsi(history: pd.Series, window: int = RSI_DEFAULT_WINDOW) -> tuple[pd.Series, pd.Series]:
-    """Calculate Relative Strength and RSI.
-
-    Args:
-        history: Historical close price series.
-        window: Lookback window for rolling averages (default: RSI_DEFAULT_WINDOW).
-
-    Returns:
-        Tuple of (rs, rsi) series.
-    """
+    """Relative Strength and RSI (in that order) over a close-price history's rolling *window*."""
     close = history.replace([math.inf, -math.inf], float("nan"))
     delta = close.diff()
     gain = delta.clip(lower=0)

@@ -259,13 +259,18 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `auto_trading/sizing.py` | Buy/sell share sizing (`choose_buy_qty`, `allocate_buy_quantities`, `closing_sell_qty`) |
+| `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
+| `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
+| `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
+| `accounting/ledger.py` | Pure per-fill buy/sell deltas (`buy_position_delta`, `sell_position_delta`) shared by the account replay (`apply_buy`/`apply_sell`) and book fills |
+| `accounting/validation.py` | Shared order-input validation (`normalize_order_input`, `validate_order_values`, `ensure_sufficient_cash_for_buy`) for both trade replay and book fills |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |

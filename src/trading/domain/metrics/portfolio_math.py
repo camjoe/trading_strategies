@@ -84,13 +84,3 @@ def benchmark_available(benchmark_equity: float | None, benchmark_return_pct: fl
 
 def alpha_pct(strategy_return_pct_value: float, benchmark_return_pct_value: float) -> float:
     return strategy_return_pct_value - benchmark_return_pct_value
-
-
-__all__ = [
-    "alpha_pct",
-    "benchmark_available",
-    "compute_market_value",
-    "compute_market_value_and_unrealized",
-    "compute_unrealized_pnl",
-    "strategy_return_pct",
-]
