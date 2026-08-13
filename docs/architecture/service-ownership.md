@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-07-22
-Last Reviewed: 2026-07-22
+Last Reviewed: 2026-08-13
 Purpose: State the ownership boundary of each `src/trading/services/` package — what it owns and, just as importantly, what it does **not** own — so new code lands in the one service that owns the concept.
 Related: [Architecture Conventions](architecture-conventions.md), [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -23,7 +23,7 @@ where it goes.
 | `books/` | The **execution primitive**: book state (`book_assignments`, `sector_config`, `helpers`) plus the `rotation/` sub-package. | Intent generation → `execution/selection/`. Daily report assembly → `analysis/daily_report.py`. |
 | `evaluation/` | Strategy **evidence + decision-score math**. | Report formatting → `reporting/`. Portfolio analytics → `analysis/`. |
 | `analysis/` | Portfolio/benchmark/performance/risk-snapshot/**concentration/exposure analytics math**. | Presentation → `reporting/`. |
-| `reporting/` | **Read-only presentation** payloads and printed operator output (thin views over `analysis`/`evaluation`). | Any analytics or evaluation **math** — it stays in `analysis`/`evaluation`. |
+| `reporting/` | **Composite** operator reports — printed output that composes several packages or all accounts (account report, strategy comparison, concentration/exposure rollups), as thin views over `analysis`/`evaluation`. | Any analytics or evaluation **math** → `analysis`/`evaluation`. Single-package display → that package's own `presentation.py` (see [Presentation ownership](#presentation-ownership)). |
 | `promotion/` | Human-gated promotion review workflow + its CLI rendering. | Evidence/score math → `evaluation/`. |
 | `accounts/` | Broker-account identity/custody/metadata, listing, config, and deletions. | Book-level execution/accounting → `execution/`. |
 | `operational_settings/` | Global operator settings (throttles, evaluation confidence, promotion policy) + throttle **enforcement**. | Per-book settings → `books`. It stays **separate** from `parameters/`. |
@@ -55,6 +55,22 @@ books/
   rotation/
     engine.py  metrics.py  challenger_evaluation.py  config_parser.py
 ```
+
+## Presentation ownership
+
+Operator-facing display splits by whether it presents one package's own data or composes several:
+
+- **Single-package display** — presenting a payload a package owns (a `PromotionAssessment`, a
+  `ParameterSourceView`, a settings-change trail, an account listing) — lives in that package's
+  `presentation.py`, with the `show_*`/`render_*` entrypoint exposed on the package `__init__`.
+- **Composite / cross-package reports** — output that composes multiple packages or all accounts
+  (the account report, strategy comparison, concentration/exposure rollups) — lives in `reporting/`,
+  which owns no domain of its own and stays a thin view over `analysis`/`evaluation`.
+
+Rule of thumb: if the formatter reaches into more than one service's data, it is a report and belongs
+in `reporting/`; if it renders one package's own payload, it stays with that package. A display helper
+shared by both a package and `reporting/` (e.g. `evaluation.presentation.backtest_freshness_display_parts`)
+belongs to the package that owns the concept, not to `reporting/`.
 
 ## Why the boundaries pay off
 

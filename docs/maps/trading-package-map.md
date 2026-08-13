@@ -128,7 +128,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `accounts/listing.py` | Account listing and filtering |
+| `accounts/listing.py` | Account listing read orchestration (fetch accounts + books, then build display lines) |
+| `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
@@ -148,6 +149,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/market.py` | Market state helpers |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
+| `evaluation/presentation.py` | Shared evaluation display helpers; `backtest_freshness_display_parts` reduces freshness to `(age, stale/fresh)` for reporting and promotion |
 | `evaluation/queries.py` | Evaluation data queries |
 | `fixtures/profiles.py` | Named fixture profiles (`demo`, `sandbox`) describing the synthetic story each generated database tells |
 | `fixtures/seeding.py` | Builds a generated database from a profile, routing every derived record through its production writer |
@@ -183,9 +185,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
-| `operational_settings/queries.py` | Operational setting read operations |
+| `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
-| `operational_settings/history.py` | Read orchestration for the global settings change-audit trail |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/helpers.py` | Shared book service helpers (window math) |
