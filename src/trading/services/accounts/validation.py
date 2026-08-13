@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import Any
+from collections.abc import Mapping
 
 from common.coercion import (
     coerce_float,
-    expect_float,
-    expect_int,
     row_float,
     row_int,
     row_str,
@@ -225,47 +222,38 @@ def validate_option_settings_from_inputs(
     )
 
 
-# Each writable book column paired with the coercion or normalization applied to
-# its AccountConfig field. One table so the create, account-update, and
-# explicit-book-edit paths share a single column list and cannot drift into
-# different coercion per site.
-_BOOK_COLUMN_COERCERS: dict[str, Callable[..., object]] = {
-    "learning_enabled": expect_int,
-    "risk_policy": normalize_risk_policy,
-    "instrument_mode": normalize_instrument_mode,
-    "option_type": normalize_option_type,
-    "goal_period": normalize_lower,
-    "stop_loss_pct": expect_float,
-    "take_profit_pct": expect_float,
-    "trade_size_pct": expect_float,
-    "max_position_pct": expect_float,
-    "max_trades_per_run": expect_int,
-    "goal_min_return_pct": expect_float,
-    "goal_max_return_pct": expect_float,
-    "option_profit_take_pct": expect_float,
-    "option_max_loss_pct": expect_float,
-    "option_strike_offset_pct": expect_float,
-    "option_min_dte": expect_int,
-    "option_max_dte": expect_int,
-    "target_delta_min": expect_float,
-    "target_delta_max": expect_float,
-    "max_premium_per_trade": expect_float,
-    "max_contracts_per_trade": expect_int,
-    "iv_rank_min": expect_float,
-    "iv_rank_max": expect_float,
-    "roll_dte_threshold": expect_int,
-}
-
-
 def book_settings_update_from_config(config: AccountConfig) -> BookSettingsUpdate:
-    """Coerce a partial AccountConfig into a typed book-settings update.
+    """Map a partial AccountConfig onto a typed book-settings update.
 
-    Only the fields the caller set (non-None) are carried; each passes through
-    its column's normalizer or coercer.
+    AccountConfig already coerced its fields. Only the enum and boolean columns
+    need normalization here; the numeric columns pass through unchanged. Unset
+    (None) fields stay None and are skipped by the repository.
     """
-    kwargs: dict[str, Any] = {}
-    for column, coerce in _BOOK_COLUMN_COERCERS.items():
-        raw = getattr(config, column)
-        if raw is not None:
-            kwargs[column] = coerce(raw)
-    return BookSettingsUpdate(**kwargs)
+    return BookSettingsUpdate(
+        learning_enabled=int(config.learning_enabled) if config.learning_enabled is not None else None,
+        risk_policy=normalize_risk_policy(config.risk_policy) if config.risk_policy is not None else None,
+        instrument_mode=(
+            normalize_instrument_mode(config.instrument_mode) if config.instrument_mode is not None else None
+        ),
+        option_type=normalize_option_type(config.option_type) if config.option_type is not None else None,
+        goal_period=normalize_lower(config.goal_period) if config.goal_period is not None else None,
+        stop_loss_pct=config.stop_loss_pct,
+        take_profit_pct=config.take_profit_pct,
+        trade_size_pct=config.trade_size_pct,
+        max_position_pct=config.max_position_pct,
+        max_trades_per_run=config.max_trades_per_run,
+        goal_min_return_pct=config.goal_min_return_pct,
+        goal_max_return_pct=config.goal_max_return_pct,
+        option_profit_take_pct=config.option_profit_take_pct,
+        option_max_loss_pct=config.option_max_loss_pct,
+        option_strike_offset_pct=config.option_strike_offset_pct,
+        option_min_dte=config.option_min_dte,
+        option_max_dte=config.option_max_dte,
+        target_delta_min=config.target_delta_min,
+        target_delta_max=config.target_delta_max,
+        max_premium_per_trade=config.max_premium_per_trade,
+        max_contracts_per_trade=config.max_contracts_per_trade,
+        iv_rank_min=config.iv_rank_min,
+        iv_rank_max=config.iv_rank_max,
+        roll_dte_threshold=config.roll_dte_threshold,
+    )
