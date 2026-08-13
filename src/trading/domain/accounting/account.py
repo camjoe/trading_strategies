@@ -30,7 +30,7 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
 
 
 def _require_whole_units(ticker: str, qty: float) -> None:
-    """Instrument quantities are whole units, as sized in ``domain.auto_trading_policy``.
+    """Instrument quantities are whole units, as sized in ``domain.auto_trading.sizing``.
 
     ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
     is what makes a fully-sold position read as flat. A fractional quantity leaves float

@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import sqlite3
 
-import trading.domain.auto_trading_policy as auto_trader_policy
+from trading.domain.auto_trading.exits import order_risk_breaches
+from trading.domain.auto_trading.fairness import order_capacity_claimants
 from trading.models import AccountRecord
 from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.models.market_data import MarketInputs
@@ -63,7 +64,7 @@ def generate_book_trade_intents(
     # decides who gets that budget — and again downstream, where the risk gate
     # consumes its account caps in intent order — so it is rotated per run.
     books_by_id = {trading_book.book.id: trading_book for trading_book in trading_books}
-    claim_order = auto_trader_policy.order_capacity_claimants(list(books_by_id), seed=selection_seed)
+    claim_order = order_capacity_claimants(list(books_by_id), seed=selection_seed)
 
     intents: list[BookTradeCandidate] = []
     for trading_book in (books_by_id[book_id] for book_id in claim_order):
@@ -95,7 +96,7 @@ def generate_book_trade_intents(
         instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sells = auto_trader_policy.order_risk_breaches(
+        forced_sells = order_risk_breaches(
             can_sell,
             market.prices,
             state,

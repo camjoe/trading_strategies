@@ -259,7 +259,10 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `auto_trading/sizing.py` | Buy/sell share sizing (`choose_buy_qty`, `allocate_buy_quantities`, `closing_sell_qty`) |
+| `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
+| `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
+| `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |

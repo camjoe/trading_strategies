@@ -9,8 +9,15 @@ from typing import Protocol, cast
 
 import pandas as pd
 
-import trading.domain.auto_trading_policy as auto_trader_policy
 from common.coercion import coerce_int
+from trading.domain.auto_trading.fairness import order_signal_candidates
+from trading.domain.auto_trading.options import (
+    AccountPolicyInput,
+    apply_leaps_buy_qty_limits,
+    estimate_option_premium,
+    option_candidate_allowed,
+)
+from trading.domain.auto_trading.sizing import allocate_buy_quantities, choose_buy_qty, closing_sell_qty
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
 
@@ -202,7 +209,7 @@ def select_signal_trade_candidates(
 
 
 def prepare_book_trades(
-    option_settings: auto_trader_policy.AccountPolicyInput,
+    option_settings: AccountPolicyInput,
     active_strategy: str | None,
     params: Mapping[str, object] | None,
     state,
@@ -284,7 +291,7 @@ def prepare_book_trades(
 
 
 def _size_buy_for_ticker(
-    option_settings: auto_trader_policy.AccountPolicyInput,
+    option_settings: AccountPolicyInput,
     instrument_mode: str,
     ticker: str,
     prices: dict[str, float],
@@ -298,7 +305,7 @@ def _size_buy_for_ticker(
     """Size a buy for one signaled ticker; None when it cannot be sized (or leaps-blocked)."""
     price = float(prices[ticker])
     if instrument_mode == "leaps":
-        ok, delta_est, iv_est = auto_trader_policy.option_candidate_allowed(
+        ok, delta_est, iv_est = option_candidate_allowed(
             option_settings,
             ticker,
             iv_rank_proxy,
@@ -306,7 +313,7 @@ def _size_buy_for_ticker(
         if not ok:
             return None
         trade_price = float(
-            auto_trader_policy.estimate_option_premium(
+            estimate_option_premium(
                 price,
                 delta_est,
                 # Indexed directly: option_settings is an AccountPolicyInput
@@ -321,7 +328,7 @@ def _size_buy_for_ticker(
         iv_est = None
         trade_price = price
 
-    qty = auto_trader_policy.choose_buy_qty(
+    qty = choose_buy_qty(
         state.cash,
         trade_price,
         fee,
@@ -346,7 +353,7 @@ def _size_buy_for_ticker(
         return None
 
     if instrument_mode == "leaps":
-        qty = auto_trader_policy.apply_leaps_buy_qty_limits(qty, trade_price, option_settings)
+        qty = apply_leaps_buy_qty_limits(qty, trade_price, option_settings)
         if qty <= 0:
             return None
 
@@ -354,7 +361,7 @@ def _size_buy_for_ticker(
 
 
 def prepare_buy_trades(
-    option_settings: auto_trader_policy.AccountPolicyInput,
+    option_settings: AccountPolicyInput,
     instrument_mode: str,
     buy_candidates: list[str],
     prices: dict[str, float],
@@ -378,7 +385,7 @@ def prepare_buy_trades(
         return []
 
     sized: list[tuple[str, float, int, float | None, float | None]] = []
-    for ticker in auto_trader_policy.order_signal_candidates(buy_candidates, seed=selection_seed):
+    for ticker in order_signal_candidates(buy_candidates, seed=selection_seed):
         if len(sized) >= max_buys:
             break
         price = prices.get(ticker)
@@ -399,7 +406,7 @@ def prepare_buy_trades(
             _ticker, qty, trade_price, delta_est, iv_est = prepared
             sized.append((ticker, trade_price, qty, delta_est, iv_est))
 
-    granted = auto_trader_policy.allocate_buy_quantities(
+    granted = allocate_buy_quantities(
         [(ticker, price, qty) for ticker, price, qty, _d, _iv in sized],
         cash=float(state.cash),
         fee_per_trade=fee,
@@ -424,7 +431,7 @@ def _order_sell_candidates(
     ordered = list(forced_sells)
     ordered.extend(
         ticker
-        for ticker in auto_trader_policy.order_signal_candidates(sell_candidates, seed=selection_seed)
+        for ticker in order_signal_candidates(sell_candidates, seed=selection_seed)
         if ticker not in forced_sells
     )
     return ordered
@@ -452,7 +459,7 @@ def iter_sellable_trades(
         if price is None or price <= 0:
             continue
 
-        qty = auto_trader_policy.closing_sell_qty(positions.get(ticker, 0.0))
+        qty = closing_sell_qty(positions.get(ticker, 0.0))
         if qty <= 0:
             continue
 

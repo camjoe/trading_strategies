@@ -6,8 +6,7 @@ from paper_trading_web.backend.services.admin import create_account_with_rotatio
 
 from common.time import utc_now_iso
 from tests.support.books import ensure_default_book_id
-from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.domain.exceptions import NotFoundError
+from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 
