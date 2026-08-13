@@ -102,8 +102,10 @@ def validate_option_settings(
     iv_rank_min: float | None,
     iv_rank_max: float | None,
 ) -> None:
-    if option_type is not None and option_type not in OPTION_TYPES:
-        raise ValidationError("option_type must be one of: call, put, both")
+    if option_type is not None:
+        # Delegate to the shared enum check so option_type is validated once,
+        # case-insensitively, with the same message as the write path.
+        validate_enum_value(option_type, "option_type")
     validate_or_none_range(target_delta_min, 0, 1, "target_delta_min")
     validate_or_none_range(target_delta_max, 0, 1, "target_delta_max")
     validate_range(target_delta_min, target_delta_max, "target_delta")

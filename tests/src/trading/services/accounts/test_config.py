@@ -87,6 +87,21 @@ class TestCreateAccountIntegration:
         assert book.goal_period == "weekly"
         assert book.option_type == "call"
 
+    def test_uppercase_option_type_is_accepted_and_normalized(self, conn) -> None:
+        create_account(
+            conn,
+            name="acct_opt_case",
+            strategy="Trend",
+            initial_cash=1000.0,
+            benchmark_ticker="SPY",
+            config=AccountConfig(option_type="CALL"),
+        )
+
+        account = get_account(conn, "acct_opt_case")
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.option_type == "call"
+
     def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
         create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
 
