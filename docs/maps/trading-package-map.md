@@ -128,7 +128,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `accounts/listing.py` | Account listing and filtering |
+| `accounts/listing.py` | Account listing read orchestration (fetch accounts + books, then build display lines) |
+| `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |

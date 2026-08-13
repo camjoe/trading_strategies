@@ -21,20 +21,20 @@ from trading.services.accounts.deletions import (
     delete_account,
     preview_account_deletion,
 )
-from trading.services.accounts.listing import (
-    GOAL_NOT_SET_TEXT,
-    HEURISTIC_EXPLORATION_LABEL,
-    build_account_listing_lines,
-    format_account_policy_text,
-    format_goal_text,
-    list_accounts,
-)
+from trading.services.accounts.listing import list_accounts
 from trading.services.accounts.mutations import (
     configure_account,
     create_account,
     get_account,
     set_account_strategy,
     set_benchmark,
+)
+from trading.services.accounts.presentation import (
+    GOAL_NOT_SET_TEXT,
+    HEURISTIC_EXPLORATION_LABEL,
+    build_account_listing_lines,
+    format_account_policy_text,
+    format_goal_text,
 )
 from trading.services.accounts.queries import (
     find_account,
