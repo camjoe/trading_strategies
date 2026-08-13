@@ -62,7 +62,11 @@ def apply_book_fill_transition(
 
     if normalized_side == "buy":
         buy = buy_position_delta(
-            position_qty=starting_qty, position_avg_cost=starting_avg_cost, qty=fill_qty, price=fill_px, fee=fill_commission
+            position_qty=starting_qty,
+            position_avg_cost=starting_avg_cost,
+            qty=fill_qty,
+            price=fill_px,
+            fee=fill_commission,
         )
         ending_qty = buy.ending_qty
         ending_avg_cost = buy.ending_avg_cost
@@ -70,7 +74,11 @@ def apply_book_fill_transition(
         realized_pnl_delta = 0.0
     else:
         sell = sell_position_delta(
-            position_qty=starting_qty, position_avg_cost=starting_avg_cost, qty=fill_qty, price=fill_px, fee=fill_commission
+            position_qty=starting_qty,
+            position_avg_cost=starting_avg_cost,
+            qty=fill_qty,
+            price=fill_px,
+            fee=fill_commission,
         )
         ending_qty = sell.ending_qty
         # A fully closed position resets its average cost; a partial sell keeps it.

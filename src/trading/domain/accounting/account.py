@@ -62,7 +62,9 @@ def apply_buy(
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if old_qty + qty <= 0:
-        raise ValueError(f"Buy of {qty} for {ticker} leaves a non-positive position ({old_qty + qty}); qty must be > 0.")
+        raise ValueError(
+            f"Buy of {qty} for {ticker} leaves a non-positive position ({old_qty + qty}); qty must be > 0."
+        )
     delta = buy_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
     positions[ticker] = delta.ending_qty
     avg_cost[ticker] = delta.ending_avg_cost
@@ -89,7 +91,9 @@ def apply_sell(
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
-    delta = sell_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
+    delta = sell_position_delta(
+        position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee
+    )
     positions[ticker] = delta.ending_qty
     return cash + delta.cash_delta, realized + delta.realized_delta
 

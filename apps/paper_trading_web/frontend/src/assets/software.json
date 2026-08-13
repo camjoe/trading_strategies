@@ -86,6 +86,13 @@
       "purpose": "Validation and schema modeling for backend requests, responses, and settings."
     },
     {
+      "name": "python-dateutil",
+      "version": "==2.9.0.post0",
+      "scope": "runtime",
+      "group": "Backend & Validation",
+      "purpose": ""
+    },
+    {
       "name": "python-dotenv",
       "version": "==1.2.2",
       "scope": "runtime",

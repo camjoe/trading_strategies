@@ -251,9 +251,7 @@ def test_order_signal_candidates_spreads_first_pick_across_names() -> None:
     first, so every book built its portfolio in file order.
     """
     candidates = ["AAPL", "MSFT", "NVDA", "AMZN"]
-    firsts = {
-        order_signal_candidates(candidates, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)
-    }
+    firsts = {order_signal_candidates(candidates, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)}
     assert len(firsts) > 1
 
 
@@ -280,9 +278,7 @@ def test_order_capacity_claimants_ignores_the_order_it_was_given() -> None:
 def test_order_capacity_claimants_spreads_first_claim_across_books() -> None:
     """The reason this exists: the lowest book id must not take capacity every run."""
     book_ids = [1, 2, 3, 4]
-    firsts = {
-        order_capacity_claimants(book_ids, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)
-    }
+    firsts = {order_capacity_claimants(book_ids, seed=f"2026-07-{day:02d}")[0] for day in range(1, 29)}
     assert len(firsts) > 1
 
 
