@@ -217,8 +217,7 @@ def validate_option_settings_from_inputs(
 # Each writable book column paired with the coercion or normalization applied to
 # its AccountConfig field. One table so the create, account-update, and
 # explicit-book-edit paths share a single column list and cannot drift into
-# different coercion per site. ``max_trades_per_run`` is the one book settings
-# column absent from AccountConfig; its editor overlays it separately.
+# different coercion per site.
 _BOOK_COLUMN_COERCERS: dict[str, Callable[..., object]] = {
     "learning_enabled": expect_int,
     "risk_policy": normalize_risk_policy,
@@ -229,6 +228,7 @@ _BOOK_COLUMN_COERCERS: dict[str, Callable[..., object]] = {
     "take_profit_pct": expect_float,
     "trade_size_pct": expect_float,
     "max_position_pct": expect_float,
+    "max_trades_per_run": expect_int,
     "goal_min_return_pct": expect_float,
     "goal_max_return_pct": expect_float,
     "option_profit_take_pct": expect_float,

@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
-from common.coercion import expect_int
 from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -120,7 +119,6 @@ def configure_book(
     book_name: str,
     strategy: str | None,
     config: AccountConfig,
-    config_values: dict[str, object],
     rotation_scheduling: dict[str, object],
     rotation_policy: dict[str, int | float | None],
 ) -> None:
@@ -150,17 +148,9 @@ def configure_book(
                 raise ValidationError("strategy cannot be empty.")
             assign_book_strategy(conn, book_id=book.id, strategy_name=strategy, now_iso=utc_now_iso())
 
-        # Every execution/goal/option column rides on the coerced config, like
-        # the account-level edit. Only max_trades_per_run is absent from
-        # AccountConfig, so it is overlaid from the raw request payload.
-        raw_max_trades = config_values.get("max_trades_per_run")
-        settings = replace(
-            book_settings_update_from_config(config),
-            max_trades_per_run=expect_int(raw_max_trades) if raw_max_trades is not None else None,
-        )
         BookRepository(conn).update_settings(
             book_id=book.id,
-            settings=settings,
+            settings=book_settings_update_from_config(config),
             updated_at=utc_now_iso(),
         )
         if config.trade_universes is not None:

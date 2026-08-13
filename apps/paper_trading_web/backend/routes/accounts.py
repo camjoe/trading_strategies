@@ -290,7 +290,6 @@ def api_update_book_params(
                 book_name=book_name,
                 strategy=command.strategy,
                 config=command.config,
-                config_values=command.config_values,
                 rotation_scheduling={
                     scheduling_names[name]: value for name, value in command.rotation_settings.items()
                 },

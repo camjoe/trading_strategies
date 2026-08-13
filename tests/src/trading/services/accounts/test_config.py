@@ -263,6 +263,14 @@ class TestConfigureAccountOptionFields:
         assert book.trade_size_pct == pytest.approx(12.0)
         assert book.max_position_pct == pytest.approx(24.0)
 
+    def test_configure_account_updates_max_trades_per_run(self, conn, base_account) -> None:
+        configure_account(conn, account_name=base_account, config=AccountConfig(max_trades_per_run=3))
+
+        account = get_account(conn, base_account)
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.max_trades_per_run == 3
+
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):
             create_account(
