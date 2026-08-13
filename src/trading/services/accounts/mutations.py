@@ -2,28 +2,16 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
-from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
-from trading.models.books import BookSettingsUpdate
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.books.configuration import apply_book_config
-from trading.services.books.settings_validation import (
-    normalize_instrument_mode,
-    normalize_lower,
-    normalize_option_type,
-    normalize_risk_policy,
-    validate_goal_return_range,
-    validate_option_settings,
-    validate_position_sizing,
-)
-from trading.services.universe import default_trade_symbols, resolve_trade_symbols
+from trading.services.books.provisioning import bootstrap_default_book
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
@@ -31,25 +19,6 @@ def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     if row is None:
         raise NotFoundError(f"Account '{name}' not found.")
     return row
-
-
-def _serialize_trade_symbols(symbols: list[str]) -> str:
-    return dumps_json_column(symbols)
-
-
-def _apply_book_settings_to_default_book(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    settings: BookSettingsUpdate,
-) -> None:
-    """Write execution/option settings (book columns since revisions
-    0004/0005) to the account's default book; unset (None) fields keep their
-    current value."""
-    book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
-    if book is None:
-        raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update_settings(book_id=book.id, settings=settings, updated_at=utc_now_iso())
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -84,32 +53,10 @@ def _create_account(
     if initial_cash <= 0:
         raise ValidationError("initial_cash must be greater than 0.")
     validate_strategy_name(strategy)
-    validate_goal_return_range(cfg.goal_min_return_pct, cfg.goal_max_return_pct)
 
     display = (cfg.descriptive_name or name).strip()
     if not display:
         display = name
-
-    risk = normalize_risk_policy(cfg.risk_policy or "none")
-    mode = normalize_instrument_mode(cfg.instrument_mode or "equity")
-    trade_size_pct = cfg.trade_size_pct if cfg.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
-    max_position_pct = cfg.max_position_pct if cfg.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
-    validate_position_sizing(trade_size_pct, max_position_pct)
-    validate_option_settings(
-        cfg.option_type,
-        cfg.target_delta_min,
-        cfg.target_delta_max,
-        cfg.option_min_dte,
-        cfg.option_max_dte,
-        cfg.iv_rank_min,
-        cfg.iv_rank_max,
-    )
-
-    # Resolve before any write: an unresolvable universe name fails here rather
-    # than after the account row exists.
-    symbols = (
-        resolve_trade_symbols(cfg.trade_universes) if cfg.trade_universes is not None else default_trade_symbols()
-    )
 
     created_ts = utc_now_iso()
     try:
@@ -126,56 +73,17 @@ def _create_account(
     except sqlite3.IntegrityError as exc:
         raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
 
-    # Create the default book and open its assignment so the new account trades
-    # from day one (books are the execution primitive; ADR 010/014).
+    # Books are the execution primitive (ADR 010/014): provision the account's
+    # default book so it trades from day one. Runs in the same unit_of_work, so
+    # a bad config or universe here rolls the account row back too.
     account = get_account(conn, name)
-    BookRepository(conn).insert(
-        account_id=account.id,
-        name="default",
-        is_default=1,
-        start_equity=float(initial_cash),
-        current_cash=float(initial_cash),
-        current_equity=float(initial_cash),
-        trade_symbols=_serialize_trade_symbols(symbols),
-        created_at=created_ts,
-        updated_at=created_ts,
-    )
-    sync_default_book_assignment(
+    bootstrap_default_book(
         conn,
         account_id=account.id,
-        strategy_name=strategy,
-        now_iso=utc_now_iso(),
-    )
-    # Execution/option settings are book columns (revisions 0004/0005): apply
-    # the validated create-time values to the book just created.
-    _apply_book_settings_to_default_book(
-        conn,
-        account_id=account.id,
-        settings=BookSettingsUpdate(
-            learning_enabled=int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
-            risk_policy=risk,
-            stop_loss_pct=cfg.stop_loss_pct,
-            take_profit_pct=cfg.take_profit_pct,
-            trade_size_pct=trade_size_pct,
-            max_position_pct=max_position_pct,
-            instrument_mode=mode,
-            option_profit_take_pct=cfg.option_profit_take_pct,
-            option_max_loss_pct=cfg.option_max_loss_pct,
-            option_strike_offset_pct=cfg.option_strike_offset_pct,
-            option_min_dte=cfg.option_min_dte,
-            option_max_dte=cfg.option_max_dte,
-            option_type=normalize_option_type(cfg.option_type) if cfg.option_type else None,
-            target_delta_min=cfg.target_delta_min,
-            target_delta_max=cfg.target_delta_max,
-            max_premium_per_trade=cfg.max_premium_per_trade,
-            max_contracts_per_trade=cfg.max_contracts_per_trade,
-            iv_rank_min=cfg.iv_rank_min,
-            iv_rank_max=cfg.iv_rank_max,
-            roll_dte_threshold=cfg.roll_dte_threshold,
-            goal_min_return_pct=cfg.goal_min_return_pct,
-            goal_max_return_pct=cfg.goal_max_return_pct,
-            goal_period=normalize_lower(cfg.goal_period or "monthly"),
-        ),
+        strategy=strategy,
+        initial_cash=initial_cash,
+        config=cfg,
+        now_iso=created_ts,
     )
 
 

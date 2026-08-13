@@ -35,7 +35,7 @@ def test_create_account_rolls_back_when_book_configuration_fails(conn, monkeypat
     def fail_book_configuration(*args, **kwargs) -> None:
         raise RuntimeError("book configuration failed")
 
-    monkeypatch.setattr(account_mutations, "_apply_book_settings_to_default_book", fail_book_configuration)
+    monkeypatch.setattr(account_mutations, "bootstrap_default_book", fail_book_configuration)
 
     with pytest.raises(RuntimeError, match="book configuration failed"):
         create_account(conn, "acct_create_rollback", "Trend", 5000.0, "SPY")

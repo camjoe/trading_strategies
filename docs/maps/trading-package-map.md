@@ -202,6 +202,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`) — merges persisted rotation settings over code defaults |
 | `books/settings_validation.py` | Book execution/goal/option settings validation and normalization (enum/range/sizing/option checks) + `book_settings_update_from_config` builder |
 | `books/default_book.py` | Resolve an account to its default book (`default_book_id`) |
+| `books/provisioning.py` | Create-time default-book provisioning (`bootstrap_default_book`): validate create settings, insert the default book, open its assignment, write execution/goal/option columns |
 | `books/operations.py` | Book-attributed operational reads for interface consumers (`fetch_book_operational_data`) |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/queries.py` | Read-side contracts for the catalog operator surfaces (catalog + primitive listings, optimization history, strategy payload shaping) |
