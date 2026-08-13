@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
+from dataclasses import fields
 
-from trading.models.books import BookRecord
+from trading.models.books import BookRecord, BookSettingsUpdate
 from trading.persistence.unit_of_work import commit_unit_of_work
+
+# The BookSettingsUpdate fields are book column names; a settings edit writes the
+# non-None subset of them.
+_BOOK_SETTINGS_COLUMNS = tuple(field.name for field in fields(BookSettingsUpdate))
 
 
 class BookRepository:
@@ -107,6 +112,17 @@ class BookRepository:
             (*values.values(), updated_at, book_id),
         )
         commit_unit_of_work(self._conn)
+
+    def update_settings(self, *, book_id: int, settings: BookSettingsUpdate, updated_at: str) -> None:
+        """Write the set (non-None) columns of a typed settings edit to one book.
+
+        None fields are left at their current value. A settings object with no
+        set field is a no-op, exactly as an empty ``update``.
+        """
+        values = {
+            column: value for column in _BOOK_SETTINGS_COLUMNS if (value := getattr(settings, column)) is not None
+        }
+        self.update(book_id=book_id, values=values, updated_at=updated_at)
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(

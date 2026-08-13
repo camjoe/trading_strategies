@@ -115,6 +115,7 @@ class AccountConfig:
     take_profit_pct: float | None = None
     trade_size_pct: float | None = None
     max_position_pct: float | None = None
+    max_trades_per_run: int | None = None
     instrument_mode: str | None = None
     option_strike_offset_pct: float | None = None
     option_min_dte: int | None = None
@@ -144,6 +145,7 @@ class AccountConfig:
             take_profit_pct=coerce_float(values.get("take_profit_pct")),
             trade_size_pct=coerce_float(values.get("trade_size_pct")),
             max_position_pct=coerce_float(values.get("max_position_pct")),
+            max_trades_per_run=coerce_int(values.get("max_trades_per_run")),
             instrument_mode=coerce_str(values.get("instrument_mode")),
             option_strike_offset_pct=coerce_float(values.get("option_strike_offset_pct")),
             option_min_dte=coerce_int(values.get("option_min_dte")),

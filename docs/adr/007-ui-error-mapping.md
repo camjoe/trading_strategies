@@ -126,7 +126,7 @@ The second slice completes the migration for the remaining per-route
   `except ValueError` callers — CLI, tests — are unchanged). A second app-level
   handler in `apps/paper_trading_web/backend/main.py` maps `ValidationError -> 400`.
 - User-input validation raises reachable from the migrated routes now raise
-  `ValidationError`: `services/accounts/config.py` (enum/range/sizing/option
+  `ValidationError`: `services/accounts/validation.py` (enum/range/sizing/option
   checks), `services/accounts/mutations.py` and `queries.py` (empty-name,
   positive-id/limit, `initial_cash > 0`), `domain/strategy_signals.py`
   (unknown-strategy), `backtesting/domain/windowing.py` and

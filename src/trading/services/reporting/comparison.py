@@ -16,9 +16,9 @@ from trading.models.books import BookRecord
 from trading.repositories.books import BookRepository
 from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
-    format_account_policy_text,
-    format_goal_text,
     list_account_records,
+    render_account_policy_text,
+    render_goal_text,
 )
 from trading.services.analysis.portfolio import build_account_stats, infer_overall_trend
 from trading.services.books.book_assignments import active_strategy_for_account
@@ -33,7 +33,7 @@ def _compare_account_header(account: AccountRecord) -> str:
 
 
 def _compare_goal_metadata_line(book: BookRecord | None) -> str | None:
-    goal_text = format_goal_text(book)
+    goal_text = render_goal_text(book)
     if goal_text == GOAL_NOT_SET_TEXT:
         return None
     return f"  goal_metadata={goal_text}"
@@ -92,7 +92,7 @@ def compare_strategies(
         compare_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
         print(
             "  account_policy="
-            f"{format_account_policy_text(account, active_strategy=active_strategy, book=compare_book)}"
+            f"{render_account_policy_text(account, active_strategy=active_strategy, book=compare_book)}"
         )
         goal_metadata_line = _compare_goal_metadata_line(compare_book)
         if goal_metadata_line is not None:

@@ -132,7 +132,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
-| `accounts/config.py` | Account configuration helpers |
+| `accounts/validation.py` | Account config validation and normalization helpers (enum/range/sizing/option checks) |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `analysis/position.py` | Position analysis calculations |

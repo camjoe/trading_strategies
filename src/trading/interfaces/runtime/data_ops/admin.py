@@ -12,7 +12,7 @@ from common.paths import DB_BACKUPS_DIR
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
 from trading.services.accounts import delete_account, preview_account_deletion
-from trading.services.accounts.listing import list_accounts
+from trading.services.accounts.listing import fetch_account_listing_lines
 
 
 def _sqlite_db_path() -> Path:
@@ -60,7 +60,7 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     with db_session() as conn:
-        lines = list_accounts(conn)
+        lines = fetch_account_listing_lines(conn)
     if not lines:
         print("No accounts found.")
         return 0
