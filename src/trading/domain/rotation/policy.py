@@ -1,3 +1,12 @@
+"""Champion/challenger rotation decision over ``models.rotation`` value objects.
+
+Scores the incumbent and each challenger with the operator-tunable weights (see
+:mod:`trading.domain.rotation.score_components` for the components and their
+units), then applies four gates — cooldown, challenger sample size, outperformance
+margin, and score superiority. Returns a ``RotationDecision`` carrying the verdict,
+the per-strategy score components, and every gate's result. Side-effect free.
+"""
+
 from __future__ import annotations
 
 from common.constants import PERCENT_POINTS_TO_BASIS_POINTS
