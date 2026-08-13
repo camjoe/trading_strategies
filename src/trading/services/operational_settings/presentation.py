@@ -6,7 +6,7 @@ import sqlite3
 
 from trading.models.settings import GlobalSettingsChangeEvent
 from trading.services.change_history_presentation import render_settings_change_lines
-from trading.services.operational_settings.history import fetch_global_settings_change_history
+from trading.services.operational_settings.queries import fetch_global_settings_change_history
 
 
 def show_global_settings_history(conn: sqlite3.Connection, *, limit: int = 20) -> list[GlobalSettingsChangeEvent]:

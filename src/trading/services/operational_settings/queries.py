@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
 from trading.domain.promotion.policy import PromotionPolicySettings
+from trading.models.settings import GlobalSettingsChangeEvent
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 
@@ -76,8 +77,15 @@ def fetch_promotion_policy_settings(conn: sqlite3.Connection) -> PromotionPolicy
     return _settings_from_global_record(conn, PromotionPolicySettings, column_prefix="promotion_")
 
 
+def fetch_global_settings_change_history(
+    conn: sqlite3.Connection, *, limit: int = 20
+) -> list[GlobalSettingsChangeEvent]:
+    return GlobalSettingsRepository(conn).fetch_change_events(limit=limit)
+
+
 __all__ = [
     "fetch_evaluation_confidence_settings",
+    "fetch_global_settings_change_history",
     "fetch_promotion_policy_settings",
     "fetch_runtime_throttle_settings",
 ]

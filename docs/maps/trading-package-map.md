@@ -185,9 +185,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
-| `operational_settings/queries.py` | Operational setting read operations |
+| `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
-| `operational_settings/history.py` | Read orchestration for the global settings change-audit trail |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
 | `change_history_presentation.py` | Shared `render_settings_change_lines` for the global-settings and book-rotation change-audit views |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
