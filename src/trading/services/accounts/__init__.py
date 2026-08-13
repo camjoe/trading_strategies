@@ -12,7 +12,7 @@ from trading.domain.auto_trading.sizing import (
     DEFAULT_TRADE_SIZE_PCT,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.services.accounts.config import (
+from trading.services.accounts.validation import (
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RISK_POLICIES,

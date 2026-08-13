@@ -16,7 +16,7 @@ from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
-from trading.services.accounts.config import (
+from trading.services.accounts.validation import (
     normalize_instrument_mode,
     normalize_lower,
     normalize_option_type,
