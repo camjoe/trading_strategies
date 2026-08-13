@@ -79,7 +79,7 @@ python -m trends --list-categories
 ## Known Duplication
 
 `calculate_rs_rsi` and `calculate_macd` exist **twice** — here in
-`apps/trends/indicators.py` and in `src/trading/domain/indicators.py`. The two copies are
+`apps/trends/indicators.py` and in src/trading/domain. The two copies are
 functionally identical, down to the same edge-case handling (coercing `inf`/`-inf` to `NaN`, and
 treating a flat rolling window as neutral momentum with `RS = 1.0`). They differ only in variable
 names and comment style, which means the same subtle fixes were made in both places.

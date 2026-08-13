@@ -48,7 +48,7 @@ The maps and this guide serve different questions:
 | Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |
 | Change report presentation (printed operator output) | `src/trading/services/reporting/` |
 | Change portfolio/benchmark computation (account stats, settlement equity, benchmark overlay) | `src/trading/services/analysis/` (`portfolio.py`, `benchmark.py`) |
-| Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/portfolio_math.py` |
+| Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
 | Change per-book rotation policy resolution | `src/trading/services/books/rotation/engine.py` (`resolve_rotation_policy_config`) |
