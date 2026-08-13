@@ -10,6 +10,7 @@ import sqlite3
 
 from trading.models.evaluation import BacktestFreshness
 from trading.models.promotion import PromotionAssessment
+from trading.services.evaluation import backtest_freshness_display_parts
 from trading.services.promotion.assessment import fetch_promotion_assessment
 from trading.services.promotion.history import (
     PromotionReviewHistoryEntry,
@@ -36,10 +37,11 @@ def render_section(title: str, items: list[str]) -> list[str]:
 
 
 def _format_backtest_freshness(freshness: BacktestFreshness | None) -> str:
-    if freshness is None or not freshness.available or freshness.age_days is None:
+    parts = backtest_freshness_display_parts(freshness)
+    if parts is None:
         return NONE_TEXT
-    label = "stale" if freshness.is_stale else "fresh"
-    return f"{freshness.age_days:.1f} days ({label})"
+    age_days, label = parts
+    return f"{age_days:.1f} days ({label})"
 
 
 def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
