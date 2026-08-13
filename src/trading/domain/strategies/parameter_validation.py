@@ -57,7 +57,7 @@ def _coerce_int_knob(name: str, value: Any) -> int:
         return int(value)
     try:
         return int(str(value).strip())
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f"Knob '{name}' expects an integer, got {value!r}.") from None
 
 
@@ -68,5 +68,5 @@ def _coerce_float_knob(name: str, value: Any) -> float:
         return float(value)
     try:
         return float(str(value).strip())
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f"Knob '{name}' expects a number, got {value!r}.") from None
