@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import expect_float, expect_int
 from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
+from trading.models.books import BookSettingsUpdate
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
+from trading.services.accounts.queries import find_account
 from trading.services.accounts.validation import (
+    book_settings_update_from_config,
     normalize_instrument_mode,
     normalize_lower,
     normalize_option_type,
@@ -23,7 +25,6 @@ from trading.services.accounts.validation import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
-from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.universe import default_trade_symbols, resolve_trade_symbols
 
@@ -43,19 +44,15 @@ def _apply_book_settings_to_default_book(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-    values: dict[str, object | None],
+    settings: BookSettingsUpdate,
 ) -> None:
     """Write execution/option settings (book columns since revisions
-    0004/0005) to the account's default book; None values are skipped (keep
-    current/DDL value)."""
+    0004/0005) to the account's default book; unset (None) fields keep their
+    current value."""
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     if book is None:
         raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update(
-        book_id=book.id,
-        values={column: value for column, value in values.items() if value is not None},
-        updated_at=utc_now_iso(),
-    )
+    BookRepository(conn).update_settings(book_id=book.id, settings=settings, updated_at=utc_now_iso())
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -157,31 +154,31 @@ def _create_account(
     _apply_book_settings_to_default_book(
         conn,
         account_id=account.id,
-        values={
-            "learning_enabled": int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
-            "risk_policy": risk,
-            "stop_loss_pct": cfg.stop_loss_pct,
-            "take_profit_pct": cfg.take_profit_pct,
-            "trade_size_pct": trade_size_pct,
-            "max_position_pct": max_position_pct,
-            "instrument_mode": mode,
-            "option_profit_take_pct": cfg.option_profit_take_pct,
-            "option_max_loss_pct": cfg.option_max_loss_pct,
-            "option_strike_offset_pct": cfg.option_strike_offset_pct,
-            "option_min_dte": cfg.option_min_dte,
-            "option_max_dte": cfg.option_max_dte,
-            "option_type": normalize_option_type(cfg.option_type) if cfg.option_type else None,
-            "target_delta_min": cfg.target_delta_min,
-            "target_delta_max": cfg.target_delta_max,
-            "max_premium_per_trade": cfg.max_premium_per_trade,
-            "max_contracts_per_trade": cfg.max_contracts_per_trade,
-            "iv_rank_min": cfg.iv_rank_min,
-            "iv_rank_max": cfg.iv_rank_max,
-            "roll_dte_threshold": cfg.roll_dte_threshold,
-            "goal_min_return_pct": cfg.goal_min_return_pct,
-            "goal_max_return_pct": cfg.goal_max_return_pct,
-            "goal_period": normalize_lower(cfg.goal_period or "monthly"),
-        },
+        settings=BookSettingsUpdate(
+            learning_enabled=int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
+            risk_policy=risk,
+            stop_loss_pct=cfg.stop_loss_pct,
+            take_profit_pct=cfg.take_profit_pct,
+            trade_size_pct=trade_size_pct,
+            max_position_pct=max_position_pct,
+            instrument_mode=mode,
+            option_profit_take_pct=cfg.option_profit_take_pct,
+            option_max_loss_pct=cfg.option_max_loss_pct,
+            option_strike_offset_pct=cfg.option_strike_offset_pct,
+            option_min_dte=cfg.option_min_dte,
+            option_max_dte=cfg.option_max_dte,
+            option_type=normalize_option_type(cfg.option_type) if cfg.option_type else None,
+            target_delta_min=cfg.target_delta_min,
+            target_delta_max=cfg.target_delta_max,
+            max_premium_per_trade=cfg.max_premium_per_trade,
+            max_contracts_per_trade=cfg.max_contracts_per_trade,
+            iv_rank_min=cfg.iv_rank_min,
+            iv_rank_max=cfg.iv_rank_max,
+            roll_dte_threshold=cfg.roll_dte_threshold,
+            goal_min_return_pct=cfg.goal_min_return_pct,
+            goal_max_return_pct=cfg.goal_max_return_pct,
+            goal_period=normalize_lower(cfg.goal_period or "monthly"),
+        ),
     )
 
 
@@ -283,47 +280,7 @@ def _configure_account(
     _apply_book_settings_to_default_book(
         conn,
         account_id=account.id,
-        values={
-            "learning_enabled": expect_int(cfg.learning_enabled) if cfg.learning_enabled is not None else None,
-            "risk_policy": normalize_risk_policy(cfg.risk_policy) if cfg.risk_policy is not None else None,
-            "instrument_mode": (
-                normalize_instrument_mode(cfg.instrument_mode) if cfg.instrument_mode is not None else None
-            ),
-            "stop_loss_pct": expect_float(cfg.stop_loss_pct) if cfg.stop_loss_pct is not None else None,
-            "take_profit_pct": expect_float(cfg.take_profit_pct) if cfg.take_profit_pct is not None else None,
-            "trade_size_pct": expect_float(cfg.trade_size_pct) if cfg.trade_size_pct is not None else None,
-            "max_position_pct": expect_float(cfg.max_position_pct) if cfg.max_position_pct is not None else None,
-            "option_profit_take_pct": expect_float(cfg.option_profit_take_pct)
-            if cfg.option_profit_take_pct is not None
-            else None,
-            "option_max_loss_pct": expect_float(cfg.option_max_loss_pct)
-            if cfg.option_max_loss_pct is not None
-            else None,
-            "option_type": normalize_option_type(cfg.option_type) if cfg.option_type is not None else None,
-            "option_strike_offset_pct": (
-                expect_float(cfg.option_strike_offset_pct) if cfg.option_strike_offset_pct is not None else None
-            ),
-            "option_min_dte": expect_int(cfg.option_min_dte) if cfg.option_min_dte is not None else None,
-            "option_max_dte": expect_int(cfg.option_max_dte) if cfg.option_max_dte is not None else None,
-            "target_delta_min": expect_float(cfg.target_delta_min) if cfg.target_delta_min is not None else None,
-            "target_delta_max": expect_float(cfg.target_delta_max) if cfg.target_delta_max is not None else None,
-            "max_premium_per_trade": (
-                expect_float(cfg.max_premium_per_trade) if cfg.max_premium_per_trade is not None else None
-            ),
-            "max_contracts_per_trade": (
-                expect_int(cfg.max_contracts_per_trade) if cfg.max_contracts_per_trade is not None else None
-            ),
-            "iv_rank_min": expect_float(cfg.iv_rank_min) if cfg.iv_rank_min is not None else None,
-            "iv_rank_max": expect_float(cfg.iv_rank_max) if cfg.iv_rank_max is not None else None,
-            "roll_dte_threshold": expect_int(cfg.roll_dte_threshold) if cfg.roll_dte_threshold is not None else None,
-            "goal_min_return_pct": expect_float(cfg.goal_min_return_pct)
-            if cfg.goal_min_return_pct is not None
-            else None,
-            "goal_max_return_pct": expect_float(cfg.goal_max_return_pct)
-            if cfg.goal_max_return_pct is not None
-            else None,
-            "goal_period": normalize_lower(cfg.goal_period) if cfg.goal_period is not None else None,
-        },
+        settings=book_settings_update_from_config(cfg),
     )
     if cfg.trade_universes is not None:
         _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)

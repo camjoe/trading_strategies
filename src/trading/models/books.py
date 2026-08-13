@@ -142,6 +142,42 @@ class BookRecord(Mapping[str, object]):
         return [str(symbol) for symbol in decoded]
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BookSettingsUpdate:
+    """A partial edit to a book's execution, goal, and option columns.
+
+    Field names are the column names: ``BookRepository.update_settings`` builds
+    the UPDATE from the fields the caller set. Every field defaults to None,
+    meaning "leave this column at its current value" — this path never writes a
+    column back to NULL, matching the partial-update contract of ``update``.
+    """
+
+    learning_enabled: int | None = None
+    risk_policy: str | None = None
+    instrument_mode: str | None = None
+    option_type: str | None = None
+    goal_period: str | None = None
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
+    trade_size_pct: float | None = None
+    max_position_pct: float | None = None
+    goal_min_return_pct: float | None = None
+    goal_max_return_pct: float | None = None
+    max_trades_per_run: int | None = None
+    option_profit_take_pct: float | None = None
+    option_max_loss_pct: float | None = None
+    option_strike_offset_pct: float | None = None
+    option_min_dte: int | None = None
+    option_max_dte: int | None = None
+    target_delta_min: float | None = None
+    target_delta_max: float | None = None
+    max_premium_per_trade: float | None = None
+    max_contracts_per_trade: int | None = None
+    iv_rank_min: float | None = None
+    iv_rank_max: float | None = None
+    roll_dte_threshold: int | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class BookAssignmentView:
     """A book's open strategy assignment, resolved for trading-path consumers.

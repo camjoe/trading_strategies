@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from common.coercion import (
     coerce_float,
+    expect_float,
+    expect_int,
     row_float,
     row_int,
     row_str,
 )
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import ValidationError
+from trading.models.accounts import AccountConfig
+from trading.models.books import BookSettingsUpdate
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
@@ -207,3 +212,49 @@ def validate_option_settings_from_inputs(
         iv_min,
         iv_max,
     )
+
+
+# Each writable book column paired with the coercion or normalization applied to
+# its AccountConfig field. One table so the create, account-update, and
+# explicit-book-edit paths share a single column list and cannot drift into
+# different coercion per site. ``max_trades_per_run`` is the one book settings
+# column absent from AccountConfig; its editor overlays it separately.
+_BOOK_COLUMN_COERCERS: dict[str, Callable[..., object]] = {
+    "learning_enabled": expect_int,
+    "risk_policy": normalize_risk_policy,
+    "instrument_mode": normalize_instrument_mode,
+    "option_type": normalize_option_type,
+    "goal_period": normalize_lower,
+    "stop_loss_pct": expect_float,
+    "take_profit_pct": expect_float,
+    "trade_size_pct": expect_float,
+    "max_position_pct": expect_float,
+    "goal_min_return_pct": expect_float,
+    "goal_max_return_pct": expect_float,
+    "option_profit_take_pct": expect_float,
+    "option_max_loss_pct": expect_float,
+    "option_strike_offset_pct": expect_float,
+    "option_min_dte": expect_int,
+    "option_max_dte": expect_int,
+    "target_delta_min": expect_float,
+    "target_delta_max": expect_float,
+    "max_premium_per_trade": expect_float,
+    "max_contracts_per_trade": expect_int,
+    "iv_rank_min": expect_float,
+    "iv_rank_max": expect_float,
+    "roll_dte_threshold": expect_int,
+}
+
+
+def book_settings_update_from_config(config: AccountConfig) -> BookSettingsUpdate:
+    """Coerce a partial AccountConfig into a typed book-settings update.
+
+    Only the fields the caller set (non-None) are carried; each passes through
+    its column's normalizer or coercer.
+    """
+    kwargs: dict[str, Any] = {}
+    for column, coerce in _BOOK_COLUMN_COERCERS.items():
+        raw = getattr(config, column)
+        if raw is not None:
+            kwargs[column] = coerce(raw)
+    return BookSettingsUpdate(**kwargs)

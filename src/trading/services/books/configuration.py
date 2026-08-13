@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from common.coercion import expect_float, expect_int
+from common.coercion import expect_int
 from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -17,10 +17,7 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.services.accounts.validation import (
-    normalize_instrument_mode,
-    normalize_lower,
-    normalize_option_type,
-    normalize_risk_policy,
+    book_settings_update_from_config,
     validate_goal_range_from_inputs,
     validate_option_settings_from_inputs,
     validate_position_sizing_from_inputs,
@@ -153,47 +150,17 @@ def configure_book(
                 raise ValidationError("strategy cannot be empty.")
             assign_book_strategy(conn, book_id=book.id, strategy_name=strategy, now_iso=utc_now_iso())
 
-        values: dict[str, object | None] = {
-            "learning_enabled": expect_int(config.learning_enabled) if config.learning_enabled is not None else None,
-            "risk_policy": normalize_risk_policy(config.risk_policy) if config.risk_policy is not None else None,
-            "stop_loss_pct": expect_float(config.stop_loss_pct) if config.stop_loss_pct is not None else None,
-            "take_profit_pct": expect_float(config.take_profit_pct) if config.take_profit_pct is not None else None,
-            "trade_size_pct": expect_float(config.trade_size_pct) if config.trade_size_pct is not None else None,
-            "max_position_pct": expect_float(config.max_position_pct) if config.max_position_pct is not None else None,
-            "instrument_mode": (
-                normalize_instrument_mode(config.instrument_mode) if config.instrument_mode is not None else None
-            ),
-            "goal_min_return_pct": (
-                expect_float(config.goal_min_return_pct) if config.goal_min_return_pct is not None else None
-            ),
-            "goal_max_return_pct": (
-                expect_float(config.goal_max_return_pct) if config.goal_max_return_pct is not None else None
-            ),
-            "goal_period": normalize_lower(config.goal_period) if config.goal_period is not None else None,
-            "max_trades_per_run": config_values.get("max_trades_per_run"),
-        }
-        for name in (
-            "option_strike_offset_pct",
-            "option_min_dte",
-            "option_max_dte",
-            "target_delta_min",
-            "target_delta_max",
-            "max_premium_per_trade",
-            "max_contracts_per_trade",
-            "iv_rank_min",
-            "iv_rank_max",
-            "roll_dte_threshold",
-            "option_profit_take_pct",
-            "option_max_loss_pct",
-        ):
-            if name in config_values:
-                values[name] = config_values[name]
-        if config.option_type is not None:
-            values["option_type"] = normalize_option_type(config.option_type)
-
-        BookRepository(conn).update(
+        # Every execution/goal/option column rides on the coerced config, like
+        # the account-level edit. Only max_trades_per_run is absent from
+        # AccountConfig, so it is overlaid from the raw request payload.
+        raw_max_trades = config_values.get("max_trades_per_run")
+        settings = replace(
+            book_settings_update_from_config(config),
+            max_trades_per_run=expect_int(raw_max_trades) if raw_max_trades is not None else None,
+        )
+        BookRepository(conn).update_settings(
             book_id=book.id,
-            values={name: value for name, value in values.items() if value is not None},
+            settings=settings,
             updated_at=utc_now_iso(),
         )
         if config.trade_universes is not None:
