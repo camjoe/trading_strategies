@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from trading.domain.accounting.account import compute_account_state
+from trading.domain.accounting.book import (
+    apply_book_fill_transition,
+)
 from trading.domain.auto_trading_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
@@ -10,9 +13,6 @@ from trading.domain.auto_trading_policy import (
     estimate_option_premium,
     option_candidate_allowed,
     order_risk_breaches,
-)
-from trading.domain.accounting.book import (
-    apply_book_fill_transition,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.metrics.returns import safe_return_pct
