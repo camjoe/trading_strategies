@@ -81,6 +81,6 @@ and divergent-fix bugs disappear. This is strongest where a service has genuine 
 
 ## Facades
 
-A package `__init__` that re-exports its public surface is permitted **only** as a deliberate,
-consumed public entrypoint (e.g. `execution/ledger`, `accounts`, `market_data`). Do not add a
-re-export `__init__` that nothing imports; prefer direct imports from the concrete module.
+Import from the concrete module that owns a symbol; do not add a re-export `__init__` facade.
+`execution` and `books` are the model. Legacy `__all__` facades remain in several packages from
+an earlier convention and are retired per package as each is touched.

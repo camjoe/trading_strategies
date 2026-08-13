@@ -28,25 +28,26 @@ versioned compatibility promise for external consumers.
 
 ## Import pattern
 
-Most service packages expose a supported internal `__all__` surface through their
-`__init__.py`. Import from the package by default, not from the concrete submodule:
+Import from the module that owns the symbol. The import path then names where the code
+lives, and there is no re-export surface to keep in sync:
 
 ```python
-# Correct — supported internal surface
-from trading.services.accounts import get_account, list_account_records
-from trading.services.analysis import build_account_stats, build_live_benchmark_overlay
-
-# Avoid — internal submodule (subject to change without notice)
+# Correct — import from the owning module
 from trading.services.accounts.queries import get_account
+from trading.services.analysis.portfolio import build_account_stats
+
+# Avoid — package-root re-export facade
+from trading.services.accounts import get_account
 ```
 
-Naming conventions on that surface (see `architecture-conventions.md`): reads are `fetch_*`/`get_*`/
-`list_*`/`find_*`, side-effect workflows are `run_*`/`execute_*`/`record_*`/`set_*`, input/config
-derivation is `resolve_*`.
+Naming conventions on the service surface (see `architecture-conventions.md`): reads are
+`fetch_*`/`get_*`/`list_*`/`find_*`, side-effect workflows are `run_*`/`execute_*`/`record_*`/`set_*`,
+input/config derivation is `resolve_*`.
 
-Exception: `trading.services.execution` is intentionally submodule-oriented for now. Import the
-focused module that owns the safety-critical concern (`submission`, `gate`, `pre_submit_gate`, `nav`,
-or `reconciliation`) instead of treating the package root as a facade.
+Several service packages still expose a re-export `__all__` facade from an earlier convention.
+Those are retired per package as each is touched; `execution` and `books` are already
+submodule-oriented and are the model. Use the capability table below to find the owning package,
+then import the module inside it that owns the concern.
 
 ---
 

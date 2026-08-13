@@ -36,7 +36,7 @@ Concrete infrastructure (database, brokers, feature providers, the market-data a
 - Use the layered backbone by default.
 - Use top-level bounded contexts only when isolation materially improves clarity and safety.
 - Keep `src/trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
-- Avoid adding facades that only forward imports unless they are deliberate public entrypoints.
+- Do not add facades that only forward imports; import from the module that owns the symbol.
 
 ## Module Directory
 
