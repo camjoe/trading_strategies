@@ -13,18 +13,15 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import sync_default_book_assignment
+from trading.services.books.configuration import apply_book_config
 from trading.services.books.settings_validation import (
-    book_settings_update_from_config,
     normalize_instrument_mode,
     normalize_lower,
     normalize_option_type,
     normalize_risk_policy,
-    validate_goal_range_from_inputs,
     validate_goal_return_range,
     validate_option_settings,
-    validate_option_settings_from_inputs,
     validate_position_sizing,
-    validate_position_sizing_from_inputs,
 )
 from trading.services.universe import default_trade_symbols, resolve_trade_symbols
 
@@ -195,38 +192,6 @@ def create_account(
         _create_account(conn, name, strategy, initial_cash, benchmark_ticker, config)
 
 
-def _apply_trade_universes_to_default_book(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    names: list[str],
-) -> None:
-    """Expand universe *names* and store the resulting symbols on the default book.
-
-    Names are the caller's shorthand; the book keeps the tickers (revision
-    0029), so an unresolvable name fails here rather than at trade time, and
-    later edits to a universe file leave this book's symbols alone.
-    """
-    _apply_trade_symbols_to_default_book(conn, account_id=account_id, symbols=resolve_trade_symbols(names))
-
-
-def _apply_trade_symbols_to_default_book(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    symbols: list[str],
-) -> None:
-    """Set the default book's tradeable symbols (history-recorded; revision 0008)."""
-    book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
-    if book is None:
-        raise NotFoundError(f"Default book missing for account id {account_id}.")
-    BookRepository(conn).update_trade_symbols(
-        book_id=book.id,
-        trade_symbols=_serialize_trade_symbols(symbols),
-        updated_at=utc_now_iso(),
-    )
-
-
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
     account = get_account(conn, account_name)
     AccountRepository(conn).update(
@@ -243,53 +208,27 @@ def _configure_account(
 ) -> None:
     cfg = config or AccountConfig()
     account = get_account(conn, account_name)
-    account_values: dict[str, object] = {}
 
+    display: str | None = None
     if cfg.descriptive_name is not None:
         display = cfg.descriptive_name.strip()
         if not display:
             raise ValidationError("descriptive_name cannot be empty.")
-        account_values["descriptive_name"] = display
 
     # Goals, universes, and execution/option knobs are book columns
-    # (revisions 0004/0005/0008): validate merged over the default book's
-    # current values, then write to the book.
-    default_book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
-    validate_goal_range_from_inputs(
-        default_book if default_book is not None else {},
-        cfg.goal_min_return_pct,
-        cfg.goal_max_return_pct,
-    )
-    validate_position_sizing_from_inputs(
-        default_book.trade_size_pct if default_book is not None else None,
-        default_book.max_position_pct if default_book is not None else None,
-        cfg.trade_size_pct,
-        cfg.max_position_pct,
-    )
-    validate_option_settings_from_inputs(
-        default_book if default_book is not None else {},
-        cfg.option_type,
-        cfg.target_delta_min,
-        cfg.target_delta_max,
-        cfg.option_min_dte,
-        cfg.option_max_dte,
-        cfg.iv_rank_min,
-        cfg.iv_rank_max,
-    )
+    # (revisions 0004/0005/0008): the shared book-config edit validates them
+    # against the default book's current values, then writes to the book.
+    book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
+    if book is None:
+        raise NotFoundError(f"Default book missing for account id {account.id}.")
+    apply_book_config(conn, book=book, config=cfg)
 
-    _apply_book_settings_to_default_book(
-        conn,
-        account_id=account.id,
-        settings=book_settings_update_from_config(cfg),
-    )
-    if cfg.trade_universes is not None:
-        _apply_trade_universes_to_default_book(conn, account_id=account.id, names=cfg.trade_universes)
-
-    AccountRepository(conn).update(
-        account_id=account.id,
-        values=account_values,
-        updated_at=utc_now_iso(),
-    )
+    if display is not None:
+        AccountRepository(conn).update(
+            account_id=account.id,
+            values={"descriptive_name": display},
+            updated_at=utc_now_iso(),
+        )
 
 
 def configure_account(
