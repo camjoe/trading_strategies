@@ -77,20 +77,29 @@ def validate_range(
         raise ValidationError(f"{min_name} cannot be greater than {max_name}.")
 
 
-def validate_or_none_range(value: object | None, min_bound: float, max_bound: float, field_name: str) -> None:
+def validate_or_none_range(
+    value: object | None,
+    min_bound: float,
+    max_bound: float,
+    field_name: str,
+    *,
+    as_closed_range: bool = False,
+) -> None:
     if value is None:
         return
     numeric_value = coerce_float(value)
     if numeric_value is None:
         raise ValidationError(f"{field_name} must be numeric.")
-    if (min_bound, max_bound) in [(0.0, 1.0), (0.0, 100.0)]:
+    # A closed range reports both ends ("between X and Y"); otherwise the bounds
+    # are an independent floor and cap, each reported on its own.
+    if as_closed_range:
         if not (min_bound <= numeric_value <= max_bound):
             raise ValidationError(f"{field_name} must be between {int(min_bound)} and {int(max_bound)}.")
-    else:
-        if numeric_value < min_bound:
-            raise ValidationError(f"{field_name} must be >= {int(min_bound)}.")
-        if numeric_value > max_bound:
-            raise ValidationError(f"{field_name} must be <= {int(max_bound)}.")
+        return
+    if numeric_value < min_bound:
+        raise ValidationError(f"{field_name} must be >= {int(min_bound)}.")
+    if numeric_value > max_bound:
+        raise ValidationError(f"{field_name} must be <= {int(max_bound)}.")
 
 
 def validate_option_settings(
@@ -106,14 +115,14 @@ def validate_option_settings(
         # Delegate to the shared enum check so option_type is validated once,
         # case-insensitively, with the same message as the write path.
         validate_enum_value(option_type, "option_type")
-    validate_or_none_range(target_delta_min, 0, 1, "target_delta_min")
-    validate_or_none_range(target_delta_max, 0, 1, "target_delta_max")
+    validate_or_none_range(target_delta_min, 0, 1, "target_delta_min", as_closed_range=True)
+    validate_or_none_range(target_delta_max, 0, 1, "target_delta_max", as_closed_range=True)
     validate_range(target_delta_min, target_delta_max, "target_delta")
     validate_or_none_range(option_min_dte, 0, 9999, "option_min_dte")
     validate_or_none_range(option_max_dte, 0, 9999, "option_max_dte")
     validate_range(option_min_dte, option_max_dte, "option", "option_min_dte", "option_max_dte")
-    validate_or_none_range(iv_rank_min, 0, 100, "iv_rank_min")
-    validate_or_none_range(iv_rank_max, 0, 100, "iv_rank_max")
+    validate_or_none_range(iv_rank_min, 0, 100, "iv_rank_min", as_closed_range=True)
+    validate_or_none_range(iv_rank_max, 0, 100, "iv_rank_max", as_closed_range=True)
     validate_range(iv_rank_min, iv_rank_max, "iv_rank")
 
 
@@ -162,20 +171,20 @@ def validate_position_sizing_from_inputs(
     return resolved_trade_size_pct, resolved_max_position_pct
 
 
-def resolved_float(value: float | None, row: "Mapping[str, object]", column: str) -> float | None:
+def resolved_float(value: float | None, row: Mapping[str, object], column: str) -> float | None:
     if value is not None:
         return value
     return row_float(row, column)
 
 
-def resolved_int(value: int | None, row: "Mapping[str, object]", column: str) -> int | None:
+def resolved_int(value: int | None, row: Mapping[str, object], column: str) -> int | None:
     if value is not None:
         return value
     return row_int(row, column)
 
 
 def validate_goal_range_from_inputs(
-    current: "Mapping[str, object]",
+    current: Mapping[str, object],
     goal_min_return_pct: float | None,
     goal_max_return_pct: float | None,
 ) -> None:
@@ -187,7 +196,7 @@ def validate_goal_range_from_inputs(
 
 
 def validate_option_settings_from_inputs(
-    current: "Mapping[str, object]",
+    current: Mapping[str, object],
     option_type: str | None,
     target_delta_min: float | None,
     target_delta_max: float | None,
