@@ -48,23 +48,6 @@ def discover_python_files(repo_root: Path) -> list[Path]:
     return sorted(files)
 
 
-def _has_future_annotations(tree: ast.Module) -> bool:
-    body = tree.body
-    index = 0
-    if body and isinstance(body[0], ast.Expr):
-        value = body[0].value
-        if isinstance(value, ast.Constant) and isinstance(value.value, str):
-            index = 1
-    if index >= len(body):
-        return False
-    node = body[index]
-    return (
-        isinstance(node, ast.ImportFrom)
-        and node.module == "__future__"
-        and any(alias.name == "annotations" for alias in node.names)
-    )
-
-
 def _is_public_function(node: ast.AST) -> bool:
     return isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_")
 
@@ -76,9 +59,6 @@ def check_file(path: Path) -> FileReport:
         tree = ast.parse(source)
     except SyntaxError:
         return report
-
-    if not _has_future_annotations(tree):
-        report.problems.append("missing `from __future__ import annotations`")
 
     for node in ast.walk(tree):
         if _is_public_function(node) and node.returns is None:
@@ -96,7 +76,7 @@ def run_python_conventions_check(repo_root: Path, *, enforce: bool = False, quie
     total = sum(len(report.problems) for report in reports)
 
     if quiet and not total:
-        print("PASS: Python conventions - future annotations and public return types are present.")
+        print("PASS: Python conventions - public return types are present.")
         return 0
 
     print("Python Conventions Check")
@@ -123,7 +103,7 @@ def run_python_conventions_check(repo_root: Path, *, enforce: bool = False, quie
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check production/tooling Python modules for future annotations and public return types.",
+        description="Check production/tooling Python modules for public return types.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument(
