@@ -90,7 +90,7 @@
       "version": "==2.9.0.post0",
       "scope": "runtime",
       "group": "Backend & Validation",
-      "purpose": ""
+      "purpose": "Date and time utilities providing timezone handling and relative date calculations for trading timestamps."
     },
     {
       "name": "python-dotenv",
