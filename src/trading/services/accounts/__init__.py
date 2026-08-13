@@ -39,11 +39,6 @@ from trading.services.accounts.queries import (
     list_account_snapshots,
 )
 from trading.services.accounts.runtime_loader import load_account_names
-from trading.services.accounts.validation import (
-    INSTRUMENT_MODES,
-    OPTION_TYPES,
-    RISK_POLICIES,
-)
 
 __all__ = [
     "AccountAlreadyExistsError",
@@ -53,8 +48,6 @@ __all__ = [
     "find_account",
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
-    "INSTRUMENT_MODES",
-    "OPTION_TYPES",
     "render_account_listing_lines",
     "configure_account",
     "create_account",
@@ -68,7 +61,6 @@ __all__ = [
     "list_account_snapshots",
     "load_account_names",
     "preview_account_deletion",
-    "RISK_POLICIES",
     "set_account_strategy",
     "set_benchmark",
 ]

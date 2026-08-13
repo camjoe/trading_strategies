@@ -11,11 +11,7 @@ from common.coercion import (
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import ValidationError
 from trading.models.accounts import AccountConfig
-from trading.models.books import BookSettingsUpdate
-
-RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
-INSTRUMENT_MODES = {"equity", "leaps"}
-OPTION_TYPES = {"call", "put", "both"}
+from trading.models.books import INSTRUMENT_MODES, OPTION_TYPES, RISK_POLICIES, BookSettingsUpdate
 
 _ENUM_FIELDS = {
     "risk_policy": RISK_POLICIES,

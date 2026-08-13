@@ -20,6 +20,12 @@ from common.json_columns import row_json_object
 BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING = "scheduling"
 BOOK_ROTATION_SETTINGS_GROUP_POLICY = "policy"
 
+# Allowed enum values for the book's execution columns — the vocabulary the
+# service layer validates caller input against before a write.
+RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
+INSTRUMENT_MODES = {"equity", "leaps"}
+OPTION_TYPES = {"call", "put", "both"}
+
 
 # --- The book itself ---
 

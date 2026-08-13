@@ -12,7 +12,8 @@ from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.services.accounts.queries import find_account
-from trading.services.accounts.validation import (
+from trading.services.books.book_assignments import sync_default_book_assignment
+from trading.services.books.settings_validation import (
     book_settings_update_from_config,
     normalize_instrument_mode,
     normalize_lower,
@@ -25,7 +26,6 @@ from trading.services.accounts.validation import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
-from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.universe import default_trade_symbols, resolve_trade_symbols
 
 

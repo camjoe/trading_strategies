@@ -15,12 +15,6 @@ from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
-from trading.services.accounts.validation import (
-    book_settings_update_from_config,
-    validate_goal_range_from_inputs,
-    validate_option_settings_from_inputs,
-    validate_position_sizing_from_inputs,
-)
 from trading.services.books.book_assignments import (
     assign_book_strategy,
     open_assignment_for_book,
@@ -28,6 +22,12 @@ from trading.services.books.book_assignments import (
 from trading.services.books.rotation.engine import (
     BookRotationScheduleConfig,
     RotationPolicyConfig,
+)
+from trading.services.books.settings_validation import (
+    book_settings_update_from_config,
+    validate_goal_range_from_inputs,
+    validate_option_settings_from_inputs,
+    validate_position_sizing_from_inputs,
 )
 from trading.services.parameters.mutations import (
     ROTATION_POLICY_FIELDS,
