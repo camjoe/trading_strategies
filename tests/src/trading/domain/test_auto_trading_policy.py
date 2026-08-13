@@ -112,26 +112,6 @@ def test_apply_leaps_buy_qty_limits() -> None:
     assert qty == 2
 
 
-def test_build_trade_note_for_leaps_buy() -> None:
-    account = _base_account(option_strike_offset_pct=7.5, option_min_dte=90, option_max_dte=180, option_type="put")
-    note = auto_trader_policy.build_trade_note(
-        learning_enabled=True,
-        forced_sell=None,
-        risk_policy="none",
-        instrument_mode="leaps",
-        account=account,
-        side="buy",
-        delta_est=0.33,
-        iv_est=42.0,
-        strategy_name="trend",
-    )
-    assert "selection=heuristic-exploration" in note
-    assert "mode=leaps" in note
-    assert "delta=0.33" in note
-    assert "iv_rank=42.0" in note
-    assert "strategy=trend" in note
-
-
 def test_order_risk_breaches_puts_stop_losses_before_take_profits() -> None:
     """A position bleeding past its stop is more urgent than one past its target."""
     state = SimpleNamespace(avg_cost={"LOSS": 100.0, "WIN": 100.0})

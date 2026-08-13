@@ -315,35 +315,3 @@ def apply_leaps_buy_qty_limits(
         qty = min(qty, premium_qty)
 
     return qty
-
-
-def build_trade_note(
-    learning_enabled: bool,
-    forced_sell: str | None,
-    risk_policy: str,
-    instrument_mode: str,
-    account: AccountPolicyInput,
-    side: str,
-    delta_est: float | None,
-    iv_est: float | None,
-    strategy_name: str | None,
-) -> str:
-    note_parts = ["auto-daily"]
-    if learning_enabled:
-        note_parts.append("selection=heuristic-exploration")
-    if forced_sell is not None:
-        note_parts.append(f"risk={risk_policy}")
-    if instrument_mode == "leaps":
-        note_parts.append("mode=leaps")
-        note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
-        note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
-        note_parts.append(f"type={account['option_type']}")
-        if side == "buy" and delta_est is not None:
-            note_parts.append(f"delta={delta_est:.2f}")
-            if iv_est is not None and iv_est >= 0:
-                note_parts.append(f"iv_rank={iv_est:.1f}")
-
-    if strategy_name:
-        note_parts.append(f"strategy={strategy_name}")
-
-    return ";".join(note_parts)
