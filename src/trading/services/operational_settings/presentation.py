@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.settings import GlobalSettingsChangeEvent
+from trading.services.change_history_presentation import render_settings_change_lines
 from trading.services.operational_settings.history import fetch_global_settings_change_history
 
 
@@ -16,11 +17,8 @@ def show_global_settings_history(conn: sqlite3.Connection, *, limit: int = 20) -
         return events
 
     print(f"Global settings change history (latest {limit}):")
-    for event in events:
-        rendered = ", ".join(
-            f"{field}: {change['old']!r} -> {change['new']!r}" for field, change in event.changed_fields.items()
-        )
-        print(f"- {event.created_at} | {event.settings_group} | {rendered}")
+    for line in render_settings_change_lines(events):
+        print(line)
     return events
 
 
