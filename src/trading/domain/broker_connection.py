@@ -18,7 +18,7 @@ class BrokerConnection(ABC):
     """Abstract interface over a broker connection.
 
     Implement this class to add a new broker.  Register the adapter in
-    :func:`brokers.factory.get_broker_for_account`.
+    :func:`infrastructure.brokers.factory.get_broker_for_account`.
     """
 
     @abstractmethod
