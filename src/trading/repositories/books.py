@@ -120,9 +120,7 @@ class BookRepository:
         set field is a no-op, exactly as an empty ``update``.
         """
         values = {
-            column: value
-            for column in _BOOK_SETTINGS_COLUMNS
-            if (value := getattr(settings, column)) is not None
+            column: value for column in _BOOK_SETTINGS_COLUMNS if (value := getattr(settings, column)) is not None
         }
         self.update(book_id=book_id, values=values, updated_at=updated_at)
 
