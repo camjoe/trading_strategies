@@ -18,13 +18,6 @@ from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
 
 
-def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
-    if min_trades < 1:
-        raise ValueError("--min-trades must be >= 1")
-    if max_trades < min_trades:
-        raise ValueError("--max-trades must be >= --min-trades")
-
-
 def resolve_account_names(accounts_arg: str) -> list[str]:
     accounts = [account.strip() for account in accounts_arg.split(",") if account.strip()]
     if not accounts:
