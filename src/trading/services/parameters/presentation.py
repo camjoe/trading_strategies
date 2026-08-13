@@ -10,7 +10,6 @@ import sqlite3
 
 from trading.models.books import BookRotationSettingsChangeEvent
 from trading.models.parameters import ParameterSourceView
-from trading.services.change_history_presentation import render_settings_change_lines
 from trading.services.parameters.history import fetch_book_rotation_change_history
 from trading.services.parameters.view import fetch_parameter_source_view
 
@@ -43,8 +42,11 @@ def show_book_rotation_history(
         return events
 
     print(f"Rotation settings change history (latest {limit}) for account {account_name}:")
-    for line in render_settings_change_lines(events):
-        print(line)
+    for event in events:
+        rendered = ", ".join(
+            f"{field}: {change['old']!r} -> {change['new']!r}" for field, change in event.changed_fields.items()
+        )
+        print(f"- {event.created_at} | {event.settings_group} | {rendered}")
     return events
 
 

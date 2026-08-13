@@ -128,7 +128,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `change_history_presentation.py` | Services-root shared module: `render_settings_change_lines` for the global-settings and book-rotation change-audit views |
 | `accounts/listing.py` | Account listing read orchestration (fetch accounts + books, then build display lines) |
 | `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
