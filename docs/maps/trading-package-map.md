@@ -128,6 +128,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
+| `change_history_presentation.py` | Services-root shared module: `render_settings_change_lines` for the global-settings and book-rotation change-audit views |
 | `accounts/listing.py` | Account listing read orchestration (fetch accounts + books, then build display lines) |
 | `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
@@ -188,7 +189,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
-| `change_history_presentation.py` | Shared `render_settings_change_lines` for the global-settings and book-rotation change-audit views |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/helpers.py` | Shared book service helpers (window math) |
 | `books/rotation/account_rotation.py` | Account-level coordinator for enumerating and applying each book's rotation decision |

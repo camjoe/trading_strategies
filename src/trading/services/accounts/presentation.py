@@ -119,7 +119,6 @@ __all__ = [
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
     "build_account_listing_lines",
-    "build_account_summary_line",
     "format_account_policy_text",
     "format_goal_text",
 ]
