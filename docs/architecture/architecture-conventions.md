@@ -266,6 +266,11 @@ Service naming:
 1. read orchestration: `fetch_*`
 2. side-effect workflows: `run_*`, `execute_*`
 3. input/config derivation: `resolve_*`
+4. value/object construction (dataclass, dict, config text, id, connection): `build_*`
+5. operator-facing display text (`str`/`list[str]`): `render_*`, kept in a
+   `presentation.py` module. Do not spell display builders `build_*` or
+   `format_*` — those read as data construction and let the presentation verb
+   drift (`build_*` is already the general constructor).
 
 Domain naming:
 

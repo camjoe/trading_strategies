@@ -27,9 +27,9 @@ from trading.services.accounts.mutations import (
 from trading.services.accounts.presentation import (
     GOAL_NOT_SET_TEXT,
     HEURISTIC_EXPLORATION_LABEL,
-    build_account_listing_lines,
-    format_account_policy_text,
-    format_goal_text,
+    render_account_listing_lines,
+    render_account_policy_text,
+    render_goal_text,
 )
 from trading.services.accounts.queries import (
     find_account,
@@ -55,11 +55,11 @@ __all__ = [
     "HEURISTIC_EXPLORATION_LABEL",
     "INSTRUMENT_MODES",
     "OPTION_TYPES",
-    "build_account_listing_lines",
+    "render_account_listing_lines",
     "configure_account",
     "create_account",
-    "format_account_policy_text",
-    "format_goal_text",
+    "render_account_policy_text",
+    "render_goal_text",
     "get_account",
     "get_latest_account_snapshot",
     "fetch_account_listing_lines",

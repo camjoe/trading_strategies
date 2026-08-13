@@ -17,9 +17,9 @@ from trading.models.books import BookRecord
 from trading.repositories.books import BookRepository
 from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
-    format_account_policy_text,
-    format_goal_text,
     get_account,
+    render_account_policy_text,
+    render_goal_text,
 )
 from trading.services.analysis.portfolio import build_account_return_summary, build_account_stats
 from trading.services.books.book_assignments import active_strategy_for_account
@@ -56,8 +56,8 @@ def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> N
     default_book = BookRepository(conn).fetch_default_for_account(account_id=row_expect_int(account, "id"))
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
-    print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")
-    goal_text = format_goal_text(default_book)
+    print(f"Account Policy: {render_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")
+    goal_text = render_goal_text(default_book)
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
     if default_book is not None and default_book.instrument_mode == "leaps":

@@ -3,7 +3,7 @@ import pytest
 from tests.support.reporting import insert_snapshot, insert_trade
 from tests.support.seed.db import ACCT_MOMENTUM
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, format_goal_text, get_account
+from trading.services.accounts import create_account, get_account, render_goal_text
 from trading.services.analysis import build_account_stats, infer_overall_trend
 
 
@@ -90,7 +90,7 @@ def test_infer_overall_trend_returns_insufficient_data_when_first_equity_is_zero
         (None, 4.0, "quarterly", "<= 4.00% per quarterly"),
     ],
 )
-def test_format_goal_text_variants(conn, goal_min, goal_max, goal_period, expected: str) -> None:
+def test_render_goal_text_variants(conn, goal_min, goal_max, goal_period, expected: str) -> None:
     create_account(
         conn,
         "acct_goal",
@@ -108,4 +108,4 @@ def test_format_goal_text_variants(conn, goal_min, goal_max, goal_period, expect
 
     account = get_account(conn, "acct_goal")
     book = get_default_book(conn, account_id=account.id)
-    assert format_goal_text(book) == expected
+    assert render_goal_text(book) == expected
