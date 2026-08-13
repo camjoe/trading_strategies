@@ -9,7 +9,7 @@ import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
 from common.rate_limit import RateLimitExceeded
-from trading.domain.bars import normalize_bar_frame
+from trading.domain.market.bars import normalize_bar_frame
 from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data import MarketDataProvider, require_provider
 

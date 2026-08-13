@@ -14,7 +14,7 @@ from backtesting.domain.metrics import (
     sortino_ratio,
     summarize_backtest_performance,
 )
-from trading.domain.risk_ratios import sharpe_ratio as shared_sharpe_ratio
+from trading.domain.metrics.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 
 
 def test_max_drawdown_handles_empty_and_non_positive_peak() -> None:
@@ -55,7 +55,7 @@ def test_risk_ratios_handle_basic_series() -> None:
 
 def test_sharpe_over_pandas_matches_the_shared_implementation() -> None:
     # This module's sharpe_ratio is the pandas boundary over
-    # trading.domain.risk_ratios. The live runtime scores the same ratio without
+    # trading.domain.metrics.risk_ratios. The live runtime scores the same ratio without
     # pandas, and a backtest that disagreed with it would be measuring something
     # else — so the agreement is asserted rather than assumed.
     values = [0.01, -0.005, 0.02, -0.01, 0.015, 0.003, -0.002, 0.008]
@@ -133,7 +133,7 @@ def test_metrics_private_helpers_and_trade_numeric_guards() -> None:
             trades=[{"ticker": "AAPL", "side": "buy", "qty": 1.0, "price": 0.0, "fee": 0.0}],
         )
 
-    # Rejected by the shared coercion in trading.domain.accounting, which the replay
+    # Rejected by the shared coercion in trading.domain.accounting.account, which the replay
     # now uses so a persisted trade reads the same on the live and backtest paths.
     with pytest.raises(ValueError, match="Expected float-convertible value"):
         summarize_backtest_performance(

@@ -5,7 +5,7 @@ account reports, comparisons, snapshots, and the cross-account concentration and
 exposure rollups. The read-only computation it consumes lives in
 ``trading.services.analysis`` (portfolio/benchmark payloads),
 ``trading.services.evaluation`` (strategy evidence), and
-``trading.domain.portfolio_math`` (pure return math).
+``trading.domain.metrics.portfolio_math`` (pure return math).
 """
 
 from __future__ import annotations

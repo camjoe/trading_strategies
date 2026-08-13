@@ -25,7 +25,7 @@ from backtesting.repositories.runs import (
 )
 from backtesting.services.optimizer_aggregation import fetch_oos_segments
 from common.coercion import row_float, row_str
-from trading.domain.returns import safe_return_pct
+from trading.domain.metrics.returns import safe_return_pct
 from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationWalkForwardEvidence
 
 

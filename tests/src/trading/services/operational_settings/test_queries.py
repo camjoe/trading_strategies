@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
-from trading.domain.promotion_policy import PromotionPolicySettings
+from trading.domain.promotion.policy import PromotionPolicySettings
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,

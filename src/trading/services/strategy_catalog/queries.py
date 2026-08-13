@@ -16,7 +16,7 @@ from backtesting.services.audit import (
     fetch_experiment_audit,
     fetch_recent_experiments,
 )
-from trading.domain.promotion_gate import (
+from trading.domain.promotion.gate import (
     PromotionGateResult,
     evaluate_promotion_gate,
 )

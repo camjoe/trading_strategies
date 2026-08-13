@@ -11,7 +11,7 @@ Related: [Backtesting](backtesting.md), [Broker Integration](broker-integration.
 
 Found during the `features/auto-trading-updates` review (2026-08-01). That branch went to
 considerable lengths to make live and backtest evaluate the same *signal* — bars instead of closes,
-one shared `evaluate_signal_over_bars`, identical gap-filling in `trading.domain.bars`. It did not
+one shared `evaluate_signal_over_bars`, identical gap-filling in `trading.domain.market.bars`. It did not
 touch what either side does *with* a signal, and that is where they diverge most.
 
 Read this before trusting a walk-forward result, before changing the live exit path, and before

@@ -32,7 +32,7 @@ primitive cannot enter the optimize→promote loop.
 - **Features required:** none
 - **Parameters:** none
 
-Rule, using the shared MACD helper (`calculate_macd` in `src/trading/domain/indicators.py`, which
+Rule, using the shared MACD helper (`calculate_macd` in src/trading/domain, which
 remains):
 
 ```

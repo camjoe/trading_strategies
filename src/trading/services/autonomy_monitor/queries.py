@@ -10,7 +10,7 @@ import sqlite3
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
-from trading.domain.portfolio_math import strategy_return_pct
+from trading.domain.metrics.portfolio_math import strategy_return_pct
 from trading.models import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository

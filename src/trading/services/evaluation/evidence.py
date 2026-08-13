@@ -12,7 +12,7 @@ from trading.domain.evaluation.confidence import (
     compute_overall_confidence,
     compute_paper_live_confidence,
 )
-from trading.domain.returns import safe_return_pct
+from trading.domain.metrics.returns import safe_return_pct
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from common.constants import ANNUALIZATION_FACTOR
-from trading.domain.daily_metrics import (
+from trading.domain.metrics.daily_metrics import (
     RISK_ADJUSTED_MIN_SESSIONS,
     DailyTrade,
     compute_daily_book_metrics,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from common.constants import ANNUALIZATION_FACTOR
-from trading.domain.risk_ratios import sharpe_ratio
+from trading.domain.metrics.risk_ratios import sharpe_ratio
 
 
 class TestSharpeRatio:

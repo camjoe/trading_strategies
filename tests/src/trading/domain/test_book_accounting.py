@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.domain.book_accounting import apply_book_fill_transition
+from trading.domain.accounting.book import apply_book_fill_transition
 
 
 def test_buy_fill_updates_cash_avg_cost_and_slippage() -> None:

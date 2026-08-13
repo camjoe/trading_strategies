@@ -11,7 +11,7 @@ from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit import fetch_experiment_audit
 from backtesting.services.optimization_experiment import run_and_persist_optimization
 from backtesting.services.reporting import fetch_leaderboard, fetch_report
-from trading.domain.promotion_gate import evaluate_promotion_gate
+from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.strategy_catalog import promote_optimization_experiment
 

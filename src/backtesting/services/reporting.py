@@ -38,7 +38,7 @@ from backtesting.repositories.runs import (
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.domain.exceptions import NotFoundError
-from trading.domain.returns import total_return_pct
+from trading.domain.metrics.returns import total_return_pct
 from trading.domain.strategies.resolution import validate_strategy_name
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from trading.domain.portfolio_math import (
+from trading.domain.metrics.portfolio_math import (
     alpha_pct,
     benchmark_available,
     compute_market_value,

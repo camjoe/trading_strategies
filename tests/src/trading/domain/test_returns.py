@@ -3,7 +3,7 @@ import math
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from trading.domain.returns import safe_return_pct, total_return_pct
+from trading.domain.metrics.returns import safe_return_pct, total_return_pct
 
 
 class TestTotalReturnPct:

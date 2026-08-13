@@ -9,7 +9,7 @@ import trading.interfaces.cli.handlers.backtesting_handlers as module
 from backtesting.models.optimizer import ExperimentAudit, ExperimentWindowAudit
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
 from tests.support.backtesting import make_backtest_full_report
-from trading.domain.promotion_gate import evaluate_promotion_gate
+from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,

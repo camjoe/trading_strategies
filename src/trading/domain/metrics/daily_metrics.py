@@ -19,8 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from common.constants import BASIS_POINTS_SCALE
-from trading.domain.returns import total_return_pct
-from trading.domain.risk_ratios import sharpe_ratio
+from trading.domain.metrics.returns import total_return_pct
+from trading.domain.metrics.risk_ratios import sharpe_ratio
 
 # Trailing window (in scored sessions, including the current day) the daily
 # risk-adjusted score is computed over — roughly one trading month.

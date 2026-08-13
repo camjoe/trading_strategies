@@ -106,7 +106,7 @@ class FillEventRecord:
     """One execution joined to its order, shaped for the account-state replay.
 
     Field names mirror the retired ``trades`` row so the pure replay math in
-    ``trading.domain.accounting`` reads them unchanged.
+    ``trading.domain.accounting.account`` reads them unchanged.
     """
 
     book_id: int

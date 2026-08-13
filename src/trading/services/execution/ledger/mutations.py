@@ -4,7 +4,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
-from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
+from trading.domain.accounting.account import _ensure_sufficient_cash_for_buy, _normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.orders import OrderInsert
 from trading.persistence.unit_of_work import unit_of_work

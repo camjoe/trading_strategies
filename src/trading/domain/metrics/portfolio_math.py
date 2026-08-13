@@ -18,7 +18,7 @@ chose its policy for a reason stated here.
 
 from __future__ import annotations
 
-from trading.domain.returns import total_return_pct
+from trading.domain.metrics.returns import total_return_pct
 
 
 def compute_market_value_and_unrealized(

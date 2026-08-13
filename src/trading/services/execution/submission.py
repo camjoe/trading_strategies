@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable, Sequence
 
 from common.time import utc_now_iso
-from trading.domain.book_accounting import apply_book_fill_transition
+from trading.domain.accounting.book import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.execution import BookTradeIntent, SubmissionResult
 from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
