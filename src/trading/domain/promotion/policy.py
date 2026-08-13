@@ -1,3 +1,15 @@
+"""Whether a strategy is ready to go live, given its evaluation artifact.
+
+Distinct from :mod:`trading.domain.promotion.gate`, which asks the earlier
+question of whether a parameter search found an edge. This walks the promotion
+stages — research validation, then live-readiness review — and returns a
+``PromotionAssessment`` naming the stage, its blockers, and the next action.
+
+Side-effect free: the caller supplies a passive ``StrategyEvaluationArtifact``
+and operator-tuned ``PromotionPolicySettings``, and gets a verdict back. It never
+reads settings from storage or persists the result.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -190,6 +202,40 @@ def _warnings(artifact: StrategyEvaluationArtifact) -> list[str]:
     return warnings
 
 
+def _assessment(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    stage: PromotionStage,
+    status: PromotionStatus,
+    ready_for_live: bool,
+    live_trading_enabled: bool,
+    blockers: list[str],
+    warnings: list[str],
+    next_action: str,
+) -> PromotionAssessment:
+    """A ``PromotionAssessment`` for one stage, filling the fields every stage shares.
+
+    The identity, freshness, confidence, and data-gap fields are the same on every
+    branch, so they are read from the artifact here and each branch supplies only
+    what its stage decides.
+    """
+    return PromotionAssessment(
+        account_name=artifact.basic.account_name,
+        strategy_name=artifact.basic.requested_strategy,
+        evaluation_generated_at=artifact.meta.generated_at,
+        backtest_freshness=artifact.diagnostics.backtest_freshness,
+        overall_confidence=artifact.confidence.overall_confidence,
+        data_gaps=list(artifact.diagnostics.data_gaps),
+        stage=stage,
+        status=status,
+        ready_for_live=ready_for_live,
+        live_trading_enabled=live_trading_enabled,
+        blockers=blockers,
+        warnings=warnings,
+        next_action=next_action,
+    )
+
+
 def assess_promotion_readiness(
     artifact: StrategyEvaluationArtifact,
     settings: PromotionPolicySettings | None = None,
@@ -197,17 +243,12 @@ def assess_promotion_readiness(
     resolved = settings or PromotionPolicySettings()
     warnings = _warnings(artifact)
     if artifact.basic.live_trading_enabled:
-        return PromotionAssessment(
-            account_name=artifact.basic.account_name,
-            strategy_name=artifact.basic.requested_strategy,
-            evaluation_generated_at=artifact.meta.generated_at,
-            backtest_freshness=artifact.diagnostics.backtest_freshness,
+        return _assessment(
+            artifact,
             stage=PromotionStage.LIVE_ACTIVE,
             status=PromotionStatus.LIVE,
             ready_for_live=False,
             live_trading_enabled=True,
-            overall_confidence=artifact.confidence.overall_confidence,
-            data_gaps=list(artifact.diagnostics.data_gaps),
             blockers=[],
             warnings=[*warnings, LIVE_ALREADY_ENABLED_WARNING],
             next_action=LIVE_ACTIVE_NEXT_ACTION,
@@ -215,17 +256,12 @@ def assess_promotion_readiness(
 
     research_blockers = _research_blockers(artifact, settings=resolved)
     if research_blockers:
-        return PromotionAssessment(
-            account_name=artifact.basic.account_name,
-            strategy_name=artifact.basic.requested_strategy,
-            evaluation_generated_at=artifact.meta.generated_at,
-            backtest_freshness=artifact.diagnostics.backtest_freshness,
+        return _assessment(
+            artifact,
             stage=PromotionStage.CANDIDATE,
             status=PromotionStatus.BLOCKED,
             ready_for_live=False,
             live_trading_enabled=False,
-            overall_confidence=artifact.confidence.overall_confidence,
-            data_gaps=list(artifact.diagnostics.data_gaps),
             blockers=research_blockers,
             warnings=warnings,
             next_action=RESEARCH_NEXT_ACTION,
@@ -233,34 +269,24 @@ def assess_promotion_readiness(
 
     live_blockers = _live_readiness_blockers(artifact, settings=resolved)
     if not live_blockers:
-        return PromotionAssessment(
-            account_name=artifact.basic.account_name,
-            strategy_name=artifact.basic.requested_strategy,
-            evaluation_generated_at=artifact.meta.generated_at,
-            backtest_freshness=artifact.diagnostics.backtest_freshness,
+        return _assessment(
+            artifact,
             stage=PromotionStage.PROMOTION_REVIEW,
             status=PromotionStatus.READY_FOR_REVIEW,
             ready_for_live=True,
             live_trading_enabled=False,
-            overall_confidence=artifact.confidence.overall_confidence,
-            data_gaps=list(artifact.diagnostics.data_gaps),
             blockers=[],
             warnings=warnings,
             next_action=PROMOTION_REVIEW_NEXT_ACTION,
         )
 
     has_paper_evidence = artifact.paper_live.available
-    return PromotionAssessment(
-        account_name=artifact.basic.account_name,
-        strategy_name=artifact.basic.requested_strategy,
-        evaluation_generated_at=artifact.meta.generated_at,
-        backtest_freshness=artifact.diagnostics.backtest_freshness,
+    return _assessment(
+        artifact,
         stage=(PromotionStage.PAPER_OBSERVING if has_paper_evidence else PromotionStage.RESEARCH_VALIDATED),
         status=PromotionStatus.OBSERVING,
         ready_for_live=False,
         live_trading_enabled=False,
-        overall_confidence=artifact.confidence.overall_confidence,
-        data_gaps=list(artifact.diagnostics.data_gaps),
         blockers=live_blockers,
         warnings=warnings,
         next_action=(PAPER_OBSERVATION_NEXT_ACTION if has_paper_evidence else PAPER_EVIDENCE_NEXT_ACTION),
