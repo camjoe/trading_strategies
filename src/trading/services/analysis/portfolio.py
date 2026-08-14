@@ -32,7 +32,7 @@ MIN_TREND_LOOKBACK_ROWS = 2
 TREND_FLAT_BAND_PCT = 1.0
 
 
-def _infer_overall_trend_impl(
+def infer_overall_trend(
     conn: sqlite3.Connection,
     account_id: int,
     current_equity: float,
@@ -136,20 +136,6 @@ def build_account_return_summary(
         benchmark_equity=benchmark_equity,
         benchmark_return_pct=benchmark_return_pct,
         alpha_pct=alpha,
-    )
-
-
-def infer_overall_trend(
-    conn: sqlite3.Connection,
-    account_id: int,
-    current_equity: float,
-    lookback: int,
-) -> str:
-    return _infer_overall_trend_impl(
-        conn,
-        account_id,
-        current_equity,
-        lookback,
     )
 
 
