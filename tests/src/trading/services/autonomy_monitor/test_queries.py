@@ -135,42 +135,34 @@ def test_fetch_account_books_with_metrics(mock_conn: MagicMock) -> None:
     metric = SimpleNamespace(hit_rate=0.65, drawdown_pct=-10.5, trade_count=25, metric_date="2026-05-10")
     assignment = SimpleNamespace(strategy_name="momentum")
 
-    with patch(
-        "trading.services.autonomy_monitor.queries.list_report_books",
-        return_value=[(b, assignment) for b in books],
-    ):
-        with patch("trading.services.autonomy_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
-            mock_metrics_cls.return_value.fetch_for_book.return_value = [metric]
+    with patch("trading.services.autonomy_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
+        mock_metrics_cls.return_value.fetch_for_book.return_value = [metric]
 
-            result = queries._fetch_account_books(mock_conn, account_id=1)
+        result = queries._fetch_account_books(mock_conn, [(b, assignment) for b in books])
 
-            assert len(result) == 1
-            book = result[0]
-            assert book["name"] == "Growth Book"
-            assert book["strategy"] == "momentum"
-            assert book["current_equity"] == 55_000.0
-            assert book["latest_metrics"]["hit_rate"] == 0.65
-            assert book["latest_metrics"]["trade_count"] == 25
-            assert book["return_pct"] == 10.0
+        assert len(result) == 1
+        book = result[0]
+        assert book["name"] == "Growth Book"
+        assert book["strategy"] == "momentum"
+        assert book["current_equity"] == 55_000.0
+        assert book["latest_metrics"]["hit_rate"] == 0.65
+        assert book["latest_metrics"]["trade_count"] == 25
+        assert book["return_pct"] == 10.0
 
 
 def test_fetch_account_books_without_metrics(mock_conn: MagicMock) -> None:
     books = [_make_book(id=1, name="New Book", start_equity=50_000.0, current_equity=50_000.0, current_cash=50_000.0)]
 
-    with patch(
-        "trading.services.autonomy_monitor.queries.list_report_books",
-        return_value=[(b, None) for b in books],
-    ):
-        with patch("trading.services.autonomy_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
-            mock_metrics_cls.return_value.fetch_for_book.return_value = []
+    with patch("trading.services.autonomy_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
+        mock_metrics_cls.return_value.fetch_for_book.return_value = []
 
-            result = queries._fetch_account_books(mock_conn, account_id=1)
+        result = queries._fetch_account_books(mock_conn, [(b, None) for b in books])
 
-            book = result[0]
-            assert book["strategy"] == "unassigned"
-            assert book["latest_metrics"]["hit_rate"] is None
-            assert book["latest_metrics"]["trade_count"] == 0
-            assert book["latest_metrics"]["metric_date"] is None
+        book = result[0]
+        assert book["strategy"] == "unassigned"
+        assert book["latest_metrics"]["hit_rate"] is None
+        assert book["latest_metrics"]["trade_count"] == 0
+        assert book["latest_metrics"]["metric_date"] is None
 
 
 def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
@@ -194,19 +186,15 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
         decision_reason="Better alpha",
     )
 
-    with patch(
-        "trading.services.autonomy_monitor.queries.list_report_books",
-        return_value=[(b, None) for b in books],
-    ):
-        with patch("trading.services.autonomy_monitor.queries.RotationDecisionRepository") as mock_rot_cls:
-            mock_rot_cls.return_value.fetch_for_book.side_effect = [[rotation_1], [rotation_2]]
+    with patch("trading.services.autonomy_monitor.queries.RotationDecisionRepository") as mock_rot_cls:
+        mock_rot_cls.return_value.fetch_for_book.side_effect = [[rotation_1], [rotation_2]]
 
-            result = queries._fetch_recent_rotations(mock_conn, account_id=1)
+        result = queries._fetch_recent_rotations(mock_conn, [(b, None) for b in books])
 
-            assert len(result) == 2
-            assert result[0]["decision_time"] == "2026-05-11T14:00:00"
-            assert result[0]["book_name"] == "Value Book"
-            assert result[1]["decision_time"] == "2026-05-10T10:00:00"
+        assert len(result) == 2
+        assert result[0]["decision_time"] == "2026-05-11T14:00:00"
+        assert result[0]["book_name"] == "Value Book"
+        assert result[1]["decision_time"] == "2026-05-10T10:00:00"
 
 
 def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
