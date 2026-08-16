@@ -197,7 +197,8 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
         assert result[1]["decision_time"] == "2026-05-10T10:00:00"
 
 
-def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
+def test_fetch_risk_summary_reads_kill_switch_from_latest_snapshot(mock_conn: MagicMock) -> None:
+    """The kill switch is the persisted run-level halt, not a blocked-order decision."""
     decisions = [
         _make_risk_decision(
             id=1,
@@ -210,14 +211,38 @@ def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
         )
     ]
 
-    with patch("trading.services.autonomy_monitor.queries.RiskDecisionRepository") as mock_risk_cls:
+    with (
+        patch("trading.services.autonomy_monitor.queries.RiskSnapshotRepository") as mock_snap_cls,
+        patch("trading.services.autonomy_monitor.queries.RiskDecisionRepository") as mock_risk_cls,
+    ):
+        mock_snap_cls.return_value.fetch_latest.return_value = SimpleNamespace(kill_switch_triggered=1)
         mock_risk_cls.return_value.fetch_recent.return_value = decisions
 
         result = queries._fetch_risk_summary(mock_conn, account_id=1)
 
+        # A blocked order alone does not raise the kill switch; the snapshot flag does.
         assert result["kill_switch_triggered"] is True
         assert len(result["violations"]) == 1
         assert result["violations"][0]["action"] == "block"
+
+
+def test_fetch_risk_summary_blocked_order_is_not_a_kill_switch(mock_conn: MagicMock) -> None:
+    """A per-order cap denial must not read as a run-level kill switch."""
+    decisions = [
+        _make_risk_decision(id=1, action="block", reason_code="notional_cap_exceeded"),
+    ]
+
+    with (
+        patch("trading.services.autonomy_monitor.queries.RiskSnapshotRepository") as mock_snap_cls,
+        patch("trading.services.autonomy_monitor.queries.RiskDecisionRepository") as mock_risk_cls,
+    ):
+        mock_snap_cls.return_value.fetch_latest.return_value = SimpleNamespace(kill_switch_triggered=0)
+        mock_risk_cls.return_value.fetch_recent.return_value = decisions
+
+        result = queries._fetch_risk_summary(mock_conn, account_id=1)
+
+        assert result["kill_switch_triggered"] is False
+        assert len(result["violations"]) == 1
 
 
 def test_fetch_autonomy_account_detail_raises_on_missing_account(mock_conn: MagicMock) -> None:

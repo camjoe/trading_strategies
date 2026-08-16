@@ -16,7 +16,7 @@ from trading.models.books import BookAssignmentView, BookRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.risk import RiskDecisionRepository
+from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import list_report_books
 
@@ -139,16 +139,19 @@ def _fetch_recent_rotations(conn: sqlite3.Connection, report_books: ReportBooks)
 
 
 def _fetch_risk_summary(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
-    """Fetch risk gate decisions and violations."""
+    """Fetch the latest kill-switch state and the recent risk-gate decision log.
+
+    The kill switch is the persisted run-level halt (stale price or reconciliation
+    mismatch) on the latest risk snapshot — the same signal ``daily_report`` and
+    ``m1_risk_rebaseline`` read. A blocked decision is an ordinary per-order cap
+    denial, not a kill switch, so it does not set this flag.
+    """
+    snapshot = RiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
+    kill_switch_triggered = snapshot is not None and bool(snapshot.kill_switch_triggered)
+
     risk_records = RiskDecisionRepository(conn).fetch_recent(account_id=account_id, limit=100)
-
     violations = []
-    kill_switch_triggered = False
-
     for rec in risk_records:
-        if rec.action == "block":
-            kill_switch_triggered = True
-
         violations.append(
             {
                 "decision_id": rec.id,
