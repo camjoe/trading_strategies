@@ -281,17 +281,3 @@ SANDBOX_PROFILE = FixtureProfile(
     backtest_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),
     promotion_review_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),
 )
-
-
-PROFILES: dict[str, FixtureProfile] = {
-    DEMO_PROFILE.name: DEMO_PROFILE,
-    SANDBOX_PROFILE.name: SANDBOX_PROFILE,
-}
-
-
-def resolve_profile(name: str) -> FixtureProfile:
-    """Look up a profile by name, erroring with the valid set when unknown."""
-    profile = PROFILES.get(name.strip().lower())
-    if profile is None:
-        raise ValueError(f"Unknown fixture profile '{name}'. Available: {', '.join(sorted(PROFILES))}")
-    return profile
