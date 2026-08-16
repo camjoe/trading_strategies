@@ -8,7 +8,6 @@ from datetime import timedelta
 from common.time import as_utc_iso, parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.orders import OrderRepository
-from trading.services.operational_settings.models import RuntimeThrottleSettings
 from trading.services.operational_settings.queries import fetch_runtime_throttle_settings
 
 # Rolling one-minute window for the per-minute global runtime trade cap.
@@ -47,7 +46,6 @@ def enforce_runtime_trade_throttles(conn: sqlite3.Connection, *, trade_time_iso:
 
 
 __all__ = [
-    "RuntimeThrottleSettings",
     "TRADE_THROTTLE_MINUTE_WINDOW",
     "enforce_runtime_trade_throttles",
 ]
