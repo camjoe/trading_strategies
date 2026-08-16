@@ -16,6 +16,7 @@ import pandas as pd
 from common.coercion import coerce_float
 from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.market_data import MarketDataProvider, require_provider
+from trading.services.market_data.lookups import extract_close_series
 
 
 def _snapshot_time(snapshot: EquitySnapshotRecord) -> str:
@@ -42,17 +43,7 @@ def fetch_benchmark_close_history(
     if not ticker:
         return None
     close_history = require_provider(provider).fetch_close_history([ticker], start_date, end_date)
-    if close_history is None:
-        return None
-    try:
-        close_col = close_history[ticker]
-    except Exception:
-        return None
-    if isinstance(close_col, pd.DataFrame):
-        if close_col.shape[1] == 0:
-            return None
-        return close_col.iloc[:, 0].dropna()
-    return close_col.dropna()
+    return extract_close_series(close_history, ticker)
 
 
 def _normalize_close_history(close_history: pd.Series) -> pd.Series:
