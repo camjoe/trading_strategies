@@ -14,7 +14,7 @@ from typing import Any
 
 from common.json_columns import dumps_json_column
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
-from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
+from trading.models.books import BookRecord, PositionRecord, RiskDecisionInsert, RiskSnapshotInsert
 from trading.models.execution import BookRunAudit
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
@@ -25,8 +25,8 @@ from trading.services.books.sector_config import load_symbol_sector_map
 
 def compute_current_exposure_snapshot(
     *,
-    position_rows: Sequence[Any],
-    book_rows: Sequence[Any],
+    position_rows: Sequence[PositionRecord],
+    book_rows: Sequence[BookRecord],
     symbol_sector_map: dict[str, str],
 ) -> tuple[float, float, float, float, float]:
     """Gross, net, symbol/sector concentration and total equity over the given rows."""
@@ -65,8 +65,8 @@ def build_risk_snapshot(
     snapshot_time: str,
     kill_switch_triggered: bool,
     payload: dict[str, object],
-    position_rows: Sequence[Any],
-    book_rows: Sequence[Any],
+    position_rows: Sequence[PositionRecord],
+    book_rows: Sequence[BookRecord],
     peak_equity: float | None,
     symbol_sector_map: dict[str, str],
 ) -> RiskSnapshotInsert:
