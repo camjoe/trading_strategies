@@ -90,7 +90,6 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
 | `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
 | `src/trading/services/books` | `tests/src/trading/services/books/` |
-| `src/trading/services/universe` | `tests/src/trading/services/universe/` |
 
 ## Quick Start
 
