@@ -9,12 +9,11 @@ means creating a new variant (enforced by the repository guard).
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections.abc import Mapping
 from typing import Any
 
-from common.json_columns import dumps_json_column
+from common.json_columns import dumps_json_column, loads_json_object
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive, validate_params_against_primitive
@@ -82,7 +81,8 @@ def configure_strategy(
         raise NotFoundError(f"Strategy not found: {strategy_key}")
     if params:
         validated = validate_params_against_primitive(record.primitive, params)
-        merged = {**_parse(record.params_json), **validated}
+        existing = loads_json_object(record.params_json, where="strategies.params_json")
+        merged = {**existing, **validated}
         repo.update_draft_knobs(
             strategy_id=record.id,
             primitive=record.primitive,
@@ -108,13 +108,6 @@ def freeze_strategy(
         raise NotFoundError(f"Strategy not found: {strategy_key}")
     repo.freeze(strategy_id=record.id, updated_at=now)
     return _fetch(repo, record.id)
-
-
-def _parse(params_json: str) -> dict[str, Any]:
-    if not params_json or not params_json.strip():
-        return {}
-    data = json.loads(params_json)
-    return dict(data) if isinstance(data, dict) else {}
 
 
 def _fetch(repo: StrategyRepository, strategy_id: int) -> StrategyRecord:

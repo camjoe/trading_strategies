@@ -14,11 +14,11 @@ canonical id.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
+from common.json_columns import loads_json_object
 from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.domain.strategies.resolution import resolve_strategy
@@ -57,7 +57,8 @@ def resolve_catalog_strategy(conn: sqlite3.Connection, strategy_key: str) -> Res
     if record is None:
         raise UnknownCatalogStrategyError(f"No strategy catalog row for '{strategy_key}'.")
     primitive_spec = _resolve_primitive_spec(record)
-    params = {**dict(primitive_spec.knob_schema), **_parse_params_json(record.params_json)}
+    overrides = loads_json_object(record.params_json, where="strategies.params_json")
+    params = {**dict(primitive_spec.knob_schema), **overrides}
     return ResolvedStrategy(strategy_key=record.strategy_key, primitive_spec=primitive_spec, params=params)
 
 
@@ -84,15 +85,6 @@ def _resolve_primitive_spec(record: StrategyRecord) -> PrimitiveSpec:
         raise UnknownCatalogStrategyError(
             f"Strategy '{record.strategy_key}' primitive {record.primitive!r} does not resolve to a code primitive."
         ) from exc
-
-
-def _parse_params_json(params_json: str) -> dict[str, Any]:
-    if not params_json or not params_json.strip():
-        return {}
-    data = json.loads(params_json)
-    if not isinstance(data, dict):
-        raise ValueError(f"strategies.params_json must be a JSON object, got {type(data).__name__}.")
-    return dict(data)
 
 
 def resolve_or_draft_strategy_record(
