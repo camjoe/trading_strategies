@@ -1,4 +1,4 @@
-"""Execution helpers for auto-trading order selection and recording."""
+"""Execution helpers for auto-trading order selection and sizing."""
 
 from __future__ import annotations
 
@@ -212,7 +212,7 @@ def prepare_book_trades(
     option_settings: AccountPolicyInput,
     active_strategy: str | None,
     params: Mapping[str, object] | None,
-    state,
+    state: TradePreparationStateLike,
     forced_sells: list[str],
     universe: list[str],
     prices: dict[str, float],

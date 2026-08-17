@@ -18,14 +18,14 @@ from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
 
+# Marks a client order id as this system's when read back off a broker's order list.
+_CLIENT_ORDER_ID_PREFIX = "ts"
+
 # Clean cash-flow ledger vocabulary: each entry is a cash movement, so a book's
 # cash = starting cash + Σ(ledger.amount). A fill posts a gross `trade` entry plus a
 # `fee` entry; the two sum to the net cash delta. `realized_pnl`/`cash_movement` from
 # the legacy ledger are intentionally NOT used — the clean `ledger` CHECK forbids them,
 # and realized P&L is derived for reporting, not a cash flow.
-# Marks a client order id as this system's when read back off a broker's order list.
-_CLIENT_ORDER_ID_PREFIX = "ts"
-
 LEDGER_ENTRY_TYPE_TRADE = "trade"
 LEDGER_ENTRY_TYPE_FEE = "fee"
 LEDGER_REFERENCE_TYPE_ORDER = "order"
