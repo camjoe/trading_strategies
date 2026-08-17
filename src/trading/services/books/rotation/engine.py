@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 
 from common.json_columns import dumps_json_column
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
-from trading.domain.rotation.schedule import parse_rotation_schedule
+from trading.domain.rotation.schedule import dump_rotation_schedule, parse_rotation_schedule
+from trading.domain.strategies.resolution import validate_strategy_name
+from trading.models.books import BookRotationSettingsRecord
 from trading.models.rotation import RotationDecision, RotationScoreWeights, RotationStrategyMetrics
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
@@ -95,6 +98,64 @@ def resolve_default_book_rotation_schedule(conn: sqlite3.Connection, *, account_
     if book is None:
         return BookRotationScheduleConfig()
     return resolve_book_rotation_schedule(conn, book_id=book.id)
+
+
+def write_book_rotation_scheduling(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    updates: Mapping[str, object],
+) -> BookRotationSettingsRecord:
+    """Merge scheduling ``updates`` over the book's persisted row and save.
+
+    The single writer behind both the operator edit surface
+    (``parameters.update_book_rotation_scheduling``) and the profile-import
+    surface (``config_parser.apply_book_rotation_settings``). Keys absent from
+    ``updates`` keep their persisted values (partial edit); ``rotation_schedule``
+    takes a list of strategy names (validated) or None for no challengers;
+    ``rotation_lookback_days`` None falls back to the code default. Returns the
+    persisted row.
+    """
+    repository = BookRotationSettingsRepository(conn)
+    current = repository.fetch(book_id=book_id)
+
+    if "rotation_enabled" in updates:
+        enabled = int(bool(updates["rotation_enabled"]))
+    else:
+        enabled = int(current.rotation_enabled) if current is not None else 0
+    if "rotation_lookback_days" in updates:
+        raw_lookback = updates["rotation_lookback_days"]
+        if raw_lookback is None:
+            lookback = None
+        elif isinstance(raw_lookback, int):
+            lookback = raw_lookback
+        else:
+            raise ValueError("rotation_lookback_days must be an integer or None")
+        if lookback is not None and lookback <= 0:
+            raise ValueError("rotation_lookback_days must be > 0")
+    else:
+        lookback = current.rotation_lookback_days if current is not None else None
+    if "rotation_schedule" in updates:
+        names = parse_rotation_schedule(updates["rotation_schedule"])
+        for name in names:
+            validate_strategy_name(name)
+        schedule = dump_rotation_schedule(names) if names else None
+    else:
+        schedule = current.rotation_schedule if current is not None else None
+
+    now_iso = utc_now_iso()
+    repository.upsert_rotation_scheduling(
+        book_id=book_id,
+        rotation_enabled=enabled,
+        rotation_lookback_days=lookback,
+        rotation_schedule=schedule,
+        created_at=current.created_at if current is not None else now_iso,
+        updated_at=now_iso,
+    )
+    saved = repository.fetch(book_id=book_id)
+    if saved is None:
+        raise RuntimeError(f"book_rotation_settings row missing after upsert for book_id={book_id}")
+    return saved
 
 
 def _tuned[T](stored: T | None, default: T) -> T:

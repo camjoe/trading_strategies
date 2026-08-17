@@ -14,13 +14,12 @@ from collections.abc import Mapping
 from common.coercion import coerce_float, coerce_int
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
-from trading.domain.rotation.schedule import dump_rotation_schedule, parse_rotation_schedule
-from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.books import BookRotationSettingsRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.services.books.default_book import default_book_id
+from trading.services.books.rotation.engine import write_book_rotation_scheduling
 
 # The book rotation-policy fields an operator may set; None clears a field back
 # to the RotationPolicyConfig code default. Also every rotation-policy column
@@ -126,43 +125,4 @@ def update_book_rotation_scheduling(
         raise ValueError("No rotation scheduling fields provided.")
 
     book_id = resolve_book_id(conn, account_name=account_name, book_name=book_name)
-    repository = BookRotationSettingsRepository(conn)
-    current = repository.fetch(book_id=book_id)
-
-    if "rotation_enabled" in updates:
-        enabled = int(bool(updates["rotation_enabled"]))
-    else:
-        enabled = int(current.rotation_enabled) if current is not None else 0
-    if "rotation_lookback_days" in updates:
-        raw_lookback = updates["rotation_lookback_days"]
-        if raw_lookback is None:
-            lookback = None
-        elif isinstance(raw_lookback, int):
-            lookback = raw_lookback
-        else:
-            raise ValueError("rotation_lookback_days must be an integer or None")
-        if lookback is not None and lookback <= 0:
-            raise ValueError("rotation_lookback_days must be > 0")
-    else:
-        lookback = current.rotation_lookback_days if current is not None else None
-    if "rotation_schedule" in updates:
-        names = parse_rotation_schedule(updates["rotation_schedule"])
-        for name in names:
-            validate_strategy_name(name)
-        schedule = dump_rotation_schedule(names) if names else None
-    else:
-        schedule = current.rotation_schedule if current is not None else None
-
-    now_iso = utc_now_iso()
-    repository.upsert_rotation_scheduling(
-        book_id=book_id,
-        rotation_enabled=enabled,
-        rotation_lookback_days=lookback,
-        rotation_schedule=schedule,
-        created_at=current.created_at if current is not None else now_iso,
-        updated_at=now_iso,
-    )
-    saved = repository.fetch(book_id=book_id)
-    if saved is None:
-        raise RuntimeError(f"book_rotation_settings row missing after upsert for book_id={book_id}")
-    return saved
+    return write_book_rotation_scheduling(conn, book_id=book_id, updates=updates)
