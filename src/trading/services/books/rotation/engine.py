@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 
+from common.coercion import coerce_float, coerce_int
 from common.json_columns import dumps_json_column
 from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.rotation.policy import evaluate_champion_challenger_rotation
@@ -27,6 +28,20 @@ DEFAULT_ROTATION_COOLDOWN_DAYS = 7
 # Scoring weights default to the model's, so the flat fields here and
 # RotationScoreWeights cannot drift into two different untuned policies.
 _DEFAULT_WEIGHTS = RotationScoreWeights()
+
+# The book rotation-policy fields an operator may set; None clears a field back
+# to the RotationPolicyConfig code default. Also every rotation-policy column
+# persisted on book_rotation_settings — the merge that feeds the repository
+# upsert supplies all of them.
+ROTATION_POLICY_FIELDS = (
+    "min_trades_in_window",
+    "outperformance_threshold_bps",
+    "cooldown_days",
+    "risk_adjusted_return_weight",
+    "stability_weight",
+    "drawdown_penalty_weight",
+    "regime_fit_weight",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +166,49 @@ def write_book_rotation_scheduling(
         rotation_schedule=schedule,
         created_at=current.created_at if current is not None else now_iso,
         updated_at=now_iso,
+    )
+    saved = repository.fetch(book_id=book_id)
+    if saved is None:
+        raise RuntimeError(f"book_rotation_settings row missing after upsert for book_id={book_id}")
+    return saved
+
+
+def write_book_rotation_policy(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    updates: Mapping[str, object],
+) -> BookRotationSettingsRecord:
+    """Merge policy ``updates`` over the book's persisted row and save.
+
+    The single writer behind both the operator edit surface
+    (``parameters.update_book_rotation_policy``) and the combined book edit
+    (``configuration.configure_book``). Only ``ROTATION_POLICY_FIELDS`` keys are
+    applied; a None value clears the field back to the code default. Returns the
+    persisted row.
+    """
+    repository = BookRotationSettingsRepository(conn)
+    current = repository.fetch(book_id=book_id)
+    merged = {
+        name: updates[name] if name in updates else (getattr(current, name) if current is not None else None)
+        for name in ROTATION_POLICY_FIELDS
+    }
+    now_iso = utc_now_iso()
+    # Passed field by field rather than splatted: `**merged` is one dict type for
+    # seven differently-typed parameters, so nothing checks that a weight did not
+    # land in a count. The merge above stays generic over ROTATION_POLICY_FIELDS;
+    # only this boundary is spelled out.
+    repository.upsert_rotation_policy(
+        book_id=book_id,
+        created_at=current.created_at if current is not None else now_iso,
+        updated_at=now_iso,
+        min_trades_in_window=coerce_int(merged["min_trades_in_window"]),
+        outperformance_threshold_bps=coerce_float(merged["outperformance_threshold_bps"]),
+        cooldown_days=coerce_int(merged["cooldown_days"]),
+        risk_adjusted_return_weight=coerce_float(merged["risk_adjusted_return_weight"]),
+        stability_weight=coerce_float(merged["stability_weight"]),
+        drawdown_penalty_weight=coerce_float(merged["drawdown_penalty_weight"]),
+        regime_fit_weight=coerce_float(merged["regime_fit_weight"]),
     )
     saved = repository.fetch(book_id=book_id)
     if saved is None:
