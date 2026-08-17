@@ -3,6 +3,11 @@ from __future__ import annotations
 import argparse
 
 from trading.interfaces.cli.commands.options import add_account_arg
+from trading.services.promotion.actions import (
+    PROMOTION_REVIEW_ACTION_APPROVE,
+    PROMOTION_REVIEW_ACTION_NOTE,
+    PROMOTION_REVIEW_ACTION_REJECT,
+)
 
 
 def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -41,7 +46,11 @@ def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPars
     p_review_action.add_argument(
         "--action",
         required=True,
-        choices=["approve", "reject", "note"],
+        choices=[
+            PROMOTION_REVIEW_ACTION_APPROVE,
+            PROMOTION_REVIEW_ACTION_REJECT,
+            PROMOTION_REVIEW_ACTION_NOTE,
+        ],
         help="Review action to record",
     )
     p_review_action.add_argument("--actor", default=None, help="Optional operator name")
