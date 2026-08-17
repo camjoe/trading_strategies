@@ -209,7 +209,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
-| `universe/resolver.py` | Trade-universe name resolution |
+| `universe.py` | Trade-universe name resolution |
 
 ---
 
