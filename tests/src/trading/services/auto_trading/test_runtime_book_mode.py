@@ -17,7 +17,7 @@ from trading.repositories.positions import PositionRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.auto_trading.runtime import run_for_account
 from trading.services.books.book_assignments import open_assignment_for_book
-from trading.services.operational_settings import set_runtime_throttle_settings
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 
@@ -35,7 +35,7 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
         )
 
     monkeypatch.setattr(
-        "trading.services.evaluation.fetch_strategy_evaluation_for_account_row",
+        "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row",
         _fake_fetch,
     )
 

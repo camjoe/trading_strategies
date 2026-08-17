@@ -3,9 +3,9 @@ import pytest
 from tests.support.books import ensure_default_book_id, set_test_book_rotation_scheduling
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import create_account, get_account
+from trading.services.accounts.mutations import create_account, get_account
 from trading.services.books.book_assignments import sync_default_book_assignment
-from trading.services.evaluation import fetch_strategy_evaluation
+from trading.services.evaluation.queries import fetch_strategy_evaluation
 
 
 def _enable_rotation(conn, name: str, *, active: str) -> None:

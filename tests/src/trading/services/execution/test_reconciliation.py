@@ -14,7 +14,7 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
 )
 from trading.services.execution.gate import AllowAllGate
-from trading.services.execution.ledger import record_trade
+from trading.services.execution.ledger.mutations import record_trade
 from trading.services.execution.ledger.queries import load_account_state
 from trading.services.execution.nav import mark_book_to_market
 from trading.services.execution.reconciliation import reconcile_book_equity

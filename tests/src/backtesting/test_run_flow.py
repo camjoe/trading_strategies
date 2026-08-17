@@ -204,7 +204,7 @@ class TestBacktestRunFlow:
             provider=stub_market_data_provider(),
         )
 
-        from trading.services.accounts import set_account_strategy
+        from trading.services.accounts.mutations import set_account_strategy
 
         set_account_strategy(conn, "acct_strategy_snapshot", "mean_reversion")
 

@@ -15,8 +15,8 @@ import pandas as pd
 
 from common.coercion import coerce_float
 from trading.models.portfolio import EquitySnapshotRecord
-from trading.services.market_data import MarketDataProvider, require_provider
 from trading.services.market_data.lookups import extract_close_series
+from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
 
 def _snapshot_time(snapshot: EquitySnapshotRecord) -> str:

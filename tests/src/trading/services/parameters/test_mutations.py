@@ -10,7 +10,7 @@ from tests.support.books import ensure_default_book_id, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
-from trading.services.parameters import update_book_rotation_policy, update_book_rotation_scheduling
+from trading.services.parameters.mutations import update_book_rotation_policy, update_book_rotation_scheduling
 
 
 @pytest.fixture

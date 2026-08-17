@@ -9,7 +9,7 @@ from backtesting.models import RunUniverse
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
 from trading.models.market_data import BAR_CLOSE
-from trading.services.market_data import MarketDataProvider, require_provider
+from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
 
 def fetch_bar_history(

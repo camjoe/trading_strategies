@@ -5,8 +5,8 @@ from tests.support.evaluation import (
     insert_run,
     insert_snapshot,
 )
-from trading.services.accounts import create_account, get_account
-from trading.services.evaluation import fetch_strategy_evaluation
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.evaluation.queries import fetch_strategy_evaluation
 
 
 def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_experiment_windows(conn) -> None:

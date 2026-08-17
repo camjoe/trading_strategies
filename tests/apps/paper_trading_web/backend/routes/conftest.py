@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from common.time import utc_now_iso
 from infrastructure.database.connection import ensure_db
 from trading.models import AccountConfig
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture

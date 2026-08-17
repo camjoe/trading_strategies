@@ -3,10 +3,10 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-08-16
 Purpose: Answer "which package do I call for X?" — the supported internal import pattern plus
-capability → service-package pointers. The per-function surface lives in each package's `__init__.py`
-(`__all__`), not here.
+capability → service-package pointers. The per-function surface lives in each owning module (read
+its docstring and definitions), not here.
 Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
@@ -17,11 +17,10 @@ This is a task-oriented companion to [trading-package-map.md](../maps/trading-pa
 Use it when writing CLI commands, runtime jobs, or UI backend routes that need `src/trading/services/`.
 
 This doc deliberately does **not** mirror function signatures — an earlier version hand-maintained
-~70 of them and they drifted. Most packages' `__init__.py` files re-export their supported internal
-surface via `__all__`; **read that (or the module docstrings) for the current functions and
-signatures.**
+~70 of them and they drifted. Each module owns its own surface; **read the owning module's docstring
+and definitions for the current functions and signatures.**
 
-These exports define the preferred integration boundary within this repository. They are not a
+The owning modules define the preferred integration boundary within this repository. They are not a
 versioned compatibility promise for external consumers.
 
 ---
@@ -33,21 +32,21 @@ lives, and there is no re-export surface to keep in sync:
 
 ```python
 # Correct — import from the owning module
-from trading.services.accounts.queries import get_account
+from trading.services.accounts.queries import list_account_records
 from trading.services.analysis.portfolio import build_account_stats
 
 # Avoid — package-root re-export facade
-from trading.services.accounts import get_account
+from trading.services.accounts import list_account_records
 ```
 
 Naming conventions on the service surface (see `architecture-conventions.md`): reads are
 `fetch_*`/`get_*`/`list_*`/`find_*`, side-effect workflows are `run_*`/`execute_*`/`record_*`/`set_*`,
 input/config derivation is `resolve_*`.
 
-Several service packages still expose a re-export `__all__` facade from an earlier convention.
-Those are retired per package as each is touched; `execution` and `books` are already
-submodule-oriented and are the model. Use the capability table below to find the owning package,
-then import the module inside it that owns the concern.
+The service packages once exposed re-export `__all__` facades from an earlier convention; all are
+now retired, so `execution`, `books`, and every other package are submodule-oriented. Use the
+capability table below to find the owning package, then import the module inside it that owns the
+concern.
 
 ---
 

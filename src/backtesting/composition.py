@@ -9,7 +9,8 @@ from backtesting.models import (
 )
 from backtesting.services.run_inputs import fetch_bar_history, fetch_benchmark_close
 from backtesting.services.simulation import run_backtest as run_backtest_impl
-from trading.services.market_data import MarketDataProvider, build_feature_provider
+from trading.services.market_data.factory import build_feature_provider
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def _run_backtest(

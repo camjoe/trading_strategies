@@ -11,7 +11,7 @@ from tests.support.analysis import (
     patch_analysis_market_data,
     record_analysis_buy,
 )
-from trading.services.analysis import fetch_account_analysis
+from trading.services.analysis.queries import fetch_account_analysis
 
 # ---------------------------------------------------------------------------
 # Return % and alpha

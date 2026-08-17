@@ -2,8 +2,8 @@ import pytest
 
 from tests.support.reporting import insert_trade, make_evaluation_artifact
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, get_account
-from trading.services.reporting import compare_strategies
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.reporting.comparison import compare_strategies
 
 
 def test_compare_strategies_outputs_summary_and_truncates_positions(

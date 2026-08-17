@@ -7,9 +7,9 @@ import pytest
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.services.execution.ledger import load_account_state
-from trading.services.fixtures import DEMO_PROFILE, SANDBOX_PROFILE, seed_fixture_database
-from trading.services.fixtures.profiles import FixtureProfile
+from trading.services.execution.ledger.queries import load_account_state
+from trading.services.fixtures.profiles import DEMO_PROFILE, SANDBOX_PROFILE, FixtureProfile
+from trading.services.fixtures.seeding import seed_fixture_database
 
 # Tables a generated sandbox is knowingly allowed to leave empty, each with the
 # reason. This mapping is the review record for fixture coverage: when a

@@ -1,21 +1,14 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.handlers.context import CliContext
-from trading.services.parameters import show_parameters
-from trading.services.promotion import (
-    execute_promotion_review_action,
-    execute_promotion_review_request,
-    show_promotion_review_history,
-    show_promotion_status,
-)
-from trading.services.reporting import (
-    account_report,
-    compare_strategies,
-    show_portfolio_concentration,
-    show_portfolio_exposure,
-    show_snapshots,
-    snapshot_account,
-)
+from trading.services.parameters.presentation import show_parameters
+from trading.services.promotion.actions import execute_promotion_review_action, execute_promotion_review_request
+from trading.services.promotion.presentation import show_promotion_review_history, show_promotion_status
+from trading.services.reporting.account import account_report
+from trading.services.reporting.comparison import compare_strategies
+from trading.services.reporting.concentration import show_portfolio_concentration
+from trading.services.reporting.exposure import show_portfolio_exposure
+from trading.services.reporting.snapshots import show_snapshots, snapshot_account
 
 
 def handle_report(conn, args, parser, *, ctx: CliContext) -> None:

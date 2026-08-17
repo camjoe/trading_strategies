@@ -43,7 +43,7 @@ from backtesting.services.walk_forward_optimizer import run_walk_forward_optimiz
 from infrastructure.database.backend import SQLiteBackend, set_backend
 from infrastructure.database.config import get_db_path
 from infrastructure.market_data.factory import build_provider
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # An 8-point grid over a two-parameter strategy: small enough to finish while

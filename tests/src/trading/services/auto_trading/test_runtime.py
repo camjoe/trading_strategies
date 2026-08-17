@@ -8,7 +8,7 @@ from tests.src.trading.services.auto_trading.factories import (
 )
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
-from trading.services.auto_trading import run_for_account
+from trading.services.auto_trading.runtime import run_for_account
 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:

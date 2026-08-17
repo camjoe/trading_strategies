@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 @dataclass(frozen=True, slots=True)

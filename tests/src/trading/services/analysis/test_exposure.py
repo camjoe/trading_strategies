@@ -10,7 +10,7 @@ from tests.support.analysis import make_analysis_account
 from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.analysis import fetch_portfolio_exposure
+from trading.services.analysis.exposure import fetch_portfolio_exposure
 
 
 def insert_exposure_snapshot(

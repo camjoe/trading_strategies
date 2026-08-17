@@ -33,7 +33,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     week_tag,
     write_artifact,
 )
-from trading.services.accounts import load_account_names
+from trading.services.accounts.runtime_loader import load_account_names
 
 REPO_ROOT = get_repo_root(__file__)
 

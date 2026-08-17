@@ -5,7 +5,7 @@ import pytest
 import trading.services.accounts.mutations as account_mutations
 from tests.support.books import ensure_default_book_id
 from trading.models.accounts import AccountConfig
-from trading.services.accounts import create_account, get_account, set_account_strategy
+from trading.services.accounts.mutations import create_account, get_account, set_account_strategy
 from trading.services.accounts.queries import find_account as get_account_or_none
 from trading.services.books.book_assignments import open_assignment_for_book
 

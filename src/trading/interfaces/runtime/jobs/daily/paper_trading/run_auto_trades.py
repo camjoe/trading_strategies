@@ -10,13 +10,13 @@ from infrastructure.database.connection import db_session
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.services.auto_trading import (
-    is_runtime_submission_window_open,
+from trading.services.auto_trading.inputs import (
     resolve_account_names,
     resolve_market_inputs,
     resolve_run_universe,
     run_accounts,
 )
+from trading.services.auto_trading.runtime import is_runtime_submission_window_open
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 
 REPO_ROOT = get_repo_root(__file__)

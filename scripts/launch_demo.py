@@ -10,7 +10,7 @@ from pathlib import Path
 from scripts import launch_ui
 from scripts.fixture_db import build_fixture_database
 from scripts.ui_config import DEMO_BACKEND_PORT, DEMO_FRONTEND_PORT
-from trading.services.fixtures import DEMO_PROFILE
+from trading.services.fixtures.profiles import DEMO_PROFILE
 
 DEMO_DATABASE_NAME = "demo.db"
 PREPARING_DATABASE_NAME = "demo.preparing.db"

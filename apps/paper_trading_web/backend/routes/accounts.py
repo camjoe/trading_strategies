@@ -6,15 +6,15 @@ from fastapi import APIRouter, HTTPException
 
 from infrastructure.market_data.factory import build_provider
 from trading.domain.exceptions import ValidationError
-from trading.services.accounts import list_account_snapshots
+from trading.services.accounts.queries import list_account_snapshots
 from trading.services.books.configuration import (
     BookConfigurationView,
     configure_book,
     fetch_account_book_configurations,
 )
 from trading.services.books.operations import fetch_book_operational_data
-from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.execution.ledger import list_account_trades
+from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
+from trading.services.execution.ledger.queries import list_account_trades
 
 from ..account_contract import build_account_params_update_command
 from ..account_options import get_account_config_options

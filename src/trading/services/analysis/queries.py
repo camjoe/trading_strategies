@@ -17,7 +17,7 @@ from trading.services.analysis.position import (
     compute_position_analysis,
     generate_improvement_notes,
 )
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def fetch_account_analysis(

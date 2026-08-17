@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from trading.models.market_data import BAR_CLOSE, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 _DISPLAY_COLUMNS = {
     BAR_OPEN: "Open",

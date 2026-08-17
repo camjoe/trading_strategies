@@ -1,7 +1,8 @@
 import pytest
 
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, fetch_account_listing_lines, get_account, set_benchmark
+from trading.services.accounts.listing import fetch_account_listing_lines
+from trading.services.accounts.mutations import create_account, get_account, set_benchmark
 
 
 class TestAccountListingOutput:

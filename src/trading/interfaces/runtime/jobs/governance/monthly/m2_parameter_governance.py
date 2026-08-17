@@ -12,7 +12,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import list_report_books
-from trading.services.strategy_catalog import UnknownCatalogStrategyError, resolve_catalog_strategy
+from trading.services.strategy_catalog.resolution import UnknownCatalogStrategyError, resolve_catalog_strategy
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)

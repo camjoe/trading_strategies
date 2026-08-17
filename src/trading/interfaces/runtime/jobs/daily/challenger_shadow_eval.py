@@ -14,7 +14,7 @@ from infrastructure.feature_providers.policy_provider import PolicyFeatureProvid
 from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.interfaces.runtime.jobs.job_helpers import ts
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.rotation.challenger_evaluation import (
     ChallengerEvaluationRun,
     build_book_challenger_evaluations,

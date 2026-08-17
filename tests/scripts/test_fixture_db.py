@@ -18,7 +18,7 @@ from scripts.fixture_db import (
     exact_local_targets,
     golden_fingerprint,
 )
-from trading.services.fixtures import DEMO_PROFILE, SANDBOX_PROFILE
+from trading.services.fixtures.profiles import DEMO_PROFILE, SANDBOX_PROFILE
 
 GOLDEN_NAME = "sandbox.golden.db"
 WORKING_NAME = "sandbox.db"

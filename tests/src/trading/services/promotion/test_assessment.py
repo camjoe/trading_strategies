@@ -2,10 +2,8 @@ import pytest
 
 from tests.support.promotion import make_ready_evaluation
 from trading.domain.promotion.policy import PromotionPolicySettings
-from trading.services.promotion import (
-    assessment as promotion_assessment,
-    fetch_promotion_assessment,
-)
+from trading.services.promotion import assessment as promotion_assessment
+from trading.services.promotion.assessment import fetch_promotion_assessment
 
 
 def test_fetch_promotion_assessment_uses_evaluation_service(

@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 
 from tests.support.promotion import make_ready_evaluation
-from trading.services.accounts import get_account
-from trading.services.promotion import (
-    actions as promotion_actions,
+from trading.services.accounts.mutations import get_account
+from trading.services.promotion import actions as promotion_actions
+from trading.services.promotion.actions import (
+    PromotionAssessment,
     execute_promotion_review_action,
     execute_promotion_review_request,
-    is_strategy_approved_for_live,
 )
-from trading.services.promotion.actions import PromotionAssessment
+from trading.services.promotion.eligibility import is_strategy_approved_for_live
 
 
 def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str = "trend_v1") -> PromotionAssessment:

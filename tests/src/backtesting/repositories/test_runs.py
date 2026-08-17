@@ -20,7 +20,7 @@ from backtesting.repositories.runs import (
 )
 from tests.support.backtesting import bars_from_closes, stub_market_data_provider
 from tests.support.strategies import ensure_strategy_id_for_label
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 def _backtest_config(

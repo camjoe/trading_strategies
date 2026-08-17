@@ -8,7 +8,7 @@ from trading.models.orders import OrderInsert
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 
 METRIC_DATE = "2026-07-24"

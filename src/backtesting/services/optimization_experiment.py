@@ -43,7 +43,7 @@ from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
-from trading.services.accounts import find_account
+from trading.services.accounts.queries import find_account
 from trading.services.books.book_assignments import get_default_book
 from trading.services.strategy_catalog.resolution import resolve_or_draft_strategy_record
 

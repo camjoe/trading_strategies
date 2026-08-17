@@ -3,20 +3,17 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models import AccountRecord, AccountState
-from trading.services.accounts import (
-    DEFAULT_MAX_POSITION_PCT,
-    DEFAULT_TRADE_SIZE_PCT,
-    get_latest_account_snapshot,
-)
-from trading.services.analysis import (
+from trading.services.accounts.queries import get_latest_account_snapshot
+from trading.services.analysis.portfolio import (
     build_account_stats,
     inject_settlement_price,
     settlement_corrected_equity,
 )
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
 from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def build_account_summary(

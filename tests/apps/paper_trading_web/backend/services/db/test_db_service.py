@@ -8,7 +8,7 @@ from paper_trading_web.backend.services import db as services_db, require_accoun
 from tests.support.books import ensure_default_book_id
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import get_latest_account_snapshot
+from trading.services.accounts.queries import get_latest_account_snapshot
 
 
 def test_db_conn_context_yields_and_closes_connection(conn) -> None:  # noqa: ARG001

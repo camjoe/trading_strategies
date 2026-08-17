@@ -11,10 +11,11 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import get_account, list_account_snapshots
+from trading.services.accounts.mutations import get_account
+from trading.services.accounts.queries import list_account_snapshots
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.default_book import default_book_id
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 from trading.services.reporting.account import account_report
 
 

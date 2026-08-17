@@ -14,7 +14,7 @@ from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 
 
 def _insert_book(

@@ -11,8 +11,8 @@ from backtesting.repositories.runs import insert_run, insert_snapshot, insert_tr
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from trading.models import AccountConfig
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
-from trading.services.accounts import create_account
-from trading.services.market_data import MarketDataProvider
+from trading.services.accounts.mutations import create_account
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def make_fake_close_history(tickers: list[str]) -> pd.DataFrame:

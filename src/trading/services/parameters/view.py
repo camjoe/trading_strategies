@@ -28,7 +28,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
-from trading.services.operational_settings import (
+from trading.services.operational_settings.queries import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,

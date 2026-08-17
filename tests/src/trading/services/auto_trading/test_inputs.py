@@ -3,7 +3,6 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
 import trading.services.auto_trading.market as auto_trading_market
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
@@ -11,7 +10,7 @@ from tests.support.backtesting import bar_frame
 from trading.models.accounts import AccountConfig
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
@@ -29,9 +28,9 @@ def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
 
 
 def test_resolve_account_names() -> None:
-    assert auto_trading_service.resolve_account_names("acct1, acct2") == ["acct1", "acct2"]
+    assert auto_trading_inputs.resolve_account_names("acct1, acct2") == ["acct1", "acct2"]
     with pytest.raises(ValueError, match="No accounts"):
-        auto_trading_service.resolve_account_names(" , ")
+        auto_trading_inputs.resolve_account_names(" , ")
 
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,7 +39,7 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(auto_trading_inputs, "fetch_bar_histories", lambda _universe, **_kwargs: {"AAPL": bars})
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
-    market = auto_trading_service.resolve_market_inputs(["AAPL"])
+    market = auto_trading_inputs.resolve_market_inputs(["AAPL"])
     assert market.universe == ["AAPL"]
     assert market.prices == {"AAPL": 101.0}
     assert market.iv_rank_proxy == {"AAPL": 50.0}
@@ -53,7 +52,7 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         )
 
     monkeypatch.setattr(auto_trading_inputs, "run_for_account", _fake_run_for_account)
-    results = auto_trading_service.run_accounts(
+    results = auto_trading_inputs.run_accounts(
         conn=object(),
         account_names=["acct1", "acct2"],
         market=market,

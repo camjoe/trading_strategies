@@ -9,7 +9,8 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.portfolio import AccountExposure, PortfolioConcentration, PortfolioExposureRollup
-from trading.services.analysis import fetch_portfolio_concentration, fetch_portfolio_exposure
+from trading.services.analysis.concentration import fetch_portfolio_concentration
+from trading.services.analysis.exposure import fetch_portfolio_exposure
 
 
 def _account_exposure_payload(exposure: AccountExposure) -> dict[str, object]:

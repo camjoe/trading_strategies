@@ -10,7 +10,7 @@ import sqlite3
 
 from trading.models.evaluation import BacktestFreshness
 from trading.models.promotion import PromotionAssessment
-from trading.services.evaluation import backtest_freshness_display_parts
+from trading.services.evaluation.presentation import backtest_freshness_display_parts
 from trading.services.promotion.assessment import fetch_promotion_assessment
 from trading.services.promotion.history import (
     PromotionReviewHistoryEntry,

@@ -5,12 +5,12 @@ import json
 import pytest
 
 from trading.repositories.strategies import StrategyRepository
-from trading.services.strategy_catalog import (
+from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_params,
     resolve_catalog_strategy,
-    seed_strategy_catalog,
 )
+from trading.services.strategy_catalog.seeding import seed_strategy_catalog
 
 NOW = "2026-07-12T12:00:00Z"
 

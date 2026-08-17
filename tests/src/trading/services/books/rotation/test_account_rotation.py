@@ -15,17 +15,17 @@ from trading.models.evaluation import (
     StrategyEvaluationArtifact,
 )
 from trading.repositories.strategies import StrategyRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.book_assignments import open_assignment_for_book
 from trading.services.books.rotation.account_rotation import run_account_book_rotations
-from trading.services.promotion import (
-    actions as promotion_actions,
+from trading.services.promotion import actions as promotion_actions
+from trading.services.promotion.actions import (
+    PromotionAssessment,
     execute_promotion_review_action,
     execute_promotion_review_request,
 )
-from trading.services.promotion.actions import PromotionAssessment
 
-_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
+_FETCH_TARGET = "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row"
 
 # A wide margin so the rotation policy's outperformance/score-superiority gates
 # clear regardless of the (neutral-default) stability/drawdown/regime components.

@@ -13,21 +13,23 @@ from typing import Any
 
 from common.time import utc_now_iso
 from trading.interfaces.cli.handlers.context import CliContext
-from trading.services.operational_settings import (
-    fetch_evaluation_confidence_settings,
-    fetch_promotion_policy_settings,
-    fetch_runtime_throttle_settings,
+from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
     set_runtime_throttle_settings,
-    show_global_settings_history,
 )
-from trading.services.parameters import (
+from trading.services.operational_settings.presentation import show_global_settings_history
+from trading.services.operational_settings.queries import (
+    fetch_evaluation_confidence_settings,
+    fetch_promotion_policy_settings,
+    fetch_runtime_throttle_settings,
+)
+from trading.services.parameters.mutations import (
     ROTATION_POLICY_FIELDS,
-    show_book_rotation_history,
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
+from trading.services.parameters.presentation import show_book_rotation_history
 
 
 def _merged(args: object, current: object, field_names: tuple[str, ...]) -> dict[str, Any]:
