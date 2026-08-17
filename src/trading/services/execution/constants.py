@@ -14,6 +14,15 @@ KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
 # No account snapshot exists to reconcile against.
 KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
 
+# --- pre-submit kill-switch reason (owned by the runtime NAV pre-flight) -----
+
+# A held position has no valid live price this run. Book equity marks it to cost
+# while the equity snapshot skips it, so the two cannot be reconciled — the run
+# holds the book on this reason rather than trade what it cannot value. Raised
+# from the NAV mark results before reconciliation, which is why it is not
+# gate-owned. See docs/overview.md (Known limitations) for the deeper dive.
+KILL_SWITCH_REASON_UNPRICED_POSITION = "unpriced_position"
+
 # --- submission-time kill-switch reason (owned by the submission service) ---
 
 # Broker submission raised an exception mid-loop.

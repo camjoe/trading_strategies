@@ -24,7 +24,10 @@ from trading.models.market_data import MarketInputs
 from trading.services.accounts.mutations import get_account
 from trading.services.books.rotation.account_rotation import run_account_book_rotations
 from trading.services.books.sector_config import load_symbol_sector_map
-from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
+from trading.services.execution.constants import (
+    KILL_SWITCH_REASON_BROKER_API_ANOMALY,
+    KILL_SWITCH_REASON_UNPRICED_POSITION,
+)
 from trading.services.execution.equity_reconciliation import reconcile_book_equity
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.nav import mark_account_to_market
@@ -115,8 +118,17 @@ def _run_books_for_account(
     # for the run (reconciliation is per-run, not
     # per-book). The batch gate then applies the notional caps + stale-price across all
     # books with reconcile=False, so cross-book exposure caps are enforced together.
-    mark_account_to_market(conn, account_id=account_id, prices=market.prices, as_of=snapshot_time)
-    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id)
+    nav_results = mark_account_to_market(conn, account_id=account_id, prices=market.prices, as_of=snapshot_time)
+    unpriced_symbols = sorted({symbol for result in nav_results for symbol in result.unpriced_symbols})
+    if unpriced_symbols:
+        # A held symbol with no live mark is carried at cost in book equity but
+        # skipped by the equity snapshot, so reconcile_book_equity would report a
+        # spurious reconciliation_mismatch. Hold the book on the real cause and
+        # skip the now-uninformative equity check — a run must not trade a book it
+        # cannot value. See docs/overview.md (Known limitations).
+        reconciliation_reasons = [KILL_SWITCH_REASON_UNPRICED_POSITION]
+    else:
+        reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id)
     gate = BookPreSubmitGate(
         prices=market.prices,
         snapshot_time=snapshot_time,
