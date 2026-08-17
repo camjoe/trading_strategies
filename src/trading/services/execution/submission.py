@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from common.time import utc_now_iso
 from trading.domain.accounting.book import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution import BookTradeIntent, SubmissionResult
 from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
 from trading.persistence.unit_of_work import unit_of_work
@@ -16,7 +17,6 @@ from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
-from trading.services.operational_settings.enforcement import RuntimeTradeThrottleExceededError
 
 # Clean cash-flow ledger vocabulary: each entry is a cash movement, so a book's
 # cash = starting cash + Σ(ledger.amount). A fill posts a gross `trade` entry plus a

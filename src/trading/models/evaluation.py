@@ -27,7 +27,6 @@ class EvaluationBasicScope:
     account_name: str | None = None
     descriptive_name: str | None = None
     requested_strategy: str | None = None
-    base_strategy: str | None = None
     active_strategy: str | None = None
     benchmark_ticker: str | None = None
     instrument_mode: str | None = None

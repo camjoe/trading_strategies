@@ -80,21 +80,21 @@ def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord,
 def build_basic_scope(
     conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str
 ) -> EvaluationBasicScope:
+    account_id = row_expect_int(account, "id")
     # instrument_mode is a book column (revision 0004): the default book
     # carries the mode the evaluated account trades under.
-    default_book = get_default_book(conn, account_id=row_expect_int(account, "id"))
+    default_book = get_default_book(conn, account_id=account_id)
     return EvaluationBasicScope(
-        account_id=row_expect_int(account, "id"),
+        account_id=account_id,
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
         # accounts.strategy was dropped (revision 0008): the assignment-derived
         # active strategy is the only strategy.
-        base_strategy=_active_strategy(conn, account),
         active_strategy=_active_strategy(conn, account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=default_book.instrument_mode if default_book is not None else None,
-        rotation_enabled=_default_book_rotation_enabled(conn, row_expect_int(account, "id")),
+        rotation_enabled=_default_book_rotation_enabled(conn, account_id),
         live_trading_enabled=bool(row_int(account, "live_trading_enabled")),
     )
 

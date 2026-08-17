@@ -98,7 +98,7 @@ multi-strategy sweep on one account/universe/date-window stays far under the cei
 
 ### `src/infrastructure/config/`
 
-Static file-backed configuration assets, read through `src/trading/services/universe/`.
+Static file-backed configuration assets, read through `src/trading/services/universe.py`.
 
 | Asset | Description |
 |---|---|

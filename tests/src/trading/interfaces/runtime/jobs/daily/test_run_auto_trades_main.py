@@ -137,7 +137,6 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     # run_module_as_main re-imports the module, so its `from ... import x` binds
     # to the package attribute — patch there, not on the already-imported copy.
     monkeypatch.setattr(auto_trading_module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
-    monkeypatch.setattr(auto_trading_module, "validate_trade_count_range", lambda *_a: None)
     monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
     monkeypatch.setattr(
         auto_trading_module,

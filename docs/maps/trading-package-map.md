@@ -36,7 +36,7 @@ Concrete infrastructure (database, brokers, feature providers, the market-data a
 - Use the layered backbone by default.
 - Use top-level bounded contexts only when isolation materially improves clarity and safety.
 - Keep `src/trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
-- Avoid adding facades that only forward imports unless they are deliberate public entrypoints.
+- Do not add facades that only forward imports; import from the module that owns the symbol.
 
 ## Module Directory
 
@@ -132,7 +132,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
-| `accounts/validation.py` | Account config validation and normalization helpers (enum/range/sizing/option checks) |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `analysis/position.py` | Position analysis calculations |
@@ -201,14 +200,16 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`) — merges persisted rotation settings over code defaults |
+| `books/settings_validation.py` | Book execution/goal/option settings validation and normalization (enum/range/sizing/option checks) + `book_settings_update_from_config` builder |
 | `books/default_book.py` | Resolve an account to its default book (`default_book_id`) |
+| `books/provisioning.py` | Create-time default-book provisioning (`bootstrap_default_book`): validate create settings, insert the default book, open its assignment, write execution/goal/option columns |
 | `books/operations.py` | Book-attributed operational reads for interface consumers (`fetch_book_operational_data`) |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `strategy_catalog/queries.py` | Read-side contracts for the catalog operator surfaces (catalog + primitive listings, optimization history, strategy payload shaping) |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
 | `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
-| `universe/resolver.py` | Trade-universe name resolution |
+| `universe.py` | Trade-universe name resolution |
 
 ---
 

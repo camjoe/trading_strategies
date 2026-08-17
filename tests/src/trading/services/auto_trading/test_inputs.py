@@ -5,6 +5,7 @@ import pytest
 
 import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
+import trading.services.auto_trading.market as auto_trading_market
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
 from tests.support.backtesting import bar_frame
 from trading.models.accounts import AccountConfig
@@ -23,16 +24,11 @@ def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
 
     provider = SimpleNamespace(fetch_ohlcv=fake_fetch_ohlcv)
 
-    assert auto_trading_service.build_iv_rank_proxy(["EMPTY"], provider=provider) == {}
-    assert auto_trading_service.build_iv_rank_proxy(["ONE"], provider=provider) == {"ONE": 50.0}
+    assert auto_trading_market.build_iv_rank_proxy(["EMPTY"], provider=provider) == {}
+    assert auto_trading_market.build_iv_rank_proxy(["ONE"], provider=provider) == {"ONE": 50.0}
 
 
-def test_validate_trade_count_range_and_account_names() -> None:
-    with pytest.raises(ValueError, match="min-trades"):
-        auto_trading_service.validate_trade_count_range(0, 1)
-    with pytest.raises(ValueError, match="max-trades"):
-        auto_trading_service.validate_trade_count_range(2, 1)
-
+def test_resolve_account_names() -> None:
     assert auto_trading_service.resolve_account_names("acct1, acct2") == ["acct1", "acct2"]
     with pytest.raises(ValueError, match="No accounts"):
         auto_trading_service.resolve_account_names(" , ")

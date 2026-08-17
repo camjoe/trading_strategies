@@ -58,24 +58,21 @@ Good service function names usually describe the use case:
 - `list_account_snapshots()` -> validates limit and delegates to snapshot storage
 - `set_account_strategy()` -> validates strategy changes before persisting
 
-## Public facade rule
+## Public service surface
 
 External callers should prefer the service layer. However, that does **not**
 mean the service module should mirror repository names one-for-one.
 
-Prefer **one** stable public service surface per capability. In practice, that
-usually means the package root when a capability already has an internal split.
-Use [service-cookbook.md](service-cookbook.md) for the current capability →
-package lookup.
+Import from the module that owns a capability, not a package-root re-export.
+`execution` and `books` are the model. Use
+[service-cookbook.md](service-cookbook.md) for the current capability → module
+lookup.
 
-Exception: `trading.services.execution` is intentionally submodule-oriented for
-now because its safety-critical concerns are clearer as focused modules
-(`submission`, `gate`, `pre_submit_gate`, `nav`, `reconciliation`) than as a
-broad package-root facade.
-
-Do **not** keep a second sibling facade once the package root already serves as
-the stable import surface. That creates two public APIs for the same capability
-and reintroduces redirect-only wrappers.
+Do **not** add a re-export `__init__.py` facade or a sibling shim that only
+forwards another module's symbols. That creates two public APIs for the same
+capability and reintroduces redirect-only wrappers. Several packages still carry
+a legacy `__all__` facade from an earlier convention; retire each as its package
+is touched, migrating callers to the owning module first.
 
 Avoid public service helpers that are only passthroughs like:
 
@@ -142,7 +139,7 @@ For `accounts`:
   - `get_latest_account_snapshot`
   - `set_account_strategy`
 
-The stable public import surface should be `trading.services.accounts`.
+Import each from the module inside `trading.services.accounts` that owns it.
 
 That split keeps repository files table-shaped and service files workflow-shaped.
 
@@ -150,8 +147,8 @@ That split keeps repository files table-shaped and service files workflow-shaped
 
 For the operational-settings slice:
 
-- `trading.services.operational_settings` is the caller-facing package root for
-  trade throttle, evaluation-confidence, and promotion-policy settings,
+- `trading.services.operational_settings` owns the caller-facing trade throttle,
+  evaluation-confidence, and promotion-policy settings,
   even though those reads still use `global_settings` underneath.
 - It should also own validation for write-side invariants such as normalized
   evaluation-confidence weights; the repository should only persist the provided
@@ -169,20 +166,20 @@ boundary.
 
 For strategy evaluation flows:
 
-- `trading.services.evaluation` is the stable public service surface for
-  caller-facing evaluation reads.
-- internal evidence-building helpers can live beneath that package root without
-  exposing a second sibling facade.
+- `trading.services.evaluation` owns caller-facing evaluation reads; import each
+  from the module inside it that owns the read.
+- internal evidence-building helpers live beneath the package root without a
+  re-export facade.
 
 ## Auto-trading example
 
 For the runtime trading cluster:
 
-- `trading.services.auto_trading` is the stable public service surface for
-  runtime auto-trading orchestration, market/input preparation, and rotation
-  bridge helpers.
-- execution and rotation internals can live beneath that package root without
-  keeping sibling facades.
+- `trading.services.auto_trading` owns runtime auto-trading orchestration,
+  market/input preparation, and rotation bridge helpers across its `runtime`,
+  `inputs`, and `market` modules; import from the owning module.
+- execution and rotation internals live beneath the package root without sibling
+  facades.
 
 ### Book execution and parameters
 

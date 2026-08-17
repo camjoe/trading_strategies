@@ -27,10 +27,19 @@ def fetch_latest_prices(
     return prices
 
 
-def _extract_close_series(close_history: pd.DataFrame | None, ticker: str) -> pd.Series | None:
+def extract_close_series(close_history: pd.DataFrame | None, ticker: str) -> pd.Series | None:
+    """Pull *ticker*'s close series out of a ``fetch_close_history`` frame.
+
+    Handles the MultiIndex case where the ticker selects a sub-frame rather than
+    a series, and returns ``None`` when the frame is missing or the ticker column
+    is absent.
+    """
     if close_history is None:
         return None
-    close_col = close_history[ticker]
+    try:
+        close_col = close_history[ticker]
+    except Exception:
+        return None
     if isinstance(close_col, pd.DataFrame):
         if close_col.shape[1] == 0:
             return None
@@ -53,7 +62,7 @@ def benchmark_stats(
         # UTC too — a local "today" is a day behind west of UTC each evening and
         # would invert the range for an account created that day.
         close_history = active_provider.fetch_close_history([ticker], start, utc_today())
-        close = _extract_close_series(close_history, ticker)
+        close = extract_close_series(close_history, ticker)
     except Exception as exc:
         logger.warning("Failed to fetch benchmark data for %s: %s", benchmark_ticker, exc, exc_info=True)
         return None, None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.services.accounts import (
+from trading.models.books import (
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RISK_POLICIES,

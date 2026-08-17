@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 
@@ -16,6 +15,7 @@ from backtesting.services.audit import (
     fetch_experiment_audit,
     fetch_recent_experiments,
 )
+from common.json_columns import loads_json_object
 from trading.domain.promotion.gate import (
     PromotionGateResult,
     evaluate_promotion_gate,
@@ -125,7 +125,7 @@ def strategy_payload(record: StrategyRecord) -> dict[str, object]:
         "id": record.id,
         "strategyKey": record.strategy_key,
         "primitive": record.primitive,
-        "params": json.loads(record.params_json),
+        "params": loads_json_object(record.params_json, where="strategies.params_json"),
         "description": record.description,
         "status": record.status,
         "enabled": bool(record.enabled),

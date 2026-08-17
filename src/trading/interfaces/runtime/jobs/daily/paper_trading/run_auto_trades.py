@@ -16,12 +16,11 @@ from trading.services.auto_trading import (
     resolve_market_inputs,
     resolve_run_universe,
     run_accounts,
-    run_for_account,
 )
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 
 REPO_ROOT = get_repo_root(__file__)
-__all__ = ["parse_args", "main", "run_for_account"]
+__all__ = ["parse_args", "main"]
 
 
 def parse_args() -> argparse.Namespace:

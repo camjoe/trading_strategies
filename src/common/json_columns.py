@@ -28,17 +28,32 @@ def dumps_json_column(value: object) -> str:
     return json.dumps(value, separators=JSON_COLUMN_SEPARATORS, sort_keys=True)
 
 
+def loads_json_object(text: str | None, *, where: str = "") -> dict[str, Any]:
+    """Decode an already-extracted JSON *object* column string, rejecting any other shape.
+
+    The string-side counterpart to ``dumps_json_column``: use it when a record
+    already holds the column text (e.g. ``record.params_json``). A NULL column
+    (``None``) reads as an empty dict; every other text is decoded, so an empty
+    or malformed string surfaces as an error rather than being read as ``{}``.
+    ``where`` names the source for the error message. Not for nullable-object
+    columns whose JSON ``null`` is a valid value — those keep ``json.loads`` so
+    the ``null`` decodes rather than raising.
+    """
+    if text is None:
+        return {}
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        location = f" in {where}" if where else ""
+        raise ValueError(f"Expected a JSON object{location}.")
+    return payload
+
+
 def row_json_object(row: Mapping[str, object], key: str) -> dict[str, Any]:
-    """Decode a JSON *object* column, rejecting any other shape.
+    """Decode a JSON *object* column from a row mapping (see ``loads_json_object``).
 
     Returns ``dict[str, Any]`` because a decoded payload's value types are only
     known to its caller; the guard here is the outer shape, which several callers
     would otherwise assume. A NULL column reads as an empty dict.
     """
     raw = row[key]
-    if raw is None:
-        return {}
-    payload = json.loads(str(raw))
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected a JSON object in column '{key}'.")
-    return payload
+    return loads_json_object(None if raw is None else str(raw), where=f"column '{key}'")

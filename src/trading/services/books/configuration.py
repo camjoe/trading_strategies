@@ -15,12 +15,6 @@ from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
-from trading.services.accounts.validation import (
-    book_settings_update_from_config,
-    validate_goal_range_from_inputs,
-    validate_option_settings_from_inputs,
-    validate_position_sizing_from_inputs,
-)
 from trading.services.books.book_assignments import (
     assign_book_strategy,
     open_assignment_for_book,
@@ -28,6 +22,12 @@ from trading.services.books.book_assignments import (
 from trading.services.books.rotation.engine import (
     BookRotationScheduleConfig,
     RotationPolicyConfig,
+)
+from trading.services.books.settings_validation import (
+    book_settings_update_from_config,
+    validate_goal_range_from_inputs,
+    validate_option_settings_from_inputs,
+    validate_position_sizing_from_inputs,
 )
 from trading.services.parameters.mutations import (
     ROTATION_POLICY_FIELDS,
@@ -112,6 +112,46 @@ def fetch_account_book_configurations(
     return tuple(_view(conn, book) for book in BookRepository(conn).fetch_for_account(account_id=account.id))
 
 
+def apply_book_config(conn: sqlite3.Connection, *, book: BookRecord, config: AccountConfig) -> None:
+    """Validate a partial config against ``book`` and write its settings and universe.
+
+    The shared core of the account-level edit and the explicit-book edit: goal,
+    sizing, and option inputs are validated merged over the book's current
+    values, then the coerced settings (and any universe change) are written to
+    the book. Strategy assignment and rotation edits stay caller-specific.
+    """
+    validate_goal_range_from_inputs(book, config.goal_min_return_pct, config.goal_max_return_pct)
+    validate_position_sizing_from_inputs(
+        book.trade_size_pct,
+        book.max_position_pct,
+        config.trade_size_pct,
+        config.max_position_pct,
+    )
+    validate_option_settings_from_inputs(
+        book,
+        config.option_type,
+        config.target_delta_min,
+        config.target_delta_max,
+        config.option_min_dte,
+        config.option_max_dte,
+        config.iv_rank_min,
+        config.iv_rank_max,
+    )
+    BookRepository(conn).update_settings(
+        book_id=book.id,
+        settings=book_settings_update_from_config(config),
+        updated_at=utc_now_iso(),
+    )
+    if config.trade_universes is not None:
+        # Names are shorthand; the book stores the expansion (revision 0029).
+        symbols = resolve_trade_symbols(config.trade_universes)
+        BookRepository(conn).update_trade_symbols(
+            book_id=book.id,
+            trade_symbols=dumps_json_column(symbols),
+            updated_at=utc_now_iso(),
+        )
+
+
 def configure_book(
     conn: sqlite3.Connection,
     *,
@@ -125,42 +165,11 @@ def configure_book(
     """Apply a partial, validated edit to one explicitly named book."""
     with unit_of_work(conn):
         book = _require_account_and_book(conn, account_name=account_name, book_name=book_name)
-        validate_goal_range_from_inputs(book, config.goal_min_return_pct, config.goal_max_return_pct)
-        validate_position_sizing_from_inputs(
-            book.trade_size_pct,
-            book.max_position_pct,
-            config.trade_size_pct,
-            config.max_position_pct,
-        )
-        validate_option_settings_from_inputs(
-            book,
-            config.option_type,
-            config.target_delta_min,
-            config.target_delta_max,
-            config.option_min_dte,
-            config.option_max_dte,
-            config.iv_rank_min,
-            config.iv_rank_max,
-        )
-
+        apply_book_config(conn, book=book, config=config)
         if strategy is not None:
             if not strategy.strip():
                 raise ValidationError("strategy cannot be empty.")
             assign_book_strategy(conn, book_id=book.id, strategy_name=strategy, now_iso=utc_now_iso())
-
-        BookRepository(conn).update_settings(
-            book_id=book.id,
-            settings=book_settings_update_from_config(config),
-            updated_at=utc_now_iso(),
-        )
-        if config.trade_universes is not None:
-            # Names are shorthand; the book stores the expansion (revision 0029).
-            symbols = resolve_trade_symbols(config.trade_universes)
-            BookRepository(conn).update_trade_symbols(
-                book_id=book.id,
-                trade_symbols=dumps_json_column(symbols),
-                updated_at=utc_now_iso(),
-            )
         if rotation_scheduling:
             update_book_rotation_scheduling(
                 conn,

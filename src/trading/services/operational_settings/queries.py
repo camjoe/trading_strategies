@@ -41,8 +41,6 @@ def _settings_from_global_record[T: DataclassInstance](
     a newly added field wired by construction.
     """
     defaults = settings_cls()
-    if not hasattr(conn, "execute"):
-        return defaults
     record = GlobalSettingsRepository(conn).fetch()
     if record is None:
         return defaults
@@ -58,8 +56,6 @@ def _settings_from_global_record[T: DataclassInstance](
 
 
 def fetch_runtime_throttle_settings(conn: sqlite3.Connection) -> RuntimeThrottleSettings:
-    if not hasattr(conn, "execute"):
-        return RuntimeThrottleSettings()
     record = GlobalSettingsRepository(conn).fetch()
     if record is None:
         return RuntimeThrottleSettings()
