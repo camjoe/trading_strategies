@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-08-02
+Last Reviewed: 2026-08-17
 Purpose: Explain the project's current capabilities, concepts, architecture, limitations, and scope.
 Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
@@ -110,6 +110,21 @@ list if it has aged.
   are always `NULL`: both need intraday equity this codebase does not persist, and a trailing-history
   figure cannot stand in for one day's. Other columns are populated, several of them conditionally —
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) owns the full contract.
+- **Unpriced held positions halt a book, and the two equity paths disagree on how to value them
+  (mitigated, deeper dive pending).** Book NAV marks an unpriced position to cost
+  (`execution/nav.py`), while the equity snapshot skips it entirely
+  (`domain/metrics/portfolio_math.py::compute_market_value_and_unrealized`). Those are the two
+  aggregates `execution/equity_reconciliation.py::reconcile_book_equity` compares, so any held symbol
+  with no live price makes them diverge by the position's cost basis — enough to trip the `$0.01`
+  reconciliation tolerance. The runtime now detects unpriced symbols at the NAV pre-flight and holds
+  the book on an explicit `unpriced_position` kill switch, skipping the reconciliation whose result
+  would otherwise report a misleading `reconciliation_mismatch`
+  (`services/auto_trading/runtime.py::_run_books_for_account`). That makes the halt honest but does
+  not resolve the root inconsistency: the two equity paths still use opposite unpriced fallbacks
+  (skip vs. cost). A deeper dive should settle the intended contract — whether an unpriced held
+  position should halt trading at all, and if so which fallback both paths should share — and revisit
+  whether the reconciliation tolerance can distinguish a genuine fill-vs-rollup drift from a pricing
+  gap. Surfaced by the 2026-08-17 books/execution review.
 
 ## How it works (architecture)
 

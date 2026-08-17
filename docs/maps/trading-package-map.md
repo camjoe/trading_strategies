@@ -159,7 +159,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
 | `execution/open_order_reconciliation.py` | Runtime open-order/fill reconciliation against the broker (apply fills, record trades, resolve exec ids) |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
-| `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
+| `execution/equity_reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
 | `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
 | `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`) over per-book state |

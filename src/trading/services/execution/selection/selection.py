@@ -1,11 +1,11 @@
-"""Execution helpers for auto-trading order selection and recording."""
+"""Execution helpers for auto-trading order selection and sizing."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Protocol
 
 import pandas as pd
 
@@ -62,16 +62,19 @@ class _WorkingState:
     avg_cost: dict[str, float]
 
 
-class AccountStateLike(Protocol):
-    # Read-only: a plain annotation demands an invariant `Mapping`, which the
-    # `dict`-holding implementers fail. Same reason as `PositionCostState`.
+class TradePreparationStateLike(Protocol):
+    # positions/avg_cost are read-only properties, not plain annotations: an
+    # invariant `Mapping` attribute would reject the `dict`-holding implementers
+    # (BookTradeState, _WorkingState), but a read-only property returning Mapping
+    # accepts them.
     @property
     def positions(self) -> Mapping[str, float]: ...
 
-
-class TradePreparationStateLike(AccountStateLike, Protocol):
     @property
     def cash(self) -> float: ...
+
+    @property
+    def avg_cost(self) -> Mapping[str, float]: ...
 
 
 def _position_mark_price(
@@ -101,8 +104,8 @@ def _estimate_portfolio_equity(
     trade_ticker: str | None = None,
     trade_price: float | None = None,
 ) -> float:
-    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
-    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    positions = state.positions
+    avg_cost = state.avg_cost
     equity = float(state.cash)
     for held_ticker, qty in positions.items():
         if qty <= 0:
@@ -128,11 +131,11 @@ def _current_position_value(
     instrument_mode: str,
     trade_price: float,
 ) -> float:
-    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    positions = state.positions
     qty = float(positions.get(ticker, 0.0))
     if qty <= 0:
         return 0.0
-    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    avg_cost = state.avg_cost
     mark_price = _position_mark_price(
         ticker,
         prices=prices,
@@ -212,7 +215,7 @@ def prepare_book_trades(
     option_settings: AccountPolicyInput,
     active_strategy: str | None,
     params: Mapping[str, object] | None,
-    state,
+    state: TradePreparationStateLike,
     forced_sells: list[str],
     universe: list[str],
     prices: dict[str, float],
@@ -249,16 +252,16 @@ def prepare_book_trades(
                 params,
                 universe,
                 histories,
-                cast(Mapping[str, float], getattr(state, "positions", {})),
+                state.positions,
                 feature_history_fn,
             )
         except ValueError:
             logger.warning("Unknown strategy %r; holding (no signal trades).", active_strategy)
 
     working = _WorkingState(
-        cash=float(getattr(state, "cash", 0.0)),
-        positions=dict(cast(Mapping[str, float], getattr(state, "positions", {}))),
-        avg_cost=dict(cast(Mapping[str, float], getattr(state, "avg_cost", {}))),
+        cash=float(state.cash),
+        positions=dict(state.positions),
+        avg_cost=dict(state.avg_cost),
     )
     selections: list[TradeSelection] = []
 

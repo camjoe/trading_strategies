@@ -19,7 +19,7 @@ where it goes.
 | Service | Owns | Does **not** own (goes elsewhere) |
 |---|---|---|
 | `auto_trading/` | Scheduled paper/live run **orchestration** only (`inputs`, `market`, `runtime`). | Order selection, submission, reconciliation, risk → `execution/`. |
-| `execution/` | The full **order lifecycle**: `selection/` (what to trade), `ledger/` (trade/cash accounting), `submission`, pre-submit `gate`/`pre_submit_gate`, `risk`, `nav`, `reconciliation`, `open_order_reconciliation`. | Rotation policy → `books/rotation/`. Presentation → `reporting/`. |
+| `execution/` | The full **order lifecycle**: `selection/` (what to trade), `ledger/` (trade/cash accounting), `submission`, pre-submit `gate`/`pre_submit_gate`, `risk`, `nav`, `equity_reconciliation`, `open_order_reconciliation`. | Rotation policy → `books/rotation/`. Presentation → `reporting/`. |
 | `books/` | The **execution primitive**: book state (`book_assignments`, `sector_config`, `helpers`) plus the `rotation/` sub-package. | Intent generation → `execution/selection/`. Daily report assembly → `analysis/daily_report.py`. |
 | `evaluation/` | Strategy **evidence + decision-score math**. | Report formatting → `reporting/`. Portfolio analytics → `analysis/`. |
 | `analysis/` | Portfolio/benchmark/performance/risk-snapshot/**concentration/exposure analytics math**. | Presentation → `reporting/`. |
@@ -48,7 +48,7 @@ execution/
   selection/   # selection.py (signal selection/sizing) + book_intents.py (book-keyed intents)
   ledger/      # mutations.py + queries.py (trade/cash accounting)
   gate.py  pre_submit_gate.py  risk.py  submission.py  nav.py
-  reconciliation.py  open_order_reconciliation.py  constants.py
+  equity_reconciliation.py  open_order_reconciliation.py  constants.py
 
 books/
   book_assignments.py  sector_config.py  helpers.py   # book state

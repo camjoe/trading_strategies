@@ -28,8 +28,8 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
     RECONCILIATION_EQUITY_TOLERANCE,
 )
+from trading.services.execution.equity_reconciliation import reconcile_book_equity
 from trading.services.execution.gate import GateAuditSink
-from trading.services.execution.reconciliation import reconcile_book_equity
 
 
 class BookPreSubmitGate:

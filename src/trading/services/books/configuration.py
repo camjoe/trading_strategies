@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 
@@ -13,26 +12,25 @@ from trading.models.accounts import AccountConfig
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.services.books.book_assignments import (
     assign_book_strategy,
     open_assignment_for_book,
 )
+from trading.services.books.default_book import fetch_account_book
 from trading.services.books.rotation.engine import (
-    BookRotationScheduleConfig,
+    DEFAULT_ROLLING_WINDOW_DAYS,
     RotationPolicyConfig,
+    resolve_book_rotation_schedule,
+    resolve_rotation_policy_config,
+    write_book_rotation_policy,
+    write_book_rotation_scheduling,
 )
 from trading.services.books.settings_validation import (
     book_settings_update_from_config,
     validate_goal_range_from_inputs,
     validate_option_settings_from_inputs,
     validate_position_sizing_from_inputs,
-)
-from trading.services.parameters.mutations import (
-    ROTATION_POLICY_FIELDS,
-    update_book_rotation_policy,
-    update_book_rotation_scheduling,
 )
 from trading.services.universe import resolve_trade_symbols
 
@@ -47,57 +45,19 @@ class BookConfigurationView:
     rotation_policy: RotationPolicyConfig
 
 
-def _require_account_and_book(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    book_name: str,
-) -> BookRecord:
-    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
-    if account is None:
-        raise NotFoundError(f"Account not found: {account_name}")
-    for book in BookRepository(conn).fetch_for_account(account_id=account.id):
-        if book.name == book_name:
-            return book
-    raise NotFoundError(f"Book not found for account {account_name}: {book_name}")
-
-
-def _parse_schedule(raw: str | None) -> tuple[str, ...]:
-    if not raw:
-        return ()
-    parsed = json.loads(raw)
-    return tuple(str(value) for value in parsed) if isinstance(parsed, list) else ()
-
-
 def _view(conn: sqlite3.Connection, book: BookRecord) -> BookConfigurationView:
     assignment = open_assignment_for_book(conn, book_id=book.id)
-    rotation = BookRotationSettingsRepository(conn).fetch(book_id=book.id)
-    schedule_defaults = BookRotationScheduleConfig()
-    policy_defaults = RotationPolicyConfig()
+    # The engine resolvers own the NULL-fallback for both scheduling and policy,
+    # so the display reads the same effective settings a rotation run would.
+    schedule = resolve_book_rotation_schedule(conn, book_id=book.id)
+    policy = resolve_rotation_policy_config(conn, book_id=book.id, rolling_window_days=DEFAULT_ROLLING_WINDOW_DAYS)
     return BookConfigurationView(
         book=book,
         strategy=assignment.strategy_name if assignment is not None else "unassigned",
-        rotation_enabled=(
-            bool(rotation.rotation_enabled) if rotation is not None else schedule_defaults.rotation_enabled
-        ),
-        rotation_schedule=_parse_schedule(rotation.rotation_schedule if rotation is not None else None),
-        rotation_lookback_days=(
-            rotation.rotation_lookback_days
-            if rotation is not None and rotation.rotation_lookback_days is not None
-            else schedule_defaults.lookback_days
-        ),
-        rotation_policy=RotationPolicyConfig(
-            **{
-                name: (
-                    getattr(rotation, name)
-                    if rotation is not None and getattr(rotation, name) is not None
-                    else getattr(policy_defaults, name)
-                )
-                # The edit surface's field list is the single source of truth, so a
-                # dropped policy knob cannot leave a stale name behind here.
-                for name in ROTATION_POLICY_FIELDS
-            }
-        ),
+        rotation_enabled=schedule.rotation_enabled,
+        rotation_schedule=schedule.schedule,
+        rotation_lookback_days=schedule.lookback_days,
+        rotation_policy=policy,
     )
 
 
@@ -164,23 +124,13 @@ def configure_book(
 ) -> None:
     """Apply a partial, validated edit to one explicitly named book."""
     with unit_of_work(conn):
-        book = _require_account_and_book(conn, account_name=account_name, book_name=book_name)
+        book = fetch_account_book(conn, account_name=account_name, book_name=book_name)
         apply_book_config(conn, book=book, config=config)
         if strategy is not None:
             if not strategy.strip():
                 raise ValidationError("strategy cannot be empty.")
             assign_book_strategy(conn, book_id=book.id, strategy_name=strategy, now_iso=utc_now_iso())
         if rotation_scheduling:
-            update_book_rotation_scheduling(
-                conn,
-                account_name=account_name,
-                book_name=book_name,
-                updates=rotation_scheduling,
-            )
+            write_book_rotation_scheduling(conn, book_id=book.id, updates=rotation_scheduling)
         if rotation_policy:
-            update_book_rotation_policy(
-                conn,
-                account_name=account_name,
-                book_name=book_name,
-                updates=rotation_policy,
-            )
+            write_book_rotation_policy(conn, book_id=book.id, updates=rotation_policy)

@@ -13,6 +13,7 @@ from typing import Any
 
 from common.time import utc_now_iso
 from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.books.rotation.engine import ROTATION_POLICY_FIELDS
 from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
@@ -25,7 +26,6 @@ from trading.services.operational_settings.queries import (
     fetch_runtime_throttle_settings,
 )
 from trading.services.parameters.mutations import (
-    ROTATION_POLICY_FIELDS,
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )

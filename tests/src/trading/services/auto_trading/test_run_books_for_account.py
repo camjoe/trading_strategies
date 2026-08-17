@@ -26,6 +26,7 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_BROKER_API_ANOMALY,
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
+    KILL_SWITCH_REASON_UNPRICED_POSITION,
 )
 
 SNAPSHOT_TIME = "2026-03-14T14:00:00Z"
@@ -37,6 +38,7 @@ def _install(
     *,
     intents,
     reconciliation_reasons=None,
+    unpriced_symbols=None,
     gate_result=None,
     submit_results=None,
     throttle_raises_before=None,
@@ -67,6 +69,7 @@ def _install(
 
     def _mark(_conn, *, account_id, prices, as_of):
         recorder.calls.append("mark_to_market")
+        return [SimpleNamespace(unpriced_symbols=list(unpriced_symbols or []))]
 
     monkeypatch.setattr(runtime_service, "mark_account_to_market", _mark)
 
@@ -199,6 +202,27 @@ def test_reconciliation_mismatch_holds_run_before_broker(monkeypatch) -> None:
     assert not any(c.startswith("submit:") for c in recorder.calls)
     recorder.broker_factory.assert_not_called()
     assert KILL_SWITCH_REASON_RECONCILIATION_MISMATCH in recorder.persisted[-1].kill_switch_reasons
+
+
+def test_unpriced_position_holds_run_and_skips_reconciliation(monkeypatch) -> None:
+    recorder = _install(
+        monkeypatch,
+        intents=[make_book_trade_candidate(book_id=10)],
+        unpriced_symbols=["AAPL"],
+        # Would fire too, but must never run: an unpriced position makes the equity
+        # check spurious, so the run holds on the honest cause instead.
+        reconciliation_reasons=[KILL_SWITCH_REASON_RECONCILIATION_MISMATCH],
+    )
+
+    submitted = _run(recorder)
+
+    assert submitted.submitted_count == 0
+    # The unpriced-position kill switch holds the run, and the now-uninformative
+    # equity reconciliation is skipped rather than reported as a mismatch.
+    assert "reconcile" not in recorder.calls
+    assert not any(c.startswith("submit:") for c in recorder.calls)
+    recorder.broker_factory.assert_not_called()
+    assert recorder.persisted[-1].kill_switch_reasons == [KILL_SWITCH_REASON_UNPRICED_POSITION]
 
 
 def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
