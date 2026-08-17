@@ -146,9 +146,10 @@ _OPTION_FIELDS = (
 )
 
 
-def _book_columns_group(scope: str, book: BookRecord, fields: tuple[str, ...]) -> ParameterGroup:
+def _book_columns_group(scope: str, book: BookRecord, field_names: tuple[str, ...]) -> ParameterGroup:
     entries = tuple(
-        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB) for name in fields
+        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB)
+        for name in field_names
     )
     return ParameterGroup(scope=scope, entries=entries)
 

@@ -45,7 +45,7 @@ ROTATION_SCHEDULING_FIELDS = (
 )
 
 
-def _resolve_book_id(conn: sqlite3.Connection, *, account_name: str, book_name: str | None) -> int:
+def resolve_book_id(conn: sqlite3.Connection, *, account_name: str, book_name: str | None) -> int:
     account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
@@ -75,7 +75,7 @@ def update_book_rotation_policy(
     if not updates:
         raise ValueError("No rotation policy fields provided.")
 
-    book_id = _resolve_book_id(conn, account_name=account_name, book_name=book_name)
+    book_id = resolve_book_id(conn, account_name=account_name, book_name=book_name)
     repository = BookRotationSettingsRepository(conn)
     current = repository.fetch(book_id=book_id)
     merged = {
@@ -125,7 +125,7 @@ def update_book_rotation_scheduling(
     if not updates:
         raise ValueError("No rotation scheduling fields provided.")
 
-    book_id = _resolve_book_id(conn, account_name=account_name, book_name=book_name)
+    book_id = resolve_book_id(conn, account_name=account_name, book_name=book_name)
     repository = BookRotationSettingsRepository(conn)
     current = repository.fetch(book_id=book_id)
 
