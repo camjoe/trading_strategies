@@ -62,19 +62,17 @@ class _WorkingState:
     avg_cost: dict[str, float]
 
 
-class AccountStateLike(Protocol):
-    # Read-only: a plain annotation demands an invariant `Mapping`, which the
-    # `dict`-holding implementers fail. Same reason as `PositionCostState`.
+class TradePreparationStateLike(Protocol):
+    # positions/avg_cost are read-only properties, not plain annotations: an
+    # invariant `Mapping` attribute would reject the `dict`-holding implementers
+    # (BookTradeState, _WorkingState), but a read-only property returning Mapping
+    # accepts them.
     @property
     def positions(self) -> Mapping[str, float]: ...
 
-
-class TradePreparationStateLike(AccountStateLike, Protocol):
     @property
     def cash(self) -> float: ...
 
-    # Read-only Mapping for the same covariance reason as `positions` above:
-    # the `dict`-holding implementers (BookTradeState, _WorkingState) satisfy it.
     @property
     def avg_cost(self) -> Mapping[str, float]: ...
 
