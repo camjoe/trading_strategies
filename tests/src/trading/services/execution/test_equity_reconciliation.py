@@ -13,11 +13,11 @@ from trading.services.execution.constants import (
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
 )
+from trading.services.execution.equity_reconciliation import reconcile_book_equity
 from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.ledger.mutations import record_trade
 from trading.services.execution.ledger.queries import load_account_state
 from trading.services.execution.nav import mark_book_to_market
-from trading.services.execution.equity_reconciliation import reconcile_book_equity
 from trading.services.execution.submission import submit_book_intents
 
 NOW = "2026-07-05T12:00:00Z"
