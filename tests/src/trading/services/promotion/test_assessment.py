@@ -20,7 +20,9 @@ def test_fetch_promotion_assessment_uses_evaluation_service(
     monkeypatch.setattr(promotion_assessment, "fetch_strategy_evaluation", fake_fetch_strategy_evaluation)
     # The snapshot also reads promotion policy settings; feed defaults so the test
     # stays hermetic without a real connection.
-    monkeypatch.setattr(promotion_assessment, "fetch_promotion_policy_settings", lambda _conn: PromotionPolicySettings())
+    monkeypatch.setattr(
+        promotion_assessment, "fetch_promotion_policy_settings", lambda _conn: PromotionPolicySettings()
+    )
 
     assessment = fetch_promotion_assessment(
         object(),  # type: ignore[arg-type]

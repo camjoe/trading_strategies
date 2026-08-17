@@ -61,7 +61,9 @@ def bootstrap_default_book(
         config.iv_rank_max,
     )
     symbols = (
-        resolve_trade_symbols(config.trade_universes) if config.trade_universes is not None else default_trade_symbols()
+        resolve_trade_symbols(config.trade_universes)
+        if config.trade_universes is not None
+        else default_trade_symbols()
     )
 
     book_repo = BookRepository(conn)
