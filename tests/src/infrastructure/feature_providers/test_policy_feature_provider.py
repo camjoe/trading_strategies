@@ -16,7 +16,7 @@ from infrastructure.feature_providers.policy_provider import (
     POLICY_RISK_ON_SCORE,
     PolicyFeatureProvider,
 )
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 # ---------------------------------------------------------------------------
 # Helpers

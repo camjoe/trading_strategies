@@ -11,7 +11,7 @@ from trading.repositories.book_rotation_settings import (
 from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
+from trading.services.strategy_catalog.seeding import ensure_default_books, seed_strategy_catalog
 from trading.services.universe import default_trade_symbols
 
 NOW = "2026-07-03T12:00:00Z"

@@ -12,7 +12,7 @@ from backtesting.services.evidence import build_strategy_evidence
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.evaluation.evidence import (
     build_basic_scope,
     build_confidence,
@@ -20,7 +20,7 @@ from trading.services.evaluation.evidence import (
     build_paper_live_evidence,
     resolve_requested_strategy,
 )
-from trading.services.operational_settings import fetch_evaluation_confidence_settings
+from trading.services.operational_settings.queries import fetch_evaluation_confidence_settings
 
 
 def fetch_strategy_evaluation_for_account_row(

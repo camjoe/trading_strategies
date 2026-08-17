@@ -13,8 +13,9 @@ from trading.domain.exceptions import NotFoundError
 from trading.models.parameters import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
 from trading.repositories.strategies import StrategyRepository
 from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
-from trading.services.operational_settings import set_runtime_throttle_settings
-from trading.services.parameters import fetch_parameter_source_view, update_book_rotation_policy
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
+from trading.services.parameters.mutations import update_book_rotation_policy
+from trading.services.parameters.view import fetch_parameter_source_view
 
 
 def _group(view, scope: str):

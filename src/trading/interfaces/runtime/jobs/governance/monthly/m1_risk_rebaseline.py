@@ -11,7 +11,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.services.accounts.queries import find_account
-from trading.services.analysis import fetch_latest_risk_snapshot
+from trading.services.analysis.risk_snapshots import fetch_latest_risk_snapshot
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)

@@ -2,7 +2,7 @@ import pytest
 
 from tests.support.account_records import make_book_record
 from tests.support.accounts import make_accounts_service_row
-from trading.services.accounts import (
+from trading.services.accounts.presentation import (
     render_account_listing_lines,
     render_account_policy_text,
     render_goal_text,

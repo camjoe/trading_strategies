@@ -6,7 +6,7 @@ from collections.abc import Callable
 import pytest
 
 from tests.support.strategies import ensure_strategy_id_for_label
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture

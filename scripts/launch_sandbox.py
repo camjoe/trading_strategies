@@ -26,7 +26,7 @@ from pathlib import Path
 from scripts import launch_ui
 from scripts.fixture_db import checkout_sandbox
 from scripts.ui_config import SANDBOX_BACKEND_PORT, SANDBOX_FRONTEND_PORT
-from trading.services.fixtures import SANDBOX_PROFILE
+from trading.services.fixtures.profiles import SANDBOX_PROFILE
 
 SANDBOX_DATABASE_NAME = "sandbox.db"
 GOLDEN_DATABASE_NAME = "sandbox.golden.db"

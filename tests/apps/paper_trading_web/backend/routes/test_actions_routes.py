@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 
 
 class TestActionsRoutes:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.portfolio import EquitySnapshotRecord
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 from trading.services.analysis import portfolio as analysis_portfolio
 
 

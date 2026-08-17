@@ -2,8 +2,8 @@ import pytest
 
 from tests.support.reporting import insert_trade, make_evaluation_artifact
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, get_account
-from trading.services.reporting import account_report
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.reporting.account import account_report
 
 
 def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:

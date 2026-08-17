@@ -82,5 +82,5 @@ and divergent-fix bugs disappear. This is strongest where a service has genuine 
 ## Facades
 
 Import from the concrete module that owns a symbol; do not add a re-export `__init__` facade.
-`execution` and `books` are the model. Legacy `__all__` facades remain in several packages from
-an earlier convention and are retired per package as each is touched.
+`execution` and `books` are the model. The service packages once carried `__all__` facades from
+an earlier convention; all are now retired.

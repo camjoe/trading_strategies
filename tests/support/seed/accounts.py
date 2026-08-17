@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 # ---------------------------------------------------------------------------
 # Public name constants

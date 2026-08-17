@@ -22,7 +22,7 @@ from trading.services.books.rotation.engine import (
     evaluate_and_apply_book_rotation,
     resolve_rotation_policy_config,
 )
-from trading.services.promotion import is_strategy_approved_for_live
+from trading.services.promotion.eligibility import is_strategy_approved_for_live
 
 
 def _live_eligible_challengers(

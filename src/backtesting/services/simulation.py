@@ -35,9 +35,9 @@ from trading.domain.strategies.resolution import evaluate_signal, resolve_strate
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
-from trading.services.market_data import FeatureBundle, FeatureDataProvider, require_feature_provider
+from trading.services.market_data.protocols import FeatureBundle, FeatureDataProvider, require_feature_provider
 
 
 def _warnings_for_config(book: BookRecord | None, allow_approximate_leaps: bool) -> list[str]:

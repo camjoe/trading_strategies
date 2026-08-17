@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from infrastructure.market_data.factory import build_provider
-from trading.services.accounts import list_account_names
-from trading.services.reporting import snapshot_account
+from trading.services.accounts.queries import list_account_names
+from trading.services.reporting.snapshots import snapshot_account
 
 from ..services.accounts.data_access import require_account_row
 from ..services.db import db_conn

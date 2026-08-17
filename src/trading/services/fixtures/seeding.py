@@ -49,11 +49,11 @@ from trading.repositories.positions import PositionRepository
 from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.accounts import create_account, get_account
+from trading.services.accounts.mutations import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy
 from trading.services.books.default_book import default_book_id
-from trading.services.execution.ledger import record_trade
+from trading.services.execution.ledger.mutations import record_trade
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.submission import apply_book_fill
 from trading.services.fixtures.profiles import (
@@ -62,9 +62,9 @@ from trading.services.fixtures.profiles import (
     FixtureProfile,
     FixtureTrade,
 )
-from trading.services.market_data import MarketDataProvider
-from trading.services.operational_settings import set_runtime_throttle_settings
-from trading.services.parameters import update_book_rotation_scheduling
+from trading.services.market_data.protocols import MarketDataProvider
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
+from trading.services.parameters.mutations import update_book_rotation_scheduling
 from trading.services.universe import resolve_trade_symbols
 
 # Snapshots are stamped at a nominal 16:00 UTC close so each business day has one

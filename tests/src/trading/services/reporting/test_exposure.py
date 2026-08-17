@@ -8,7 +8,7 @@ import pytest
 
 from tests.support.books import ensure_default_book_id
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.reporting import show_portfolio_exposure
+from trading.services.reporting.exposure import show_portfolio_exposure
 
 
 def test_no_accounts_prints_placeholder(conn: sqlite3.Connection, capsys: pytest.CaptureFixture[str]) -> None:

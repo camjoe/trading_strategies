@@ -11,7 +11,7 @@ from typing import cast
 from common.paths import DB_BACKUPS_DIR
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
-from trading.services.accounts import delete_account, preview_account_deletion
+from trading.services.accounts.deletions import delete_account, preview_account_deletion
 from trading.services.accounts.listing import fetch_account_listing_lines
 
 

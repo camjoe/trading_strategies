@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from trading.models.promotion import PromotionReviewEvent, PromotionReviewRecord
 from trading.repositories.promotion import PromotionReviewRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.promotion.helpers import normalize_optional_text
 
 

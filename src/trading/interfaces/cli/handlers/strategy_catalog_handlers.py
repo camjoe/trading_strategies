@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from trading.interfaces.cli.handlers.context import CliContext
-from trading.services.strategy_catalog import configure_strategy, create_strategy_variant, freeze_strategy
+from trading.services.strategy_catalog.mutations import configure_strategy, create_strategy_variant, freeze_strategy
 
 
 def _knob_overrides(args: object) -> dict[str, str]:

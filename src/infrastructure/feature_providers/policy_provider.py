@@ -16,7 +16,7 @@ from trading.domain.feature_provider import (
     ExternalFeatureBundle,
     ExternalFeatureProvider,
 )
-from trading.services.market_data import MarketDataProvider
+from trading.services.market_data.protocols import MarketDataProvider
 
 _LOG = logging.getLogger(__name__)
 

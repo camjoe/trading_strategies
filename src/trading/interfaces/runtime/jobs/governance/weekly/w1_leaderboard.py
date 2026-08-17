@@ -21,7 +21,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.services.accounts.queries import find_account
-from trading.services.analysis import fetch_book_performance_window
+from trading.services.analysis.performance import fetch_book_performance_window
 from trading.services.books.book_assignments import list_report_books
 
 REPO_ROOT = get_repo_root(__file__)

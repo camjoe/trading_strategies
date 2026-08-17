@@ -8,7 +8,7 @@ sibling ``account`` and ``comparison`` modules.
 from __future__ import annotations
 
 from trading.models.evaluation import StrategyEvaluationArtifact
-from trading.services.evaluation import backtest_freshness_display_parts
+from trading.services.evaluation.presentation import backtest_freshness_display_parts
 
 # Compare output shows at most this many individual positions before truncating.
 POSITION_SUMMARY_LIMIT = 5

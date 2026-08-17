@@ -13,12 +13,14 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from trading.services.autonomy_monitor import (
-    fetch_autonomy_account_detail as fetch_db_data,
-    fetch_autonomy_accounts_list as fetch_db_accounts_list,
+from trading.services.autonomy_monitor.artifacts import (
     fetch_burn_in_status,
     fetch_daily_workflow_status,
     fetch_governance_checks_status,
+)
+from trading.services.autonomy_monitor.queries import (
+    fetch_autonomy_account_detail as fetch_db_data,
+    fetch_autonomy_accounts_list as fetch_db_accounts_list,
 )
 
 

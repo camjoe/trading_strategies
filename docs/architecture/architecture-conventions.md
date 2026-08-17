@@ -296,10 +296,9 @@ Domain naming:
    surface to drift out of sync. `execution` and `books` are the model (see
    `docs/architecture/service-cookbook.md`).
 2. Do not add import-only re-export facades or shim chains that only forward
-   another package's symbols. Legacy `__init__.py` `__all__` facades remain in
-   several service packages from an earlier convention; retire each one as its
-   package is touched (migrate callers to the owning module first, then remove
-   the re-export — rule 3).
+   another package's symbols. The service packages carried `__init__.py`
+   `__all__` facades from an earlier convention; all are now retired, so a new
+   one would reintroduce a surface the codebase deliberately removed.
 3. Keep compatibility shims temporary and explicit. Retire one by migrating
    internal callers first, then removing the export only after a repository-wide
    reference search and targeted tests prove it is unused.

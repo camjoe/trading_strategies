@@ -12,7 +12,8 @@ from tests.support.backtesting import (
     install_backtest_market_data,
     stub_market_data_provider,
 )
-from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
+from trading.services.market_data.features import ProxyFeatureDataProvider
+from trading.services.market_data.protocols import FeatureBundle
 
 
 class TestBacktestProxyFeatureFlow:

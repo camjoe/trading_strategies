@@ -12,10 +12,10 @@ from trading.models.evaluation import (
     StrategyEvaluationArtifact,
 )
 from trading.repositories.strategies import StrategyRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
-_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
+_FETCH_TARGET = "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(

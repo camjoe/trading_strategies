@@ -2,14 +2,14 @@ import pytest
 
 from tests.support.promotion import make_observing_assessment
 from trading.models.promotion import PromotionReviewEvent, PromotionReviewRecord
-from trading.services.promotion import (
-    presentation as promotion_presentation,
+from trading.services.promotion import presentation as promotion_presentation
+from trading.services.promotion.history import PromotionReviewHistoryEntry
+from trading.services.promotion.presentation import (
     render_promotion_review_history_lines,
     render_promotion_status_lines,
     show_promotion_review_history,
     show_promotion_status,
 )
-from trading.services.promotion.history import PromotionReviewHistoryEntry
 
 
 def test_render_promotion_status_lines_returns_read_only_summary() -> None:
@@ -149,7 +149,8 @@ def test_render_promotion_review_history_lines_includes_closure_event_note(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from tests.support.promotion import make_ready_evaluation
-    from trading.services.promotion import actions as promotion_actions, fetch_promotion_review_history
+    from trading.services.promotion import actions as promotion_actions
+    from trading.services.promotion.history import fetch_promotion_review_history
 
     monkeypatch.setattr(
         promotion_actions,

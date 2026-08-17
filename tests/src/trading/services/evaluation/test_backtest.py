@@ -9,7 +9,7 @@ from tests.support.evaluation import (
     insert_snapshot,
     insert_trade,
 )
-from trading.services.evaluation import fetch_strategy_evaluation
+from trading.services.evaluation.queries import fetch_strategy_evaluation
 
 
 def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(

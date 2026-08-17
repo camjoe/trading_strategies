@@ -2,8 +2,8 @@ import pytest
 
 from tests.support.books import ensure_default_book_id
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import create_account, get_account
-from trading.services.reporting import show_snapshots, snapshot_account
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.reporting.snapshots import show_snapshots, snapshot_account
 
 
 def test_snapshot_account_inserts_and_defaults_time(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:

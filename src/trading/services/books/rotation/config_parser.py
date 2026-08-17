@@ -10,7 +10,7 @@ from trading.domain.rotation.schedule import dump_rotation_schedule, parse_rotat
 from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.rotation import BookRotationConfig
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.default_book import default_book_id
 
 

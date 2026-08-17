@@ -15,9 +15,9 @@ from common.constants import SETTLEMENT_TICKER
 from trading.domain.metrics.portfolio_math import alpha_pct, compute_market_value_and_unrealized, strategy_return_pct
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.execution.ledger import load_account_state
-from trading.services.market_data import MarketDataProvider
+from trading.services.execution.ledger.queries import load_account_state
 from trading.services.market_data.lookups import benchmark_stats, fetch_latest_prices
+from trading.services.market_data.protocols import MarketDataProvider
 
 # The settlement ticker is always worth exactly $1 per unit (it represents cash).
 _SETTLEMENT_PRICE = 1.0

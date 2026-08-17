@@ -1,13 +1,8 @@
 import pytest
 
 from tests.support.seed.db import ACCT_TREND
-from trading.services.accounts import (
-    create_account,
-    find_account,
-    get_account,
-    list_account_names,
-    list_account_records,
-)
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.accounts.queries import find_account, list_account_names, list_account_records
 
 
 class TestAccountQueries:
@@ -60,7 +55,7 @@ class TestAccountQueryGuards:
             list_account_snapshots(conn, -1, limit=10)
 
     def test_list_account_snapshots_invalid_limit_raises(self, conn) -> None:
-        from trading.services.accounts import create_account
+        from trading.services.accounts.mutations import create_account
         from trading.services.accounts.queries import list_account_snapshots
 
         create_account(conn, "snap_acct", "Trend", 1000.0, "SPY")

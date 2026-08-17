@@ -5,10 +5,8 @@ import sqlite3
 from common.coercion import coerce_int
 from trading.models import AccountRecord
 from trading.models.portfolio import EquitySnapshotRecord
-from trading.services.accounts import (
-    get_account,
-    list_account_records,
-)
+from trading.services.accounts.mutations import get_account
+from trading.services.accounts.queries import list_account_records
 
 
 def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:

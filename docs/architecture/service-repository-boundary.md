@@ -70,9 +70,8 @@ lookup.
 
 Do **not** add a re-export `__init__.py` facade or a sibling shim that only
 forwards another module's symbols. That creates two public APIs for the same
-capability and reintroduces redirect-only wrappers. Several packages still carry
-a legacy `__all__` facade from an earlier convention; retire each as its package
-is touched, migrating callers to the owning module first.
+capability and reintroduces redirect-only wrappers. The service packages once
+carried `__all__` facades from an earlier convention; all are now retired.
 
 Avoid public service helpers that are only passthroughs like:
 

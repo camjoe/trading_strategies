@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.services.accounts import configure_account, create_account, fetch_account_listing_lines, set_benchmark
-from trading.services.execution.ledger import record_trade
+from trading.services.accounts.listing import fetch_account_listing_lines
+from trading.services.accounts.mutations import configure_account, create_account, set_benchmark
+from trading.services.execution.ledger.mutations import record_trade
 
 
 def handle_init(conn, args, parser, *, ctx: CliContext) -> None:

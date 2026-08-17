@@ -2,7 +2,7 @@ import pytest
 
 from trading.models import AccountConfig
 from trading.repositories.accounts import AccountRepository
-from trading.services.accounts import configure_account, create_account, get_account, set_account_strategy
+from trading.services.accounts.mutations import configure_account, create_account, get_account, set_account_strategy
 from trading.services.books.book_assignments import get_default_book
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})

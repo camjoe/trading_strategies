@@ -10,12 +10,12 @@ from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 from trading.services.auto_trading.runtime import run_for_account
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.market_data import MarketDataProvider
 from trading.services.market_data.lookups import fetch_latest_prices
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def resolve_account_names(accounts_arg: str) -> list[str]:

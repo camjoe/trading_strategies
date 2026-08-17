@@ -9,7 +9,7 @@ import pytest
 from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.services.analysis import concentration as concentration_module
-from trading.services.reporting import show_portfolio_concentration
+from trading.services.reporting.concentration import show_portfolio_concentration
 
 
 def test_no_positions_prints_placeholder(conn: sqlite3.Connection, capsys: pytest.CaptureFixture[str]) -> None:

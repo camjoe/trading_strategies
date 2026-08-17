@@ -12,7 +12,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 
 # Manual entries are cash-flow ledger events or filled orders on the default
 # book (the trades table was retired in revision 0006).

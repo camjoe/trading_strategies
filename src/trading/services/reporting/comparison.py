@@ -14,17 +14,13 @@ from trading.domain.metrics.portfolio_math import alpha_pct, benchmark_available
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.repositories.books import BookRepository
-from trading.services.accounts import (
-    GOAL_NOT_SET_TEXT,
-    list_account_records,
-    render_account_policy_text,
-    render_goal_text,
-)
+from trading.services.accounts.presentation import GOAL_NOT_SET_TEXT, render_account_policy_text, render_goal_text
+from trading.services.accounts.queries import list_account_records
 from trading.services.analysis.portfolio import build_account_stats, infer_overall_trend
 from trading.services.books.book_assignments import active_strategy_for_account
-from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.market_data import MarketDataProvider
+from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
 from trading.services.market_data.lookups import benchmark_stats
+from trading.services.market_data.protocols import MarketDataProvider
 from trading.services.reporting._formatting import evaluation_summary_line, positions_summary_text
 
 

@@ -13,7 +13,7 @@ from backtesting.services.optimization_experiment import run_and_persist_optimiz
 from backtesting.services.reporting import fetch_leaderboard, fetch_report
 from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.context import CliContext
-from trading.services.strategy_catalog import promote_optimization_experiment
+from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
 
 def _format_metric(value: float | None, *, suffix: str = "") -> str:

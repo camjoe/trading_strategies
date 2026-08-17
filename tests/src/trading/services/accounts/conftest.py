@@ -10,7 +10,7 @@ from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import ensure_db
 from tests.src.trading.services.accounts.seed import seed_admin_db
 from tests.support.db_schema import build_db_at_head
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture

@@ -130,12 +130,12 @@ def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
 def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     import sys
 
-    import trading.services.auto_trading as auto_trading_module
+    import trading.services.auto_trading.inputs as auto_trading_module
 
     conn = FakeConn()
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     # run_module_as_main re-imports the module, so its `from ... import x` binds
-    # to the package attribute — patch there, not on the already-imported copy.
+    # to the owning submodule's attribute — patch there, not on the already-imported copy.
     monkeypatch.setattr(auto_trading_module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
     monkeypatch.setattr(

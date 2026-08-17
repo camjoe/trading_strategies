@@ -16,7 +16,7 @@ import sys
 
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.execution.open_order_reconciliation import reconcile_open_orders
 
 __all__ = ["main", "parse_args"]

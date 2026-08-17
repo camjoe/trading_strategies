@@ -9,7 +9,7 @@ import pytest
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
-from trading.services.parameters import show_book_rotation_history, show_parameters
+from trading.services.parameters.presentation import show_book_rotation_history, show_parameters
 
 
 def test_prints_groups_entries_and_fallback_notes(

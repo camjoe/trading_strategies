@@ -66,7 +66,7 @@ def build_rotation_strategy_metrics(
     # one-directional import graph (evaluation/accounts/backtesting -> books).
     # Deferring it here lets every downstream consumer import books at module
     # level without a package-init cycle.
-    from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
+    from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
 
     artifact = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_name)
     decision = derive_decision_score(artifact)

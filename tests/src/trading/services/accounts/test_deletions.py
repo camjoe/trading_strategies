@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from trading.services import accounts as accounts_service
+from trading.services.accounts import deletions as accounts_service
 
 
 class TestPreviewAccountDeletion:
