@@ -25,7 +25,7 @@ def _first_sellable(
 
 
 def test_prepare_buy_trade_equity() -> None:
-    state = SimpleNamespace(cash=1000.0)
+    state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
     choose_buy_qty = Mock(return_value=2)
     with patch.object(trade_execution_service, "choose_buy_qty", choose_buy_qty):
         result = trade_execution_service.prepare_buy_trades(
@@ -45,7 +45,7 @@ def test_prepare_buy_trade_equity() -> None:
 
 
 def test_prepare_buy_trade_leaps() -> None:
-    state = SimpleNamespace(cash=2000.0)
+    state = SimpleNamespace(cash=2000.0, positions={}, avg_cost={})
     option_settings = make_option_settings(max_contracts_per_trade=2)
     with (
         patch.object(
@@ -80,7 +80,7 @@ def test_prepare_buy_trade_leaps() -> None:
 
 
 def test_prepare_buy_trade_leaps_skips_disallowed_candidate_and_uses_next() -> None:
-    state = SimpleNamespace(cash=2000.0)
+    state = SimpleNamespace(cash=2000.0, positions={}, avg_cost={})
 
     def _fake_allowed(_account, ticker, _iv):
         if ticker == "MSFT":
@@ -156,7 +156,7 @@ def test_prepare_buy_trades_returns_empty_when_no_candidates() -> None:
         buy_candidates=[],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        state=SimpleNamespace(cash=1000.0),
+        state=SimpleNamespace(cash=1000.0, positions={}, avg_cost={}),
         fee=0.0,
         max_buys=1,
         trade_size_pct=None,
@@ -192,7 +192,7 @@ def test_prepare_buy_trades_returns_empty_when_equity_price_missing() -> None:
         buy_candidates=["AAPL"],
         prices={},
         iv_rank_proxy={},
-        state=SimpleNamespace(cash=1000.0),
+        state=SimpleNamespace(cash=1000.0, positions={}, avg_cost={}),
         fee=0.0,
         max_buys=1,
         trade_size_pct=None,
@@ -250,7 +250,7 @@ def test_estimate_portfolio_equity_skips_position_when_mark_price_non_positive(m
 
 
 def test_current_position_value_returns_zero_when_no_position_and_uses_helper_when_present(monkeypatch) -> None:
-    state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0})
+    state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0}, cash=0.0)
     assert (
         trade_execution_service._current_position_value(
             SimpleNamespace(positions={}, avg_cost={}),
@@ -282,7 +282,7 @@ def test_prepare_buy_trade_returns_none_when_choose_buy_qty_non_positive() -> No
             buy_candidates=["AAPL"],
             prices={"AAPL": 100.0},
             iv_rank_proxy={},
-            state=SimpleNamespace(cash=1000.0),
+            state=SimpleNamespace(cash=1000.0, positions={}, avg_cost={}),
             fee=0.0,
             max_buys=1,
             trade_size_pct=None,
@@ -308,7 +308,7 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             buy_candidates=["AAPL"],
             prices={},
             iv_rank_proxy={},
-            state=SimpleNamespace(cash=1000.0),
+            state=SimpleNamespace(cash=1000.0, positions={}, avg_cost={}),
             fee=0.0,
             max_buys=1,
             trade_size_pct=None,
@@ -320,7 +320,7 @@ def test_prepare_buy_trade_leaps_returns_none_for_invalid_option_price_and_qty_l
             buy_candidates=["AAPL"],
             prices={"AAPL": 100.0},
             iv_rank_proxy={},
-            state=SimpleNamespace(cash=1000.0),
+            state=SimpleNamespace(cash=1000.0, positions={}, avg_cost={}),
             fee=0.0,
             max_buys=1,
             trade_size_pct=None,
@@ -368,7 +368,7 @@ def test_select_signal_trade_candidates_missing_history_is_hold() -> None:
 
 
 def test_prepare_trade_selection_uses_forced_sell_path() -> None:
-    state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0})
+    state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0}, cash=0.0)
     option_settings = make_option_settings()
 
     selection = trade_execution_service.prepare_book_trades(

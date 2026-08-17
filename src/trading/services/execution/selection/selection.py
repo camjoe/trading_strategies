@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Protocol
 
 import pandas as pd
 
@@ -73,6 +73,11 @@ class TradePreparationStateLike(AccountStateLike, Protocol):
     @property
     def cash(self) -> float: ...
 
+    # Read-only Mapping for the same covariance reason as `positions` above:
+    # the `dict`-holding implementers (BookTradeState, _WorkingState) satisfy it.
+    @property
+    def avg_cost(self) -> Mapping[str, float]: ...
+
 
 def _position_mark_price(
     ticker: str,
@@ -101,8 +106,8 @@ def _estimate_portfolio_equity(
     trade_ticker: str | None = None,
     trade_price: float | None = None,
 ) -> float:
-    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
-    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    positions = state.positions
+    avg_cost = state.avg_cost
     equity = float(state.cash)
     for held_ticker, qty in positions.items():
         if qty <= 0:
@@ -128,11 +133,11 @@ def _current_position_value(
     instrument_mode: str,
     trade_price: float,
 ) -> float:
-    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    positions = state.positions
     qty = float(positions.get(ticker, 0.0))
     if qty <= 0:
         return 0.0
-    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    avg_cost = state.avg_cost
     mark_price = _position_mark_price(
         ticker,
         prices=prices,
@@ -249,16 +254,16 @@ def prepare_book_trades(
                 params,
                 universe,
                 histories,
-                cast(Mapping[str, float], getattr(state, "positions", {})),
+                state.positions,
                 feature_history_fn,
             )
         except ValueError:
             logger.warning("Unknown strategy %r; holding (no signal trades).", active_strategy)
 
     working = _WorkingState(
-        cash=float(getattr(state, "cash", 0.0)),
-        positions=dict(cast(Mapping[str, float], getattr(state, "positions", {}))),
-        avg_cost=dict(cast(Mapping[str, float], getattr(state, "avg_cost", {}))),
+        cash=float(state.cash),
+        positions=dict(state.positions),
+        avg_cost=dict(state.avg_cost),
     )
     selections: list[TradeSelection] = []
 
