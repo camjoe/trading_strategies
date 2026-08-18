@@ -47,9 +47,7 @@ def test_compare_strategies_handles_empty_accounts_and_no_positions(
     assert "No paper accounts found." in capsys.readouterr().out
 
     create_account(conn, "acct_none", "Trend", 1000.0, "SPY", config=AccountConfig(descriptive_name="No Trades"))
-    monkeypatch.setattr(
-        "trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None)
-    )
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
 
     compare_strategies(conn, lookback=5)
     out = capsys.readouterr().out
