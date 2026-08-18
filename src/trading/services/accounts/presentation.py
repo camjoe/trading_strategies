@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models import AccountRecord
-from trading.models.books import BookRecord
+from trading.models.books import DEFAULT_INSTRUMENT_MODE, DEFAULT_RISK_POLICY, BookRecord
 from trading.services.books.book_assignments import UNASSIGNED_STRATEGY_LABEL
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
@@ -48,8 +48,8 @@ def render_account_policy_text(
     trade_size_pct = book.trade_size_pct if book is not None else None
     max_position_pct = book.max_position_pct if book is not None else None
     benchmark_ticker = row.benchmark_ticker
-    risk_policy = book.risk_policy if book is not None else "none"
-    instrument_mode = book.instrument_mode if book is not None else "equity"
+    risk_policy = book.risk_policy if book is not None else DEFAULT_RISK_POLICY
+    instrument_mode = book.instrument_mode if book is not None else DEFAULT_INSTRUMENT_MODE
     resolved_trade_size_pct = trade_size_pct if trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
     resolved_max_position_pct = max_position_pct if max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
     return (
