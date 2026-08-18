@@ -37,6 +37,38 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     assert points[-1]["benchmark_equity"] == pytest.approx(1100.0)
 
 
+def test_build_live_benchmark_overlay_payload_shapes_camelcase() -> None:
+    overlay = {
+        "benchmark": "SPY",
+        "start_time": "2026-01-01T00:00:00Z",
+        "end_time": "2026-01-10T00:00:00Z",
+        "starting_equity": 1000.0,
+        "ending_equity": 1100.0,
+        "benchmark_equity": 1050.0,
+        "account_return_pct": 10.0,
+        "benchmark_return_pct": 5.0,
+        "alpha_pct": 5.0,
+        "points": [{"time": "2026-01-01T00:00:00Z", "account_equity": 1000.0, "benchmark_equity": 1000.0}],
+    }
+
+    assert account_benchmark.build_live_benchmark_overlay_payload(overlay) == {
+        "benchmark": "SPY",
+        "startTime": "2026-01-01T00:00:00Z",
+        "endTime": "2026-01-10T00:00:00Z",
+        "startingEquity": 1000.0,
+        "endingEquity": 1100.0,
+        "benchmarkEquity": 1050.0,
+        "accountReturnPct": 10.0,
+        "benchmarkReturnPct": 5.0,
+        "alphaPct": 5.0,
+        "points": [{"time": "2026-01-01T00:00:00Z", "accountEquity": 1000.0, "benchmarkEquity": 1000.0}],
+    }
+
+
+def test_build_live_benchmark_overlay_payload_passes_none_through() -> None:
+    assert account_benchmark.build_live_benchmark_overlay_payload(None) is None
+
+
 def test_attach_live_benchmark_summary_sets_fields() -> None:
     summary = {"name": "acct"}
     # The overlay is the snake_case analysis payload; attach maps it to camelCase.

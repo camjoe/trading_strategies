@@ -7,10 +7,37 @@ the web boundary's job and lives here (UI Backend Boundary Rule).
 
 from __future__ import annotations
 
+from typing import Any
+
 from trading.services.analysis.benchmark import (  # noqa: F401
     build_live_benchmark_overlay,
     fetch_benchmark_close_history,
 )
+
+
+def build_live_benchmark_overlay_payload(overlay: dict[str, Any] | None) -> dict[str, object] | None:
+    """camelCase the snake_case overlay for the frontend, or pass ``None`` through."""
+    if overlay is None:
+        return None
+    return {
+        "benchmark": overlay["benchmark"],
+        "startTime": overlay["start_time"],
+        "endTime": overlay["end_time"],
+        "startingEquity": overlay["starting_equity"],
+        "endingEquity": overlay["ending_equity"],
+        "benchmarkEquity": overlay["benchmark_equity"],
+        "accountReturnPct": overlay["account_return_pct"],
+        "benchmarkReturnPct": overlay["benchmark_return_pct"],
+        "alphaPct": overlay["alpha_pct"],
+        "points": [
+            {
+                "time": point["time"],
+                "accountEquity": point["account_equity"],
+                "benchmarkEquity": point["benchmark_equity"],
+            }
+            for point in overlay["points"]
+        ],
+    }
 
 
 def attach_live_benchmark_summary(
@@ -34,5 +61,6 @@ def attach_live_benchmark_summary(
 __all__ = [
     "attach_live_benchmark_summary",
     "build_live_benchmark_overlay",
+    "build_live_benchmark_overlay_payload",
     "fetch_benchmark_close_history",
 ]

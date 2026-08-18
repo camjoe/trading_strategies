@@ -26,6 +26,7 @@ from ..services.accounts.backtests import (
 from ..services.accounts.benchmark import (
     attach_live_benchmark_summary,
     build_live_benchmark_overlay,
+    build_live_benchmark_overlay_payload,
 )
 from ..services.accounts.data_access import (
     build_snapshot_payload,
@@ -42,7 +43,6 @@ from ..services.accounts.summaries import (
 )
 from ..services.db import db_conn
 from ..services.evaluation import build_evaluation_summary_payload
-from ..services.shaping import camelize_keys
 
 router = APIRouter()
 
@@ -180,7 +180,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             "positions": positions,
             "latestBacktest": latest_backtest,
             "latestBacktestMetrics": latest_backtest_metrics,
-            "liveBenchmarkOverlay": camelize_keys(overlay),
+            "liveBenchmarkOverlay": build_live_benchmark_overlay_payload(overlay),
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade, book_names=book_names) for trade in trades[-100:]],
             "bookPositions": [
