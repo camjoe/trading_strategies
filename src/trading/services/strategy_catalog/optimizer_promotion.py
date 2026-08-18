@@ -17,7 +17,6 @@ already-promoted checks.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from typing import Any
 
@@ -26,6 +25,7 @@ from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
     set_promoted_strategy,
 )
+from common.json_columns import loads_json_object
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.models.strategy import StrategyRecord
@@ -74,7 +74,9 @@ def promote_optimization_experiment(
                 f"{'; '.join(gate.reasons)}. Use --allow-no-edge to promote anyway."
             )
 
-    winner_params: dict[str, Any] = json.loads(experiment.winner_params_json)
+    winner_params: dict[str, Any] = loads_json_object(
+        experiment.winner_params_json, where="optimization_experiments.winner_params_json"
+    )
 
     with unit_of_work(conn):
         variant = create_strategy_variant(

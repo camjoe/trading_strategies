@@ -55,7 +55,13 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
 
 
-def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
+def resolve_active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
+    """The account's active strategy — resolved once per evaluation and threaded.
+
+    Repeatedly resolving it re-reads the default book, its open assignment, and
+    the strategy row; callers pass the resolved value into the scope and evidence
+    builders instead.
+    """
     return active_strategy_for_account(conn, row_expect_int(account, "id"))
 
 
@@ -69,16 +75,16 @@ def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) ->
     return resolve_default_book_rotation_schedule(conn, account_id=account_id).rotation_enabled
 
 
-def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord, strategy_name: str | None) -> str:
+def resolve_requested_strategy(strategy_name: str | None, *, active_strategy: str) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
             return normalized
-    return _active_strategy(conn, account)
+    return active_strategy
 
 
 def build_basic_scope(
-    conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str
+    conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str, *, active_strategy: str
 ) -> EvaluationBasicScope:
     account_id = row_expect_int(account, "id")
     # instrument_mode is a book column (revision 0004): the default book
@@ -91,7 +97,7 @@ def build_basic_scope(
         requested_strategy=requested_strategy,
         # accounts.strategy was dropped (revision 0008): the assignment-derived
         # active strategy is the only strategy.
-        active_strategy=_active_strategy(conn, account),
+        active_strategy=active_strategy,
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=default_book.instrument_mode if default_book is not None else None,
         rotation_enabled=_default_book_rotation_enabled(conn, account_id),
@@ -135,7 +141,7 @@ def _resolve_strategy_window(
 def _book_strategy_window_timeline(
     conn: sqlite3.Connection,
     *,
-    account: AccountRecord,
+    active_strategy: str,
     book_id: int,
     inception_time: str,
 ) -> list[tuple[str, str]]:
@@ -147,10 +153,9 @@ def _book_strategy_window_timeline(
     """
     decisions = RotationDecisionRepository(conn).fetch_selected_strategy_timeline(book_id=book_id)
     if not decisions:
-        base_strategy = _active_strategy(conn, account)
-        return [(inception_time, base_strategy)] if base_strategy else []
+        return [(inception_time, active_strategy)] if active_strategy else []
 
-    inception_strategy = decisions[0][1] or _active_strategy(conn, account)
+    inception_strategy = decisions[0][1] or active_strategy
     timeline: list[tuple[str, str]] = []
     if inception_strategy:
         timeline.append((inception_time, inception_strategy))
@@ -163,7 +168,7 @@ def _book_strategy_window_timeline(
 def _book_strategy_evidence(
     conn: sqlite3.Connection,
     *,
-    account: AccountRecord,
+    active_strategy: str,
     account_id: int,
     requested_strategy: str,
     latest_snapshot: EquitySnapshotRecord | None,
@@ -182,7 +187,7 @@ def _book_strategy_evidence(
     book_id = default_book_id(conn, account_id=account_id)
     timeline = _book_strategy_window_timeline(
         conn,
-        account=account,
+        active_strategy=active_strategy,
         book_id=book_id,
         inception_time=earliest_snapshot.snapshot_time,
     )
@@ -233,6 +238,7 @@ def build_paper_live_evidence(
     *,
     account: AccountRecord,
     requested_strategy: str,
+    active_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = account.id
     rotation_enabled = _default_book_rotation_enabled(conn, account_id)
@@ -241,7 +247,7 @@ def build_paper_live_evidence(
     evidence = (
         _book_strategy_evidence(
             conn,
-            account=account,
+            active_strategy=active_strategy,
             account_id=account_id,
             requested_strategy=requested_strategy,
             latest_snapshot=latest_snapshot,

@@ -15,8 +15,10 @@ from backtesting.models.optimizer import (
     OptimizerConfig,
 )
 from backtesting.services.optimization_experiment import run_and_persist_optimization
+from common.json_columns import loads_json_object
 from infrastructure.market_data.factory import build_provider, resolve_provider_name
 from trading.domain.exceptions import NotFoundError
+from trading.models.strategy import StrategyRecord
 from trading.services.strategy_catalog.mutations import (
     configure_strategy,
     create_strategy_variant,
@@ -28,7 +30,6 @@ from trading.services.strategy_catalog.queries import (
     fetch_optimization_history,
     fetch_primitive_catalog,
     fetch_strategy_catalog,
-    strategy_payload,
 )
 
 from ..schemas import (
@@ -40,6 +41,21 @@ from ..schemas import (
 from ..services.db import db_conn
 
 router = APIRouter()
+
+
+def strategy_payload(record: StrategyRecord) -> dict[str, object]:
+    """Shape a strategy catalog row into the frontend's camelCase response."""
+    return {
+        "id": record.id,
+        "strategyKey": record.strategy_key,
+        "primitive": record.primitive,
+        "params": loads_json_object(record.params_json, where="strategies.params_json"),
+        "description": record.description,
+        "status": record.status,
+        "enabled": bool(record.enabled),
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at,
+    }
 
 
 @router.get("/api/strategy-lab/catalog")
