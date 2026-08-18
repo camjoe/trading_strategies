@@ -51,12 +51,10 @@ def fetch_account_analysis(
     )
 
     winners = ranked[:TOP_POSITIONS_COUNT]
-    winner_tickers = {str(position["ticker"]) for position in winners}
-    losers = list(
-        reversed(
-            [position for position in ranked if str(position["ticker"]) not in winner_tickers][-TOP_POSITIONS_COUNT:]
-        )
-    )
+    # The worst performers, worst first, taken from everything below the winners.
+    # Slicing by position keeps winners and losers from overlapping when there are
+    # fewer than 2*TOP_POSITIONS_COUNT names.
+    losers = list(reversed(ranked[TOP_POSITIONS_COUNT:][-TOP_POSITIONS_COUNT:]))
 
     return {
         "accountReturnPct": summary.account_return_pct,

@@ -6,6 +6,7 @@ Provides pure position-ranking and note-generation helpers used by
 
 from __future__ import annotations
 
+from common.constants import PERCENT_SCALE
 from trading.models import AccountState
 
 # Number of top/bottom positions to surface in the analysis summary.
@@ -35,8 +36,10 @@ def compute_position_analysis(
         market_value = qty * market_price if market_price else 0.0
         unrealized_pnl = (market_price - avg_cost) * qty if market_price else 0.0
         cost_basis = avg_cost * qty
-        unrealized_pnl_pct = ((market_price / avg_cost) - 1.0) * 100.0 if avg_cost > 0 and market_price > 0 else 0.0
-        portfolio_pct = (market_value / total_equity * 100.0) if total_equity > 0 and market_price > 0 else 0.0
+        unrealized_pnl_pct = (
+            ((market_price / avg_cost) - 1.0) * PERCENT_SCALE if avg_cost > 0 and market_price > 0 else 0.0
+        )
+        portfolio_pct = (market_value / total_equity * PERCENT_SCALE) if total_equity > 0 and market_price > 0 else 0.0
         result.append(
             {
                 "ticker": ticker,
@@ -110,12 +113,9 @@ def generate_improvement_notes(
     elif realized_pnl > 0:
         notes.append(f"${realized_pnl:.2f} in realized gains — good discipline on the exits.")
 
-    equity_positions = [
-        position for position in position_analysis if ";instrument=option" not in str(position.get("ticker", ""))
-    ]
-    if equity_positions:
+    if position_analysis:
         notes.append(
-            "All equity positions remain open with no closes. "
+            "All open positions remain open with no closes. "
             "Consider whether trailing stops or partial profit-takes would "
             "lock in gains on your strongest winners."
         )

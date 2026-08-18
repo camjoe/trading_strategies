@@ -14,6 +14,7 @@ from datetime import date
 import pandas as pd
 
 from common.coercion import coerce_float
+from common.constants import PERCENT_SCALE
 from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.market_data.lookups import extract_close_series
 from trading.services.market_data.protocols import MarketDataProvider, require_provider
@@ -138,8 +139,8 @@ def build_live_benchmark_overlay(
     account_ending_equity = coerce_float(points[-1]["accountEquity"])
     if ending_benchmark_equity is None or account_ending_equity is None:
         return None
-    account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * 100.0
-    benchmark_return_pct = ((ending_benchmark_equity / starting_equity) - 1.0) * 100.0
+    account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * PERCENT_SCALE
+    benchmark_return_pct = ((ending_benchmark_equity / starting_equity) - 1.0) * PERCENT_SCALE
     alpha_pct = account_return_pct - benchmark_return_pct
     return {
         "benchmark": ticker,

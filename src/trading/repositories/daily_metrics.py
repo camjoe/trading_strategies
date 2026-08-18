@@ -138,3 +138,10 @@ class DailyMetricsRepository:
             "WHERE m.book_id = ? AND m.metric_date >= ? AND m.metric_date <= ? ORDER BY m.metric_date ASC, m.id ASC",
             (book_id, start_date, end_date),
         )
+
+    def fetch_for_account_on_date(self, *, account_id: int, metric_date: str) -> list[DailyMetricRecord]:
+        """Every book's metric row for the account on ``metric_date`` (one query)."""
+        return self._fetch(
+            "WHERE b.account_id = ? AND m.metric_date = ? ORDER BY m.book_id ASC, m.id ASC",
+            (account_id, metric_date),
+        )

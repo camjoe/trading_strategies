@@ -11,7 +11,7 @@ import sqlite3
 from typing import NamedTuple
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
-from common.constants import SETTLEMENT_TICKER
+from common.constants import PERCENT_SCALE, SETTLEMENT_TICKER
 from trading.domain.metrics.portfolio_math import alpha_pct, compute_market_value_and_unrealized, strategy_return_pct
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -54,7 +54,7 @@ def infer_overall_trend(
     if first == 0:
         return "insufficient-data"
 
-    move_pct = ((last - first) / first) * 100.0
+    move_pct = ((last - first) / first) * PERCENT_SCALE
     if move_pct > TREND_FLAT_BAND_PCT:
         return "up"
     if move_pct < -TREND_FLAT_BAND_PCT:

@@ -23,6 +23,22 @@ LEFT JOIN strategies ss ON ss.id = d.selected_strategy_id
 WHERE d.book_id = ?
 """
 
+# Account-wide variant: joins books so one query can span every book of an
+# account (the per-book select above filters on d.book_id and cannot).
+_ROW_WITH_LABELS_FOR_ACCOUNT_SELECT = """
+SELECT
+    d.*,
+    si.strategy_key AS incumbent_strategy,
+    sc.strategy_key AS challenger_strategy,
+    ss.strategy_key AS selected_strategy
+FROM rotation_decisions d
+JOIN books b ON b.id = d.book_id
+LEFT JOIN strategies si ON si.id = d.incumbent_strategy_id
+LEFT JOIN strategies sc ON sc.id = d.challenger_strategy_id
+LEFT JOIN strategies ss ON ss.id = d.selected_strategy_id
+WHERE b.account_id = ?
+"""
+
 
 class RotationDecisionRepository:
     """Book-keyed rotation decisions.
@@ -108,6 +124,17 @@ class RotationDecisionRepository:
             _ROW_WITH_LABELS_SELECT
             + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
             (book_id, report_date, next_date),
+        ).fetchall()
+        return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_for_account_on_date(self, *, account_id: int, report_date: str) -> list[RotationDecisionRecord]:
+        """Every book's rotation decisions for the account on ``report_date`` (one query)."""
+        next_date = next_date_str(report_date)
+        rows = self._conn.execute(
+            _ROW_WITH_LABELS_FOR_ACCOUNT_SELECT
+            + " AND d.decision_time >= ? AND d.decision_time < ?"
+            + " ORDER BY d.book_id ASC, d.decision_time ASC, d.id ASC",
+            (account_id, report_date, next_date),
         ).fetchall()
         return [RotationDecisionRecord.from_mapping(dict(row)) for row in rows]
 
