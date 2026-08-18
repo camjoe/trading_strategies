@@ -251,79 +251,45 @@ def test_build_live_benchmark_overlay_computes_sorted_overlay_and_returns_expect
 
     assert result is not None
     assert set(result) == {
-        "accountReturnPct",
-        "alphaPct",
+        "account_return_pct",
+        "alpha_pct",
         "benchmark",
-        "benchmarkEquity",
-        "benchmarkReturnPct",
-        "endingEquity",
-        "endTime",
+        "benchmark_equity",
+        "benchmark_return_pct",
+        "ending_equity",
+        "end_time",
         "points",
-        "startingEquity",
-        "startTime",
+        "starting_equity",
+        "start_time",
     }
     assert result["benchmark"] == "SPY"
-    assert result["startTime"] == "2024-01-02T16:00:00Z"
-    assert result["endTime"] == "2024-01-04T16:00:00Z"
-    assert result["startingEquity"] == pytest.approx(100.0)
-    assert result["endingEquity"] == pytest.approx(150.0)
-    assert result["benchmarkEquity"] == pytest.approx(121.0)
-    assert result["accountReturnPct"] == pytest.approx(50.0)
-    assert result["benchmarkReturnPct"] == pytest.approx(21.0)
-    assert result["alphaPct"] == pytest.approx(29.0)
+    assert result["start_time"] == "2024-01-02T16:00:00Z"
+    assert result["end_time"] == "2024-01-04T16:00:00Z"
+    assert result["starting_equity"] == pytest.approx(100.0)
+    assert result["ending_equity"] == pytest.approx(150.0)
+    assert result["benchmark_equity"] == pytest.approx(121.0)
+    assert result["account_return_pct"] == pytest.approx(50.0)
+    assert result["benchmark_return_pct"] == pytest.approx(21.0)
+    assert result["alpha_pct"] == pytest.approx(29.0)
     assert result["points"] == [
         {
             "time": "2024-01-02T16:00:00Z",
-            "accountEquity": 100.0,
-            "benchmarkEquity": pytest.approx(100.0),
+            "account_equity": 100.0,
+            "benchmark_equity": pytest.approx(100.0),
         },
         {
             "time": "2024-01-03T16:00:00Z",
-            "accountEquity": 90.0,
-            "benchmarkEquity": pytest.approx(110.0),
+            "account_equity": 90.0,
+            "benchmark_equity": pytest.approx(110.0),
         },
         {
             "time": "2024-01-04T16:00:00Z",
-            "accountEquity": 150.0,
-            "benchmarkEquity": pytest.approx(121.0),
+            "account_equity": 150.0,
+            "benchmark_equity": pytest.approx(121.0),
         },
     ]
 
 
-def test_attach_live_benchmark_summary_sets_none_fields_and_returns_same_summary() -> None:
-    summary = {"name": "acct"}
-
-    result = benchmark.attach_live_benchmark_summary(summary, None)
-
-    assert result is summary
-    assert summary == {
-        "name": "acct",
-        "liveBenchmarkReturnPct": None,
-        "liveAlphaPct": None,
-        "liveBenchmarkEquity": None,
-        "liveBenchmarkStartTime": None,
-        "liveBenchmarkEndTime": None,
-    }
-
-
-def test_attach_live_benchmark_summary_maps_overlay_fields_and_returns_same_summary() -> None:
-    summary = {"name": "acct"}
-    overlay = {
-        "benchmarkReturnPct": 8.5,
-        "alphaPct": 1.25,
-        "benchmarkEquity": 1085.0,
-        "startTime": "2024-01-02T16:00:00Z",
-        "endTime": "2024-01-04T16:00:00Z",
-    }
-
-    result = benchmark.attach_live_benchmark_summary(summary, overlay)
-
-    assert result is summary
-    assert summary == {
-        "name": "acct",
-        "liveBenchmarkReturnPct": 8.5,
-        "liveAlphaPct": 1.25,
-        "liveBenchmarkEquity": 1085.0,
-        "liveBenchmarkStartTime": "2024-01-02T16:00:00Z",
-        "liveBenchmarkEndTime": "2024-01-04T16:00:00Z",
-    }
+# attach_live_benchmark_summary moved to the web boundary (it maps the snake_case
+# overlay to camelCase summary keys); its tests now live under
+# tests/apps/paper_trading_web/backend/services/accounts/test_benchmark.py.

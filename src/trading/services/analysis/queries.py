@@ -36,9 +36,9 @@ def fetch_account_analysis(
         [
             position
             for position in position_analysis
-            if float(position["marketPrice"]) > 0 and str(position["ticker"]) != SETTLEMENT_TICKER
+            if float(position["market_price"]) > 0 and str(position["ticker"]) != SETTLEMENT_TICKER
         ],
-        key=lambda position: float(position["unrealizedPnlPct"]),
+        key=lambda position: float(position["unrealized_pnl_pct"]),
         reverse=True,
     )
 
@@ -57,16 +57,16 @@ def fetch_account_analysis(
     losers = list(reversed(ranked[TOP_POSITIONS_COUNT:][-TOP_POSITIONS_COUNT:]))
 
     return {
-        "accountReturnPct": summary.account_return_pct,
-        "benchmarkReturnPct": summary.benchmark_return_pct,
-        "benchmarkTicker": benchmark_ticker,
-        "alphaPct": summary.alpha_pct,
-        "realizedPnl": state.realized_pnl,
-        "unrealizedPnl": unrealized,
+        "account_return_pct": summary.account_return_pct,
+        "benchmark_return_pct": summary.benchmark_return_pct,
+        "benchmark_ticker": benchmark_ticker,
+        "alpha_pct": summary.alpha_pct,
+        "realized_pnl": state.realized_pnl,
+        "unrealized_pnl": unrealized,
         "equity": equity,
-        "topWinners": winners,
-        "topLosers": losers,
-        "improvementNotes": improvement_notes,
+        "top_winners": winners,
+        "top_losers": losers,
+        "improvement_notes": improvement_notes,
     }
 
 

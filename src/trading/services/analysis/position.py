@@ -44,13 +44,13 @@ def compute_position_analysis(
             {
                 "ticker": ticker,
                 "qty": qty,
-                "avgCost": avg_cost,
-                "costBasis": cost_basis,
-                "marketPrice": market_price,
-                "marketValue": market_value,
-                "unrealizedPnl": unrealized_pnl,
-                "unrealizedPnlPct": unrealized_pnl_pct,
-                "portfolioPct": portfolio_pct,
+                "avg_cost": avg_cost,
+                "cost_basis": cost_basis,
+                "market_price": market_price,
+                "market_value": market_value,
+                "unrealized_pnl": unrealized_pnl,
+                "unrealized_pnl_pct": unrealized_pnl_pct,
+                "portfolio_pct": portfolio_pct,
             }
         )
     return result
@@ -83,7 +83,7 @@ def generate_improvement_notes(
             )
 
     concentrated = [
-        position for position in position_analysis if float(position["portfolioPct"]) > CONCENTRATION_THRESHOLD_PCT
+        position for position in position_analysis if float(position["portfolio_pct"]) > CONCENTRATION_THRESHOLD_PCT
     ]
     if concentrated:
         names = ", ".join(str(position["ticker"]) for position in concentrated)
@@ -94,14 +94,14 @@ def generate_improvement_notes(
         )
 
     ranked = sorted(
-        [position for position in position_analysis if float(position["marketPrice"]) > 0],
-        key=lambda position: float(position["unrealizedPnlPct"]),
+        [position for position in position_analysis if float(position["market_price"]) > 0],
+        key=lambda position: float(position["unrealized_pnl_pct"]),
     )
-    if ranked and float(ranked[0]["unrealizedPnlPct"]) < NOTABLE_LOSS_THRESHOLD_PCT:
+    if ranked and float(ranked[0]["unrealized_pnl_pct"]) < NOTABLE_LOSS_THRESHOLD_PCT:
         worst = ranked[0]
         notes.append(
             f"{worst['ticker']} is your worst performer at "
-            f"{float(worst['unrealizedPnlPct']):.1f}% unrealized. "
+            f"{float(worst['unrealized_pnl_pct']):.1f}% unrealized. "
             "Review whether the original thesis still holds."
         )
 

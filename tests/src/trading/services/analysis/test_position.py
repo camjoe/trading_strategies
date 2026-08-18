@@ -49,13 +49,13 @@ class TestComputePositionAnalysis:
     def test_missing_price_gives_zero_market_value(self) -> None:
         state = _state({"AAPL": 5.0}, {"AAPL": 100.0})
         result = compute_position_analysis(state, {}, total_equity=500.0)
-        assert result[0]["marketValue"] == 0.0
-        assert result[0]["unrealizedPnl"] == 0.0
+        assert result[0]["market_value"] == 0.0
+        assert result[0]["unrealized_pnl"] == 0.0
 
     def test_portfolio_pct_computed(self) -> None:
         state = _state({"AAPL": 10.0}, {"AAPL": 100.0})
         result = compute_position_analysis(state, {"AAPL": 100.0}, total_equity=1000.0)
-        assert result[0]["portfolioPct"] == pytest.approx(100.0)
+        assert result[0]["portfolio_pct"] == pytest.approx(100.0)
 
 
 # ---------------------------------------------------------------------------
@@ -68,9 +68,9 @@ class TestGenerateImprovementNotes:
         return [
             {
                 "ticker": "AAPL",
-                "portfolioPct": portfolio_pct,
-                "marketPrice": 100.0,
-                "unrealizedPnlPct": 5.0,
+                "portfolio_pct": portfolio_pct,
+                "market_price": 100.0,
+                "unrealized_pnl_pct": 5.0,
             }
         ]
 
