@@ -18,6 +18,7 @@ from trading.services.evaluation.evidence import (
     build_confidence,
     build_diagnostics,
     build_paper_live_evidence,
+    resolve_active_strategy,
     resolve_requested_strategy,
 )
 from trading.services.operational_settings.queries import fetch_evaluation_confidence_settings
@@ -29,9 +30,12 @@ def fetch_strategy_evaluation_for_account_row(
     *,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
-    requested_strategy = resolve_requested_strategy(conn, account, strategy_name)
+    # Resolved once and threaded: the scope, the requested-strategy fallback, and
+    # the paper-live window all need the account's active strategy.
+    active_strategy = resolve_active_strategy(conn, account)
+    requested_strategy = resolve_requested_strategy(strategy_name, active_strategy=active_strategy)
     account_id = account.id
-    basic = build_basic_scope(conn, account, requested_strategy)
+    basic = build_basic_scope(conn, account, requested_strategy, active_strategy=active_strategy)
     backtest, walk_forward = build_strategy_evidence(
         conn,
         account_id=account_id,
@@ -41,6 +45,7 @@ def fetch_strategy_evaluation_for_account_row(
         conn,
         account=account,
         requested_strategy=requested_strategy,
+        active_strategy=active_strategy,
     )
     confidence_settings = fetch_evaluation_confidence_settings(conn)
     confidence = build_confidence(

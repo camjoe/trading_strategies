@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from common.constants import ANNUALIZATION_FACTOR
+from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE
 from common.rate_limit import RateLimitExceeded
 from trading.domain.market.bars import normalize_bar_frame
 from trading.models.market_data import BAR_CLOSE
@@ -20,6 +20,14 @@ CLOSE_HISTORY_PERIOD = "1y"
 
 # Runtime signals are evaluated on daily bars, matching the backtest engine.
 DAILY_INTERVAL = "1d"
+
+# Minimum daily bars needed to estimate annualized volatility for the IV-rank
+# proxy; fewer bars give too noisy a standard deviation to rank on.
+MIN_VOLATILITY_HISTORY_BARS = 30
+
+# A universe of one has no cross-section to rank against, so its IV-rank proxy is
+# the neutral midpoint of the 0–100 percentile scale.
+NEUTRAL_IV_RANK_PERCENTILE = 50.0
 
 
 def fetch_bar_histories(
@@ -74,7 +82,7 @@ def build_iv_rank_proxy(
         try:
             bars = histories.get(ticker)
             close = None if bars is None else bars[BAR_CLOSE]
-            if close is None or len(close) < 30:
+            if close is None or len(close) < MIN_VOLATILITY_HISTORY_BARS:
                 continue
             daily_ret = close.pct_change().dropna()
             if daily_ret.empty:
@@ -91,9 +99,9 @@ def build_iv_rank_proxy(
     sorted_items = sorted(vols.items(), key=lambda x: x[1])
     n = len(sorted_items)
     if n == 1:
-        return {sorted_items[0][0]: 50.0}
+        return {sorted_items[0][0]: NEUTRAL_IV_RANK_PERCENTILE}
 
     out: dict[str, float] = {}
     for i, (ticker, _vol) in enumerate(sorted_items):
-        out[ticker] = (i / (n - 1)) * 100.0
+        out[ticker] = (i / (n - 1)) * PERCENT_SCALE
     return out

@@ -60,6 +60,7 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `db.py` | DB connection/session management for the UI backend |
 | `accounts/` | Account data assembly (summaries, snapshots, detail) |
 | `admin.py` | Admin operation service |
+| `analysis.py` | Account performance-analysis endpoint response shaping (snake_case to camelCase mapping) |
 | `backtests.py` | Backtesting service (delegates to `src/backtesting/`) |
 | `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
 | `features/` | Feature/signal data service |

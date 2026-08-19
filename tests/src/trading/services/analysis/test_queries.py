@@ -31,7 +31,7 @@ class TestReturnPct:
         record_analysis_buy(conn, account_id=analysis_account["id"], ticker="AAPL", qty=1.0, price=100.0)
         patch_analysis_market_data(monkeypatch, prices={"AAPL": 110.0})
         result = fetch_account_analysis(conn, analysis_account)
-        assert result["accountReturnPct"] == pytest.approx(1.0)
+        assert result["account_return_pct"] == pytest.approx(1.0)
 
     def test_negative_return(
         self,
@@ -42,7 +42,7 @@ class TestReturnPct:
         record_analysis_buy(conn, account_id=analysis_account["id"], ticker="AAPL", qty=1.0, price=100.0)
         patch_analysis_market_data(monkeypatch, prices={"AAPL": 90.0})
         result = fetch_account_analysis(conn, analysis_account)
-        assert result["accountReturnPct"] == pytest.approx(-1.0)
+        assert result["account_return_pct"] == pytest.approx(-1.0)
 
     def test_no_trades_flat_return(
         self,
@@ -52,7 +52,7 @@ class TestReturnPct:
     ) -> None:
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, analysis_account)
-        assert result["accountReturnPct"] == pytest.approx(0.0)
+        assert result["account_return_pct"] == pytest.approx(0.0)
 
 
 class TestAlpha:
@@ -66,7 +66,7 @@ class TestAlpha:
         # strategy return = 1% (price 100→110), benchmark = 5%
         patch_analysis_market_data(monkeypatch, prices={"AAPL": 110.0}, benchmark=(1050.0, 5.0))
         result = fetch_account_analysis(conn, analysis_account)
-        assert result["alphaPct"] == pytest.approx(1.0 - 5.0)
+        assert result["alpha_pct"] == pytest.approx(1.0 - 5.0)
 
     def test_alpha_none_when_benchmark_unavailable(
         self,
@@ -76,7 +76,7 @@ class TestAlpha:
     ) -> None:
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, analysis_account)
-        assert result["alphaPct"] is None
+        assert result["alpha_pct"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ class TestDepositModel:
         # effective_initial = total_deposited = 1000; return = 1%
         patch_analysis_market_data(monkeypatch, prices={"AAPL": 110.0})
         result = fetch_account_analysis(conn, row)
-        assert result["accountReturnPct"] == pytest.approx(1.0)
+        assert result["account_return_pct"] == pytest.approx(1.0)
 
     def test_zero_initial_and_zero_deposited_returns_zero(
         self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
@@ -104,7 +104,7 @@ class TestDepositModel:
         row = make_analysis_account(conn, "acct", initial_cash=0.0)
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, row)
-        assert result["accountReturnPct"] == pytest.approx(0.0)
+        assert result["account_return_pct"] == pytest.approx(0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +146,8 @@ class TestTopWinnersLosers:
         prices = self._make_prices_and_buys(conn, analysis_account["id"], positions)
         patch_analysis_market_data(monkeypatch, prices=prices)
         result = fetch_account_analysis(conn, analysis_account)
-        winner_tickers = {p["ticker"] for p in result["topWinners"]}
-        loser_tickers = {p["ticker"] for p in result["topLosers"]}
+        winner_tickers = {p["ticker"] for p in result["top_winners"]}
+        loser_tickers = {p["ticker"] for p in result["top_losers"]}
         assert winner_tickers.isdisjoint(loser_tickers), (
             f"Overlap between winners and losers: {winner_tickers & loser_tickers}"
         )
@@ -162,7 +162,7 @@ class TestTopWinnersLosers:
         prices = self._make_prices_and_buys(conn, analysis_account["id"], positions)
         patch_analysis_market_data(monkeypatch, prices=prices)
         result = fetch_account_analysis(conn, analysis_account)
-        pnl_pcts = [float(p["unrealizedPnlPct"]) for p in result["topWinners"]]
+        pnl_pcts = [float(p["unrealized_pnl_pct"]) for p in result["top_winners"]]
         assert pnl_pcts == sorted(pnl_pcts, reverse=True)
 
     def test_losers_sorted_worst_first(
@@ -175,7 +175,7 @@ class TestTopWinnersLosers:
         prices = self._make_prices_and_buys(conn, analysis_account["id"], positions)
         patch_analysis_market_data(monkeypatch, prices=prices)
         result = fetch_account_analysis(conn, analysis_account)
-        pnl_pcts = [float(p["unrealizedPnlPct"]) for p in result["topLosers"]]
+        pnl_pcts = [float(p["unrealized_pnl_pct"]) for p in result["top_losers"]]
         assert pnl_pcts == sorted(pnl_pcts)
 
     def test_fewer_than_five_positions_no_overlap(
@@ -189,8 +189,8 @@ class TestTopWinnersLosers:
         prices = self._make_prices_and_buys(conn, analysis_account["id"], positions)
         patch_analysis_market_data(monkeypatch, prices=prices)
         result = fetch_account_analysis(conn, analysis_account)
-        winner_tickers = {p["ticker"] for p in result["topWinners"]}
-        loser_tickers = {p["ticker"] for p in result["topLosers"]}
+        winner_tickers = {p["ticker"] for p in result["top_winners"]}
+        loser_tickers = {p["ticker"] for p in result["top_losers"]}
         assert winner_tickers.isdisjoint(loser_tickers)
 
 
@@ -209,15 +209,15 @@ class TestReturnShape:
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, analysis_account)
         for key in (
-            "accountReturnPct",
-            "benchmarkReturnPct",
-            "alphaPct",
-            "realizedPnl",
-            "unrealizedPnl",
+            "account_return_pct",
+            "benchmark_return_pct",
+            "alpha_pct",
+            "realized_pnl",
+            "unrealized_pnl",
             "equity",
-            "topWinners",
-            "topLosers",
-            "improvementNotes",
+            "top_winners",
+            "top_losers",
+            "improvement_notes",
         ):
             assert key in result, f"Missing key: {key}"
 
@@ -229,4 +229,4 @@ class TestReturnShape:
     ) -> None:
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, analysis_account)
-        assert isinstance(result["improvementNotes"], list)
+        assert isinstance(result["improvement_notes"], list)

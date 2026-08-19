@@ -18,6 +18,7 @@ from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive, validate_params_against_primitive
 from trading.models.strategy import StrategyRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -79,18 +80,21 @@ def configure_strategy(
     record = repo.fetch_by_key(strategy_key=strategy_key.strip().lower())
     if record is None:
         raise NotFoundError(f"Strategy not found: {strategy_key}")
-    if params:
-        validated = validate_params_against_primitive(record.primitive, params)
-        existing = loads_json_object(record.params_json, where="strategies.params_json")
-        merged = {**existing, **validated}
-        repo.update_draft_knobs(
-            strategy_id=record.id,
-            primitive=record.primitive,
-            params_json=dumps_json_column(merged),
-            updated_at=now,
-        )
-    if enabled is not None:
-        repo.set_enabled(strategy_id=record.id, enabled=int(bool(enabled)), updated_at=now)
+    # One transaction for the whole edit: the knob write and the enabled toggle
+    # must land together or not at all when a caller sends both.
+    with unit_of_work(conn):
+        if params:
+            validated = validate_params_against_primitive(record.primitive, params)
+            existing = loads_json_object(record.params_json, where="strategies.params_json")
+            merged = {**existing, **validated}
+            repo.update_draft_knobs(
+                strategy_id=record.id,
+                primitive=record.primitive,
+                params_json=dumps_json_column(merged),
+                updated_at=now,
+            )
+        if enabled is not None:
+            repo.set_enabled(strategy_id=record.id, enabled=int(bool(enabled)), updated_at=now)
     return _fetch(repo, record.id)
 
 

@@ -20,7 +20,6 @@ from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.books.sector_config import load_symbol_sector_map
 
 
 def compute_current_exposure_snapshot(
@@ -142,12 +141,14 @@ def persist_book_run_audit(
     account_id: int,
     snapshot_time: str,
     audit: BookRunAudit,
+    symbol_sector_map: dict[str, str],
 ) -> None:
     """Persist one book run's risk audit: normalized decisions, then the snapshot.
 
     Exposure is sourced from the clean book positions/equity — the submission
     path's source of truth — and persisted to the account-keyed risk_snapshots
-    table.
+    table. ``symbol_sector_map`` is passed in (not loaded here) so one run reads
+    the operator-editable reference data once rather than once per account.
     """
     persist_normalized_risk_decisions(
         conn,
@@ -168,6 +169,6 @@ def persist_book_run_audit(
             position_rows=PositionRepository(conn).fetch_for_account(account_id=account_id),
             book_rows=BookRepository(conn).fetch_for_account(account_id=account_id),
             peak_equity=EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id),
-            symbol_sector_map=load_symbol_sector_map(),
+            symbol_sector_map=symbol_sector_map,
         )
     )

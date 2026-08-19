@@ -10,17 +10,16 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_int, row_float
+from common.coercion import row_float
 from trading.domain.metrics.portfolio_math import alpha_pct, benchmark_available
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
-from trading.repositories.books import BookRepository
 from trading.services.accounts.mutations import get_account
 from trading.services.accounts.presentation import GOAL_NOT_SET_TEXT, render_account_policy_text, render_goal_text
 from trading.services.analysis.portfolio import build_account_return_summary, build_account_stats
-from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
 from trading.services.market_data.protocols import MarketDataProvider
+from trading.services.reporting._context import resolve_render_context
 from trading.services.reporting._formatting import evaluation_summary_line
 
 
@@ -48,8 +47,7 @@ def _print_leaps_params(book: BookRecord) -> None:
 
 
 def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> None:
-    active_strategy = active_strategy_for_account(conn, row_expect_int(account, "id"))
-    default_book = BookRepository(conn).fetch_default_for_account(account_id=row_expect_int(account, "id"))
+    active_strategy, default_book = resolve_render_context(conn, account)
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
     print(f"Account Policy: {render_account_policy_text(account, active_strategy=active_strategy, book=default_book)}")

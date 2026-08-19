@@ -26,6 +26,12 @@ RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
 OPTION_TYPES = {"call", "put", "both"}
 
+# Column defaults applied when a book is created without an explicit choice, and
+# shown as the fallback when a book row is absent. One home so the create path
+# and the display path cannot disagree.
+DEFAULT_RISK_POLICY = "none"
+DEFAULT_INSTRUMENT_MODE = "equity"
+
 
 # --- The book itself ---
 

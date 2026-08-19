@@ -14,7 +14,7 @@ import sqlite3
 from common.json_columns import dumps_json_column
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models.accounts import AccountConfig
-from trading.models.books import BookSettingsUpdate
+from trading.models.books import DEFAULT_INSTRUMENT_MODE, DEFAULT_RISK_POLICY, BookSettingsUpdate
 from trading.repositories.books import BookRepository
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.books.settings_validation import (
@@ -46,8 +46,8 @@ def bootstrap_default_book(
     ``unit_of_work``, so any failure rolls the whole account create back.
     """
     validate_goal_return_range(config.goal_min_return_pct, config.goal_max_return_pct)
-    risk = normalize_risk_policy(config.risk_policy or "none")
-    mode = normalize_instrument_mode(config.instrument_mode or "equity")
+    risk = normalize_risk_policy(config.risk_policy or DEFAULT_RISK_POLICY)
+    mode = normalize_instrument_mode(config.instrument_mode or DEFAULT_INSTRUMENT_MODE)
     trade_size_pct = config.trade_size_pct if config.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
     max_position_pct = config.max_position_pct if config.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
     validate_position_sizing(trade_size_pct, max_position_pct)

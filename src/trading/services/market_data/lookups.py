@@ -7,6 +7,7 @@ from datetime import date
 
 import pandas as pd
 
+from common.constants import PERCENT_SCALE
 from common.time import utc_today
 from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
@@ -22,7 +23,7 @@ def fetch_latest_prices(
     prices: dict[str, float] = {}
     for ticker in tickers:
         close = provider.fetch_close_series(ticker, "5d")
-        if close is not None:
+        if close is not None and not close.empty:
             prices[ticker] = float(close.iloc[-1])
     return prices
 
@@ -74,7 +75,9 @@ def benchmark_stats(
         return None, None
 
     start_price = float(close.iloc[0])
+    if start_price <= 0:
+        return None, None
     end_price = float(close.iloc[-1])
     bench_equity = initial_cash * (end_price / start_price)
-    bench_return_pct = ((bench_equity / initial_cash) - 1.0) * 100.0
+    bench_return_pct = ((bench_equity / initial_cash) - 1.0) * PERCENT_SCALE
     return bench_equity, bench_return_pct

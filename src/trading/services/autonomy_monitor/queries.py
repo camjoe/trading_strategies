@@ -36,18 +36,17 @@ def _return_pct(equity: float, basis: float) -> float:
 
 
 def _build_account_overview(
-    conn: sqlite3.Connection,
     account: AccountRecord,
-    report_books: ReportBooks,
+    account_books: list[BookRecord],
 ) -> dict[str, Any]:
     """The account's headline balances, measured against ``initial_cash``.
 
     Account totals are the Σ over *every* book, default included: the default
     book holds whatever capital was not carved out into sleeves, so summing
     only the reported (non-default) books would compare a partial equity
-    against the whole account's capital and report a fictitious return.
+    against the whole account's capital and report a fictitious return. The
+    book count is the non-default sleeves only, matching the books panel.
     """
-    account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
     total_equity = sum(b.current_equity for b in account_books)
     total_cash = sum(b.current_cash for b in account_books)
 
@@ -59,16 +58,19 @@ def _build_account_overview(
         "total_cash": round(total_cash, 2),
         "positions_market_value": round(total_equity - total_cash, 2),
         "return_pct": _return_pct(total_equity, account.initial_cash),
-        "book_count": len(report_books),
+        "book_count": sum(1 for b in account_books if not b.is_default),
     }
 
 
 def fetch_autonomy_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Fetch list of accounts with book summary."""
     result = []
+    book_repo = BookRepository(conn)
     for account in AccountRepository(conn).fetch_all():
-        report_books = list_report_books(conn, account_id=account.id)
-        result.append(_build_account_overview(conn, account, report_books))
+        # One book read per account; the overview derives totals and the sleeve
+        # count from it (no separate list_report_books fetch on this path).
+        account_books = book_repo.fetch_for_account(account_id=account.id)
+        result.append(_build_account_overview(account, account_books))
     return result
 
 
@@ -185,9 +187,10 @@ def fetch_autonomy_account_detail(
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
 
+    account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
     report_books = list_report_books(conn, account_id=account.id)
     account_data = {
-        "account": _build_account_overview(conn, account, report_books),
+        "account": _build_account_overview(account, account_books),
         "books": _fetch_account_books(conn, report_books),
         "recent_rotations": _fetch_recent_rotations(conn, report_books),
         "risk_summary": _fetch_risk_summary(conn, account.id),

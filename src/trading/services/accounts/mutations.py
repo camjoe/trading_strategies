@@ -8,7 +8,7 @@ from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
-from trading.services.accounts.queries import find_account
+from trading.services.accounts.queries import find_account, normalize_account_name
 from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.books.configuration import apply_book_config
 from trading.services.books.provisioning import bootstrap_default_book
@@ -19,6 +19,13 @@ def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     if row is None:
         raise NotFoundError(f"Account '{name}' not found.")
     return row
+
+
+def _normalize_benchmark_ticker(benchmark_ticker: str) -> str:
+    normalized = benchmark_ticker.upper().strip()
+    if not normalized:
+        raise ValidationError("benchmark_ticker cannot be empty.")
+    return normalized
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -50,6 +57,7 @@ def _create_account(
     from trading.domain.strategies.resolution import validate_strategy_name
 
     cfg = config or AccountConfig()
+    name = normalize_account_name(name)
     if initial_cash <= 0:
         raise ValidationError("initial_cash must be greater than 0.")
     validate_strategy_name(strategy)
@@ -66,7 +74,7 @@ def _create_account(
                 initial_cash=float(initial_cash),
                 created_at=created_ts,
                 updated_at=created_ts,
-                benchmark_ticker=benchmark_ticker.upper().strip(),
+                benchmark_ticker=_normalize_benchmark_ticker(benchmark_ticker),
                 descriptive_name=display,
             ),
         )
@@ -104,7 +112,7 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     account = get_account(conn, account_name)
     AccountRepository(conn).update(
         account_id=account.id,
-        values={"benchmark_ticker": benchmark_ticker.upper().strip()},
+        values={"benchmark_ticker": _normalize_benchmark_ticker(benchmark_ticker)},
         updated_at=utc_now_iso(),
     )
 

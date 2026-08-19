@@ -91,7 +91,7 @@ def _install(
 
     monkeypatch.setattr(runtime_service, "BookPreSubmitGate", _FakeGate)
 
-    def _persist(_conn, *, account_id, snapshot_time, audit):
+    def _persist(_conn, *, account_id, snapshot_time, audit, symbol_sector_map):
         recorder.calls.append("persist_audit")
         recorder.persisted.append(
             SimpleNamespace(

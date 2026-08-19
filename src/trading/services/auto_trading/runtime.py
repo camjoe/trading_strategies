@@ -81,6 +81,9 @@ def _run_books_for_account(
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
     audit = BookRunAudit()
+    # Static for the run: read the operator-editable symbol→sector data once and
+    # feed both the risk gate config and the audit snapshot, not once per call.
+    symbol_sector_map = load_symbol_sector_map()
     # Universes are book-owned and required (revision 0008): each book resolves
     # its own names; the global list is only the guard for malformed data.
     run_account_book_rotations(conn, account=account, decision_time=snapshot_time, fetch_regime=fetch_regime)
@@ -97,7 +100,13 @@ def _run_books_for_account(
         selection_seed=snapshot_time[:10],
     )
     if not intents:
-        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
+        persist_book_run_audit(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
+        )
         return _account_run_result(account, audit)
 
     # Intents are book-keyed; the intent's book_id feeds the risk audit.
@@ -133,7 +142,7 @@ def _run_books_for_account(
         prices=market.prices,
         snapshot_time=snapshot_time,
         reconcile=False,
-        config=RiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
+        config=RiskGateConfig(symbol_sector_map=symbol_sector_map),
     )
     gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
 
@@ -145,10 +154,17 @@ def _run_books_for_account(
     audit.rescaled_count = len(gate_result.rescaled_intents)
     audit.allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
 
-    # A kill switch (stale-price or reconciliation) holds the whole run.
+    # Any kill-switch reason (stale-price, reconciliation, or unpriced position)
+    # holds the whole run.
     approved_intents = [] if audit.kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
-        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
+        persist_book_run_audit(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
+        )
         return _account_run_result(account, audit)
 
     approved_by_book: dict[int, list[BookTradeIntent]] = defaultdict(list)
@@ -180,7 +196,13 @@ def _run_books_for_account(
                 audit.record_block(KILL_SWITCH_REASON_BROKER_API_ANOMALY, book_id=book_id)
                 break
 
-        persist_book_run_audit(conn, account_id=account_id, snapshot_time=snapshot_time, audit=audit)
+        persist_book_run_audit(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
+        )
         return _account_run_result(account, audit)
     finally:
         broker.disconnect()

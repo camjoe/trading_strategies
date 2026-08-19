@@ -246,11 +246,14 @@ def fetch_parameter_source_view(
     """
     groups = _global_groups(conn)
 
-    accounts = AccountRepository(conn).fetch_all()
+    account_repo = AccountRepository(conn)
     if account_name is not None:
-        accounts = [account for account in accounts if account.name == account_name]
-        if not accounts:
+        account = account_repo.fetch_by_name(account_name=account_name)
+        if account is None:
             raise NotFoundError(f"Account not found: {account_name}")
+        accounts = [account]
+    else:
+        accounts = account_repo.fetch_all()
     books = BookRepository(conn)
     for account in accounts:
         for book in books.fetch_for_account(account_id=account.id):

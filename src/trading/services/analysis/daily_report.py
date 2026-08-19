@@ -105,16 +105,21 @@ class AccountDailyReport:
 def _build_book_performance(
     conn: sqlite3.Connection,
     books: list[tuple[BookRecord, BookAssignmentView | None]],
+    *,
+    account_id: int,
     report_date: str,
 ) -> list[BookPerformanceRow]:
+    # One account-wide read, keyed by book (UNIQUE per book+date), instead of a
+    # per-book query in the loop.
+    metric_by_book = {
+        metric.book_id: metric
+        for metric in DailyMetricsRepository(conn).fetch_for_account_on_date(
+            account_id=account_id, metric_date=report_date
+        )
+    }
     rows = []
     for book, assignment in books:
-        metrics = DailyMetricsRepository(conn).fetch_for_book_window(
-            book_id=book.id,
-            start_date=report_date,
-            end_date=report_date,
-        )
-        metric = metrics[0] if metrics else None
+        metric = metric_by_book.get(book.id)
         rows.append(
             BookPerformanceRow(
                 book_id=book.id,
@@ -168,15 +173,20 @@ def _build_risk_violations(
 def _build_rotation_summary(
     conn: sqlite3.Connection,
     books: list[tuple[BookRecord, BookAssignmentView | None]],
+    *,
+    account_id: int,
     report_date: str,
 ) -> list[RotationDecisionRow]:
+    # One account-wide read grouped by book (ordered by decision_time within each),
+    # instead of a per-book query in the loop.
+    decisions_by_book: dict[int, list] = {}
+    for d in RotationDecisionRepository(conn).fetch_for_account_on_date(
+        account_id=account_id, report_date=report_date
+    ):
+        decisions_by_book.setdefault(d.book_id, []).append(d)
     rows = []
     for book, _assignment in books:
-        decisions = RotationDecisionRepository(conn).fetch_for_book_on_date(
-            book_id=book.id,
-            report_date=report_date,
-        )
-        for d in decisions:
+        for d in decisions_by_book.get(book.id, []):
             rows.append(
                 RotationDecisionRow(
                     book_id=book.id,
@@ -202,9 +212,9 @@ def build_account_daily_report(
         account_id=account_id,
         account_name=account_name,
         report_date=report_date,
-        book_performance=_build_book_performance(conn, books, report_date),
+        book_performance=_build_book_performance(conn, books, account_id=account_id, report_date=report_date),
         risk_violations=_build_risk_violations(conn, account_id, report_date),
-        rotation_decisions=_build_rotation_summary(conn, books, report_date),
+        rotation_decisions=_build_rotation_summary(conn, books, account_id=account_id, report_date=report_date),
     )
 
 
