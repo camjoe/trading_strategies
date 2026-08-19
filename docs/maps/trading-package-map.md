@@ -177,6 +177,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `promotion/presentation.py` | Promotion result formatting |
 | `promotion/eligibility.py` | Read-only live-approval check (`is_strategy_approved_for_live`) for other services, e.g. rotation's promotion gate |
 | `reporting/_formatting.py` | Shared pure formatting helpers for reporting output (evaluation summary line, position summary) |
+| `reporting/_context.py` | Shared read helper for printed report renderers (resolves account context) |
 | `reporting/account.py` | Printed single-account report (state, evaluation evidence, benchmark) |
 | `reporting/comparison.py` | Printed cross-account policy/holdings comparison |
 | `reporting/snapshots.py` | Equity snapshot capture command + printed snapshot history (sole write in the package) |
