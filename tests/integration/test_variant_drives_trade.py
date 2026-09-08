@@ -19,15 +19,11 @@ from __future__ import annotations
 
 import sqlite3
 
-import pandas as pd
 import pytest
 
-import trading.services.auto_trading.runtime as runtime_service
-from tests.support.backtesting import bars_from_closes
+from tests.integration.conftest import FillEverythingBroker, rising_market
 from tests.support.books import assign_test_book_strategy, build_book_env
-from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
-from trading.models.market_data import MarketInputs
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.repositories.orders import OrderRepository
 from trading.services.auto_trading.inputs import run_accounts
 from trading.services.books.book_assignments import open_assignment_for_book
@@ -35,39 +31,14 @@ from trading.services.strategy_catalog.mutations import create_strategy_variant
 
 VARIANT_KEY = "tuned_trend_pilot"
 TICKER = "AAA"
-RUN_TIME_ISO = "2026-05-04T14:00:00Z"
 
 
-class _FillEverythingBroker:
-    def __init__(self) -> None:
-        self.disconnect_calls = 0
-
-    def place_order(self, order: object) -> BrokerOrder:
-        placed = BrokerOrder.from_request(order)
-        placed.broker_order_id = "fake-broker-order"
-        placed.status = OrderStatus.FILLED
-        placed.filled_qty = order.qty  # type: ignore[attr-defined]
-        placed.avg_fill_price = order.price  # type: ignore[attr-defined]
-        return placed
-
-    def get_open_trades(self) -> list[object]:
-        return []
-
-    def disconnect(self) -> None:
-        self.disconnect_calls += 1
-
-
-def _rising_market() -> MarketInputs:
-    index = pd.date_range("2025-01-01", periods=70, freq="B")
-    closes = pd.DataFrame({TICKER: [50.0 + step * 0.75 for step in range(len(index))]}, index=index)
-    return MarketInputs(
-        universe=[TICKER],
-        prices={TICKER: float(closes[TICKER].iloc[-1])},
-        histories=bars_from_closes(closes),
-    )
-
-
-def test_tuned_variant_resolves_and_drives_a_trade(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.usefixtures("open_market_runtime")
+def test_tuned_variant_resolves_and_drives_a_trade(
+    conn: sqlite3.Connection,
+    fill_broker: FillEverythingBroker,
+    policy_fetchers: FeatureFetcherSet,
+) -> None:
     # A variant of the "trend" primitive with knobs tuned away from its defaults
     # (fast/slow default to 10/20). Resolution and knob-layering are unit-tested
     # in test_resolution.py; here the variant has to reach execution.
@@ -86,20 +57,14 @@ def test_tuned_variant_resolves_and_drives_a_trade(conn: sqlite3.Connection, mon
     )
     conn.commit()
 
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: RUN_TIME_ISO)
-    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda *_a, **_k: True)
-    monkeypatch.setattr(runtime_service, "reconcile_book_equity", lambda *_a, **_k: [])
-
     results = run_accounts(
         conn,
         account_names=[env.account_name],
-        market=_rising_market(),
+        market=rising_market(tickers=(TICKER,)),
         max_trades=1,
         fee=0.0,
-        broker_factory=lambda _account, b=_FillEverythingBroker(): b,
-        feature_fetchers=FeatureFetcherSet(
-            fetch_policy=lambda _ticker: ExternalFeatureBundle(features={}, available=True)
-        ),
+        broker_factory=lambda _account: fill_broker,
+        feature_fetchers=policy_fetchers,
     )
 
     assert results[0].submitted_count == 1

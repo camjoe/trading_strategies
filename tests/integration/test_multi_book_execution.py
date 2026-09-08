@@ -4,8 +4,8 @@ Covers the core capability "multi-book accounts" from ``docs/overview.md``:
 one broker account hosts several independent books, each trading its own
 universe. The test runs two active books through the real selection, risk gate,
 submission, and persistence path, and checks each book's order is routed to and
-persisted on its own book. Only the market-hours window, the reconciliation
-pre-flight, and the broker are controlled; the ``trend`` signal is real.
+persisted on its own book. The controlled collaborators (window, reconciliation,
+broker) live in ``conftest.py``; the ``trend`` signal is real.
 
 The account-wide trade budget cap and the book claim order are unit-tested in
 ``tests/src/trading/services/execution/selection/test_book_intents.py`` (the
@@ -18,48 +18,15 @@ from __future__ import annotations
 
 import sqlite3
 
-import pandas as pd
 import pytest
 
-import trading.services.auto_trading.runtime as runtime_service
-from tests.support.backtesting import bars_from_closes
+from tests.integration.conftest import FillEverythingBroker, rising_market
 from tests.support.books import assign_test_book_strategy, build_book_env, insert_test_book
-from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
-from trading.models.market_data import MarketInputs
-from trading.models.orders import BrokerOrder, OrderStatus
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.repositories.orders import OrderRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.auto_trading.inputs import run_accounts
 from trading.services.strategy_catalog.seeding import seed_strategy_catalog
-
-RUN_TIME_ISO = "2026-05-04T14:00:00Z"
-
-
-class _FillEverythingBroker:
-    def __init__(self) -> None:
-        self.disconnect_calls = 0
-        self._order_seq = 0
-
-    def place_order(self, order: object) -> BrokerOrder:
-        placed = BrokerOrder.from_request(order)
-        self._order_seq += 1
-        placed.broker_order_id = f"fake-broker-order-{self._order_seq}"
-        placed.status = OrderStatus.FILLED
-        placed.filled_qty = order.qty  # type: ignore[attr-defined]
-        placed.avg_fill_price = order.price  # type: ignore[attr-defined]
-        return placed
-
-    def get_open_trades(self) -> list[object]:
-        return []
-
-    def disconnect(self) -> None:
-        self.disconnect_calls += 1
-
-
-def _rising_bars(symbol: str, *, base: float) -> pd.DataFrame:
-    index = pd.date_range("2025-01-01", periods=70, freq="B")
-    closes = pd.DataFrame({symbol: [base + step * 0.75 for step in range(len(index))]}, index=index)
-    return bars_from_closes(closes)[symbol]
 
 
 def _size_book(conn: sqlite3.Connection, book_id: int, symbols: str) -> None:
@@ -69,7 +36,12 @@ def _size_book(conn: sqlite3.Connection, book_id: int, symbols: str) -> None:
     )
 
 
-def test_two_books_each_execute_their_own_symbol(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.usefixtures("open_market_runtime")
+def test_two_books_each_execute_their_own_symbol(
+    conn: sqlite3.Connection,
+    fill_broker: FillEverythingBroker,
+    policy_fetchers: FeatureFetcherSet,
+) -> None:
     seed_strategy_catalog(conn)
     env = build_book_env(conn, start_equity=100_000.0)
     book_a = env.book_id
@@ -89,27 +61,14 @@ def test_two_books_each_execute_their_own_symbol(conn: sqlite3.Connection, monke
     _size_book(conn, book_b, '["BBB"]')
     conn.commit()
 
-    market = MarketInputs(
-        universe=["AAA", "BBB"],
-        prices={"AAA": 100.0, "BBB": 100.0},
-        histories={"AAA": _rising_bars("AAA", base=50.0), "BBB": _rising_bars("BBB", base=60.0)},
-    )
-
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: RUN_TIME_ISO)
-    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda *_a, **_k: True)
-    monkeypatch.setattr(runtime_service, "reconcile_book_equity", lambda *_a, **_k: [])
-    broker = _FillEverythingBroker()
-
     results = run_accounts(
         conn,
         account_names=[env.account_name],
-        market=market,
+        market=rising_market(tickers=("AAA", "BBB")),
         max_trades=2,
         fee=0.0,
-        broker_factory=lambda _account, b=broker: b,
-        feature_fetchers=FeatureFetcherSet(
-            fetch_policy=lambda _ticker: ExternalFeatureBundle(features={}, available=True)
-        ),
+        broker_factory=lambda _account: fill_broker,
+        feature_fetchers=policy_fetchers,
     )
 
     assert results[0].submitted_count == 2
