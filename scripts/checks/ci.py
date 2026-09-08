@@ -15,12 +15,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run local smoke checks that mirror core GitHub Actions workflows.",
     )
-    parser.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for advisory consistency check.",
-    )
     parser.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
     return parser.parse_args()
 
@@ -38,7 +32,6 @@ def run_ci(
     repo_root: Path,
     python_exe: str,
     skip_frontend: bool = False,
-    readme_max_age_days: int = 90,
 ) -> int:
     try:
         check_exit = run_check_steps(
@@ -49,7 +42,6 @@ def run_ci(
                         repo_root=repo_root,
                         enforce=True,
                         quiet=True,
-                        readme_max_age_days=readme_max_age_days,
                     ),
                 ),
                 CheckStep("Repository checks", lambda: run_repo_check(repo_root=repo_root)),
@@ -78,7 +70,6 @@ def main() -> int:
         repo_root=repo_root,
         python_exe=python_exe,
         skip_frontend=args.skip_frontend,
-        readme_max_age_days=args.readme_max_age_days,
     )
 
 

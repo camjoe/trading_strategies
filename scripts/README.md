@@ -22,7 +22,7 @@ Run these from the repository root:
 ```sh
 python -m scripts.run_checks quick
 python -m scripts.fix_checks
-python -m scripts.checks.docs.readme_check --max-age-days 90
+python -m scripts.checks.docs.readme_check
 python -m scripts.documentation_ui.check
 ```
 
@@ -177,6 +177,6 @@ python -m scripts.checks.quick
 python -m scripts.checks.ci
 
 # Focused docs checker
-python -m scripts.checks.docs.readme_check --max-age-days 90
-python -m scripts.checks.docs.readme_check --enforce-style --enforce-staleness
+python -m scripts.checks.docs.readme_check
+python -m scripts.checks.docs.readme_check --enforce-style
 ```
