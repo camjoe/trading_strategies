@@ -170,11 +170,7 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 | `code-review/` | Code review at multiple thoroughness levels, including architecture, quality, style, cleanup, and UI/API contract review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
 | `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |
-| `expand-tests/` | Test expansion workflow |
 | `finance-strategy/` | Finance and strategy domain knowledge |
-| `help/` | Interactive skill discovery |
-| `manage-skill/` | Skill authoring and update workflow |
-| `reference-doc/` | Reference-doc creation workflow |
 | `update-documentation/` | Documentation update workflow (staleness detection lives in CI) |
 | `validate-code/` | Deterministic validation (repo checks + Python lint/type/test checks) |
 
