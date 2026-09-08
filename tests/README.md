@@ -147,7 +147,8 @@ capability.
 
 | Capability | Test | Status |
 |---|---|---|
-| Backtesting + walk-forward optimization | `tests/e2e/test_backtest_cli.py` | done |
+| Backtesting | `tests/e2e/test_backtest_cli.py` | done |
+| Walk-forward optimization + winner promotion | `tests/e2e/test_backtest_optimize_cli.py` | done |
 | Data-defined strategy variants | `tests/e2e/test_strategy_variant_cli.py` | done |
 | Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` | done |
 | Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` | done |
