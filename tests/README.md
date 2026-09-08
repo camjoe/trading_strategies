@@ -149,7 +149,8 @@ capability.
 |---|---|---|
 | Backtesting | `tests/e2e/test_backtest_cli.py` | done |
 | Walk-forward optimization + winner promotion | `tests/e2e/test_backtest_optimize_cli.py` | done |
-| Data-defined strategy variants | `tests/e2e/test_strategy_variant_cli.py` | done |
+| Data-defined strategy variants (CLI write side) | `tests/e2e/test_strategy_variant_cli.py` | done |
+| Data-defined strategy variants (runtime consumption) | `tests/integration/test_variant_drives_trade.py` | done |
 | Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` | done |
 | Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` | done |
 | Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` | done |
