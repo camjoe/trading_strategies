@@ -139,27 +139,61 @@ market-data provider (`TRADING_MARKET_DATA_PROVIDER=demo`), so a CLI run makes
 no network call and repeats. An integration test that runs the trading runtime
 forces the market-hours window open, so it does not depend on when it runs.
 
-### Capability coverage
+### Coverage — anchored on the entrypoint inventory
 
-Each row is a core capability from [`docs/overview.md`](../docs/overview.md)
-("What it can do today"). The goal is at least one integration or e2e test per
-capability.
+Scope authority is the **entrypoint inventory** (CLI commands, runtime jobs, API
+routes), not the [`docs/overview.md`](../docs/overview.md) narrative. The
+overview is an accurate product description, but it compresses the operational
+surface — 14 runtime jobs into one bullet, 11 API routes into "an optional web
+UI" — so it is the wrong authority for deciding what deserves an integration or
+e2e test. Re-derive this inventory from the code when it ages (last derived
+2026-09-07); the `overview.md` "Built but not wired up" list carries the same
+warning.
 
-| Capability | Test | Status |
-|---|---|---|
-| Backtesting | `tests/e2e/test_backtest_cli.py` | done |
-| Walk-forward optimization + winner promotion | `tests/e2e/test_backtest_optimize_cli.py` | done |
-| Data-defined strategy variants (CLI write side) | `tests/e2e/test_strategy_variant_cli.py` | done |
-| Data-defined strategy variants (runtime consumption) | `tests/integration/test_variant_drives_trade.py` | done |
-| Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` | done |
-| Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` | done |
-| Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` | done |
-| Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` | done |
-| Broker abstraction + `live_trading_enabled` guard | `tests/integration/test_broker_factory_guard.py` | done |
-| Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` | done |
-| Runtime scheduler jobs | `tests/e2e/test_daily_paper_trading_job.py` | done |
-| Operational settings + parameter source | `tests/integration/test_operational_settings_parameters.py` | done |
-| Cross-account portfolio risk rollup | `tests/integration/test_portfolio_risk_rollup.py` | done |
+The rule these tests follow: integration/e2e covers the **seams unit tests
+cannot reach** — CLI parsing, the composition root, the provider factory, cross
+-command state, cross-service workflows, and process wiring. Unit tests keep
+owning the behavioral matrix and failure branches, so those are not duplicated
+here.
+
+**Analytical and trading capabilities**
+
+| Capability | Test |
+|---|---|
+| Backtesting | `tests/e2e/test_backtest_cli.py` |
+| Walk-forward optimization + winner promotion | `tests/e2e/test_backtest_optimize_cli.py` |
+| Data-defined strategy variants (CLI write side) | `tests/e2e/test_strategy_variant_cli.py` |
+| Data-defined strategy variants (runtime consumption) | `tests/integration/test_variant_drives_trade.py` |
+| Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` |
+| Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` |
+| Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` |
+| Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` |
+| Broker abstraction + `live_trading_enabled` guard | `tests/integration/test_broker_factory_guard.py` |
+| Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` |
+| Operational settings + parameter source | `tests/integration/test_operational_settings_parameters.py` |
+| Cross-account portfolio risk rollup | `tests/integration/test_portfolio_risk_rollup.py` |
+
+**Runtime jobs (14 entrypoints)**
+
+Each job already has a `*_main.py` unit test under
+`tests/src/trading/interfaces/runtime/jobs/` (mostly with mocked dependencies).
+The e2e tests below prove the real-DB path for one job per family; the rest rely
+on their mocked-main unit tests.
+
+| Job family | Real-DB e2e |
+|---|---|
+| Daily (`run_auto_trades`) | `tests/e2e/test_daily_paper_trading_job.py` |
+| Governance weekly (`w1_leaderboard`) | `tests/e2e/test_weekly_governance_job.py` |
+| Daily `reconcile_orders` / `challenger_shadow_eval` / `trader_health` | mocked-main unit tests only |
+| Governance `w2` / `w3` / monthly `m1` / `m2` / `m3` | mocked-main unit tests only |
+| Maintenance `burn_in_status` / `replay_daily_runs` / `weekly_db_backup` | mocked-main unit tests only |
+
+**API routes (11 modules)**
+
+Every route module has an `api_client` test under
+`tests/apps/paper_trading_web/backend/routes/` that runs the real FastAPI app
+against a real migrated database — that is integration-level HTTP coverage
+already, so these are not re-tested here.
 
 ## Fixture Hierarchy
 
