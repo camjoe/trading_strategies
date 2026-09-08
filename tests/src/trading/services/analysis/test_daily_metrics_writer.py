@@ -4,10 +4,11 @@ import pytest
 
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
+from trading.models.orders import OrderInsert
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 
 METRIC_DATE = "2026-07-24"
@@ -36,18 +37,20 @@ def _filled_order(
 ) -> None:
     repo = OrderRepository(conn)
     order_id = repo.insert(
-        book_id=book_id,
-        account_id=account_id,
-        symbol="AAPL",
-        side=side,
-        qty=qty,
-        requested_price=requested,
-        status="filled",
-        filled_qty=qty,
-        avg_fill_price=fill,
-        commission=1.0,
-        submitted_at=f"{METRIC_DATE}T15:00:00Z",
-        updated_at=f"{METRIC_DATE}T15:00:00Z",
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol="AAPL",
+            side=side,
+            qty=qty,
+            requested_price=requested,
+            status="filled",
+            filled_qty=qty,
+            avg_fill_price=fill,
+            commission=1.0,
+            submitted_at=f"{METRIC_DATE}T15:00:00Z",
+            updated_at=f"{METRIC_DATE}T15:00:00Z",
+        )
     )
     if realized is not None:
         repo.add_realized_pnl_delta(order_id=order_id, realized_pnl_delta=realized)

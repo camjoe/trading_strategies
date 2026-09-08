@@ -4,6 +4,7 @@ import pytest
 
 from tests.support.books import assign_test_book_strategy
 from tests.support.repositories import insert_repository_account
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
@@ -20,7 +21,6 @@ REPORT_DATE = "2026-05-07"
 def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assign_test_book_strategy(conn, book_id=report_env.book_id, strategy_name="Momentum")
     DailyMetricsRepository(conn).upsert(
-        account_id=report_env.account_id,
         book_id=report_env.book_id,
         metric_date=REPORT_DATE,
         return_pct=1.5,
@@ -103,19 +103,21 @@ def test_build_report_risk_violations_counts(conn, report_env) -> None:
         ("allow", "ok"),
     ]:
         RiskDecisionRepository(conn).insert(
-            account_id=report_env.account_id,
-            book_id=None,
-            decision_time=f"{REPORT_DATE}T10:00:00Z",
-            symbol="AAPL",
-            side="buy",
-            action=action,
-            reason_code=reason,
-            requested_qty=100,
-            approved_qty=80,
-            requested_notional=5000.0,
-            approved_notional=4000.0,
-            risk_payload_json="{}",
-            created_at=f"{REPORT_DATE}T10:00:00Z",
+            RiskDecisionInsert(
+                account_id=report_env.account_id,
+                book_id=None,
+                decision_time=f"{REPORT_DATE}T10:00:00Z",
+                symbol="AAPL",
+                side="buy",
+                action=action,
+                reason_code=reason,
+                requested_qty=100,
+                approved_qty=80,
+                requested_notional=5000.0,
+                approved_notional=4000.0,
+                risk_payload_json="{}",
+                created_at=f"{REPORT_DATE}T10:00:00Z",
+            )
         )
 
     report = build_account_daily_report(
@@ -133,19 +135,21 @@ def test_build_report_risk_violations_counts(conn, report_env) -> None:
 
 def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> None:
     RiskDecisionRepository(conn).insert(
-        account_id=report_env.account_id,
-        book_id=None,
-        decision_time="2026-05-06T10:00:00Z",  # different date
-        symbol="AAPL",
-        side="buy",
-        action="block",
-        reason_code="book_notional_cap",
-        requested_qty=100,
-        approved_qty=0,
-        requested_notional=5000.0,
-        approved_notional=0.0,
-        risk_payload_json="{}",
-        created_at="2026-05-06T10:00:00Z",
+        RiskDecisionInsert(
+            account_id=report_env.account_id,
+            book_id=None,
+            decision_time="2026-05-06T10:00:00Z",  # different date
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="book_notional_cap",
+            requested_qty=100,
+            approved_qty=0,
+            requested_notional=5000.0,
+            approved_notional=0.0,
+            risk_payload_json="{}",
+            created_at="2026-05-06T10:00:00Z",
+        )
     )
 
     report = build_account_daily_report(
@@ -158,17 +162,19 @@ def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> 
 def test_build_report_kill_switch_from_snapshot(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_ks")
     RiskSnapshotRepository(conn).insert(
-        account_id=account_id,
-        snapshot_time=f"{REPORT_DATE}T15:00:00Z",
-        gross_exposure=50000.0,
-        net_exposure=45000.0,
-        max_symbol_concentration_pct=10.0,
-        max_sector_concentration_pct=20.0,
-        drawdown_pct=-2.0,
-        leverage_proxy=1.0,
-        daily_loss_pct=-0.5,
-        kill_switch_triggered=1,
-        risk_payload_json="{}",
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time=f"{REPORT_DATE}T15:00:00Z",
+            gross_exposure=50000.0,
+            net_exposure=45000.0,
+            max_symbol_concentration_pct=10.0,
+            max_sector_concentration_pct=20.0,
+            drawdown_pct=-2.0,
+            leverage_proxy=1.0,
+            daily_loss_pct=-0.5,
+            kill_switch_triggered=1,
+            risk_payload_json="{}",
+        )
     )
 
     report = build_account_daily_report(conn, account_id=account_id, account_name="acct_ks", report_date=REPORT_DATE)
@@ -181,14 +187,16 @@ def test_build_report_kill_switch_ignores_snapshots_after_report_date(conn) -> N
     # historical report — the snapshot read is scoped to report_date.
     account_id = insert_repository_account(conn, name="acct_ks_future")
     RiskSnapshotRepository(conn).insert(
-        account_id=account_id,
-        snapshot_time="2026-05-20T15:00:00Z",
-        gross_exposure=50000.0,
-        net_exposure=45000.0,
-        max_symbol_concentration_pct=10.0,
-        max_sector_concentration_pct=20.0,
-        kill_switch_triggered=1,
-        risk_payload_json="{}",
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time="2026-05-20T15:00:00Z",
+            gross_exposure=50000.0,
+            net_exposure=45000.0,
+            max_symbol_concentration_pct=10.0,
+            max_sector_concentration_pct=20.0,
+            kill_switch_triggered=1,
+            risk_payload_json="{}",
+        )
     )
 
     report = build_account_daily_report(

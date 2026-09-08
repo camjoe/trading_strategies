@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
+
+from trading.domain.feature_provider import ExternalFeatureProvider
 
 _LOG = logging.getLogger(__name__)
 
@@ -173,7 +176,10 @@ def load_providers() -> list[tuple[Any, str, str, str, str]]:
     from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
     from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 
-    provider_classes = {
+    # Typed as constructors rather than `type[...]`: the values are concrete
+    # subclasses, but a dict of them widens to the abstract base, which cannot
+    # be instantiated.
+    provider_classes: dict[str, Callable[[], ExternalFeatureProvider]] = {
         "PolicyFeatureProvider": PolicyFeatureProvider,
         "NewsFeatureProvider": NewsFeatureProvider,
         "SocialFeatureProvider": SocialFeatureProvider,

@@ -14,15 +14,15 @@ canonical id.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
+from common.json_columns import loads_json_object
 from trading.domain.strategies.contracts import PrimitiveSpec
 from trading.domain.strategies.parameter_validation import resolve_primitive
 from trading.domain.strategies.resolution import resolve_strategy
-from trading.models.strategy.strategy_record import StrategyRecord
+from trading.models.strategy import StrategyRecord
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -57,7 +57,8 @@ def resolve_catalog_strategy(conn: sqlite3.Connection, strategy_key: str) -> Res
     if record is None:
         raise UnknownCatalogStrategyError(f"No strategy catalog row for '{strategy_key}'.")
     primitive_spec = _resolve_primitive_spec(record)
-    params = {**dict(primitive_spec.knob_schema), **_parse_params_json(record.params_json)}
+    overrides = loads_json_object(record.params_json, where="strategies.params_json")
+    params = {**dict(primitive_spec.knob_schema), **overrides}
     return ResolvedStrategy(strategy_key=record.strategy_key, primitive_spec=primitive_spec, params=params)
 
 
@@ -86,10 +87,22 @@ def _resolve_primitive_spec(record: StrategyRecord) -> PrimitiveSpec:
         ) from exc
 
 
-def _parse_params_json(params_json: str) -> dict[str, Any]:
-    if not params_json or not params_json.strip():
-        return {}
-    data = json.loads(params_json)
-    if not isinstance(data, dict):
-        raise ValueError(f"strategies.params_json must be a JSON object, got {type(data).__name__}.")
-    return dict(data)
+def resolve_or_draft_strategy_record(
+    conn: sqlite3.Connection,
+    label: str | None,
+    *,
+    now_iso: str,
+) -> StrategyRecord | None:
+    """Resolve a strategy label to its catalog row, drafting one if it has none.
+
+    The optimizer targets a strategy by name before that name necessarily has a
+    catalog row — searching a primitive's parameter space is how a row earns its
+    knobs. So an unknown label is created as a draft rather than rejected, which
+    is what separates this from :func:`resolve_catalog_strategy`.
+
+    Returns ``None`` only when ``label`` is empty.
+    """
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=label, now_iso=now_iso)
+    if strategy_id is None:
+        return None
+    return StrategyRepository(conn).fetch_by_id(strategy_id=strategy_id)

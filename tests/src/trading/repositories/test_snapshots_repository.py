@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.books import ensure_default_book_id, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -11,8 +12,8 @@ def _account_id(conn, name: str = "snap_acct") -> int:
 
 
 def _insert(conn, account_id: int, *, snapshot_time: str, equity: float) -> None:
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=snapshot_time,
         cash=equity,
         market_value=0.0,
@@ -26,8 +27,8 @@ class TestInsert:
     def test_inserted_row_is_fetchable(self, conn) -> None:
         acct_id = _account_id(conn)
         repo = EquitySnapshotRepository(conn)
-        repo.insert(
-            account_id=acct_id,
+        repo.insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-01-01T10:00:00",
             cash=4500.0,
             market_value=500.0,
@@ -57,33 +58,6 @@ class TestFetchMaxEquity:
         assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=acct_id) is None
 
 
-class TestFetchRecentEquity:
-    def test_returns_newest_first(self, conn) -> None:
-        acct_id = _account_id(conn)
-        _insert(conn, acct_id, snapshot_time="2026-01-01T00:00:00", equity=1000.0)
-        _insert(conn, acct_id, snapshot_time="2026-01-03T00:00:00", equity=1200.0)
-        _insert(conn, acct_id, snapshot_time="2026-01-02T00:00:00", equity=1100.0)
-        equities = EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=3)
-        assert equities == pytest.approx([1200.0, 1100.0, 1000.0])
-
-    def test_limit_respected(self, conn) -> None:
-        acct_id = _account_id(conn)
-        for i in range(5):
-            _insert(conn, acct_id, snapshot_time=f"2026-01-0{i + 1}T00:00:00", equity=float(i * 100))
-        equities = EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=2)
-        assert len(equities) == 2
-
-    def test_empty_when_no_snapshots(self, conn) -> None:
-        acct_id = _account_id(conn)
-        assert EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_id, limit=10) == []
-
-    def test_isolated_per_account(self, conn) -> None:
-        acct_a = _account_id(conn, "snap_a")
-        acct_b = _account_id(conn, "snap_b")
-        _insert(conn, acct_a, snapshot_time="2026-01-01T00:00:00", equity=999.0)
-        assert EquitySnapshotRepository(conn).fetch_recent_equity(account_id=acct_b, limit=10) == []
-
-
 class TestFetchHistory:
     def test_returns_newest_first(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -94,8 +68,8 @@ class TestFetchHistory:
 
     def test_all_columns_present(self, conn) -> None:
         acct_id = _account_id(conn)
-        EquitySnapshotRepository(conn).insert(
-            account_id=acct_id,
+        EquitySnapshotRepository(conn).insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-03-01T00:00:00",
             cash=3000.0,
             market_value=700.0,
@@ -107,6 +81,21 @@ class TestFetchHistory:
         assert row.snapshot_time == "2026-03-01T00:00:00"
         assert row.market_value == pytest.approx(700.0)
         assert row.unrealized_pnl == pytest.approx(50.0)
+
+    def test_limit_respected(self, conn) -> None:
+        acct_id = _account_id(conn)
+        for index in range(5):
+            _insert(conn, acct_id, snapshot_time=f"2026-01-0{index + 1}T00:00:00", equity=float(index * 100))
+        assert len(EquitySnapshotRepository(conn).fetch_history(account_id=acct_id, limit=2)) == 2
+
+    def test_empty_when_no_snapshots(self, conn) -> None:
+        assert EquitySnapshotRepository(conn).fetch_history(account_id=_account_id(conn), limit=10) == []
+
+    def test_isolated_per_account(self, conn) -> None:
+        acct_a = _account_id(conn, "snap_a")
+        acct_b = _account_id(conn, "snap_b")
+        _insert(conn, acct_a, snapshot_time="2026-01-01T00:00:00", equity=999.0)
+        assert EquitySnapshotRepository(conn).fetch_history(account_id=acct_b, limit=10) == []
 
 
 class TestFetchLatest:
@@ -134,8 +123,8 @@ class TestFetchLatest:
         acct_id = _account_id(conn, "details_acct")
         assert EquitySnapshotRepository(conn).fetch_latest(account_id=acct_id) is None
 
-        EquitySnapshotRepository(conn).insert(
-            account_id=acct_id,
+        EquitySnapshotRepository(conn).insert_for_book(
+            book_id=ensure_default_book_id(conn, acct_id),
             snapshot_time="2026-02-01T12:00:00",
             cash=1250.0,
             market_value=750.0,
@@ -200,3 +189,119 @@ class TestWindowReads:
 
         assert repo.fetch_first_at_or_after(account_id=acct_id, iso="2026-03-01T00:00:00Z") is None
         assert repo.fetch_last_at_or_before(account_id=acct_id, iso="2026-01-01T00:00:00Z") is None
+
+
+class TestBookDateBoundReads:
+    """The per-book date-bounded reads, over deliberately mixed timestamp spellings.
+
+    Rows written before the canonical form was enforced can carry a bare or
+    ``+00:00`` suffix, and the bound is compared as a string, so the date reads
+    have to hold for every spelling of the same instant.
+    """
+
+    def _book_id(self, conn, account_id: int) -> int:
+        from tests.support.books import ensure_default_book_id
+
+        return ensure_default_book_id(conn, account_id)
+
+    def _seed_mixed_spellings(self, conn, account_id: int) -> int:
+        book_id = self._book_id(conn, account_id)
+        repo = EquitySnapshotRepository(conn)
+        for snapshot_time, equity in (
+            ("2026-02-03T16:00:00Z", 1000.0),
+            ("2026-02-04T16:00:00+00:00", 1050.0),
+            ("2026-02-05T16:00:00", 1100.0),
+        ):
+            repo.insert_for_book(
+                book_id=book_id,
+                snapshot_time=snapshot_time,
+                cash=equity,
+                market_value=0.0,
+                equity=equity,
+                realized_pnl=0.0,
+                unrealized_pnl=0.0,
+            )
+        return book_id
+
+    def test_on_or_before_includes_the_whole_named_day(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_incl")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+        repo = EquitySnapshotRepository(conn)
+
+        # The 2026-02-05 row is naive-suffixed; the bound must still include it.
+        assert repo.fetch_last_for_book_on_or_before_date(
+            book_id=book_id, date_str="2026-02-05"
+        ).equity == pytest.approx(1100.0)
+        # The 2026-02-04 row carries +00:00.
+        assert repo.fetch_last_for_book_on_or_before_date(
+            book_id=book_id, date_str="2026-02-04"
+        ).equity == pytest.approx(1050.0)
+
+    def test_before_date_excludes_the_whole_named_day(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_excl")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+        repo = EquitySnapshotRepository(conn)
+
+        assert repo.fetch_last_for_book_before_date(book_id=book_id, date_str="2026-02-05").equity == pytest.approx(
+            1050.0
+        )
+        assert repo.fetch_last_for_book_before_date(book_id=book_id, date_str="2026-02-03") is None
+
+    def test_returns_none_before_any_snapshot(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_bound_none")
+        book_id = self._seed_mixed_spellings(conn, acct_id)
+
+        assert (
+            EquitySnapshotRepository(conn).fetch_last_for_book_on_or_before_date(
+                book_id=book_id, date_str="2026-02-02"
+            )
+            is None
+        )
+
+
+class TestAccountRollUpAcrossBooks:
+    """The account view SUMs across an account's books — the reason it exists."""
+
+    def _two_books_at_one_time(self, conn) -> int:
+        account_id = _account_id(conn, "rollup_acct")
+        repo = EquitySnapshotRepository(conn)
+        for book_id, equity in (
+            (ensure_default_book_id(conn, account_id), 1000.0),
+            (insert_test_book(conn, account_id=account_id, name="sleeve"), 250.0),
+        ):
+            repo.insert_for_book(
+                book_id=book_id,
+                snapshot_time="2026-02-01T00:00:00",
+                cash=equity,
+                market_value=equity * 2,
+                equity=equity,
+                realized_pnl=1.0,
+                unrealized_pnl=2.0,
+            )
+        return account_id
+
+    def test_balances_sum_across_books(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        rolled = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
+        assert rolled is not None
+        assert rolled.equity == pytest.approx(1250.0)
+        assert rolled.cash == pytest.approx(1250.0)
+        assert rolled.market_value == pytest.approx(2500.0)
+        assert rolled.realized_pnl == pytest.approx(2.0)
+        assert rolled.unrealized_pnl == pytest.approx(4.0)
+
+    def test_multi_book_aggregate_is_not_addressable(self, conn) -> None:
+        """id and book_id are NULL together so an aggregate is never mistaken for a stored row."""
+        account_id = self._two_books_at_one_time(conn)
+        rolled = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
+        assert rolled is not None
+        assert rolled.id is None
+        assert rolled.book_id is None
+
+    def test_one_snapshot_time_across_two_books_counts_once(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        assert EquitySnapshotRepository(conn).fetch_count(account_id=account_id) == 1
+
+    def test_max_equity_uses_the_rolled_up_total(self, conn) -> None:
+        account_id = self._two_books_at_one_time(conn)
+        assert EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id) == pytest.approx(1250.0)

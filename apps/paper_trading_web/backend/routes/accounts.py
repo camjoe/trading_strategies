@@ -6,15 +6,15 @@ from fastapi import APIRouter, HTTPException
 
 from infrastructure.market_data.factory import build_provider
 from trading.domain.exceptions import ValidationError
-from trading.services.accounts import list_account_snapshots
+from trading.services.accounts.queries import list_account_snapshots
 from trading.services.books.configuration import (
     BookConfigurationView,
     configure_book,
     fetch_account_book_configurations,
 )
 from trading.services.books.operations import fetch_book_operational_data
-from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.execution.ledger import list_account_trades
+from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
+from trading.services.execution.ledger.queries import list_account_trades
 
 from ..account_contract import build_account_params_update_command
 from ..account_options import get_account_config_options
@@ -26,6 +26,7 @@ from ..services.accounts.backtests import (
 from ..services.accounts.benchmark import (
     attach_live_benchmark_summary,
     build_live_benchmark_overlay,
+    build_live_benchmark_overlay_payload,
 )
 from ..services.accounts.data_access import (
     build_snapshot_payload,
@@ -71,7 +72,9 @@ def _book_payload(view: BookConfigurationView) -> dict[str, object]:
         "startEquity": book.start_equity,
         "currentCash": book.current_cash,
         "currentEquity": book.current_equity,
-        "tradeUniverses": json.loads(book.trade_universes),
+        # The book's resolved tickers. Writes still take universe *names*
+        # (`tradeUniverses` on the PATCH body); the server expands them.
+        "tradeSymbols": json.loads(book.trade_symbols),
         "goalMinReturnPct": book.goal_min_return_pct,
         "goalMaxReturnPct": book.goal_max_return_pct,
         "goalPeriod": book.goal_period,
@@ -177,7 +180,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             "positions": positions,
             "latestBacktest": latest_backtest,
             "latestBacktestMetrics": latest_backtest_metrics,
-            "liveBenchmarkOverlay": overlay,
+            "liveBenchmarkOverlay": build_live_benchmark_overlay_payload(overlay),
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade, book_names=book_names) for trade in trades[-100:]],
             "bookPositions": [
@@ -288,7 +291,6 @@ def api_update_book_params(
                 book_name=book_name,
                 strategy=command.strategy,
                 config=command.config,
-                config_values=command.config_values,
                 rotation_scheduling={
                     scheduling_names[name]: value for name, value in command.rotation_settings.items()
                 },

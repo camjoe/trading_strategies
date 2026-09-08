@@ -8,7 +8,7 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 
-def _normalize_account_name(name: str) -> str:
+def normalize_account_name(name: str) -> str:
     normalized = name.strip()
     if not normalized:
         raise ValidationError("account_name cannot be empty.")
@@ -21,7 +21,7 @@ def _require_positive_account_id(account_id: int) -> None:
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return AccountRepository(conn).fetch_by_name(_normalize_account_name(name))
+    return AccountRepository(conn).fetch_by_name(account_name=normalize_account_name(name))
 
 
 def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
@@ -29,7 +29,7 @@ def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
 
 
 def list_account_names(conn: sqlite3.Connection) -> list[str]:
-    return AccountRepository(conn).fetch_names()
+    return [account.name for account in AccountRepository(conn).fetch_all()]
 
 
 def get_latest_account_snapshot(

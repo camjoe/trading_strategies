@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.account_exposure import AccountExposure
-from trading.models.portfolio.portfolio_exposure_rollup import PortfolioExposureRollup
+from trading.models.portfolio import AccountExposure, PortfolioExposureRollup
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository

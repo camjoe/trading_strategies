@@ -1,4 +1,11 @@
-"""Shared runtime notification helpers."""
+"""Shared runtime notification helpers.
+
+Jobs call :func:`notify_runtime_event` and, where they source SMTP settings,
+construct an :class:`EmailNotificationConfig`. Those two are the surface. The
+per-transport send and best-effort functions below are its implementation, public
+only so each transport can be tested on its own — reach for them in a job and the
+job stops being transport-agnostic, which is the point of the seam.
+"""
 
 from __future__ import annotations
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from common.paths.project_paths import REPO_ROOT
+from common.paths import REPO_ROOT
 from infrastructure.database import migration_runner
 from scripts.database_diagrams.html_viewer import render_html
 from scripts.database_diagrams.sqlite_introspection import (
@@ -63,8 +63,6 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_runs",
             "backtest_executions",
             "backtest_equity_snapshots",
-            "walk_forward_experiments",
-            "walk_forward_windows",
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
@@ -121,8 +119,6 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_runs",
             "backtest_executions",
             "backtest_equity_snapshots",
-            "walk_forward_experiments",
-            "walk_forward_windows",
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
@@ -164,8 +160,6 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_runs",
             "backtest_executions",
             "backtest_equity_snapshots",
-            "walk_forward_experiments",
-            "walk_forward_windows",
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",
@@ -209,7 +203,6 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "orders",
             "rotation_decisions",
             "backtest_runs",
-            "walk_forward_experiments",
         ),
     },
 )
@@ -282,8 +275,6 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "backtest_runs",
             "backtest_executions",
             "backtest_equity_snapshots",
-            "walk_forward_experiments",
-            "walk_forward_windows",
             "optimization_experiments",
             "optimization_windows",
             "optimization_trials",

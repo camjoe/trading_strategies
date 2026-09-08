@@ -24,12 +24,11 @@ DB connection, configuration, and the schema-migration machinery. Imported only 
 
 | Module | Role |
 |---|---|
-| `connection.py` | `ensure_db()` (verify-only connection gate) and `db_session()` |
-| `backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
-| `config.py` | DB path resolution: `TRADING_DB_PATH` → config file → `local/paper_trading.db` |
+| `connection.py` | `ensure_db()` (verify-only connection gate), `verify_schema_revision()`, `db_session()` |
+| `backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` / `use_backend()` |
+| `config.py` | DB path resolution: `TRADING_DB_PATH` → `local/paper_trading.db` |
 | `schema_version.py` | `EXPECTED_HEAD_REVISION` constant + plain-SQL revision reader (runtime-safe) |
 | `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade, reference builds) — **ops-only** |
-| `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 | `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
 | `alembic/versions/` | Immutable numbered revisions (`0001_current_schema.py`, …) |
 

@@ -8,12 +8,15 @@ confidence or decisions — it only produces a diagnostic an operator can read.
 from __future__ import annotations
 
 from common.time import days_between
-from trading.models.evaluation.backtest_freshness import BacktestFreshness
+from trading.models.evaluation import BacktestFreshness
 
-# The daily backtest_refresh job re-runs backtests once per day, so backtest
-# evidence older than a few missed refreshes is worth flagging. Three days
-# tolerates a weekend or a short refresh outage before the advisory trips.
-DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS = 3
+# Research evidence is the holdout run of an on-demand optimizer experiment, not
+# output of a daily job, so the honest question is "has the market moved on since
+# this was validated" — a question measured in weeks. Thirty days lets a normal
+# research cadence pass without tripping while still flagging evidence old enough
+# that a re-run is worth considering. Advisory only: freshness is reported on the
+# assessment, never a promotion blocker.
+DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS = 30
 
 
 def assess_backtest_freshness(

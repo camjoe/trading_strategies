@@ -9,15 +9,16 @@ means creating a new variant (enforced by the repository guard).
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections.abc import Mapping
 from typing import Any
 
+from common.json_columns import dumps_json_column, loads_json_object
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive, validate_params_against_primitive
-from trading.models.strategy.strategy_record import StrategyRecord
+from trading.models.strategy import StrategyRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -49,7 +50,7 @@ def create_strategy_variant(
     strategy_id = repo.insert(
         strategy_key=key,
         primitive=spec.primitive,
-        params_json=json.dumps(validated, sort_keys=True),
+        params_json=dumps_json_column(validated),
         description=description,
         status="draft",
         enabled=1,
@@ -79,17 +80,21 @@ def configure_strategy(
     record = repo.fetch_by_key(strategy_key=strategy_key.strip().lower())
     if record is None:
         raise NotFoundError(f"Strategy not found: {strategy_key}")
-    if params:
-        validated = validate_params_against_primitive(record.primitive, params)
-        merged = {**_parse(record.params_json), **validated}
-        repo.update_draft_knobs(
-            strategy_id=record.id,
-            primitive=record.primitive,
-            params_json=json.dumps(merged, sort_keys=True),
-            updated_at=now,
-        )
-    if enabled is not None:
-        repo.set_enabled(strategy_id=record.id, enabled=int(bool(enabled)), updated_at=now)
+    # One transaction for the whole edit: the knob write and the enabled toggle
+    # must land together or not at all when a caller sends both.
+    with unit_of_work(conn):
+        if params:
+            validated = validate_params_against_primitive(record.primitive, params)
+            existing = loads_json_object(record.params_json, where="strategies.params_json")
+            merged = {**existing, **validated}
+            repo.update_draft_knobs(
+                strategy_id=record.id,
+                primitive=record.primitive,
+                params_json=dumps_json_column(merged),
+                updated_at=now,
+            )
+        if enabled is not None:
+            repo.set_enabled(strategy_id=record.id, enabled=int(bool(enabled)), updated_at=now)
     return _fetch(repo, record.id)
 
 
@@ -107,13 +112,6 @@ def freeze_strategy(
         raise NotFoundError(f"Strategy not found: {strategy_key}")
     repo.freeze(strategy_id=record.id, updated_at=now)
     return _fetch(repo, record.id)
-
-
-def _parse(params_json: str) -> dict[str, Any]:
-    if not params_json or not params_json.strip():
-        return {}
-    data = json.loads(params_json)
-    return dict(data) if isinstance(data, dict) else {}
 
 
 def _fetch(repo: StrategyRepository, strategy_id: int) -> StrategyRecord:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.commands import build_parser
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
 def test_backtest_defaults() -> None:
@@ -23,13 +23,3 @@ def test_backtest_batch_parses_accounts_and_defaults() -> None:
     assert args.accounts == "acct1,acct2"
     assert args.run_name_prefix is None
     assert args.allow_approximate_leaps is False
-
-
-def test_backtest_walk_forward_report_parses_selectors() -> None:
-    parser = build_parser()
-
-    args = parser.parse_args(["backtest-walk-forward-report", "--group-id", "7"])
-
-    assert args.group_id == 7
-    assert args.account is None
-    assert args.strategy is None

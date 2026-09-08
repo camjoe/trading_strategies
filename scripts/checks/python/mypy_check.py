@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe, run_step
 
 DEFAULT_TARGETS = ["apps/paper_trading_web/backend", "src"]
@@ -15,7 +15,7 @@ def run_mypy(
     targets: list[str] | None = None,
     python_version: str = "3.14",
     ignore_missing_imports: bool = True,
-    follow_imports_skip: bool = True,
+    follow_imports_skip: bool = False,
 ) -> None:
     selected_targets = targets or DEFAULT_TARGETS
     command = [
@@ -59,9 +59,12 @@ def parse_args() -> argparse.Namespace:
         help="Disable --ignore-missing-imports.",
     )
     parser.add_argument(
-        "--no-follow-imports-skip",
+        "--follow-imports-skip",
         action="store_true",
-        help="Disable --follow-imports=skip.",
+        help=(
+            "Re-enable --follow-imports=skip. Faster (~3x), but every cross-module "
+            "type resolves to Any, so the run cannot be trusted as evidence."
+        ),
     )
     return parser.parse_args()
 
@@ -77,7 +80,7 @@ def main() -> int:
         targets=args.targets or None,
         python_version=args.python_version,
         ignore_missing_imports=not args.no_ignore_missing_imports,
-        follow_imports_skip=not args.no_follow_imports_skip,
+        follow_imports_skip=args.follow_imports_skip,
     )
     print("\nMypy check completed successfully.")
     return 0

@@ -26,23 +26,20 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from backtesting.services import fixture_seed as backtest_fixture_seed_module
 from infrastructure.database.migration_runner import upgrade
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
-from trading.repositories import fixture_seed as fixture_seed_module
-from trading.services.fixtures import (
-    FixtureProfile,
-    profiles as profiles_module,
-    seed_fixture_database,
-    seeding as seeding_module,
-)
+from trading.services.fixtures import profiles as profiles_module, seeding as seeding_module
+from trading.services.fixtures.profiles import FixtureProfile
+from trading.services.fixtures.seeding import seed_fixture_database
 
 SQLITE_SIDECAR_SUFFIXES = ("", "-shm", "-wal", "-journal")
 
 # Seeder modules that participate in the golden fingerprint: a change to any of
 # them means a cached golden database no longer reflects the seeder. Resolved
 # through the imported modules so the fingerprint does not depend on cwd.
-_FINGERPRINT_MODULES = (profiles_module, seeding_module, fixture_seed_module)
+_FINGERPRINT_MODULES = (profiles_module, seeding_module, backtest_fixture_seed_module)
 
 
 def exact_local_targets(local_dir: Path, database_name: str) -> tuple[Path, ...]:

@@ -12,17 +12,17 @@ from __future__ import annotations
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.domain.daily_metrics import (
+from trading.domain.metrics.daily_metrics import (
     RISK_ADJUSTED_WINDOW_SESSIONS,
     DailyTrade,
     compute_daily_book_metrics,
 )
 from trading.models import AccountRecord
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.unit_of_work import unit_of_work
 
 
 def write_daily_metrics_for_account(
@@ -76,7 +76,6 @@ def write_daily_metrics_for_account(
                 prior_returns=prior_returns,
             )
             metrics.upsert(
-                account_id=account.id,
                 book_id=book.id,
                 metric_date=metric_date,
                 return_pct=computed.return_pct,

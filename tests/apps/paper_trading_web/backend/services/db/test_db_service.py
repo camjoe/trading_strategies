@@ -5,9 +5,10 @@ import sqlite3
 import pytest
 from paper_trading_web.backend.services import db as services_db, require_account_row
 
+from tests.support.books import ensure_default_book_id
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import get_latest_account_snapshot
+from trading.services.accounts.queries import get_latest_account_snapshot
 
 
 def test_db_conn_context_yields_and_closes_connection(conn) -> None:  # noqa: ARG001
@@ -33,8 +34,8 @@ def test_require_account_row_found_and_missing(conn, create_account_row) -> None
 def test_get_latest_account_snapshot_returns_newest_time_and_rejects_duplicates(conn, create_account_row) -> None:
     account_id = create_account_row("acct_snapshots")
     repo = EquitySnapshotRepository(conn)
-    repo.insert(
-        account_id=account_id,
+    repo.insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time="2026-01-01T00:00:00Z",
         cash=1000.0,
         market_value=100.0,
@@ -42,8 +43,8 @@ def test_get_latest_account_snapshot_returns_newest_time_and_rejects_duplicates(
         realized_pnl=0.0,
         unrealized_pnl=0.0,
     )
-    repo.insert(
-        account_id=account_id,
+    repo.insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time="2026-01-02T00:00:00Z",
         cash=1000.0,
         market_value=250.0,
@@ -59,8 +60,8 @@ def test_get_latest_account_snapshot_returns_newest_time_and_rejects_duplicates(
     # Book-keyed snapshots are unique per (book, snapshot_time): same-timestamp
     # duplicates are now a constraint violation rather than a tie to break.
     with pytest.raises(sqlite3.IntegrityError):
-        repo.insert(
-            account_id=account_id,
+        repo.insert_for_book(
+            book_id=ensure_default_book_id(conn, account_id),
             snapshot_time="2026-01-02T00:00:00Z",
             cash=1.0,
             market_value=1.0,

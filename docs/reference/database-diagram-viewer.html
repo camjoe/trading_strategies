@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 16:44 26-07-2026 PST. Tables: 30.</div>
+      <div class="meta">Source: fresh code schema. Generated: 08:27 02-08-2026 PST. Tables: 28.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -408,8 +408,6 @@
         "backtest_runs",
         "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_experiments",
-        "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
@@ -452,7 +450,7 @@
       ]
     }
   ],
-  "generatedAt": "16:44 26-07-2026 PST",
+  "generatedAt": "08:27 02-08-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -503,8 +501,6 @@
         "backtest_runs",
         "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_experiments",
-        "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
@@ -577,8 +573,6 @@
         "backtest_runs",
         "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_experiments",
-        "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
@@ -630,14 +624,6 @@
         {
           "default": null,
           "name": "name",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": "'managed'",
-          "name": "account_kind",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -4646,257 +4632,6 @@
         "id": "catalogs",
         "label": "Catalogs and settings"
       }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "experiment_key",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "account_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#2563eb",
-            "id": "accounts",
-            "label": "Accounts"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "strategy_id",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#64748b",
-            "id": "catalogs",
-            "label": "Catalogs and settings"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_name_prefix",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "start_date",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "end_date",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "test_months",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "step_months",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_count",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "created_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "strategy_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "strategies"
-        },
-        {
-          "column": "account_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "accounts"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "account_id",
-            "strategy_id",
-            "created_at"
-          ],
-          "name": "idx_walk_forward_experiments_account_strategy_created",
-          "origin": "c",
-          "unique": false
-        },
-        {
-          "columns": [
-            "experiment_key"
-          ],
-          "name": "sqlite_autoindex_walk_forward_experiments_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "walk_forward_experiments",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "experiment_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "run_id",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": {
-            "color": "#7c3aed",
-            "id": "research",
-            "label": "Research"
-          },
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_index",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "window_start",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "window_end",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "total_return_pct",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "REAL"
-        }
-      ],
-      "foreignKeys": [
-        {
-          "column": "run_id",
-          "onDelete": "NO ACTION",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "backtest_runs"
-        },
-        {
-          "column": "experiment_id",
-          "onDelete": "CASCADE",
-          "onUpdate": "NO ACTION",
-          "referencesColumn": "id",
-          "referencesTable": "walk_forward_experiments"
-        }
-      ],
-      "indexes": [
-        {
-          "columns": [
-            "experiment_id",
-            "window_index"
-          ],
-          "name": "sqlite_autoindex_walk_forward_windows_2",
-          "origin": "u",
-          "unique": true
-        },
-        {
-          "columns": [
-            "run_id"
-          ],
-          "name": "sqlite_autoindex_walk_forward_windows_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "walk_forward_windows",
-      "section": {
-        "color": "#7c3aed",
-        "id": "research",
-        "label": "Research"
-      }
     }
   ],
   "title": "Trading Strategies Database Diagram Viewer",
@@ -4933,9 +4668,7 @@
         "risk_decisions",
         "risk_snapshots",
         "rotation_decisions",
-        "strategies",
-        "walk_forward_experiments",
-        "walk_forward_windows"
+        "strategies"
       ]
     },
     {
@@ -4956,8 +4689,6 @@
         "backtest_runs",
         "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_experiments",
-        "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
@@ -4999,8 +4730,6 @@
         "backtest_runs",
         "backtest_executions",
         "backtest_equity_snapshots",
-        "walk_forward_experiments",
-        "walk_forward_windows",
         "optimization_experiments",
         "optimization_windows",
         "optimization_trials",
@@ -5043,8 +4772,7 @@
         "book_strategy_history",
         "orders",
         "rotation_decisions",
-        "backtest_runs",
-        "walk_forward_experiments"
+        "backtest_runs"
       ]
     }
   ]

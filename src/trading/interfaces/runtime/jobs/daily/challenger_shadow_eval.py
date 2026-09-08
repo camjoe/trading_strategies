@@ -5,15 +5,16 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from functools import cache
 
-from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
-from trading.domain.feature_provider import ExternalFeatureBundle
-from trading.interfaces.runtime.job_status import (
+from common.runtime_job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
+from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
+from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.interfaces.runtime.jobs.job_helpers import ts
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.rotation.challenger_evaluation import (
     ChallengerEvaluationRun,
     build_book_challenger_evaluations,
@@ -25,11 +26,13 @@ COMPLETE_SENTINEL = DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL
 # Explicit opt-in env var so shadow evaluation runs remain operator-controlled.
 CHALLENGER_SHADOW_EVAL_ENABLED_ENV = "DAILY_CHALLENGER_SHADOW_EVAL_ENABLED"
 
-# Composition root: one provider shared across every account this job processes in
-# one run (the job runner calls `main` once per account; the ETF regime read is
-# account-agnostic, so a shared instance also gets the provider's own cache instead
-# of re-hitting yfinance once per account).
-_policy_provider = PolicyFeatureProvider()
+
+# The runner calls `main` once per account and the ETF regime read is
+# account-agnostic, so one cached instance serves the whole run. Built on first
+# use, not at import, so it reads the environment the run was launched with.
+@cache
+def _policy_provider() -> PolicyFeatureProvider:
+    return PolicyFeatureProvider()
 
 
 def _add_window_arg(parser: argparse.ArgumentParser) -> None:
@@ -123,11 +126,11 @@ def run_shadow_eval_for_account(
 def main(ctx: JobContext, account: str) -> dict[str, object]:
     window = ctx.args.rolling_window_days
     shadow_run = run_shadow_eval_for_account(
-        ctx.conn,
+        ctx.db,
         account_name=account,
         rolling_window_days=int(window) if window is not None else None,
         as_of_iso=ts(),
-        fetch_regime=_policy_provider.get_features,
+        fetch_regime=_policy_provider().get_features,
     )
     ctx.log(f"SHADOW_EVAL: account={account} books={len(shadow_run.books)}")
     return {"status": "success", **_serialize_shadow_run(shadow_run)}

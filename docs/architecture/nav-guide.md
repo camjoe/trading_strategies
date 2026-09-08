@@ -48,7 +48,7 @@ The maps and this guide serve different questions:
 | Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |
 | Change report presentation (printed operator output) | `src/trading/services/reporting/` |
 | Change portfolio/benchmark computation (account stats, settlement equity, benchmark overlay) | `src/trading/services/analysis/` (`portfolio.py`, `benchmark.py`) |
-| Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/portfolio_math.py` |
+| Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
 | Change per-book rotation policy resolution | `src/trading/services/books/rotation/engine.py` (`resolve_rotation_policy_config`) |
@@ -58,17 +58,16 @@ The maps and this guide serve different questions:
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
-| Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
-| Change stale-backtest target discovery/remediation support | `src/trading/backtesting/services/stale_backtests.py` |
+| Change trade-universe resolution | `src/trading/services/universe.py` |
 | Change Autonomy monitor operator/dashboard queries or artifacts | `src/trading/services/autonomy_monitor/` |
 
 ### Configuration
 
 | Task | Where |
 |---|---|
-| Change an account profile (strategy params, caps) | `src/infrastructure/config/account_profiles/<profile>.json` |
-| Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
-| Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
+| Change which tickers a book trades | Name a universe on `configure-book` / the book-params API; it stores the expansion in `books.trade_symbols` |
+| Change a named universe's roster | `src/infrastructure/config/trade_universes/` — affects future writes only; re-apply the name to existing books |
+| Change account-level trade caps | `--primary-max-trades` / `--other-max-trades` on the daily paper-trading job |
 
 ### Models / Data Contracts
 
@@ -105,10 +104,11 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change backtesting engine | `src/trading/backtesting/backtest.py` |
-| Change backtest result models | `src/trading/backtesting/models.py` and `src/trading/backtesting/report_models.py` |
-| Change backtest persistence | `src/trading/backtesting/repositories/` |
-| Change backtesting services | `src/trading/backtesting/services/` |
+| Change backtesting engine | `src/backtesting/services/simulation.py` |
+| Wire a provider into a backtest | `src/backtesting/composition.py` |
+| Change backtest result models | `src/backtesting/models/` — `backtest.py`, `optimizer.py`, or `report.py` |
+| Change backtest persistence | `src/backtesting/repositories/` |
+| Change backtesting services | `src/backtesting/services/` |
 
 ---
 
@@ -181,7 +181,6 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Task | Where |
 |---|---|
 | Back up the DB | `python -m scripts.data_ops.backup_db` |
-| Export DB table to CSV | `python -m scripts.data_ops.export_db_csv --table accounts` |
 | Inspect schema | `python -m scripts.data_ops.describe_db_schema` |
 | Launch the UI | `python -m scripts.launch_ui` |
 

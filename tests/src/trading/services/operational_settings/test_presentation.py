@@ -6,7 +6,8 @@ import sqlite3
 
 import pytest
 
-from trading.services.operational_settings import set_runtime_throttle_settings, show_global_settings_history
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
+from trading.services.operational_settings.presentation import show_global_settings_history
 
 
 def test_prints_no_changes_message_when_empty(

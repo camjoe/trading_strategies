@@ -10,25 +10,26 @@ Provide the core runtime and tooling for paper trading, reporting, promotion rev
 
 The `src/trading/` module handles:
 
-- Account lifecycle (create, configure, benchmark, profiles)
+- Account lifecycle (create, configure, benchmark)
 - Trade simulation and position tracking
 - Live broker integration (Interactive Brokers via Client Portal/Web API or the TWS/IB Gateway socket API; paper broker by default)
 - Snapshot history and reporting
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
-- Backtesting and walk-forward analysis support, including persisted per-window detail reporting
+- Backtesting and walk-forward optimization, including persisted per-window and per-candidate audit trails
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `src/infrastructure/feature_providers/` (repo root)
 
 ## Architecture Shape
 
-`src/trading/` uses a **hybrid structure**:
+`src/trading/` is **layers only** — `interfaces -> services -> repositories/domain -> database`,
+plus `models/` and `persistence/` beneath them. Every subpackage here is a layer, so a sibling of
+`domain/` or `services/` is always the same kind of thing.
 
-- A layered backbone for most runtime behavior:
-  - `interfaces -> services -> repositories/domain -> database`
-- Explicit top-level bounded contexts where isolation is valuable:
-  - `src/trading/backtesting/`
-  - `src/infrastructure/brokers/` (repo root — broker adapters)
-  - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
+Packages with distinct ownership sit at the repo root instead, beside `trading/`:
+
+- `src/backtesting/` — bounded context; owns the backtest and optimizer tables
+- `src/infrastructure/brokers/` — broker adapters
+- `src/infrastructure/feature_providers/` — external-data feature providers
 
 `src/trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
@@ -38,12 +39,12 @@ For a "where do I put X" placement guide, see `docs/architecture/nav-guide.md`.
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
-**DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`
+**DB path resolution:** `TRADING_DB_PATH` env var → `local/paper_trading.db`
 
-When `db_path` in `local/db_config.json` is relative, it is resolved from the
-repository root.
+To point tooling at a disposable database, run `scripts/launch_sandbox.py` or
+`scripts/launch_demo.py`, which set `TRADING_DB_PATH` for you.
 
-**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `src/infrastructure/config/market_data_config.example.json` for the config format.
+**Market data:** defaults to `yfinance`. Override via the `TRADING_MARKET_DATA_PROVIDER` env var (`yfinance` or `demo`); any other value raises at `build_provider()`.
 
 ## Quick Start
 
@@ -52,13 +53,12 @@ README active.
 
 ```sh
 python -m scripts.data_ops.manage_db_migrations upgrade
-python -m trading.interfaces.cli.main apply-account-preset --preset default
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy momentum --initial-cash 5000 --benchmark SPY
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k
 ```
 
 The migration command creates a missing database or upgrades an existing one. Application commands
-verify the schema version and never apply migrations automatically. The tracked presets contain
-synthetic examples only.
+verify the schema version and never apply migrations automatically.
 
 For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
 
@@ -81,14 +81,9 @@ Backup and export:
 ```sh
 python -m trading.interfaces.runtime.data_ops.admin backup-db
 python -m scripts.data_ops.backup_db
-python -m scripts.data_ops.export_db_csv --table accounts
 ```
 
-`export_db_csv` generates CSV on demand from the live database (one table per
-invocation); pass `--out <path>` to save it, or omit `--out` to print to stdout.
-Nothing is written to disk unless `--out` is given.
-
-Canonical admin/export modules live in `src/trading/interfaces/runtime/data_ops/`.
+Canonical admin modules live in `src/trading/interfaces/runtime/data_ops/`.
 The `scripts.data_ops.*` commands are convenience wrappers around those
 canonical runtime data-op modules and should not be treated as the ownership
 source.
@@ -110,23 +105,16 @@ schedule the runtime job entrypoints, see the [Runtime Jobs Reference](../../doc
 
 ## Auto-Trading
 
-Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
+The run prices the union of `books.trade_symbols` across the books it is about to trade — the same
+column selection reads — so a symbol a book can select is a symbol the run priced.
 
-| File | Description |
-|------|-------------|
-| `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
-| `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
-
-Pass `--tickers-file` to use a non-default universe. Run
+`--tickers-file` overrides that with an explicit ticker file, for manual runs against a universe
+no book names. Run
 `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help`
 for all options.
 
 ```sh
-# Default universe
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
-
-# S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker
@@ -169,9 +157,9 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 ## Backtesting Notes
 
-- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>`
-  shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
+- `python -m trading.interfaces.cli.main backtest-optimize-show <experiment_id>`
+  shows a stored optimization experiment: winner params, OOS/holdout evidence, the per-window and
+  per-candidate audit trail, and the promotion-gate preview.
 
 ## Notes
 
@@ -196,17 +184,17 @@ Review requests freeze the current evaluation evidence into a durable record and
 - Broker integration: [docs/reference/broker-integration.md](../../docs/reference/broker-integration.md)
 - Trading architecture guide: [docs/architecture/architecture-conventions.md](../../docs/architecture/architecture-conventions.md)
 
-## Preset Profiles
+## Trade universes
 
-Built-in account profile presets now live under:
+Named universe files under `src/infrastructure/config/trade_universes/` are a **write-time
+shorthand**. Naming one on `create-account`, `configure-book`, or the book-params API expands it and
+stores the resulting tickers in `books.trade_symbols` (revision 0029).
 
-- `src/infrastructure/config/account_profiles/`
+Nothing reads those files on the trading path, so editing one changes what future writes resolve to
+and never what an existing book is already trading. Re-apply the name to pull in a changed roster.
 
-CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
-
-These tracked presets are synthetic examples for testing and demonstration. Their account names,
-capital amounts, return goals, risk limits, and strategy schedules do not represent actual accounts,
-validated performance expectations, or recommended settings.
+The tracked universe files are synthetic examples. Their membership is not derived from any index or
+screen — see the provenance header in each file.
 
 Keep real strategy parameters, operator profiles, and research notes under the gitignored
 `local/strategies/` workspace. Do not replace the tracked presets with personal operating

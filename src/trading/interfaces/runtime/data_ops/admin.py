@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import argparse
-import shutil
+import sqlite3
+from collections.abc import Callable
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
-from common.paths.project_paths import DB_BACKUPS_DIR
+from common.paths import DB_BACKUPS_DIR
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
-from trading.services.accounts import delete_account, preview_account_deletion
-from trading.services.accounts.listing import list_accounts
+from trading.services.accounts.deletions import delete_account, preview_account_deletion
+from trading.services.accounts.listing import fetch_account_listing_lines
 
 
 def _sqlite_db_path() -> Path:
@@ -39,7 +41,14 @@ def backup_database(destination: str | None = None) -> Path:
             raw_target.mkdir(parents=True, exist_ok=True)
             target = raw_target / f"{source.stem}_{stamp}.db"
 
-    shutil.copy2(source, target)
+    # Not a file copy: in WAL mode, commits live in the -wal sidecar until a
+    # checkpoint, so copying the .db alone silently drops them. backup() reads
+    # through the WAL and stays consistent under a live writer.
+    with (
+        closing(sqlite3.connect(source)) as source_conn,
+        closing(sqlite3.connect(target)) as target_conn,
+    ):
+        source_conn.backup(target_conn)
     return target
 
 
@@ -51,7 +60,7 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     with db_session() as conn:
-        lines = list_accounts(conn)
+        lines = fetch_account_listing_lines(conn)
     if not lines:
         print("No accounts found.")
         return 0

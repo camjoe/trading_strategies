@@ -1,4 +1,4 @@
-from trading.domain.promotion_policy import PromotionPolicySettings, assess_promotion_readiness
+from trading.domain.promotion.policy import PromotionPolicySettings, assess_promotion_readiness
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
@@ -21,7 +21,6 @@ def _artifact(
     backtest_return_pct: float | None = 6.0,
     max_drawdown_pct: float | None = -10.0,
     walk_forward_available: bool = True,
-    walk_forward_grouped: bool = True,
     walk_forward_average_return_pct: float | None = 2.0,
     paper_available: bool = False,
     paper_strategy_isolated: bool = True,
@@ -48,7 +47,6 @@ def _artifact(
         ),
         walk_forward=EvaluationWalkForwardEvidence(
             available=walk_forward_available,
-            grouped=walk_forward_grouped,
             average_return_pct=walk_forward_average_return_pct,
         ),
         paper_live=EvaluationPaperLiveEvidence(

@@ -9,10 +9,9 @@ from fastapi.testclient import TestClient
 
 from trading.domain.exceptions import NotFoundError, ValidationError
 
-_BACKTEST_REPORT_FULL = "paper_trading_web.backend.routes.backtests.backtest_report_full"
+_BACKTEST_REPORT_FULL = "paper_trading_web.backend.routes.backtests.fetch_report"
 _RUN_BACKTEST = "paper_trading_web.backend.routes.backtests.run_backtest"
-_PREVIEW_BACKTEST_WARNINGS = "paper_trading_web.backend.routes.backtests.preview_backtest_warnings"
-_RUN_WALK_FORWARD = "paper_trading_web.backend.routes.backtests.run_walk_forward_backtest"
+_PREVIEW_BACKTEST_WARNINGS = "paper_trading_web.backend.routes.backtests.preview_warnings"
 
 
 class TestBacktestsRoutes:
@@ -78,7 +77,7 @@ class TestBacktestsRoutes:
                 "/api/backtests/run",
                 json={
                     "account": "acct_run_err",
-                    "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                    "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                     "start": "2026-01-01",
                     "end": "2026-01-31",
                 },
@@ -104,7 +103,7 @@ class TestBacktestsRoutes:
                     "/api/backtests/run",
                     json={
                         "account": "acct_run_bug",
-                        "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                        "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                         "start": "2026-01-01",
                         "end": "2026-01-31",
                     },
@@ -150,7 +149,7 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_leaps",
-                "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                 "start": "2026-01-01",
                 "end": "2026-03-01",
                 "allowApproximateLeaps": False,
@@ -171,54 +170,10 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_conflict",
-                "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universes/default.txt",
                 "start": "2026-01-01",
                 "lookbackMonths": 1,
             },
         )
         assert response.status_code == 400
         assert "Use either --start or --lookback-months" in response.json()["detail"]
-
-    def test_walk_forward_endpoint_validation_error_returns_400(
-        self,
-        api_client: TestClient,
-        seed_account: Callable[..., None],
-    ) -> None:
-        seed_account("acct_wf_err")
-
-        walk_forward_mock = Mock(side_effect=ValidationError("wf bad config"))
-        with patch(_RUN_WALK_FORWARD, walk_forward_mock):
-            response = api_client.post(
-                "/api/backtests/walk-forward",
-                json={
-                    "account": "acct_wf_err",
-                    "tickersFile": "src/infrastructure/config/trade_universe.txt",
-                    "testMonths": 1,
-                    "stepMonths": 1,
-                },
-            )
-
-        assert response.status_code == 400
-        assert response.json()["detail"] == "wf bad config"
-        walk_forward_mock.assert_called_once()
-
-    def test_walk_forward_endpoint_unexpected_value_error_propagates(
-        self,
-        api_client: TestClient,
-        seed_account: Callable[..., None],
-    ) -> None:
-        seed_account("acct_wf_bug")
-
-        walk_forward_mock = Mock(side_effect=ValueError("unexpected"))
-        with patch(_RUN_WALK_FORWARD, walk_forward_mock):
-            with pytest.raises(ValueError, match="unexpected"):
-                api_client.post(
-                    "/api/backtests/walk-forward",
-                    json={
-                        "account": "acct_wf_bug",
-                        "tickersFile": "src/infrastructure/config/trade_universe.txt",
-                        "testMonths": 1,
-                        "stepMonths": 1,
-                    },
-                )
-        walk_forward_mock.assert_called_once()

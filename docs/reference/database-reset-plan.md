@@ -9,7 +9,7 @@ Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-mig
 
 ## Purpose
 
-The Alembic chain has grown to 26 revisions (`0001`–`0026`) since the probe-system transition, and
+The Alembic chain has grown to 27 revisions (`0001`–`0027`) since the probe-system transition, and
 the data in the deployed databases has drifted far enough that it is no longer worth carrying
 forward. This document tracks the plan to collapse the revision history back to a single clean
 `0001` baseline and reset the data, deciding table by table what is dropped, what needs a look
@@ -47,8 +47,11 @@ Row counts from the dev database (`local/paper_trading.db`) on 2026-07-26, verif
 on 2026-07-17 and may differ.
 Re-check both before executing (see [Investigate Before Dropping](#investigate-before-dropping)).
 
-The schema is **30 tables** at revision `0026`. Most operational tables are already empty in dev;
-the real volume is backtest and optimizer research history.
+The schema is **28 tables** at revision `0027`. The counts below were taken at `0026`, when it was
+30: revision `0027` has since dropped `walk_forward_experiments` and `walk_forward_windows` along
+with the rolling-window path ([ADR 016](../adr/016-optimizer-experiments-as-research-evidence.md)),
+so those two rows are already done rather than pending. Most operational tables are already empty in
+dev; the real volume is backtest and optimizer research history.
 
 ## Drop List — Audit and History
 
@@ -76,8 +79,8 @@ system to operate after the reset.
 | `backtest_runs` | 416 | Backtest run metadata (dates, fees, slippage, purpose) | Drop |
 | `backtest_equity_snapshots` | 12,788 | Equity curve points within backtest runs | Drop |
 | `backtest_executions` | 10,280 | Simulated buy/sell executions within backtest runs | Drop |
-| `walk_forward_experiments` | 0 | Walk-forward experiment methodology + window membership | Drop |
-| `walk_forward_windows` | 0 | Individual OOS windows linked to their backtest runs | Drop |
+| `walk_forward_experiments` | 0 | Walk-forward experiment methodology + window membership | Dropped in `0027` |
+| `walk_forward_windows` | 0 | Individual OOS windows linked to their backtest runs | Dropped in `0027` |
 | `optimization_experiments` | 6 | Optimizer runs: config, winner params, OOS + holdout summaries | Drop |
 | `optimization_windows` | 102 | Per-window train/test boundaries and winner run links | Drop |
 | `optimization_trials` | 981 | Every evaluated grid candidate — the multiple-testing audit record | Drop |
@@ -126,10 +129,10 @@ seeder's coverage. `seed_demo_database` populates `accounts`, `books`, `strategi
 `equity_snapshots`, `daily_metrics`, `promotion_reviews`, `backtest_runs`,
 `backtest_equity_snapshots`, and `backtest_executions`.
 
-It leaves empty: `ledger`, `global_settings`, `feature_providers`, `book_rotation_settings`,
+It leaves empty: `ledger`, `global_settings`, `book_rotation_settings`,
 `risk_snapshots`, `risk_decisions`, `rotation_decisions`, `promotion_review_events`, all four
-`optimization_*` tables, both `walk_forward_*` tables, and both `*_change_events` tables. Those
-gaps are the work list for the `sandbox` profile.
+`optimization_*` tables, and both `*_change_events` tables. Those gaps are the work list for the
+`sandbox` profile.
 
 ### The fixture bypassed `apply_book_fill`, so book accounting diverged
 
@@ -197,7 +200,6 @@ appears and is neither seeded nor listed:
 | Table group | Why still empty |
 |---|---|
 | `optimization_experiments`, `optimization_run_manifests`, `optimization_trials`, `optimization_windows` | Needs a real optimizer sweep driven during seeding |
-| `walk_forward_experiments`, `walk_forward_windows` | Needs a real walk-forward run driven during seeding |
 | `risk_snapshots`, `risk_decisions` | Needs the risk pass driven during seeding |
 | `rotation_decisions` | Needs the rotation engine driven during seeding |
 
@@ -225,10 +227,10 @@ code that builds the sandbox re-establishes dev configuration after the reset. T
 | Table | Dev rows | What it holds | Status |
 |---|---:|---|---|
 | `accounts` | 8 | Account identity, custody, broker connection, `live_trading_enabled` | Reseed |
-| `books` | 8 | Execution/risk/option settings columns, required `trade_universes` | Reseed |
+| `books` | 8 | Execution/risk/option settings columns, required `trade_symbols` | Reseed |
 | `strategies` | 11 | Strategy catalog: code primitive + tuned `params_json`, draft/frozen/retired | Reseed + export `params_json` |
 | `book_rotation_settings` | 8 | Sparse per-book rotation scheduling and champion/challenger overrides | Reseed |
-| `feature_providers` | 0 | Enabled external feature providers | Reseed |
+| `feature_providers` | 0 | Unused since 2026-08-10; drop it in the squash | Do not reseed |
 | `global_settings` | 0 | Singleton row of runtime/evaluation/promotion overrides | Reseed |
 
 `strategies` is the one that most resembles "losing our strategies", and it is the one table that
@@ -266,13 +268,41 @@ Things the reset is an opportunity to change rather than faithfully reproduce.
 - **History retention policy.** Promotion, risk, backtest, and walk-forward history have no
   age-based retention — rows accumulate until their account is deleted. Carried over as an open
   follow-up from the 2026-07 cleanup. Worth deciding now, since the tables are about to be empty.
-- **Universe membership snapshots.** `book_universe_history` records universe *names*, not
-  membership; definitions stay file-backed, so historical evaluation cannot reconstruct what a
-  universe contained. Known accepted gap — revisit if universe definitions have stabilized.
+- ~~**Universe membership snapshots.**~~ Resolved by revision `0029` (noted 2026-08-07; the entry
+  below described the pre-`0029` state). `books.trade_symbols` and `book_universe_history` now hold
+  the **resolved ticker set**, not universe names, so editing a universe file no longer
+  retroactively changes what past runs were trading. Point-in-time membership is recoverable.
+
+  What remains is that **nothing reads `book_universe_history`** — the write side is correct and
+  accumulating, the read side was never built. That makes it a candidate to *keep*, not to drop:
+  the history only exists later if it is recorded now. Its rows are still `Drop` at reset (the
+  dev rows predate `0029` and hold names, not membership), but the table and its writers should
+  come back.
 - **Seedability as a design constraint.** Being acted on ahead of the reset rather than discovered
   during it: the fixture seeder's `sandbox` profile is the checked-in seed definition that makes the
   next reset cheap. A `sandbox` build that leaves a table empty is the signal that the seed
   definition has a hole, which is why the build ships with a check asserting no table is empty.
+- **Money representation: `REAL` vs integer minor units.** Open, added 2026-08-07. Every monetary
+  and quantity value is an IEEE double in a `REAL` column — 106 of them in the `0001` baseline
+  (`cash`, `equity`, `avg_cost`, `price`, `commission`, `realized_pnl`, …). Institutional systems
+  use fixed-point; SQLite has no decimal type, so the alternative is integer minor units plus
+  conversion at every read and write, and in the domain accounting math.
+
+  **Current exposure is low, and worth recording precisely so it is not over- or under-rated.**
+  Order quantities are whole numbers (`auto_trading_policy.py` sizes with
+  `int(spendable // price)` and `int(position_qty)`), so the exact float comparison in
+  `domain/accounting.py` — `if positions[ticker] == 0` — cannot leave dust. Money accumulates
+  rounding, but nothing compares money for equality and there is no broker cash reconciliation
+  with a tolerance, so the error is invisible at any realistic fill count.
+
+  **What would raise it:** supporting fractional shares (that `== 0` becomes a live bug, leaving
+  a phantom open position with a stale average cost), adding a broker balance reconciliation, or
+  trading real capital.
+
+  **Why it belongs here:** the conversion is a schema change across ~106 columns. Doing it during
+  a squash that is already accepting data loss is roughly the only time the cost is reasonable.
+  Decide before authoring the new `0001` baseline, not after.
+
 - **`db-schema.md` table count drift.** The quick-reference header says 27 tables; the schema has
   30. Fix as part of the doc regeneration step.
 

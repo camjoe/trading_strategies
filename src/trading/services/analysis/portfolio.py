@@ -11,13 +11,13 @@ import sqlite3
 from typing import NamedTuple
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
-from common.constants import SETTLEMENT_TICKER
-from trading.domain.portfolio_math import alpha_pct, compute_market_value_and_unrealized, strategy_return_pct
+from common.constants import PERCENT_SCALE, SETTLEMENT_TICKER
+from trading.domain.metrics.portfolio_math import alpha_pct, compute_market_value_and_unrealized, strategy_return_pct
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.execution.ledger import load_account_state
-from trading.services.market_data import MarketDataProvider
+from trading.services.execution.ledger.queries import load_account_state
 from trading.services.market_data.lookups import benchmark_stats, fetch_latest_prices
+from trading.services.market_data.protocols import MarketDataProvider
 
 # The settlement ticker is always worth exactly $1 per unit (it represents cash).
 _SETTLEMENT_PRICE = 1.0
@@ -32,16 +32,17 @@ MIN_TREND_LOOKBACK_ROWS = 2
 TREND_FLAT_BAND_PCT = 1.0
 
 
-def _infer_overall_trend_impl(
+def infer_overall_trend(
     conn: sqlite3.Connection,
     account_id: int,
     current_equity: float,
     lookback: int,
 ) -> str:
-    history = EquitySnapshotRepository(conn).fetch_recent_equity(
+    snapshots = EquitySnapshotRepository(conn).fetch_history(
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
+    history = [snapshot.equity for snapshot in snapshots]
     history.reverse()
     history.append(current_equity)
 
@@ -53,7 +54,7 @@ def _infer_overall_trend_impl(
     if first == 0:
         return "insufficient-data"
 
-    move_pct = ((last - first) / first) * 100.0
+    move_pct = ((last - first) / first) * PERCENT_SCALE
     if move_pct > TREND_FLAT_BAND_PCT:
         return "up"
     if move_pct < -TREND_FLAT_BAND_PCT:
@@ -61,21 +62,17 @@ def _infer_overall_trend_impl(
     return "flat"
 
 
-def settlement_corrected_equity(state: object, prices: object) -> float:
+def settlement_corrected_equity(state: AccountState, prices: dict[str, float]) -> float:
     """Total equity including the settlement position (cash-equivalent ticker).
 
     The settlement ticker represents cash held as a position; it must be
     priced at ``_SETTLEMENT_PRICE`` before calling this function (see
     ``inject_settlement_price``).
     """
-    from trading.models.accounts.account_state import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return 0.0
     return state.cash + sum(state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions)
 
 
-def inject_settlement_price(state: object, prices: object) -> None:
+def inject_settlement_price(state: AccountState, prices: dict[str, float]) -> None:
     """Ensure the settlement ticker has a price entry so equity math is correct.
 
     When an account holds the settlement ticker as a position it must be
@@ -83,21 +80,8 @@ def inject_settlement_price(state: object, prices: object) -> None:
     function inserts that price only if it is missing, and only when the
     state actually holds a settlement position.
     """
-    from trading.models.accounts.account_state import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return
     if SETTLEMENT_TICKER in state.positions and SETTLEMENT_TICKER not in prices:
         prices[SETTLEMENT_TICKER] = _SETTLEMENT_PRICE
-
-
-def settlement_cash(state: object, prices: object) -> float:
-    """Return the cash component of an account state, or 0 if state is missing."""
-    from trading.models.accounts.account_state import AccountState
-
-    if not isinstance(state, AccountState):
-        return 0.0
-    return state.cash
 
 
 def build_account_stats(
@@ -155,26 +139,11 @@ def build_account_return_summary(
     )
 
 
-def infer_overall_trend(
-    conn: sqlite3.Connection,
-    account_id: int,
-    current_equity: float,
-    lookback: int,
-) -> str:
-    return _infer_overall_trend_impl(
-        conn,
-        account_id,
-        current_equity,
-        lookback,
-    )
-
-
 __all__ = [
     "AccountReturnSummary",
     "build_account_return_summary",
     "build_account_stats",
     "infer_overall_trend",
     "inject_settlement_price",
-    "settlement_cash",
     "settlement_corrected_equity",
 ]

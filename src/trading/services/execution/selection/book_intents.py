@@ -1,25 +1,21 @@
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
-from typing import Mapping
 
-import pandas as pd
-
-import trading.domain.auto_trading_policy as auto_trader_policy
+from trading.domain.auto_trading.exits import order_risk_breaches
+from trading.domain.auto_trading.fairness import order_capacity_claimants
 from trading.models import AccountRecord
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.book_trade_state import BookTradeState
+from trading.models.execution import BookTradeCandidate, BookTradeState
+from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_trade_selection
+from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_book_trades
 from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
 )
-from trading.services.universe import resolve_named_universes
 
 logger = logging.getLogger(__name__)
 
@@ -47,28 +43,33 @@ def generate_book_trade_intents(
     conn: sqlite3.Connection,
     *,
     account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
+    selection_seed: str = "",
 ) -> list[BookTradeCandidate]:
     # Intents come only from strategy signals — no forced minimum; a run with no
     # signals produces no trades.
     account_id = account.id
 
-    # Book-native enumeration: active, non-default, openly assigned books.
-    # Unassigned or non-active books do not trade — no account fallback.
+    # Book-native enumeration: active, openly assigned books — including the
+    # default book, which trades like any other (ADR 010/014). Unassigned or
+    # non-active books do not trade; there is no account fallback.
     trading_books = enumerate_trading_books(conn, account_id=account_id)
     if not trading_books:
         return []
 
-    max_intents = min(max_trades, len(trading_books))
+    # `max_trades` caps trades for the account, not books. Book order therefore
+    # decides who gets that budget — and again downstream, where the risk gate
+    # consumes its account caps in intent order — so it is rotated per run.
+    books_by_id = {trading_book.book.id: trading_book for trading_book in trading_books}
+    claim_order = order_capacity_claimants(list(books_by_id), seed=selection_seed)
+
     intents: list[BookTradeCandidate] = []
-    for trading_book in trading_books:
-        if len(intents) >= max_intents:
+    for trading_book in (books_by_id[book_id] for book_id in claim_order):
+        remaining = max_trades - len(intents)
+        if remaining <= 0:
             break
         book = trading_book.book
         book_id = book.id
@@ -87,87 +88,60 @@ def generate_book_trade_intents(
         # assigned label for display and rotation bookkeeping.
         signal_primitive = resolved.primitive
         strategy_params = resolved.params
-        if book.trade_universes:
-            book_universe_names: object = json.loads(book.trade_universes)
-            if isinstance(book_universe_names, list) and book_universe_names:
-                effective_universe = resolve_named_universes([str(n) for n in book_universe_names])
-            else:
-                effective_universe = universe
-        else:
-            effective_universe = universe
+        # An empty book universe selects over the whole run universe; the fetch
+        # side reads the same empty list as contributing nothing.
+        effective_universe = book.trade_symbol_list() or market.universe
         # Execution/risk knobs are book-owned (revision 0004).
         risk_policy = book.risk_policy.strip().lower()
         instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
+        forced_sells = order_risk_breaches(
             can_sell,
-            prices,
+            market.prices,
             state,
             risk_policy,
             book.stop_loss_pct,
             book.take_profit_pct,
         )
+        # A book's own limit binds within whatever the account has left;
+        # NULL means the book adds no limit of its own.
+        book_budget = remaining if book.max_trades_per_run is None else min(remaining, book.max_trades_per_run)
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
-        selection = prepare_trade_selection(
+        selections = prepare_book_trades(
             book,
             signal_primitive,
             strategy_params,
             state,
-            forced_sell,
+            forced_sells,
             effective_universe,
-            prices,
-            histories or {},
-            iv_rank_proxy,
+            market.prices,
+            market.histories,
+            market.iv_rank_proxy,
             instrument_mode,
             fee,
+            max_trades=book_budget,
             trade_size_pct=book.trade_size_pct,
             max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
+            selection_seed=selection_seed,
         )
-        if selection is None:
-            continue
-        side, symbol, qty, requested_price, delta_est, iv_est = selection
-        intents.append(
-            BookTradeCandidate(
-                account_id=account_id,
-                book_id=book_id,
-                strategy_name=strategy_name,
-                side=side,
-                symbol=symbol,
-                qty=qty,
-                requested_price=requested_price,
-                forced_sell=forced_sell,
-                delta_est=delta_est,
-                iv_est=iv_est,
+        forced_sell_set = set(forced_sells)
+        for side, symbol, qty, requested_price, delta_est, iv_est in selections:
+            intents.append(
+                BookTradeCandidate(
+                    account_id=account_id,
+                    book_id=book_id,
+                    strategy_name=strategy_name,
+                    side=side,
+                    symbol=symbol,
+                    qty=qty,
+                    requested_price=requested_price,
+                    # Only the sells that actually breached carry the flag.
+                    forced_sell=symbol if side == "sell" and symbol in forced_sell_set else None,
+                    delta_est=delta_est,
+                    iv_est=iv_est,
+                )
             )
-        )
     return intents
-
-
-def run_multi_book_mode_for_account(
-    conn: sqlite3.Connection,
-    *,
-    account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    max_trades: int,
-    fee: float,
-    histories: Mapping[str, pd.Series] | None = None,
-    feature_history_fn: FeatureHistoryFn | None = None,
-) -> int:
-    return len(
-        generate_book_trade_intents(
-            conn,
-            account=account,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
-            max_trades=max_trades,
-            fee=fee,
-            histories=histories,
-            feature_history_fn=feature_history_fn,
-        )
-    )

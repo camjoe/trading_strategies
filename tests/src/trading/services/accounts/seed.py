@@ -21,12 +21,12 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
 
         INSERT INTO books (
             id, account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, trade_universes, created_at, updated_at
+            current_equity, trade_symbols, created_at, updated_at
         )
         VALUES
-            (1, 1, 'default', 'active', 1, 1000, 900, 1000, '["default"]',
+            (1, 1, 'default', 'active', 1, 1000, 900, 1000, '["AAPL","MSFT"]',
              '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-            (2, 2, 'default', 'active', 1, 1500, 1300, 1500, '["default"]',
+            (2, 2, 'default', 'active', 1, 1500, 1300, 1500, '["AAPL","MSFT"]',
              '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
         INSERT INTO equity_snapshots (
@@ -95,27 +95,6 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
         VALUES
             (11, '2025-01-10T00:00:00Z', 900, 100, 1000, 0, 0),
             (22, '2025-01-10T00:00:00Z', 1300, 200, 1500, 0, 0);
-
-        INSERT INTO walk_forward_experiments (
-            id, experiment_key, account_id, run_name_prefix, start_date, end_date,
-            test_months, step_months, window_count, created_at
-        )
-        VALUES
-            (
-                301, 'acct_a_wf', 1, 'wf_a', '2025-01-01', '2025-06-01',
-                1, 1, 1, '2026-01-03T00:00:00Z'
-            ),
-            (
-                302, 'acct_b_wf', 2, 'wf_b', '2025-01-01', '2025-06-01',
-                1, 1, 1, '2026-01-03T00:00:00Z'
-            );
-
-        INSERT INTO walk_forward_windows (
-            experiment_id, run_id, window_index, window_start, window_end, total_return_pct
-        )
-        VALUES
-            (301, 11, 1, '2025-01-01', '2025-06-01', 2.0),
-            (302, 22, 1, '2025-01-01', '2025-06-01', 3.0);
 
         INSERT INTO promotion_reviews (
             id, account_id, account_name_snapshot, strategy_name, review_state,

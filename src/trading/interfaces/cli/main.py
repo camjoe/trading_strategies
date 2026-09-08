@@ -1,136 +1,23 @@
 from __future__ import annotations
 
-from functools import partial
-
 from infrastructure.database.config import get_db_path
 from infrastructure.database.connection import db_session
 from infrastructure.market_data.factory import build_provider, resolve_provider_name
-from trading.backtesting.backtest import (
-    backtest_leaderboard_entries,
-    backtest_report,
-    run_backtest,
-    run_backtest_batch,
-    run_backtest_metrics_only,
-    run_walk_forward_backtest,
-    walk_forward_report,
-)
-from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
-from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.backtesting.optimizer_models import OptimizerConfig
-from trading.backtesting.repositories.optimization_repository import (
-    fetch_experiment_by_id,
-    fetch_manifest_for_experiment,
-    fetch_trials_for_experiment,
-    fetch_windows_for_experiment,
-)
-from trading.backtesting.services import find_stale_backtests
-from trading.backtesting.services.optimizer_aggregation_service import fetch_compounded_oos
-from trading.backtesting.services.walk_forward_optimizer_service import (
-    run_and_persist_optimization,
-)
 from trading.interfaces.cli.commands import build_parser
+from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.router import dispatch_command
-from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
-from trading.services.execution.ledger import record_trade
-from trading.services.operational_settings import (
-    fetch_evaluation_confidence_settings,
-    fetch_promotion_policy_settings,
-    fetch_runtime_throttle_settings,
-    set_evaluation_confidence_settings,
-    set_promotion_policy_settings,
-    set_runtime_throttle_settings,
-    show_global_settings_history,
-)
-from trading.services.parameters import (
-    show_book_rotation_history,
-    show_parameters,
-    update_book_rotation_policy,
-    update_book_rotation_scheduling,
-)
-from trading.services.profiles import apply_account_profiles, load_account_profiles
-from trading.services.promotion import (
-    execute_promotion_review_action,
-    execute_promotion_review_request,
-    show_promotion_review_history,
-    show_promotion_status,
-)
-from trading.services.reporting import (
-    account_report,
-    compare_strategies,
-    show_portfolio_concentration,
-    show_portfolio_exposure,
-    show_snapshots,
-    snapshot_account,
-)
-from trading.services.strategy_catalog import (
-    configure_strategy,
-    create_strategy_variant,
-    freeze_strategy,
-    promote_optimization_experiment,
-)
 
 
-def _handler_deps() -> dict[str, object]:
-    # Keep runtime dependencies explicit so handlers are testable and monkeypatch-friendly.
-    # Composition root: build the market-data provider once and inject it into the
-    # reporting flows that read live prices/benchmarks (no global locator access).
-    provider = build_provider()
-    return {
-        "db_path": get_db_path(),
-        "record_trade": record_trade,
-        "configure_account": configure_account,
-        "create_account": create_account,
-        "list_accounts": list_accounts,
-        "set_benchmark": set_benchmark,
-        "BacktestBatchConfig": BacktestBatchConfig,
-        "BacktestConfig": BacktestConfig,
-        "WalkForwardConfig": WalkForwardConfig,
-        "OptimizerConfig": OptimizerConfig,
-        "backtest_leaderboard_entries": backtest_leaderboard_entries,
-        "backtest_report": backtest_report,
-        "walk_forward_report": walk_forward_report,
-        "run_backtest": run_backtest,
-        "run_backtest_metrics_only": run_backtest_metrics_only,
-        "find_stale_backtests": find_stale_backtests,
-        "run_backtest_batch": run_backtest_batch,
-        "run_walk_forward_backtest": run_walk_forward_backtest,
-        "run_walk_forward_optimization": partial(
-            run_and_persist_optimization, market_data_provider=resolve_provider_name()
-        ),
-        "fetch_optimization_experiment": fetch_experiment_by_id,
-        "fetch_optimization_windows": fetch_windows_for_experiment,
-        "fetch_optimization_trials": fetch_trials_for_experiment,
-        "fetch_compounded_oos": fetch_compounded_oos,
-        "fetch_optimization_manifest": fetch_manifest_for_experiment,
-        "evaluate_promotion_gate": evaluate_promotion_gate,
-        "promote_optimization_experiment": promote_optimization_experiment,
-        "load_account_profiles": load_account_profiles,
-        "apply_account_profiles": apply_account_profiles,
-        "account_report": partial(account_report, provider=provider),
-        "show_promotion_status": show_promotion_status,
-        "execute_promotion_review_request": execute_promotion_review_request,
-        "show_promotion_review_history": show_promotion_review_history,
-        "execute_promotion_review_action": execute_promotion_review_action,
-        "compare_strategies": partial(compare_strategies, provider=provider),
-        "show_parameters": show_parameters,
-        "fetch_runtime_throttle_settings": fetch_runtime_throttle_settings,
-        "fetch_evaluation_confidence_settings": fetch_evaluation_confidence_settings,
-        "fetch_promotion_policy_settings": fetch_promotion_policy_settings,
-        "set_runtime_throttle_settings": set_runtime_throttle_settings,
-        "set_evaluation_confidence_settings": set_evaluation_confidence_settings,
-        "set_promotion_policy_settings": set_promotion_policy_settings,
-        "update_book_rotation_policy": update_book_rotation_policy,
-        "update_book_rotation_scheduling": update_book_rotation_scheduling,
-        "show_global_settings_history": show_global_settings_history,
-        "show_book_rotation_history": show_book_rotation_history,
-        "configure_strategy": configure_strategy,
-        "create_strategy_variant": create_strategy_variant,
-        "freeze_strategy": freeze_strategy,
-        "show_portfolio_concentration": show_portfolio_concentration,
-        "show_portfolio_exposure": show_portfolio_exposure,
-        "show_snapshots": show_snapshots,
-        "snapshot_account": partial(snapshot_account, provider=provider),
-    }
+def _cli_context() -> CliContext:
+    # Composition root: one market-data provider per invocation, injected into
+    # every flow that reads prices. An optimizer sweep runs a backtest per
+    # candidate per window through this one instance, which is what makes the
+    # adapter's cumulative call guard mean anything.
+    return CliContext(
+        db_path=get_db_path(),
+        provider=build_provider(),
+        provider_name=resolve_provider_name(),
+    )
 
 
 def main() -> None:
@@ -138,7 +25,7 @@ def main() -> None:
     args = parser.parse_args()
 
     with db_session() as conn:
-        dispatch_command(conn, args, parser, deps=_handler_deps())
+        dispatch_command(conn, args, parser, ctx=_cli_context())
 
 
 if __name__ == "__main__":

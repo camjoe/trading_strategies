@@ -4,14 +4,13 @@ import types
 
 import pytest
 
+from tests.src.trading.interfaces.cli.handlers.helpers import make_ctx
 from trading.interfaces.cli.handlers.router import COMMAND_HANDLERS, dispatch_command
 
 _EXPECTED_COMMANDS = {
     "init",
     "create-account",
     "configure-account",
-    "apply-account-profiles",
-    "apply-account-preset",
     "set-benchmark",
     "list-accounts",
     "trade",
@@ -37,15 +36,12 @@ _EXPECTED_COMMANDS = {
     "configure-strategy",
     "freeze-strategy",
     "backtest",
-    "refresh-stale-backtests",
     "backtest-report",
     "backtest-leaderboard",
     "backtest-batch",
     "backtest-optimize",
     "backtest-optimize-show",
     "backtest-optimize-promote",
-    "backtest-walk-forward",
-    "backtest-walk-forward-report",
 }
 
 
@@ -62,7 +58,7 @@ def test_dispatch_command_routes_to_registered_handler() -> None:
             None,
             types.SimpleNamespace(command="list-accounts"),
             None,
-            deps={},
+            ctx=make_ctx(),
         )
     finally:
         COMMAND_HANDLERS["list-accounts"] = original
@@ -80,7 +76,7 @@ def test_dispatch_command_calls_parser_error_for_unknown_command() -> None:
             None,
             types.SimpleNamespace(command="not-a-command"),
             _StubParser(),
-            deps={},
+            ctx=make_ctx(),
         )
 
 
@@ -99,7 +95,7 @@ def test_dispatch_command_records_parser_error_then_returns() -> None:
         None,
         types.SimpleNamespace(command="not-a-command"),
         parser,
-        deps={},
+        ctx=make_ctx(),
     )
 
     assert result is None

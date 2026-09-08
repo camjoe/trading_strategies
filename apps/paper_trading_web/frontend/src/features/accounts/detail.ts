@@ -205,10 +205,15 @@ export function renderCurrentDetail(
         const parsed = Number(raw);
         return Number.isFinite(parsed) ? parsed : undefined;
       };
-      const csv = (name: string): string[] => String(data.get(name) ?? "")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
+      // Undefined when blank, so an untouched field leaves the stored value
+      // alone rather than sending an empty list the server would reject.
+      const csv = (name: string): string[] | undefined => {
+        const values = String(data.get(name) ?? "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+        return values.length > 0 ? values : undefined;
+      };
       const payload: BookParamsUpdate = {
         strategy: String(data.get("strategy") ?? "").trim() || undefined,
         riskPolicy: String(data.get("riskPolicy") ?? "") || undefined,

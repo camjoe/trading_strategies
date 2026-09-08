@@ -6,13 +6,8 @@ to their clean shapes separately.
 """
 
 import sqlite3
-from pathlib import Path
 
 import pytest
-
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.connection import ensure_db
-from tests.support.db_schema import build_db_at_head
 
 NEW_TABLES = {
     "books",
@@ -26,18 +21,6 @@ NEW_TABLES = {
     "risk_snapshots",
     "risk_decisions",
 }
-
-
-@pytest.fixture
-def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
 
 
 def _insert_account(conn, name: str = "acct_books") -> int:
@@ -54,8 +37,8 @@ def _insert_book(conn, account_id: int, name: str = "default", is_default: int =
         """
         INSERT INTO books (
             account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, trade_universes, created_at, updated_at
-        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["default"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
+            current_equity, trade_symbols, created_at, updated_at
+        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["AAPL","MSFT"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (account_id, name, is_default),
     )

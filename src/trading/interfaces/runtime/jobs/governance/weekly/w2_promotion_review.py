@@ -3,17 +3,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
+from common.git import get_repo_root
+from common.runtime_job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionAccountPayload,
     WeeklyPromotionArtifactPayload,
     WeeklyPromotionBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     logs_dir_for_repo,
     ts,
 )
@@ -30,15 +27,6 @@ COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 JOB_NAME = "weekly_governance_w2_promotion_review"
 
 
-def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    return already_completed_for_period(
-        log_dir=log_dir,
-        job_name=JOB_NAME,
-        period_tag=tag,
-        sentinel=COMPLETE_SENTINEL,
-    )
-
-
 @governance_job(
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
@@ -48,15 +36,15 @@ def already_completed_this_week(log_dir: Path, tag: str) -> bool:
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[WeeklyPromotionAccountPayload] = []
     for account_name in ctx.accounts:
-        account = find_account(ctx.conn, account_name)
+        account = find_account(ctx.db, account_name)
         if account is None:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        assessment = fetch_promotion_assessment(ctx.conn, account_name=account_name)
+        assessment = fetch_promotion_assessment(ctx.db, account_name=account_name)
 
         book_rows: list[WeeklyPromotionBookPayload] = []
-        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
+        for book, assignment in list_report_books(ctx.db, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
             book_rows.append(

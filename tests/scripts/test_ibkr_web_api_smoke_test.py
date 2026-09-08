@@ -7,7 +7,7 @@ import pytest
 
 from infrastructure.brokers.ibkr_web import IbWebApiSettings
 from scripts import ibkr_web_api_smoke_test
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus
 
 
 class _FakeClient:
@@ -118,10 +118,11 @@ def test_run_paper_order_check_submits_and_cancels() -> None:
     cancelled: list[str] = []
 
     class _FakeAdapter:
-        def place_order(self, order: BrokerOrder) -> BrokerOrder:
-            order.broker_order_id = "12345"
-            order.status = OrderStatus.SUBMITTED
-            return order
+        def place_order(self, order: OrderRequest) -> BrokerOrder:
+            placed = BrokerOrder.from_request(order)
+            placed.broker_order_id = "12345"
+            placed.status = OrderStatus.SUBMITTED
+            return placed
 
         def cancel_order(self, broker_order_id: str) -> None:
             cancelled.append(broker_order_id)
@@ -170,10 +171,11 @@ def test_run_paper_order_check_cancels_even_without_live_order_row(monkeypatch) 
     cancelled: list[str] = []
 
     class _FakeAdapter:
-        def place_order(self, order: BrokerOrder) -> BrokerOrder:
-            order.broker_order_id = "12345"
-            order.status = OrderStatus.PENDING
-            return order
+        def place_order(self, order: OrderRequest) -> BrokerOrder:
+            placed = BrokerOrder.from_request(order)
+            placed.broker_order_id = "12345"
+            placed.status = OrderStatus.PENDING
+            return placed
 
         def cancel_order(self, broker_order_id: str) -> None:
             cancelled.append(broker_order_id)

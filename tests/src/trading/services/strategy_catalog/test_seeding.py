@@ -1,35 +1,20 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.connection import ensure_db
-from tests.support.db_schema import build_db_at_head
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import (
+from trading.repositories.book_rotation_settings import (
     BookRotationSettingsRepository,
 )
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
+from trading.services.strategy_catalog.seeding import ensure_default_books, seed_strategy_catalog
+from trading.services.universe import default_trade_symbols
 
 NOW = "2026-07-03T12:00:00Z"
-
-
-@pytest.fixture
-def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
 
 
 def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None:
@@ -48,9 +33,9 @@ def test_seed_strategy_catalog_creates_all_primitives_idempotently(conn) -> None
     # style/required_features are code-owned (PrimitiveSpec), no longer stored on
     # the row (revision 0017); the seeded row carries only variant identity.
 
-    news = repo.fetch_by_key(strategy_key="news_sentiment")
-    assert news is not None
-    assert news.primitive == "news_sentiment"
+    breakout = repo.fetch_by_key(strategy_key="breakout")
+    assert breakout is not None
+    assert breakout.primitive == "breakout"
 
 
 def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> None:
@@ -70,7 +55,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     assert book is not None
     assert book.is_default == 1
     assert book.start_equity == pytest.approx(5000.0)
-    assert book.trade_universes == '["default"]'
+    assert json.loads(book.trade_symbols) == default_trade_symbols()
 
     # Execution settings are book columns (revision 0004); bootstrap starts on
     # DDL defaults — account creation / editors set real values.
@@ -86,7 +71,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
 
     # Repair-path books open with no assignment (accounts.strategy was
     # dropped in revision 0008); operators assign explicitly.
-    assignment = BookAssignmentRepository(conn).fetch_open(book_id=book.id)
+    assignment = BookStrategyHistoryRepository(conn).fetch_open(book_id=book.id)
     assert assignment is None
 
 
@@ -103,4 +88,4 @@ def test_ensure_default_books_skips_unknown_legacy_strategy_label(conn) -> None:
     book = BookRepository(conn).fetch_default_for_account(account_id=account_id)
     assert book is not None
     # Unknown label → no assignment opened; book still bootstrapped.
-    assert BookAssignmentRepository(conn).fetch_open(book_id=book.id) is None
+    assert BookStrategyHistoryRepository(conn).fetch_open(book_id=book.id) is None

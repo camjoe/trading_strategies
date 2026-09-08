@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from trading.services import accounts as accounts_service
+from trading.services.accounts import deletions as accounts_service
 
 
 class TestPreviewAccountDeletion:
@@ -45,8 +45,6 @@ class TestDeleteAccount:
             "backtest_runs": "SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = 1",
             "promotion_reviews": "SELECT COUNT(*) AS n FROM promotion_reviews WHERE account_id = 1",
             "promotion_review_events": "SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 101",
-            "walk_forward_experiments": "SELECT COUNT(*) AS n FROM walk_forward_experiments WHERE account_id = 1",
-            "walk_forward_windows": "SELECT COUNT(*) AS n FROM walk_forward_windows WHERE run_id = 11",
             "risk_snapshots": "SELECT COUNT(*) AS n FROM risk_snapshots WHERE account_id = 1",
             "risk_decisions": "SELECT COUNT(*) AS n FROM risk_decisions WHERE account_id = 1",
         }

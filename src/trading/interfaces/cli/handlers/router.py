@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
-
 from trading.interfaces.cli.handlers.accounts_handlers import (
-    handle_apply_account_preset,
-    handle_apply_account_profiles,
     handle_configure_account,
     handle_create_account,
     handle_init,
@@ -20,10 +16,8 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_optimize_promote,
     handle_backtest_optimize_show,
     handle_backtest_report,
-    handle_backtest_walk_forward,
-    handle_backtest_walk_forward_report,
-    handle_refresh_stale_backtests,
 )
+from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
     handle_parameters,
@@ -56,8 +50,6 @@ COMMAND_HANDLERS = {
     "init": handle_init,
     "create-account": handle_create_account,
     "configure-account": handle_configure_account,
-    "apply-account-profiles": handle_apply_account_profiles,
-    "apply-account-preset": handle_apply_account_preset,
     "set-benchmark": handle_set_benchmark,
     "list-accounts": handle_list_accounts,
     "trade": handle_trade,
@@ -83,15 +75,12 @@ COMMAND_HANDLERS = {
     "configure-strategy": handle_configure_strategy,
     "freeze-strategy": handle_freeze_strategy,
     "backtest": handle_backtest,
-    "refresh-stale-backtests": handle_refresh_stale_backtests,
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,
     "backtest-optimize": handle_backtest_optimize,
     "backtest-optimize-show": handle_backtest_optimize_show,
     "backtest-optimize-promote": handle_backtest_optimize_promote,
-    "backtest-walk-forward": handle_backtest_walk_forward,
-    "backtest-walk-forward-report": handle_backtest_walk_forward_report,
 }
 
 
@@ -100,11 +89,11 @@ def dispatch_command(
     args,
     parser,
     *,
-    deps: dict[str, Any],
+    ctx: CliContext,
 ) -> None:
     command_handler = COMMAND_HANDLERS.get(args.command)
     if command_handler is None:
         parser.error(f"Unsupported command: {args.command}")
         return
 
-    command_handler(conn, args, parser, deps=deps)
+    command_handler(conn, args, parser, ctx=ctx)

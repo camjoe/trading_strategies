@@ -1,14 +1,8 @@
 import pytest
 
 from tests.support.seed.db import ACCT_TREND
-from trading.models import AccountConfig
-from trading.services.accounts import (
-    create_account,
-    find_account,
-    get_account,
-    list_account_names,
-    list_account_records,
-)
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.accounts.queries import find_account, list_account_names, list_account_records
 
 
 class TestAccountQueries:
@@ -27,20 +21,13 @@ class TestAccountQueries:
     # Exact-list assertion on a known set — uses isolated conn to avoid noise
     # from the shared seeded DB.
     def test_list_account_records_returns_all_accounts(self, conn) -> None:
-        create_account(conn, "acct_managed", "Trend", 1000.0, "SPY")
-        create_account(
-            conn,
-            "acct_local",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="local"),
-        )
+        create_account(conn, "acct_alpha", "Trend", 1000.0, "SPY")
+        create_account(conn, "acct_beta", "Trend", 1000.0, "SPY")
         rows = list_account_records(conn)
         names = [row["name"] for row in rows]
 
-        assert names == ["acct_local", "acct_managed"]
-        assert list_account_names(conn) == ["acct_local", "acct_managed"]
+        assert names == ["acct_alpha", "acct_beta"]
+        assert list_account_names(conn) == ["acct_alpha", "acct_beta"]
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +55,7 @@ class TestAccountQueryGuards:
             list_account_snapshots(conn, -1, limit=10)
 
     def test_list_account_snapshots_invalid_limit_raises(self, conn) -> None:
-        from trading.services.accounts import create_account
+        from trading.services.accounts.mutations import create_account
         from trading.services.accounts.queries import list_account_snapshots
 
         create_account(conn, "snap_acct", "Trend", 1000.0, "SPY")
@@ -76,10 +63,10 @@ class TestAccountQueryGuards:
         with pytest.raises(ValueError, match="limit must be positive"):
             list_account_snapshots(conn, acct["id"], limit=0)
 
-    def test_load_runtime_eligible_account_names_returns_list(self, conn) -> None:
-        # conn sets the global backend to a test DB so load_runtime_eligible_account_names
+    def test_load_account_names_returns_list(self, conn) -> None:
+        # conn sets the global backend to a test DB so load_account_names
         # does not hit the real on-disk database.
-        from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
+        from trading.services.accounts.runtime_loader import load_account_names
 
-        result = load_runtime_eligible_account_names()
+        result = load_account_names()
         assert isinstance(result, list)

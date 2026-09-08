@@ -117,9 +117,6 @@ class FixtureProfile:
     name: str
     business_days: int
     accounts: tuple[FixtureAccount, ...]
-    # Provider keys to enable in `feature_providers`. Enabled rows only affect
-    # alternative strategies, none of which the fixture accounts run.
-    feature_providers: tuple[str, ...] = ()
     # Whether to write the `global_settings` singleton. The demo leaves it unset
     # so it exercises the code-default path.
     seed_global_settings: bool = False
@@ -223,7 +220,7 @@ SANDBOX_PROFILE = FixtureProfile(
             strategy="rsi",
             initial_cash=40_000.0,
             benchmark="SPY",
-            trade_universes=("large_cap",),
+            trade_universes=("default",),
             trades=(
                 FixtureBuy(day_index=12, symbol="WMT", notional=_SANDBOX_SMALL_POSITION_NOTIONAL),
                 FixtureSell(day_index=260, symbol="WMT", fraction=0.6),
@@ -272,28 +269,15 @@ SANDBOX_PROFILE = FixtureProfile(
         FixtureAccount(
             name=SANDBOX_IDLE_ACCOUNT,
             descriptive_name="Sandbox Idle",
-            strategy="macd",
+            strategy="bollinger_mean_reversion",
             initial_cash=10_000.0,
             benchmark="SPY",
             trade_universes=("default",),
         ),
     ),
-    feature_providers=("news_sentiment",),
+    # Named for the provider, not for a strategy: the previous value here was
+    # "news_sentiment", a strategy id that no longer resolves.
     seed_global_settings=True,
     backtest_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),
     promotion_review_accounts=(SANDBOX_CORE_ACCOUNT, SANDBOX_ROTATION_ACCOUNT),
 )
-
-
-PROFILES: dict[str, FixtureProfile] = {
-    DEMO_PROFILE.name: DEMO_PROFILE,
-    SANDBOX_PROFILE.name: SANDBOX_PROFILE,
-}
-
-
-def resolve_profile(name: str) -> FixtureProfile:
-    """Look up a profile by name, erroring with the valid set when unknown."""
-    profile = PROFILES.get(name.strip().lower())
-    if profile is None:
-        raise ValueError(f"Unknown fixture profile '{name}'. Available: {', '.join(sorted(PROFILES))}")
-    return profile

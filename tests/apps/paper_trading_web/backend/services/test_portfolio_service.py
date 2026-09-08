@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from paper_trading_web.backend.services.portfolio import build_portfolio_rollup_payload
 
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -31,8 +31,8 @@ def test_shapes_camel_case_exposure_and_concentration(
     create_account_row: Callable[..., int],
 ) -> None:
     account_id = create_account_row("alpha")
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time="2026-07-09T00:00:00Z",
         cash=800.0,
         market_value=200.0,
@@ -41,7 +41,7 @@ def test_shapes_camel_case_exposure_and_concentration(
         unrealized_pnl=0.0,
     )
     PositionRepository(conn).upsert(
-        book_id=default_book_id(conn, account_id),
+        book_id=ensure_default_book_id(conn, account_id),
         symbol="AAPL",
         qty=1.0,
         avg_cost=200.0,

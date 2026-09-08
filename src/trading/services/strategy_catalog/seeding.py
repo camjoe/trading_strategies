@@ -11,15 +11,16 @@ Two idempotent bootstrap passes:
 
 from __future__ import annotations
 
-import json
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int
+from common.json_columns import dumps_json_column
 from common.time import utc_now_iso
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.services.universe import default_trade_symbols
 
 
 def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
@@ -34,7 +35,7 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
         repo.insert(
             strategy_key=primitive,
             primitive=primitive,
-            params_json=json.dumps(dict(spec.knob_schema), sort_keys=True),
+            params_json=dumps_json_column(dict(spec.knob_schema)),
             description=spec.description or None,
             status="draft",
             enabled=1,
@@ -71,20 +72,20 @@ def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None
     now = now_iso or utc_now_iso()
     book_repo = BookRepository(conn)
 
-    accounts = conn.execute("SELECT * FROM accounts ORDER BY id ASC").fetchall()
     created = 0
-    for account in accounts:
-        account_id = row_expect_int(dict(account), "id")
-        if book_repo.fetch_default_for_account(account_id=account_id) is not None:
+    for account in AccountRepository(conn).fetch_all():
+        if book_repo.fetch_default_for_account(account_id=account.id) is not None:
             continue
-        initial_cash = row_expect_float(dict(account), "initial_cash")
         book_id = book_repo.insert(
-            account_id=account_id,
+            account_id=account.id,
             name="default",
             is_default=1,
-            start_equity=initial_cash,
-            current_cash=initial_cash,
-            current_equity=initial_cash,
+            start_equity=account.initial_cash,
+            current_cash=account.initial_cash,
+            current_equity=account.initial_cash,
+            # A bootstrapped book must be able to trade; the repository has no
+            # default because expanding a universe name is service work.
+            trade_symbols=dumps_json_column(default_trade_symbols()),
             created_at=now,
             updated_at=now,
         )

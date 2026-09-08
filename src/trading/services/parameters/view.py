@@ -14,19 +14,21 @@ from typing import Any
 
 from trading.domain.exceptions import NotFoundError
 from trading.domain.strategies.parameter_validation import resolve_primitive
-from trading.models.books.book_record import BookRecord
-from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
-from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
-from trading.models.parameters.parameter_entry import ParameterEntry
-from trading.models.parameters.parameter_group import ParameterGroup
-from trading.models.parameters.parameter_source_view import ParameterSourceView
+from trading.models.books import BookRecord, BookRotationSettingsRecord
+from trading.models.parameters import (
+    PARAMETER_SOURCE_DB,
+    PARAMETER_SOURCE_DEFAULT,
+    ParameterEntry,
+    ParameterGroup,
+    ParameterSourceView,
+)
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
-from trading.services.operational_settings import (
+from trading.services.operational_settings.queries import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,
@@ -109,7 +111,7 @@ def _mandate_group(scope_prefix: str, book: BookRecord) -> ParameterGroup:
             name="goal_max_return_pct", value=_render(book.goal_max_return_pct), source=PARAMETER_SOURCE_DB
         ),
         ParameterEntry(name="goal_period", value=_render(book.goal_period), source=PARAMETER_SOURCE_DB),
-        ParameterEntry(name="trade_universes", value=_render(book.trade_universes), source=PARAMETER_SOURCE_DB),
+        ParameterEntry(name="trade_symbols", value=_render(book.trade_symbols), source=PARAMETER_SOURCE_DB),
     )
     return ParameterGroup(scope=f"{scope_prefix} / mandate", entries=entries)
 
@@ -144,9 +146,10 @@ _OPTION_FIELDS = (
 )
 
 
-def _book_columns_group(scope: str, book: BookRecord, fields: tuple[str, ...]) -> ParameterGroup:
+def _book_columns_group(scope: str, book: BookRecord, field_names: tuple[str, ...]) -> ParameterGroup:
     entries = tuple(
-        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB) for name in fields
+        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB)
+        for name in field_names
     )
     return ParameterGroup(scope=scope, entries=entries)
 
@@ -243,11 +246,14 @@ def fetch_parameter_source_view(
     """
     groups = _global_groups(conn)
 
-    accounts = AccountRepository(conn).fetch_all()
+    account_repo = AccountRepository(conn)
     if account_name is not None:
-        accounts = [account for account in accounts if account.name == account_name]
-        if not accounts:
+        account = account_repo.fetch_by_name(account_name=account_name)
+        if account is None:
             raise NotFoundError(f"Account not found: {account_name}")
+        accounts = [account]
+    else:
+        accounts = account_repo.fetch_all()
     books = BookRepository(conn)
     for account in accounts:
         for book in books.fetch_for_account(account_id=account.id):

@@ -6,9 +6,8 @@ from collections.abc import Sequence
 import pytest
 
 from tests.support.repositories import insert_repository_account
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.execution import BookTradeIntent, GateResult
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
@@ -45,27 +44,28 @@ class FakeBroker:
         self._commission = commission
         self._fills = fills or []
         self._raises = raises
-        self.calls: list[BrokerOrder] = []
+        self.calls: list[OrderRequest] = []
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
         self.calls.append(order)
         if self._raises:
             raise RuntimeError("broker unavailable")
-        order.broker_order_id = self._broker_order_id
-        order.status = self._status
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = self._broker_order_id
+        placed.status = self._status
         if self._filled_qty is not None:
-            order.filled_qty = self._filled_qty
+            placed.filled_qty = self._filled_qty
         elif self._status == OrderStatus.FILLED:
-            order.filled_qty = order.qty
+            placed.filled_qty = order.qty
         if self._avg_fill_price is not None:
-            order.avg_fill_price = self._avg_fill_price
+            placed.avg_fill_price = self._avg_fill_price
         elif self._status in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED):
-            order.avg_fill_price = order.price
-        order.commission = self._commission
-        order.submitted_at = "2026-07-05T10:00:00Z"
-        order.updated_at = "2026-07-05T10:00:01Z"
-        order.fills = list(self._fills)
-        return order
+            placed.avg_fill_price = order.price
+        placed.commission = self._commission
+        placed.submitted_at = "2026-07-05T10:00:00Z"
+        placed.updated_at = "2026-07-05T10:00:01Z"
+        placed.fills = list(self._fills)
+        return placed
 
 
 class BlockingGate:
@@ -393,6 +393,33 @@ def test_sell_reduces_position_and_credits_ledger(conn, book_env):
     # Sell 4 @ 110 → cash in 440.
     assert ledger[0].amount == pytest.approx(440.0)
     assert result.filled_count == 1
+
+
+def test_selling_the_whole_position_removes_its_row(conn, book_env):
+    """A closed position must leave no row: exposure and mark-to-market read every row."""
+    account_id, book_id = book_env
+    PositionRepository(conn).upsert(
+        book_id=book_id,
+        symbol="AAPL",
+        qty=10.0,
+        avg_cost=100.0,
+        market_value=1000.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-07-05T09:00:00Z",
+    )
+
+    submit_book_intents(
+        conn,
+        book_id=book_id,
+        account_id=account_id,
+        intents=[_intent(book_id, account_id, side="sell", qty=10.0, price=110.0)],
+        broker=FakeBroker(status=OrderStatus.FILLED, avg_fill_price=110.0),
+        gate=AllowAllGate(),
+        fee=0.0,
+    )
+
+    assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is None
+    assert PositionRepository(conn).fetch_for_book(book_id=book_id) == []
 
 
 # --- 2c-1: book balance maintenance -----------------------------------------

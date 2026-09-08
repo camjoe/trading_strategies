@@ -20,13 +20,13 @@ from tests.src.trading.services.auto_trading.factories import (
     make_book_trade_candidate,
 )
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.submission_result import SubmissionResult
+from trading.models.execution import BookTradeIntent, GateResult, SubmissionResult
+from trading.models.market_data import MarketInputs
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_BROKER_API_ANOMALY,
     KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
+    KILL_SWITCH_REASON_UNPRICED_POSITION,
 )
 
 SNAPSHOT_TIME = "2026-03-14T14:00:00Z"
@@ -38,6 +38,7 @@ def _install(
     *,
     intents,
     reconciliation_reasons=None,
+    unpriced_symbols=None,
     gate_result=None,
     submit_results=None,
     throttle_raises_before=None,
@@ -68,10 +69,11 @@ def _install(
 
     def _mark(_conn, *, account_id, prices, as_of):
         recorder.calls.append("mark_to_market")
+        return [SimpleNamespace(unpriced_symbols=list(unpriced_symbols or []))]
 
     monkeypatch.setattr(runtime_service, "mark_account_to_market", _mark)
 
-    def _reconcile(_conn, *, account_id, now_iso):
+    def _reconcile(_conn, *, account_id):
         recorder.calls.append("reconcile")
         return list(reconciliation_reasons or [])
 
@@ -89,7 +91,7 @@ def _install(
 
     monkeypatch.setattr(runtime_service, "BookPreSubmitGate", _FakeGate)
 
-    def _persist(_conn, *, account_id, snapshot_time, audit):
+    def _persist(_conn, *, account_id, snapshot_time, audit, symbol_sector_map):
         recorder.calls.append("persist_audit")
         recorder.persisted.append(
             SimpleNamespace(
@@ -113,7 +115,14 @@ def _install(
 
     submit_iter = iter(submit_results or [])
 
-    def _submit(_conn, *, book_id, account_id, intents, broker, gate, fee):
+    def _submit(_conn, *, book_id, account_id, intents, broker, gate, fee, enforce_throttle=None):
+        # Submission owns the throttle check now — it runs between orders, not
+        # once per book. One call here stands in for that per-order loop.
+        if enforce_throttle is not None:
+            try:
+                enforce_throttle()
+            except RuntimeTradeThrottleExceededError:
+                return SubmissionResult(throttled=True)
         recorder.calls.append(f"submit:{book_id}")
         recorder.submit_book_ids.append(book_id)
         try:
@@ -132,9 +141,7 @@ def _run(recorder, *, prices=None):
     return runtime_service._run_books_for_account(
         object(),
         account=make_auto_trading_account(id=ACCOUNT_ID),
-        universe=["AAPL"],
-        prices=prices if prices is not None else {"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices=prices if prices is not None else {"AAPL": 100.0}),
         max_trades=5,
         fee=0.0,
         broker_factory=recorder.broker_factory,
@@ -149,7 +156,7 @@ def test_happy_path_submits_each_book_in_order_and_persists_audit(monkeypatch) -
 
     submitted = _run(recorder)
 
-    assert submitted == 2
+    assert submitted.submitted_count == 2
     assert recorder.submit_book_ids == [10, 20]
     assert recorder.calls == [
         "rotation",
@@ -172,7 +179,7 @@ def test_no_intents_persists_empty_audit_without_touching_broker(monkeypatch) ->
 
     submitted = _run(recorder)
 
-    assert submitted == 0
+    assert submitted.submitted_count == 0
     assert recorder.calls == ["rotation", "generate_intents", "persist_audit"]
     recorder.broker_factory.assert_not_called()
     assert recorder.persisted[-1].summary["submitted_count"] == 0
@@ -188,13 +195,34 @@ def test_reconciliation_mismatch_holds_run_before_broker(monkeypatch) -> None:
 
     submitted = _run(recorder)
 
-    assert submitted == 0
+    assert submitted.submitted_count == 0
     # The gate still evaluated, but the reconciliation kill switch holds the run
     # before any broker is opened or any book submits.
     assert "gate.evaluate" in recorder.calls
     assert not any(c.startswith("submit:") for c in recorder.calls)
     recorder.broker_factory.assert_not_called()
     assert KILL_SWITCH_REASON_RECONCILIATION_MISMATCH in recorder.persisted[-1].kill_switch_reasons
+
+
+def test_unpriced_position_holds_run_and_skips_reconciliation(monkeypatch) -> None:
+    recorder = _install(
+        monkeypatch,
+        intents=[make_book_trade_candidate(book_id=10)],
+        unpriced_symbols=["AAPL"],
+        # Would fire too, but must never run: an unpriced position makes the equity
+        # check spurious, so the run holds on the honest cause instead.
+        reconciliation_reasons=[KILL_SWITCH_REASON_RECONCILIATION_MISMATCH],
+    )
+
+    submitted = _run(recorder)
+
+    assert submitted.submitted_count == 0
+    # The unpriced-position kill switch holds the run, and the now-uninformative
+    # equity reconciliation is skipped rather than reported as a mismatch.
+    assert "reconcile" not in recorder.calls
+    assert not any(c.startswith("submit:") for c in recorder.calls)
+    recorder.broker_factory.assert_not_called()
+    assert recorder.persisted[-1].kill_switch_reasons == [KILL_SWITCH_REASON_UNPRICED_POSITION]
 
 
 def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
@@ -222,7 +250,7 @@ def test_stale_price_kill_switch_overrides_gate_approval(monkeypatch) -> None:
 
     # A stale-price kill switch holds the whole run even though the gate returned
     # an approved intent.
-    assert submitted == 0
+    assert submitted.submitted_count == 0
     assert not any(c.startswith("submit:") for c in recorder.calls)
     recorder.broker_factory.assert_not_called()
     assert KILL_SWITCH_REASON_STALE_PRICE_DATA in recorder.persisted[-1].kill_switch_reasons
@@ -238,7 +266,7 @@ def test_trade_throttle_stops_after_first_book(monkeypatch) -> None:
 
     submitted = _run(recorder)
 
-    assert submitted == 1
+    assert submitted.submitted_count == 1
     assert recorder.submit_book_ids == [10]
     reasons = [d.get("reason_code") for d in recorder.persisted[-1].risk_decisions]
     assert runtime_service.RISK_REASON_TRADE_THROTTLE_EXCEEDED in reasons
@@ -263,7 +291,7 @@ def test_broker_anomaly_stops_further_submission(monkeypatch) -> None:
 
     # First book submits, second reports a broker anomaly and halts the loop;
     # the third book is never reached.
-    assert submitted == 1
+    assert submitted.submitted_count == 1
     assert recorder.submit_book_ids == [10, 20]
     assert KILL_SWITCH_REASON_BROKER_API_ANOMALY in recorder.persisted[-1].kill_switch_reasons
     recorder.broker.disconnect.assert_called_once()

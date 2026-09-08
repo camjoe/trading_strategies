@@ -17,7 +17,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     write_completed_runtime_log,
 )
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.services.books.rotation.challenger_evaluation import BookChallengerEvaluation, ChallengerEvaluationRun
 
 EXPORT_DIR_PARTS = ("local", "exports", "daily_challenger_shadow_eval")
@@ -29,7 +29,7 @@ def _run(monkeypatch, tmp_path: Path, args: list[str]) -> int:
 
 
 def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: list(accounts))
 
 
 def _stub_db(monkeypatch) -> None:

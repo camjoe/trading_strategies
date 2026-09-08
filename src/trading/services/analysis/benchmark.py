@@ -14,8 +14,10 @@ from datetime import date
 import pandas as pd
 
 from common.coercion import coerce_float
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
-from trading.services.market_data import MarketDataProvider, require_provider
+from common.constants import PERCENT_SCALE
+from trading.models.portfolio import EquitySnapshotRecord
+from trading.services.market_data.lookups import extract_close_series
+from trading.services.market_data.protocols import MarketDataProvider, require_provider
 
 
 def _snapshot_time(snapshot: EquitySnapshotRecord) -> str:
@@ -42,17 +44,7 @@ def fetch_benchmark_close_history(
     if not ticker:
         return None
     close_history = require_provider(provider).fetch_close_history([ticker], start_date, end_date)
-    if close_history is None:
-        return None
-    try:
-        close_col = close_history[ticker]
-    except Exception:
-        return None
-    if isinstance(close_col, pd.DataFrame):
-        if close_col.shape[1] == 0:
-            return None
-        return close_col.iloc[:, 0].dropna()
-    return close_col.dropna()
+    return extract_close_series(close_history, ticker)
 
 
 def _normalize_close_history(close_history: pd.Series) -> pd.Series:
@@ -88,9 +80,10 @@ def build_live_benchmark_overlay(
     Returns
     -------
     dict or None
-        Overlay dict with ``benchmark``, ``startTime``, ``endTime``,
-        ``benchmarkReturnPct``, ``alphaPct``, ``points``, and related summary
-        fields; or ``None`` when insufficient data is available.
+        Overlay dict (snake_case) with ``benchmark``, ``start_time``,
+        ``end_time``, ``benchmark_return_pct``, ``alpha_pct``, ``points``, and
+        related summary fields; or ``None`` when insufficient data is available.
+        The web boundary camelCases it for the frontend.
     """
     if len(snapshots) < 2:
         return None
@@ -135,55 +128,36 @@ def build_live_benchmark_overlay(
         points.append(
             {
                 "time": _snapshot_time(snapshot),
-                "accountEquity": account_equity,
-                "benchmarkEquity": benchmark_equity,
+                "account_equity": account_equity,
+                "benchmark_equity": benchmark_equity,
             }
         )
 
     if len(points) < 2:
         return None
 
-    ending_benchmark_equity = coerce_float(points[-1]["benchmarkEquity"])
-    account_ending_equity = coerce_float(points[-1]["accountEquity"])
+    ending_benchmark_equity = coerce_float(points[-1]["benchmark_equity"])
+    account_ending_equity = coerce_float(points[-1]["account_equity"])
     if ending_benchmark_equity is None or account_ending_equity is None:
         return None
-    account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * 100.0
-    benchmark_return_pct = ((ending_benchmark_equity / starting_equity) - 1.0) * 100.0
+    account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * PERCENT_SCALE
+    benchmark_return_pct = ((ending_benchmark_equity / starting_equity) - 1.0) * PERCENT_SCALE
     alpha_pct = account_return_pct - benchmark_return_pct
     return {
         "benchmark": ticker,
-        "startTime": str(points[0]["time"]),
-        "endTime": str(points[-1]["time"]),
-        "startingEquity": starting_equity,
-        "endingEquity": account_ending_equity,
-        "benchmarkEquity": ending_benchmark_equity,
-        "accountReturnPct": account_return_pct,
-        "benchmarkReturnPct": benchmark_return_pct,
-        "alphaPct": alpha_pct,
+        "start_time": str(points[0]["time"]),
+        "end_time": str(points[-1]["time"]),
+        "starting_equity": starting_equity,
+        "ending_equity": account_ending_equity,
+        "benchmark_equity": ending_benchmark_equity,
+        "account_return_pct": account_return_pct,
+        "benchmark_return_pct": benchmark_return_pct,
+        "alpha_pct": alpha_pct,
         "points": points,
     }
 
 
-def attach_live_benchmark_summary(
-    summary: dict[str, object],
-    overlay: dict[str, object] | None,
-) -> dict[str, object]:
-    """Inject benchmark summary fields into *summary* from a computed *overlay*.
-
-    Sets ``liveBenchmarkReturnPct``, ``liveAlphaPct``, ``liveBenchmarkEquity``,
-    ``liveBenchmarkStartTime``, and ``liveBenchmarkEndTime``.  All fields are
-    set to ``None`` when *overlay* is ``None`` (benchmark unavailable).
-    """
-    summary["liveBenchmarkReturnPct"] = overlay["benchmarkReturnPct"] if overlay is not None else None
-    summary["liveAlphaPct"] = overlay["alphaPct"] if overlay is not None else None
-    summary["liveBenchmarkEquity"] = overlay["benchmarkEquity"] if overlay is not None else None
-    summary["liveBenchmarkStartTime"] = overlay["startTime"] if overlay is not None else None
-    summary["liveBenchmarkEndTime"] = overlay["endTime"] if overlay is not None else None
-    return summary
-
-
 __all__ = [
-    "attach_live_benchmark_summary",
     "build_live_benchmark_overlay",
     "fetch_benchmark_close_history",
 ]

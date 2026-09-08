@@ -20,14 +20,29 @@ Primary flow:
 
 Do not invert this flow.
 
-Top-level package shape is intentionally **hybrid**:
+`src/trading/` holds **layers only**. A package that owns its own tables and needs its own
+stack to reach them is a bounded context and sits beside `trading/`, not inside it:
 
 1. The layered backbone above applies to main runtime behavior.
-2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`src/trading/backtesting`); broker adapters live at the repo-root `src/infrastructure/brokers/` package,
+2. **The test is table ownership.** `src/backtesting/` owns seven tables whose only runtime writer
+   is its own repositories (`backtest_runs`, `backtest_executions`, `backtest_equity_snapshots`,
+   `optimization_experiments`, `optimization_windows`, `optimization_trials`,
+   `optimization_run_manifests`); every other package under `src/trading/` shares
+   `trading/repositories/`. That is why it is the only one, and the criterion a future candidate
+   has to meet. Nothing outside `backtesting/` writes those tables — the fixture seeder used to,
+   with hand-written SQL that the import-based rule could not see, and now crosses at
+   `backtesting.services.fixture_seed` like every other reader.
+   Its seam with `trading/` is enforced in both directions
+   by `layer_check` — reads cross at services, and shared lower layers (`trading.domain`,
+   `trading.models`, `trading.persistence`) are layering rather than crossing. Where a
+   *calculation* both contexts need belongs is settled by
+   [ADR 020](../adr/020-shared-financial-math-ownership.md): `trading/domain/` owns it,
+   `common/` keeps unit scales only, and `backtesting/domain/` keeps what only a backtest
+   can compute.
+3. Broker adapters live at the repo-root `src/infrastructure/brokers/` package,
    external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
    concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.
-3. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
+4. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
 
@@ -36,6 +51,9 @@ Allowed:
 1. `src/trading/interfaces/*` importing `src/trading/services/*`
 2. `src/trading/services/*` importing `src/trading/repositories/*` and `src/trading/domain/*`
 3. `src/trading/repositories/*` importing `src/infrastructure/database/*` helpers
+4. Any layer importing `src/trading/persistence/*` — it sits below the repository
+   layer so services, both repository packages, and `backtesting/*` can share
+   transaction scope and column encoding without borrowing from one another
 
 Disallowed:
 
@@ -45,80 +63,98 @@ Disallowed:
 
 ## Package Ownership Map
 
-This section owns **layer-level** ownership. For the boundaries **between service packages**
-inside `src/trading/services/` (who owns what, and what each explicitly does not own), see
-[Service Ownership Map](service-ownership.md).
+Layer-level ownership **rules**. For what each module in a package actually does, see
+[Trading Package Map](../maps/trading-package-map.md); for the boundaries **between service
+packages** inside `src/trading/services/`, see [Service Ownership Map](service-ownership.md).
 
-1. `src/trading/interfaces/cli/`: CLI adapters and command wiring
-   - Keep transport/input wiring here, not domain logic.
+| Package | Rule |
+|---|---|
+| `trading/interfaces/cli/` | Transport and input wiring only — no domain logic |
+| `trading/interfaces/runtime/jobs/` | Scheduler/runtime orchestration entrypoints only (daily runs, health checks, registration tasks) |
+| `trading/interfaces/runtime/data_ops/` | Canonical location for operator-facing DB admin/backup/export/delete flows |
+| `trading/services/` | Coordinates domain logic and repositories |
+| `trading/domain/` | Side-effect free — no DB, CLI, subprocess, or network |
+| `trading/models/` | The lowest layer — imports nothing from any other layer |
+| `trading/repositories/` | SQL reads/writes and row-level data access helpers |
+| `trading/persistence/` | Mechanics shared by all DB access — transaction scope, column encoding. Below the repository layer; imports nothing from `trading/` or `infrastructure/` |
+| `backtesting/` (repo root, beside `trading/`) | Bounded context owning the backtest + optimizer tables; mirrors the same repository/service/domain layering |
+| `infrastructure/database/` | DB infrastructure only: schema migration, connection gating, backend selection, path/config |
+| `infrastructure/config/` | File-backed static config assets (account profile presets) |
+| `infrastructure/brokers/` | Owns broker SDK imports and connection adapters |
+| `infrastructure/feature_providers/` | Owns external-data SDK imports and network calls |
+| `infrastructure/market_data/` | Owns market-data SDK imports and concrete providers |
 
-2. `src/trading/interfaces/runtime/jobs/`: scheduler/runtime entrypoints
-   - Scheduler and runtime orchestration entrypoints (daily runs, health checks, registration tasks).
+Layer direction, broker SDK, external-data SDK, market-data adapter, and retired runtime
+package-name boundaries are enforced by `python -m scripts.checks.repo.layer_check`.
 
-3. `src/trading/interfaces/runtime/data_ops/`: operator-facing maintenance flows
-   - Operator-facing DB admin/export flows.
-   - Canonical location for backup/export/delete operations.
+`trading/services/fixtures/` is an operator tool, not application code: it generates demo and
+sandbox databases full of synthetic records. `layer_check` forbids importing it from anywhere
+under `src/`, so no runtime behaviour can come to depend on generated data. Reach it from a
+`scripts/` entry point or a test.
 
-4. `src/trading/services/`: application orchestration and composition
-   - Coordinates domain logic and repositories.
+### Detail the one-line rules do not carry
 
-5. `src/trading/domain/`: pure policy/decision logic (side-effect free)
-   - No DB, CLI, subprocess, or network side effects.
-   - Holds logic + DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
-     `StrategySpec`). Passive data classes belong in `models/` (see below).
-     The deliberate exception is the policy-knob `*Settings` dataclasses
-     (`EvaluationConfidenceSettings`, `PromotionPolicySettings`): they are domain
-     policy parameters (not data contracts) and stay here with the domain math
-     constants they default to.
+- **`domain/`** holds logic plus DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
+  `StrategySpec`); passive data classes belong in `models/`. The deliberate exception is the
+  policy-knob `*Settings` dataclasses (`EvaluationConfidenceSettings`,
+  `PromotionPolicySettings`) — domain policy parameters, not data contracts, so they stay here
+  with the domain math constants they default to.
+- **`models/`** holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
+  state/order models, and domain value objects (evaluation/promotion/books), in feature
+  subfolders (`accounts/`, `books/`, …), one contract per file. No business logic, no I/O, and
+  **no imports from `domain`, `services`, `repositories`, `interfaces`, or `infrastructure`**.
+  `domain` may import `models`, never the reverse. See
+  [ADR 005](../adr/005-models-as-lowest-data-layer.md).
+- **`brokers/`** — service and domain layers must depend only on `BrokerConnection` from
+  `src/trading/domain/broker_connection.py`. The factory
+  (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing.
+  Both broker guards live here — the `live_trading_enabled` real-money gate and the IBKR
+  paper-account assertion (see [Live Trading Safety Guard](#live-trading-safety-guard)).
+- **`feature_providers/`** — houses concrete `ExternalFeatureProvider` subclasses (news,
+  social, policy). Shared contracts and signal keys live in
+  `src/trading/domain/feature_provider.py`; signal functions in
+  `src/trading/domain/strategies/signals/` must consume feature bundles via injected callables.
+- **`market_data/`** — service and domain layers must depend only on the `MarketDataProvider`
+  port from `src/trading/services/market_data/protocols.py` and an injected instance, never the
+  concrete adapter. The factory (`src/infrastructure/market_data/factory.py`) is the sole
+  location for `provider` routing (env/config resolution) and concrete-adapter construction
+  (`build_provider`). `ProxyFeatureDataProvider` stays in `src/trading/services/market_data/` —
+  a trading-domain computation over an injected provider, with no external-library dependency.
+- **Migrations** — see [DB Migration System](../reference/db-migration-system.md); use the
+  `db-migration` skill (`.ai/skills/db-migration/`) for migration review and schema-change
+  validation.
+- **`backtesting/`** — see [Backtesting](../reference/backtesting.md) and
+  `src/backtesting/README.md`.
 
-6. `src/trading/models/`: passive data contracts (the lowest layer)
-   - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
-     state/order models, and domain value objects (evaluation/promotion/books).
-   - No business logic, no I/O, and **no imports from `domain`, `services`,
-     `repositories`, `interfaces`, or `infrastructure`** — enforced by
-     `scripts/checks/repo/layer_check.py`. `domain` may import `models`, never the reverse.
-   - Organized into feature subfolders (`accounts/`, `books/`, `evaluation/`, …),
-     one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
+  **A bounded context owes the backbone its seam, not its internal conventions.** What crosses
+  between `backtesting/` and `trading/` is constrained and enforced by `layer_check`; how
+  backtesting is arranged inside is its own business. Recorded because it keeps getting re-asked:
 
-7. `src/trading/repositories/`: SQL persistence adapters
-   - SQL reads/writes and row-level data access helpers.
+  - It exposes **module-level repository functions** where `trading/repositories/` uses
+    `*Repository` classes, and names its modules for what they own with no layer suffix where
+    trading uses service packages. Neither is drift — nothing here constrains module filenames
+    beyond `snake_case`, `infrastructure/` is mixed the same way, and both packages follow the
+    documented `fetch_*`/`insert_*` verbs.
 
-8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
-   - Schema init/evolution, backend selection, path/config, and coercion helpers.
-   - Migration system reference: `docs/reference/db-migration-system.md`
-   - For migration reviews and schema-change validation, use the `db-migration` skill (`.ai/skills/db-migration/`).
-
-9. `src/trading/backtesting/`: same layered model within backtesting package
-   - Repository/service/domain layering mirrored from main trading module.
-   - See `docs/reference/backtesting.md` and `src/trading/backtesting/README.md`.
-
-10. `src/infrastructure/config/`: file-backed static config assets
-   - Account profile presets and other static configuration.
-
-11. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
-    - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
-    - Owns third-party external-data SDK imports and network calls.
-    - Shared contracts and signal keys live in `src/trading/domain/feature_provider.py`.
-    - Signal functions in `src/trading/domain/strategies/signals/` must
-      consume feature bundles via injected callables.
-
-12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
-   - Owns broker SDK imports and broker connection adapters.
-   - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
-   - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
-   - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
-
-13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
-   - Owns market-data SDK imports and concrete market-data providers.
-   - Service and domain layers must depend only on the `MarketDataProvider` port from
-     `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
-   - The factory (`src/infrastructure/market_data/factory.py`) is the sole location for `provider` routing
-     (env/config resolution) and concrete-adapter construction (`build_provider`).
-   - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
-     trading-domain computation over an injected market-data provider, with no external-library dependency.
-
-Broker SDK, external-data SDK, market-data adapter, and retired runtime package-name boundaries are
-enforced by `python -m scripts.checks.repo.layer_check`.
+    Backtesting dropped both layer suffixes for the same reason: the suffix repeated the directory
+    it sat in. `repositories/*_repository.py` went in 2026-08 and `services/*_service.py` followed,
+    leaving `repositories/runs.py` and `services/reporting.py`. That aligned the repository
+    filenames with `trading/repositories/` because the old names were redundant on their own terms,
+    **not** because matching trading is required — the paragraph above still governs. The
+    function-vs-class split was weighed at the same time and deliberately left alone: the classes
+    hold only a connection and nothing subclasses or substitutes them, so converting would buy
+    symmetry and no behaviour. **This says nothing about `trading/repositories/`,** whose
+    `*Repository` classes are settled and are not to be changed on the strength of a decision
+    made over here.
+  - Its data contracts stay in **its own** `backtesting/models/` package — feature modules with a
+    re-exporting root, the same arrangement as `trading/models/`, following the same
+    `*Config`/`*Insert`/`*Record` suffixes. Sharing the *shape* is worth it for discoverability;
+    sharing the *location* is not. [ADR 005](../adr/005-models-as-lowest-data-layer.md) governs
+    `trading/models/` and does not reach across contexts, and moving these in would make trading's
+    lowest layer own contracts for seven tables it never writes.
+  - Module size is not a reason to split one: `models/optimizer.py` is 494 lines against
+    `trading/models/books.py` at 433. ADR 005 moved *toward* grouped feature modules, so a module
+    holding one coherent area is the target state, not drift from it.
 
 ## Execution and Parameter Ownership
 
@@ -230,6 +266,11 @@ Service naming:
 1. read orchestration: `fetch_*`
 2. side-effect workflows: `run_*`, `execute_*`
 3. input/config derivation: `resolve_*`
+4. value/object construction (dataclass, dict, config text, id, connection): `build_*`
+5. operator-facing display text (`str`/`list[str]`): `render_*`, kept in a
+   `presentation.py` module. Do not spell display builders `build_*` or
+   `format_*` — those read as data construction and let the presentation verb
+   drift (`build_*` is already the general constructor).
 
 Domain naming:
 
@@ -250,8 +291,14 @@ Domain naming:
 
 ## Import and Facade Rules
 
-1. Prefer direct imports from concrete implementation modules.
-2. Avoid adding import-only facades unless they are deliberate public entrypoints.
+1. Import the concrete module that owns a symbol, not a package-root re-export.
+   The import path then names where the code lives, and there is no `__all__`
+   surface to drift out of sync. `execution` and `books` are the model (see
+   `docs/architecture/service-cookbook.md`).
+2. Do not add import-only re-export facades or shim chains that only forward
+   another package's symbols. The service packages carried `__init__.py`
+   `__all__` facades from an earlier convention; all are now retired, so a new
+   one would reintroduce a surface the codebase deliberately removed.
 3. Keep compatibility shims temporary and explicit. Retire one by migrating
    internal callers first, then removing the export only after a repository-wide
    reference search and targeted tests prove it is unused.
@@ -334,7 +381,9 @@ this system; the UI is an optional consumer that views results and edits paramet
 the same services.  Every capability must be reachable from the scheduler and CLI without
 the UI — never make a capability, contract, or parameter editable *only* through the UI,
 and do not design contracts around UI convenience.  UI-shaping (camelCase JSON, response
-payloads) stays at the UI backend boundary only.
+payloads) stays at the UI backend boundary only.  This also sets the order of work per
+feature: settle the service contract first, then build UI on it — never build UI against a
+contract still in flux.
 
 HTTP error mapping follows the same boundary:
 
@@ -398,6 +447,9 @@ Use this guidance for large package relocations or adapter-boundary changes:
 The `live_trading_enabled` column on the `accounts` table is a hard safety gate
 that prevents live broker orders from being submitted accidentally.
 
+**Its scope is real money, not broker connectivity.** Reaching an IBKR *paper*
+account is not gated on this flag — that path has its own guard, described below.
+
 **Rules that all agents must follow without exception:**
 
 1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
@@ -406,11 +458,14 @@ that prevents live broker orders from being submitted accidentally.
 
 2. **Never modify `broker_type`, `broker_host`, `broker_port`, or
    `broker_client_id`** to point at a live broker endpoint in any generated
-   code or automated process.
+   code or automated process.  Setting `broker_type` to one of the `_paper`
+   venues is not a live endpoint change, but still belongs to the operator — do
+   not switch an account's execution backend unasked.
 
-3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
-   `infrastructure.brokers.factory`).  If this error surfaces, it must propagate so
-   the operator can investigate.
+3. **Never catch or suppress `LiveTradingNotEnabledError`,
+   `PaperBrokerAccountMismatchError`, or `UnknownBrokerTypeError`** (from
+   `infrastructure.brokers.factory`).  If any surfaces, it must propagate so the
+   operator can investigate.
 
 4. **Shared test fixtures and helper factories must default to
    `live_trading_enabled = 0`**. Tests that explicitly exercise the live guard
@@ -420,6 +475,32 @@ that prevents live broker orders from being submitted accidentally.
 Rationale: `live_trading_enabled = 1` causes real money to move through a
 live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
+
+### IBKR paper accounts
+
+Transport (Web API vs socket/TWS) and venue (paper vs live) are independent, so
+each transport has both: `interactive_brokers_web` / `interactive_brokers_web_paper`
+and `interactive_brokers_socket` / `interactive_brokers_socket_paper`.
+
+The `_paper` venues reach real IBKR gateways without requiring
+`live_trading_enabled`, because an IBKR paper account risks no capital. In place
+of the real-money flag they carry a **positive assertion**: the resolved IBKR
+account must be a paper account (`DU` prefix), or the factory raises
+`PaperBrokerAccountMismatchError` and refuses to connect. The Web API asserts
+before connecting (the id comes from settings); the socket asserts immediately
+after connecting (IBKR reports its account ids on connect) and disconnects on
+mismatch.
+
+Do not weaken that assertion, widen the accepted prefix set speculatively, or
+reintroduce `live_trading_enabled` as the way to reach a paper account. Adding a
+prefix is an operator-driven change made when a real account needs it.
+
+An unrecognized non-empty `broker_type` raises `UnknownBrokerTypeError` rather
+than falling through to the simulator — do not reintroduce a silent fallback,
+which would answer a broker request with fabricated fills.
+
+Rationale and rejected alternatives: `docs/adr/017-ibkr-paper-broker-type.md`
+and `docs/adr/018-broker-transport-venue-matrix.md`.
 
 Enforcement: `python -m scripts.checks.repo.live_safety_check --enforce` blocks
 state-mutating automation surfaces from setting `live_trading_enabled` to true/1

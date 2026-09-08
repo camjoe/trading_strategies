@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.models import AccountRecord
-from trading.models.books.book_record import BookRecord
+from trading.models.books import BookRecord
 
 
 def make_account_record(**overrides: object) -> AccountRecord:
@@ -15,7 +15,6 @@ def make_account_record(**overrides: object) -> AccountRecord:
     values: dict[str, object] = {
         "id": 1,
         "name": "acct-sample",
-        "account_kind": "managed",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00Z",
         "benchmark_ticker": "SPY",
@@ -47,7 +46,7 @@ def make_book_record(**overrides: object) -> BookRecord:
         "start_equity": 1000.0,
         "current_cash": 1000.0,
         "current_equity": 1000.0,
-        "trade_universes": '["default"]',
+        "trade_symbols": '["AAPL","MSFT"]',
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": None,

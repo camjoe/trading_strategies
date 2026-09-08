@@ -1,8 +1,9 @@
 import pytest
 
+from tests.support.books import ensure_default_book_id
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import create_account, get_account
-from trading.services.reporting import show_snapshots, snapshot_account
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.reporting.snapshots import show_snapshots, snapshot_account
 
 
 def test_snapshot_account_inserts_and_defaults_time(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
@@ -46,8 +47,8 @@ def test_show_snapshots_handles_empty_and_rows(conn, capsys) -> None:
     assert "No snapshots found." in capsys.readouterr().out
 
     account = get_account(conn, "acct_show")
-    EquitySnapshotRepository(conn).insert(
-        account_id=int(account["id"]),
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, int(account["id"])),
         snapshot_time="2026-03-01T00:00:00Z",
         cash=900.0,
         market_value=100.0,

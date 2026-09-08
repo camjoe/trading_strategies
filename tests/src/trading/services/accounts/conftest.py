@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import ensure_db
 from tests.src.trading.services.accounts.seed import seed_admin_db
 from tests.support.db_schema import build_db_at_head
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture
@@ -28,13 +28,8 @@ def configured_backend(tmp_path: Path) -> Iterator[SQLiteBackend]:
     a backend to be configured.  This fixture sets up a fresh per-test backend
     and restores the original on teardown.
     """
-    original = get_backend()
-    backend = SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db"))
-    set_backend(backend)
-    try:
+    with use_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db"))) as backend:
         yield backend
-    finally:
-        set_backend(original)
 
 
 @pytest.fixture

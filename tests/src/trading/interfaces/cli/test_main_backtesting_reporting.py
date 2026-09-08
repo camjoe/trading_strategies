@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import trading.interfaces.cli.handlers.backtesting_handlers as backtesting_handlers
 from tests.src.trading.interfaces.cli.factories import make_backtest_leaderboard_args, make_backtest_report_args
 from tests.src.trading.interfaces.cli.helpers import install_main_harness
-from tests.support.backtesting import make_backtest_leaderboard_entry
+from tests.support.backtesting import make_backtest_full_report, make_backtest_leaderboard_entry
 from trading.interfaces.cli import main as cli_main
 
 
@@ -10,26 +11,13 @@ def test_main_backtest_report_dispatches(monkeypatch, capsys) -> None:
     args = make_backtest_report_args(run_id=11)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
-        "backtest_report",
-        lambda _conn, run_id: {
-            "run_id": run_id,
-            "run_name": "wf-1",
-            "account_name": "acct1",
-            "strategy": "Trend",
-            "start_date": "2026-01-01",
-            "end_date": "2026-01-31",
-            "created_at": "2026-03-14T00:00:00Z",
-            "trade_count": 2,
-            "starting_equity": 10000.0,
-            "ending_equity": 10100.0,
-            "total_return_pct": 1.0,
-            "max_drawdown_pct": -0.5,
-            "slippage_bps": 5.0,
-            "fee_per_trade": 0.0,
-            "tickers_file": "src/infrastructure/config/trade_universe.txt",
-            "warnings": "daily bars only",
-        },
+        backtesting_handlers,
+        "fetch_report",
+        lambda _conn, *, run_id: make_backtest_full_report(
+            run_id=run_id,
+            run_name="wf-1",
+            warnings=["daily bars only"],
+        ),
     )
 
     cli_main.main()
@@ -44,26 +32,9 @@ def test_main_backtest_report_without_warnings_omits_notes_line(monkeypatch, cap
     args = make_backtest_report_args(run_id=99)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
-        "backtest_report",
-        lambda _conn, _run_id: {
-            "run_id": 99,
-            "run_name": None,
-            "account_name": "acct1",
-            "strategy": "Trend",
-            "start_date": "2026-01-01",
-            "end_date": "2026-01-31",
-            "created_at": "2026-03-14T00:00:00Z",
-            "trade_count": 2,
-            "starting_equity": 10000.0,
-            "ending_equity": 10100.0,
-            "total_return_pct": 1.0,
-            "max_drawdown_pct": -0.5,
-            "slippage_bps": 5.0,
-            "fee_per_trade": 0.0,
-            "tickers_file": "src/infrastructure/config/trade_universe.txt",
-            "warnings": "",
-        },
+        backtesting_handlers,
+        "fetch_report",
+        lambda _conn, *, run_id: make_backtest_full_report(run_id=run_id, run_name=None, warnings=[]),
     )
 
     cli_main.main()
@@ -78,8 +49,8 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
     args = make_backtest_leaderboard_args(limit=5, strategy="trend")
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     monkeypatch.setattr(
-        cli_main,
-        "backtest_leaderboard_entries",
+        backtesting_handlers,
+        "fetch_leaderboard",
         lambda _conn, *, limit, account_name, strategy: [
             make_backtest_leaderboard_entry(
                 "acct1",
@@ -106,7 +77,7 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
 def test_main_backtest_leaderboard_no_rows_prints_message(monkeypatch, capsys) -> None:
     args = make_backtest_leaderboard_args()
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
-    monkeypatch.setattr(cli_main, "backtest_leaderboard_entries", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(backtesting_handlers, "fetch_leaderboard", lambda *_args, **_kwargs: [])
 
     cli_main.main()
 

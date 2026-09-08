@@ -15,10 +15,11 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 | Folder | Purpose |
 |---|---|
+| [`adr/`](adr/) | **Why** a decision was made — numbered, dated, and durable once accepted |
 | [`architecture/`](architecture/) | **How** the system is designed — layers, boundaries, service API |
 | [`conventions/`](conventions/) | **Rules** this project follows — coding style, doc standards, naming |
 | [`maps/`](maps/) | **Where** things live — file/directory maps, updated frequently |
-| [`reference/`](reference/) | **Why** decisions were made (ADRs) and deep-dive notes on subsystems |
+| [`reference/`](reference/) | **What** a subsystem does — deep-dive notes, plans, and glossaries |
 | [`runbooks/`](runbooks/) | **How to operate** — step-by-step procedures for humans or agents |
 
 ## Quick Start
@@ -55,16 +56,23 @@ python -m trading.interfaces.cli.main
 Full listing: [`reference/`](reference/). Key entries:
 
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, walk-forward terminology, safeguards, and layering overview
+- [`reference/backtest-live-divergence.md`](reference/backtest-live-divergence.md) — where simulation and live execution differ, why that biases walk-forward selection rather than merely offsetting it, and which gaps are bugs
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
+- [`reference/ibkr-paper-execution-plan.md`](reference/ibkr-paper-execution-plan.md) — target auto-trader shape, audited current-state gap, and the phase order to close it
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
+- [`reference/retired-strategy-primitives.md`](reference/retired-strategy-primitives.md) — decision rules and default thresholds of six strategy primitives removed from the registry, kept so any can be rebuilt
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
 - [`reference/database-reset-plan.md`](reference/database-reset-plan.md) — planned migration-chain squash and data reset: per-table drop/preserve decisions and open questions
 - [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
-- [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — grain, period, and exact column meanings for equity_snapshots, daily_metrics, and risk_snapshots (plus the books exit-threshold columns)
-- [`reference/rotation-scoring.md`](reference/rotation-scoring.md) — champion/challenger rotation score components and their data sources
+- [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — where reading equity_snapshots, daily_metrics, risk_snapshots, and the books exit-threshold columns gives a wrong answer: grain, misleading units, reused names, columns with no data
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
+- [`adr/020-shared-financial-math-ownership.md`](adr/020-shared-financial-math-ownership.md) — math shared by the live runtime and the backtester lives in `trading/domain`; `common/` keeps unit scales only, and `backtesting/domain` keeps what only a backtest can compute
+- [`adr/019-rotation-score-components.md`](adr/019-rotation-score-components.md) — rotation score components; `regime_fit` affinity is family-derived, not configured or evidence-derived
+- [`adr/018-broker-transport-venue-matrix.md`](adr/018-broker-transport-venue-matrix.md) — transport (web/socket) and venue (paper/live) are independent axes; every transport gets both, and an unknown `broker_type` fails instead of falling through to the simulator
+- [`adr/017-ibkr-paper-broker-type.md`](adr/017-ibkr-paper-broker-type.md) — IBKR paper is its own broker type with a paper-account assertion; `live_trading_enabled` guards real money only (its `broker_type` names were renamed by ADR 018)
+- [`adr/016-optimizer-experiments-as-research-evidence.md`](adr/016-optimizer-experiments-as-research-evidence.md) — promotion, rotation, and evaluation read optimizer experiments; the rolling-window path is retired
 - [`adr/015-numbered-alembic-migrations.md`](adr/015-numbered-alembic-migrations.md) — numbered Alembic revisions replace probe-based schema init; runtime is verify-only
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
 - [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration

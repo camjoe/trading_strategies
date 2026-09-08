@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
-from trading.domain.promotion_policy import PromotionPolicySettings
+from trading.domain.promotion.policy import PromotionPolicySettings
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
@@ -24,12 +24,6 @@ from trading.services.operational_settings.queries import (
 
 
 class TestFetchRuntimeThrottleSettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        """Non-connection object returns default RuntimeThrottleSettings."""
-        result = fetch_runtime_throttle_settings(object())  # type: ignore[arg-type]
-        assert result.max_trades_per_day is None
-        assert result.max_trades_per_minute is None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         """No global_settings row → defaults."""
         result = fetch_runtime_throttle_settings(conn)
@@ -54,10 +48,6 @@ class TestFetchRuntimeThrottleSettings:
 
 
 class TestFetchEvaluationConfidenceSettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        result = fetch_evaluation_confidence_settings(object())  # type: ignore[arg-type]
-        assert result.backtest_trade_confidence_weight is not None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         result = fetch_evaluation_confidence_settings(conn)
         assert result.backtest_trade_confidence_weight is not None
@@ -118,10 +108,6 @@ class TestFetchEvaluationConfidenceSettings:
 
 
 class TestFetchPromotionPolicySettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        result = fetch_promotion_policy_settings(object())  # type: ignore[arg-type]
-        assert result.min_research_backtest_trade_count is not None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         result = fetch_promotion_policy_settings(conn)
         assert result.min_research_backtest_trade_count is not None

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from trading.services.profiles.source import DEFAULT_ACCOUNT_PROFILES_FILE
+from trading.interfaces.cli.commands.options import add_account_arg
 
 
 def add_account_commands(
@@ -25,40 +25,19 @@ def add_account_commands(
     )
 
     p_set_benchmark = sub.add_parser("set-benchmark", help="Set benchmark ticker for an account.")
-    p_set_benchmark.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_set_benchmark)
     p_set_benchmark.add_argument("--benchmark", required=True, help="Benchmark ticker, e.g. SPY")
 
     p_configure = sub.add_parser("configure-account", help="Update per-account metadata and goals.")
-    p_configure.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_configure)
     add_option_args(p_configure, configure_mode=True)
 
-    p_apply_profiles = sub.add_parser(
-        "apply-account-profiles",
-        help="Create/update accounts from a JSON profile file.",
-    )
-    p_apply_profiles.add_argument(
-        "--file",
-        default=DEFAULT_ACCOUNT_PROFILES_FILE,
-        help=f"Path to JSON account profile file (default: {DEFAULT_ACCOUNT_PROFILES_FILE})",
-    )
-    p_apply_profiles.add_argument(
-        "--no-create-missing",
-        action="store_true",
-        help="Do not create accounts that do not already exist",
-    )
-
-    p_apply_preset = sub.add_parser(
-        "apply-account-preset",
-        help="Apply a built-in account profile preset.",
-    )
-    p_apply_preset.add_argument(
-        "--preset",
-        required=True,
-        choices=["default", "aggressive", "conservative"],
-        help="Preset name to apply",
-    )
-    p_apply_preset.add_argument(
-        "--no-create-missing",
-        action="store_true",
-        help="Do not create accounts that do not already exist",
-    )
+    p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")
+    add_account_arg(p_trade)
+    p_trade.add_argument("--side", required=True, choices=["buy", "sell"], help="Order side")
+    p_trade.add_argument("--ticker", required=True, help="Ticker symbol")
+    p_trade.add_argument("--qty", type=float, required=True, help="Trade quantity")
+    p_trade.add_argument("--price", type=float, required=True, help="Execution price")
+    p_trade.add_argument("--fee", type=float, default=0.0, help="Optional trading fee")
+    p_trade.add_argument("--time", default=None, help="Optional trade time (ISO string)")
+    p_trade.add_argument("--note", default=None, help="Optional trade note")

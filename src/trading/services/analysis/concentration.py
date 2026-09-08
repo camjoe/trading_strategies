@@ -15,24 +15,23 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 
-from common.constants import SETTLEMENT_TICKER
+from common.constants import PERCENT_SCALE, SETTLEMENT_TICKER
 from trading.domain.risk_gate import resolve_sector_for_symbol
-from trading.models.portfolio.constants import UNCATEGORIZED_SECTOR
-from trading.models.portfolio.portfolio_concentration import PortfolioConcentration
-from trading.models.portfolio.sector_concentration import SectorConcentration
-from trading.models.portfolio.symbol_concentration import SymbolConcentration
+from trading.models.portfolio import (
+    UNCATEGORIZED_SECTOR,
+    PortfolioConcentration,
+    SectorConcentration,
+    SymbolConcentration,
+)
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.sector_config import load_symbol_sector_map
-
-# Fraction -> percent conversion for the portfolio_pct payload fields.
-_PERCENT_SCALE = 100.0
 
 
 def _portfolio_pct(market_value: float, total_market_value: float) -> float:
     if total_market_value == 0.0:
         return 0.0
-    return (market_value / total_market_value) * _PERCENT_SCALE
+    return (market_value / total_market_value) * PERCENT_SCALE
 
 
 def _symbol_entries(

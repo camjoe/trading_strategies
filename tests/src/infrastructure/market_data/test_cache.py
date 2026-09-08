@@ -56,10 +56,37 @@ def test_read_returns_cache_miss_when_cached_type_is_wrong(tmp_path: Path, monke
     key = market_data_cache_key("test", ticker="WRONG_TYPE")
     cache_path = tmp_path / f"{key}.pkl"
     with cache_path.open("wb") as f:
-        pickle.dump({"not": "a dataframe"}, f)
+        pickle.dump("not market data at all", f)
 
     result = read_market_data_cache(key)
     assert result is _CACHE_MISS
+
+
+def test_frame_survives_the_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The shape every bulk download is cached as must not read back as a miss."""
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    key = market_data_cache_key("download-history", tickers=["AAPL", "MSFT"])
+    frame = pd.DataFrame(
+        {("Close", "AAPL"): [100.0, 101.0], ("Close", "MSFT"): [200.0, 202.0]},
+        index=pd.date_range("2026-01-01", periods=2),
+    )
+
+    write_market_data_cache(key, frame)
+    result = read_market_data_cache(key)
+
+    assert isinstance(result, pd.DataFrame)
+    pd.testing.assert_frame_equal(result, frame)
+
+
+def test_a_dict_entry_reads_back_as_a_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bar history cached dicts before it moved to the shared download cache."""
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    key = market_data_cache_key("bar-history", tickers=["AAPL"])
+    cache_path = tmp_path / f"{key}.pkl"
+    with cache_path.open("wb") as handle:
+        pickle.dump({"AAPL": pd.DataFrame({"close": [100.0]})}, handle)
+
+    assert read_market_data_cache(key) is _CACHE_MISS
 
 
 def test_write_then_read_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

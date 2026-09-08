@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pytest
 
 from trading.interfaces.runtime.jobs.daily.paper_trading import caps as module
@@ -19,33 +16,16 @@ def test_parse_account_trade_caps_rejects_invalid_or_non_positive_values() -> No
         module.parse_account_trade_caps("acct:0")
 
 
-def test_load_trade_caps_config_reads_maximums(tmp_path: Path) -> None:
-    path = tmp_path / "caps.json"
-    path.write_text(json.dumps({"default": 5, "accounts": {"special_acct": 8}}), encoding="utf-8")
-
-    assert module.load_trade_caps_config(path) == (5, {"special_acct": 8})
-
-
-def test_load_trade_caps_config_rejects_invalid_maximum(tmp_path: Path) -> None:
-    path = tmp_path / "caps.json"
-    path.write_text(json.dumps({"accounts": {"acct": 0}}), encoding="utf-8")
-
-    with pytest.raises(ValueError, match="max trades must be >= 1"):
-        module.load_trade_caps_config(path)
-
-
 def test_resolve_trade_caps_precedence_and_defaults() -> None:
     result = module.resolve_trade_caps(
-        ["override", "configured", "primary", "other"],
-        configured_default_caps=None,
-        configured_account_caps={"configured": 7},
+        ["override", "primary", "other"],
         primary_accounts={"primary"},
         primary_max_trades=5,
         other_max_trades=11,
         account_trade_cap_overrides={"override": 3},
     )
 
-    assert result == {"override": 3, "configured": 7, "primary": 5, "other": 11}
+    assert result == {"override": 3, "primary": 5, "other": 11}
 
 
 def test_group_accounts_by_caps() -> None:

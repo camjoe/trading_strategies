@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
+from common.runtime_job_status import WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import ADMIN_MODULE, run_command
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
 

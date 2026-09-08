@@ -5,11 +5,10 @@ from __future__ import annotations
 import argparse
 import os
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV
 
 REPO_ROOT = get_repo_root(__file__)
-DEFAULT_TRADE_CAPS_CONFIG = REPO_ROOT / "trading" / "config" / "account_trade_caps.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,11 +33,6 @@ def build_parser() -> argparse.ArgumentParser:
             "account:max,account:max (example: momentum_5k:5,core_growth_20k:8)"
         ),
     )
-    parser.add_argument(
-        "--trade-caps-config",
-        default=DEFAULT_TRADE_CAPS_CONFIG,
-        help=(f"Path to JSON file with default and per-account trade caps (default: {DEFAULT_TRADE_CAPS_CONFIG})"),
-    )
     parser.add_argument("--fee", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument(
@@ -55,15 +49,18 @@ def build_parser() -> argparse.ArgumentParser:
             " (default: each book's own configured lookback)."
         ),
     )
-    parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
+    parser.add_argument(
+        "--force-run",
+        action="store_true",
+        help="Run even if this date already completed successfully",
+    )
     parser.add_argument(
         "--as-of-date",
         default="",
         help=(
             "Override the trading date for this run (YYYY-MM-DD). "
             "Used by replay/backfill tooling to re-run a missed date. "
-            "Affects dedup guard key and log/artifact file name prefix. "
-            "Implies --force-run for the dedup guard."
+            "Affects the duplicate-run guard key and the log/artifact file name prefix."
         ),
     )
     parser.add_argument("--run-source", default="scheduled-daily")

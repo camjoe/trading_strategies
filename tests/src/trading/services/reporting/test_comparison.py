@@ -2,8 +2,8 @@ import pytest
 
 from tests.support.reporting import insert_trade, make_evaluation_artifact
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, get_account
-from trading.services.reporting import compare_strategies
+from trading.services.accounts.mutations import create_account, get_account
+from trading.services.reporting.comparison import compare_strategies
 
 
 def test_compare_strategies_outputs_summary_and_truncates_positions(
@@ -22,7 +22,7 @@ def test_compare_strategies_outputs_summary_and_truncates_positions(
         lambda symbols, **_kwargs: {symbol: 110.0 for symbol in symbols},
     )
     monkeypatch.setattr(
-        "trading.services.reporting.comparison.benchmark_stats", lambda *_args, **_kwargs: (10100.0, 1.0)
+        "trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (10100.0, 1.0)
     )
     monkeypatch.setattr(
         "trading.services.reporting.comparison.fetch_strategy_evaluation_for_account_row",
@@ -47,9 +47,7 @@ def test_compare_strategies_handles_empty_accounts_and_no_positions(
     assert "No paper accounts found." in capsys.readouterr().out
 
     create_account(conn, "acct_none", "Trend", 1000.0, "SPY", config=AccountConfig(descriptive_name="No Trades"))
-    monkeypatch.setattr(
-        "trading.services.reporting.comparison.benchmark_stats", lambda *_args, **_kwargs: (None, None)
-    )
+    monkeypatch.setattr("trading.services.analysis.portfolio.benchmark_stats", lambda *_args, **_kwargs: (None, None))
 
     compare_strategies(conn, lookback=5)
     out = capsys.readouterr().out

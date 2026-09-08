@@ -17,17 +17,15 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.books.book_assignment_view import BookAssignmentView
-from trading.models.books.book_record import BookRecord
-from trading.models.books.trading_book import TradingBook
-from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_bridge import default_book_id, strategy_id_for_label
+from trading.models.books import BookAssignmentView, BookRecord, TradingBook
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.services.books.default_book import default_book_id
 
 
 def _view_from_open_record(conn: sqlite3.Connection, *, book_id: int) -> BookAssignmentView | None:
-    record = BookAssignmentRepository(conn).fetch_open(book_id=int(book_id))
+    record = BookStrategyHistoryRepository(conn).fetch_open(book_id=int(book_id))
     if record is None:
         return None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=record.strategy_id)
@@ -127,7 +125,7 @@ def sync_default_book_assignment(
     A no-op when the open assignment already matches, keeping the
     ``effective_from``/``effective_to`` history free of same-strategy churn.
     """
-    book_id = default_book_id(conn, int(account_id))
+    book_id = default_book_id(conn, account_id=int(account_id))
     current = open_assignment_for_book(conn, book_id=book_id)
     if current is not None and current.strategy_name == strategy_name.strip().lower():
         return current
@@ -147,10 +145,10 @@ def assign_book_strategy(
     now_iso: str,
 ) -> BookAssignmentView:
     """Assign a strategy to the book (closing the open assignment atomically)."""
-    strategy_id = strategy_id_for_label(conn, strategy_name, now_iso=now_iso)
+    strategy_id = StrategyRepository(conn).ensure_id_for_label(label=strategy_name, now_iso=now_iso)
     if strategy_id is None:
         raise ValueError(f"Cannot assign blank strategy label to book {book_id}.")
-    BookAssignmentRepository(conn).assign_strategy(
+    BookStrategyHistoryRepository(conn).assign_strategy(
         book_id=int(book_id),
         strategy_id=int(strategy_id),
         effective_from=now_iso,

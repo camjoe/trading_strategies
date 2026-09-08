@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.connection import ensure_db
-from tests.support.db_schema import build_db_at_head
-from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from common.time import utc_now_iso
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
+from trading.models.orders import OrderInsert
+from trading.persistence.unit_of_work import unit_of_work
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
+from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import BookAccountMismatchError, OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -21,18 +20,6 @@ from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotReposi
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
 
 NOW = "2026-07-03T12:00:00Z"
-
-
-@pytest.fixture
-def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
 
 
 def _insert_account(conn, name: str = "acct_repo") -> int:
@@ -113,15 +100,42 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
             updated_at=NOW,
         )
 
+    # Freezing is one-way: it only acts on a draft, so a second call is a no-op.
+    frozen = repo.fetch_by_id(strategy_id=strategy_id)
+    repo.freeze(strategy_id=strategy_id, updated_at="2026-09-09T00:00:00Z")
+    assert repo.fetch_by_id(strategy_id=strategy_id) == frozen
+
     repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
-    assert repo.fetch_enabled() == []
+    disabled = repo.fetch_by_id(strategy_id=strategy_id)
+    assert disabled is not None and disabled.enabled == 0
+
+
+def test_immutability_guard_leaves_an_enclosing_unit_of_work_intact(conn) -> None:
+    strategy_id = _insert_strategy(conn)
+    repo = StrategyRepository(conn)
+    repo.freeze(strategy_id=strategy_id, updated_at=NOW)
+
+    # The guard rejects the edit but must not end the enclosing transaction: a
+    # caller that handles it and carries on still gets the scope's other writes.
+    with unit_of_work(conn):
+        repo.set_enabled(strategy_id=strategy_id, enabled=0, updated_at=NOW)
+        with pytest.raises(StrategyImmutableError):
+            repo.update_draft_knobs(
+                strategy_id=strategy_id,
+                primitive="trend",
+                params_json='{"fast_window": 2}',
+                updated_at=NOW,
+            )
+
+    frozen = repo.fetch_by_id(strategy_id=strategy_id)
+    assert frozen is not None and frozen.enabled == 0
 
 
 def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
     _, book_id = _insert_book(conn)
     first = _insert_strategy(conn, key="trend_v1")
     second = _insert_strategy(conn, key="meanrev_v1")
-    repo = BookAssignmentRepository(conn)
+    repo = BookStrategyHistoryRepository(conn)
 
     repo.assign_strategy(book_id=book_id, strategy_id=first, effective_from=NOW, created_at=NOW, updated_at=NOW)
     repo.assign_strategy(
@@ -147,11 +161,15 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
 
     # Execution settings are book columns since revision 0004.
     book_repo = BookRepository(conn)
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["fixed_stop", 5.0]
+    book_repo.update(
+        book_id=book_id,
+        values={"risk_policy": "fixed_stop", "stop_loss_pct": 5.0},
+        updated_at=utc_now_iso(),
     )
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["risk_policy = ?", "stop_loss_pct = ?"], params=["stop_and_target", 4.0]
+    book_repo.update(
+        book_id=book_id,
+        values={"risk_policy": "stop_and_target", "stop_loss_pct": 4.0},
+        updated_at=utc_now_iso(),
     )
     execution = book_repo.fetch_by_id(book_id=book_id)
     assert execution is not None
@@ -159,8 +177,10 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
     # Option settings are book columns since revision 0005.
-    book_repo.update_settings_columns(
-        book_id=book_id, updates=["option_type = ?", "option_min_dte = ?"], params=["call", 120]
+    book_repo.update(
+        book_id=book_id,
+        values={"option_type": "call", "option_min_dte": 120},
+        updated_at=utc_now_iso(),
     )
     option = book_repo.fetch_by_id(book_id=book_id)
     assert option is not None and option.option_type == "call"
@@ -247,15 +267,17 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     repo = OrderRepository(conn)
 
     order_id = repo.insert(
-        book_id=book_id,
-        account_id=account_id,
-        symbol="AAPL",
-        side="buy",
-        qty=2.0,
-        requested_price=100.0,
-        status="submitted",
-        submitted_at=NOW,
-        updated_at=NOW,
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol="AAPL",
+            side="buy",
+            qty=2.0,
+            requested_price=100.0,
+            status="submitted",
+            submitted_at=NOW,
+            updated_at=NOW,
+        )
     )
     assert [order.id for order in repo.fetch_open_for_account(account_id=account_id)] == [order_id]
 
@@ -269,14 +291,16 @@ def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
     # Invariant 4: the order's book must belong to the order's account.
     with pytest.raises(BookAccountMismatchError):
         repo.insert(
-            book_id=book_id,
-            account_id=other_account_id,
-            symbol="MSFT",
-            side="buy",
-            qty=1.0,
-            status="submitted",
-            submitted_at=NOW,
-            updated_at=NOW,
+            OrderInsert(
+                book_id=book_id,
+                account_id=other_account_id,
+                symbol="MSFT",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at=NOW,
+                updated_at=NOW,
+            )
         )
 
 
@@ -313,45 +337,103 @@ def test_position_and_ledger_round_trips(conn) -> None:
     )
     entries = ledger.fetch_for_book(book_id=book_id)
     assert [entry.entry_type for entry in entries] == ["deposit", "trade"]
-    assert len(ledger.fetch_by_reference(reference_type="order", reference_id="7")) == 1
+    assert [(entry.reference_type, entry.reference_id) for entry in entries] == [(None, None), ("order", "7")]
 
     with pytest.raises(sqlite3.IntegrityError):
         ledger.insert(book_id=book_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
 
 
-def test_risk_and_feature_provider_round_trips(conn) -> None:
+def test_risk_round_trips(conn) -> None:
     account_id, book_id = _insert_book(conn)
 
     snapshots = RiskSnapshotRepository(conn)
     snapshots.insert(
-        account_id=account_id,
-        snapshot_time=NOW,
-        gross_exposure=1.2,
-        net_exposure=0.8,
-        max_symbol_concentration_pct=25.0,
-        max_sector_concentration_pct=40.0,
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time=NOW,
+            gross_exposure=1.2,
+            net_exposure=0.8,
+            max_symbol_concentration_pct=25.0,
+            max_sector_concentration_pct=40.0,
+        )
     )
     latest = snapshots.fetch_latest(account_id=account_id)
     assert latest is not None and latest.gross_exposure == pytest.approx(1.2)
 
     decisions = RiskDecisionRepository(conn)
     decisions.insert(
-        account_id=account_id,
-        book_id=book_id,
-        decision_time=NOW,
-        symbol="AAPL",
-        side="buy",
-        action="block",
-        reason_code="stale_price_data",
-        created_at=NOW,
+        RiskDecisionInsert(
+            account_id=account_id,
+            book_id=book_id,
+            decision_time=NOW,
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="stale_price_data",
+            created_at=NOW,
+        )
     )
     recent = decisions.fetch_recent(account_id=account_id)
     assert len(recent) == 1
     assert recent[0].action == "block"
 
-    providers = FeatureProviderRepository(conn)
-    providers.upsert(provider_key="news", enabled=1, created_at=NOW, updated_at=NOW)
-    providers.upsert(provider_key="news", enabled=0, created_at=NOW, updated_at=NOW)
-    assert providers.fetch_enabled() == []
-    fetched_provider = providers.fetch_by_key(provider_key="news")
-    assert fetched_provider is not None and fetched_provider.enabled == 0
+
+def test_submission_count_sees_orders_that_never_filled(conn) -> None:
+    """Submitted orders count for pacing even when nothing fills."""
+    account_id, book_id = _insert_book(conn, name="pacing")
+    repo = OrderRepository(conn)
+    for index in range(3):
+        repo.insert(
+            OrderInsert(
+                book_id=book_id,
+                account_id=account_id,
+                symbol=f"SYM{index}",
+                side="buy",
+                qty=1.0,
+                status="submitted",
+                submitted_at="2026-01-15T10:00:30Z",
+                updated_at="2026-01-15T10:00:30Z",
+            )
+        )
+
+    window = {"start_iso": "2026-01-15T10:00:00Z", "end_iso": "2026-01-15T10:01:00Z"}
+    assert repo.fetch_submission_count_between(**window) == 3
+    assert repo.fetch_fill_count_between(**window) == 0
+    assert repo.fetch_submission_count_between(start_iso="2026-01-15T11:00:00Z", end_iso="2026-01-15T11:01:00Z") == 0
+
+
+def _submit_order(conn, *, account_id: int, book_id: int, symbol: str, status: str, submitted_at: str) -> int:
+    return OrderRepository(conn).insert(
+        OrderInsert(
+            book_id=book_id,
+            account_id=account_id,
+            symbol=symbol,
+            side="buy",
+            qty=1.0,
+            status=status,
+            submitted_at=submitted_at,
+            updated_at=submitted_at,
+        )
+    )
+
+
+def test_status_filtered_fetches_include_partially_filled_orders(conn) -> None:
+    """Both status filters span two statuses; a partial fill is real trading and a live order."""
+    account_id, book_id = _insert_book(conn, name="partials")
+    day = "2026-07-03"
+    for symbol, status in (
+        ("FILLED", "filled"),
+        ("PARTIAL", "partially_filled"),
+        ("SUBMITTED", "submitted"),
+        ("CANCELLED", "cancelled"),
+    ):
+        _submit_order(
+            conn, account_id=account_id, book_id=book_id, symbol=symbol, status=status, submitted_at=f"{day}T12:00:00Z"
+        )
+
+    repo = OrderRepository(conn)
+    filled = repo.fetch_filled_for_book_on_date(book_id=book_id, date_str=day)
+    assert sorted(order.symbol for order in filled) == ["FILLED", "PARTIAL"]
+
+    still_open = repo.fetch_open_for_account(account_id=account_id)
+    assert sorted(order.symbol for order in still_open) == ["PARTIAL", "SUBMITTED"]

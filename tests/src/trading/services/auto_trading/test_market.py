@@ -7,12 +7,30 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from trading.services.auto_trading.market import build_iv_rank_proxy
+from common.rate_limit import RateLimitExceeded
+from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
+from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
 
 
 def _mock_provider(close_series_map: dict[str, pd.Series | None]) -> MagicMock:
+    """A provider returning ``BAR_COLUMNS`` frames, as fetch_ohlcv does."""
+
+    def _ohlcv(ticker: str, _period: str, _interval: str) -> pd.DataFrame | None:
+        closes = close_series_map.get(ticker)
+        if closes is None:
+            return None
+        return pd.DataFrame(
+            {
+                BAR_OPEN: closes,
+                BAR_HIGH: closes,
+                BAR_LOW: closes,
+                BAR_CLOSE: closes,
+                BAR_VOLUME: pd.Series(1_000_000.0, index=closes.index),
+            }
+        )
+
     provider = MagicMock()
-    provider.fetch_close_series.side_effect = lambda ticker, _period: close_series_map.get(ticker)
+    provider.fetch_ohlcv.side_effect = _ohlcv
     return provider
 
 
@@ -57,7 +75,7 @@ class TestBuildIvRankProxy:
     def test_exception_on_fetch_skips_ticker(self) -> None:
         """Provider raising exception for one ticker → ticker skipped gracefully."""
         provider = MagicMock()
-        provider.fetch_close_series.side_effect = RuntimeError("network error")
+        provider.fetch_ohlcv.side_effect = RuntimeError("network error")
         result = build_iv_rank_proxy(["AAPL"], provider=provider)
         assert result == {}
 
@@ -71,3 +89,62 @@ class TestBuildIvRankProxy:
         provider = _mock_provider({"AAPL": None, "MSFT": None})
         result = build_iv_rank_proxy(["AAPL", "MSFT"], provider=provider)
         assert result == {}
+
+
+class TestFetchBarHistories:
+    """The live path reads bars through the same contract the backtest does."""
+
+    def test_vendor_gaps_are_filled_the_way_the_backtest_fills_them(self) -> None:
+        # A halted day: the vendor reports the row with no prices.
+        index = pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"])
+        provider = MagicMock()
+        provider.fetch_ohlcv.return_value = pd.DataFrame(
+            {
+                BAR_OPEN: [10.0, float("nan"), 12.0],
+                BAR_HIGH: [10.0, float("nan"), 12.0],
+                BAR_LOW: [10.0, float("nan"), 12.0],
+                BAR_CLOSE: [10.0, float("nan"), 12.0],
+                BAR_VOLUME: [500.0, float("nan"), 700.0],
+            },
+            index=index,
+        )
+
+        histories = fetch_bar_histories(["AAPL"], provider=provider)
+
+        # Raw vendor gaps here would make the same rolling window produce a
+        # different value live than it does in a backtest over the same days.
+        assert histories["AAPL"][BAR_CLOSE].tolist() == [10.0, 10.0, 12.0]
+        assert histories["AAPL"][BAR_VOLUME].tolist() == [500.0, 0.0, 700.0]
+
+    def test_columns_land_in_contract_order(self) -> None:
+        index = pd.to_datetime(["2024-01-02", "2024-01-03"])
+        provider = MagicMock()
+        provider.fetch_ohlcv.return_value = pd.DataFrame(
+            {
+                BAR_VOLUME: [1.0, 1.0],
+                BAR_CLOSE: [1.0, 1.0],
+                BAR_LOW: [1.0, 1.0],
+                BAR_HIGH: [1.0, 1.0],
+                BAR_OPEN: [1.0, 1.0],
+            },
+            index=index,
+        )
+
+        histories = fetch_bar_histories(["AAPL"], provider=provider)
+
+        assert list(histories["AAPL"].columns) == list(BAR_COLUMNS)
+
+    def test_an_exhausted_call_budget_stops_the_run(self) -> None:
+        """A truncated universe would let the run trade on whatever arrived first."""
+        provider = MagicMock()
+        provider.fetch_ohlcv.side_effect = RateLimitExceeded("yfinance budget exhausted")
+
+        with pytest.raises(RateLimitExceeded):
+            fetch_bar_histories(["AAPL", "MSFT"], provider=provider)
+
+    def test_a_frame_missing_a_bar_column_is_skipped_not_raised(self) -> None:
+        index = pd.to_datetime(["2024-01-02"])
+        provider = MagicMock()
+        provider.fetch_ohlcv.return_value = pd.DataFrame({BAR_CLOSE: [1.0]}, index=index)
+
+        assert fetch_bar_histories(["AAPL"], provider=provider) == {}

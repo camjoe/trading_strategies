@@ -182,7 +182,6 @@ At minimum set:
 cd ~/trading-prod
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
     --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY> \
     --dry-run
@@ -193,18 +192,22 @@ Re-run without `--dry-run` to generate the install script, then apply it:
 ```bash
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --daily-paper-trading-fallback-time <FALLBACK_HH:MM> \
     --health-check-time <HEALTH_HH:MM> \
     --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY>
 
 sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```
 
-See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify timers are active:
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (challenger shadow-eval) and their flags. Verify timers are active:
 
 ```bash
-systemctl list-timers --all | grep trading
+systemctl list-timers --all | grep -E 'daily-|weekly-'
 ```
+
+Unit names drop the `Trading\` prefix and hyphenate, so only `daily-paper-trading.timer` contains
+"trading" — filtering on that alone hides `daily-challenger-shadow-eval.timer`,
+`daily-trader-health-check.timer`, and `weekly-db-backup.timer`. Check that every entry you
+registered is listed, not just the daily run.
 
 ### 1.6 Verify end to end
 
@@ -356,7 +359,8 @@ Example setup:
    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
    ```
 2. **Systemd timers with `WakeSystem=yes`** — installed via `local/install_trading_timers.sh`.
-   Verify with `systemctl list-timers --all | grep trading`.
+   Verify with `systemctl list-timers --all | grep -E 'daily-|weekly-'` (unit names carry no
+   `trading-` prefix — see Part 1.5).
 3. **AC Power Recovery in BIOS/UEFI** — set to **On** or **Last State** so a power blip brings
    the machine back. (Board-specific menu path — capture below.)
 
@@ -364,8 +368,6 @@ Example setup:
 
 Even with the above, treat a missed run as expected-occasionally, not catastrophic:
 
-- Register the **fallback** paper-trading entry (`--daily-paper-trading-fallback-time`, §1.5) — a
-  second duplicate-guarded attempt later in the day.
 - Backfill any gap with `replay_daily_runs` (see
   [runtime-operations.md](runtime-operations.md#run-did-not-execute-scheduler-missed)).
 - The health-check job + alert webhook tell you when a run is missing so you can react.

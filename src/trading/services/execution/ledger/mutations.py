@@ -4,14 +4,15 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
-from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
+from trading.domain.accounting.validation import ensure_sufficient_cash_for_buy, normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
+from trading.models.orders import OrderInsert
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.unit_of_work import unit_of_work
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 
 # Manual entries are cash-flow ledger events or filled orders on the default
 # book (the trades table was retired in revision 0006).
@@ -73,7 +74,7 @@ def record_trade(
 
     del note
     account = get_account(conn, account_name)
-    side, ticker = _normalize_order_input(side, ticker)
+    side, ticker = normalize_order_input(side, ticker)
     book = BookRepository(conn).fetch_default_for_account(account_id=account.id)
     if book is None:
         raise NotFoundError(f"Default book missing for account '{account_name}'.")
@@ -90,7 +91,7 @@ def record_trade(
         return
 
     if side == "buy":
-        _ensure_sufficient_cash_for_buy(side, qty, price, fee, book.current_cash)
+        ensure_sufficient_cash_for_buy(side, qty, price, fee, book.current_cash)
     else:
         position = PositionRepository(conn).fetch(book_id=book.id, symbol=ticker)
         held = position.qty if position is not None else 0.0
@@ -102,18 +103,20 @@ def record_trade(
     # book accounting are all-or-nothing.
     with unit_of_work(conn):
         order_id = order_repo.insert(
-            book_id=book.id,
-            account_id=account.id,
-            symbol=ticker,
-            side=side,
-            qty=float(qty),
-            requested_price=float(price),
-            status="filled",
-            filled_qty=float(qty),
-            avg_fill_price=float(price),
-            commission=float(fee),
-            submitted_at=entry_time,
-            updated_at=entry_time,
+            OrderInsert(
+                book_id=book.id,
+                account_id=account.id,
+                symbol=ticker,
+                side=side,
+                qty=float(qty),
+                requested_price=float(price),
+                status="filled",
+                filled_qty=float(qty),
+                avg_fill_price=float(price),
+                commission=float(fee),
+                submitted_at=entry_time,
+                updated_at=entry_time,
+            )
         )
         order_repo.insert_fill(
             order_id=order_id,

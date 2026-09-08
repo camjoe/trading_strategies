@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from tests.support.repositories import insert_repository_account
+from trading.models.books import RiskDecisionInsert, RiskSnapshotInsert
 from trading.repositories.books import BookRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 
@@ -13,19 +14,21 @@ def _insert_decision(
     conn, *, account_id: int, decision_time: str, reason_code: str, book_id: int | None = None
 ) -> int:
     return RiskDecisionRepository(conn).insert(
-        account_id=account_id,
-        book_id=book_id,
-        decision_time=decision_time,
-        symbol="AAPL",
-        side="buy",
-        action="block",
-        reason_code=reason_code,
-        requested_qty=10,
-        approved_qty=0,
-        requested_notional=1000.0,
-        approved_notional=0.0,
-        risk_payload_json="{}",
-        created_at=decision_time,
+        RiskDecisionInsert(
+            account_id=account_id,
+            book_id=book_id,
+            decision_time=decision_time,
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code=reason_code,
+            requested_qty=10,
+            approved_qty=0,
+            requested_notional=1000.0,
+            approved_notional=0.0,
+            risk_payload_json="{}",
+            created_at=decision_time,
+        )
     )
 
 
@@ -88,23 +91,27 @@ def test_risk_snapshots_insert_and_fetch_latest(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_risk_snap")
     repo = RiskSnapshotRepository(conn)
     repo.insert(
-        account_id=account_id,
-        snapshot_time="2026-05-03T10:00:00Z",
-        gross_exposure=100.0,
-        net_exposure=100.0,
-        max_symbol_concentration_pct=0.1,
-        max_sector_concentration_pct=0.2,
-        kill_switch_triggered=0,
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time="2026-05-03T10:00:00Z",
+            gross_exposure=100.0,
+            net_exposure=100.0,
+            max_symbol_concentration_pct=0.1,
+            max_sector_concentration_pct=0.2,
+            kill_switch_triggered=0,
+        )
     )
     repo.insert(
-        account_id=account_id,
-        snapshot_time="2026-05-04T10:00:00Z",
-        gross_exposure=200.0,
-        net_exposure=150.0,
-        max_symbol_concentration_pct=0.3,
-        max_sector_concentration_pct=0.4,
-        kill_switch_triggered=1,
-        risk_payload_json='{"k": 1}',
+        RiskSnapshotInsert(
+            account_id=account_id,
+            snapshot_time="2026-05-04T10:00:00Z",
+            gross_exposure=200.0,
+            net_exposure=150.0,
+            max_symbol_concentration_pct=0.3,
+            max_sector_concentration_pct=0.4,
+            kill_switch_triggered=1,
+            risk_payload_json='{"k": 1}',
+        )
     )
 
     latest = repo.fetch_latest(account_id=account_id)

@@ -5,9 +5,6 @@ import json
 import os
 import subprocess
 import sys
-import time
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 from common.files import sorted_by_mtime_desc
@@ -35,21 +32,11 @@ _SMTP_TLS_DISABLED_VALUES = {"0", "false", "no", "off"}
 CLI_MAIN_MODULE = "trading.interfaces.cli.main"
 ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
+RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
-
-# Transient connectivity/rate-limit strings that indicate a retry may succeed.
-TRANSIENT_ERROR_TOKENS = (
-    "temporarily unavailable",
-    "timed out",
-    "timeout",
-    "connection reset",
-    "connection aborted",
-    "connection error",
-    "temporary failure",
-    "try again",
-    "rate limit",
-    "too many requests",
-)
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
+WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
 def logs_dir_for_repo(repo_root: Path) -> Path:
@@ -159,17 +146,6 @@ def skip_if_already_completed_for_period(
     return True
 
 
-def is_transient_error(output: str) -> bool:
-    """Return True if *output* contains a known transient connectivity error token."""
-    lowered = output.lower()
-    return any(token in lowered for token in TRANSIENT_ERROR_TOKENS)
-
-
-def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float:
-    """Exponential back-off: base * 2^(attempt-1), clamped to >= 0."""
-    return max(base_delay_seconds, 0.0) * (2 ** (attempt_number - 1))
-
-
 def resolve_accounts(accounts_arg: str, all_accounts: list[str]) -> list[str]:
     """Resolve 'all' or a comma-separated list against *all_accounts*.
 
@@ -238,92 +214,3 @@ def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> No
     exit_code, _ = run_command(log_path, label, args, cwd)
     if exit_code != 0:
         raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
-
-
-@dataclass(frozen=True)
-class AttemptOutcome:
-    """Classification of a single command attempt for `run_command_with_retry`.
-
-    *succeeded* marks a successful attempt; *retryable* is consulted only on
-    failure (a non-retryable failure stops immediately); *extras* are merged into
-    the result payload (e.g. a parsed ``run_id`` or an ``error`` marker).
-    """
-
-    succeeded: bool
-    retryable: bool
-    extras: dict[str, object]
-
-
-def run_command_with_retry(
-    *,
-    log_path: Path,
-    repo_root: Path,
-    account: str,
-    command: list[str],
-    label_prefix: str,
-    max_attempts: int,
-    base_backoff_seconds: float,
-    classify: Callable[[int, str], AttemptOutcome],
-    result_defaults: dict[str, object] | None = None,
-    run_command_fn: Callable[[Path, str, list[str], Path], tuple[int, str]] = run_command,
-    sleep_fn: Callable[[float], None] = time.sleep,
-) -> dict[str, object]:
-    """Run *command* up to *max_attempts* times, retrying on transient failures.
-
-    The shared retry engine for account-scoped daily jobs. *classify* inspects
-    each attempt's ``(exit_code, output)`` and decides success/retryability plus
-    any payload extras; transient-error detection, exponential backoff, the RETRY
-    log line, and attempt bookkeeping live here. Returns a result dict carrying
-    ``account``/``status``/``attempts`` plus *result_defaults* and classify extras.
-    """
-    base_extras = dict(result_defaults or {})
-    attempts = max(1, max_attempts)
-    started_at = ts()
-
-    def _result(
-        *,
-        status: str,
-        attempt: int,
-        exit_code: int,
-        extras: dict[str, object],
-        transient: bool | None = None,
-    ) -> dict[str, object]:
-        payload: dict[str, object] = {
-            "account": account,
-            "status": status,
-            "attempts": attempt,
-            **base_extras,
-            "started_at": started_at,
-            "finished_at": ts(),
-            "last_exit_code": exit_code,
-        }
-        if transient is not None:
-            payload["transient"] = transient
-        payload.update(extras)
-        return payload
-
-    for attempt in range(1, attempts + 1):
-        label = f"{label_prefix} {account} (attempt {attempt}/{attempts})"
-        exit_code, output = run_command_fn(log_path, label, command, repo_root)
-        outcome = classify(exit_code, output)
-        if outcome.succeeded:
-            return _result(status="success", attempt=attempt, exit_code=exit_code, extras=outcome.extras)
-
-        transient = is_transient_error(output)
-        if not outcome.retryable or attempt >= attempts or not transient:
-            return _result(
-                status="failed",
-                attempt=attempt,
-                exit_code=exit_code,
-                extras=outcome.extras,
-                transient=transient,
-            )
-
-        delay_seconds = retry_delay_seconds(base_backoff_seconds, attempt)
-        tee_line(
-            log_path,
-            f"[{ts()}] RETRY: account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}",
-        )
-        sleep_fn(delay_seconds)
-
-    return _result(status="failed", attempt=attempts, exit_code=1, extras={}, transient=False)

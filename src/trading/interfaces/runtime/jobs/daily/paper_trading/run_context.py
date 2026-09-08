@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
-    load_trade_caps_config,
     parse_account_trade_caps,
     resolve_trade_caps,
 )
@@ -38,6 +37,11 @@ class DailyRunContext:
     account_trade_caps: dict[str, int]
     caps_summary: str
     run_meta: dict[str, object]
+    # The trading date this run reports on (YYYY-MM-DD). Every reporting step
+    # reads it rather than calling `date.today()` itself, so a replay driven by
+    # --as-of-date reports the replayed date's rows instead of today's, and the
+    # artifact cannot end up carrying two different dates.
+    report_date: str
 
 
 def build_run_context(
@@ -66,14 +70,6 @@ def build_run_context(
         raise RunContextError(trade_count_error)
 
     primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
-    caps_config_path = Path(args.trade_caps_config)
-    if not caps_config_path.is_absolute():
-        caps_config_path = repo_root / caps_config_path
-
-    try:
-        configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
-    except ValueError as exc:
-        raise RunContextError(f"Invalid trade caps config: {exc}") from exc
 
     try:
         account_trade_cap_overrides = parse_account_trade_caps(args.account_trade_caps)
@@ -86,8 +82,6 @@ def build_run_context(
 
     account_trade_caps = resolve_trade_caps(
         accounts,
-        configured_default_caps,
-        configured_account_caps,
         primary_accounts,
         args.primary_max_trades,
         args.other_max_trades,
@@ -97,15 +91,18 @@ def build_run_context(
 
     tee_line(
         log_path,
-        f"[{ts()}] RUN META: "
-        f"source={args.run_source} force={bool(args.force_run)} "
+        f"[{ts()}] RUN META: source={args.run_source} force={bool(args.force_run)} "
         f"accounts={','.join(accounts)} caps={caps_summary}",
     )
+    report_date = (as_of_date or dt.date.today()).isoformat()
     run_meta: dict[str, object] = {
         "job": "daily_paper_trading",
         "run_source": args.run_source,
+        # True only when an operator overrode the duplicate-run guard, so a run
+        # that traded a date twice says so in its own artifact.
         "force_run": bool(args.force_run),
         "as_of_date": str(as_of_date) if as_of_date else None,
+        "report_date": report_date,
         "accounts": accounts,
         "account_count": len(accounts),
         "caps_summary": caps_summary,
@@ -122,4 +119,5 @@ def build_run_context(
         account_trade_caps=account_trade_caps,
         caps_summary=caps_summary,
         run_meta=run_meta,
+        report_date=report_date,
     )

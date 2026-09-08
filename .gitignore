@@ -1,5 +1,6 @@
 # Private operator state, real strategy work, generated artifacts, logs, and databases.
 local/*
+.claude/output-styles/*
 
 # Runtime databases and logs remain private regardless of where a tool writes them.
 *.db

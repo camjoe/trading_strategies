@@ -29,7 +29,6 @@ DB infrastructure. Imported only by `src/trading/repositories/` and the document
 | `backend.py` | DB connection/backend factory and backend selection |
 | `config.py` | DB path and environment config (`get_db_path`) |
 | `connection.py` | Runtime connection gate: `ensure_db()` verifies the Alembic revision (never migrates); `db_session()` |
-| `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 | `schema_version.py` | Expected Alembic head constant + plain-SQL revision reader (runtime-safe, no Alembic import) |
 | `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade, reference builds) over the active backend — ops-only |
 | `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
@@ -82,8 +81,7 @@ feature provider stay in `src/trading/services/market_data/`.
 |---|---|
 | `demo_provider.py` | Deterministic offline `DemoMarketDataProvider` |
 | `yfinance_provider.py` | Network-backed `YFinanceProvider` and yfinance SDK boundary; guards live fetches with a `common.rate_limit.RateLimiter` (only cache-miss network calls) |
-| `unavailable_provider.py` | Placeholder adapter for configured integrations not yet implemented |
-| `factory.py` | `build_provider` + provider routing (env/config resolution) + `supported_provider_names` |
+| `factory.py` | `build_provider` + provider routing (`TRADING_MARKET_DATA_PROVIDER`, else the `yfinance` default); an unsupported name raises at build time |
 | `cache.py` | Transport-level market-data cache (pickle-to-disk with TTL), used only by the adapter |
 
 **Operational env knobs** (all optional; sensible defaults):
@@ -100,16 +98,12 @@ multi-strategy sweep on one account/universe/date-window stays far under the cei
 
 ### `src/infrastructure/config/`
 
-Static file-backed configuration assets. Read at runtime; not imported as Python modules (except by `src/trading/services/profiles/`).
+Static file-backed configuration assets, read through `src/trading/services/universe.py`.
 
 | Asset | Description |
 |---|---|
-| `account_profiles/` | JSON account profile presets |
-| `trade_universes/` | Trade-universe definition files |
-| `account_trade_caps.json` | Account-level trade-cap limits |
-| `trade_universe.txt` | Default trade-universe ticker list |
-| `trade_universe_sp500_broad.txt` | Broad S&P 500 trade universe |
-| `market_data_config.example.json` | Example market-data provider config (copy to `local/` to override) |
+| `trade_universes/` | Named ticker lists. A **write-time shorthand** only: naming one stores its expansion in `books.trade_symbols` (revision 0029), so nothing reads these on the trading path. `default.txt` doubles as `DEFAULT_TICKERS_FILE` for surfaces that take an explicit path — backtests, strategy lab, benchmark sweeps |
+| `symbol_sectors.json` | Symbol→sector reference data for the risk gate's sector-concentration caps |
 
 ## Related References
 

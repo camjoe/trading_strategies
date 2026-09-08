@@ -1,54 +1,30 @@
 from __future__ import annotations
 
 import types
+from datetime import date
 
 import pytest
 
-from trading.backtesting.domain.optimization.promotion_gate import evaluate_promotion_gate
+import trading.interfaces.cli.handlers.backtesting_handlers as module
+from backtesting.models.optimizer import ExperimentAudit, ExperimentWindowAudit
+from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
+from tests.support.backtesting import make_backtest_full_report
+from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_optimize_show,
     handle_backtest_report,
-    handle_backtest_walk_forward_report,
 )
 
 
-def _parser():
-    class _P:
-        def error(self, msg: str) -> None:
-            raise SystemExit(msg)
+def test_handle_backtest_report_prints_run_id(capsys, monkeypatch) -> None:
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_report=lambda _conn, *, run_id: make_backtest_full_report(run_id=42, run_name="smoke"),
+    )
 
-    return _P()
-
-
-def test_handle_backtest_report_prints_run_id(capsys) -> None:
-    report = {
-        "run_id": 42,
-        "run_name": "smoke",
-        "account_name": "acct",
-        "strategy": "trend",
-        "start_date": "2026-01-01",
-        "end_date": "2026-03-01",
-        "created_at": "2026-03-01",
-        "trade_count": 3,
-        "starting_equity": 10000.0,
-        "ending_equity": 10500.0,
-        "total_return_pct": 5.0,
-        "max_drawdown_pct": -2.0,
-        "slippage_bps": 5.0,
-        "fee_per_trade": 0.0,
-        "tickers_file": "tickers.txt",
-        "warnings": "",
-        "sharpe_ratio": 1.2,
-        "sortino_ratio": 1.5,
-        "calmar_ratio": 0.8,
-        "win_rate_pct": 60.0,
-        "profit_factor": 1.7,
-        "avg_trade_return_pct": 2.5,
-    }
-    deps = {"backtest_report": lambda _conn, _run_id: report}
-
-    handle_backtest_report(object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps)
+    handle_backtest_report(object(), types.SimpleNamespace(run_id=42), fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "42" in out
@@ -56,7 +32,17 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
     assert "Trade Analytics:" in out
 
 
-def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
+def test_handle_backtest_report_joins_the_warning_list(capsys, monkeypatch) -> None:
+    """``summary.warnings`` is ``list[str]``; the line must read as prose, not a repr."""
+    report = make_backtest_full_report(warnings=["daily bars only", "approximate leaps"])
+    patch_services(monkeypatch, module, fetch_report=lambda _conn, *, run_id: report)
+
+    handle_backtest_report(object(), types.SimpleNamespace(run_id=1), fake_parser(), ctx=make_ctx())
+
+    assert "Safeguards / notes: daily bars only | approximate leaps" in capsys.readouterr().out
+
+
+def test_handle_backtest_leaderboard_prints_csv_header(capsys, monkeypatch) -> None:
     row = types.SimpleNamespace(
         run_id=1,
         run_name="r",
@@ -78,85 +64,35 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
         trade_count=3,
         created_at="2026-03-01",
     )
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: [row]}
+    patch_services(monkeypatch, module, fetch_leaderboard=lambda *_a, **_kw: [row])
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
+    handle_backtest_leaderboard(object(), args, fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "run_id" in out
     assert "sharpe_ratio" in out
 
 
-def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> None:
-    deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: []}
+def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys, monkeypatch) -> None:
+    patch_services(monkeypatch, module, fetch_leaderboard=lambda *_a, **_kw: [])
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
+    handle_backtest_leaderboard(object(), args, fake_parser(), ctx=make_ctx())
 
     assert "No backtest runs" in capsys.readouterr().out
 
 
-def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> None:
-    deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(
-            ValueError("Unknown strategy 'mystery_strategy'")
-        )
-    }
+def test_handle_backtest_leaderboard_routes_value_error_to_parser_error(monkeypatch) -> None:
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_leaderboard=lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery_strategy'")),
+    )
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
-
-
-def test_handle_backtest_walk_forward_report_prints_window_rows(capsys) -> None:
-    report = {
-        "group_id": 7,
-        "account_name": "acct",
-        "strategy_name": "trend",
-        "run_name_prefix": "wf",
-        "start_date": "2026-01-01",
-        "end_date": "2026-03-31",
-        "created_at": "2026-04-14T00:00:00Z",
-        "window_count": 2,
-        "average_return_pct": 4.0,
-        "median_return_pct": 4.0,
-        "best_return_pct": 5.0,
-        "worst_return_pct": 3.0,
-        "windows": [
-            {
-                "window_index": 1,
-                "window_start": "2026-01-01",
-                "window_end": "2026-01-31",
-                "total_return_pct": 3.0,
-                "backtest_summary": {
-                    "run_id": 101,
-                    "run_name": "wf_01",
-                    "max_drawdown_pct": -1.0,
-                    "trade_count": 5,
-                },
-            }
-        ],
-    }
-    deps = {"walk_forward_report": lambda *_a, **_kw: report}
-    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
-
-    handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps)
-
-    out = capsys.readouterr().out
-    assert "Walk-forward Group 7" in out
-    assert "window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count" in out
-    assert "101,wf_01" in out
-
-
-def test_handle_backtest_walk_forward_report_routes_value_error_to_parser_error() -> None:
-    deps = {
-        "walk_forward_report": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Walk-forward group 7 not found."))
-    }
-    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
-
-    with pytest.raises(SystemExit, match="Walk-forward group 7 not found."):
-        handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps)
+        handle_backtest_leaderboard(object(), args, fake_parser(), ctx=make_ctx())
 
 
 class _RecordingParser:
@@ -167,30 +103,17 @@ class _RecordingParser:
         self.message = msg
 
 
-def test_handle_backtest_leaderboard_records_parser_error_without_printing_header(capsys) -> None:
+def test_handle_backtest_leaderboard_records_parser_error_without_printing_header(capsys, monkeypatch) -> None:
     parser = _RecordingParser()
-    deps = {
-        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
-    }
+    patch_services(
+        monkeypatch, module, fetch_leaderboard=lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard"))
+    )
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
-    handle_backtest_leaderboard(object(), args, parser, deps=deps)
+    handle_backtest_leaderboard(object(), args, parser, ctx=make_ctx())
 
     assert parser.message == "bad leaderboard"
     assert "run_id,run_name" not in capsys.readouterr().out
-
-
-def test_handle_backtest_walk_forward_report_records_parser_error_without_printing_rows(capsys) -> None:
-    parser = _RecordingParser()
-    deps = {
-        "walk_forward_report": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad report")),
-    }
-    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
-
-    handle_backtest_walk_forward_report(object(), args, parser, deps=deps)
-
-    assert parser.message == "bad report"
-    assert "window,range,run_id" not in capsys.readouterr().out
 
 
 def _experiment_stub(*, status="completed", failure_stage=None, failure_message=None):
@@ -243,7 +166,7 @@ def _manifest_stub():
     )
 
 
-def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
+def test_handle_backtest_optimize_show_prints_per_window_audit(capsys, monkeypatch) -> None:
     window = types.SimpleNamespace(
         id=11,
         window_index=1,
@@ -275,16 +198,16 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         points=[
             types.SimpleNamespace(
                 window_index=1,
-                test_start="2022-07-01",
-                test_end="2022-07-31",
+                test_start=date(2022, 7, 1),
+                test_end=date(2022, 7, 31),
                 period_return_pct=2.0,
                 cumulative_return_pct=2.0,
                 gap_before=False,
             ),
             types.SimpleNamespace(
                 window_index=2,
-                test_start="2022-09-01",
-                test_end="2022-09-30",
+                test_start=date(2022, 9, 1),
+                test_end=date(2022, 9, 30),
                 period_return_pct=3.0,
                 cumulative_return_pct=5.06,
                 gap_before=True,
@@ -293,16 +216,20 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
         compounded_return_pct=5.06,
         has_gaps=True,
     )
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [window],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: trials,
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: series,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: _manifest_stub(),
-        "evaluate_promotion_gate": evaluate_promotion_gate,
-    }
+    audit = ExperimentAudit(
+        experiment=_experiment_stub(),
+        windows=[ExperimentWindowAudit(window=window, trials=trials)],
+        compounded_oos=series,
+        manifest=_manifest_stub(),
+    )
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_experiment_audit=lambda _conn, *, experiment_id: audit,
+        evaluate_promotion_gate=evaluate_promotion_gate,
+    )
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "Windows (1) with per-candidate trials:" in out
@@ -316,17 +243,16 @@ def test_handle_backtest_optimize_show_prints_per_window_audit(capsys) -> None:
     assert "provider=yfinance" in out
 
 
-def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -> None:
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: None,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: None,
-        "evaluate_promotion_gate": evaluate_promotion_gate,
-    }
+def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys, monkeypatch) -> None:
+    audit = ExperimentAudit(experiment=_experiment_stub(), windows=[], compounded_oos=None, manifest=None)
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_experiment_audit=lambda _conn, *, experiment_id: audit,
+        evaluate_promotion_gate=evaluate_promotion_gate,
+    )
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "Windows: none persisted" in out
@@ -334,33 +260,37 @@ def test_handle_backtest_optimize_show_notes_when_no_windows_persisted(capsys) -
     assert "Provenance: unavailable" in out
 
 
-def test_handle_backtest_optimize_show_prints_failure_and_skips_audit_lookups(capsys) -> None:
-    calls: list[str] = []
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: _experiment_stub(
+def test_handle_backtest_optimize_show_prints_failure_and_skips_the_audit_sections(capsys, monkeypatch) -> None:
+    # A failed experiment never persisted an audit tree, so the service hands back
+    # empty windows and no series/manifest; the handler must stop after the header
+    # rather than print "none persisted" lines that read like data loss.
+    audit = ExperimentAudit(
+        experiment=_experiment_stub(
             status="failed", failure_stage="window_search", failure_message="No eligible candidate: too_few_trades"
         ),
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: calls.append("windows"),
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: calls.append("trials"),
-        "fetch_compounded_oos": lambda _conn, *, experiment_id: calls.append("compounded"),
-        "evaluate_promotion_gate": evaluate_promotion_gate,
-        "fetch_optimization_manifest": lambda _conn, *, experiment_id: calls.append("manifest"),
-    }
+        windows=[],
+        compounded_oos=None,
+        manifest=None,
+    )
+    patch_services(
+        monkeypatch,
+        module,
+        fetch_experiment_audit=lambda _conn, *, experiment_id: audit,
+        evaluate_promotion_gate=evaluate_promotion_gate,
+    )
 
-    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+    handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), ctx=make_ctx())
 
     out = capsys.readouterr().out
     assert "status=failed" in out
     assert "Failed during window_search after 1 window(s): No eligible candidate: too_few_trades" in out
-    assert calls == []  # a failed experiment has no audit tree — those lookups are skipped
+    assert "Windows" not in out
+    assert "Compounded OOS" not in out
+    assert "Provenance" not in out
 
 
-def test_handle_backtest_optimize_show_errors_on_missing_experiment() -> None:
-    deps = {
-        "fetch_optimization_experiment": lambda _conn, *, experiment_id: None,
-        "fetch_optimization_windows": lambda _conn, *, experiment_id: [],
-        "fetch_optimization_trials": lambda _conn, *, experiment_id: [],
-    }
+def test_handle_backtest_optimize_show_errors_on_missing_experiment(monkeypatch) -> None:
+    patch_services(monkeypatch, module, fetch_experiment_audit=lambda _conn, *, experiment_id: None)
 
     with pytest.raises(SystemExit, match="Optimization experiment not found: 5"):
-        handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), _parser(), deps=deps)
+        handle_backtest_optimize_show(object(), types.SimpleNamespace(experiment_id=5), fake_parser(), ctx=make_ctx())

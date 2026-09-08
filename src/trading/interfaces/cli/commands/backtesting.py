@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.interfaces.cli.commands.options import add_account_arg
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
 def _add_shared_backtest_args(p: argparse.ArgumentParser) -> None:
-    """Add arguments common to backtest, backtest-batch, and backtest-walk-forward."""
+    """Add arguments common to backtest, backtest-batch, and backtest-optimize."""
     p.add_argument(
         "--tickers-file",
         default=DEFAULT_TICKERS_FILE,
@@ -39,7 +40,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         "backtest",
         help="Run a historical backtest for an existing account configuration.",
     )
-    p_backtest.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_backtest)
     _add_shared_backtest_args(p_backtest)
     p_backtest.add_argument(
         "--strategy",
@@ -47,27 +48,6 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         help="Optional strategy override (default: the account's active strategy)",
     )
     p_backtest.add_argument("--run-name", default=None, help="Optional run label")
-
-    p_refresh_stale = sub.add_parser(
-        "refresh-stale-backtests",
-        help=(
-            "Re-run backtests whose evidence is stale or missing, across each account's"
-            " rotation candidate strategies (incumbent + challengers)."
-        ),
-    )
-    p_refresh_stale.add_argument("--account", default=None, help="Optional account filter")
-    p_refresh_stale.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="List the stale/missing (account, strategy) targets without running backtests",
-    )
-    p_refresh_stale.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Cap the number of backtests run in one invocation (default: no cap)",
-    )
-    _add_shared_backtest_args(p_refresh_stale)
 
     p_backtest_report = sub.add_parser(
         "backtest-report",
@@ -108,26 +88,6 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     _add_shared_backtest_args(p_backtest_batch)
     p_backtest_batch.add_argument("--run-name-prefix", default=None, help="Optional prefix for generated run names")
 
-    p_walk_forward = sub.add_parser(
-        "backtest-walk-forward",
-        help="Run rolling monthly walk-forward backtests across a date range.",
-    )
-    p_walk_forward.add_argument("--account", required=True, help="Account name")
-    _add_shared_backtest_args(p_walk_forward)
-    p_walk_forward.add_argument(
-        "--test-months",
-        type=int,
-        default=1,
-        help="Number of months in each walk-forward test window",
-    )
-    p_walk_forward.add_argument(
-        "--step-months",
-        type=int,
-        default=1,
-        help="Months to roll forward between windows",
-    )
-    p_walk_forward.add_argument("--run-name-prefix", default=None, help="Optional prefix for generated run names")
-
     p_optimize = sub.add_parser(
         "backtest-optimize",
         help=(
@@ -136,7 +96,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
             " evidence against the strategy's default parameters."
         ),
     )
-    p_optimize.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_optimize)
     p_optimize.add_argument("--strategy", required=True, help="Strategy to optimize (catalog key or alias)")
     p_optimize.add_argument(
         "--search-space",
@@ -198,11 +158,3 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
             " evidence) and promote anyway"
         ),
     )
-
-    p_walk_forward_report = sub.add_parser(
-        "backtest-walk-forward-report",
-        help="Show persisted walk-forward group details and per-window backtest summaries.",
-    )
-    p_walk_forward_report.add_argument("--group-id", type=int, default=None, help="Walk-forward group id")
-    p_walk_forward_report.add_argument("--account", default=None, help="Account name for latest walk-forward group")
-    p_walk_forward_report.add_argument("--strategy", default=None, help="Optional strategy filter with --account")

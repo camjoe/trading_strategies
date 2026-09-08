@@ -62,7 +62,7 @@ Root files are orchestration and shared helpers. Concrete checks live under `doc
 | Package | Checks |
 |---|---|
 | `scripts/checks/docs/` | `scripts/checks/docs/docs_check.py`, `scripts/checks/docs/readme_check.py`, `scripts/checks/docs/maps_check.py`, `scripts/checks/docs/link_check.py`, `scripts/checks/docs/module_ref_check.py`, `scripts/checks/docs/db_schema_check.py`, `scripts/checks/docs/doc_header_check.py`, `scripts/checks/docs/doc_naming_check.py` |
-| `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/migration_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/review_scope_check.py` |
+| `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/migration_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/review_scope_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/sector_map_check.py` |
 | `scripts/checks/python/` | `scripts/checks/python/python_check.py`, `scripts/checks/python/python_conventions_check.py`, `scripts/checks/python/public_api_test_evidence_check.py`, `scripts/checks/python/function_complexity_check.py`, `scripts/checks/python/ruff_check.py`, `scripts/checks/python/mypy_check.py`, `scripts/checks/python/pytest_check.py` |
 
 **Run a targeted suite:**
@@ -97,7 +97,6 @@ One-off data operations. Safe to run on the live DB when noted.
 | `check_cash_invariant.py` | Read-only reconciliation report: each book's `current_cash` vs `start_equity` + ledger sum, within a float tolerance |
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
-| `export_db_csv.py` | Generate one DB table as CSV on demand (stdout or `--out` file); no persisted export directory |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
@@ -149,6 +148,8 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |
 | `check_jobs.py` | Check scheduled job status (installed OS-level schedules) |
 | `ibkr_web_api_smoke_test.py` | IBKR Web API connectivity smoke test |
+| `ibkr_socket_smoke_test.py` | Operator-run IBKR socket/TWS smoke test: read-only connectivity checks against a local TWS/Gateway paper port, with an opt-in paper order round trip |
+| `benchmark_sweep.py` | Time the walk-forward optimizer against a DB copy so sweep candidate budgets can be sized from measured cost |
 
 ---
 

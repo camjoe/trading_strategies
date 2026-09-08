@@ -26,7 +26,7 @@ import httpx
 from common.coercion import coerce_float
 from infrastructure.brokers.ibkr_web import InteractiveBrokersWebClient, load_ib_web_api_settings
 from infrastructure.brokers.ibkr_web.adapter import InteractiveBrokersWebAdapter
-from trading.models.orders.broker_order import BrokerOrder, OrderStatus, OrderType, TimeInForce
+from trading.models.orders import OrderRequest, OrderStatus, OrderType, TimeInForce
 
 # Default quantity for the optional paper-order smoke check.
 _DEFAULT_PAPER_ORDER_QTY = 1.0
@@ -318,7 +318,7 @@ def run_paper_order_check(
         raise ValueError("Paper-order smoke test requires a ticker symbol.")
 
     submitted = adapter.place_order(
-        BrokerOrder(
+        OrderRequest(
             account_id=0,
             ticker=normalized_symbol,
             side=side,

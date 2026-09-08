@@ -16,36 +16,37 @@ from trading.domain.rotation.score_components import (
 
 class TestStabilityFromWindowReturns:
     def test_tight_windows_score_near_zero(self) -> None:
-        steady = stability_from_window_returns(best_return_pct=4.2, worst_return_pct=3.8, window_count=5)
-        assert steady == pytest.approx(-0.4)
+        steady = stability_from_window_returns(window_returns=[3.9, 4.0, 4.1])
+        assert steady == pytest.approx(-0.1)
 
     def test_wider_spread_scores_lower(self) -> None:
-        steady = stability_from_window_returns(best_return_pct=4.2, worst_return_pct=3.8, window_count=5)
-        swingy = stability_from_window_returns(best_return_pct=12.0, worst_return_pct=-8.0, window_count=5)
+        steady = stability_from_window_returns(window_returns=[3.9, 4.0, 4.1])
+        swingy = stability_from_window_returns(window_returns=[-8.0, 2.0, 12.0])
         # Stability is added to the score, so the steadier strategy must rank higher.
         assert swingy < steady
 
     def test_single_window_is_neutral_not_perfectly_stable(self) -> None:
-        # One window has zero spread, which would otherwise read as flawless steadiness.
-        assert stability_from_window_returns(best_return_pct=4.0, worst_return_pct=4.0, window_count=1) == (
-            NEUTRAL_COMPONENT
-        )
+        # One window has zero deviation, which would otherwise read as flawless steadiness.
+        assert stability_from_window_returns(window_returns=[4.0]) == NEUTRAL_COMPONENT
 
-    def test_missing_window_returns_are_neutral(self) -> None:
-        assert stability_from_window_returns(best_return_pct=None, worst_return_pct=1.0, window_count=4) == (
-            NEUTRAL_COMPONENT
-        )
-        assert stability_from_window_returns(best_return_pct=1.0, worst_return_pct=None, window_count=4) == (
-            NEUTRAL_COMPONENT
-        )
+    def test_no_window_returns_are_neutral(self) -> None:
+        assert stability_from_window_returns(window_returns=[]) == NEUTRAL_COMPONENT
 
     def test_identical_windows_are_maximally_steady(self) -> None:
-        assert stability_from_window_returns(best_return_pct=3.0, worst_return_pct=3.0, window_count=4) == 0.0
+        assert stability_from_window_returns(window_returns=[3.0, 3.0, 3.0, 3.0]) == 0.0
 
     def test_never_returns_a_positive_bonus(self) -> None:
         # Stability may only be neutral or negative; a positive value would reward
         # dispersion once the policy adds it to the score.
-        assert stability_from_window_returns(best_return_pct=9.0, worst_return_pct=1.0, window_count=3) <= 0.0
+        assert stability_from_window_returns(window_returns=[1.0, 5.0, 9.0]) <= 0.0
+
+    def test_distribution_shape_matters_not_just_the_range(self) -> None:
+        # Identical best/worst, different clustering: the range cannot tell these
+        # apart, the standard deviation can. This is why stability stopped being a
+        # range — one outlier window used to dominate the whole component.
+        clustered = stability_from_window_returns(window_returns=[0.0, 5.0, 5.0, 5.0, 10.0])
+        dispersed = stability_from_window_returns(window_returns=[0.0, 0.0, 5.0, 10.0, 10.0])
+        assert clustered > dispersed
 
 
 class TestDrawdownPenaltyFromMaxDrawdown:

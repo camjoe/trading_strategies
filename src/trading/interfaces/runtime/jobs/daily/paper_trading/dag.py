@@ -4,21 +4,30 @@ import datetime as dt
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from common.runtime_job_status import TERMINAL_STEP_STATUSES
+
+# Step *ids* are a persisted contract — they appear in every historical run
+# artifact and `maintenance/replay_daily_runs` reads those — so they stay fixed
+# even where they no longer describe the work. The display names are the honest
+# ones; read them, not the ids.
+#
+# Where the trading controls actually live: step 05 runs the whole trading path
+# (rotation, pre-submit risk gate, broker submission) in one subprocess. Steps 06
+# and 07 do not gate or submit anything — they summarize rows step 05 already
+# wrote. Step 04 never runs; rotation is enforced inside the step 05 runtime.
 DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
-    ("00_ingest_market_and_account", "Ingest market and account context"),
-    ("01_mark_book_nav", "Mark book NAV"),
-    ("02_run_signals_all_strategies", "Run incumbent/challenger strategy signals"),
-    ("03_score_incumbent_vs_challengers", "Score incumbent versus challengers"),
-    ("04_rotation_decision", "Apply rotation decision gates"),
-    ("05_build_position_targets_by_book", "Build position targets by book"),
-    ("06_pretrade_risk_gate", "Apply pretrade risk gate"),
-    ("07_submit_ibkr_orders", "Submit broker orders"),
-    ("08_reconcile_fills_update_ledgers", "Reconcile fills and update ledgers"),
-    ("09_postclose_metrics_and_attribution", "Compute post-close metrics and attribution"),
+    ("00_ingest_market_and_account", "Resolve run context (accounts and trade caps)"),
+    ("01_mark_book_nav", "Reconcile fills and snapshot equity (pre-trade)"),
+    ("02_run_signals_all_strategies", "Run challenger shadow evaluation"),
+    ("03_score_incumbent_vs_challengers", "Record shadow-evaluation summary"),
+    ("04_rotation_decision", "Rotation decision (applied inside the step 05 runtime)"),
+    ("05_build_position_targets_by_book", "Run trading books: rotation, risk gate, submission"),
+    ("06_pretrade_risk_gate", "Report pretrade risk-gate decisions from this run"),
+    ("07_submit_ibkr_orders", "Report broker submissions from this run"),
+    ("08_reconcile_fills_update_ledgers", "Reconcile fills and snapshot equity (post-trade)"),
+    ("09_postclose_metrics_and_attribution", "Compare strategies (post-close)"),
     ("10_emit_report_and_alerts", "Emit report and alerts"),
 )
-
-TERMINAL_STEP_STATUSES = {"ok", "skipped", "failed"}
 
 
 @dataclass
@@ -66,7 +75,7 @@ def run_dag_step(
     step_results: list[DagStepResult],
     *,
     step_id: str,
-    run_fn: Callable[[], object],
+    run_fn: Callable[[], dict[str, object] | None],
     now_iso: Callable[[], str],
 ) -> DagStepResult:
     result = step_result(step_results, step_id)
@@ -87,7 +96,7 @@ def run_dag_step(
     result.status = "ok"
     result.finished_at = now_iso()
     result.duration_seconds = round((finish_time - start_time).total_seconds(), 6)
-    result.details = details if isinstance(details, dict) else {"value": details}
+    result.details = details
     return result
 
 

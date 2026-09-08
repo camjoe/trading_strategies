@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from trading.services.market_data import (
-    MarketDataProvider,
-    build_feature_provider,
-    require_feature_provider,
-    require_provider,
-)
+from trading.services.market_data.factory import build_feature_provider
 from trading.services.market_data.features import ProxyFeatureDataProvider
+from trading.services.market_data.protocols import MarketDataProvider, require_feature_provider, require_provider
 
 
 class _StubProvider(MarketDataProvider):
@@ -19,6 +15,9 @@ class _StubProvider(MarketDataProvider):
         raise NotImplementedError
 
     def fetch_close_series(self, ticker, period):  # pragma: no cover - not exercised
+        raise NotImplementedError
+
+    def fetch_bar_history(self, tickers, start_date, end_date):  # pragma: no cover - not exercised
         raise NotImplementedError
 
 

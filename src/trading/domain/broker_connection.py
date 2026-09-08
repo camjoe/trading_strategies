@@ -3,22 +3,22 @@
 All broker adapters must implement :class:`BrokerConnection`.  Concrete adapters
 are injected at the runtime / interface layer.
 
-Order data types live in :mod:`trading.models.orders.broker_order` so that repositories
-and services can use them without depending on this package.
+Order data types live in :mod:`trading.models.orders` so that repositories and
+services can use them without depending on this package.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.models.orders.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
+from trading.models.orders import BrokerOrder, OrderRequest
 
 
 class BrokerConnection(ABC):
     """Abstract interface over a broker connection.
 
     Implement this class to add a new broker.  Register the adapter in
-    :func:`brokers.factory.get_broker_for_account`.
+    :func:`infrastructure.brokers.factory.get_broker_for_account`.
     """
 
     @abstractmethod
@@ -30,12 +30,13 @@ class BrokerConnection(ABC):
         """Close the connection gracefully."""
 
     @abstractmethod
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
-        """Submit *order* and return it populated with broker-assigned fields.
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
+        """Submit *order* and return a placed order carrying the broker's fields.
 
-        For synchronous/paper brokers the returned order will have
-        ``status == OrderStatus.FILLED``.  For async live brokers the status
-        will be ``SUBMITTED`` initially and updated via separate fill events.
+        The returned order is a new object; *order* is left untouched.  For
+        synchronous/paper brokers it will have ``status == OrderStatus.FILLED``.
+        For async live brokers the status will be ``SUBMITTED`` initially and
+        updated via separate fill events.
         """
 
     @abstractmethod

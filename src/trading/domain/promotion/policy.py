@@ -1,0 +1,293 @@
+"""Whether a strategy is ready to go live, given its evaluation artifact.
+
+Distinct from :mod:`trading.domain.promotion.gate`, which asks the earlier
+question of whether a parameter search found an edge. This walks the promotion
+stages — research validation, then live-readiness review — and returns a
+``PromotionAssessment`` naming the stage, its blockers, and the next action.
+
+Side-effect free: the caller supplies a passive ``StrategyEvaluationArtifact``
+and operator-tuned ``PromotionPolicySettings``, and gets a verdict back. It never
+reads settings from storage or persists the result.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from trading.domain.evaluation.risk_limits import MAX_ACCEPTABLE_DRAWDOWN_PCT
+from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.models.promotion import (
+    PromotionAssessment,
+    PromotionStage,
+    PromotionStatus,
+)
+
+# Research validation expects at least a small sample of backtest decisions.
+MIN_RESEARCH_BACKTEST_TRADE_COUNT = 10
+
+# Research validation expects enough backtest equity points to inspect curve shape.
+MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT = 20
+
+# Research validation requires a non-negative backtest return before paper observation.
+MIN_RESEARCH_BACKTEST_RETURN_PCT = 0.0
+
+# Research validation rejects backtests breaching the shared risk floor. Operator
+# settings may override the resolved value; the shared constant is the default.
+MIN_RESEARCH_MAX_DRAWDOWN_PCT = MAX_ACCEPTABLE_DRAWDOWN_PCT
+
+# Walk-forward window evidence must also show a non-negative average return.
+MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT = 0.0
+
+# Live-readiness review expects a modest amount of persisted paper observation.
+MIN_LIVE_PAPER_SNAPSHOT_COUNT = 10
+
+# Promotion review requires moderate blended confidence from the evaluation artifact.
+MIN_LIVE_OVERALL_CONFIDENCE = 0.60
+
+
+@dataclass(frozen=True)
+class PromotionPolicySettings:
+    min_research_backtest_trade_count: int = MIN_RESEARCH_BACKTEST_TRADE_COUNT
+    min_research_backtest_snapshot_count: int = MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT
+    min_research_backtest_return_pct: float = MIN_RESEARCH_BACKTEST_RETURN_PCT
+    min_research_max_drawdown_pct: float = MIN_RESEARCH_MAX_DRAWDOWN_PCT
+    min_research_walk_forward_average_return_pct: float = MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT
+    min_live_paper_snapshot_count: int = MIN_LIVE_PAPER_SNAPSHOT_COUNT
+    min_live_overall_confidence: float = MIN_LIVE_OVERALL_CONFIDENCE
+
+
+RESEARCH_EVIDENCE_REQUIRED = "Backtest evidence is required for promotion assessment."
+WALK_FORWARD_EVIDENCE_REQUIRED = "Walk-forward evidence is required for research validation."
+PAPER_EVIDENCE_REQUIRED = "Paper evidence is required before manual promotion review."
+ROTATION_ISOLATION_REQUIRED = (
+    "Rotating accounts require strategy-isolated paper evidence before manual promotion review."
+)
+PAPER_ISOLATION_REQUIRED = "Paper evidence must be strategy-isolated before manual promotion review."
+RESEARCH_NEXT_ACTION = "Produce research evidence that meets promotion thresholds."
+PAPER_EVIDENCE_NEXT_ACTION = "Collect paper evidence before requesting manual promotion review."
+PAPER_OBSERVATION_NEXT_ACTION = (
+    "Continue paper observation until live-readiness blockers clear, then request manual promotion review."
+)
+PROMOTION_REVIEW_NEXT_ACTION = (
+    "Automated checks passed. A human operator may review the evidence and manually enable live trading."
+)
+LIVE_ACTIVE_NEXT_ACTION = (
+    "Live trading is already enabled. Continue manual oversight; automated live activation remains disabled."
+)
+LIVE_ALREADY_ENABLED_WARNING = (
+    "Live trading is already enabled. This workflow remains read-only and will not change live status."
+)
+ROTATION_MANUAL_WARNING = "Rotating accounts remain manual-only for final promotion, even when automated checks pass."
+BACKTEST_WARNING_PREFIX = "Backtest warnings: "
+
+
+def _append_threshold_blocker(
+    blockers: list[str],
+    *,
+    value: float | int | None,
+    minimum: float | int,
+    message: str,
+) -> None:
+    if value is None or value < minimum:
+        blockers.append(message)
+
+
+def _research_blockers(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    settings: PromotionPolicySettings,
+) -> list[str]:
+    blockers: list[str] = []
+    backtest = artifact.backtest
+    walk_forward = artifact.walk_forward
+    if not backtest.available:
+        blockers.append(RESEARCH_EVIDENCE_REQUIRED)
+        return blockers
+
+    if not walk_forward.available:
+        blockers.append(WALK_FORWARD_EVIDENCE_REQUIRED)
+
+    _append_threshold_blocker(
+        blockers,
+        value=backtest.trade_count,
+        minimum=settings.min_research_backtest_trade_count,
+        message=(
+            "Backtest trade count must be at least "
+            f"{settings.min_research_backtest_trade_count} for research validation."
+        ),
+    )
+    _append_threshold_blocker(
+        blockers,
+        value=backtest.snapshot_count,
+        minimum=settings.min_research_backtest_snapshot_count,
+        message=(
+            "Backtest snapshot count must be at least "
+            f"{settings.min_research_backtest_snapshot_count} for research validation."
+        ),
+    )
+    _append_threshold_blocker(
+        blockers,
+        value=backtest.total_return_pct,
+        minimum=settings.min_research_backtest_return_pct,
+        message=(
+            "Backtest return must be at least "
+            f"{settings.min_research_backtest_return_pct:.2f}% for research validation."
+        ),
+    )
+    missing_max_drawdown = backtest.max_drawdown_pct is None
+    drawdown_below_threshold = (
+        backtest.max_drawdown_pct is not None and backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct
+    )
+    if missing_max_drawdown or drawdown_below_threshold:
+        blockers.append(
+            "Backtest max drawdown must be no worse than "
+            f"{settings.min_research_max_drawdown_pct:.2f}% for research validation."
+        )
+    _append_threshold_blocker(
+        blockers,
+        value=walk_forward.average_return_pct,
+        minimum=settings.min_research_walk_forward_average_return_pct,
+        message=(
+            "Walk-forward average return must be at least "
+            f"{settings.min_research_walk_forward_average_return_pct:.2f}% for research validation."
+        ),
+    )
+    return blockers
+
+
+def _live_readiness_blockers(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    settings: PromotionPolicySettings,
+) -> list[str]:
+    blockers: list[str] = []
+    paper_live = artifact.paper_live
+    if not paper_live.available:
+        blockers.append(PAPER_EVIDENCE_REQUIRED)
+    if artifact.basic.rotation_enabled and not paper_live.strategy_isolated:
+        blockers.append(ROTATION_ISOLATION_REQUIRED)
+    elif paper_live.available and not paper_live.strategy_isolated:
+        blockers.append(PAPER_ISOLATION_REQUIRED)
+
+    if paper_live.available:
+        _append_threshold_blocker(
+            blockers,
+            value=paper_live.snapshot_count,
+            minimum=settings.min_live_paper_snapshot_count,
+            message=(
+                "Paper snapshot count must be at least "
+                f"{settings.min_live_paper_snapshot_count} before manual promotion review."
+            ),
+        )
+    _append_threshold_blocker(
+        blockers,
+        value=artifact.confidence.overall_confidence,
+        minimum=settings.min_live_overall_confidence,
+        message=(
+            "Overall confidence must be at least "
+            f"{settings.min_live_overall_confidence:.2f} before manual promotion review."
+        ),
+    )
+    if artifact.diagnostics.data_gaps:
+        blockers.append("Required evaluation data gaps must be resolved: " + ", ".join(artifact.diagnostics.data_gaps))
+    return blockers
+
+
+def _warnings(artifact: StrategyEvaluationArtifact) -> list[str]:
+    warnings: list[str] = []
+    if artifact.backtest.warnings:
+        warnings.append(f"{BACKTEST_WARNING_PREFIX}{artifact.backtest.warnings}")
+    if artifact.basic.rotation_enabled:
+        warnings.append(ROTATION_MANUAL_WARNING)
+    return warnings
+
+
+def _assessment(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    stage: PromotionStage,
+    status: PromotionStatus,
+    ready_for_live: bool,
+    live_trading_enabled: bool,
+    blockers: list[str],
+    warnings: list[str],
+    next_action: str,
+) -> PromotionAssessment:
+    """A ``PromotionAssessment`` for one stage, filling the fields every stage shares.
+
+    The identity, freshness, confidence, and data-gap fields are the same on every
+    branch, so they are read from the artifact here and each branch supplies only
+    what its stage decides.
+    """
+    return PromotionAssessment(
+        account_name=artifact.basic.account_name,
+        strategy_name=artifact.basic.requested_strategy,
+        evaluation_generated_at=artifact.meta.generated_at,
+        backtest_freshness=artifact.diagnostics.backtest_freshness,
+        overall_confidence=artifact.confidence.overall_confidence,
+        data_gaps=list(artifact.diagnostics.data_gaps),
+        stage=stage,
+        status=status,
+        ready_for_live=ready_for_live,
+        live_trading_enabled=live_trading_enabled,
+        blockers=blockers,
+        warnings=warnings,
+        next_action=next_action,
+    )
+
+
+def assess_promotion_readiness(
+    artifact: StrategyEvaluationArtifact,
+    settings: PromotionPolicySettings | None = None,
+) -> PromotionAssessment:
+    resolved = settings or PromotionPolicySettings()
+    warnings = _warnings(artifact)
+    if artifact.basic.live_trading_enabled:
+        return _assessment(
+            artifact,
+            stage=PromotionStage.LIVE_ACTIVE,
+            status=PromotionStatus.LIVE,
+            ready_for_live=False,
+            live_trading_enabled=True,
+            blockers=[],
+            warnings=[*warnings, LIVE_ALREADY_ENABLED_WARNING],
+            next_action=LIVE_ACTIVE_NEXT_ACTION,
+        )
+
+    research_blockers = _research_blockers(artifact, settings=resolved)
+    if research_blockers:
+        return _assessment(
+            artifact,
+            stage=PromotionStage.CANDIDATE,
+            status=PromotionStatus.BLOCKED,
+            ready_for_live=False,
+            live_trading_enabled=False,
+            blockers=research_blockers,
+            warnings=warnings,
+            next_action=RESEARCH_NEXT_ACTION,
+        )
+
+    live_blockers = _live_readiness_blockers(artifact, settings=resolved)
+    if not live_blockers:
+        return _assessment(
+            artifact,
+            stage=PromotionStage.PROMOTION_REVIEW,
+            status=PromotionStatus.READY_FOR_REVIEW,
+            ready_for_live=True,
+            live_trading_enabled=False,
+            blockers=[],
+            warnings=warnings,
+            next_action=PROMOTION_REVIEW_NEXT_ACTION,
+        )
+
+    has_paper_evidence = artifact.paper_live.available
+    return _assessment(
+        artifact,
+        stage=(PromotionStage.PAPER_OBSERVING if has_paper_evidence else PromotionStage.RESEARCH_VALIDATED),
+        status=PromotionStatus.OBSERVING,
+        ready_for_live=False,
+        live_trading_enabled=False,
+        blockers=live_blockers,
+        warnings=warnings,
+        next_action=(PAPER_OBSERVATION_NEXT_ACTION if has_paper_evidence else PAPER_EVIDENCE_NEXT_ACTION),
+    )

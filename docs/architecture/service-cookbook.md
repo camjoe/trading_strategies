@@ -3,10 +3,10 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-08-16
 Purpose: Answer "which package do I call for X?" — the supported internal import pattern plus
-capability → service-package pointers. The per-function surface lives in each package's `__init__.py`
-(`__all__`), not here.
+capability → service-package pointers. The per-function surface lives in each owning module (read
+its docstring and definitions), not here.
 Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
@@ -17,36 +17,36 @@ This is a task-oriented companion to [trading-package-map.md](../maps/trading-pa
 Use it when writing CLI commands, runtime jobs, or UI backend routes that need `src/trading/services/`.
 
 This doc deliberately does **not** mirror function signatures — an earlier version hand-maintained
-~70 of them and they drifted. Most packages' `__init__.py` files re-export their supported internal
-surface via `__all__`; **read that (or the module docstrings) for the current functions and
-signatures.**
+~70 of them and they drifted. Each module owns its own surface; **read the owning module's docstring
+and definitions for the current functions and signatures.**
 
-These exports define the preferred integration boundary within this repository. They are not a
+The owning modules define the preferred integration boundary within this repository. They are not a
 versioned compatibility promise for external consumers.
 
 ---
 
 ## Import pattern
 
-Most service packages expose a supported internal `__all__` surface through their
-`__init__.py`. Import from the package by default, not from the concrete submodule:
+Import from the module that owns the symbol. The import path then names where the code
+lives, and there is no re-export surface to keep in sync:
 
 ```python
-# Correct — supported internal surface
-from trading.services.accounts import get_account, list_account_records
-from trading.services.analysis import build_account_stats, build_live_benchmark_overlay
+# Correct — import from the owning module
+from trading.services.accounts.queries import list_account_records
+from trading.services.analysis.portfolio import build_account_stats
 
-# Avoid — internal submodule (subject to change without notice)
-from trading.services.accounts.queries import get_account
+# Avoid — package-root re-export facade
+from trading.services.accounts import list_account_records
 ```
 
-Naming conventions on that surface (see `architecture-conventions.md`): reads are `fetch_*`/`get_*`/
-`list_*`/`find_*`, side-effect workflows are `run_*`/`execute_*`/`record_*`/`set_*`, input/config
-derivation is `resolve_*`.
+Naming conventions on the service surface (see `architecture-conventions.md`): reads are
+`fetch_*`/`get_*`/`list_*`/`find_*`, side-effect workflows are `run_*`/`execute_*`/`record_*`/`set_*`,
+input/config derivation is `resolve_*`.
 
-Exception: `trading.services.execution` is intentionally submodule-oriented for now. Import the
-focused module that owns the safety-critical concern (`submission`, `gate`, `pre_submit_gate`, `nav`,
-or `reconciliation`) instead of treating the package root as a facade.
+The service packages once exposed re-export `__all__` facades from an earlier convention; all are
+now retired, so `execution`, `books`, and every other package are submodule-oriented. Use the
+capability table below to find the owning package, then import the module inside it that owns the
+concern.
 
 ---
 
@@ -55,7 +55,7 @@ or `reconciliation`) instead of treating the package root as a facade.
 | I need to… | Package | Scope notes |
 |---|---|---|
 | Look up, list, create, or configure accounts; change strategy/benchmark | `trading.services.accounts` | Strict (`get_*`) vs optional (`find_*`) lookups; runtime-eligible listing |
-| Apply named preset profiles to an account | `trading.services.profiles` | Profile loading + application (`profile_source` is the input-backend abstraction) |
+| Expand a universe name into the tickers a book stores | `trading.services.universe` | `resolve_trade_symbols` (write paths); books keep the expansion, not the name |
 | Load account state; record trades; list trades | `trading.services.execution.ledger` | Cash/positions/cost state + the trade ledger write path |
 | Account stats, equity/settlement math, benchmark overlays, CLI reports, snapshots | `trading.services.reporting` | Also owns compare-strategies and snapshot history display |
 | Fetch prices | `trading.services.market_data.lookups` | Latest-price + benchmark lookups over the injected provider |
@@ -69,11 +69,10 @@ or `reconciliation`) instead of treating the package root as a facade.
 | Promotion assessments, review requests/actions, history | `trading.services.promotion` | Human-gated review workflow + CLI rendering |
 | Canonical strategy evaluation (evidence + decision score) | `trading.services.evaluation` | Backs compare, rotation, and promotion via `derive_decision_score` |
 | Operational settings: throttles, evaluation confidence, promotion policy | `trading.services.operational_settings` | Also owns trade-throttle enforcement |
-| Find stale backtest coverage targets | `trading.backtesting.services` | Staleness enumeration/remediation, colocated with the rest of the backtesting bounded context under `src/trading/backtesting/` |
+| Find stale backtest coverage targets | `backtesting.services` | Staleness enumeration/remediation, colocated with the rest of the backtesting bounded context under `src/backtesting/` |
 | Query Autonomy monitor status, artifacts, governance, and risk | `trading.services.autonomy_monitor` | Operator/dashboard read model over DB state and runtime artifacts |
 | Preview or delete an account (cascade) | `trading.services.accounts` | `deletions.py` — dry-run preview + cascade-backed delete |
 | Resolve trade universes | `trading.services.universe` | Universe name → ticker list |
-| Preview or export a DB table on demand (live query, no persisted files) | `trading.services.table_export` | `fetch_table_rows` (paged preview), `stream_table_csv` (CSV generator); reads via `trading.repositories.table_export` |
 
 ---
 

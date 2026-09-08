@@ -52,7 +52,7 @@ python -m scripts.checks.run_suite src/trading/services/promotion
 python -m scripts.checks.run_suite src/trading/services/market_data src/trading/services/promotion
 
 # Other top-level areas
-python -m scripts.checks.run_suite src/trading/backtesting
+python -m scripts.checks.run_suite src/backtesting
 python -m scripts.checks.run_suite src/trading/repositories
 python -m scripts.checks.run_suite src/trading/interfaces
 python -m scripts.checks.run_suite apps/paper_trading_web
@@ -87,23 +87,9 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/autonomy_monitor` | `tests/src/trading/services/autonomy_monitor/` |
 | `src/trading/services/market_data` | `tests/src/trading/services/market_data/` |
 | `src/trading/services/operational_settings` | `tests/src/trading/services/operational_settings/` |
-| `src/trading/services/profiles` | `tests/src/trading/services/profiles/` |
 | `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
 | `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
 | `src/trading/services/books` | `tests/src/trading/services/books/` |
-| `src/trading/services/universe` | `tests/src/trading/services/universe/` |
-
-### Targeted runs in GitHub Actions
-
-Use the **Targeted Tests** workflow (`targeted-tests.yml`) for focused validation on a branch without waiting for the full CI suite:
-
-```sh
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data"
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data,src/trading/services/promotion"
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="all" -f extra_args="--no-cov"
-```
-
-The workflow accepts a `suites` input (space- or comma-separated suite names) and an optional `extra_args` input for additional pytest flags.
 
 ## Quick Start
 
@@ -125,19 +111,6 @@ python -m pytest -o addopts= tests/scripts/test_readme_check.py
 
 Use `-o addopts=` when local environments do not have coverage plugins required by default pytest options.
 
-## Daily Snapshot Tests
-
-Daily snapshot scheduler coverage lives in:
-
-- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_helpers.py`
-- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_main.py`
-
-Run only this test slice:
-
-```sh
-python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
-```
-
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).
@@ -146,8 +119,8 @@ python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
   - `tests/src/trading/services/evaluation/conftest.py` — `eval_account`
   - `tests/src/trading/services/promotion/conftest.py` — `promotion_account`
   - `tests/src/trading/services/accounts/conftest.py` — `configured_backend`
-  - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
-  - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
+  - `tests/src/backtesting/conftest.py` — `bt_market_data` factory fixture
+  - `tests/src/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/src/trading/services/market_data/conftest.py` — provider reset per test
   - `tests/apps/paper_trading_web/conftest.py` — `api_client` with isolated DB backend
 

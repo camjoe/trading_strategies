@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from trading.domain.market_hours import is_regular_us_equity_market_open
+from trading.domain.market.hours import is_regular_us_equity_market_open
 
 
 def test_market_open_during_regular_weekday_session() -> None:

@@ -46,14 +46,12 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path, _run_m
     assert (
         _run_main_with_args(
             daily_paper_trading_time="13:10",
-            daily_snapshot_time="13:40",
-            enable_daily_snapshot=True,
         )
         == 0
     )
     tasks = captured["tasks"]
     assert isinstance(tasks, list)
-    assert len(tasks) == 2
+    assert len(tasks) == 1
     assert captured["repo_root"] == tmp_path
     assert captured["python_exe"] == "/tmp/.venv/bin/python"
 
@@ -97,10 +95,7 @@ def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_arg
     assert _run_main_with_args(unregister=True) == 0
     assert captured["task_names"] == [
         r"Trading\DailyPaperTrading",
-        r"Trading\DailyPaperTradingFallback",
         r"Trading\DailyChallengerShadowEval",
-        r"Trading\DailySnapshot",
-        r"Trading\DailyBacktestRefresh",
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]

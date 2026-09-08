@@ -20,7 +20,6 @@ Two consequences of that rule are worth knowing before editing this module:
 
 from __future__ import annotations
 
-import json
 import math
 import sqlite3
 from dataclasses import dataclass, field
@@ -28,19 +27,33 @@ from datetime import date, datetime, time, timezone
 
 import pandas as pd
 
+from backtesting.services.fixture_seed import seed_fixture_backtest
 from common.constants import SETTLEMENT_TICKER
+from common.json_columns import dumps_json_column
+from common.time import as_utc_iso
 from trading.models import AccountConfig
+from trading.models.evaluation import EvaluationBasicScope, StrategyEvaluationArtifact
+from trading.models.orders import OrderInsert
+from trading.models.promotion import (
+    PromotionAssessment,
+    PromotionReviewEventType,
+    PromotionReviewState,
+    PromotionStage,
+    PromotionStatus,
+)
+from trading.persistence.unit_of_work import unit_of_work
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.feature_providers import FeatureProviderRepository
-from trading.repositories.fixture_seed import FixtureSeedRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.promotion import PromotionReviewRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.unit_of_work import unit_of_work
-from trading.services.accounts import create_account, get_account
+from trading.repositories.strategies import StrategyRepository
+from trading.services.accounts.mutations import create_account, get_account
 from trading.services.analysis.daily_metrics import write_daily_metrics_for_account
 from trading.services.books.book_assignments import assign_book_strategy
-from trading.services.execution.ledger import record_trade
+from trading.services.books.default_book import default_book_id
+from trading.services.execution.ledger.mutations import record_trade
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.submission import apply_book_fill
 from trading.services.fixtures.profiles import (
@@ -49,9 +62,10 @@ from trading.services.fixtures.profiles import (
     FixtureProfile,
     FixtureTrade,
 )
-from trading.services.market_data import MarketDataProvider
-from trading.services.operational_settings import set_runtime_throttle_settings
-from trading.services.parameters import update_book_rotation_scheduling
+from trading.services.market_data.protocols import MarketDataProvider
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
+from trading.services.parameters.mutations import update_book_rotation_scheduling
+from trading.services.universe import resolve_trade_symbols
 
 # Snapshots are stamped at a nominal 16:00 UTC close so each business day has one
 # unambiguous end-of-day time for the metrics writer to derive returns from.
@@ -69,6 +83,10 @@ FIXTURE_MAX_TRADES_PER_MINUTE = 5
 # The synthetic backtest's sample executions are keyed off snapshots this far
 # inside the curve, so both land on days the curve actually covers.
 _BACKTEST_EXECUTION_MARGIN_DAYS = 5
+
+# Marks every generated promotion review as operator-visible synthetic evidence.
+FIXTURE_ACTOR = "generated-fixture"
+FIXTURE_PROMOTION_CONFIDENCE = 0.82
 
 
 @dataclass
@@ -97,12 +115,68 @@ def _profile_symbols(profile: FixtureProfile) -> list[str]:
 
 
 def _snapshot_time(stamp: pd.Timestamp) -> str:
-    return datetime.combine(stamp.date(), time(hour=SNAPSHOT_CLOSE_HOUR), tzinfo=timezone.utc).isoformat()
+    return as_utc_iso(datetime.combine(stamp.date(), time(hour=SNAPSHOT_CLOSE_HOUR), tzinfo=timezone.utc))
+
+
+def _fund_additional_book(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    default_book_id: int,
+    name: str,
+    trade_symbols: str,
+    opening_cash: float,
+    now_iso: str,
+) -> int:
+    """Create a non-default book, moving its opening cash off the default book.
+
+    The account's capital is conserved: whatever the new book opens with is
+    debited from the default book account creation made, so the sum across books
+    still equals `accounts.initial_cash` and account-level replay stays
+    consistent.
+
+    The debit includes the default book's `start_equity`, not just its balances.
+    Carve-outs happen before any trade, so the capital the default book
+    *started* with is the capital left after funding the sleeves — leaving
+    `start_equity` at the account's whole opening balance would make the default
+    book's return read as a loss the size of the sleeves.
+    """
+    books = BookRepository(conn)
+    default_book = books.fetch_by_id(book_id=default_book_id)
+    if default_book is None:
+        raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
+    remaining = default_book.current_cash - opening_cash
+    if remaining < 0:
+        raise ValueError(
+            f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
+            f"{default_book.current_cash:.2f}."
+        )
+
+    book_id = books.insert(
+        account_id=account_id,
+        name=name,
+        is_default=0,
+        start_equity=opening_cash,
+        current_cash=opening_cash,
+        current_equity=opening_cash,
+        trade_symbols=trade_symbols,
+        created_at=now_iso,
+        updated_at=now_iso,
+    )
+    books.update(
+        book_id=default_book_id,
+        values={
+            "start_equity": default_book.start_equity - opening_cash,
+            "current_cash": remaining,
+            "current_equity": remaining,
+        },
+        updated_at=now_iso,
+    )
+    return book_id
 
 
 def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_iso: str) -> list[_AccountPlan]:
     """Create every account, its bootstrapped default book, and any extra books."""
-    repo = FixtureSeedRepository(conn)
     plans: list[_AccountPlan] = []
     for spec in profile.accounts:
         create_account(
@@ -116,20 +190,25 @@ def _create_accounts(conn: sqlite3.Connection, profile: FixtureProfile, *, now_i
                 trade_universes=list(spec.trade_universes),
             ),
         )
-        account_id = repo.account_id(spec.name)
+        account_id = get_account(conn, spec.name).id
         # Every generated account is paper with live trading off; the Live
         # Trading Safety Guard forbids a seeder ever leaving it otherwise.
-        repo.set_account_paper_safety(account_id, now_iso=now_iso)
+        AccountRepository(conn).update(
+            account_id=account_id,
+            values={"broker_type": "paper", "live_trading_enabled": 0},
+            updated_at=now_iso,
+        )
 
-        default_book_id = repo.default_book_id(account_id)
+        book_id_of_default = default_book_id(conn, account_id=account_id)
         plan = _AccountPlan(account_id=account_id, spec=spec)
-        plan.books.append(_BookPlan(book_id=default_book_id, trades=spec.trades))
+        plan.books.append(_BookPlan(book_id=book_id_of_default, trades=spec.trades))
         for extra in spec.extra_books:
-            book_id = repo.fund_additional_book(
+            book_id = _fund_additional_book(
+                conn,
                 account_id=account_id,
-                default_book_id=default_book_id,
+                default_book_id=book_id_of_default,
                 name=extra.name,
-                trade_universes=json.dumps(list(spec.trade_universes), separators=(",", ":")),
+                trade_symbols=dumps_json_column(resolve_trade_symbols(list(spec.trade_universes))),
                 opening_cash=extra.opening_cash,
                 now_iso=now_iso,
             )
@@ -178,18 +257,20 @@ def _apply_fill(
     orders = OrderRepository(conn)
     with unit_of_work(conn):
         order_id = orders.insert(
-            book_id=book_id,
-            account_id=account_id,
-            symbol=symbol,
-            side=side,
-            qty=qty,
-            requested_price=price,
-            status="filled",
-            filled_qty=qty,
-            avg_fill_price=price,
-            commission=FIXTURE_COMMISSION,
-            submitted_at=when_iso,
-            updated_at=when_iso,
+            OrderInsert(
+                book_id=book_id,
+                account_id=account_id,
+                symbol=symbol,
+                side=side,
+                qty=qty,
+                requested_price=price,
+                status="filled",
+                filled_qty=qty,
+                avg_fill_price=price,
+                commission=FIXTURE_COMMISSION,
+                submitted_at=when_iso,
+                updated_at=when_iso,
+            )
         )
         orders.insert_fill(
             order_id=order_id,
@@ -337,6 +418,66 @@ def _run_history(
             )
 
 
+def _seed_promotion_review(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    account_name: str,
+    strategy_key: str,
+    now_iso: str,
+) -> None:
+    """Request a promotion review the way the operator flow does.
+
+    The evidence is synthetic but structurally real — a whole assessment and
+    evaluation artifact rather than a stub payload — so anything reading a
+    generated review sees the shape production writes. A review with no events
+    is unreachable in the real workflow, so the request event follows.
+    """
+    strategy = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_key)
+    if strategy is None:
+        raise ValueError(f"Fixture strategy '{strategy_key}' is missing.")
+
+    assessment = PromotionAssessment(
+        account_name=account_name,
+        strategy_name=strategy_key,
+        evaluation_generated_at=now_iso,
+        stage=PromotionStage.PROMOTION_REVIEW,
+        status=PromotionStatus.READY_FOR_REVIEW,
+        overall_confidence=FIXTURE_PROMOTION_CONFIDENCE,
+    )
+    evaluation = StrategyEvaluationArtifact(
+        basic=EvaluationBasicScope(
+            account_id=account_id,
+            account_name=account_name,
+            requested_strategy=strategy_key,
+        ),
+    )
+    repo = PromotionReviewRepository(conn)
+    review = repo.insert_review(
+        assessment=assessment,
+        evaluation=evaluation,
+        strategy_id=strategy.id,
+        requested_by=FIXTURE_ACTOR,
+        operator_summary_note="Synthetic sample evidence only; not suitable for live-trading decisions.",
+        created_at=now_iso,
+    )
+    repo.insert_event(
+        review_id=review.id,
+        event_type=PromotionReviewEventType.REQUESTED,
+        actor_name=FIXTURE_ACTOR,
+        from_review_state=None,
+        to_review_state=PromotionReviewState.REQUESTED,
+        note="Generated fixture review request.",
+        event_payload={
+            "ready_for_live": assessment.ready_for_live,
+            "assessment_stage": assessment.stage,
+            "assessment_status": assessment.status,
+            "overall_confidence": assessment.overall_confidence,
+        },
+        created_at=now_iso,
+    )
+
+
 def _seed_research_records(
     conn: sqlite3.Connection,
     *,
@@ -345,7 +486,6 @@ def _seed_research_records(
     now_iso: str,
 ) -> None:
     """Backtest runs and promotion reviews for the accounts the profile names."""
-    repo = FixtureSeedRepository(conn)
     snapshots = EquitySnapshotRepository(conn)
     by_name = {plan.spec.name: plan for plan in plans}
 
@@ -355,18 +495,21 @@ def _seed_research_records(
         curve = sorted((row.snapshot_time[:10], row.equity) for row in history)
         if len(curve) <= _BACKTEST_EXECUTION_MARGIN_DAYS * 2:
             raise ValueError(f"Profile '{profile.name}' is too short to anchor a fixture backtest curve.")
-        repo.insert_backtest(
+        seed_fixture_backtest(
+            conn,
             account_id=plan.account_id,
+            account_name=account_name,
             strategy_key=plan.spec.strategy,
-            start_date=curve[0][0],
-            end_date=curve[-1][0],
-            snapshots=curve,
+            benchmark_ticker=plan.spec.benchmark,
+            curve=curve,
+            execution_margin_days=_BACKTEST_EXECUTION_MARGIN_DAYS,
             now_iso=now_iso,
         )
 
     for account_name in profile.promotion_review_accounts:
         plan = by_name[account_name]
-        repo.insert_promotion_review(
+        _seed_promotion_review(
+            conn,
             account_id=plan.account_id,
             account_name=account_name,
             strategy_key=plan.spec.strategy,
@@ -386,15 +529,6 @@ def _seed_settings(conn: sqlite3.Connection, *, profile: FixtureProfile, now_iso
             conn,
             runtime_max_trades_per_day=FIXTURE_MAX_TRADES_PER_DAY,
             runtime_max_trades_per_minute=FIXTURE_MAX_TRADES_PER_MINUTE,
-            updated_at=now_iso,
-        )
-
-    for provider_key in profile.feature_providers:
-        FeatureProviderRepository(conn).upsert(
-            provider_key=provider_key,
-            enabled=1,
-            config_json=json.dumps({"source": "fixture"}, sort_keys=True),
-            created_at=now_iso,
             updated_at=now_iso,
         )
 

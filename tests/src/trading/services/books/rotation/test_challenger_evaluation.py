@@ -11,12 +11,12 @@ from trading.models.evaluation import (
     EvaluationConfidence,
     StrategyEvaluationArtifact,
 )
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
 
 # rotation_metrics resolves the evaluation fetch lazily (the one deliberate
 # books -> evaluation back-edge), so patch it on the evaluation package.
-_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
+_FETCH_TARGET = "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(*, blended_score: float | None, trade_count: int, available: bool = True) -> StrategyEvaluationArtifact:

@@ -8,20 +8,20 @@ from __future__ import annotations
 
 import sqlite3
 
+from backtesting.services.evidence import build_strategy_evidence
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.evaluation import EvaluationMeta, StrategyEvaluationArtifact
-from trading.services.accounts import get_account
+from trading.services.accounts.mutations import get_account
 from trading.services.evaluation.evidence import (
-    build_backtest_evidence,
     build_basic_scope,
     build_confidence,
     build_diagnostics,
     build_paper_live_evidence,
-    build_walk_forward_evidence,
+    resolve_active_strategy,
     resolve_requested_strategy,
 )
-from trading.services.operational_settings import fetch_evaluation_confidence_settings
+from trading.services.operational_settings.queries import fetch_evaluation_confidence_settings
 
 
 def fetch_strategy_evaluation_for_account_row(
@@ -30,10 +30,13 @@ def fetch_strategy_evaluation_for_account_row(
     *,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
-    requested_strategy = resolve_requested_strategy(conn, account, strategy_name)
+    # Resolved once and threaded: the scope, the requested-strategy fallback, and
+    # the paper-live window all need the account's active strategy.
+    active_strategy = resolve_active_strategy(conn, account)
+    requested_strategy = resolve_requested_strategy(strategy_name, active_strategy=active_strategy)
     account_id = account.id
-    basic = build_basic_scope(conn, account, requested_strategy)
-    backtest = build_backtest_evidence(
+    basic = build_basic_scope(conn, account, requested_strategy, active_strategy=active_strategy)
+    backtest, walk_forward = build_strategy_evidence(
         conn,
         account_id=account_id,
         requested_strategy=requested_strategy,
@@ -42,11 +45,7 @@ def fetch_strategy_evaluation_for_account_row(
         conn,
         account=account,
         requested_strategy=requested_strategy,
-    )
-    walk_forward = build_walk_forward_evidence(
-        conn,
-        account_id=account_id,
-        requested_strategy=requested_strategy,
+        active_strategy=active_strategy,
     )
     confidence_settings = fetch_evaluation_confidence_settings(conn)
     confidence = build_confidence(

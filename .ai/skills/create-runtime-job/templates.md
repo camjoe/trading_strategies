@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 
 JOB_NAME = "<job_name>"
@@ -75,7 +75,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 
 JOB_NAME = "<job_name>"
@@ -120,9 +120,9 @@ from __future__ import annotations
 
 import argparse
 
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_helpers import run_command
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
 
 JOB_NAME = "<job_name>"
 COMPLETE_SENTINEL = <SENTINEL_CONST>
@@ -179,7 +179,7 @@ def _run(monkeypatch, tmp_path: Path, args: tuple[str, ...]) -> int:
 
 
 def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: list(accounts))
 
 
 def test_reports_disabled_runs(monkeypatch, tmp_path, capsys) -> None:

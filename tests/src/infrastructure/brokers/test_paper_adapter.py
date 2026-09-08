@@ -1,14 +1,14 @@
 import pytest
 
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
-from tests.support.brokers import make_broker_order
-from trading.models.orders.broker_order import OrderFill, OrderStatus
+from tests.support.brokers import make_order_request
+from trading.models.orders import OrderFill, OrderStatus
 
 
 class TestPaperBrokerAdapter:
     def test_place_order_fills_immediately(self):
         adapter = PaperBrokerAdapter()
-        order = make_broker_order()
+        order = make_order_request()
         filled = adapter.place_order(order)
 
         assert filled.status == OrderStatus.FILLED
@@ -21,7 +21,7 @@ class TestPaperBrokerAdapter:
 
     def test_fill_records_correct_fill_details(self):
         adapter = PaperBrokerAdapter()
-        order = make_broker_order(qty=5.0, price=200.0)
+        order = make_order_request(qty=5.0, price=200.0)
         filled = adapter.place_order(order)
 
         fill: OrderFill = filled.fills[0]
@@ -32,9 +32,28 @@ class TestPaperBrokerAdapter:
 
     def test_place_order_sets_submitted_and_updated_at(self):
         adapter = PaperBrokerAdapter()
-        filled = adapter.place_order(make_broker_order())
+        filled = adapter.place_order(make_order_request())
         assert filled.submitted_at is not None
         assert filled.updated_at is not None
+
+    def test_place_order_returns_a_new_order_and_leaves_the_request_alone(self):
+        """The port's contract: an adapter answers with its own object.
+
+        Guards the whole request/response split — an adapter that mutated and
+        returned the caller's request would pass every other test here.
+        """
+        adapter = PaperBrokerAdapter()
+        request = make_order_request()
+        filled = adapter.place_order(request)
+
+        assert filled is not request
+        assert not hasattr(request, "status")
+        assert (request.ticker, request.side, request.qty, request.price) == (
+            filled.ticker,
+            filled.side,
+            filled.qty,
+            filled.price,
+        )
 
     def test_connect_and_disconnect_are_noops(self):
         adapter = PaperBrokerAdapter()

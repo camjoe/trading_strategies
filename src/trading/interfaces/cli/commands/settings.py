@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from trading.interfaces.cli.commands.options import add_account_arg, add_book_arg
+
 
 def int_or_none(raw: str) -> int | None:
     """Argparse type for nullable integer settings: pass 'none' to clear."""
@@ -74,8 +76,8 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
             " Omitted flags keep their current values; pass 'none' to fall back to the code default."
         ),
     )
-    p_rotation_policy.add_argument("--account", required=True, help="Account name")
-    p_rotation_policy.add_argument("--book", default=None, help="Book name (default: the account's default book)")
+    add_account_arg(p_rotation_policy)
+    add_book_arg(p_rotation_policy)
     p_rotation_policy.add_argument("--min-trades-in-window", type=int_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--outperformance-threshold-bps", type=float_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--cooldown-days", type=int_or_none, default=argparse.SUPPRESS)
@@ -91,8 +93,8 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
             " Omitted flags keep their current values; pass 'none' to clear schedule/lookback."
         ),
     )
-    p_rotation.add_argument("--account", required=True, help="Account name")
-    p_rotation.add_argument("--book", default=None, help="Book name (default: the account's default book)")
+    add_account_arg(p_rotation)
+    add_book_arg(p_rotation)
     p_rotation.add_argument(
         "--enabled",
         type=bool_flag,
@@ -134,8 +136,6 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
         "book-rotation-history",
         help="Show a book's rotation settings change-audit history (scheduling and policy edits).",
     )
-    p_book_rotation_history.add_argument("--account", required=True, help="Account name")
-    p_book_rotation_history.add_argument(
-        "--book", default=None, help="Book name (default: the account's default book)"
-    )
+    add_account_arg(p_book_rotation_history)
+    add_book_arg(p_book_rotation_history)
     p_book_rotation_history.add_argument("--limit", type=int, default=20, help="Number of change events to show")

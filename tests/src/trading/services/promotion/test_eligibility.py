@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 
 from tests.support.promotion import make_ready_evaluation
-from trading.services.accounts import get_account
-from trading.services.promotion import (
-    actions as promotion_actions,
+from trading.services.accounts.mutations import get_account
+from trading.services.promotion import actions as promotion_actions
+from trading.services.promotion.actions import (
+    PromotionAssessment,
     execute_promotion_review_action,
     execute_promotion_review_request,
-    is_strategy_approved_for_live,
 )
-from trading.services.promotion.actions import PromotionAssessment
+from trading.services.promotion.eligibility import is_strategy_approved_for_live
 
 
 def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str = "trend_v1") -> PromotionAssessment:
@@ -26,7 +26,7 @@ def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str 
 def _stub_snapshot_fetch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),

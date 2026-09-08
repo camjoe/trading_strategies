@@ -11,7 +11,7 @@ import uuid
 
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus
 
 
 class PaperBrokerAdapter(BrokerConnection):
@@ -27,10 +27,9 @@ class PaperBrokerAdapter(BrokerConnection):
     def disconnect(self) -> None:
         pass
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
         """Accept and immediately fill *order* at ``order.price``."""
         fill_time = utc_now_iso()
-        broker_order_id = f"paper-{uuid.uuid4().hex[:12]}"
 
         fill = OrderFill(
             filled_qty=order.qty,
@@ -39,15 +38,16 @@ class PaperBrokerAdapter(BrokerConnection):
             commission=self._PAPER_COMMISSION,
         )
 
-        order.broker_order_id = broker_order_id
-        order.status = OrderStatus.FILLED
-        order.filled_qty = order.qty
-        order.avg_fill_price = order.price
-        order.commission = self._PAPER_COMMISSION
-        order.submitted_at = fill_time
-        order.updated_at = fill_time
-        order.fills = [fill]
-        return order
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = f"paper-{uuid.uuid4().hex[:12]}"
+        placed.status = OrderStatus.FILLED
+        placed.filled_qty = order.qty
+        placed.avg_fill_price = order.price
+        placed.commission = self._PAPER_COMMISSION
+        placed.submitted_at = fill_time
+        placed.updated_at = fill_time
+        placed.fills = [fill]
+        return placed
 
     def cancel_order(self, broker_order_id: str) -> None:
         raise NotImplementedError("Paper orders fill immediately and cannot be cancelled.")

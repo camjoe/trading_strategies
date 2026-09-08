@@ -22,7 +22,7 @@ from trading.domain.rotation.score_components import (
 )
 from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 from trading.models import AccountRecord
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.repositories.strategies import StrategyRepository
 
 
@@ -54,7 +54,7 @@ def build_rotation_strategy_metrics(
     ``domain/rotation/score_components``).
 
     ``regime_fit`` computes a real value when ``fetch_regime`` is given — the
-    live-regime, family-derived design in ``docs/reference/rotation-scoring.md``
+    live-regime, family-derived design in ``docs/adr/019-rotation-score-components.md``
     (bucket ``policy_risk_on_score`` via ``regime_bucket_from_risk_on_score``,
     compare against the strategy's primitive family). Callers that don't pass
     ``fetch_regime`` (or that get an unavailable bundle) get ``NEUTRAL_COMPONENT``,
@@ -66,7 +66,7 @@ def build_rotation_strategy_metrics(
     # one-directional import graph (evaluation/accounts/backtesting -> books).
     # Deferring it here lets every downstream consumer import books at module
     # level without a package-init cycle.
-    from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
+    from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
 
     artifact = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_name)
     decision = derive_decision_score(artifact)
@@ -84,11 +84,7 @@ def build_rotation_strategy_metrics(
         strategy_name=strategy_name,
         trade_count=artifact.backtest.trade_count or 0,
         risk_adjusted_return=comparable_score,
-        stability=stability_from_window_returns(
-            best_return_pct=walk_forward.best_return_pct,
-            worst_return_pct=walk_forward.worst_return_pct,
-            window_count=len(walk_forward.run_ids),
-        ),
+        stability=stability_from_window_returns(window_returns=walk_forward.window_returns),
         drawdown_penalty=drawdown_penalty_from_max_drawdown(artifact.backtest.max_drawdown_pct),
         regime_fit=regime_fit,
     )

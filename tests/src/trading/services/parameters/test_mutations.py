@@ -6,12 +6,11 @@ import sqlite3
 
 import pytest
 
-from tests.support.books import insert_test_book
+from tests.support.books import ensure_default_book_id, insert_test_book
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
-from trading.repositories.book_bridge import default_book_id
-from trading.repositories.book_settings import BookRotationSettingsRepository
-from trading.services.parameters import update_book_rotation_policy, update_book_rotation_scheduling
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
+from trading.services.parameters.mutations import update_book_rotation_policy, update_book_rotation_scheduling
 
 
 @pytest.fixture
@@ -97,8 +96,18 @@ def test_policy_write_preserves_scheduling_fields(
     assert saved.cooldown_days == 5
 
 
-def test_default_book_resolution_bootstraps(conn: sqlite3.Connection) -> None:
+def test_default_book_resolution_requires_an_existing_book(conn: sqlite3.Connection) -> None:
     insert_repository_account(conn, name="fresh_acct")
+
+    # An edit no longer bootstraps a book; create_account makes it, and
+    # ensure_default_books repairs accounts that predate that.
+    with pytest.raises(NotFoundError, match="has no default book"):
+        update_book_rotation_policy(conn, account_name="fresh_acct", updates={"cooldown_days": 3})
+
+
+def test_default_book_resolution_uses_the_existing_default_book(conn: sqlite3.Connection) -> None:
+    account_id = insert_repository_account(conn, name="fresh_acct")
+    book_id = ensure_default_book_id(conn, account_id)
 
     saved = update_book_rotation_policy(
         conn,
@@ -106,8 +115,7 @@ def test_default_book_resolution_bootstraps(conn: sqlite3.Connection) -> None:
         updates={"cooldown_days": 3},
     )
 
-    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = 'fresh_acct'").fetchone()["id"])
-    assert saved.book_id == default_book_id(conn, account_id)
+    assert saved.book_id == book_id
     assert saved.cooldown_days == 3
 
 

@@ -34,16 +34,11 @@ Async fill note:
 
 from __future__ import annotations
 
-from common.time import utc_now_iso
+from common.time import normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders.broker_order import (
-    BrokerOrder,
-    OrderFill,
-    OrderStatus,
-    OrderType,
-)
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"
@@ -61,11 +56,10 @@ class IbkrSocketAdapter(BrokerConnection):
     concrete backend (``IbAsyncClient`` or ``IbApiClient``) is injected by
     :func:`brokers.factory.get_broker_for_account`.
 
-    Instantiated only when ``broker_type = 'interactive_brokers'`` and
-    ``live_trading_enabled = 1`` on the account row.
-
-    The persisted ``interactive_brokers`` value remains a compatibility name
-    until a later migration introduces ``interactive_brokers_socket``.
+    Instantiated for either socket venue: ``broker_type =
+    'interactive_brokers_socket'`` with ``live_trading_enabled = 1``, or
+    ``broker_type = 'interactive_brokers_socket_paper'`` with a paper account
+    id — the factory owns that choice.
     """
 
     def __init__(
@@ -89,12 +83,22 @@ class IbkrSocketAdapter(BrokerConnection):
         if self._client.is_connected():
             self._client.disconnect()
 
+    def managed_accounts(self) -> list[str]:
+        """Account ids this session can trade.
+
+        Unlike the Web API path — where the account id is known from settings
+        before any request — the socket learns it from IBKR at connect time, so
+        callers can only assert on it once connected.
+        """
+        self._require_connected()
+        return self._client.managed_accounts()
+
     # ------------------------------------------------------------------
     # Order management
     # ------------------------------------------------------------------
 
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
-        """Submit *order* to IB and return it with ``status = SUBMITTED``.
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
+        """Submit *order* to IB and return the placed order with ``status = SUBMITTED``.
 
         Fills arrive asynchronously.  The caller must persist the returned
         SUBMITTED order and later reconcile fills via ``get_open_trades``.
@@ -107,14 +111,16 @@ class IbkrSocketAdapter(BrokerConnection):
             order_type="MKT" if order.order_type == OrderType.MARKET else "LMT",
             limit_price=order.price if order.order_type == OrderType.LIMIT else 0.0,
             time_in_force=order.time_in_force.value.upper(),
+            order_ref=order.client_order_id or "",
         )
         trade = self._client.place_order(request)
         now = utc_now_iso()
-        order.broker_order_id = str(trade.order_id)
-        order.status = OrderStatus.SUBMITTED
-        order.submitted_at = now
-        order.updated_at = now
-        return order
+        placed = BrokerOrder.from_request(order)
+        placed.broker_order_id = str(trade.order_id)
+        placed.status = OrderStatus.SUBMITTED
+        placed.submitted_at = now
+        placed.updated_at = now
+        return placed
 
     def cancel_order(self, broker_order_id: str) -> None:
         """Request cancellation of an open order by its IB order ID."""
@@ -134,7 +140,9 @@ class IbkrSocketAdapter(BrokerConnection):
                 OrderFill(
                     filled_qty=fill.shares,
                     fill_price=fill.price,
-                    fill_time=fill.time,
+                    # Each backend spells its execution time differently; the
+                    # stored form is canonical (see common.time.as_utc_iso).
+                    fill_time=normalize_utc_iso(fill.time),
                     commission=fill.commission,
                     exec_id=fill.exec_id,
                 )
@@ -146,6 +154,8 @@ class IbkrSocketAdapter(BrokerConnection):
                 side=trade.action.lower(),
                 qty=trade.total_quantity,
                 price=trade.limit_price,
+                # IB echoes orderRef; empty for an order placed outside this system.
+                client_order_id=trade.order_ref or None,
                 broker_order_id=str(trade.order_id),
                 status=_map_ib_status(trade.status),
                 filled_qty=trade.filled,

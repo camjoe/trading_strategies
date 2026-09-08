@@ -13,8 +13,8 @@ from infrastructure.brokers.ibkr_web.adapter import (
     _select_ledger_row,
     _summary_amount,
 )
-from tests.support.brokers import make_broker_order
-from trading.models.orders.broker_order import OrderStatus, OrderType
+from tests.support.brokers import make_order_request
+from trading.models.orders import OrderStatus, OrderType
 
 
 class TestInteractiveBrokersWebAdapter:
@@ -44,7 +44,7 @@ class TestInteractiveBrokersWebAdapter:
         client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
         adapter = InteractiveBrokersWebAdapter(client=client)
 
-        result = adapter.place_order(make_broker_order(order_type=OrderType.MARKET))
+        result = adapter.place_order(make_order_request(order_type=OrderType.MARKET))
 
         assert result.broker_order_id == "123"
         assert result.status == OrderStatus.SUBMITTED
@@ -74,7 +74,7 @@ class TestInteractiveBrokersWebAdapter:
         client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
         adapter = InteractiveBrokersWebAdapter(client=client)
 
-        adapter.place_order(make_broker_order(order_type=OrderType.LIMIT, price=150.0))
+        adapter.place_order(make_order_request(order_type=OrderType.LIMIT, price=150.0))
 
         submitted_payload = client.submit_order.call_args.args[0]
         assert submitted_payload["price"] == 150.0
@@ -97,7 +97,7 @@ class TestInteractiveBrokersWebAdapter:
         }
         adapter = InteractiveBrokersWebAdapter(client=client)
 
-        result = adapter.place_order(make_broker_order())
+        result = adapter.place_order(make_order_request())
 
         assert result.status == OrderStatus.REJECTED
         assert result.status_reason == "Order rejected: insufficient buying power"

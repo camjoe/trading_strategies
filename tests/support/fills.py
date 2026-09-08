@@ -10,27 +10,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from tests.support.books import ensure_default_book_id
+
 _NOW_FALLBACK = "2026-01-01T00:00:00Z"
-
-
-def ensure_default_book_id(conn: sqlite3.Connection, account_id: int, *, now: str = _NOW_FALLBACK) -> int:
-    row = conn.execute(
-        "SELECT id FROM books WHERE account_id = ? AND is_default = 1",
-        (int(account_id),),
-    ).fetchone()
-    if row is not None:
-        return int(row[0])
-    cursor = conn.execute(
-        """
-        INSERT INTO books (
-            account_id, name, is_default, start_equity, current_cash, current_equity,
-            trade_universes, created_at, updated_at
-        )
-        VALUES (?, 'default', 1, 0, 0, 0, '["default"]', ?, ?)
-        """,
-        (int(account_id), now, now),
-    )
-    return int(cursor.lastrowid)
 
 
 def seed_fill_event(

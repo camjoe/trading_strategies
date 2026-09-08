@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Mapping
 
 import pandas as pd
 
@@ -90,6 +90,15 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
         if getattr(target_index, "tz", None) is not None:
             target_index = target_index.tz_convert(None)
         proxy_close = proxy_close.reindex(target_index).ffill()
+
+        # The macro series below index these columns directly; a provider frame
+        # missing any of them would KeyError, so degrade to a warning bundle.
+        missing_macro = {"SPY", "TLT", "^VIX"} - set(proxy_close.columns)
+        if missing_macro:
+            return FeatureBundle(
+                ticker_features={},
+                warnings=tuple(warnings + [f"Proxy feature data missing columns: {', '.join(sorted(missing_macro))}"]),
+            )
 
         topic_returns = proxy_close.pct_change(self.topic_lookback)
         topic_trend_gap = (proxy_close / proxy_close.rolling(self.topic_lookback).mean()) - 1.0

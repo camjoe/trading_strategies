@@ -2,10 +2,10 @@ import pytest
 
 from tests.support.account_records import make_book_record
 from tests.support.accounts import make_accounts_service_row
-from trading.services.accounts import (
-    build_account_listing_lines,
-    format_account_policy_text,
-    format_goal_text,
+from trading.services.accounts.presentation import (
+    render_account_listing_lines,
+    render_account_policy_text,
+    render_goal_text,
 )
 
 
@@ -32,10 +32,10 @@ class TestFormatGoalText:
             goal_max_return_pct=goal_max,
             goal_period=goal_period,
         )
-        assert format_goal_text(book) == expected
+        assert render_goal_text(book) == expected
 
     def test_missing_book_is_not_set(self) -> None:
-        assert format_goal_text(None) == "not-set"
+        assert render_goal_text(None) == "not-set"
 
 
 class TestBuildAccountListingLines:
@@ -46,7 +46,7 @@ class TestBuildAccountListingLines:
             make_accounts_service_row(id=3, name="b1"),
         ]
         active = {1: "momentum", 2: "momentum", 3: "trend"}
-        lines = build_account_listing_lines(rows, by_strategy=True, active_strategies=active)
+        lines = render_account_listing_lines(rows, by_strategy=True, active_strategies=active)
         assert any("Strategy: momentum" in line for line in lines)
         assert any("Strategy: trend" in line for line in lines)
         assert any("a1" in line for line in lines)
@@ -57,20 +57,20 @@ class TestBuildAccountListingLines:
             make_accounts_service_row(id=1, name="a1"),
             make_accounts_service_row(id=2, name="b1"),
         ]
-        lines = build_account_listing_lines(rows, by_strategy=False, active_strategies={1: "momentum", 2: "trend"})
+        lines = render_account_listing_lines(rows, by_strategy=False, active_strategies={1: "momentum", 2: "trend"})
         assert not any(line.startswith("Strategy:") for line in lines)
         assert any("a1" in line for line in lines)
         assert any("b1" in line for line in lines)
 
     def test_empty_list_returns_empty(self) -> None:
-        assert build_account_listing_lines([], by_strategy=True) == []
+        assert render_account_listing_lines([], by_strategy=True) == []
 
     def test_strategy_change_inserts_blank_separator(self) -> None:
         rows = [
             make_accounts_service_row(id=1, name="a1"),
             make_accounts_service_row(id=2, name="b1"),
         ]
-        lines = build_account_listing_lines(rows, by_strategy=True, active_strategies={1: "momentum", 2: "trend"})
+        lines = render_account_listing_lines(rows, by_strategy=True, active_strategies={1: "momentum", 2: "trend"})
         assert "" in lines
 
     def test_rotation_accounts_show_active_strategy(self) -> None:
@@ -78,7 +78,7 @@ class TestBuildAccountListingLines:
         # accounts.strategy was dropped in revision 0008.
         rows = [make_accounts_service_row(name="rot")]
 
-        lines = build_account_listing_lines(rows, by_strategy=False, active_strategies={rows[0].id: "mean_reversion"})
+        lines = render_account_listing_lines(rows, by_strategy=False, active_strategies={rows[0].id: "mean_reversion"})
 
         assert "account_policy=active_strategy=mean_reversion" in lines[0]
         assert "display_name=Account" in lines[0]
@@ -86,11 +86,11 @@ class TestBuildAccountListingLines:
         assert "goal_metadata=" not in lines[0]
 
 
-def test_format_account_policy_text_defaults() -> None:
+def test_render_account_policy_text_defaults() -> None:
     row = make_accounts_service_row()
     book = make_book_record(trade_size_pct=10.0, max_position_pct=20.0)
 
-    assert format_account_policy_text(row, active_strategy="trend", book=book) == (
+    assert render_account_policy_text(row, active_strategy="trend", book=book) == (
         "active_strategy=trend | benchmark=SPY | "
         "heuristic_exploration=off | risk=none | instrument=equity | "
         "trade_size=10.00% | max_position=20.00%"

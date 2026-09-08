@@ -8,10 +8,11 @@ import pytest
 
 from common.constants import SETTLEMENT_TICKER
 from tests.support.analysis import make_analysis_account
-from trading.models.portfolio.constants import UNCATEGORIZED_SECTOR
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id
+from trading.models.portfolio import UNCATEGORIZED_SECTOR
 from trading.repositories.positions import PositionRepository
-from trading.services.analysis import concentration as concentration_module, fetch_portfolio_concentration
+from trading.services.analysis import concentration as concentration_module
+from trading.services.analysis.concentration import fetch_portfolio_concentration
 
 
 def upsert_position(
@@ -22,7 +23,7 @@ def upsert_position(
     market_value: float,
 ) -> None:
     PositionRepository(conn).upsert(
-        book_id=default_book_id(conn, account_id),
+        book_id=ensure_default_book_id(conn, account_id),
         symbol=symbol,
         qty=1.0,
         avg_cost=market_value,

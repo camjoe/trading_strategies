@@ -33,12 +33,19 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
-- Grouping several DB writes into one atomic transaction (commit once, roll back on any failure): use `unit_of_work` / `commit_unit_of_work` from `src/trading/repositories/unit_of_work.py` — see `docs/reference/database-transactions.md`.
+- Grouping several DB writes into one atomic transaction (commit once, roll back on any failure): use `unit_of_work` / `commit_unit_of_work` from `src/trading/persistence/unit_of_work.py` — see `docs/reference/database-transactions.md`.
+- Writing a timestamp to a database column: render it with `utc_now_iso` / `as_utc_iso` / `normalize_utc_iso` from `src/common/time.py`, never a bare `datetime.isoformat()`. Stored timestamps are string-compared in SQL, so mixed spellings of one instant break ordering and range filters — see `docs/conventions/python-style.md` (Timestamps).
 
 ## Output style
 
 - Apply a **balanced** style (see `docs/conventions/general-style.md`): prefer a touched file's existing local style, make consistency improvements only when they reduce ambiguity, and avoid broad style-only churn. Keep behavior unchanged unless asked.
 - Do **not** do style-only rewrites unless explicitly requested.
+- **Do not narrate in source.** Comments and docstrings carry facts a reader would otherwise get
+  wrong — not your reasoning. Rationale for a change (what you considered, what it replaced, what
+  bug it fixed, why the old way was worse) goes in the commit message and your summary, never in
+  the file: code gets edited and the story rots, while `git log` stays accurate. If a change adds
+  more prose lines than code lines, cut it back. Full rule: `docs/conventions/python-style.md`
+  (Comments and docstrings).
 - Explain any non-trivial style decision in your summary.
 - For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
 - After each completed implementation phase and in final summaries, include:

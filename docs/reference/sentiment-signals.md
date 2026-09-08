@@ -1,96 +1,58 @@
 # Sentiment and Alternative Signal Reference
 
 Type: notes
-Status: Active
+Status: Active (no consuming strategy)
 Created: 2026-03-30
-Last Reviewed: 2026-07-17
-Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
-Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/trading-package-map.md)
+Last Reviewed: 2026-08-02
+Purpose: Describe the external feature-provider architecture that supplies news, social and policy data to strategies, and the contract a strategy must meet to consume it.
+Related: [Strategy Catalog](strategies.md), [Retired Strategy Primitives](retired-strategy-primitives.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Trading Package Map](../maps/trading-package-map.md)
 
-## Purpose
+> **No strategy consumes these providers today.** The three that did
+> (`policy_regime`, `news_sentiment`, `social_trend_rotation`) were retired; their rules are in
+> [Retired Strategy Primitives](retired-strategy-primitives.md).
+>
+> The providers themselves are not idle: the daily run constructs all three and passes them into the
+> runtime (`run_auto_trades.py`), and the `alt-strategies` tab live-probes them on every request. Only
+> the last hop is inert — `build_feature_history_fn` hands back `None` because no strategy declares
+> `strategy_style="alternative"`. This document describes what a strategy would plug into.
 
-Capture the current architecture and extension points for alternative-data
-signals used by strategy execution.
+## Provider boundary
 
-This document intentionally focuses on current behavior. It is not a phase
-history or backlog tracker.
+`src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
+`ExternalFeatureBundle`. Concrete providers own their third-party SDK imports and network calls, and
+live only in `src/infrastructure/feature_providers/`:
 
-## Scope
+| Provider | Feature source |
+|---|---|
+| `policy_provider.py` | ETF proxy returns such as TLT/GLD/XLU/UUP vs SPY |
+| `news_provider.py` | RSS headlines plus optional NewsAPI supplementation, scored with VADER |
+| `social_provider.py` | Google Trends interest plus Reddit mention/sentiment data |
 
-This reference covers:
+`ProxyFeatureDataProvider` (`src/trading/services/market_data/features.py`) is separate: it derives
+sector and macro proxy features from market data alone, with no external API.
 
-- `policy_regime`
-- `news_sentiment`
-- `social_trend_rotation`
-- live feature injection for alternative strategies
+## What a consuming strategy must do
 
-Strategy catalog details (all strategy families) live in:
+1. Declare its feature keys in `required_features` on its `StrategySpec`. The engine only builds a
+   feature bundle when a strategy declares them.
+2. Set `strategy_style="alternative"`, which is what `build_feature_history_fn`
+   (`services/execution/selection/selection.py`) routes on to pick a fetcher in the live path.
+3. Read features from the last row of the frame it is handed, and return `"hold"` when any required
+   value is missing — see the degradation contract below.
 
-- `docs/reference/strategies.md`
+## Degradation contract
 
-## Current Architecture
+Enforced by convention and by the architecture rules in
+`docs/architecture/architecture-conventions.md`:
 
-Signal dispatch and registration:
+- Every `_fetch()` catches all exceptions and returns `ExternalFeatureBundle(available=False, ...)`.
+  A provider outage must never fail a trading run.
+- Signal functions check availability first and return `"hold"` when data is missing. A feature value
+  that is absent, NaN or infinite counts as missing — decisions are never made on unbounded inputs.
+- Credentials come from the environment, never from source. `secret_hygiene_check` enforces this.
 
-- `src/trading/domain/strategies/` owns `STRATEGY_REGISTRY` (`registry.py`) and
-  `resolve_signal()` dispatch (`resolution.py`).
-- The three alternative strategies above are registered with
-  `strategy_style="alternative"`.
+## Operator visibility
 
-Provider boundary:
-
-- `src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
-   `ExternalFeatureBundle`.
-- Concrete provider ownership:
-
-| Strategy | Provider | Feature source |
-|---|---|---|
-| `policy_regime` | `src/infrastructure/feature_providers/policy_provider.py` | ETF proxy returns such as TLT/GLD/XLU/UUP vs SPY |
-| `news_sentiment` | `src/infrastructure/feature_providers/news_provider.py` | RSS headlines plus optional NewsAPI supplementation, scored with VADER |
-| `social_trend_rotation` | `src/infrastructure/feature_providers/social_provider.py` | Google Trends interest plus Reddit mention/sentiment data |
-
-- Feature-provider imports are isolated to `src/infrastructure/feature_providers/`.
-
-Market-data dependency:
-
-- `src/infrastructure/market_data/factory.py` resolves and builds the configured
-  market-data provider (injected at composition seams; no global locator).
-- Alternative providers consume market/news/social data through their own
-  provider logic; strategy functions consume normalized bundles only.
-
-## Runtime Behavior and Guardrails
-
-Degradation contract:
-
-- providers should degrade gracefully (no hard failure in normal strategy flow)
-- when required features are unavailable, strategy logic returns conservative
-  behavior (typically `hold`)
-
-Live strategy execution:
-
-- `src/trading/services/execution/selection/selection.py` builds per-ticker feature
-   history for alternative strategies with `build_feature_history_fn`.
-- `policy_regime` uses the configured policy fetcher, `news_sentiment` uses the
-  configured news fetcher, and `social_trend_rotation` uses the configured
-  social fetcher. Missing or failing providers return no feature history, so
-  the signal functions degrade to conservative behavior.
-- Regime/news/social rotation overlays were retired after the runtime converged on the single
-  book-keyed decision-score path. The providers and alternative-strategy signals remain supported;
-  reintroducing regime-aware rotation must extend the current book rotation model rather than
-  restore the retired account-level selection branch.
-
-Operator visibility:
-
-- The `alt-strategies` UI tab exposes provider status and feature-only signal
-  inspection.
-- Backend orchestration lives in `apps/paper_trading_web/backend/services/features/`.
-- Feature-only UI signal inspection intentionally omits live price history, so
-  price-momentum guards remain active and the response reports `available:
-  false` even when provider features are present.
-
-## Related References
-
-- `docs/reference/strategies.md`
-- `docs/reference/backtesting.md`
-- `src/trading/README.md`
-- `docs/architecture/architecture-conventions.md`
+The `alt-strategies` UI tab shows each provider's status and current feature values, served by
+`apps/paper_trading_web/backend/services/features/`. Its signal column reads `hold` for every row,
+because no strategy consumes the features; restoring one makes it meaningful again.

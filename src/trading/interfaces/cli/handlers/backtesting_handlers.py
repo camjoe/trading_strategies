@@ -2,67 +2,29 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from functools import partial
 from typing import Any
+
+from backtesting.composition import run_backtest, run_backtest_batch, run_backtest_metrics_only
+from backtesting.models import BacktestBatchConfig, BacktestConfig
+from backtesting.models.optimizer import OptimizerConfig
+from backtesting.services.audit import fetch_experiment_audit
+from backtesting.services.optimization_experiment import run_and_persist_optimization
+from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from trading.domain.promotion.gate import evaluate_promotion_gate
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
 
 def _format_metric(value: float | None, *, suffix: str = "") -> str:
     return "n/a" if value is None else f"{value:.2f}{suffix}"
 
 
-def _target_age_label(target: Any) -> str:
-    return "missing" if target.age_days is None else f"{target.age_days:.1f}d"
-
-
-def handle_refresh_stale_backtests(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    targets = deps["find_stale_backtests"](conn, account_name=args.account)
-    if args.limit is not None:
-        targets = targets[: max(0, args.limit)]
-
-    if not targets:
-        print("No stale or missing backtests found.")
-        return
-
-    if args.dry_run:
-        print(f"{len(targets)} stale/missing backtest target(s):")
-        for target in targets:
-            print(f"  {target.account_name}/{target.strategy_name} ({target.reason}, {_target_age_label(target)})")
-        return
-
-    refreshed = 0
-    failed = 0
-    for target in targets:
-        try:
-            result = deps["run_backtest"](
-                conn,
-                deps["BacktestConfig"](
-                    account_name=target.account_name,
-                    tickers_file=args.tickers_file,
-                    universe_history_dir=args.universe_history_dir,
-                    start=args.start,
-                    end=args.end,
-                    lookback_months=args.lookback_months,
-                    slippage_bps=args.slippage_bps,
-                    fee_per_trade=args.fee,
-                    run_name=f"refresh_{target.strategy_name}",
-                    allow_approximate_leaps=bool(args.allow_approximate_leaps),
-                    strategy=target.strategy_name,
-                ),
-            )
-        except Exception as error:  # noqa: BLE001 - one bad target must not abort the batch
-            print(f"Failed {target.account_name}/{target.strategy_name}: {error}")
-            failed += 1
-            continue
-        print(f"Refreshed {target.account_name}/{target.strategy_name}: run_id={result.run_id}")
-        refreshed += 1
-
-    print(f"Done: {refreshed} refreshed, {failed} failed.")
-
-
-def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        result = deps["run_backtest"](
+        result = run_backtest(
             conn,
-            deps["BacktestConfig"](
+            BacktestConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -75,6 +37,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
                 strategy=args.strategy,
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -110,43 +73,44 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
             print(f"- {warning}")
 
 
-def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["backtest_report"](conn, args.run_id)
+def handle_backtest_report(conn, args, parser, *, ctx: CliContext) -> None:
+    report = fetch_report(conn, run_id=args.run_id)
+    summary = report.summary
     print(
-        f"Backtest Run {report['run_id']} ({report['run_name'] or 'unnamed'}) | "
-        f"account={report['account_name']} strategy={report['strategy']}"
+        f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
+        f"account={summary.account_name} strategy={summary.strategy}"
     )
     print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Trades: {report['trade_count']}"
+        f"Range: {summary.start_date}..{summary.end_date} | Created: {summary.created_at} "
+        f"| Trades: {summary.trade_count}"
     )
     print(
-        f"Start Equity: {report['starting_equity']:.2f} | End Equity: {report['ending_equity']:.2f} "
-        f"| Return: {report['total_return_pct']:.2f}% | Max DD: {report['max_drawdown_pct']:.2f}%"
+        f"Start Equity: {summary.starting_equity:.2f} | End Equity: {summary.ending_equity:.2f} "
+        f"| Return: {summary.total_return_pct:.2f}% | Max DD: {summary.max_drawdown_pct:.2f}%"
     )
     print(
-        f"Slippage (bps): {report['slippage_bps']:.2f} | Fee/Trade: {report['fee_per_trade']:.2f} "
-        f"| Tickers File: {report['tickers_file']}"
+        f"Slippage (bps): {summary.slippage_bps:.2f} | Fee/Trade: {summary.fee_per_trade:.2f} "
+        f"| Tickers File: {summary.tickers_file}"
     )
     print(
         "Risk Analytics: "
-        f"Sharpe {_format_metric(report.get('sharpe_ratio'))} | "
-        f"Sortino {_format_metric(report.get('sortino_ratio'))} | "
-        f"Calmar {_format_metric(report.get('calmar_ratio'))}"
+        f"Sharpe {_format_metric(summary.sharpe_ratio)} | "
+        f"Sortino {_format_metric(summary.sortino_ratio)} | "
+        f"Calmar {_format_metric(summary.calmar_ratio)}"
     )
     print(
         "Trade Analytics: "
-        f"Win Rate {_format_metric(report.get('win_rate_pct'), suffix='%')} | "
-        f"Profit Factor {_format_metric(report.get('profit_factor'))} | "
-        f"Avg Trade Return {_format_metric(report.get('avg_trade_return_pct'), suffix='%')}"
+        f"Win Rate {_format_metric(summary.win_rate_pct, suffix='%')} | "
+        f"Profit Factor {_format_metric(summary.profit_factor)} | "
+        f"Avg Trade Return {_format_metric(summary.avg_trade_return_pct, suffix='%')}"
     )
-    if report["warnings"]:
-        print(f"Safeguards / notes: {report['warnings']}")
+    if summary.warnings:
+        print(f"Safeguards / notes: {' | '.join(summary.warnings)}")
 
 
-def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_leaderboard(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        rows = deps["backtest_leaderboard_entries"](
+        rows = fetch_leaderboard(
             conn,
             limit=int(args.limit),
             account_name=args.account,
@@ -188,12 +152,12 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> 
         )
 
 
-def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_batch(conn, args, parser, *, ctx: CliContext) -> None:
     account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
     try:
-        results = deps["run_backtest_batch"](
+        results = run_backtest_batch(
             conn,
-            deps["BacktestBatchConfig"](
+            BacktestBatchConfig(
                 account_names=account_names,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -205,6 +169,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 run_name_prefix=args.run_name_prefix,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -219,44 +184,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
         )
 
 
-def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    try:
-        summary = deps["run_walk_forward_backtest"](
-            conn,
-            deps["WalkForwardConfig"](
-                account_name=args.account,
-                tickers_file=args.tickers_file,
-                universe_history_dir=args.universe_history_dir,
-                start=args.start,
-                end=args.end,
-                lookback_months=args.lookback_months,
-                test_months=args.test_months,
-                step_months=args.step_months,
-                slippage_bps=args.slippage_bps,
-                fee_per_trade=args.fee,
-                run_name_prefix=args.run_name_prefix,
-                allow_approximate_leaps=bool(args.allow_approximate_leaps),
-            ),
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-
-    print(
-        f"Walk-forward complete: account={summary.account_name} range={summary.start_date}..{summary.end_date} "
-        f"windows={summary.window_count}"
-    )
-    print(
-        f"Average Return: {summary.average_return_pct:.2f}% | Median Return: {summary.median_return_pct:.2f}% "
-        f"| Best: {summary.best_return_pct:.2f}% | Worst: {summary.worst_return_pct:.2f}%"
-    )
-    run_ids_preview = ", ".join([str(run_id) for run_id in summary.run_ids[:10]])
-    if len(summary.run_ids) > 10:
-        run_ids_preview += ", ..."
-    print(f"Generated run ids: {run_ids_preview}")
-
-
-def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_optimize(conn, args, parser, *, ctx: CliContext) -> None:
     try:
         search_space = json.loads(args.search_space)
     except json.JSONDecodeError as error:
@@ -267,9 +195,9 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         return
 
     try:
-        summary = deps["run_walk_forward_optimization"](
+        summary = run_and_persist_optimization(
             conn,
-            deps["OptimizerConfig"](
+            OptimizerConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -288,8 +216,9 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
                 candidate_budget=args.candidate_budget,
                 warmup_months=args.warmup_months,
             ),
-            run_metrics_only_fn=deps["run_backtest_metrics_only"],
-            run_persisted_fn=deps["run_backtest"],
+            run_metrics_only_fn=partial(run_backtest_metrics_only, provider=ctx.provider),
+            run_persisted_fn=partial(run_backtest, provider=ctx.provider),
+            market_data_provider=ctx.provider_name,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -301,26 +230,22 @@ def handle_backtest_optimize(conn, args, parser, *, deps: dict[str, Any]) -> Non
         print(f"Promote its winner with: backtest-optimize-promote {summary.experiment_id} --key <new_key>")
 
 
-def handle_backtest_optimize_show(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    experiment = deps["fetch_optimization_experiment"](conn, experiment_id=args.experiment_id)
-    if experiment is None:
+def handle_backtest_optimize_show(conn, args, parser, *, ctx: CliContext) -> None:
+    audit = fetch_experiment_audit(conn, experiment_id=args.experiment_id)
+    if audit is None:
         parser.error(f"Optimization experiment not found: {args.experiment_id}")
         return
-    _print_experiment(experiment, evaluate_promotion_gate=deps["evaluate_promotion_gate"])
-    if experiment.status == "failed":
+    _print_experiment(audit.experiment, evaluate_promotion_gate=evaluate_promotion_gate)
+    if audit.experiment.status == "failed":
         return
-    windows = deps["fetch_optimization_windows"](conn, experiment_id=args.experiment_id)
-    trials = deps["fetch_optimization_trials"](conn, experiment_id=args.experiment_id)
-    _print_window_audit(windows, trials)
-    compounded = deps["fetch_compounded_oos"](conn, experiment_id=args.experiment_id)
-    _print_compounded_oos(compounded)
-    manifest = deps["fetch_optimization_manifest"](conn, experiment_id=args.experiment_id)
-    _print_manifest(manifest)
+    _print_window_audit(audit.windows)
+    _print_compounded_oos(audit.compounded_oos)
+    _print_manifest(audit.manifest)
 
 
-def handle_backtest_optimize_promote(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_optimize_promote(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        variant = deps["promote_optimization_experiment"](
+        variant = promote_optimization_experiment(
             conn,
             experiment_id=args.experiment_id,
             new_strategy_key=args.key,
@@ -385,20 +310,18 @@ def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
         print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
 
 
-def _print_window_audit(windows: list[Any], trials: list[Any]) -> None:
+def _print_window_audit(window_audits: list[Any]) -> None:
     """Print the persisted per-window / per-candidate audit trail.
 
     The multiple-testing record: every window's train/test boundaries plus each
     evaluated candidate's objective and eligibility — not just the winner."""
-    if not windows:
+    if not window_audits:
         print("Windows: none persisted (experiment predates per-window audit)")
         return
-    trials_by_window: dict[int, list[Any]] = {}
-    for trial in trials:
-        trials_by_window.setdefault(trial.window_id, []).append(trial)
-    print(f"Windows ({len(windows)}) with per-candidate trials:")
-    for window in windows:
-        window_trials = trials_by_window.get(window.id, [])
+    print(f"Windows ({len(window_audits)}) with per-candidate trials:")
+    for window_audit in window_audits:
+        window = window_audit.window
+        window_trials = window_audit.trials
         eligible = sum(1 for trial in window_trials if trial.eligible)
         winner = next((trial for trial in window_trials if trial.selected), None)
         winner_label = (
@@ -503,44 +426,4 @@ def _print_optimization_summary(summary: Any) -> None:
             f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} | "
             f"annualized {_pair(winner.annualized_return_pct, default.annualized_return_pct)} | "
             f"calmar {_pair(winner.calmar_ratio, default.calmar_ratio, suffix='')}"
-        )
-
-
-def handle_backtest_walk_forward_report(
-    conn,
-    args,
-    parser,
-    *,
-    deps: dict[str, Any],
-) -> None:
-    try:
-        report = deps["walk_forward_report"](
-            conn,
-            group_id=args.group_id,
-            account_name=args.account,
-            strategy_name=args.strategy,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-
-    print(
-        f"Walk-forward Group {report['group_id']} | account={report['account_name']} "
-        f"strategy={report['strategy_name']}"
-    )
-    print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Windows: {report['window_count']} | Prefix: {report['run_name_prefix'] or 'n/a'}"
-    )
-    print(
-        f"Average Return: {report['average_return_pct']:.2f}% | Median Return: {report['median_return_pct']:.2f}% "
-        f"| Best: {report['best_return_pct']:.2f}% | Worst: {report['worst_return_pct']:.2f}%"
-    )
-    print("window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count")
-    for window in report["windows"]:
-        summary = window["backtest_summary"]
-        print(
-            f"{window['window_index']},{window['window_start']}..{window['window_end']},"
-            f"{summary['run_id']},{summary['run_name'] or ''},{window['total_return_pct']:.4f},"
-            f"{summary['max_drawdown_pct']:.4f},{summary['trade_count']}"
         )

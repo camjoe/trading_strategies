@@ -2,20 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import replace
-from statistics import median
 
-from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
-from trading.backtesting.domain.metrics import max_drawdown_pct
-from trading.backtesting.repositories.report_repository import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
-    fetch_latest_backtest_run_id_for_account_strategy,
-)
-from trading.backtesting.repositories.walk_forward_repository import (
-    fetch_latest_walk_forward_group_for_account_strategy,
-    fetch_walk_forward_group_runs,
-)
+from common.coercion import row_expect_int, row_expect_str, row_int, row_str
 from trading.domain.evaluation.backtest_freshness import assess_backtest_freshness
 from trading.domain.evaluation.confidence import (
     EvaluationConfidenceSettings,
@@ -24,7 +12,7 @@ from trading.domain.evaluation.confidence import (
     compute_overall_confidence,
     compute_paper_live_confidence,
 )
-from trading.domain.returns import safe_return_pct
+from trading.domain.metrics.returns import safe_return_pct
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
@@ -34,10 +22,10 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
-from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
+from trading.services.books.default_book import default_book_id
 from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
@@ -63,11 +51,17 @@ BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
 # Diagnostics key used when no strategy-safe paper/live rows are persisted.
 PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 
-# Diagnostics key used when no grouped walk-forward evidence is persisted.
-WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
+# Diagnostics key used when no walk-forward window evidence is persisted.
+WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
 
 
-def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
+def resolve_active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
+    """The account's active strategy — resolved once per evaluation and threaded.
+
+    Repeatedly resolving it re-reads the default book, its open assignment, and
+    the strategy row; callers pass the resolved value into the scope and evidence
+    builders instead.
+    """
     return active_strategy_for_account(conn, row_expect_int(account, "id"))
 
 
@@ -81,76 +75,33 @@ def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) ->
     return resolve_default_book_rotation_schedule(conn, account_id=account_id).rotation_enabled
 
 
-def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord, strategy_name: str | None) -> str:
+def resolve_requested_strategy(strategy_name: str | None, *, active_strategy: str) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
             return normalized
-    return _active_strategy(conn, account)
+    return active_strategy
 
 
 def build_basic_scope(
-    conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str
+    conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str, *, active_strategy: str
 ) -> EvaluationBasicScope:
+    account_id = row_expect_int(account, "id")
     # instrument_mode is a book column (revision 0004): the default book
     # carries the mode the evaluated account trades under.
-    default_book = get_default_book(conn, account_id=row_expect_int(account, "id"))
+    default_book = get_default_book(conn, account_id=account_id)
     return EvaluationBasicScope(
-        account_id=row_expect_int(account, "id"),
+        account_id=account_id,
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
         # accounts.strategy was dropped (revision 0008): the assignment-derived
         # active strategy is the only strategy.
-        base_strategy=_active_strategy(conn, account),
-        active_strategy=_active_strategy(conn, account),
+        active_strategy=active_strategy,
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=default_book.instrument_mode if default_book is not None else None,
-        rotation_enabled=_default_book_rotation_enabled(conn, row_expect_int(account, "id")),
+        rotation_enabled=_default_book_rotation_enabled(conn, account_id),
         live_trading_enabled=bool(row_int(account, "live_trading_enabled")),
-    )
-
-
-def build_backtest_evidence(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    requested_strategy: str,
-) -> EvaluationBacktestEvidence:
-    run_id = fetch_latest_backtest_run_id_for_account_strategy(
-        conn,
-        account_id=account_id,
-        strategy_name=requested_strategy,
-    )
-    if run_id is None:
-        return EvaluationBacktestEvidence()
-
-    run = fetch_backtest_report_run(conn, run_id)
-    snapshots = fetch_backtest_report_snapshots(conn, run_id)
-    trades = fetch_backtest_report_trades(conn, run_id)
-    if run is None or not snapshots:
-        return EvaluationBacktestEvidence(
-            run_id=run_id,
-            available=False,
-        )
-
-    starting_equity = row_float(snapshots[0], "equity")
-    ending_equity = row_float(snapshots[-1], "equity")
-    equity_curve = [value for value in (row_float(item, "equity") for item in snapshots) if value is not None]
-    return EvaluationBacktestEvidence(
-        available=True,
-        run_id=run_id,
-        run_name=row_str(run, "run_name"),
-        start_date=row_str(run, "start_date"),
-        end_date=row_str(run, "end_date"),
-        created_at=row_str(run, "created_at"),
-        trade_count=len(trades),
-        snapshot_count=len(snapshots),
-        starting_equity=starting_equity,
-        ending_equity=ending_equity,
-        total_return_pct=safe_return_pct(starting_equity, ending_equity),
-        max_drawdown_pct=max_drawdown_pct(equity_curve),
-        warnings=row_str(run, "warnings"),
     )
 
 
@@ -190,7 +141,7 @@ def _resolve_strategy_window(
 def _book_strategy_window_timeline(
     conn: sqlite3.Connection,
     *,
-    account: AccountRecord,
+    active_strategy: str,
     book_id: int,
     inception_time: str,
 ) -> list[tuple[str, str]]:
@@ -202,10 +153,9 @@ def _book_strategy_window_timeline(
     """
     decisions = RotationDecisionRepository(conn).fetch_selected_strategy_timeline(book_id=book_id)
     if not decisions:
-        base_strategy = _active_strategy(conn, account)
-        return [(inception_time, base_strategy)] if base_strategy else []
+        return [(inception_time, active_strategy)] if active_strategy else []
 
-    inception_strategy = decisions[0][1] or _active_strategy(conn, account)
+    inception_strategy = decisions[0][1] or active_strategy
     timeline: list[tuple[str, str]] = []
     if inception_strategy:
         timeline.append((inception_time, inception_strategy))
@@ -218,7 +168,7 @@ def _book_strategy_window_timeline(
 def _book_strategy_evidence(
     conn: sqlite3.Connection,
     *,
-    account: AccountRecord,
+    active_strategy: str,
     account_id: int,
     requested_strategy: str,
     latest_snapshot: EquitySnapshotRecord | None,
@@ -234,10 +184,10 @@ def _book_strategy_evidence(
     if earliest_snapshot is None or latest_snapshot is None:
         return EvaluationPaperLiveEvidence()
 
-    book_id = default_book_id(conn, account_id)
+    book_id = default_book_id(conn, account_id=account_id)
     timeline = _book_strategy_window_timeline(
         conn,
-        account=account,
+        active_strategy=active_strategy,
         book_id=book_id,
         inception_time=earliest_snapshot.snapshot_time,
     )
@@ -251,6 +201,9 @@ def _book_strategy_evidence(
         return EvaluationPaperLiveEvidence()
     starting_equity = starting_snapshot.equity
 
+    # Declared up front: the open-window branch assigns a known-present snapshot,
+    # the closed-window branch a lookup that may miss and returns early.
+    ending_snapshot: EquitySnapshotRecord | None
     if window_end is None:
         ending_snapshot = latest_snapshot
         source_level = ACTIVE_STRATEGY_WINDOW_SOURCE_LEVEL
@@ -285,6 +238,7 @@ def build_paper_live_evidence(
     *,
     account: AccountRecord,
     requested_strategy: str,
+    active_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = account.id
     rotation_enabled = _default_book_rotation_enabled(conn, account_id)
@@ -293,7 +247,7 @@ def build_paper_live_evidence(
     evidence = (
         _book_strategy_evidence(
             conn,
-            account=account,
+            active_strategy=active_strategy,
             account_id=account_id,
             requested_strategy=requested_strategy,
             latest_snapshot=latest_snapshot,
@@ -322,38 +276,6 @@ def build_paper_live_evidence(
         market_value=latest_snapshot.market_value,
         realized_pnl=latest_snapshot.realized_pnl,
         unrealized_pnl=latest_snapshot.unrealized_pnl,
-    )
-
-
-def build_walk_forward_evidence(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    requested_strategy: str,
-) -> EvaluationWalkForwardEvidence:
-    group = fetch_latest_walk_forward_group_for_account_strategy(
-        conn,
-        account_id=account_id,
-        strategy_name=requested_strategy,
-    )
-    if group is None:
-        return EvaluationWalkForwardEvidence()
-
-    group_runs = fetch_walk_forward_group_runs(
-        conn,
-        group_id=row_expect_int(group, "id"),
-    )
-    # Aggregates are derived from the window returns rather than read from stored
-    # columns, which were dropped so they cannot drift from the member runs.
-    window_returns = [value for item in group_runs if (value := row_float(item, "total_return_pct")) is not None]
-    return EvaluationWalkForwardEvidence(
-        available=bool(group_runs),
-        grouped=bool(group_runs),
-        run_ids=[row_expect_int(item, "run_id") for item in group_runs],
-        average_return_pct=(sum(window_returns) / len(window_returns)) if window_returns else None,
-        median_return_pct=float(median(window_returns)) if window_returns else None,
-        best_return_pct=max(window_returns) if window_returns else None,
-        worst_return_pct=min(window_returns) if window_returns else None,
     )
 
 

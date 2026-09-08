@@ -5,22 +5,7 @@ import pytest
 from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
 
 import trading.services.analysis.benchmark as analysis_benchmark
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
-
-
-def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
-    """Build a snapshot record carrying only the fields the overlay reads."""
-    return EquitySnapshotRecord(
-        id=0,
-        account_id=0,
-        book_id=None,
-        snapshot_time=snapshot_time,
-        cash=0.0,
-        market_value=0.0,
-        equity=equity,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
+from tests.support.analysis import snapshot_record
 
 
 def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> None:
@@ -35,31 +20,64 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     overlay = account_benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            _snapshot("2026-01-04T00:00:00Z", 1200.0),
-            _snapshot("2026-01-02T00:00:00Z", 1000.0),
-            _snapshot("2026-01-03T00:00:00Z", 1100.0),
+            snapshot_record("2026-01-04T00:00:00Z", 1200.0),
+            snapshot_record("2026-01-02T00:00:00Z", 1000.0),
+            snapshot_record("2026-01-03T00:00:00Z", 1100.0),
         ],
     )
 
     assert overlay is not None
     assert overlay["benchmark"] == "SPY"
-    assert overlay["startTime"] == "2026-01-02T00:00:00Z"
-    assert overlay["endTime"] == "2026-01-04T00:00:00Z"
-    assert overlay["benchmarkReturnPct"] == pytest.approx(10.0)
-    assert overlay["alphaPct"] == pytest.approx(10.0)
+    assert overlay["start_time"] == "2026-01-02T00:00:00Z"
+    assert overlay["end_time"] == "2026-01-04T00:00:00Z"
+    assert overlay["benchmark_return_pct"] == pytest.approx(10.0)
+    assert overlay["alpha_pct"] == pytest.approx(10.0)
     points = overlay["points"]
     assert len(points) == 3
-    assert points[-1]["benchmarkEquity"] == pytest.approx(1100.0)
+    assert points[-1]["benchmark_equity"] == pytest.approx(1100.0)
+
+
+def test_build_live_benchmark_overlay_payload_shapes_camelcase() -> None:
+    overlay = {
+        "benchmark": "SPY",
+        "start_time": "2026-01-01T00:00:00Z",
+        "end_time": "2026-01-10T00:00:00Z",
+        "starting_equity": 1000.0,
+        "ending_equity": 1100.0,
+        "benchmark_equity": 1050.0,
+        "account_return_pct": 10.0,
+        "benchmark_return_pct": 5.0,
+        "alpha_pct": 5.0,
+        "points": [{"time": "2026-01-01T00:00:00Z", "account_equity": 1000.0, "benchmark_equity": 1000.0}],
+    }
+
+    assert account_benchmark.build_live_benchmark_overlay_payload(overlay) == {
+        "benchmark": "SPY",
+        "startTime": "2026-01-01T00:00:00Z",
+        "endTime": "2026-01-10T00:00:00Z",
+        "startingEquity": 1000.0,
+        "endingEquity": 1100.0,
+        "benchmarkEquity": 1050.0,
+        "accountReturnPct": 10.0,
+        "benchmarkReturnPct": 5.0,
+        "alphaPct": 5.0,
+        "points": [{"time": "2026-01-01T00:00:00Z", "accountEquity": 1000.0, "benchmarkEquity": 1000.0}],
+    }
+
+
+def test_build_live_benchmark_overlay_payload_passes_none_through() -> None:
+    assert account_benchmark.build_live_benchmark_overlay_payload(None) is None
 
 
 def test_attach_live_benchmark_summary_sets_fields() -> None:
     summary = {"name": "acct"}
+    # The overlay is the snake_case analysis payload; attach maps it to camelCase.
     overlay = {
-        "benchmarkReturnPct": 6.0,
-        "alphaPct": 2.5,
-        "benchmarkEquity": 1060.0,
-        "startTime": "2026-01-01T00:00:00Z",
-        "endTime": "2026-01-10T00:00:00Z",
+        "benchmark_return_pct": 6.0,
+        "alpha_pct": 2.5,
+        "benchmark_equity": 1060.0,
+        "start_time": "2026-01-01T00:00:00Z",
+        "end_time": "2026-01-10T00:00:00Z",
     }
 
     account_benchmark.attach_live_benchmark_summary(summary, overlay)
@@ -69,3 +87,19 @@ def test_attach_live_benchmark_summary_sets_fields() -> None:
     assert summary["liveBenchmarkEquity"] == pytest.approx(1060.0)
     assert summary["liveBenchmarkStartTime"] == "2026-01-01T00:00:00Z"
     assert summary["liveBenchmarkEndTime"] == "2026-01-10T00:00:00Z"
+
+
+def test_attach_live_benchmark_summary_sets_none_when_overlay_missing() -> None:
+    summary = {"name": "acct"}
+
+    result = account_benchmark.attach_live_benchmark_summary(summary, None)
+
+    assert result is summary
+    assert summary == {
+        "name": "acct",
+        "liveBenchmarkReturnPct": None,
+        "liveAlphaPct": None,
+        "liveBenchmarkEquity": None,
+        "liveBenchmarkStartTime": None,
+        "liveBenchmarkEndTime": None,
+    }

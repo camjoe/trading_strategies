@@ -3,7 +3,19 @@ import math
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from trading.domain.returns import safe_return_pct
+from trading.domain.metrics.returns import safe_return_pct, total_return_pct
+
+
+class TestTotalReturnPct:
+    def test_matches_first_last_equity(self) -> None:
+        assert total_return_pct(first_equity=10_000.0, last_equity=11_000.0) == pytest.approx(10.0)
+        assert total_return_pct(first_equity=10_000.0, last_equity=9_500.0) == pytest.approx(-5.0)
+
+    def test_zero_first_equity_raises(self) -> None:
+        # The strict half of the pair: an interval starting at zero equity has no
+        # return, and a caller that cannot rule that out wants safe_return_pct.
+        with pytest.raises(ValueError, match="first_equity is 0"):
+            total_return_pct(first_equity=0.0, last_equity=100.0)
 
 
 class TestSafeReturnPct:

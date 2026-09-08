@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.models import AccountRecord
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
+from trading.services.books.helpers import resolve_window_bounds
 from trading.services.books.rotation.engine import resolve_book_rotation_schedule
 from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
@@ -59,7 +59,7 @@ def build_book_challenger_evaluations(
         if not schedule_config.rotation_enabled:
             continue
         window_days = rolling_window_days if rolling_window_days is not None else schedule_config.lookback_days
-        window_start_day, window_end_day = _resolve_window_bounds_shared(
+        window_start_day, window_end_day = resolve_window_bounds(
             as_of_iso=as_of_iso,
             rolling_window_days=window_days,
         )

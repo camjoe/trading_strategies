@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
-
+from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.services.profiles.source import get_builtin_profile_preset_path
+from trading.services.accounts.listing import fetch_account_listing_lines
+from trading.services.accounts.mutations import configure_account, create_account, set_benchmark
+from trading.services.execution.ledger.mutations import record_trade
 
 
-def _print_profiles_result(prefix: str, created: int, updated: int, skipped: int) -> None:
-    print(f"{prefix}created={created}, updated={updated}, skipped={skipped}.")
+def handle_init(conn, args, parser, *, ctx: CliContext) -> None:
+    print(f"Initialized: {ctx.db_path}")
 
 
-def handle_init(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    print(f"Initialized: {deps['db_path']}")
-
-
-def handle_create_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_create_account(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        deps["create_account"](
+        create_account(
             conn,
             args.name,
             args.strategy,
@@ -30,14 +27,14 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
     print(f"Created account '{args.name}' for strategy '{args.strategy}' with benchmark '{args.benchmark.upper()}'.")
 
 
-def handle_configure_account(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_account(conn, args, parser, *, ctx: CliContext) -> None:
     try:
         config = common_account_config_kwargs(args, include_learning_disabled=True)
     except ValueError as error:
         parser.error(str(error))
         return
 
-    deps["configure_account"](
+    configure_account(
         conn,
         account_name=args.account,
         config=config,
@@ -45,42 +42,13 @@ def handle_configure_account(conn, args, parser, *, deps: dict[str, Any]) -> Non
     print(f"Updated account configuration for '{args.account}'.")
 
 
-def handle_apply_account_profiles(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    profiles = deps["load_account_profiles"](args.file)
-    try:
-        created, updated, skipped = deps["apply_account_profiles"](
-            conn,
-            profiles,
-            create_missing=not args.no_create_missing,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-    _print_profiles_result("Applied account profiles: ", created, updated, skipped)
-
-
-def handle_apply_account_preset(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    preset_file = get_builtin_profile_preset_path(args.preset)
-    profiles = deps["load_account_profiles"](str(preset_file))
-    try:
-        created, updated, skipped = deps["apply_account_profiles"](
-            conn,
-            profiles,
-            create_missing=not args.no_create_missing,
-        )
-    except ValueError as error:
-        parser.error(str(error))
-        return
-    _print_profiles_result(f"Applied preset '{args.preset}': ", created, updated, skipped)
-
-
-def handle_set_benchmark(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["set_benchmark"](conn, args.account, args.benchmark)
+def handle_set_benchmark(conn, args, parser, *, ctx: CliContext) -> None:
+    set_benchmark(conn, args.account, args.benchmark)
     print(f"Updated benchmark for '{args.account}' to '{args.benchmark.upper()}'.")
 
 
-def handle_list_accounts(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    lines = deps["list_accounts"](conn)
+def handle_list_accounts(conn, args, parser, *, ctx: CliContext) -> None:
+    lines = fetch_account_listing_lines(conn)
     if not lines:
         print("No accounts found.")
         return
@@ -88,8 +56,8 @@ def handle_list_accounts(conn, args, parser, *, deps: dict[str, Any]) -> None:
         print(line)
 
 
-def handle_trade(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["record_trade"](
+def handle_trade(conn, args, parser, *, ctx: CliContext) -> None:
+    record_trade(
         conn,
         account_name=args.account,
         side=args.side,

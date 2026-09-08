@@ -16,7 +16,6 @@ class AdminCreateAccountRequest(BaseModel):
     strategy: str
     initialCash: float = Field(gt=0)
     benchmarkTicker: str = "SPY"
-    accountKind: str = "managed"
     descriptiveName: str | None = None
     goalMinReturnPct: float | None = None
     goalMaxReturnPct: float | None = None

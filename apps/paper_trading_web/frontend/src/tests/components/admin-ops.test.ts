@@ -20,18 +20,12 @@ describe("renderOperationsOverview", () => {
           runHint: "python3 -m trading.interfaces.runtime.jobs.daily.paper_trading",
         },
       ],
-      dailyBacktestRefreshArtifacts: [
-        { name: "daily_backtest_refresh_20260417_131001.json", modifiedAt: "2026-04-17T13:12:00Z", sizeBytes: 2048 },
-      ],
-      dailySnapshotArtifacts: [],
       databaseBackups: [],
     };
 
     const html = renderOperationsOverview(payload);
     expect(html).toContain("Daily Paper Trading");
     expect(html).toContain("Healthy");
-    expect(html).toContain("daily_backtest_refresh_20260417_131001.json");
-    expect(html).toContain("No daily snapshot artifacts found");
   });
 });
 
@@ -62,7 +56,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: true,
-          grouped: true,
+          windowCount: 3,
           averageReturnPct: 3.1,
           bestReturnPct: 6.4,
           worstReturnPct: -1.5,
@@ -160,7 +154,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: false,
-          grouped: false,
+          windowCount: 0,
           averageReturnPct: null,
           bestReturnPct: null,
           worstReturnPct: null,

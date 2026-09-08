@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-21
+Last Reviewed: 2026-08-02
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
@@ -20,28 +20,29 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+28 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
-`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
-`strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
+`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`), the retired
+`strategy_param_sets` store, and the rolling-window `walk_forward_experiments`/`walk_forward_windows`
+pair (revision `0027`) were dropped as the submission/accounting spine and strategy catalog
 moved onto the book/strategy tables. One row per table — use this for orientation and context. For
 column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
+| `accounts` | Account identity, custody, and broker connection — final shape since `0028` (legacy strategy/goal/universe columns are book-owned; the unused `account_kind` managed/local distinction was dropped in `0028`) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
-| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`rolling_window`/`walk_forward_oos`/`final_holdout`, revision `0016`) | → `accounts` |
+| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`; the CHECK also still admits the retired `rolling_window` for historical rows, revisions `0016`/`0027`) and the benchmark frozen at run time (`benchmark_ticker`, `benchmark_return_pct`; null before revision `0030`) | → `accounts` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review cases; new rows require stable strategy identity and closure uses an expected-open-state guard | → `accounts`, `strategies` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols` (revisions `0004`–`0008`, `0029`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
-| `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
+| `feature_providers` | Unused. Nothing reads or writes it since 2026-08-10; kept only until the migration squash can drop it | — |
 | `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
 | `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
@@ -51,8 +52,6 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account (revision `0019`) | → `accounts`, `books` |
 | `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
 | `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run (renamed from `backtest_trades`, revision `0016`) | → `backtest_runs` |
-| `walk_forward_experiments` | A walk-forward experiment: methodology and its chronological window membership for an account/strategy (renamed from `walk_forward_groups`, revision `0016`) | → `accounts`, `strategies` |
-| `walk_forward_windows` | One chronological OOS window of a walk-forward experiment, linked to its backtest run (renamed from `walk_forward_group_runs`, revision `0016`) | → `walk_forward_experiments`, `backtest_runs` |
 | `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link (revision `0021`); `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws (revision `0024`) | → `accounts`, `strategies`, `backtest_runs` |
 | `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied; revision `0022`) | → `optimization_experiments`, `backtest_runs` |
 | `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag (revision `0022`) | → `optimization_windows` |
@@ -152,10 +151,6 @@ product decision.
 - Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
   account-owned row (books, orders and fills, research, governance, and risk history). The
   pre-deletion database backup is the only retention path — there is no archive model.
-- `walk_forward_windows.run_id -> backtest_runs` is deliberately `NO ACTION`: a window run
-  must not silently vanish from its experiment's composition. Account deletion still succeeds because
-  SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
-  "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
 
 ### History retention
 

@@ -47,7 +47,7 @@ def build_evaluation_detail_payload(artifact: StrategyEvaluationArtifact) -> dic
         },
         "walkForward": {
             "available": walk_forward.available,
-            "grouped": walk_forward.grouped,
+            "windowCount": len(walk_forward.window_returns),
             "averageReturnPct": walk_forward.average_return_pct,
             "bestReturnPct": walk_forward.best_return_pct,
             "worstReturnPct": walk_forward.worst_return_pct,

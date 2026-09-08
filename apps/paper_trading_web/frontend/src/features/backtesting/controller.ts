@@ -6,11 +6,10 @@ import { debounce } from "../../lib/timing";
 import {
   renderBacktestReport,
   renderBacktestRunCard,
-  renderWalkForwardResult,
   warningListHtml,
 } from "../../components/backtesting";
 import type { AccountListItem } from "../../types/accounts";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types/backtesting";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary } from "../../types/backtesting";
 import {
   BACKTEST_ACCOUNT_SELECT_SELECTOR,
   BACKTEST_REPORT_VIEW_SELECTOR,
@@ -20,19 +19,12 @@ import {
   PREFLIGHT_INPUT_SELECTOR,
   QUICK_LOOKBACK_BUTTONS_SELECTOR,
   REFRESH_BACKTESTS_BUTTON_SELECTOR,
-  REFRESH_WALK_FORWARD_BUTTON_SELECTOR,
   RUN_BACKTEST_FORM_SELECTOR,
-  RUN_WALK_FORWARD_FORM_SELECTOR,
-  WALK_FORWARD_ACCOUNT_SELECT_SELECTOR,
-  WALK_FORWARD_REPORT_VIEW_SELECTOR,
-  WALK_FORWARD_RUNS_LIST_SELECTOR,
-  WALK_FORWARD_WARNINGS_SELECTOR,
   renderDownMessage,
 } from "./constants";
 import {
   buildBacktestBasePayload,
   buildBacktestRunPayload,
-  buildWalkForwardPayload,
   validateDateInputs,
 } from "./payloads";
 import type { BacktestingFeature } from "./types";
@@ -40,22 +32,17 @@ import type { BacktestingFeature } from "./types";
 export function createBacktestingFeature(): BacktestingFeature {
   let cachedAccounts: AccountListItem[] = [];
 
-  const isWalkForwardRun = (run: BacktestRunSummary): boolean =>
-    Boolean(run.runName && /^wf(?:_|-)/i.test(run.runName));
-
   function populateBacktestAccountSelects(accounts: AccountListItem[]): void {
     const accountOptions = accounts
       .map((account) => `<option value="${esc(account.name)}">${esc(account.displayName)} (${esc(account.name)})</option>`)
       .join("");
 
-    for (const selectId of [BACKTEST_ACCOUNT_SELECT_SELECTOR, WALK_FORWARD_ACCOUNT_SELECT_SELECTOR]) {
-      const select = find<HTMLSelectElement>(selectId);
-      if (!select) continue;
-      const previous = select.value;
-      select.innerHTML = `<option value="">Select account</option>${accountOptions}`;
-      if (previous && accounts.some((account) => account.name === previous)) {
-        select.value = previous;
-      }
+    const select = find<HTMLSelectElement>(BACKTEST_ACCOUNT_SELECT_SELECTOR);
+    if (!select) return;
+    const previous = select.value;
+    select.innerHTML = `<option value="">Select account</option>${accountOptions}`;
+    if (previous && accounts.some((account) => account.name === previous)) {
+      select.value = previous;
     }
   }
 
@@ -93,23 +80,12 @@ export function createBacktestingFeature(): BacktestingFeature {
 
   async function loadBacktestRuns(): Promise<void> {
     const backtestTarget = find<HTMLDivElement>(BACKTEST_RUNS_LIST_SELECTOR);
-    const walkForwardTarget = find<HTMLDivElement>(WALK_FORWARD_RUNS_LIST_SELECTOR);
-    if (!backtestTarget || !walkForwardTarget) return;
+    if (!backtestTarget) return;
 
     backtestTarget.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
-    walkForwardTarget.innerHTML = `<div class="empty">Loading walk-forward runs...</div>`;
+    // The API returns standalone runs only, so no client-side split is needed.
     const data = await getJson<{ runs: BacktestRunSummary[] }>("/api/backtests/runs?limit=100");
-
-    const backtestRuns = data.runs.filter((run) => !isWalkForwardRun(run));
-    const walkForwardRuns = data.runs.filter(isWalkForwardRun);
-
-    renderRunsList(backtestTarget, backtestRuns, "No backtest runs found yet.", BACKTEST_REPORT_VIEW_SELECTOR);
-    renderRunsList(
-      walkForwardTarget,
-      walkForwardRuns,
-      "No walk-forward runs found yet.",
-      WALK_FORWARD_REPORT_VIEW_SELECTOR,
-    );
+    renderRunsList(backtestTarget, data.runs, "No backtest runs found yet.", BACKTEST_REPORT_VIEW_SELECTOR);
   }
 
   async function loadBacktestReportTo(runId: number, reportSelector: string): Promise<void> {
@@ -208,19 +184,12 @@ export function createBacktestingFeature(): BacktestingFeature {
 
   function wireActions(): void {
     const refreshBacktestsBtn = find<HTMLButtonElement>(REFRESH_BACKTESTS_BUTTON_SELECTOR);
-    const refreshWalkForwardBtn = find<HTMLButtonElement>(REFRESH_WALK_FORWARD_BUTTON_SELECTOR);
     const runBacktestForm = find<HTMLFormElement>(RUN_BACKTEST_FORM_SELECTOR);
-    const runWalkForwardForm = find<HTMLFormElement>(RUN_WALK_FORWARD_FORM_SELECTOR);
     const backtestAccountSelect = find<HTMLSelectElement>(BACKTEST_ACCOUNT_SELECT_SELECTOR);
-    const walkForwardAccountSelect = find<HTMLSelectElement>(WALK_FORWARD_ACCOUNT_SELECT_SELECTOR);
 
     wireQuickLookbackButtons();
 
     refreshBacktestsBtn?.addEventListener("click", () => {
-      void loadBacktestRuns();
-    });
-
-    refreshWalkForwardBtn?.addEventListener("click", () => {
       void loadBacktestRuns();
     });
 
@@ -248,35 +217,6 @@ export function createBacktestingFeature(): BacktestingFeature {
       }
     });
 
-    runWalkForwardForm?.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const reportTarget = find<HTMLDivElement>(WALK_FORWARD_REPORT_VIEW_SELECTOR);
-      if (!reportTarget || !runWalkForwardForm) return;
-
-      const payload = buildWalkForwardPayload(runWalkForwardForm);
-
-      const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
-      if (validationError) {
-        reportTarget.innerHTML = renderDownMessage(validationError);
-        return;
-      }
-
-      reportTarget.innerHTML = `<div class="empty">Running walk-forward windows...</div>`;
-      try {
-        const result = await postJson<WalkForwardResult>("/api/backtests/walk-forward", payload);
-        await loadBacktestRuns();
-        reportTarget.innerHTML = renderWalkForwardResult(result);
-        if (result.runIds.length) {
-          const latestRunId = result.runIds[result.runIds.length - 1];
-          const report = await getJson<BacktestReport>(`/api/backtests/runs/${latestRunId}`);
-          reportTarget.innerHTML = `${renderWalkForwardResult(result)}${renderBacktestReport(report)}`;
-        }
-        await refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
-      } catch (error) {
-        reportTarget.innerHTML = renderDownMessage(errorMessage(error));
-      }
-    });
-
     backtestAccountSelect?.addEventListener("change", () => {
       applyBacktestAccountDefaults(runBacktestForm, backtestAccountSelect.value);
       if (runBacktestForm) {
@@ -284,15 +224,7 @@ export function createBacktestingFeature(): BacktestingFeature {
       }
     });
 
-    walkForwardAccountSelect?.addEventListener("change", () => {
-      applyBacktestAccountDefaults(runWalkForwardForm, walkForwardAccountSelect.value);
-      if (runWalkForwardForm) {
-        void refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
-      }
-    });
-
     wirePreflight(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
-    wirePreflight(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
   }
 
   function setAccounts(accounts: AccountListItem[]): void {

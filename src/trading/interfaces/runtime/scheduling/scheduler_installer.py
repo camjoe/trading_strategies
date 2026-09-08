@@ -8,38 +8,32 @@ import platform
 import re
 import shlex
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal, NamedTuple
 
-WINDOWS_DAYS = {
-    "monday": "MON",
-    "tuesday": "TUE",
-    "wednesday": "WED",
-    "thursday": "THU",
-    "friday": "FRI",
-    "saturday": "SAT",
-    "sunday": "SUN",
-}
 
-CRON_DAYS = {
-    "monday": 1,
-    "tuesday": 2,
-    "wednesday": 3,
-    "thursday": 4,
-    "friday": 5,
-    "saturday": 6,
-    "sunday": 0,
-}
+class DaySpellings(NamedTuple):
+    """How one weekday is written for each backend that needs a mapping.
 
-SYSTEMD_CALENDAR_DAYS = {
-    "monday": "Mon",
-    "tuesday": "Tue",
-    "wednesday": "Wed",
-    "thursday": "Thu",
-    "friday": "Fri",
-    "saturday": "Sat",
-    "sunday": "Sun",
+    Windows is absent because Task Scheduler takes the title-cased day name
+    directly, so it renders from the key. Keeping all backends in one table is
+    what stops a day being added for cron and forgotten for systemd.
+    """
+
+    cron: int
+    systemd: str
+
+
+DAYS: dict[str, DaySpellings] = {
+    "monday": DaySpellings(cron=1, systemd="Mon"),
+    "tuesday": DaySpellings(cron=2, systemd="Tue"),
+    "wednesday": DaySpellings(cron=3, systemd="Wed"),
+    "thursday": DaySpellings(cron=4, systemd="Thu"),
+    "friday": DaySpellings(cron=5, systemd="Fri"),
+    "saturday": DaySpellings(cron=6, systemd="Sat"),
+    "sunday": DaySpellings(cron=0, systemd="Sun"),
 }
 
 ScheduleKind = Literal["daily", "weekly"]
@@ -58,8 +52,8 @@ class ScheduledTaskSpec:
 
 def validate_day(day: str) -> str:
     key = day.strip().lower()
-    if key not in WINDOWS_DAYS:
-        allowed = ", ".join(name.title() for name in WINDOWS_DAYS)
+    if key not in DAYS:
+        allowed = ", ".join(name.title() for name in DAYS)
         raise ValueError(f"Invalid day '{day}'. Use one of: {allowed}")
     return key
 
@@ -75,7 +69,16 @@ def validate_time(value: str) -> tuple[int, int]:
 
 
 def load_crontab_lines() -> list[str]:
-    result = subprocess.run(["crontab", "-l"], check=False, capture_output=True, text=True)
+    try:
+        result = subprocess.run(["crontab", "-l"], check=False, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        # Unlike systemd, cron cannot be prepared off-host: it merges into the
+        # running machine's table. Say so, rather than surfacing a bare
+        # 'file not found' from the subprocess call.
+        raise RuntimeError(
+            "The cron backend needs the 'crontab' command, which is not available on this host. "
+            "Use --scheduler systemd to generate units for a Linux host from elsewhere."
+        ) from exc
     if result.returncode != 0:
         stderr = (result.stderr or "").lower()
         if "no crontab" in stderr:
@@ -113,7 +116,11 @@ def _systemd_available() -> bool:
 
 
 def _task_name_to_unit_name(task_name: str) -> str:
-    """Convert 'Trading\\DailyPaperTrading' to 'trading-daily-paper-trading'."""
+    """Convert 'Trading\\DailyPaperTrading' to 'daily-paper-trading'.
+
+    The ``Trading\\`` prefix is dropped, so no unit name carries it — filtering
+    installed timers on "trading" finds only the daily run and misses the rest.
+    """
     name = task_name.split("\\")[-1]
     name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
     return name.lower()
@@ -125,12 +132,14 @@ def _systemd_calendar_expression(task: ScheduledTaskSpec) -> str:
     if task.schedule_kind == "weekly":
         if task.day_of_week is None:
             raise ValueError(f"Weekly task '{task.task_name}' requires day_of_week")
-        day_abbr = SYSTEMD_CALENDAR_DAYS[validate_day(task.day_of_week)]
+        day_abbr = DAYS[validate_day(task.day_of_week)].systemd
         return f"{day_abbr} *-*-* {hour:02d}:{minute:02d}:00"
     return f"*-*-* {hour:02d}:{minute:02d}:00"
 
 
 def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path) -> str:
+    # Validates the time, and the day when weekly; the rendered values below
+    # come from the task itself, so only the raising matters here.
     _schedule_expression(task)
     argument = subprocess.list2cmdline(["-m", task.module, *task.args])
     if task.schedule_kind == "weekly":
@@ -158,7 +167,7 @@ def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, pyt
 
 def build_linux_cron_line(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path, log_path: Path) -> str:
     hour, minute, cron_day = _schedule_expression(task)
-    schedule_expr = f"{minute} {hour} * * *" if cron_day is None else f"{minute} {hour} * * {CRON_DAYS[cron_day]}"
+    schedule_expr = f"{minute} {hour} * * *" if cron_day is None else f"{minute} {hour} * * {DAYS[cron_day].cron}"
     command_parts = [str(python_exe), "-m", task.module, *task.args]
     command = " ".join(shlex.quote(part) for part in command_parts)
     marker = f"# {task.task_name}"
@@ -278,11 +287,15 @@ def generate_systemd_install_script(
     ]
     for timer in timer_unit_names:
         script_lines.append(f"systemctl enable --now {shlex.quote(timer)}")
+    # List exactly the units this script enabled rather than filtering by name:
+    # unit names drop the `Trading\` prefix, so a "trading" filter would report
+    # only the daily run and quietly omit every other timer just installed.
+    listed_timers = " ".join(shlex.quote(timer) for timer in timer_unit_names)
     script_lines += [
         "",
         'echo ""',
         'echo "Trading job timers installed:"',
-        "systemctl list-timers --all | grep trading || true",
+        f"systemctl list-timers --all {listed_timers} || true",
     ]
 
     script_path = repo_root / "local" / "install_trading_timers.sh"
@@ -339,6 +352,32 @@ def generate_systemd_uninstall_script(
     return 0
 
 
+def resolve_scheduler_backend(
+    scheduler_type: Literal["auto", "cron", "systemd"],
+) -> Literal["windows", "cron", "systemd"]:
+    """Pick the scheduler backend, honouring an explicit choice on any host.
+
+    ``auto`` follows the host, which is what an operator registering schedules on
+    the machine that will run them wants. An explicit ``--scheduler systemd`` is
+    honoured everywhere, including Windows: production is a Linux host, and its
+    units are only reviewable from the machine the work happens on if the choice
+    is not welded to the current platform. Generating them is safe anywhere —
+    the systemd path writes a script and installs nothing.
+
+    ``cron`` still needs a host with ``crontab``, because it merges into that
+    host's existing table rather than emitting a file.
+    """
+    if scheduler_type != "auto":
+        return scheduler_type
+
+    system = platform.system().lower()
+    if system == "windows":
+        return "windows"
+    if system == "linux":
+        return "systemd" if _systemd_available() else "cron"
+    raise RuntimeError(f"Unsupported OS for scheduler registration: {platform.system()}")
+
+
 def register_tasks_for_platform(
     tasks: Sequence[ScheduledTaskSpec],
     *,
@@ -349,11 +388,11 @@ def register_tasks_for_platform(
     wake_system: bool = True,
     env_file: Path | None = None,
 ) -> int:
-    resolved_system = platform.system().lower()
+    backend = resolve_scheduler_backend(scheduler_type)
     resolved_repo_root = repo_root.expanduser().resolve()
     resolved_python = Path(python_exe).expanduser().absolute()
 
-    if resolved_system == "windows":
+    if backend == "windows":
         commands = [build_windows_register_command(task, resolved_repo_root, resolved_python) for task in tasks]
         if dry_run:
             for command in commands:
@@ -366,31 +405,26 @@ def register_tasks_for_platform(
                 return result.returncode
         return 0
 
-    if resolved_system == "linux":
-        from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
+    if backend == "systemd":
+        return generate_systemd_install_script(
+            tasks,
+            repo_root=resolved_repo_root,
+            python_exe=resolved_python,
+            user=getpass.getuser(),
+            wake_system=wake_system,
+            dry_run=dry_run,
+            env_file=env_file,
+        )
 
-        use_systemd = scheduler_type == "systemd" or (scheduler_type == "auto" and _systemd_available())
-        if use_systemd:
-            return generate_systemd_install_script(
-                tasks,
-                repo_root=resolved_repo_root,
-                python_exe=resolved_python,
-                user=getpass.getuser(),
-                wake_system=wake_system,
-                dry_run=dry_run,
-                env_file=env_file,
-            )
+    from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
 
-        existing_lines = load_crontab_lines()
-        updated_lines = list(existing_lines)
-        for task in tasks:
-            marker = f"# {task.task_name}"
-            updated_lines = [line for line in updated_lines if marker not in line]
-            log_path = logs_dir_for_repo(resolved_repo_root) / task.log_name
-            updated_lines.append(build_linux_cron_line(task, resolved_repo_root, resolved_python, log_path))
-        return write_crontab_lines(updated_lines, dry_run)
-
-    raise RuntimeError(f"Unsupported OS for scheduler registration: {platform.system()}")
+    updated_lines = list(load_crontab_lines())
+    for task in tasks:
+        marker = f"# {task.task_name}"
+        updated_lines = [line for line in updated_lines if marker not in line]
+        log_path = logs_dir_for_repo(resolved_repo_root) / task.log_name
+        updated_lines.append(build_linux_cron_line(task, resolved_repo_root, resolved_python, log_path))
+    return write_crontab_lines(updated_lines, dry_run)
 
 
 def unregister_tasks_for_platform(
@@ -400,9 +434,9 @@ def unregister_tasks_for_platform(
     scheduler_type: Literal["auto", "cron", "systemd"] = "auto",
     repo_root: Path | None = None,
 ) -> int:
-    resolved_system = platform.system().lower()
+    backend = resolve_scheduler_backend(scheduler_type)
 
-    if resolved_system == "windows":
+    if backend == "windows":
         commands = [["schtasks", "/Delete", "/TN", task_name, "/F"] for task_name in task_names]
         if dry_run:
             for command in commands:
@@ -415,16 +449,12 @@ def unregister_tasks_for_platform(
                 exit_code = result.returncode
         return exit_code
 
-    if resolved_system == "linux":
-        use_systemd = scheduler_type == "systemd" or (scheduler_type == "auto" and _systemd_available())
-        if use_systemd:
-            resolved_repo_root = (repo_root or Path.cwd()).expanduser().resolve()
-            return generate_systemd_uninstall_script(task_names, repo_root=resolved_repo_root, dry_run=dry_run)
+    if backend == "systemd":
+        resolved_repo_root = (repo_root or Path.cwd()).expanduser().resolve()
+        return generate_systemd_uninstall_script(task_names, repo_root=resolved_repo_root, dry_run=dry_run)
 
-        updated_lines = list(load_crontab_lines())
-        for task_name in task_names:
-            marker = f"# {task_name}"
-            updated_lines = [line for line in updated_lines if marker not in line]
-        return write_crontab_lines(updated_lines, dry_run)
-
-    raise RuntimeError(f"Unsupported OS for scheduler registration: {platform.system()}")
+    updated_lines = list(load_crontab_lines())
+    for task_name in task_names:
+        marker = f"# {task_name}"
+        updated_lines = [line for line in updated_lines if marker not in line]
+    return write_crontab_lines(updated_lines, dry_run)

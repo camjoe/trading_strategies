@@ -18,9 +18,6 @@ def test_parse_args_reads_cli_flags(monkeypatch) -> None:
             "manage_job_schedules",
             "--daily-paper-trading-time",
             "13:10",
-            "--daily-backtest-refresh-time",
-            "14:10",
-            "--enable-daily-backtest-refresh",
             "--weekly-db-backup-time",
             "02:00",
             "--weekly-db-backup-day-of-week",
@@ -33,8 +30,6 @@ def test_parse_args_reads_cli_flags(monkeypatch) -> None:
     args = module.parse_args()
 
     assert args.daily_paper_trading_time == "13:10"
-    assert args.daily_backtest_refresh_time == "14:10"
-    assert args.enable_daily_backtest_refresh is True
     assert args.weekly_db_backup_time == "02:00"
     assert args.weekly_db_backup_day_of_week == "Monday"
     assert args.python == "./.venv/bin/python"
@@ -105,13 +100,8 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
     tasks = module.build_scheduled_tasks(
         make_manage_job_schedules_args(
             daily_paper_trading_time="13:10",
-            daily_paper_trading_fallback_time="15:45",
             daily_challenger_shadow_eval_time="12:50",
             enable_daily_challenger_shadow_eval=True,
-            daily_snapshot_time="13:30",
-            enable_daily_snapshot=True,
-            daily_backtest_refresh_time="14:10",
-            enable_daily_backtest_refresh=True,
             health_check_time="16:00",
             weekly_db_backup_time="02:00",
             weekly_db_backup_day_of_week="Sunday",
@@ -120,20 +110,33 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
 
     assert [task.task_name for task in tasks] == [
         r"Trading\DailyPaperTrading",
-        r"Trading\DailyPaperTradingFallback",
         r"Trading\DailyChallengerShadowEval",
-        r"Trading\DailySnapshot",
-        r"Trading\DailyBacktestRefresh",
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]
-    assert tasks[1].args == ("--run-source", "scheduled-daily-fallback")
-    assert tasks[2].args == ("--enable-run",)
-    assert tasks[3].args == ("--enable-run",)
-    assert tasks[4].args == ("--enable-run",)
-    assert tasks[5].args == ("--max-age-hours", "24.0")
-    assert tasks[6].schedule_kind == "weekly"
-    assert tasks[6].day_of_week == "Sunday"
+    # The primary entry takes no extra args — there is no second scheduled pass to
+    # distinguish it from.
+    assert tasks[0].args == ()
+    assert tasks[1].args == ("--enable-run",)
+    assert tasks[2].args == ("--max-age-hours", "24.0")
+    assert tasks[3].schedule_kind == "weekly"
+    assert tasks[3].day_of_week == "Sunday"
+    # The scheduler invokes `python -m <module>`, so a wrong path here registers a
+    # task that runs nothing.
+    assert [task.module for task in tasks] == [
+        "trading.interfaces.runtime.jobs.daily.paper_trading",
+        "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval",
+        "trading.interfaces.runtime.jobs.daily.trader_health",
+        "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup",
+    ]
+    # The generated cron line and systemd unit redirect output to this file, so a
+    # wrong name sends a scheduled job's output somewhere nobody looks.
+    assert [task.log_name for task in tasks] == [
+        "daily_paper_trading_scheduler.log",
+        "daily_challenger_shadow_eval_scheduler.log",
+        "daily_trader_health_check_scheduler.log",
+        "weekly_db_backup_scheduler.log",
+    ]
 
 
 def test_build_scheduled_tasks_omits_optional_jobs_without_times() -> None:

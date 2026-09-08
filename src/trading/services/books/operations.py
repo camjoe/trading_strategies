@@ -21,7 +21,7 @@ def fetch_book_operational_data(
     limit: int = 100,
 ) -> dict[str, list[Any]]:
     """Return book-native positions, snapshots, metrics, and risk decisions."""
-    account = AccountRepository(conn).fetch_by_name(account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name=account_name)
     if account is None:
         raise NotFoundError(f"Account not found: {account_name}")
     books = BookRepository(conn).fetch_for_account(account_id=account.id)

@@ -13,28 +13,28 @@ from datetime import date
 
 import pytest
 
-from tests.support.repositories import insert_repository_account
-from trading.backtesting.domain.optimization.search import params_fingerprint
-from trading.backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
-from trading.backtesting.optimizer_models import (
+from backtesting.domain.optimization import params_fingerprint
+from backtesting.models import BACKTEST_PURPOSE_FINAL_HOLDOUT, BacktestConfig, BacktestResult
+from backtesting.models.optimizer import (
     ExperimentStatus,
     FailureStage,
     OptimizationExperimentInsert,
     OptimizerConfig,
 )
-from trading.backtesting.repositories.backtest_repository import insert_backtest_run
-from trading.backtesting.repositories.optimization_repository import (
+from backtesting.repositories.optimization import (
     fetch_experiment_by_id,
-    fetch_latest_for_account,
     fetch_manifest_for_experiment,
+    fetch_recent_experiments,
     fetch_trials_for_experiment,
     fetch_windows_for_experiment,
     insert_experiment,
 )
-from trading.backtesting.services.walk_forward_optimizer_service import run_and_persist_optimization
+from backtesting.repositories.runs import insert_run
+from backtesting.services.optimization_experiment import run_and_persist_optimization
+from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # The winning candidate (differs from trend's default fast/slow, so the promoted
 # variant is provably a tuned variant, not the default).
@@ -102,7 +102,7 @@ def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
 
     def fake_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
         # Persisted OOS/holdout runs are real rows so holdout_run_id FK is valid.
-        run_id = insert_backtest_run(
+        run_id = insert_run(
             run_conn,
             account_id=account_id,
             strategy_name=run_cfg.strategy,
@@ -110,6 +110,8 @@ def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
             end_date=date.fromisoformat(str(run_cfg.end)),
             cfg=run_cfg,
             warnings=[],
+            benchmark_ticker="SPY",
+            benchmark_return_pct=0.0,
         )
         ann, dd, trades = _metrics_for(run_cfg)
         return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
@@ -211,7 +213,7 @@ class TestFailFast:
             oos_calls += 1
             if oos_calls == 2:
                 raise RuntimeError("simulated market-data outage")
-            run_id = insert_backtest_run(
+            run_id = insert_run(
                 run_conn,
                 account_id=account_id,
                 strategy_name=run_cfg.strategy,
@@ -219,6 +221,8 @@ class TestFailFast:
                 end_date=date.fromisoformat(str(run_cfg.end)),
                 cfg=run_cfg,
                 warnings=[],
+                benchmark_ticker="SPY",
+                benchmark_return_pct=0.0,
             )
             ann, dd, trades = _metrics_for(run_cfg)
             return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
@@ -228,8 +232,7 @@ class TestFailFast:
                 conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
             )
 
-        record = fetch_latest_for_account(conn, account_id=account_id)
-        assert record is not None
+        record = fetch_recent_experiments(conn, limit=1)[0]
         assert record.status == ExperimentStatus.FAILED
         assert record.failure_stage == FailureStage.WINDOW_SEARCH
         assert record.window_count == 1  # the first window completed before the second failed
@@ -249,7 +252,7 @@ class TestFailFast:
         def failing_on_holdout_persisted(run_conn, run_cfg: BacktestConfig) -> BacktestResult:
             if run_cfg.purpose == BACKTEST_PURPOSE_FINAL_HOLDOUT:
                 raise RuntimeError("simulated holdout failure")
-            run_id = insert_backtest_run(
+            run_id = insert_run(
                 run_conn,
                 account_id=account_id,
                 strategy_name=run_cfg.strategy,
@@ -257,6 +260,8 @@ class TestFailFast:
                 end_date=date.fromisoformat(str(run_cfg.end)),
                 cfg=run_cfg,
                 warnings=[],
+                benchmark_ticker="SPY",
+                benchmark_return_pct=0.0,
             )
             ann, dd, trades = _metrics_for(run_cfg)
             return _fake_result(run_cfg, run_id=run_id, annualized=ann, drawdown=dd, trades=trades)
@@ -266,8 +271,7 @@ class TestFailFast:
                 conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
             )
 
-        record = fetch_latest_for_account(conn, account_id=account_id)
-        assert record is not None
+        record = fetch_recent_experiments(conn, limit=1)[0]
         assert record.status == ExperimentStatus.FAILED
         assert record.failure_stage == FailureStage.HOLDOUT
         assert record.window_count > 0  # every window completed before the holdout ran

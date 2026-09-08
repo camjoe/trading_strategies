@@ -1,3 +1,9 @@
+"""On-disk transport cache for market-data fetches.
+
+Entries expire on file mtime, so touching a cache file extends its life and
+deleting the directory is always a safe reset.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -10,10 +16,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.paths.repo_paths import get_repo_root
+from common.paths import REPO_ROOT
 
-_REPO_ROOT = get_repo_root(__file__)
-_DEFAULT_MARKET_DATA_CACHE_DIR = _REPO_ROOT / "local" / "cache" / "market_data"
+_DEFAULT_MARKET_DATA_CACHE_DIR = REPO_ROOT / "local" / "cache" / "market_data"
 _MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60
 _MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
 _MARKET_DATA_CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
@@ -50,6 +55,14 @@ def market_data_cache_path(cache_key: str) -> Path:
     return market_data_cache_dir() / f"{cache_key}.pkl"
 
 
+# What a cache entry is allowed to hold. A guard against a stale or foreign
+# pickle, not a security boundary — pickle.load already ran arbitrary code by the
+# time this is checked. Widen it in the same change that starts caching a new
+# shape: a write the read side rejects is not an error, it is a permanent miss
+# that re-fetches forever.
+_CACHEABLE_TYPES = (pd.DataFrame, pd.Series)
+
+
 def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     if market_data_cache_disabled():
         return _CACHE_MISS
@@ -58,8 +71,8 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     if not cache_path.exists():
         return _CACHE_MISS
 
-    cache_age_seconds = os.path.getmtime(cache_path)
-    if (time.time() - cache_age_seconds) > _MARKET_DATA_CACHE_TTL_SECONDS:
+    modified_at = os.path.getmtime(cache_path)
+    if (time.time() - modified_at) > _MARKET_DATA_CACHE_TTL_SECONDS:
         return _CACHE_MISS
 
     try:
@@ -68,7 +81,7 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     except OSError, pickle.UnpicklingError, EOFError:
         return _CACHE_MISS
 
-    if not isinstance(cached, (pd.DataFrame, pd.Series)):
+    if not isinstance(cached, _CACHEABLE_TYPES):
         return _CACHE_MISS
     return cached
 

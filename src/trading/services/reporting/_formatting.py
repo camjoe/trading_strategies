@@ -8,6 +8,7 @@ sibling ``account`` and ``comparison`` modules.
 from __future__ import annotations
 
 from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.services.evaluation.presentation import backtest_freshness_display_parts
 
 # Compare output shows at most this many individual positions before truncating.
 POSITION_SUMMARY_LIMIT = 5
@@ -48,11 +49,11 @@ def _format_paper_live_evidence_summary(evaluation: StrategyEvaluationArtifact) 
 
 
 def _format_backtest_freshness_summary(evaluation: StrategyEvaluationArtifact) -> str:
-    freshness = evaluation.diagnostics.backtest_freshness
-    if freshness is None or not freshness.available or freshness.age_days is None:
+    parts = backtest_freshness_display_parts(evaluation.diagnostics.backtest_freshness)
+    if parts is None:
         return "backtest_age=N/A"
-    label = "stale" if freshness.is_stale else "fresh"
-    return f"backtest_age={freshness.age_days:.1f}d ({label})"
+    age_days, label = parts
+    return f"backtest_age={age_days:.1f}d ({label})"
 
 
 def evaluation_summary_line(

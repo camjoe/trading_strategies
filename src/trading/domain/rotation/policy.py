@@ -1,12 +1,21 @@
+"""Champion/challenger rotation decision over ``models.rotation`` value objects.
+
+Scores the incumbent and each challenger with the operator-tunable weights (see
+:mod:`trading.domain.rotation.score_components` for the components and their
+units), then applies four gates — cooldown, challenger sample size, outperformance
+margin, and score superiority. Returns a ``RotationDecision`` carrying the verdict,
+the per-strategy score components, and every gate's result. Side-effect free.
+"""
+
 from __future__ import annotations
 
-from trading.models.rotation.rotation_decision import RotationDecision
-from trading.models.rotation.rotation_score_weights import RotationScoreWeights
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.models.rotation.rotation_strategy_score import RotationStrategyScore
-
-# Conversion factor from percentage points to basis points.
-PERCENT_TO_BASIS_POINTS = 100.0
+from common.constants import PERCENT_POINTS_TO_BASIS_POINTS
+from trading.models.rotation import (
+    RotationDecision,
+    RotationScoreWeights,
+    RotationStrategyMetrics,
+    RotationStrategyScore,
+)
 
 
 def _compute_score(
@@ -76,7 +85,7 @@ def evaluate_champion_challenger_rotation(
 
     outperformance_bps = (
         best_challenger.risk_adjusted_return - incumbent_score.risk_adjusted_return
-    ) * PERCENT_TO_BASIS_POINTS
+    ) * PERCENT_POINTS_TO_BASIS_POINTS
     sample_size_gate_passed = best_challenger.trade_count >= int(min_trades_in_window)
     outperformance_gate_passed = outperformance_bps >= float(outperformance_threshold_bps)
     score_superiority_gate_passed = best_challenger.score > incumbent_score.score

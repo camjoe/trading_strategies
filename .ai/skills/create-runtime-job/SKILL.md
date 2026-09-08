@@ -29,7 +29,8 @@ Decision hints:
 ## 2. Add the completion sentinel
 
 Add `<JOB>_COMPLETE_SENTINEL = "<Job> run succeeded."` to `src/common/runtime_job_status.py`
-and its `__all__`, then re-export it in `src/trading/interfaces/runtime/job_status.py`.
+and its `__all__`. Job modules import it from there directly — the sentinels live in
+`common/` because the web backend reads them too and cannot import the interface layer.
 
 ## 3. Create the module
 
@@ -42,7 +43,7 @@ Fill the matching template from [templates.md](templates.md), placed at:
 
 Use the shared harness (`run_runtime_job_main` / `run_runtime_job_with_args` from
 `tests/src/trading/interfaces/runtime/jobs/loaders.py`) — see [templates.md](templates.md). Patch lifecycle
-seams (`resolve_accounts`, `load_runtime_eligible_account_names`, `db_session`) on the
+seams (`resolve_accounts`, `load_account_names`, `db_session`) on the
 `job_runner._core` submodule, where those lookups live; patch the job's own body helper on
 the job module.
 
@@ -79,7 +80,7 @@ python -m scripts.run_checks python --suite src/trading/interfaces/runtime/jobs/
 ## Repo references
 
 - `src/trading/interfaces/runtime/jobs/job_runner/__init__.py` — the three decorators + `__all__`
-- `src/trading/interfaces/runtime/jobs/daily/snapshot.py` — daily example
+- `src/trading/interfaces/runtime/jobs/daily/challenger_shadow_eval.py` — daily example
 - `src/trading/interfaces/runtime/jobs/governance/weekly/w1_leaderboard.py` — governance example
 - `src/trading/interfaces/runtime/jobs/maintenance/weekly_db_backup.py` — maintenance example
 - `docs/reference/runtime-jobs.md` — operator-facing inventory

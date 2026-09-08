@@ -16,13 +16,13 @@ from collections.abc import Callable
 
 from trading.domain.feature_provider import ExternalFeatureBundle
 from trading.models import AccountRecord
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.models.rotation import RotationStrategyMetrics
 from trading.services.books.rotation.challenger_evaluation import build_book_challenger_evaluations
 from trading.services.books.rotation.engine import (
     evaluate_and_apply_book_rotation,
     resolve_rotation_policy_config,
 )
-from trading.services.promotion import is_strategy_approved_for_live
+from trading.services.promotion.eligibility import is_strategy_approved_for_live
 
 
 def _live_eligible_challengers(

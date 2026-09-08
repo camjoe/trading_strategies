@@ -8,10 +8,14 @@ from __future__ import annotations
 DAILY_RUN_STATUS_SUCCESS = "success"
 DAILY_RUN_STATUS_FAILED = "failed"
 
+# Per-step statuses inside a daily run artifact's `step_results` that mean the
+# step reached a conclusion. "skipped" belongs here: it is a decision the run
+# recorded, not work still outstanding. Shared so the DAG writer and the
+# monitor's reader agree on what "completed" counts as.
+TERMINAL_STEP_STATUSES = frozenset({"ok", "skipped", "failed"})
+
 BURN_IN_STATUS_COMPLETE_SENTINEL = "COMPLETE: Burn-in status check succeeded."
 DAILY_PAPER_TRADING_COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-DAILY_SNAPSHOT_COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
-DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL = "COMPLETE: Daily backtest refresh succeeded."
 DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL = "COMPLETE: Daily challenger shadow evaluation succeeded."
 WEEKLY_DB_BACKUP_COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
 
@@ -31,11 +35,10 @@ MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL = (
 __all__ = [
     "DAILY_RUN_STATUS_SUCCESS",
     "DAILY_RUN_STATUS_FAILED",
+    "TERMINAL_STEP_STATUSES",
     "BURN_IN_STATUS_COMPLETE_SENTINEL",
-    "DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL",
     "DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL",
     "DAILY_PAPER_TRADING_COMPLETE_SENTINEL",
-    "DAILY_SNAPSHOT_COMPLETE_SENTINEL",
     "WEEKLY_DB_BACKUP_COMPLETE_SENTINEL",
     "WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL",
     "WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL",

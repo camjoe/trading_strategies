@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - requirements-base.txt
       - requirements-dev.txt
@@ -19,7 +20,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python_deps: ${{ steps.filter.outputs.python_deps }}
+      frontend_deps: ${{ steps.filter.outputs.frontend_deps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect dependency changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python_deps:
+              - requirements-base.txt
+              - requirements-dev.txt
+              - .github/workflows/security-checks.yml
+            frontend_deps:
+              - apps/paper_trading_web/frontend/package-lock.json
+              - .github/workflows/security-checks.yml
+
   python-audit:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python_deps == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -30,30 +55,18 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-          cache: "pip"
-          cache-dependency-path: |
-            requirements-base.txt
 
       - name: Install pip-audit
         run: |
           python -m pip install --upgrade pip
           pip install pip-audit
 
-      - name: Run pip-audit for base dependencies
-        # CVE-2026-33752 affects curl-cffi <0.15.0, but yfinance==1.2.0 caps
-        # curl-cffi at <0.14, making the fix version incompatible. Ignored until
-        # yfinance ships a release that widens the curl-cffi bound.
-        run: pip-audit -r requirements-base.txt -f json -o pip-audit-base.json --ignore-vuln CVE-2026-33752
-
-      - name: Upload pip-audit results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: pip-audit-report
-          path: |
-            pip-audit-base.json
+      - name: Run pip-audit for base and dev dependencies
+        run: pip-audit -r requirements-dev.txt
 
   frontend-audit:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend_deps == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -64,20 +77,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: "npm"
-          cache-dependency-path: apps/paper_trading_web/frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: apps/paper_trading_web/frontend
-        run: npm ci
 
       - name: Run npm audit
         working-directory: apps/paper_trading_web/frontend
-        run: npm audit --audit-level=high --json > npm-audit.json || true
-
-      - name: Upload npm audit results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: npm-audit-report
-          path: apps/paper_trading_web/frontend/npm-audit.json
+        run: npm audit --package-lock-only --audit-level=high

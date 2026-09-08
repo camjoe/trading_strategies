@@ -13,7 +13,7 @@ Every command runs against a live DBAPI connection opened from the active
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,7 +76,7 @@ def revision_chain() -> list[RevisionInfo]:
 
 
 @contextmanager
-def _connected_config(connection: sqlite3.Connection | None) -> Iterator[Config]:
+def _connected_config(connection: sqlite3.Connection | None) -> Generator[Config]:
     """Yield a Config whose ``connection`` attribute wraps a live connection.
 
     Opens (and then closes) a connection from the active backend when none is

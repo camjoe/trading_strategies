@@ -14,6 +14,10 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrTrade,
 )
 
+# ib_async defaults to 4 seconds for the whole startup sync, which IB Gateway
+# routinely exceeds — especially in the minutes after it starts.
+_CONNECT_TIMEOUT_SECONDS = 20.0
+
 
 class IbAsyncClient:
     """IBKR socket client backed by ``ib_async``.
@@ -31,13 +35,37 @@ class IbAsyncClient:
         self._ib = ib_async.IB()
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
-        self._ib.connect(host, port, clientId=client_id)
+        import ib_async  # noqa: PLC0415
+
+        # `trades()`, `positions()`, and their fills are all served from caches
+        # this startup sync fills — nothing re-requests them later. So a sync
+        # timeout is not cosmetic: it leaves `trades()` empty in a way that is
+        # indistinguishable from "no open orders", which would strand fills
+        # during reconciliation. ib_async logs and continues by default;
+        # `raiseSyncErrors` makes that failure loud instead.
+        #
+        # Only the fields this client actually reads are fetched. Completed
+        # orders and per-sub-account updates are never read, and each one is
+        # another request that can time out. Positions are always fetched by
+        # ib_async regardless of the flags.
+        self._ib.connect(
+            host,
+            port,
+            clientId=client_id,
+            timeout=_CONNECT_TIMEOUT_SECONDS,
+            raiseSyncErrors=True,
+            fetchFields=ib_async.StartupFetch.ORDERS_OPEN | ib_async.StartupFetch.EXECUTIONS,
+        )
 
     def disconnect(self) -> None:
         self._ib.disconnect()
 
     def is_connected(self) -> bool:
         return self._ib.isConnected()
+
+    def managed_accounts(self) -> list[str]:
+        """Account ids this session can trade. IB sends these on connect."""
+        return [str(account).strip() for account in self._ib.managedAccounts() if str(account).strip()]
 
     def place_order(self, order: IbkrOrderRequest) -> IbkrTrade:
         import ib_async  # noqa: PLC0415
@@ -49,6 +77,7 @@ class IbAsyncClient:
             orderType=order.order_type,
             lmtPrice=order.limit_price,
             tif=order.time_in_force,
+            orderRef=order.order_ref,
         )
         return _normalize_ib_async_trade(self._ib.placeOrder(contract, ib_order))
 
@@ -83,15 +112,24 @@ class IbAsyncClient:
 
         contracts = [ib_async.Stock(symbol, "SMART", "USD") for symbol in symbols]
         self._ib.qualifyContracts(*contracts)
-        return [
-            IbkrQuote(
-                symbol=str(ticker.contract.symbol),
-                bid=float(ticker.bid),
-                ask=float(ticker.ask),
-                last=float(ticker.last),
+        quotes = []
+        for ticker in self._ib.reqTickers(*contracts):
+            # A ticker whose contract failed to qualify comes back with no
+            # contract attached. Reading `.symbol` off it raises AttributeError
+            # mid-comprehension and loses every quote in the batch, including the
+            # ones that did resolve — so skip the unqualified one instead.
+            contract = getattr(ticker, "contract", None)
+            if contract is None:
+                continue
+            quotes.append(
+                IbkrQuote(
+                    symbol=str(contract.symbol),
+                    bid=float(ticker.bid),
+                    ask=float(ticker.ask),
+                    last=float(ticker.last),
+                )
             )
-            for ticker in self._ib.reqTickers(*contracts)
-        ]
+        return quotes
 
 
 def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
@@ -107,6 +145,7 @@ def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
         avg_fill_price=_optional_float(trade.orderStatus.avgFillPrice),
         fills=tuple(_normalize_ib_async_fill(fill) for fill in trade.fills),
         status_reason=_ib_async_status_reason(trade, status),
+        order_ref=str(getattr(trade.order, "orderRef", "") or ""),
     )
 
 

@@ -19,10 +19,9 @@ from functools import wraps
 from pathlib import Path
 from typing import Literal
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from infrastructure.database.connection import DBConnection, db_session
 from trading.interfaces.runtime.jobs.job_helpers import (
-    already_completed_for_period,
     day_tag,
     is_env_truthy,
     logs_dir_for_repo,
@@ -34,7 +33,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     week_tag,
     write_artifact,
 )
-from trading.services.accounts import load_runtime_eligible_account_names
+from trading.services.accounts.runtime_loader import load_account_names
 
 REPO_ROOT = get_repo_root(__file__)
 
@@ -67,7 +66,8 @@ class JobContext:
     """Everything a job body needs, prepared by the runner.
 
     ``conn`` is ``None`` for jobs that shell out to subprocesses rather than
-    opening a DB session.
+    opening a DB session. Bodies that need the database read ``db`` instead —
+    see that property for why.
     """
 
     args: argparse.Namespace
@@ -78,6 +78,25 @@ class JobContext:
     log_path: Path
     artifact_path: Path
     conn: DBConnection | None = None
+
+    @property
+    def db(self) -> DBConnection:
+        """The run's connection, for a body that requires one.
+
+        Whether a session was opened is fixed by how the job is registered —
+        governance jobs always open one, per-account jobs opt in with
+        ``open_db=True``, maintenance jobs never do — so by the time a body
+        runs, this is settled. Reading ``conn`` directly forces every such body
+        to carry an ``Optional`` it can do nothing about; no caller has ever
+        checked it for ``None``. This states the invariant in one place and
+        fails loudly if the registration and the body ever disagree.
+        """
+        if self.conn is None:
+            raise RuntimeError(
+                "This job did not open a database session. Register it with open_db=True, "
+                "or use a governance job, if the body needs the database."
+            )
+        return self.conn
 
     def log(self, message: str) -> None:
         """Tee a timestamped line to the run log (and stdout)."""
@@ -194,7 +213,7 @@ def _prepare_run(
 def _resolve_or_exit(accounts_arg: str) -> list[str] | int:
     """Resolve accounts, returning an exit code on failure instead of the list."""
     try:
-        accounts = resolve_accounts(accounts_arg, load_runtime_eligible_account_names())
+        accounts = resolve_accounts(accounts_arg, load_account_names())
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -283,14 +302,17 @@ def _run_per_account_job(
     }
     tee_line(prep.log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
-    if not prep.args.force_run and already_completed_for_period(
+    # Same guard as the other two flows; this one also leaves an artifact saying
+    # the run was skipped, which is why it wraps the helper rather than being it.
+    if skip_if_already_completed_for_period(
+        log_path=prep.log_path,
         log_dir=prep.logs_dir,
         job_name=job_name,
+        period_name=period,
         period_tag=prep.tag,
         sentinel=sentinel,
+        force_run=bool(prep.args.force_run),
     ):
-        message = f"{job_name}: already completed this {period}; skipping duplicate run."
-        tee_line(prep.log_path, f"[{ts()}] SKIP: {message}")
         write_artifact(
             prep.artifact_path,
             {
@@ -301,7 +323,6 @@ def _run_per_account_job(
                 "finished_at": ts(),
             },
         )
-        print(message)
         return 0
 
     try:

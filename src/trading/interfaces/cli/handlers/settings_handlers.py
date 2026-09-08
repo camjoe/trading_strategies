@@ -12,7 +12,24 @@ from __future__ import annotations
 from typing import Any
 
 from common.time import utc_now_iso
-from trading.services.parameters import ROTATION_POLICY_FIELDS
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.books.rotation.engine import ROTATION_POLICY_FIELDS
+from trading.services.operational_settings.mutations import (
+    set_evaluation_confidence_settings,
+    set_promotion_policy_settings,
+    set_runtime_throttle_settings,
+)
+from trading.services.operational_settings.presentation import show_global_settings_history
+from trading.services.operational_settings.queries import (
+    fetch_evaluation_confidence_settings,
+    fetch_promotion_policy_settings,
+    fetch_runtime_throttle_settings,
+)
+from trading.services.parameters.mutations import (
+    update_book_rotation_policy,
+    update_book_rotation_scheduling,
+)
+from trading.services.parameters.presentation import show_book_rotation_history
 
 
 def _merged(args: object, current: object, field_names: tuple[str, ...]) -> dict[str, Any]:
@@ -30,11 +47,11 @@ _THROTTLE_FIELDS = (
 )
 
 
-def handle_configure_throttle(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_throttle(conn, args, parser, *, ctx: CliContext) -> None:
     _require_any_flag(args, parser, _THROTTLE_FIELDS, "throttle")
-    current = deps["fetch_runtime_throttle_settings"](conn)
+    current = fetch_runtime_throttle_settings(conn)
     values = _merged(args, current, _THROTTLE_FIELDS)
-    deps["set_runtime_throttle_settings"](
+    set_runtime_throttle_settings(
         conn,
         runtime_max_trades_per_day=values["max_trades_per_day"],
         runtime_max_trades_per_minute=values["max_trades_per_minute"],
@@ -55,11 +72,11 @@ _EVALUATION_FIELDS = (
 )
 
 
-def handle_configure_evaluation(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_evaluation(conn, args, parser, *, ctx: CliContext) -> None:
     _require_any_flag(args, parser, _EVALUATION_FIELDS, "evaluation")
-    current = deps["fetch_evaluation_confidence_settings"](conn)
+    current = fetch_evaluation_confidence_settings(conn)
     values = _merged(args, current, _EVALUATION_FIELDS)
-    deps["set_evaluation_confidence_settings"](conn, updated_at=utc_now_iso(), **values)
+    set_evaluation_confidence_settings(conn, updated_at=utc_now_iso(), **values)
     rendered = " ".join(f"{name}={value}" for name, value in values.items())
     print(f"Updated global evaluation confidence settings: {rendered}")
 
@@ -72,14 +89,14 @@ _ROTATION_SCHEDULING_ARG_TO_FIELD = {
 }
 
 
-def handle_configure_book_rotation(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_book_rotation(conn, args, parser, *, ctx: CliContext) -> None:
     _require_any_flag(args, parser, tuple(_ROTATION_SCHEDULING_ARG_TO_FIELD), "rotation scheduling")
     updates = {
         field: getattr(args, arg_name)
         for arg_name, field in _ROTATION_SCHEDULING_ARG_TO_FIELD.items()
         if hasattr(args, arg_name)
     }
-    saved = deps["update_book_rotation_scheduling"](
+    saved = update_book_rotation_scheduling(
         conn,
         account_name=args.account,
         book_name=args.book,
@@ -92,10 +109,10 @@ def handle_configure_book_rotation(conn, args, parser, *, deps: dict[str, Any]) 
     print(f"Updated rotation scheduling for book_id={saved.book_id}: {rendered}")
 
 
-def handle_configure_book_rotation_policy(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_book_rotation_policy(conn, args, parser, *, ctx: CliContext) -> None:
     _require_any_flag(args, parser, ROTATION_POLICY_FIELDS, "rotation policy")
     updates = {name: getattr(args, name) for name in ROTATION_POLICY_FIELDS if hasattr(args, name)}
-    saved = deps["update_book_rotation_policy"](
+    saved = update_book_rotation_policy(
         conn,
         account_name=args.account,
         book_name=args.book,
@@ -118,18 +135,18 @@ _PROMOTION_FIELDS = (
 )
 
 
-def handle_configure_promotion(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_promotion(conn, args, parser, *, ctx: CliContext) -> None:
     _require_any_flag(args, parser, _PROMOTION_FIELDS, "promotion")
-    current = deps["fetch_promotion_policy_settings"](conn)
+    current = fetch_promotion_policy_settings(conn)
     values = _merged(args, current, _PROMOTION_FIELDS)
-    deps["set_promotion_policy_settings"](conn, updated_at=utc_now_iso(), **values)
+    set_promotion_policy_settings(conn, updated_at=utc_now_iso(), **values)
     rendered = " ".join(f"{name}={value}" for name, value in values.items())
     print(f"Updated global promotion policy settings: {rendered}")
 
 
-def handle_settings_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_global_settings_history"](conn, limit=args.limit)
+def handle_settings_history(conn, args, parser, *, ctx: CliContext) -> None:
+    show_global_settings_history(conn, limit=args.limit)
 
 
-def handle_book_rotation_history(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    deps["show_book_rotation_history"](conn, account_name=args.account, book_name=args.book, limit=args.limit)
+def handle_book_rotation_history(conn, args, parser, *, ctx: CliContext) -> None:
+    show_book_rotation_history(conn, account_name=args.account, book_name=args.book, limit=args.limit)

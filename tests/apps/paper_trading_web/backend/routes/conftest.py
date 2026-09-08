@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from common.time import utc_now_iso
 from infrastructure.database.connection import ensure_db
 from trading.models import AccountConfig
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def seed_backtest_run(api_conn: sqlite3.Connection) -> Callable[[str, str], None
                 utc_now_iso(),
                 5.0,
                 0.0,
-                "src/infrastructure/config/trade_universe.txt",
+                "src/infrastructure/config/trade_universes/default.txt",
             ),
         )
         api_conn.commit()

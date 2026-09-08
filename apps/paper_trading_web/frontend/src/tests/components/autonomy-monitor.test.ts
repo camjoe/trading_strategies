@@ -117,6 +117,8 @@ describe("Autonomy Monitor render functions", () => {
       const html = renderBooksPanel(books);
       expect(html).toContain("Momentum");
       expect(html).toContain("status-active");
+      // hit_rate is stored as a 0–1 fraction, so it has to be scaled to render as a percentage.
+      expect(html).toContain("Hit Rate: 65.0%");
     });
 
     it("renders paused book", () => {
@@ -139,6 +141,8 @@ describe("Autonomy Monitor render functions", () => {
 
       const html = renderBooksPanel(books);
       expect(html).toContain("status-paused");
+      // A null hit_rate is genuinely absent.
+      expect(html).toContain("—");
     });
 
     it("renders closed book", () => {
@@ -161,6 +165,8 @@ describe("Autonomy Monitor render functions", () => {
 
       const html = renderBooksPanel(books);
       expect(html).toContain("status-closed");
+      // A 0 hit rate is a measured result, not missing data.
+      expect(html).toContain("Hit Rate: 0.0%");
     });
   });
 

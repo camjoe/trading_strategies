@@ -1,45 +1,50 @@
-from __future__ import annotations
+"""Provider routing: name resolution and concrete-adapter construction."""
 
-import json
+from __future__ import annotations
 
 import pytest
 
-from infrastructure.market_data import build_provider, supported_provider_names
-from infrastructure.market_data.unavailable_provider import UnavailableProvider
-from infrastructure.market_data.yfinance_provider import YFinanceProvider
+from infrastructure.market_data import DemoMarketDataProvider, YFinanceProvider, build_provider, resolve_provider_name
 
 
-def test_supported_provider_names_include_default_and_placeholders() -> None:
-    names = supported_provider_names()
-
-    assert "yfinance" in names
-    assert "alpha_vantage" in names
-    assert tuple(sorted(names)) == names
-
-
-def test_build_provider_defaults_to_yfinance() -> None:
+def test_default_provider_is_yfinance() -> None:
+    assert resolve_provider_name() == "yfinance"
     assert isinstance(build_provider(), YFinanceProvider)
 
 
-def test_build_provider_by_name_returns_placeholder() -> None:
-    assert isinstance(build_provider("stooq"), UnavailableProvider)
+def test_env_var_selects_the_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_PROVIDER", "demo")
+
+    assert resolve_provider_name() == "demo"
+    assert isinstance(build_provider(), DemoMarketDataProvider)
 
 
-def test_build_provider_rejects_unknown_name() -> None:
+def test_explicit_name_beats_the_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_PROVIDER", "demo")
+
+    assert isinstance(build_provider("yfinance"), YFinanceProvider)
+
+
+@pytest.mark.parametrize("name", ["DEMO", " demo ", "Demo"])
+def test_provider_names_are_case_and_space_insensitive(name: str) -> None:
+    assert isinstance(build_provider(name), DemoMarketDataProvider)
+
+
+def test_unknown_provider_name_raises_and_lists_what_is_supported() -> None:
+    with pytest.raises(ValueError, match="Unsupported market data provider") as excinfo:
+        build_provider("not-a-real-provider")
+
+    assert "demo" in str(excinfo.value)
+    assert "yfinance" in str(excinfo.value)
+
+
+def test_unknown_env_provider_fails_at_build_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bad config must stop the composition root, not a later fetch deep in a run."""
+    monkeypatch.setenv("TRADING_MARKET_DATA_PROVIDER", "tiingo")
+
     with pytest.raises(ValueError, match="Unsupported market data provider"):
-        build_provider("unknown-feed")
+        build_provider()
 
 
-def test_build_provider_reads_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TRADING_MARKET_DATA_PROVIDER", "stooq")
-
-    assert isinstance(build_provider(), UnavailableProvider)
-
-
-def test_build_provider_reads_file_config(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    config_path = tmp_path / "market_data_config.json"
-    config_path.write_text(json.dumps({"provider": "stooq"}), encoding="utf-8")
-    monkeypatch.delenv("TRADING_MARKET_DATA_PROVIDER", raising=False)
-    monkeypatch.setenv("TRADING_MARKET_DATA_CONFIG", str(config_path))
-
-    assert isinstance(build_provider(), UnavailableProvider)
+def test_each_call_returns_a_fresh_instance() -> None:
+    assert build_provider("demo") is not build_provider("demo")

@@ -28,7 +28,7 @@ def maintenance_job(
     the sentinel only on a zero exit. Used for housekeeping jobs like the weekly
     DB backup.
     """
-    return account_job(  # type: ignore[return-value]
+    return account_job(
         job_name=job_name,
         sentinel=sentinel,
         period=period,

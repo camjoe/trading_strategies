@@ -10,6 +10,8 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     make_run_auto_trades_args,
     run_auto_trades as module,
 )
+from trading.models.execution import AccountRunResult
+from trading.models.market_data import MarketInputs
 
 
 class FakeConn:
@@ -43,18 +45,36 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         module,
         "resolve_market_inputs",
-        lambda _p, **_kwargs: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}, {}),
+        lambda _p, **_kwargs: MarketInputs(
+            universe=["AAPL", "MSFT"],
+            prices={"AAPL": 100.0, "MSFT": 200.0},
+            iv_rank_proxy={"AAPL": 40.0},
+        ),
     )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
-    run_accounts_mock = Mock(return_value=[("acct1", 2), ("acct2", 2)])
+    run_accounts_mock = Mock(
+        return_value=[
+            AccountRunResult(account_name="acct1", submitted_count=2),
+            AccountRunResult(account_name="acct2", submitted_count=2),
+        ]
+    )
     monkeypatch.setattr(module, "run_accounts", run_accounts_mock)
 
-    module.main()
+    assert module.main() == 0
 
     out = capsys.readouterr().out
     assert "acct1: executed 2 trades" in out
     assert "acct2: executed 2 trades" in out
     assert conn.closed is True
+
+    # Rotation's regime-fit component reads the policy fetcher, and an absent one
+    # degrades to a neutral score rather than failing, so only an assertion here
+    # catches it going missing.
+    fetchers = run_accounts_mock.call_args.kwargs["feature_fetchers"]
+    assert fetchers.fetch_policy is not None
+    assert fetchers.fetch_news is None
+    assert fetchers.fetch_social is None
 
 
 def test_main_additional_validation_paths(monkeypatch) -> None:
@@ -66,6 +86,8 @@ def test_main_additional_validation_paths(monkeypatch) -> None:
 
 def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
     install_main_args(monkeypatch)
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(
         module,
         "resolve_market_inputs",
@@ -88,7 +110,10 @@ def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
 def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
     conn = FakeConn()
     install_main_args(monkeypatch)
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}, {}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
         module,
@@ -105,20 +130,103 @@ def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
 def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     import sys
 
-    import trading.services.auto_trading as auto_trading_module
+    import trading.services.auto_trading.inputs as auto_trading_module
 
     conn = FakeConn()
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
-    monkeypatch.setattr(auto_trading_module, "validate_trade_count_range", lambda *_a: None)
+    # run_module_as_main re-imports the module, so its `from ... import x` binds
+    # to the owning submodule's attribute — patch there, not on the already-imported copy.
+    monkeypatch.setattr(auto_trading_module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
     monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
     monkeypatch.setattr(
         auto_trading_module,
         "resolve_market_inputs",
-        lambda _path, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {"AAPL": 40.0}, {}),
+        lambda _path, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}, iv_rank_proxy={"AAPL": 40.0}),
     )
-    monkeypatch.setattr(auto_trading_module, "run_accounts", lambda *_a, **_kw: [("acct1", 1)])
+    monkeypatch.setattr(
+        auto_trading_module,
+        "run_accounts",
+        lambda *_a, **_kw: [AccountRunResult(account_name="acct1", submitted_count=1)],
+    )
     monkeypatch.setattr(sys, "argv", ["run_auto_trades", "--accounts", "acct1", "--seed", "7"])
 
-    run_module_as_main(module.__name__)
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(module.__name__)
 
+    assert excinfo.value.code == 0
     assert conn.closed is True
+
+
+def test_main_exits_non_zero_on_a_broker_anomaly(monkeypatch, capsys) -> None:
+    """A broker failure mid-submission fails the step: real orders may be in an unknown state."""
+    conn = FakeConn()
+    install_main_args(monkeypatch, accounts="acct1,acct2")
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
+    monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
+    monkeypatch.setattr(
+        module,
+        "run_accounts",
+        Mock(
+            return_value=[
+                AccountRunResult(account_name="acct1", submitted_count=2),
+                AccountRunResult(
+                    account_name="acct2",
+                    submitted_count=1,
+                    kill_switch_reasons=("broker_api_anomaly",),
+                ),
+            ]
+        ),
+    )
+
+    assert module.main() == 1
+    out = capsys.readouterr().out
+    assert "acct2: executed 1 trades (halted: broker_api_anomaly)" in out
+    assert "Broker API anomaly during submission for: acct2" in out
+
+
+def test_main_reports_a_closed_market_per_account(monkeypatch, capsys) -> None:
+    """A shut market must not read as a quiet day, and must not read as a halt."""
+    install_main_args(monkeypatch, accounts="acct1")
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(
+        module,
+        "run_accounts",
+        Mock(return_value=[AccountRunResult(account_name="acct1", submitted_count=0, submission_window_closed=True)]),
+    )
+
+    assert module.main() == 0
+    assert "acct1: executed 0 trades (market closed)" in capsys.readouterr().out
+
+
+def test_main_stays_green_for_a_non_broker_kill_switch(monkeypatch, capsys) -> None:
+    """Stale prices and reconciliation halts are controls working, not run failures."""
+    conn = FakeConn()
+    install_main_args(monkeypatch, accounts="acct1")
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
+    monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
+    monkeypatch.setattr(
+        module,
+        "run_accounts",
+        Mock(
+            return_value=[
+                AccountRunResult(
+                    account_name="acct1",
+                    submitted_count=0,
+                    kill_switch_reasons=("stale_price_data",),
+                )
+            ]
+        ),
+    )
+
+    assert module.main() == 0
+    assert "acct1: executed 0 trades (halted: stale_price_data)" in capsys.readouterr().out

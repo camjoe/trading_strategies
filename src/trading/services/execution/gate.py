@@ -4,9 +4,7 @@ import sqlite3
 from collections.abc import Sequence
 from typing import Protocol
 
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.execution import BookTradeIntent, GateResult, RiskGateDecision
 
 
 class PreSubmitGate(Protocol):
