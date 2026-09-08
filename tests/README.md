@@ -166,7 +166,7 @@ here.
 | Data-defined strategy variants (runtime consumption) | `tests/integration/test_variant_drives_trade.py` |
 | Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` |
 | Canonical evaluation → decision score | evaluation unit suite `tests/src/trading/services/evaluation/` + domain `tests/src/trading/domain/test_evaluation_decision_score.py` |
-| Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` |
+| Promotion workflow (research → paper → live-review) | promotion unit suite `tests/src/trading/services/promotion/` (`test_actions.py` state machine + `test_eligibility.py` approval crossing) |
 | Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` |
 | Broker abstraction + `live_trading_enabled` guard | unit suite `tests/src/infrastructure/brokers/test_factory.py` + daily-job e2e (real factory, paper path) |
 | Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` |
