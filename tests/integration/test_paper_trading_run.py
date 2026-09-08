@@ -1,9 +1,14 @@
 """Integration test for a signal-driven paper-trading run.
 
-Covers the core capabilities "signal-driven paper execution" and "paper
-trading" from ``docs/overview.md``. The test drives the ``run_accounts``
-service entry that the daily job calls, with the real selection, risk gate,
-submission, and persistence path. Only three collaborators are controlled:
+Covers the core capability "signal-driven paper execution" from
+``docs/overview.md``. The test drives the ``run_accounts`` service entry that
+the daily job calls, with the real selection, risk gate, submission, and
+persistence path, and checks the resulting book bookkeeping: an order, a
+position, a ledger entry, and the book's cash drawn down by the fill. Equity
+snapshots and benchmark overlays are a separate daily-workflow step, not part
+of ``run_accounts``, so they are out of scope here.
+
+Only three collaborators are controlled:
 
 - the market-hours window is forced open, so the run does not depend on when
   the test runs;
@@ -28,6 +33,7 @@ from tests.support.books import assign_test_book_strategy, build_book_env
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.market_data import MarketInputs
 from trading.models.orders import BrokerOrder, OrderStatus
+from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -114,3 +120,8 @@ def test_run_accounts_executes_and_persists_a_signal_driven_buy(
     assert PositionRepository(conn).fetch(book_id=env.book_id, symbol=TICKER) is not None
     assert LedgerRepository(conn).fetch_for_book(book_id=env.book_id) != []
     assert broker.disconnect_calls == 1
+
+    # The book paid for the fill: its cash is drawn down from the starting equity.
+    book = BookRepository(conn).fetch_by_id(book_id=env.book_id)
+    assert book is not None
+    assert book.current_cash < 100_000.0
