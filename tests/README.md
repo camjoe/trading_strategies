@@ -184,7 +184,8 @@ on their mocked-main unit tests.
 |---|---|
 | Daily (`run_auto_trades`) | `tests/e2e/test_daily_paper_trading_job.py` |
 | Governance weekly (`w1_leaderboard`) | `tests/e2e/test_weekly_governance_job.py` |
-| Daily `reconcile_orders` / `challenger_shadow_eval` / `trader_health` | mocked-main unit tests only |
+| Daily `reconcile_orders` | `tests/e2e/test_reconcile_orders_job.py` |
+| Daily `challenger_shadow_eval` / `trader_health` | mocked-main unit tests only |
 | Governance `w2` / `w3` / monthly `m1` / `m2` / `m3` | mocked-main unit tests only |
 | Maintenance `burn_in_status` / `replay_daily_runs` / `weekly_db_backup` | mocked-main unit tests only |
 
