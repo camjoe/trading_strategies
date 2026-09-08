@@ -150,14 +150,14 @@ capability.
 | Backtesting + walk-forward optimization | `tests/e2e/test_backtest_cli.py` | done |
 | Data-defined strategy variants | `tests/e2e/test_strategy_variant_cli.py` | done |
 | Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` | done |
-| Canonical evaluation → decision score | — | to do |
-| Promotion workflow (research → paper → live-review) | — | to do |
-| Multi-book accounts (rotation, risk gate, reconciliation) | — | to do |
-| Broker abstraction + `live_trading_enabled` guard | — | to do |
-| Feature providers (policy → rotation regime-fit) | — | to do |
-| Runtime scheduler jobs | — | to do |
-| Operational settings + parameter source | — | to do |
-| Cross-account portfolio risk rollup | — | to do |
+| Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` | done |
+| Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` | done |
+| Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` | done |
+| Broker abstraction + `live_trading_enabled` guard | `tests/integration/test_broker_factory_guard.py` | done |
+| Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` | done |
+| Runtime scheduler jobs | `tests/e2e/test_daily_paper_trading_job.py` | done |
+| Operational settings + parameter source | `tests/integration/test_operational_settings_parameters.py` | done |
+| Cross-account portfolio risk rollup | `tests/integration/test_portfolio_risk_rollup.py` | done |
 
 ## Fixture Hierarchy
 
