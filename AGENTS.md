@@ -181,14 +181,11 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs deterministic aggregate checks and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow. Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the
+fail-fast step sequence, stop conditions, and the saved report format.
 
-- `pr ready` — full 6-step workflow vs `develop` (default base)
-- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
-
-Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step sequence
-(deterministic gate → architecture → style → quality → docs check → report saved to
-`local/pr_readiness_report.md`).
+- `pr ready` — vs `develop` (default base)
+- `pr ready: <base>` — vs a custom base branch (e.g. `pr ready: main`)
 
 **Individual step shortcuts** — run any step on its own:
 
@@ -202,10 +199,5 @@ Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step s
 | `pr arch review` | AI architecture review for branch diff vs develop |
 | `pr arch review: <base>` | AI architecture review vs a custom base |
 
-**Deterministic-only commands** (no AI, no tokens):
-
-```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base develop
-python -m scripts.run_checks python --base main --no-cov
-```
+For the underlying deterministic commands (no AI, no tokens), see
+`.ai/skills/validate-code/SKILL.md`.
