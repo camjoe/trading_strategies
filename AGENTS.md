@@ -129,9 +129,9 @@ These phrases are repo conventions for common tasks.
 
 ### `sync docs` or `docs sync`
 
-- Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.ai/skills/update-documentation/SKILL.md`.
-- After edits, run `python -m scripts.checks.docs.readme_check`.
+- Detect drift: `python -m scripts.run_checks docs --advisory` (README structure, links, maps, headers).
+- Rewrite the flagged prose: follow `.ai/skills/update-documentation/SKILL.md`.
+- After edits, re-run `python -m scripts.run_checks docs --advisory` to confirm.
 
 ### `run suite`
 
@@ -173,11 +173,6 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 - Run `python -m scripts.run_checks ci`.
 - Report pass/fail by step and include failing command details.
-
-### `update documentation`
-
-- Run `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`.
-- Report which README files need updates.
 
 ### `pr ready`
 
