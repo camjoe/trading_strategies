@@ -1,11 +1,14 @@
 """Integration test that a data-defined variant is tradeable at runtime.
 
 Covers the runtime-consumption half of "data-defined strategy variants" from
-``docs/overview.md``: a variant is resolved at runtime from its catalog row —
-the primitive's code with the row's tuned knobs layered on top — and drives a
-real trade. The CLI write side (create/tune/freeze) is covered by
-``tests/e2e/test_strategy_variant_cli.py``; this test picks up the row and runs
-it through the live selection, gate, submission, and persistence path.
+``docs/overview.md``: a service-created variant, assigned to a book, drives a
+real trade attributed to that variant. The CLI write side (create/tune/freeze)
+is covered by ``tests/e2e/test_strategy_variant_cli.py``, and the catalog
+resolution + knob-layering by
+``tests/src/trading/services/strategy_catalog/test_resolution.py``; this test
+proves the end-to-end chain those two stop short of — the variant row actually
+reaching execution through the live selection, gate, submission, and
+persistence path.
 
 Note: the backtester does *not* consume catalog variants — it resolves through
 the code registry. Variants reach execution only through this runtime path, so
@@ -29,7 +32,6 @@ from trading.repositories.orders import OrderRepository
 from trading.services.auto_trading.inputs import run_accounts
 from trading.services.books.book_assignments import open_assignment_for_book
 from trading.services.strategy_catalog.mutations import create_strategy_variant
-from trading.services.strategy_catalog.resolution import resolve_catalog_strategy
 
 VARIANT_KEY = "tuned_trend_pilot"
 TICKER = "AAA"
@@ -67,20 +69,14 @@ def _rising_market() -> MarketInputs:
 
 def test_tuned_variant_resolves_and_drives_a_trade(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
     # A variant of the "trend" primitive with knobs tuned away from its defaults
-    # (fast/slow default to 10/20).
+    # (fast/slow default to 10/20). Resolution and knob-layering are unit-tested
+    # in test_resolution.py; here the variant has to reach execution.
     create_strategy_variant(
         conn,
         strategy_key=VARIANT_KEY,
         primitive="trend",
         params={"fast_window": 8, "slow_window": 21},
     )
-
-    # The runtime resolution the selection path uses layers the tuned knobs over
-    # the primitive defaults.
-    resolved = resolve_catalog_strategy(conn, VARIANT_KEY)
-    assert resolved.primitive_spec.primitive == "trend"
-    assert resolved.params["fast_window"] == 8
-    assert resolved.params["slow_window"] == 21
 
     env = build_book_env(conn, start_equity=100_000.0)
     assign_test_book_strategy(conn, book_id=env.book_id, strategy_name=VARIANT_KEY)
