@@ -106,8 +106,16 @@ ADR (set `Status: Superseded` on the old one and link the replacement in `Relate
 2. `## Decision` — what was decided and how it works
 3. `## Consequences` — trade-offs, constraints imposed, follow-up work
 
-Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`), the inline
-reference-note template above, or `docs/adr/TEMPLATE.adr.md`.
+Start from the inline reference-note template above or `docs/adr/TEMPLATE.adr.md`.
+
+### Registering a new doc
+
+After the file meets the header standard, connect it so readers can find it:
+
+1. Add an entry to `docs/README.md` and `docs/maps/docs-map.md`.
+2. Fill the `Related` field with inline links to the docs it connects to.
+3. For an ADR, add a reference from each architecture doc the decision affects
+   (for example, `docs/architecture/architecture-conventions.md`).
 
 ---
 

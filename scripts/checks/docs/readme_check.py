@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from common.constants import SECONDS_PER_DAY
-from common.files import modified_at_utc
 from common.git import get_repo_root
 from common.paths import relative_posix
 
@@ -18,7 +15,6 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 class ReadmeReport:
     path: Path
     style_issues: list[str] = field(default_factory=list)
-    staleness_issue: str | None = None
 
 
 def normalize_rel(path: Path, repo_root: Path) -> str:
@@ -115,25 +111,9 @@ def evaluate_style(path: Path, repo_root: Path, headings: list[tuple[int, str]],
     return issues
 
 
-def evaluate_staleness(path: Path, max_age_days: int) -> str | None:
-    if max_age_days <= 0:
-        return None
-
-    age = datetime.now(tz=UTC) - modified_at_utc(path)
-    max_age = timedelta(days=max_age_days)
-
-    if age > max_age:
-        whole_days = int(age.total_seconds() // SECONDS_PER_DAY)
-        return f"README not updated in {whole_days} days (threshold: {max_age_days})."
-
-    return None
-
-
 def run_readme_consistency(
     repo_root: Path,
-    max_age_days: int = 90,
     enforce_style: bool = False,
-    enforce_staleness: bool = False,
     quiet: bool = False,
 ) -> int:
     if not repo_root.exists():
@@ -158,30 +138,23 @@ def run_readme_consistency(
             headings,
             first_non_empty_line(content),
         )
-        report.staleness_issue = evaluate_staleness(path, max_age_days=max_age_days)
         reports.append(report)
 
     style_issue_count = sum(len(report.style_issues) for report in reports)
-    stale_count = sum(1 for report in reports if report.staleness_issue)
 
     # Quiet mode: when everything is clean, collapse to a single line. Any issue
     # falls through to the full advisory report below so warnings stay visible.
-    if quiet and not (style_issue_count or stale_count):
+    if quiet and not style_issue_count:
         print(f"PASS: README consistency - {len(reports)} files scanned, no issues.")
         return 0
 
     print("README Consistency Audit")
     print(f"Repo root: {repo_root}")
     print(f"README files scanned: {len(reports)}")
-    print(
-        "Mode: advisory"
-        + (", style-enforced" if enforce_style else "")
-        + (", staleness-enforced" if enforce_staleness else "")
-    )
+    print("Mode: advisory" + (", style-enforced" if enforce_style else ""))
     print(f"Style issues: {style_issue_count}")
-    print(f"Stale README files: {stale_count} (threshold days: {max_age_days})")
 
-    if style_issue_count or stale_count:
+    if style_issue_count:
         print("\nFindings:")
         for report in reports:
             rel = normalize_rel(report.path, repo_root)
@@ -189,16 +162,12 @@ def run_readme_consistency(
                 print(f"- {rel}")
                 for issue in report.style_issues:
                     print(f"  style: {issue}")
-            if report.staleness_issue:
-                print(f"- {rel}")
-                print(f"  stale: {report.staleness_issue}")
 
-    should_fail = (enforce_style and style_issue_count > 0) or (enforce_staleness and stale_count > 0)
-    if should_fail:
+    if enforce_style and style_issue_count > 0:
         print("\nFAIL: README consistency audit failed in enforce mode.")
         return 1
 
-    if style_issue_count or stale_count:
+    if style_issue_count:
         print("\nWARN: README consistency audit found advisory issues.")
     else:
         print("\nPASS: README consistency audit passed.")
@@ -215,20 +184,9 @@ def parse_args() -> argparse.Namespace:
         help="Repository root. Defaults to detected workspace root.",
     )
     parser.add_argument(
-        "--max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for staleness reporting.",
-    )
-    parser.add_argument(
         "--enforce-style",
         action="store_true",
         help="Exit non-zero when README style issues are found.",
-    )
-    parser.add_argument(
-        "--enforce-staleness",
-        action="store_true",
-        help="Exit non-zero when stale README files are found.",
     )
     return parser.parse_args()
 
@@ -239,9 +197,7 @@ def main() -> int:
 
     exit_code = run_readme_consistency(
         repo_root=repo_root,
-        max_age_days=args.max_age_days,
         enforce_style=args.enforce_style,
-        enforce_staleness=args.enforce_staleness,
     )
     if exit_code == 0:
         print("\nREADME consistency check completed successfully.")

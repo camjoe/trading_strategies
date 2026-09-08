@@ -24,7 +24,9 @@ Detection (is something stale?) is handled by CI and the `check-pr-readiness` wo
 
 ## Creating reference docs or ADRs?
 
-Use the `reference-doc/` skill instead — it handles new reference documents and architecture decision records.
+Follow `docs/conventions/docs-authoring.md` — it is the authoritative standard for new reference
+documents and architecture decision records (header format, templates, section layouts, and how to
+register the new doc).
 
 ## Repo references
 

@@ -28,7 +28,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
-- Skill authoring and localization guidance: `.ai/skills/manage-skill/SKILL.md`
+- Skill authoring and localization guidance: `.ai/skills/README.md` (Authoring rules)
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
@@ -75,11 +75,7 @@ Current skill inventory:
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
-| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
-| `help/` | Interactive discovery: list available skills and common prompts |
-| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
-| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
 | `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 
@@ -94,20 +90,16 @@ Default to the most specific matching skill; work without one when nothing match
 | Lightweight quick diff check | `code-review/` (Baseline mode) |
 | High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
 | Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
-| Create or update a reference doc or ADR | `reference-doc/` |
+| Create or update a reference doc or ADR | Follow `docs/conventions/docs-authoring.md` |
 | README, reference, or API drift | `update-documentation/` |
 | Frontend-only cleanup in `apps/paper_trading_web/frontend` | `code-review/` (Cleanup mode) |
 | Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
 | Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
-| Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
-| Create a new skill | `manage-skill/` |
-| Update or improve a skill | `manage-skill/` |
-| Discover available skills and prompts | `help/` |
 | Schema migration work or safety review | `db-migration/` |
 | Broker adapters or live-trading safety review | `code-review/` (Aggressive mode) + the Live Trading Safety Guard in `docs/architecture/architecture-conventions.md` |
 | Runtime job / scheduler work | `create-runtime-job/` for new jobs; `docs/reference/runtime-jobs.md` + `docs/runbooks/` for operating existing ones |
@@ -144,9 +136,9 @@ These phrases are repo conventions for common tasks.
 
 ### `sync docs` or `docs sync`
 
-- Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.ai/skills/update-documentation/SKILL.md`.
-- After edits, run `python -m scripts.checks.docs.readme_check`.
+- Detect drift: `python -m scripts.run_checks docs --advisory` (README structure, links, maps, headers).
+- Rewrite the flagged prose: follow `.ai/skills/update-documentation/SKILL.md`.
+- After edits, re-run `python -m scripts.run_checks docs --advisory` to confirm.
 
 ### `run suite`
 
@@ -189,21 +181,13 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.run_checks ci`.
 - Report pass/fail by step and include failing command details.
 
-### `update documentation`
-
-- Run `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`.
-- Report which README files need updates.
-
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs deterministic aggregate checks and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow. Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the
+fail-fast step sequence, stop conditions, and the saved report format.
 
-- `pr ready` — full 6-step workflow vs `develop` (default base)
-- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
-
-Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step sequence
-(deterministic gate → architecture → style → quality → docs check → report saved to
-`local/pr_readiness_report.md`).
+- `pr ready` — vs `develop` (default base)
+- `pr ready: <base>` — vs a custom base branch (e.g. `pr ready: main`)
 
 **Individual step shortcuts** — run any step on its own:
 
@@ -217,10 +201,5 @@ Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step s
 | `pr arch review` | AI architecture review for branch diff vs develop |
 | `pr arch review: <base>` | AI architecture review vs a custom base |
 
-**Deterministic-only commands** (no AI, no tokens):
-
-```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base develop
-python -m scripts.run_checks python --base main --no-cov
-```
+For the underlying deterministic commands (no AI, no tokens), see
+`.ai/skills/validate-code/SKILL.md`.

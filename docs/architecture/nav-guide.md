@@ -159,7 +159,7 @@ The maps and this guide serve different questions:
 | Run tests for a specific area | `python -m scripts.checks.run_suite <path-prefix> --no-cov` |
 | Add a new check to CI | `scripts/checks/<new_check>.py` + register in `scripts/checks/ci.py` |
 | Change layer/import boundary rules | `scripts/checks/repo/layer_check.py` |
-| Check README freshness only | `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90` |
+| Check README structure only | `python -m scripts.checks.docs.readme_check --repo-root .` |
 
 ---
 
@@ -195,4 +195,4 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 | Add a new reference note or ADR | `docs/reference/` — use the inline reference-note template in `docs/conventions/docs-authoring.md` or `docs/adr/TEMPLATE.adr.md` |
 | Update a runbook | `docs/runbooks/<runbook>.md` |
-| Check README freshness | `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90` |
+| Check README structure | `python -m scripts.checks.docs.readme_check --repo-root .` |

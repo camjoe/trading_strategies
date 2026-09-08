@@ -20,7 +20,6 @@ def run_docs_check(
     *,
     enforce: bool = False,
     quiet: bool = False,
-    readme_max_age_days: int = 90,
     include_reference_docs: bool = True,
 ) -> int:
     exit_code = run_check_steps(
@@ -29,9 +28,7 @@ def run_docs_check(
                 "README consistency",
                 lambda: run_readme_consistency(
                     repo_root=repo_root,
-                    max_age_days=readme_max_age_days,
                     enforce_style=enforce,
-                    enforce_staleness=enforce,
                     quiet=quiet,
                 ),
             ),
@@ -87,12 +84,6 @@ def parse_args() -> argparse.Namespace:
         help="Collapse clean checks to one-line PASS output.",
     )
     parser.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for consistency checks.",
-    )
-    parser.add_argument(
         "--skip-reference-docs",
         action="store_true",
         help="Skip generated documentation UI asset checks.",
@@ -107,7 +98,6 @@ def main() -> int:
         repo_root=repo_root,
         enforce=args.enforce,
         quiet=args.quiet,
-        readme_max_age_days=args.readme_max_age_days,
         include_reference_docs=not args.skip_reference_docs,
     )
 

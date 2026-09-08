@@ -39,17 +39,6 @@ def test_readme_consistency_fails_with_enforce_style(tmp_path: Path) -> None:
     assert "FAIL: README consistency audit failed in enforce mode." in result.stdout
 
 
-def test_readme_consistency_flags_stale_readmes(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "README.md").write_text("# Title\n\n## Project Overview\n", encoding="utf-8")
-
-    result = _run_check(repo, "--max-age-days", "0")
-
-    assert result.returncode == 0
-    assert "Stale README files: 0 (threshold days: 0)" in result.stdout
-
-
 def test_readme_consistency_ignores_code_fence_headings(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
