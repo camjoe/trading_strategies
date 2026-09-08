@@ -111,6 +111,54 @@ python -m pytest -o addopts= tests/scripts/test_readme_check.py
 
 Use `-o addopts=` when local environments do not have coverage plugins required by default pytest options.
 
+## Integration and End-to-End Tests
+
+Two suites break the mirror-`src` layout on purpose, because each test crosses
+several modules:
+
+- `tests/integration/` — a flow that crosses several services against a real
+  database, with no external process. The `integration` marker.
+- `tests/e2e/` — a full workflow driven through a real entrypoint (the CLI or a
+  runtime job) against a real database. The `e2e` marker.
+
+The marker follows the folder. `tests/conftest.py` tags every item under those
+two paths, so a new file needs no per-module `pytestmark`. Select or exclude a
+suite with `-m`:
+
+```sh
+python -m pytest -o addopts= tests/integration tests/e2e   # both suites, fast
+python -m pytest -m e2e                                     # only e2e
+python -m pytest -m "not integration and not e2e"          # only the unit suites
+```
+
+Use `-o addopts=` to run these on their own, because the default `addopts`
+enforces a repository-wide coverage floor that a subset cannot meet.
+
+**No network, no wall clock.** An e2e test forces the deterministic `demo`
+market-data provider (`TRADING_MARKET_DATA_PROVIDER=demo`), so a CLI run makes
+no network call and repeats. An integration test that runs the trading runtime
+forces the market-hours window open, so it does not depend on when it runs.
+
+### Capability coverage
+
+Each row is a core capability from [`docs/overview.md`](../docs/overview.md)
+("What it can do today"). The goal is at least one integration or e2e test per
+capability.
+
+| Capability | Test | Status |
+|---|---|---|
+| Backtesting + walk-forward optimization | `tests/e2e/test_backtest_cli.py` | done |
+| Data-defined strategy variants | `tests/e2e/test_strategy_variant_cli.py` | done |
+| Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` | done |
+| Canonical evaluation → decision score | — | to do |
+| Promotion workflow (research → paper → live-review) | — | to do |
+| Multi-book accounts (rotation, risk gate, reconciliation) | — | to do |
+| Broker abstraction + `live_trading_enabled` guard | — | to do |
+| Feature providers (policy → rotation regime-fit) | — | to do |
+| Runtime scheduler jobs | — | to do |
+| Operational settings + parameter source | — | to do |
+| Cross-account portfolio risk rollup | — | to do |
+
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).

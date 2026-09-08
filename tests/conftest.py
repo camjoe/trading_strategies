@@ -14,6 +14,21 @@ from tests.support.db_schema import build_db_at_head
 from tests.support.seed.db import seed_session_db
 
 
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Tag tests by folder so ``-m integration`` / ``-m e2e`` select them.
+
+    The two suites break the mirror-``src`` layout on purpose, because they
+    cross modules. The marker follows the folder, so a new file needs no
+    per-module ``pytestmark``.
+    """
+    for item in items:
+        path = str(item.fspath).replace("\\", "/")
+        if "/tests/integration/" in path:
+            item.add_marker("integration")
+        elif "/tests/e2e/" in path:
+            item.add_marker("e2e")
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _guard_sqlite_uri_readonly() -> None:
     """Abort the session if SQLite URI read-only mode is not functional.
