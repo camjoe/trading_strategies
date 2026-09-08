@@ -1,12 +1,17 @@
 """Integration test for multi-book execution within one account.
 
 Covers the core capability "multi-book accounts" from ``docs/overview.md``:
-one broker account hosts several independent books that each trade their own
-strategy and universe, and the account-wide trade budget is shared across
-them. The test runs two active books through the real selection, risk gate,
-submission, and persistence path, and checks each book executed its own
-symbol. Only the market-hours window, the reconciliation pre-flight, and the
-broker are controlled; the ``trend`` signal is real.
+one broker account hosts several independent books, each trading its own
+universe. The test runs two active books through the real selection, risk gate,
+submission, and persistence path, and checks each book's order is routed to and
+persisted on its own book. Only the market-hours window, the reconciliation
+pre-flight, and the broker are controlled; the ``trend`` signal is real.
+
+The account-wide trade budget cap and the book claim order are unit-tested in
+``tests/src/trading/services/execution/selection/test_book_intents.py`` (the
+``account_cap`` / ``account_trade_budget`` cases); this test uses a
+non-binding budget so both books trade, and proves the multi-book submission
+and per-book persistence those selection tests stop short of.
 """
 
 from __future__ import annotations
