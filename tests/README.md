@@ -169,7 +169,7 @@ here.
 | Promotion workflow (research → paper → live-review) | promotion unit suite `tests/src/trading/services/promotion/` (`test_actions.py` state machine + `test_eligibility.py` approval crossing) |
 | Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` |
 | Broker abstraction + `live_trading_enabled` guard | unit suite `tests/src/infrastructure/brokers/test_factory.py` + daily-job e2e (real factory, paper path) |
-| Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` |
+| Feature providers (policy → rotation regime-fit) | `tests/src/infrastructure/feature_providers/test_policy_feature_provider.py` + rotation `test_metrics.py` (composition wiring: daily-job path) |
 | Operational settings + parameter source | `tests/integration/test_operational_settings_parameters.py` |
 | Cross-account portfolio risk rollup | `tests/integration/test_portfolio_risk_rollup.py` |
 
