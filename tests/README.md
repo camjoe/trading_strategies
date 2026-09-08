@@ -168,7 +168,7 @@ here.
 | Canonical evaluation → decision score | `tests/integration/test_evaluation_decision_score.py` |
 | Promotion workflow (research → paper → live-review) | `tests/integration/test_promotion_workflow.py` |
 | Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` |
-| Broker abstraction + `live_trading_enabled` guard | `tests/integration/test_broker_factory_guard.py` |
+| Broker abstraction + `live_trading_enabled` guard | unit suite `tests/src/infrastructure/brokers/test_factory.py` + daily-job e2e (real factory, paper path) |
 | Feature providers (policy → rotation regime-fit) | `tests/integration/test_policy_regime_fit.py` |
 | Operational settings + parameter source | `tests/integration/test_operational_settings_parameters.py` |
 | Cross-account portfolio risk rollup | `tests/integration/test_portfolio_risk_rollup.py` |
