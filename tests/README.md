@@ -111,6 +111,91 @@ python -m pytest -o addopts= tests/scripts/test_readme_check.py
 
 Use `-o addopts=` when local environments do not have coverage plugins required by default pytest options.
 
+## Integration and End-to-End Tests
+
+Two suites break the mirror-`src` layout on purpose, because each test crosses
+several modules:
+
+- `tests/integration/` — a flow that crosses several services against a real
+  database, with no external process. The `integration` marker.
+- `tests/e2e/` — a full workflow driven through a real entrypoint (the CLI or a
+  runtime job) against a real database. The `e2e` marker.
+
+The marker follows the folder. `tests/conftest.py` tags every item under those
+two paths, so a new file needs no per-module `pytestmark`. Select or exclude a
+suite with `-m`:
+
+```sh
+python -m pytest -o addopts= tests/integration tests/e2e   # both suites, fast
+python -m pytest -m e2e                                     # only e2e
+python -m pytest -m "not integration and not e2e"          # only the unit suites
+```
+
+Use `-o addopts=` to run these on their own, because the default `addopts`
+enforces a repository-wide coverage floor that a subset cannot meet.
+
+**No network, no wall clock.** An e2e test forces the deterministic `demo`
+market-data provider (`TRADING_MARKET_DATA_PROVIDER=demo`), so a CLI run makes
+no network call and repeats. An integration test that runs the trading runtime
+forces the market-hours window open, so it does not depend on when it runs.
+
+### Coverage — anchored on the entrypoint inventory
+
+Scope authority is the **entrypoint inventory** (CLI commands, runtime jobs, API
+routes), not the [`docs/overview.md`](../docs/overview.md) narrative. The
+overview is an accurate product description, but it compresses the operational
+surface — 14 runtime jobs into one bullet, 11 API routes into "an optional web
+UI" — so it is the wrong authority for deciding what deserves an integration or
+e2e test. Re-derive this inventory from the code when it ages (last derived
+2026-09-07); the `overview.md` "Built but not wired up" list carries the same
+warning.
+
+The rule these tests follow: integration/e2e covers the **seams unit tests
+cannot reach** — CLI parsing, the composition root, the provider factory, cross
+-command state, cross-service workflows, and process wiring. Unit tests keep
+owning the behavioral matrix and failure branches, so those are not duplicated
+here.
+
+**Analytical and trading capabilities**
+
+| Capability | Test |
+|---|---|
+| Backtesting | `tests/e2e/test_backtest_cli.py` |
+| Walk-forward optimization + winner promotion | `tests/e2e/test_backtest_optimize_cli.py` |
+| Data-defined strategy variants (CLI write side) | `tests/e2e/test_strategy_variant_cli.py` |
+| Data-defined strategy variants (runtime consumption) | `tests/integration/test_variant_drives_trade.py` |
+| Signal-driven paper execution + paper trading | `tests/integration/test_paper_trading_run.py` |
+| Canonical evaluation → decision score | evaluation unit suite `tests/src/trading/services/evaluation/` + domain `tests/src/trading/domain/test_evaluation_decision_score.py` |
+| Promotion workflow (research → paper → live-review) | promotion unit suite `tests/src/trading/services/promotion/` (`test_actions.py` state machine + `test_eligibility.py` approval crossing) |
+| Multi-book accounts (independent books share the trade budget) | `tests/integration/test_multi_book_execution.py` |
+| Broker abstraction + `live_trading_enabled` guard | unit suite `tests/src/infrastructure/brokers/test_factory.py` + daily-job e2e (real factory, paper path) |
+| Feature providers (policy → rotation regime-fit) | `tests/src/infrastructure/feature_providers/test_policy_feature_provider.py` + rotation `test_metrics.py` (composition wiring: daily-job path) |
+| Operational settings + parameter source | `tests/src/trading/services/operational_settings/test_mutations.py` + parameters `test_view.py` (mutation→view crossing) |
+| Cross-account portfolio risk rollup | `tests/src/trading/services/analysis/test_exposure.py` + `test_concentration.py` (cross-account aggregation) |
+
+**Runtime jobs (14 entrypoints)**
+
+Each job already has a `*_main.py` unit test under
+`tests/src/trading/interfaces/runtime/jobs/` (mostly with mocked dependencies).
+The e2e tests below prove the real-DB path for one job per family; the rest rely
+on their mocked-main unit tests.
+
+| Job family | Real-DB e2e |
+|---|---|
+| Daily (`run_auto_trades`) | `tests/e2e/test_daily_paper_trading_job.py` |
+| Governance weekly (`w1_leaderboard`) | `tests/e2e/test_weekly_governance_job.py` |
+| Daily `reconcile_orders` | `tests/e2e/test_reconcile_orders_job.py` |
+| Daily `challenger_shadow_eval` / `trader_health` | mocked-main unit tests only |
+| Governance `w2` / `w3` / monthly `m1` / `m2` / `m3` | mocked-main unit tests only |
+| Maintenance `burn_in_status` / `replay_daily_runs` / `weekly_db_backup` | mocked-main unit tests only |
+
+**API routes (11 modules)**
+
+Every route module has an `api_client` test under
+`tests/apps/paper_trading_web/backend/routes/` that runs the real FastAPI app
+against a real migrated database — that is integration-level HTTP coverage
+already, so these are not re-tested here.
+
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).
