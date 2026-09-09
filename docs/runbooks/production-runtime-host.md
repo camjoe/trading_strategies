@@ -108,13 +108,12 @@ a missing file is silently ignored rather than failing the job:
 
 ```bash
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-    --env-file /home/<user>/trading-prod/.env \
-    --daily-paper-trading-time <PRIMARY_HH:MM> \
-    ...
+    --env-file /home/<user>/trading-prod/.env
 ```
 
-Replace schedule placeholders with private operator values from
-`local/operations/production-host-checklist.md`.
+Set the run times in the gitignored `job_schedule.json` under `src/infrastructure/config/` first
+(see [runtime-jobs.md](../reference/runtime-jobs.md#the-schedule-config)). Record host-specific
+values in `local/operations/production-host-checklist.md`.
 
 Secrets stay in `.env` on disk, mode `600`. Only systemd reads them at runtime — they are never
 embedded in the unit files or any logs.
@@ -143,9 +142,7 @@ Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the ven
 ```bash
 python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --python /home/<user>/trading-prod/run-job.sh \
-    --scheduler cron \
-    --daily-paper-trading-time <PRIMARY_HH:MM> \
-    ...
+    --scheduler cron
 ```
 
 Every cron line then runs through the wrapper, which loads `.env` before handing off to Python.
@@ -176,29 +173,29 @@ At minimum set:
 
 ### 1.5 Register the schedule (systemd timers)
 
-`manage_job_schedules` auto-detects systemd on Linux and generates systemd timer + service units with `WakeSystem=yes`, so the machine wakes from sleep before each job fires. It writes a sudo-ready install script to `local/install_trading_timers.sh`. Run from `~/trading-prod`. **Always `--dry-run` first:**
+First set the run times. Copy `src/infrastructure/config/job_schedule.example.json` to
+`job_schedule.json` beside it (gitignored) and set real times, days, and the enabled flags (see
+[runtime-jobs.md](../reference/runtime-jobs.md#the-schedule-config)).
+
+`manage_job_schedules` reads that file, auto-detects systemd on Linux, and generates systemd timer +
+service units with `WakeSystem=yes`, so the machine wakes from sleep before each job fires. It writes
+a sudo-ready install script to `local/install_trading_timers.sh`. Run from `~/trading-prod`.
+**Always `--dry-run` first:**
 
 ```bash
 cd ~/trading-prod
-python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-    --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --health-check-time <HEALTH_HH:MM> \
-    --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY> \
-    --dry-run
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --dry-run
 ```
 
 Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
-python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-    --daily-paper-trading-time <PRIMARY_HH:MM> \
-    --health-check-time <HEALTH_HH:MM> \
-    --weekly-db-backup-time <BACKUP_HH:MM> --weekly-db-backup-day-of-week <DAY>
-
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules
 sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```
 
-See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (challenger shadow-eval) and their flags. Verify timers are active:
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for the config
+format and every available job. Verify timers are active:
 
 ```bash
 systemctl list-timers --all | grep -E 'daily-|weekly-'
@@ -265,13 +262,29 @@ git pull origin main
 ./.venv/bin/pip install -r requirements-base.txt
 ./.venv/bin/pip install -e . --no-build-isolation
 # If a DB migration shipped: apply it (see db-migration-system.md)
-# If job set or schedule times changed: re-run Part 1.5 registration
+# A code-only change needs nothing more — the scheduler runs `python -m <module>`, so the
+# next scheduled run loads the new code. Re-register only when the schedule set, times, args,
+# or interpreter path change (see runtime-jobs.md "When a reinstall is needed").
+```
+
+If the schedule set or times changed, edit the gitignored `job_schedule.json` in
+`src/infrastructure/config/` and re-apply. The apply reads that file by default, removes disabled or
+absent jobs, and registers the rest, so the host matches the file:
+
+```bash
+cd ~/trading-prod
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --dry-run
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules
+# systemd generates local/install_trading_timers.sh; apply it:
+sudo bash ~/trading-prod/local/install_trading_timers.sh
 ```
 
 ### 2.5 Post-deploy verification
 
 ```bash
 cd ~/trading-prod
+# Confirm the registered schedules match the config (exit 0 = in sync):
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --status
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m scripts.check_jobs
 ```

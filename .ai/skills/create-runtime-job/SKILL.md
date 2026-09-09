@@ -49,9 +49,10 @@ the job module.
 
 ## 5. Wire the schedule (daily + maintenance only)
 
-In `manage_job_schedules.py`: add `<NAME>_MODULE`, a `DEFAULT_..._TASK_NAME`, a
-`--...-time` argument, and a `build_scheduled_tasks` entry; add the task name to
-`default_task_names`. Governance jobs are not installer-registered.
+In `scheduling/job_catalog.py`: add a `JobDefinition` to `JOB_CATALOG`, keyed by a short
+`job_id` (module, task name, `schedule_kind`, log file). The operator then enables it by adding an
+entry to `job_schedule.json`. `manage_job_schedules.py` needs no change — it registers whatever the
+catalog and config define. Governance jobs are not installer-registered.
 
 ## 6. Add the inventory row
 

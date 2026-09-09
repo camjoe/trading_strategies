@@ -2,6 +2,9 @@
 local/*
 .claude/output-styles/*
 
+# The live job schedule holds private run times; the tracked template beside it does not.
+src/infrastructure/config/job_schedule.json
+
 # Runtime databases and logs remain private regardless of where a tool writes them.
 *.db
 *.sqlite

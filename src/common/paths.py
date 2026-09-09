@@ -24,6 +24,11 @@ ACCOUNT_PROFILES_DIR = TRADING_CONFIG_DIR / "account_profiles"
 DEFAULT_ACCOUNT_PROFILE_PATH = ACCOUNT_PROFILES_DIR / "default.json"
 TRADE_UNIVERSES_DIR = TRADING_CONFIG_DIR / "trade_universes"
 SYMBOL_SECTORS_PATH = TRADING_CONFIG_DIR / "symbol_sectors.json"
+# Tracked template the operator copies to JOB_SCHEDULE_PATH and edits with real times.
+JOB_SCHEDULE_EXAMPLE_PATH = TRADING_CONFIG_DIR / "job_schedule.example.json"
+# The live desired schedule the scheduler CLI reads by default. Gitignored (real
+# times are private), so it sits beside the tracked example, like .env / .env.example.
+JOB_SCHEDULE_PATH = TRADING_CONFIG_DIR / "job_schedule.json"
 PAPER_TRADING_DB_PATH = LOCAL_DIR / "paper_trading.db"
 DB_BACKUPS_DIR = LOCAL_DIR / "db_backups"
 LOGS_DIR = LOCAL_DIR / "logs"

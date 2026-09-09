@@ -113,6 +113,66 @@ def test_build_windows_register_command_for_weekly_task(tmp_path: Path) -> None:
     assert "value with space" in command
 
 
+def test_build_windows_register_command_hardening_settings(tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:10"
+    )
+
+    with_wake = scheduler_installer.build_windows_register_command(
+        task, tmp_path, tmp_path / "python.exe", wake_system=True
+    )
+    # StartWhenAvailable is the Persistent=true analogue: run a missed start once
+    # the machine is back. The battery flags let a laptop start and finish off AC.
+    assert "New-ScheduledTaskSettingsSet" in with_wake
+    assert "-StartWhenAvailable" in with_wake
+    assert "-AllowStartIfOnBatteries" in with_wake
+    assert "-DontStopIfGoingOnBatteries" in with_wake
+    assert "-WakeToRun" in with_wake
+
+    without_wake = scheduler_installer.build_windows_register_command(
+        task, tmp_path, tmp_path / "python.exe", wake_system=False
+    )
+    assert "-WakeToRun" not in without_wake
+    assert "-StartWhenAvailable" in without_wake
+
+
+def test_registered_task_names_windows_returns_only_present(monkeypatch) -> None:
+    monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Windows")
+    present = {r"Trading\DailyPaperTrading"}
+
+    def fake_run(command, *, check, capture_output, text):
+        return SimpleNamespace(returncode=0 if command[-1] in present else 1)
+
+    monkeypatch.setattr(scheduler_installer.subprocess, "run", fake_run)
+
+    result = scheduler_installer.registered_task_names(
+        [r"Trading\DailyPaperTrading", r"Trading\WeeklyDbBackup"],
+        scheduler_type="auto",
+    )
+    assert result == {r"Trading\DailyPaperTrading"}
+
+
+def test_registered_task_names_cron_matches_markers(monkeypatch) -> None:
+    monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(scheduler_installer, "load_crontab_lines", lambda: ["0 1 * * * cmd # Trading\\WeeklyDbBackup"])
+
+    result = scheduler_installer.registered_task_names(
+        [r"Trading\DailyPaperTrading", r"Trading\WeeklyDbBackup"],
+        scheduler_type="cron",
+    )
+    assert result == {r"Trading\WeeklyDbBackup"}
+
+
+def test_registered_task_names_systemd_off_host_returns_none(monkeypatch) -> None:
+    # A systemd target queried from a host without /etc/systemd/system cannot be
+    # read; None tells the caller to say so rather than report "all missing".
+    monkeypatch.setattr(scheduler_installer, "resolve_scheduler_backend", lambda _kind: "systemd")
+    monkeypatch.setattr(scheduler_installer.Path, "exists", lambda self: False)
+
+    result = scheduler_installer.registered_task_names([r"Trading\DailyPaperTrading"], scheduler_type="systemd")
+    assert result is None
+
+
 def test_build_linux_cron_line_for_weekly_task(tmp_path: Path) -> None:
     task = scheduler_installer.ScheduledTaskSpec(
         task_name=r"Trading\WeeklyDbBackup",

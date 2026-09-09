@@ -1,37 +1,27 @@
 #!/usr/bin/env python3
-"""Manage job schedules on Windows or Linux."""
+"""Manage job schedules on Windows or Linux from the declarative schedule config."""
 
 from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 from common.git import get_repo_root
-from trading.interfaces.runtime.jobs.job_helpers import (
-    DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-    DAILY_PAPER_TRADING_MODULE,
-    DAILY_TRADER_HEALTH_CHECK_MODULE,
-    WEEKLY_DB_BACKUP_MODULE,
+from common.paths import JOB_SCHEDULE_PATH
+from trading.interfaces.runtime.scheduling.job_catalog import (
+    ALL_TASK_NAMES,
+    ScheduleResolution,
+    resolve_schedule_config,
 )
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
-    ScheduledTaskSpec,
     register_tasks_for_platform,
+    registered_task_names,
     unregister_tasks_for_platform,
 )
 
-DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
-DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME = r"Trading\DailyChallengerShadowEval"
-DEFAULT_DAILY_TRADER_HEALTH_CHECK_TASK_NAME = r"Trading\DailyTraderHealthCheck"
-DEFAULT_WEEKLY_DB_BACKUP_TASK_NAME = r"Trading\WeeklyDbBackup"
-
-# Time format used by scheduler CLI for daily task registration.
-SCHEDULE_TIME_FORMAT = "%H:%M"
-# Number of minutes in a day for wrap-around validation.
-MINUTES_PER_DAY = 24 * 60
-# Default lead time to run shadow evaluation before daily paper trading.
-DEFAULT_SHADOW_EVAL_LEAD_MINUTES = 20
+SchedulerChoice = Literal["auto", "cron", "systemd"]
 
 
 def _default_python() -> str:
@@ -44,74 +34,22 @@ def _default_python() -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Manage job schedules for paper trading operations.")
+    parser = argparse.ArgumentParser(description="Manage runtime job schedules from the schedule config file.")
     parser.add_argument(
-        "--daily-paper-trading-time",
+        "--config",
         default="",
-        help="24h time HH:MM for the primary paper-trading run",
-    )
-    parser.add_argument(
-        "--daily-paper-trading-task-name",
-        default=DEFAULT_DAILY_PAPER_TRADING_TASK_NAME,
-    )
-    parser.add_argument(
-        "--daily-challenger-shadow-eval-time",
-        default="",
-        help="Optional HH:MM for the daily challenger shadow-evaluation entry",
-    )
-    parser.add_argument(
-        "--daily-challenger-shadow-eval-task-name",
-        default=DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME,
-    )
-    parser.add_argument(
-        "--enable-daily-challenger-shadow-eval",
-        action="store_true",
-        help="Append --enable-run to the challenger shadow-evaluation scheduler command",
-    )
-    parser.add_argument(
-        "--auto-shadow-eval-from-daily-paper",
-        action="store_true",
         help=(
-            "Derive shadow-eval task time from --daily-paper-trading-time when "
-            "--daily-challenger-shadow-eval-time is not provided."
+            "Path to the declarative job schedule JSON file (see "
+            f"src/infrastructure/config/job_schedule.example.json). Defaults to {JOB_SCHEDULE_PATH}. "
+            "The file is the source of truth: enabled jobs are registered and the rest removed."
         ),
     )
     parser.add_argument(
-        "--shadow-eval-lead-minutes",
-        type=int,
-        default=DEFAULT_SHADOW_EVAL_LEAD_MINUTES,
-        help=(f"Lead minutes for auto-derived shadow-eval schedule (default: {DEFAULT_SHADOW_EVAL_LEAD_MINUTES})."),
+        "--status",
+        action="store_true",
+        help="Report drift between the config file and the schedules registered on this host, then exit.",
     )
-    parser.add_argument(
-        "--health-check-time",
-        default="",
-        help="Optional HH:MM for the daily trader health-check entry",
-    )
-    parser.add_argument(
-        "--health-check-task-name",
-        default=DEFAULT_DAILY_TRADER_HEALTH_CHECK_TASK_NAME,
-    )
-    parser.add_argument(
-        "--health-check-max-age-hours",
-        type=float,
-        default=24.0,
-        help="Max age threshold passed to the health-check command (default: 24)",
-    )
-    parser.add_argument(
-        "--weekly-db-backup-time",
-        default="",
-        help="Optional HH:MM for the weekly database backup entry",
-    )
-    parser.add_argument(
-        "--weekly-db-backup-day-of-week",
-        default="Sunday",
-        help="Day of week for the weekly database backup entry (default: Sunday)",
-    )
-    parser.add_argument(
-        "--weekly-db-backup-task-name",
-        default=DEFAULT_WEEKLY_DB_BACKUP_TASK_NAME,
-    )
-    parser.add_argument("--unregister", action="store_true", help="Remove schedule entries")
+    parser.add_argument("--unregister", action="store_true", help="Remove every catalog schedule entry")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without applying")
     parser.add_argument(
         "--python",
@@ -128,13 +66,13 @@ def parse_args() -> argparse.Namespace:
         "--wake-system",
         action="store_true",
         default=True,
-        help="Configure systemd timers to wake the system from sleep (default: true)",
+        help="Wake the system from sleep before each run (systemd WakeSystem / Windows WakeToRun; default: true)",
     )
     parser.add_argument(
         "--no-wake-system",
         action="store_false",
         dest="wake_system",
-        help="Disable WakeSystem on systemd timers",
+        help="Disable the wake-from-sleep setting on the registered tasks",
     )
     parser.add_argument(
         "--env-file",
@@ -148,130 +86,126 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _derive_shadow_eval_time_from_daily_paper(
-    daily_paper_time: str,
+def _config_path(args: argparse.Namespace) -> Path:
+    """Resolve the schedule config path, defaulting to the tracked-beside-example live file."""
+    return Path(args.config) if args.config else JOB_SCHEDULE_PATH
+
+
+def apply_schedule_config(
+    resolution: ScheduleResolution,
     *,
-    lead_minutes: int,
-) -> str:
-    if lead_minutes <= 0 or lead_minutes >= MINUTES_PER_DAY:
-        raise ValueError(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}")
-    base = datetime.strptime(daily_paper_time, SCHEDULE_TIME_FORMAT)
-    derived = base - timedelta(minutes=lead_minutes)
-    return derived.strftime(SCHEDULE_TIME_FORMAT)
+    repo_root: Path,
+    python_exe: str,
+    dry_run: bool,
+    scheduler_type: SchedulerChoice,
+    wake_system: bool,
+    env_file: Path | None,
+) -> int:
+    """Make the host match the config: remove disabled jobs, then register enabled ones.
 
-
-def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
-    tasks: list[ScheduledTaskSpec] = []
-
-    if args.daily_paper_trading_time:
-        tasks.append(
-            ScheduledTaskSpec(
-                task_name=args.daily_paper_trading_task_name,
-                module=DAILY_PAPER_TRADING_MODULE,
-                time=args.daily_paper_trading_time,
-                log_name="daily_paper_trading_scheduler.log",
-            )
+    Only jobs actually registered are removed, so a fresh apply does not fail on a
+    delete of a never-registered task.
+    """
+    installed = registered_task_names(resolution.to_unregister, scheduler_type=scheduler_type, repo_root=repo_root)
+    if installed is None:
+        stale = list(resolution.to_unregister)
+    else:
+        stale = [name for name in resolution.to_unregister if name in installed]
+    if stale:
+        code = unregister_tasks_for_platform(
+            stale, dry_run=dry_run, scheduler_type=scheduler_type, repo_root=repo_root
         )
-
-    shadow_eval_time = args.daily_challenger_shadow_eval_time
-    auto_shadow_eval = False
-    should_auto_derive_shadow_eval = (
-        not shadow_eval_time and bool(args.auto_shadow_eval_from_daily_paper) and bool(args.daily_paper_trading_time)
+        if code != 0:
+            return code
+    if not resolution.to_register:
+        return 0
+    return register_tasks_for_platform(
+        resolution.to_register,
+        repo_root=repo_root,
+        python_exe=python_exe,
+        dry_run=dry_run,
+        scheduler_type=scheduler_type,
+        wake_system=wake_system,
+        env_file=env_file,
     )
-    if should_auto_derive_shadow_eval:
-        shadow_eval_time = _derive_shadow_eval_time_from_daily_paper(
-            args.daily_paper_trading_time,
-            lead_minutes=int(args.shadow_eval_lead_minutes),
+
+
+def run_status_report(config_path: Path, *, scheduler_type: SchedulerChoice, repo_root: Path) -> int:
+    """Print config-vs-installed drift. Return 0 in sync, 1 on drift, 2 if not readable."""
+    resolution = resolve_schedule_config(config_path)
+    desired = {spec.task_name for spec in resolution.to_register}
+    installed = registered_task_names(ALL_TASK_NAMES, scheduler_type=scheduler_type, repo_root=repo_root)
+    if installed is None:
+        print(
+            "Cannot read installed schedules from this host (systemd target). "
+            "Run --status on the runtime host itself.",
+            file=sys.stderr,
         )
-        auto_shadow_eval = True
+        return 2
 
-    if shadow_eval_time:
-        shadow_eval_args = ("--enable-run",) if args.enable_daily_challenger_shadow_eval or auto_shadow_eval else ()
-        tasks.append(
-            ScheduledTaskSpec(
-                task_name=args.daily_challenger_shadow_eval_task_name,
-                module=DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-                time=shadow_eval_time,
-                args=shadow_eval_args,
-                log_name="daily_challenger_shadow_eval_scheduler.log",
-            )
-        )
+    print(f"Schedule config: {config_path}")
+    for name in ALL_TASK_NAMES:
+        want = name in desired
+        have = name in installed
+        if want and have:
+            state = "OK        (enabled, registered)"
+        elif want and not have:
+            state = "MISSING   (enabled, not registered)"
+        elif have and not want:
+            state = "STALE     (registered, should be off)"
+        else:
+            state = "off       (disabled, not registered)"
+        print(f"  {state}  {name}")
 
-    if args.health_check_time:
-        tasks.append(
-            ScheduledTaskSpec(
-                task_name=args.health_check_task_name,
-                module=DAILY_TRADER_HEALTH_CHECK_MODULE,
-                time=args.health_check_time,
-                args=("--max-age-hours", str(args.health_check_max_age_hours)),
-                log_name="daily_trader_health_check_scheduler.log",
-            )
-        )
-
-    if args.weekly_db_backup_time:
-        tasks.append(
-            ScheduledTaskSpec(
-                task_name=args.weekly_db_backup_task_name,
-                module=WEEKLY_DB_BACKUP_MODULE,
-                time=args.weekly_db_backup_time,
-                log_name="weekly_db_backup_scheduler.log",
-                schedule_kind="weekly",
-                day_of_week=args.weekly_db_backup_day_of_week,
-            )
-        )
-
-    return tasks
-
-
-def default_task_names(args: argparse.Namespace) -> list[str]:
-    return [
-        args.daily_paper_trading_task_name,
-        args.daily_challenger_shadow_eval_task_name,
-        args.health_check_task_name,
-        args.weekly_db_backup_task_name,
-    ]
+    missing = desired - installed
+    stale = installed - desired
+    if not missing and not stale:
+        print("In sync.")
+        return 0
+    print("Drift found. Run an apply to reconcile:")
+    print(f"  python -m trading.interfaces.runtime.scheduling.manage_job_schedules --config {config_path}")
+    return 1
 
 
 def main() -> int:
     args = parse_args()
-    if args.health_check_max_age_hours <= 0:
-        print("--health-check-max-age-hours must be > 0", file=sys.stderr)
-        return 2
-    shadow_eval_lead_is_invalid = (
-        args.shadow_eval_lead_minutes <= 0 or args.shadow_eval_lead_minutes >= MINUTES_PER_DAY
-    )
-    if shadow_eval_lead_is_invalid:
-        print(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}", file=sys.stderr)
-        return 2
-
     repo_root = get_repo_root(__file__)
 
-    try:
-        if args.unregister:
+    if args.status:
+        try:
+            return run_status_report(_config_path(args), scheduler_type=args.scheduler, repo_root=repo_root)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+
+    if args.unregister:
+        try:
             code = unregister_tasks_for_platform(
-                default_task_names(args),
+                list(ALL_TASK_NAMES),
                 dry_run=args.dry_run,
                 scheduler_type=args.scheduler,
                 repo_root=repo_root,
             )
-        else:
-            tasks = build_scheduled_tasks(args)
-            if not tasks:
-                print(
-                    "Provide at least one schedule time to register runtime jobs "
-                    "(for example --daily-paper-trading-time 13:10).",
-                    file=sys.stderr,
-                )
-                return 2
-            code = register_tasks_for_platform(
-                tasks,
-                repo_root=repo_root,
-                python_exe=args.python,
-                dry_run=args.dry_run,
-                scheduler_type=args.scheduler,
-                wake_system=args.wake_system,
-                env_file=Path(args.env_file) if args.env_file else None,
-            )
+        except Exception as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        if code != 0:
+            print("Scheduler command returned a non-zero exit code.", file=sys.stderr)
+            return code
+        print("Runtime job schedules removed.")
+        return 0
+
+    try:
+        resolution = resolve_schedule_config(_config_path(args))
+        code = apply_schedule_config(
+            resolution,
+            repo_root=repo_root,
+            python_exe=args.python,
+            dry_run=args.dry_run,
+            scheduler_type=args.scheduler,
+            wake_system=args.wake_system,
+            env_file=Path(args.env_file) if args.env_file else None,
+        )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -280,11 +214,10 @@ def main() -> int:
         print("Scheduler command returned a non-zero exit code.", file=sys.stderr)
         return code
 
-    action = "removed" if args.unregister else "registered"
-    print(f"Runtime job schedules {action}.")
-    if not args.unregister:
-        print(f"Repo: {repo_root}")
-        print(f"Python: {args.python}")
+    print("Runtime job schedules applied from config.")
+    print(f"Config: {_config_path(args)}")
+    print(f"Repo: {repo_root}")
+    print(f"Python: {args.python}")
     return 0
 
 
