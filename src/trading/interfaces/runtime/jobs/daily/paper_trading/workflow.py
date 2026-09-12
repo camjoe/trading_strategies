@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from common.logging_setup import log_counts
 from common.runtime_job_status import (
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
@@ -162,6 +163,48 @@ def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
 
 
+def _int_field(details: dict[str, object], key: str) -> int:
+    value = details.get(key)
+    return value if isinstance(value, int) else 0
+
+
+def _sum_account_field(details: dict[str, object], key: str) -> int:
+    entries = details.get("accounts")
+    if not isinstance(entries, list):
+        return 0
+    return sum(entry[key] for entry in entries if isinstance(entry, dict) and isinstance(entry.get(key), int))
+
+
+def build_run_summary(
+    step_results: list[DagStepResult],
+    *,
+    accounts: list[str],
+    kill_switch_accounts: list[str],
+) -> dict[str, object]:
+    """Roll up the counts already in step 06/07 plus this run's log tally.
+
+    A top-level answer to "how many orders / how many were blocked / how noisy was
+    this run", so a reader need not dig into step_results. A step that never ran
+    leaves empty details, so its counts read as zero.
+    """
+    risk = step_result(step_results, "06_pretrade_risk_gate").details
+    submission = step_result(step_results, "07_submit_ibkr_orders").details
+    counts = log_counts()
+    return {
+        "accounts": len(accounts),
+        "orders_submitted": _sum_account_field(submission, "order_count"),
+        "orders_accepted": _sum_account_field(submission, "accepted_count"),
+        "orders_turned_away": _sum_account_field(submission, "turned_away_count"),
+        "decisions_total": _int_field(risk, "total_decisions"),
+        "decisions_blocked": _int_field(risk, "blocked"),
+        "decisions_rescaled": _int_field(risk, "rescaled"),
+        "kill_switch_count": len(kill_switch_accounts),
+        "log_warnings": counts["warning"],
+        "log_errors": counts["error"],
+        "log_critical": counts["critical"],
+    }
+
+
 def _finish_run(
     args: argparse.Namespace,
     context: DailyRunContext,
@@ -187,6 +230,9 @@ def _finish_run(
         **context.run_meta,
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
         "kill_switch_accounts": kill_switch_accounts,
+        "summary": build_run_summary(
+            step_results, accounts=context.accounts, kill_switch_accounts=kill_switch_accounts
+        ),
         "completed_steps": completed_steps_from_dag(step_results),
         "step_results": serialize_step_results(step_results),
         "finished_at": ts(),

@@ -20,6 +20,7 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, …) |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
 | `git.py` | Best-effort git interrogation of the checkout — arbitrary commands (`run_git`), repo-root discovery (`get_repo_root`), and HEAD revision for provenance (`git_head_revision`) |
+| `logging_setup.py` | Central stdlib-logging config for runtime jobs (`configure_logging`), a per-run correlation id (`bind_run_id`/`resolve_run_id`/`current_run_id`), and a WARNING+ tally (`log_counts`) |
 | `paths.py` | Repo-relative path constants (`REPO_ROOT`, `LOCAL_DIR`, `LOGS_DIR`, …) and path display formatting (`relative_posix`) |
 | `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
 | `tickers.py` | Ticker-file parsing (`parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |

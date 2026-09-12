@@ -13,6 +13,7 @@ import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
 
+from common.logging_setup import current_run_id
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     parse_account_trade_caps,
     resolve_trade_caps,
@@ -97,6 +98,7 @@ def build_run_context(
     report_date = (as_of_date or dt.date.today()).isoformat()
     run_meta: dict[str, object] = {
         "job": "daily_paper_trading",
+        "run_id": current_run_id(),
         "run_source": args.run_source,
         # True only when an operator overrode the duplicate-run guard, so a run
         # that traded a date twice says so in its own artifact.

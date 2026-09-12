@@ -3,12 +3,38 @@ import type {
   AutonomyAccountOverview,
   AutonomyBook,
   AutonomyDailyWorkflow,
+  AutonomyRunSummary,
   GovernanceCheckStatus,
   BurnInStatus,
   RotationDecision,
   RiskSummary,
   RiskViolation,
 } from "../types/autonomy-monitor";
+
+function renderRunSummary(summary: AutonomyRunSummary | undefined): string {
+  if (!summary) {
+    return "";
+  }
+  const fields: Array<[string, number | undefined]> = [
+    ["Orders submitted", summary.orders_submitted],
+    ["Orders accepted", summary.orders_accepted],
+    ["Decisions blocked", summary.decisions_blocked],
+    ["Kill switches", summary.kill_switch_count],
+    ["Log warnings", summary.log_warnings],
+    ["Log errors", summary.log_errors],
+  ];
+  const cells = fields
+    .filter(([, value]) => typeof value === "number")
+    .map(
+      ([label, value]) => `
+        <div class="item">
+          <span class="label">${label}</span>
+          <span class="value">${value}</span>
+        </div>`,
+    )
+    .join("");
+  return cells ? `<div class="workflow-summary">${cells}</div>` : "";
+}
 
 export function renderAccountOverview(account: AutonomyAccountOverview["account"]): string {
   const returnClass = account.return_pct >= 0 ? "up" : "down";
@@ -134,6 +160,7 @@ export function renderDailyWorkflowPanel(workflow: AutonomyDailyWorkflow | null)
           </div>
         ` : ""}
       </div>
+      ${renderRunSummary(workflow.summary)}
       ${workflow.failed_step ? `
         <div class="error-box">
           <strong>Failed Step:</strong> ${workflow.failed_step}

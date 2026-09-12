@@ -73,6 +73,7 @@ def test_fetch_daily_workflow_status_returns_unknown_when_no_artifact(
     assert result["completed_steps"] == 0
     assert result["duration_seconds"] is None
     assert result["failed_step"] is None
+    assert result["summary"] == {}
 
 
 def test_fetch_daily_workflow_status_parses_artifact(mock_repo_root: Path) -> None:
@@ -94,6 +95,7 @@ def test_fetch_daily_workflow_status_parses_artifact(mock_repo_root: Path) -> No
                     {"step": "05_build_position_targets_by_book", "status": "ok", "duration_seconds": 12.0},
                 ],
                 "completed_steps": [],
+                "summary": {"orders_submitted": 4, "decisions_blocked": 1, "log_errors": 0},
             }
         )
     )
@@ -106,6 +108,7 @@ def test_fetch_daily_workflow_status_parses_artifact(mock_repo_root: Path) -> No
     # A skipped step is a recorded decision, so it counts as reached-a-conclusion.
     assert result["completed_steps"] == 3
     assert result["failed_step"] is None
+    assert result["summary"] == {"orders_submitted": 4, "decisions_blocked": 1, "log_errors": 0}
 
 
 def test_fetch_daily_workflow_status_handles_failed_run(mock_repo_root: Path) -> None:

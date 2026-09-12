@@ -1,292 +1,125 @@
 #!/usr/bin/env python3
-"""Check the status of scheduled automation jobs (trading + backup).
+"""Report the status of every monitored runtime job (trading + governance + backup).
+
+The job list and per-job status come from
+``trading.services.operations.job_status``, the same source the web Admin panel
+reads, so the two never disagree on which jobs exist.
 
 Usage:
     python scripts/check_jobs.py
-    python scripts/check_jobs.py --run-missing    # also trigger any jobs that haven't run
+    python scripts/check_jobs.py --run-missing    # also trigger unhealthy jobs
 """
 
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import subprocess
 import sys
-from pathlib import Path
 
-from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.git import get_repo_root
-from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
-from trading.interfaces.runtime.jobs.maintenance.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
+from trading.services.operations.job_status import JobStatus, evaluate_all_jobs
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
-DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily.paper_trading"
-WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
+# The daily run must complete every trading day; the others are reported but a
+# not-yet-run weekly/monthly job is expected, not a failure. A job that STARTED
+# but never wrote its sentinel ("warning") is a real failure at any cadence.
+DAILY_MUST_RUN_KEY = "daily_paper_trading"
+
+_TRIGGER_TIMEOUT_SECONDS = 300
+_OK = "✅"
+_WARN = "⚠️ "
+_ERR = "❌"
 
 
 def _use_utf8_stdout() -> None:
-    """Keep the box-drawing report readable on consoles that default to cp1252."""
+    """Keep the report readable on consoles that default to cp1252."""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(encoding="utf-8", errors="replace")
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+def is_unhealthy(status: JobStatus) -> bool:
+    if status.status == "warning":
+        return True
+    return status.job.key == DAILY_MUST_RUN_KEY and status.status != "ok"
 
 
-def _log_has_sentinel(path: Path, sentinel: str) -> bool:
-    try:
-        return sentinel in path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+def _icon(status: JobStatus) -> str:
+    if status.status == "ok":
+        return _OK
+    if status.status == "warning":
+        return _WARN
+    return _ERR
 
 
-def _log_mtime(path: Path) -> dt.datetime:
-    return modified_at_utc(path).astimezone()
+def _run_command(status: JobStatus) -> list[str]:
+    return [sys.executable, "-m", status.job.module, *status.job.args]
 
 
-def _days_ago(d: dt.date) -> str:
-    delta = dt.date.today() - d
-    if delta.days == 0:
-        return "today"
-    if delta.days == 1:
-        return "yesterday"
-    return f"{delta.days} days ago"
-
-
-# ---------------------------------------------------------------------------
-# Daily trading job
-# ---------------------------------------------------------------------------
-
-
-def _check_daily_job(
-    *,
-    job: str,
-    pattern: str,
-    sentinel: str,
-    run_cmd: list[str],
-) -> dict:
-    """Return status dict for a daily job."""
-    today = dt.date.today()
-    logs = sorted_by_mtime_desc(LOGS_DIR.glob(pattern))
-
-    today_str = today.strftime("%Y%m%d")
-    today_complete = False
-    today_log: Path | None = None
-    for log in logs:
-        if today_str in log.name:
-            today_log = log
-            today_complete = _log_has_sentinel(log, sentinel)
-            break
-
-    last_success: dt.date | None = None
-    last_success_log: Path | None = None
-    for log in logs:
-        if _log_has_sentinel(log, DAILY_SENTINEL):
-            last_success = _log_mtime(log).date()
-            last_success_log = log
-            break
-
-    return {
-        "job": job,
-        "today_ran": today_log is not None,
-        "today_complete": today_complete,
-        "today_log": today_log,
-        "last_success": last_success,
-        "last_success_log": last_success_log,
-        "run_cmd": run_cmd,
-    }
-
-
-def _check_daily() -> dict:
-    """Return status dict for the daily paper-trading job."""
-    return _check_daily_job(
-        job="Daily Paper Trading",
-        pattern="daily_paper_trading_[0-9]*_[0-9]*.log",
-        sentinel=DAILY_SENTINEL,
-        run_cmd=[sys.executable, "-m", DAILY_SCRIPT],
-    )
-
-
-# ---------------------------------------------------------------------------
-# Weekly backup job
-# ---------------------------------------------------------------------------
-
-
-def _check_weekly() -> dict:
-    """Return status dict for the weekly database backup job."""
-    today = dt.date.today()
-    iso = today.isocalendar()
-    week_tag = f"{iso[0]}_W{iso[1]:02d}"
-
-    pattern = "weekly_db_backup_*.log"
-    logs = sorted_by_mtime_desc(LOGS_DIR.glob(pattern))
-
-    this_week_complete = False
-    this_week_log: Path | None = None
-    for log in logs:
-        if week_tag in log.name:
-            this_week_log = log
-            this_week_complete = _log_has_sentinel(log, WEEKLY_SENTINEL)
-            break
-
-    last_success: dt.date | None = None
-    last_success_log: Path | None = None
-    for log in logs:
-        if _log_has_sentinel(log, WEEKLY_SENTINEL):
-            last_success = _log_mtime(log).date()
-            last_success_log = log
-            break
-
-    return {
-        "job": "Weekly DB Backup",
-        "week_tag": week_tag,
-        "this_week_ran": this_week_log is not None,
-        "this_week_complete": this_week_complete,
-        "this_week_log": this_week_log,
-        "last_success": last_success,
-        "last_success_log": last_success_log,
-        "run_cmd": [sys.executable, "-m", WEEKLY_SCRIPT],
-    }
-
-
-# ---------------------------------------------------------------------------
-# Display
-# ---------------------------------------------------------------------------
-
-_OK = "✅"
-_WARN = "⚠️ "
-_ERR = "❌"
-
-
-def _print_daily(s: dict) -> bool:
-    """Print daily status. Returns True if healthy."""
-    today = dt.date.today()
+def _print_status(status: JobStatus) -> None:
     print(f"\n{'─' * 50}")
-    print(f"  {s['job']}")
-    print(f"{'─' * 50}")
-
-    if s["today_complete"]:
-        print(f"  {_OK}  Completed today ({today})")
-    elif s["today_ran"]:
-        log_name = s["today_log"].name if s["today_log"] else "?"
-        print(f"  {_WARN} Started today but sentinel not found — may have failed")
-        print(f"      Log: {log_name}")
+    print(f"  {_icon(status)} {status.job.label}  ({status.job.cadence}, {status.window_label})")
+    if status.status == "ok":
+        print("  Completed this period.")
+    elif status.status == "warning":
+        print("  Started this period but the success sentinel is missing — may have failed.")
     else:
-        print(f"  {_ERR}  No run recorded for today ({today})")
-
-    if s["last_success"]:
-        ago = _days_ago(s["last_success"])
-        log_name = s["last_success_log"].name if s["last_success_log"] else "?"
-        print(f"  Last success : {s['last_success']}  ({ago})")
-        print(f"  Log          : {log_name}")
+        print("  No completed run for this period.")
+    if status.last_success_log is not None:
+        print(f"  Last success log: {status.last_success_log.name}")
     else:
-        print("  Last success : never found in logs")
-
-    healthy = s["today_complete"]
-    if not healthy:
-        cmd = " ".join(str(x) for x in s["run_cmd"])
-        print(f"\n  Run manually : {cmd}")
-    return healthy
+        print("  Last success   : never found in logs")
+    if is_unhealthy(status):
+        print(f"  Run manually   : {' '.join(_run_command(status))}")
 
 
-def _print_weekly(s: dict) -> bool:
-    """Print weekly status. Returns True if healthy."""
-    print(f"\n{'─' * 50}")
-    print(f"  {s['job']}  ({s['week_tag']})")
-    print(f"{'─' * 50}")
-
-    if s["this_week_complete"]:
-        print(f"  {_OK}  Completed this week ({s['week_tag']})")
-    elif s["this_week_ran"]:
-        log_name = s["this_week_log"].name if s["this_week_log"] else "?"
-        print(f"  {_WARN} Started this week but sentinel not found — may have failed")
-        print(f"      Log: {log_name}")
-    else:
-        print(f"  {_ERR}  No run recorded for {s['week_tag']}")
-
-    if s["last_success"]:
-        ago = _days_ago(s["last_success"])
-        log_name = s["last_success_log"].name if s["last_success_log"] else "?"
-        print(f"  Last success : {s['last_success']}  ({ago})")
-        print(f"  Log          : {log_name}")
-    else:
-        print("  Last success : never found in logs")
-
-    healthy = s["this_week_complete"]
-    if not healthy:
-        cmd = " ".join(str(x) for x in s["run_cmd"])
-        print(f"\n  Run manually : {cmd}")
-    return healthy
-
-
-# ---------------------------------------------------------------------------
-# Optional run-missing
-# ---------------------------------------------------------------------------
-
-
-def _trigger(run_cmd: list[str], label: str) -> None:
-    print(f"\n  ▶  Triggering {label}…")
+def _trigger(status: JobStatus) -> None:
+    print(f"\n  ▶  Triggering {status.job.label}…")
     try:
-        result = subprocess.run(run_cmd, cwd=str(REPO_ROOT), timeout=300)
+        result = subprocess.run(_run_command(status), cwd=str(REPO_ROOT), timeout=_TRIGGER_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
-        print(f"  {_ERR}  {label} timed out after 300 seconds.")
+        print(f"  {_ERR}  {status.job.label} timed out after {_TRIGGER_TIMEOUT_SECONDS} seconds.")
         return
     if result.returncode == 0:
-        print(f"  {_OK}  {label} completed successfully.")
+        print(f"  {_OK}  {status.job.label} completed successfully.")
     else:
-        print(f"  {_ERR}  {label} exited with code {result.returncode}.")
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+        print(f"  {_ERR}  {status.job.label} exited with code {result.returncode}.")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check status of scheduled automation jobs.")
+    parser = argparse.ArgumentParser(description="Check the status of monitored runtime jobs.")
     parser.add_argument(
         "--run-missing",
         action="store_true",
-        help="Trigger any jobs that haven't run successfully yet (daily or weekly).",
+        help="Trigger any unhealthy job (the daily run if it has not completed today, or any job that started but did not finish).",
     )
     args = parser.parse_args()
 
     _use_utf8_stdout()
-    today = dt.date.today()
     print(f"\n{'=' * 50}")
-    print(f"  Automation Job Status — {today}")
+    print("  Runtime Job Status")
     print(f"{'=' * 50}")
 
-    daily_jobs = [_check_daily()]
-    weekly = _check_weekly()
+    statuses = evaluate_all_jobs(logs_dir=LOGS_DIR)
+    for status in statuses:
+        _print_status(status)
 
-    daily_ok = True
-    for daily in daily_jobs:
-        daily_ok = _print_daily(daily) and daily_ok
-    weekly_ok = _print_weekly(weekly)
-
+    unhealthy = [status for status in statuses if is_unhealthy(status)]
     print(f"\n{'─' * 50}\n")
 
     if args.run_missing:
-        for daily in daily_jobs:
-            if not daily["today_complete"]:
-                _trigger(daily["run_cmd"], daily["job"])
-        if not weekly_ok:
-            _trigger(weekly["run_cmd"], weekly["job"])
-        daily_ok = _check_daily()["today_complete"]
-        weekly_ok = _check_weekly()["this_week_complete"]
-    else:
-        if not daily_ok or not weekly_ok:
-            print("  Tip: pass --run-missing to trigger any outstanding jobs.\n")
+        for status in unhealthy:
+            _trigger(status)
+        statuses = evaluate_all_jobs(logs_dir=LOGS_DIR)
+        unhealthy = [status for status in statuses if is_unhealthy(status)]
+    elif unhealthy:
+        print("  Tip: pass --run-missing to trigger the unhealthy jobs above.\n")
 
-    return 0 if (daily_ok and weekly_ok) else 1
+    return 0 if not unhealthy else 1
 
 
 if __name__ == "__main__":

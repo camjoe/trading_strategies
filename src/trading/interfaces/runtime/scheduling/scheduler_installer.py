@@ -137,7 +137,33 @@ def _systemd_calendar_expression(task: ScheduledTaskSpec) -> str:
     return f"*-*-* {hour:02d}:{minute:02d}:00"
 
 
-def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path) -> str:
+def build_windows_settings_expression(*, wake_system: bool) -> str:
+    """Build the -Settings expression that keeps a Windows task firing reliably.
+
+    ``StartWhenAvailable`` runs a task as soon as the machine is back if its
+    scheduled start was missed while off or asleep — the analogue of the systemd
+    ``Persistent=true`` used on the Linux path. The battery options let the task
+    start and finish on a laptop that is not on AC. ``WakeToRun`` wakes the
+    machine from sleep before the run, matching systemd ``WakeSystem=yes``.
+    """
+    parts = [
+        "New-ScheduledTaskSettingsSet",
+        "-StartWhenAvailable",
+        "-AllowStartIfOnBatteries",
+        "-DontStopIfGoingOnBatteries",
+    ]
+    if wake_system:
+        parts.append("-WakeToRun")
+    return " ".join(parts)
+
+
+def build_windows_register_command(
+    task: ScheduledTaskSpec,
+    repo_root: Path,
+    python_exe: Path,
+    *,
+    wake_system: bool = True,
+) -> str:
     # Validates the time, and the day when weekly; the rendered values below
     # come from the task itself, so only the raising matters here.
     _schedule_expression(task)
@@ -158,10 +184,12 @@ def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, pyt
         f"-Argument '{_powershell_quote(argument)}' "
         f"-WorkingDirectory '{_powershell_quote(str(repo_root))}'"
     )
+    settings = build_windows_settings_expression(wake_system=wake_system)
     return (
         f"Register-ScheduledTask -TaskName '{_powershell_quote(task.task_name)}' -Force "
         f"-Action ({action}) "
-        f"-Trigger ({trigger})"
+        f"-Trigger ({trigger}) "
+        f"-Settings ({settings})"
     )
 
 
@@ -393,7 +421,10 @@ def register_tasks_for_platform(
     resolved_python = Path(python_exe).expanduser().absolute()
 
     if backend == "windows":
-        commands = [build_windows_register_command(task, resolved_repo_root, resolved_python) for task in tasks]
+        commands = [
+            build_windows_register_command(task, resolved_repo_root, resolved_python, wake_system=wake_system)
+            for task in tasks
+        ]
         if dry_run:
             for command in commands:
                 print("DRY RUN powershell command:")
@@ -458,3 +489,40 @@ def unregister_tasks_for_platform(
         marker = f"# {task_name}"
         updated_lines = [line for line in updated_lines if marker not in line]
     return write_crontab_lines(updated_lines, dry_run)
+
+
+def _windows_task_exists(task_name: str) -> bool:
+    result = subprocess.run(
+        ["schtasks", "/Query", "/TN", task_name],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def registered_task_names(
+    candidate_task_names: Sequence[str],
+    *,
+    scheduler_type: Literal["auto", "cron", "systemd"] = "auto",
+    repo_root: Path | None = None,
+) -> set[str] | None:
+    """Return which of *candidate_task_names* are registered on this host.
+
+    Returns ``None`` when the backend cannot be queried from this machine — a
+    systemd host that is not this Linux box. The caller then reports that it
+    cannot read installed state, rather than a false "all missing".
+    """
+    backend = resolve_scheduler_backend(scheduler_type)
+
+    if backend == "windows":
+        return {name for name in candidate_task_names if _windows_task_exists(name)}
+
+    if backend == "cron":
+        lines = load_crontab_lines()
+        return {name for name in candidate_task_names if any(f"# {name}" in line for line in lines)}
+
+    unit_dir = Path("/etc/systemd/system")
+    if not unit_dir.exists():
+        return None
+    return {name for name in candidate_task_names if (unit_dir / f"{_task_name_to_unit_name(name)}.timer").exists()}

@@ -21,11 +21,39 @@ describe("renderOperationsOverview", () => {
         },
       ],
       databaseBackups: [],
+      scheduleStatus: null,
     };
 
     const html = renderOperationsOverview(payload);
     expect(html).toContain("Daily Paper Trading");
     expect(html).toContain("Healthy");
+    // Drift artifact not written yet -> the panel prompts to populate it.
+    expect(html).toContain("Schedule Registration");
+    expect(html).toContain("Not available yet");
+  });
+
+  it("renders schedule drift rows when the drift artifact is present", () => {
+    const payload: OperationsOverviewResponse = {
+      jobs: [],
+      databaseBackups: [],
+      scheduleStatus: {
+        generatedAt: "2026-09-12T13:00:00Z",
+        host: "trading-host",
+        scheduler: "windows",
+        inSync: false,
+        installedReadable: true,
+        jobs: [
+          { taskName: "Trading\\DailyPaperTrading", desired: true, registered: true, state: "ok" },
+          { taskName: "Trading\\WeeklyDbBackup", desired: true, registered: false, state: "missing" },
+        ],
+      },
+    };
+
+    const html = renderOperationsOverview(payload);
+    expect(html).toContain("Drift");
+    expect(html).toContain("Trading\\DailyPaperTrading");
+    expect(html).toContain("Registered");
+    expect(html).toContain("Not registered");
   });
 });
 

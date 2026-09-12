@@ -4,6 +4,7 @@ import argparse
 import random
 
 from common.git import get_repo_root
+from common.logging_setup import bind_run_id, configure_logging, resolve_run_id
 from common.tickers import load_tickers_from_file
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
@@ -54,6 +55,10 @@ def main() -> int:
     via ``kill_switch_accounts``.
     """
     args = parse_args()
+    # Capture library logs (market data, selection, broker) to stdout, which the
+    # parent daily run tees into its per-run log file. Inherit the parent's run id.
+    bind_run_id(resolve_run_id())
+    configure_logging()
     if args.max_trades < 1:
         raise ValueError("--max-trades must be >= 1")
 

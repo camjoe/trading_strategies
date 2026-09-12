@@ -52,19 +52,8 @@ daily_challenger_shadow_eval = load_daily_challenger_shadow_eval()
 
 def make_manage_job_schedules_args(**overrides):
     defaults = {
-        "daily_paper_trading_time": "",
-        "daily_paper_trading_task_name": r"Trading\DailyPaperTrading",
-        "daily_challenger_shadow_eval_time": "",
-        "daily_challenger_shadow_eval_task_name": r"Trading\DailyChallengerShadowEval",
-        "enable_daily_challenger_shadow_eval": False,
-        "auto_shadow_eval_from_daily_paper": False,
-        "shadow_eval_lead_minutes": 20,
-        "health_check_time": "",
-        "health_check_task_name": r"Trading\DailyTraderHealthCheck",
-        "health_check_max_age_hours": 24.0,
-        "weekly_db_backup_time": "",
-        "weekly_db_backup_day_of_week": "Sunday",
-        "weekly_db_backup_task_name": r"Trading\WeeklyDbBackup",
+        "config": "",
+        "status": False,
         "unregister": False,
         "dry_run": False,
         "python": "/tmp/.venv/bin/python",

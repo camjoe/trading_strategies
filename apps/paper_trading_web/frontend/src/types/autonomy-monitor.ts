@@ -42,6 +42,20 @@ export interface AutonomyBook {
   updated_at: string;
 }
 
+export interface AutonomyRunSummary {
+  accounts?: number;
+  orders_submitted?: number;
+  orders_accepted?: number;
+  orders_turned_away?: number;
+  decisions_total?: number;
+  decisions_blocked?: number;
+  decisions_rescaled?: number;
+  kill_switch_count?: number;
+  log_warnings?: number;
+  log_errors?: number;
+  log_critical?: number;
+}
+
 export interface AutonomyDailyWorkflow {
   latest_run_date: string;
   latest_run_time: string;
@@ -50,6 +64,8 @@ export interface AutonomyDailyWorkflow {
   failed_step: string | null;
   duration_seconds: number;
   step_results: DagStepResult[];
+  // Roll-up written by the daily run; absent/empty for artifacts predating it.
+  summary?: AutonomyRunSummary;
 }
 
 export interface DagStepResult {

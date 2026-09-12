@@ -235,12 +235,20 @@ the DB/account surfaces, and reads the artifact from `tmp_path / "local" / "arti
 # ...add the name to __all__
 ```
 
-`manage_job_schedules.py` (daily/maintenance only):
+`scheduling/job_catalog.py` (daily/maintenance only) — add to `JOB_CATALOG`:
 
 ```python
-<NAME>_MODULE = "trading.interfaces.runtime.jobs.<area>.<name>"
-DEFAULT_<NAME>_TASK_NAME = r"Trading\<TaskName>"
-# parse_args: parser.add_argument("--<name>-time", default="", help="HH:MM ...")
-# build_scheduled_tasks: append _scheduled_task(...) when args.<name>_time is set
-# default_task_names: include args.<name>_task_name
+"<job_id>": JobDefinition(
+    job_id="<job_id>",
+    task_name=r"Trading\<TaskName>",
+    module="trading.interfaces.runtime.jobs.<area>.<name>",
+    schedule_kind="daily",  # or "weekly"
+    log_name="<name>_scheduler.log",
+),
+```
+
+The operator enables it in `job_schedule.json`:
+
+```json
+{ "id": "<job_id>", "time": "HH:MM", "enabled": true }
 ```
