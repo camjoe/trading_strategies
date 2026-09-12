@@ -103,7 +103,7 @@ def apply_book_config(conn: sqlite3.Connection, *, book: BookRecord, config: Acc
         updated_at=utc_now_iso(),
     )
     if config.trade_universes is not None:
-        # Names are shorthand; the book stores the expansion (revision 0029).
+        # Names are shorthand; the book stores the expansion.
         symbols = resolve_trade_symbols(config.trade_universes)
         BookRepository(conn).update_trade_symbols(
             book_id=book.id,

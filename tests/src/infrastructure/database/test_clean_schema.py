@@ -12,7 +12,6 @@ import pytest
 NEW_TABLES = {
     "books",
     "strategies",
-    "feature_providers",
     "book_rotation_settings",
     "book_strategy_history",
     "orders",

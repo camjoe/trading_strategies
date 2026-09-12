@@ -4,7 +4,7 @@ Named universes are .txt files stored under ``TRADE_UNIVERSES_DIR``.  A name
 maps 1-to-1 to a filename: ``"growth"`` → ``growth.txt``.
 
 A name is a **write-time shorthand only**. Books store the resolved tickers
-(``books.trade_symbols``, revision 0029), so nothing here runs on the trading
+(``books.trade_symbols``), so nothing here runs on the trading
 path: editing a universe file changes what future writes resolve to, never what
 an existing book is already trading.
 """

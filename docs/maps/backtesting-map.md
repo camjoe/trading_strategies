@@ -70,7 +70,7 @@ SQL only. The seven owned tables.
 
 | Module | Responsibility |
 |---|---|
-| `runs.py` | Backtest run rows (including the benchmark frozen at run time, revision `0030`), their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
+| `runs.py` | Backtest run rows (including the benchmark frozen at run time), their executions and equity snapshots — writes plus the report, recent-run, and leaderboard reads |
 | `optimization.py` | Optimizer experiments, windows, trials, and run manifests |
 
 ## `models/`

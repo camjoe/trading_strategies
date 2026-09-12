@@ -64,8 +64,8 @@ grains, and the account-level read differs accordingly:
   | `equity` | `take_profit_pct` | `stop_loss_pct` |
   | `leaps` (options) | `option_profit_take_pct` | `option_max_loss_pct` |
 
-  The option pair was renamed from `profit_take_pct` / `max_loss_pct` (revision `0011`) into
-  the `option_*` family so the instrument is legible from the name.
+  The option pair uses the `option_*` family (`option_profit_take_pct` / `option_max_loss_pct`) so
+  the instrument is legible from the name.
 
 ## Columns that are not what they look like
 
@@ -91,7 +91,7 @@ the writer leaves some `NULL` on purpose:
 |---|---|
 | `daily_metrics.drawdown_pct` | Always `NULL` — needs intraday equity, which is not persisted at this grain |
 | `risk_snapshots.daily_loss_pct` | Always `NULL` — no writer. Same single-day gap; a trailing-history peak cannot stand in for one day's figure |
-| `daily_metrics.hit_rate` / `expectancy` | Populated only for orders created after revision `0020` (from `orders.realized_pnl_delta`); no historical backfill. `hit_rate` is also `NULL` on a day with no closing trades |
+| `daily_metrics.hit_rate` / `expectancy` | Derived from `orders.realized_pnl_delta`. `hit_rate` is `NULL` on a day with no closing trades |
 | `daily_metrics.risk_adjusted_score` | `NULL` until at least 10 returns exist, and when the returns have zero dispersion; no backfill |
 | `books.option_profit_take_pct` / `option_max_loss_pct` | Configuration and persistence exist; no production options-execution consumer |
 

@@ -34,7 +34,7 @@ class BookRepository:
         current_cash: float,
         current_equity: float,
         # Explicitly unset. Resolving a universe name to symbols is service
-        # work (revision 0029), so the repository has no default to offer.
+        # work, so the repository has no default to offer.
         trade_symbols: str = "[]",
         created_at: str,
         updated_at: str,
@@ -77,7 +77,7 @@ class BookRepository:
         """Close the open universe-history row (if any) and open a new one.
 
         `book_universe_history` records the **resolved ticker set** effective over
-        each interval, not the universe names (revision 0029) — so what a book was
+        each interval, not the universe names — so what a book was
         actually trading on a past date stays reconstructable even after a universe
         file is edited. That is the point-in-time guarantee backtest and evaluation
         integrity rest on.

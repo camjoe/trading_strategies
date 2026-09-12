@@ -3,7 +3,7 @@
 Type: notes
 Status: Draft
 Created: 2026-07-27
-Last Reviewed: 2026-08-01
+Last Reviewed: 2026-09-12
 Purpose: Record the target shape of the multi-book auto-trader, the verified gap between that target and the current code, and the phase order for closing it.
 Related: [ADR 017: IBKR paper broker type](../adr/017-ibkr-paper-broker-type.md), [Broker Integration](broker-integration.md), [Runtime Jobs](runtime-jobs.md), [Burn-In Protocol](../runbooks/burn-in-protocol.md)
 
@@ -42,7 +42,9 @@ recorded history. Existing fill data cannot be used as execution evidence.
 
 **Last runtime activity was 2026-05-03.** 19 daily paper-trading runs total; one daily
 snapshot run (2026-03-26); two weekly backups (2026-03-18). `local/artifacts/` is empty,
-so no governance job has ever produced an artifact.
+so no governance job has ever produced an artifact. (These runtime-activity counts are the
+2026-08-01 audit snapshot and are not re-verified as of the 2026-09-12 review; the phase and
+gap analysis below is current.)
 
 **Books are real.** `services/books/` (`book_assignments`, `configuration`, `rotation`,
 `sector_config`) plus `domain/book_accounting.py` support per-book strategy assignment,
@@ -79,8 +81,8 @@ than extra information. The guard keys on the run's report date, so a replay of 
 is unaffected.
 
 **The optimizer works but is hand-driven.** Walk-forward optimization, the promotion
-gate, and four migrations (`0021`–`0024`) exist and are reachable from three CLI
-commands. No job, no schedule, no artifact history.
+gate, and their schema exist and are reachable from three CLI commands. No job, no
+schedule, no artifact history.
 
 **The monitor could not read job output** — fixed in Phase 2.
 `services/autonomy_monitor/artifacts.py` had looked for governance artifacts under

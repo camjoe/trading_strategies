@@ -96,7 +96,7 @@ list if it has aged.
   from both the trading run and the shadow-eval job.
 - **Feature-provider enablement is not data.** Providers are constructed unconditionally at the
   composition root, so nothing ever read the `feature_providers` table. Its repository, record, and
-  fixture seeding were deleted on 2026-08-10; the table itself stays until the migration squash.
+  fixture seeding were deleted on 2026-08-10; the table itself was dropped in the migration squash.
   Re-enabling the deferred work above needs no catalog — only the provider implementations, which
   are untouched.
 

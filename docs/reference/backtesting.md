@@ -89,7 +89,7 @@ Three capabilities, and the roles they play here:
 
 Optimization here **always** walks forward; plain grid search with no out-of-sample validation is the
 classic overfitting generator and is not exposed. Conversely, a walk-forward that optimizes nothing is
-just a segmented backtest — which is why the older rolling-window path was removed (revision `0027`)
+just a segmented backtest — which is why the older rolling-window path was removed
 rather than kept as a cheaper option. [ADR 016](../adr/016-optimizer-experiments-as-research-evidence.md)
 holds that reasoning.
 
@@ -136,7 +136,7 @@ Three properties of that persistence are worth knowing before relying on it:
 - **Experiment, windows, trials, and manifest are written in one transaction,** and deleting an
   experiment cascades to all of them.
 
-**Fail-fast experiment state (revision `0024`):** the account and strategy are resolved *before* any
+**Fail-fast experiment state:** the account and strategy are resolved *before* any
 backtest runs, so an unknown account/strategy fails immediately rather than after a full optimization
 run. If the window-search or holdout stage raises instead — a market-data/DB error, or the *expected*
 "no eligible candidate" outcome for a training window — the run persists exactly one
