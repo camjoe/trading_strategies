@@ -46,6 +46,40 @@ class _RunIdFilter(logging.Filter):
         return True
 
 
+class _LevelCountingHandler(logging.Handler):
+    """Tally WARNING and worse records so a run can report how many it emitted.
+
+    This is how "how many exceptions/warnings this run" is answered without
+    instrumenting every ``except``: the provider/service loggers already route
+    through the root logger (see ``configure_logging``), so their WARNING+ records
+    are counted here and read back via ``log_counts`` at the end of the run.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.counts: dict[str, int] = {}
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.counts[record.levelname] = self.counts.get(record.levelname, 0) + 1
+
+
+def log_counts() -> dict[str, int]:
+    """Return WARNING/ERROR/CRITICAL counts recorded since the last configure.
+
+    Zeros when logging was never configured this process, so a caller can always
+    write the fields into an artifact.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, _LevelCountingHandler):
+            counts = handler.counts
+            return {
+                "warning": counts.get("WARNING", 0),
+                "error": counts.get("ERROR", 0),
+                "critical": counts.get("CRITICAL", 0),
+            }
+    return {"warning": 0, "error": 0, "critical": 0}
+
+
 def new_run_id() -> str:
     """Return a short random run id."""
     return uuid.uuid4().hex[:8]
@@ -115,3 +149,9 @@ def configure_logging(
         file_handler.addFilter(run_filter)
         setattr(file_handler, _MANAGED_FLAG, True)
         root.addHandler(file_handler)
+
+    # Reset per configure (once per run): the managed-handler cleanup above dropped
+    # any prior counter, so this run starts its WARNING+ tally from zero.
+    counting_handler = _LevelCountingHandler()
+    setattr(counting_handler, _MANAGED_FLAG, True)
+    root.addHandler(counting_handler)
