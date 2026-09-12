@@ -138,10 +138,13 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
    ```bash
    python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
    ```
-3. The combined daily paper-trading and weekly backup status is summarized by:
+3. Every monitored job — the daily run, challenger shadow-eval, weekly backup, and the weekly/monthly
+   governance jobs — is summarized by the same source the web Admin panel reads:
    ```bash
    python -m scripts.check_jobs
    ```
+   It exits non-zero when the daily run has not completed today or any job started but never wrote its
+   success sentinel. Pass `--run-missing` to trigger those.
 
 ---
 
