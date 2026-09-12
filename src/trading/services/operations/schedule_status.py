@@ -21,6 +21,6 @@ def fetch_schedule_status(artifact_path: Path = SCHEDULE_STATUS_ARTIFACT_PATH) -
         return None
     try:
         data = json.loads(artifact_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
