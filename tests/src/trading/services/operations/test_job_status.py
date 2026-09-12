@@ -12,7 +12,9 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-NOW = dt.datetime(2026, 9, 12, 14, 30, 0)
+# A weekday, so the weekdays-cadence daily run's current period is NOW's own day.
+# The weekend behavior of that cadence is covered by its own tests below.
+NOW = dt.datetime(2026, 9, 11, 14, 30, 0)
 
 
 def test_evaluate_all_jobs_covers_every_monitored_job(tmp_path: Path) -> None:
@@ -77,8 +79,34 @@ def test_daily_paper_trading_pattern_excludes_the_startup_log(tmp_path: Path) ->
 def test_period_tag_matches_job_helpers_spellings() -> None:
     # The tags here find the files job_helpers named; they must not drift apart.
     assert job_status.period_tag("daily", NOW) == day_tag(NOW)
+    assert job_status.period_tag("weekdays", NOW) == day_tag(NOW)
     assert job_status.period_tag("weekly", NOW) == week_tag(NOW)
     assert job_status.period_tag("monthly", NOW) == month_tag(NOW)
+
+
+def test_weekdays_period_points_at_friday_over_the_weekend() -> None:
+    friday = dt.datetime(2026, 9, 11, 14, 30, 0)
+    saturday = dt.datetime(2026, 9, 12, 9, 0, 0)
+    sunday = dt.datetime(2026, 9, 13, 9, 0, 0)
+
+    friday_tag = day_tag(friday)
+    assert job_status.period_tag("weekdays", saturday) == friday_tag
+    assert job_status.period_tag("weekdays", sunday) == friday_tag
+
+
+def test_weekdays_job_reads_ok_from_fridays_run_on_saturday(tmp_path: Path) -> None:
+    friday = dt.datetime(2026, 9, 11, 14, 30, 0)
+    saturday = dt.datetime(2026, 9, 12, 9, 0, 0)
+    _write(
+        tmp_path / f"daily_paper_trading_{day_tag(friday)}_143001.log",
+        f"start\n{job_status.DAILY_PAPER_TRADING_COMPLETE_SENTINEL}\n",
+    )
+
+    result = job_status.evaluate_job(job_status.MONITORED_JOBS[0], logs_dir=tmp_path, now=saturday)
+
+    assert result.job.cadence == "weekdays"
+    assert result.status == "ok"
+    assert result.current_run_complete is True
 
 
 def test_fetch_schedule_status_returns_none_when_missing(tmp_path: Path) -> None:

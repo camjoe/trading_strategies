@@ -33,7 +33,7 @@ from common.runtime_job_status import (
     WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL,
 )
 
-Cadence = Literal["daily", "weekly", "monthly"]
+Cadence = Literal["daily", "weekdays", "weekly", "monthly"]
 JobHealth = Literal["ok", "warning", "missing"]
 
 
@@ -70,6 +70,7 @@ class JobStatus:
 
 
 _DAILY: Cadence = "daily"
+_WEEKDAYS: Cadence = "weekdays"
 _WEEKLY: Cadence = "weekly"
 _MONTHLY: Cadence = "monthly"
 
@@ -77,7 +78,7 @@ MONITORED_JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob(
         key="daily_paper_trading",
         label="Daily Paper Trading",
-        cadence=_DAILY,
+        cadence=_WEEKDAYS,
         # Digit-guarded so the daily_paper_trading_startup_<date>.log is not matched.
         log_pattern="daily_paper_trading_[0-9]*_[0-9]*.log",
         sentinel=DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
@@ -152,6 +153,19 @@ MONITORED_JOBS: tuple[MonitoredJob, ...] = (
 )
 
 
+def _most_recent_weekday(now: dt.datetime) -> dt.datetime:
+    """Return *now*, or the preceding Friday when *now* is a weekend.
+
+    A weekdays job does not run on Saturday or Sunday, so its current period is
+    Friday's run. Without this, the weekend has no expected run and the job reads
+    as missing every weekend.
+    """
+    weekday = now.weekday()  # Monday is 0, Sunday is 6.
+    if weekday >= 5:
+        return now - dt.timedelta(days=weekday - 4)
+    return now
+
+
 def period_tag(cadence: Cadence, now: dt.datetime) -> str:
     """Return the tag that names *now*'s period in a run's log file name."""
     if cadence == _WEEKLY:
@@ -159,6 +173,8 @@ def period_tag(cadence: Cadence, now: dt.datetime) -> str:
         return f"{iso.year}_W{iso.week:02d}"
     if cadence == _MONTHLY:
         return now.strftime("%Y_%m")
+    if cadence == _WEEKDAYS:
+        return _most_recent_weekday(now).strftime("%Y%m%d")
     return now.strftime("%Y%m%d")
 
 

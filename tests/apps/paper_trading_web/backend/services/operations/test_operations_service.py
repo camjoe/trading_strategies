@@ -7,6 +7,7 @@ from pathlib import Path
 from paper_trading_web.backend.services import operations as services_operations, promotion as services_promotion
 
 from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.services.operations.job_status import period_tag
 
 
 def _write(path: Path, text: str) -> None:
@@ -20,9 +21,12 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
     today = dt.date.today()
     today_tag = today.strftime("%Y%m%d")
     week_tag = f"{today.isocalendar().year}_W{today.isocalendar().week:02d}"
+    # The daily run is a weekdays-cadence job: over a weekend its current period is
+    # Friday, so tag its log with the same rule the monitor uses to find it.
+    trading_tag = period_tag("weekdays", dt.datetime.now())
 
     _write(
-        logs_dir / f"daily_paper_trading_{today_tag}_131001.log",
+        logs_dir / f"daily_paper_trading_{trading_tag}_131001.log",
         f"header\n{services_operations.DAILY_PAPER_TRADING_SENTINEL}\n",
     )
     _write(logs_dir / f"daily_snapshot_{today_tag}_131500.log", "started only\n")

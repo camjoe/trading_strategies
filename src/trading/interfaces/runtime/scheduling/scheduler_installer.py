@@ -36,7 +36,10 @@ DAYS: dict[str, DaySpellings] = {
     "sunday": DaySpellings(cron=0, systemd="Sun"),
 }
 
-ScheduleKind = Literal["daily", "weekly"]
+ScheduleKind = Literal["daily", "weekly", "weekdays"]
+
+# Monday through Friday, spelled for each backend that renders a day range.
+WEEKDAY_KEYS: tuple[str, ...] = ("monday", "tuesday", "wednesday", "thursday", "friday")
 
 
 @dataclass(frozen=True)
@@ -101,13 +104,24 @@ def _powershell_quote(value: str) -> str:
     return value.replace("'", "''")
 
 
-def _schedule_expression(task: ScheduledTaskSpec) -> tuple[int, int, str | None]:
-    hour, minute = validate_time(task.time)
+def _require_weekly_day(task: ScheduledTaskSpec) -> str:
+    """Return the normalized weekday of a weekly task, or raise when it is absent."""
+    if task.day_of_week is None:
+        raise ValueError(f"Weekly task '{task.task_name}' requires day_of_week")
+    return validate_day(task.day_of_week)
+
+
+def _cron_day_of_week_field(task: ScheduledTaskSpec) -> str:
+    """Return the cron day-of-week field for a task's schedule kind.
+
+    ``*`` for daily, a single cron day number for weekly, and ``1-5`` for
+    weekdays (Monday through Friday).
+    """
     if task.schedule_kind == "weekly":
-        if task.day_of_week is None:
-            raise ValueError(f"Weekly task '{task.task_name}' requires day_of_week")
-        return hour, minute, validate_day(task.day_of_week)
-    return hour, minute, None
+        return str(DAYS[_require_weekly_day(task)].cron)
+    if task.schedule_kind == "weekdays":
+        return f"{DAYS['monday'].cron}-{DAYS['friday'].cron}"
+    return "*"
 
 
 def _systemd_available() -> bool:
@@ -130,10 +144,10 @@ def _systemd_calendar_expression(task: ScheduledTaskSpec) -> str:
     """Build a systemd OnCalendar expression from a task spec."""
     hour, minute = validate_time(task.time)
     if task.schedule_kind == "weekly":
-        if task.day_of_week is None:
-            raise ValueError(f"Weekly task '{task.task_name}' requires day_of_week")
-        day_abbr = DAYS[validate_day(task.day_of_week)].systemd
+        day_abbr = DAYS[_require_weekly_day(task)].systemd
         return f"{day_abbr} *-*-* {hour:02d}:{minute:02d}:00"
+    if task.schedule_kind == "weekdays":
+        return f"{DAYS['monday'].systemd}..{DAYS['friday'].systemd} *-*-* {hour:02d}:{minute:02d}:00"
     return f"*-*-* {hour:02d}:{minute:02d}:00"
 
 
@@ -164,17 +178,17 @@ def build_windows_register_command(
     *,
     wake_system: bool = True,
 ) -> str:
-    # Validates the time, and the day when weekly; the rendered values below
-    # come from the task itself, so only the raising matters here.
-    _schedule_expression(task)
+    validate_time(task.time)
     argument = subprocess.list2cmdline(["-m", task.module, *task.args])
     if task.schedule_kind == "weekly":
-        assert task.day_of_week is not None
         trigger = (
             "New-ScheduledTaskTrigger -Weekly "
-            f"-DaysOfWeek {validate_day(task.day_of_week).title()} "
+            f"-DaysOfWeek {_require_weekly_day(task).title()} "
             f"-At '{_powershell_quote(task.time)}'"
         )
+    elif task.schedule_kind == "weekdays":
+        days = ",".join(key.title() for key in WEEKDAY_KEYS)
+        trigger = f"New-ScheduledTaskTrigger -Weekly -DaysOfWeek {days} -At '{_powershell_quote(task.time)}'"
     else:
         trigger = f"New-ScheduledTaskTrigger -Daily -At '{_powershell_quote(task.time)}'"
 
@@ -194,8 +208,8 @@ def build_windows_register_command(
 
 
 def build_linux_cron_line(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path, log_path: Path) -> str:
-    hour, minute, cron_day = _schedule_expression(task)
-    schedule_expr = f"{minute} {hour} * * *" if cron_day is None else f"{minute} {hour} * * {DAYS[cron_day].cron}"
+    hour, minute = validate_time(task.time)
+    schedule_expr = f"{minute} {hour} * * {_cron_day_of_week_field(task)}"
     command_parts = [str(python_exe), "-m", task.module, *task.args]
     command = " ".join(shlex.quote(part) for part in command_parts)
     marker = f"# {task.task_name}"
