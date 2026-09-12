@@ -22,7 +22,7 @@ experimental surfaces protected by explicit safety gates.
 - **Book** — the execution primitive: a bounded pool of capital inside an account run to one
   strategy; one broker account can host several independent books.
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
-  parameters across trend, mean-reversion, oscillator, breakout, and external-data
+  parameters across trend, mean-reversion, breakout, and external-data
   ("alternative") families.
 - **Strategy knobs** — tunable parameters for a strategy primitive. Resolved at runtime from the
   `strategies` catalog row: the primitive's code defaults with the row's `params_json` layered
@@ -112,9 +112,9 @@ list if it has aged.
   [Performance and Risk Tables](reference/performance-and-risk-tables.md) owns the full contract.
 - **Unpriced held positions halt a book, and the two equity paths disagree on how to value them
   (mitigated, deeper dive pending).** Book NAV marks an unpriced position to cost
-  (`execution/nav.py`), while the equity snapshot skips it entirely
+  (`services/execution/nav.py`), while the equity snapshot skips it entirely
   (`domain/metrics/portfolio_math.py::compute_market_value_and_unrealized`). Those are the two
-  aggregates `execution/equity_reconciliation.py::reconcile_book_equity` compares, so any held symbol
+  aggregates `services/execution/equity_reconciliation.py::reconcile_book_equity` compares, so any held symbol
   with no live price makes them diverge by the position's cost basis — enough to trip the `$0.01`
   reconciliation tolerance. The runtime now detects unpriced symbols at the NAV pre-flight and holds
   the book on an explicit `unpriced_position` kill switch, skipping the reconciliation whose result
