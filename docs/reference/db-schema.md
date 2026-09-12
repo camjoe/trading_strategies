@@ -123,11 +123,16 @@ the table now exposes only settings consumed by the active rotation path.
 
 ### Money as REAL
 
-Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,
-accepted limitation** for paper trading — do not churn the schema toward integer cents or TEXT
-decimals. Float drift is expected to surface via reconciliation checks rather than be prevented by
-the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any book whose
-`current_cash` diverges from `start_equity` plus its `ledger` sum beyond a tolerance.
+Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. Float drift surfaces
+via a reconciliation check rather than the storage type: `python -m scripts.data_ops.check_cash_invariant`
+reports any book whose `current_cash` diverges from `start_equity` plus its `ledger` sum beyond a
+tolerance.
+
+This float representation is **planned for replacement** by integer minor units, because Cameron
+intends to trade fractional shares and float dust then reads as a phantom open position. The change
+is not started; see [Money Representation Plan](money-representation-plan.md) for the scope, the open
+decisions, and the staged order. Do not add new float money columns on the assumption that the
+representation is permanent.
 
 ### Account trade history
 
