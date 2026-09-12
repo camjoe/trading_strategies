@@ -6,9 +6,8 @@ from typing import Any
 
 # backtest_runs.purpose vocabulary: what kind of evidence a run represents.
 # standalone is the exploration corpus; walk_forward_oos and final_holdout are
-# written by the walk-forward optimizer and are what promotion reads. Migration
-# 0016's CHECK constraint still admits the retired 'rolling_window' value for
-# historical rows; nothing writes it since the rolling-window path was removed.
+# written by the walk-forward optimizer and are what promotion reads. The retired
+# 'rolling_window' value was dropped from the CHECK constraint in the migration squash.
 BACKTEST_PURPOSE_STANDALONE = "standalone"
 BACKTEST_PURPOSE_WALK_FORWARD_OOS = "walk_forward_oos"
 BACKTEST_PURPOSE_FINAL_HOLDOUT = "final_holdout"

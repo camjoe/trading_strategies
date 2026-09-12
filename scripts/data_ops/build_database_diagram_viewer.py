@@ -85,7 +85,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "catalogs",
         "label": "Catalogs and settings",
         "color": "#64748b",
-        "tables": ("strategies", "feature_providers", "global_settings", "global_settings_change_events"),
+        "tables": ("strategies", "global_settings", "global_settings_change_events"),
     },
 )
 
@@ -194,7 +194,6 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
         "description": "Shared configuration and catalog tables that are not owned by account deletion.",
         "tables": (
             "strategies",
-            "feature_providers",
             "global_settings",
             "global_settings_change_events",
             "book_rotation_settings",
@@ -227,7 +226,6 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "positions",
             "book_rotation_settings",
             "strategies",
-            "feature_providers",
             "global_settings",
         ),
     },

@@ -20,12 +20,13 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-28 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`), the retired
-`strategy_param_sets` store, and the rolling-window `walk_forward_experiments`/`walk_forward_windows`
-pair (revision `0027`) were dropped as the submission/accounting spine and strategy catalog
-moved onto the book/strategy tables. One row per table — use this for orientation and context. For
+`strategy_param_sets` store, the rolling-window `walk_forward_experiments`/`walk_forward_windows`
+pair, and the unused `feature_providers` table were dropped as the submission/accounting spine and
+strategy catalog moved onto the book/strategy tables and the migration chain was squashed to a single
+`0001` baseline. One row per table — use this for orientation and context. For
 column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
@@ -42,7 +43,6 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 | `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols` (revisions `0004`–`0008`, `0029`); one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
-| `feature_providers` | Unused. Nothing reads or writes it since 2026-08-10; kept only until the migration squash can drop it | — |
 | `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
 | `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |

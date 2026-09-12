@@ -1,11 +1,28 @@
 # Database Reset Plan
 
 Type: notes
-Status: Draft
+Status: Complete (code squash landed 2026-09-12; deployed-database rollout is operator work)
 Created: 2026-07-26
-Last Reviewed: 2026-07-26
+Last Reviewed: 2026-09-12
 Purpose: Track the planned migration-chain squash and data reset — what gets dropped, what needs investigation first, and what should be rebuilt differently for stability.
 Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [ADR 015 Numbered Alembic Migrations](../adr/015-numbered-alembic-migrations.md)
+
+## Squash outcome (2026-09-12)
+
+The migration-chain squash landed on branch `features/migration-squash`. The new
+`0001_current_schema.py` reproduces the former `0031` head shape in one CREATE, minus the unused
+`feature_providers` table (the folded-in fix). Revisions `0002`–`0031` were deleted and
+`EXPECTED_HEAD_REVISION` is back to `"0001"`. A fresh build from the new baseline matches the
+captured head column-for-column and FK-for-FK across all 27 tables, with clean
+`PRAGMA foreign_key_check`.
+
+The data path chosen is **drop + reseed** (no reconcile-and-stamp helper). This does not change the
+code above; it only defines the rollout. Bringing an existing deployed database (stamped `0031`)
+onto the new chain is operator work on the host: back up, drop the file,
+`manage_db_migrations upgrade` to the new `0001`, then reseed configuration with the fixture seeder
+and re-import the exported `strategies` `params_json` and lifecycle state. Dev holds only droppable
+research history; staging and prod row counts are still unconfirmed from the host — check before the
+rollout. The `Investigate Before Dropping` items below stay open for that rollout step.
 
 ## Purpose
 

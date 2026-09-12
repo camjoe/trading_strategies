@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 08:27 02-08-2026 PST. Tables: 28.</div>
+      <div class="meta">Source: fresh code schema. Generated: 14:34 12-09-2026 PST. Tables: 27.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -444,13 +444,12 @@
         "accounts",
         "books",
         "strategies",
-        "feature_providers",
         "global_settings",
         "global_settings_change_events"
       ]
     }
   ],
-  "generatedAt": "08:27 02-08-2026 PST",
+  "generatedAt": "14:34 12-09-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -462,7 +461,6 @@
         "positions",
         "book_rotation_settings",
         "strategies",
-        "feature_providers",
         "global_settings"
       ]
     },
@@ -603,7 +601,6 @@
       "label": "Catalogs and settings",
       "tables": [
         "strategies",
-        "feature_providers",
         "global_settings",
         "global_settings_change_events"
       ]
@@ -1083,6 +1080,22 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "benchmark_ticker",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "benchmark_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
         }
       ],
       "foreignKeys": [
@@ -1415,20 +1428,20 @@
         },
         {
           "columns": [
+            "book_id"
+          ],
+          "name": "idx_book_strategy_history_open_per_book",
+          "origin": "c",
+          "unique": true
+        },
+        {
+          "columns": [
             "book_id",
             "effective_from"
           ],
           "name": "idx_book_strategy_history_book_effective",
           "origin": "c",
           "unique": false
-        },
-        {
-          "columns": [
-            "book_id"
-          ],
-          "name": "idx_book_strategy_history_open_per_book",
-          "origin": "c",
-          "unique": true
         }
       ],
       "name": "book_strategy_history",
@@ -1462,7 +1475,7 @@
         },
         {
           "default": null,
-          "name": "trade_universes",
+          "name": "trade_symbols",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1592,7 +1605,7 @@
         },
         {
           "default": null,
-          "name": "trade_universes",
+          "name": "trade_symbols",
           "notNull": true,
           "primaryKeyPosition": 0,
           "section": null,
@@ -1828,20 +1841,20 @@
         },
         {
           "columns": [
+            "account_id"
+          ],
+          "name": "idx_books_default_per_account",
+          "origin": "c",
+          "unique": true
+        },
+        {
+          "columns": [
             "account_id",
             "status"
           ],
           "name": "idx_books_account_status",
           "origin": "c",
           "unique": false
-        },
-        {
-          "columns": [
-            "account_id"
-          ],
-          "name": "idx_books_default_per_account",
-          "origin": "c",
-          "unique": true
         },
         {
           "columns": [
@@ -2120,75 +2133,6 @@
         "color": "#0891b2",
         "id": "performance",
         "label": "Performance and metrics"
-      }
-    },
-    {
-      "columns": [
-        {
-          "default": null,
-          "name": "id",
-          "notNull": false,
-          "primaryKeyPosition": 1,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "provider_key",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": "0",
-          "name": "enabled",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "INTEGER"
-        },
-        {
-          "default": null,
-          "name": "config_json",
-          "notNull": false,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "created_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        },
-        {
-          "default": null,
-          "name": "updated_at",
-          "notNull": true,
-          "primaryKeyPosition": 0,
-          "section": null,
-          "type": "TEXT"
-        }
-      ],
-      "foreignKeys": [],
-      "indexes": [
-        {
-          "columns": [
-            "provider_key"
-          ],
-          "name": "sqlite_autoindex_feature_providers_1",
-          "origin": "u",
-          "unique": true
-        }
-      ],
-      "name": "feature_providers",
-      "section": {
-        "color": "#64748b",
-        "id": "catalogs",
-        "label": "Catalogs and settings"
       }
     },
     {
@@ -3094,18 +3038,18 @@
       "indexes": [
         {
           "columns": [
-            "window_id"
+            "window_id",
+            "params_hash"
           ],
-          "name": "idx_optimization_trials_selected_per_window",
+          "name": "idx_optimization_trials_window_hash",
           "origin": "c",
           "unique": true
         },
         {
           "columns": [
-            "window_id",
-            "params_hash"
+            "window_id"
           ],
-          "name": "idx_optimization_trials_window_hash",
+          "name": "idx_optimization_trials_selected_per_window",
           "origin": "c",
           "unique": true
         }
@@ -3392,6 +3336,14 @@
         },
         {
           "default": null,
+          "name": "client_order_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
           "name": "symbol",
           "notNull": true,
           "primaryKeyPosition": 0,
@@ -3552,6 +3504,15 @@
           "name": "idx_orders_account_status_submitted",
           "origin": "c",
           "unique": false
+        },
+        {
+          "columns": [
+            "account_id",
+            "client_order_id"
+          ],
+          "name": "idx_orders_account_client_order_id",
+          "origin": "c",
+          "unique": true
         },
         {
           "columns": [
@@ -3777,18 +3738,18 @@
         {
           "columns": [
             "review_id",
-            "created_at"
+            "event_seq"
           ],
-          "name": "idx_promotion_review_events_review_created",
+          "name": "idx_promotion_review_events_review_seq",
           "origin": "c",
           "unique": false
         },
         {
           "columns": [
             "review_id",
-            "event_seq"
+            "created_at"
           ],
-          "name": "idx_promotion_review_events_review_seq",
+          "name": "idx_promotion_review_events_review_created",
           "origin": "c",
           "unique": false
         },
@@ -4007,21 +3968,21 @@
       "indexes": [
         {
           "columns": [
-            "account_id",
-            "strategy_name"
-          ],
-          "name": "idx_promotion_reviews_open_requested",
-          "origin": "c",
-          "unique": true
-        },
-        {
-          "columns": [
             "review_state",
             "updated_at"
           ],
           "name": "idx_promotion_reviews_state_updated",
           "origin": "c",
           "unique": false
+        },
+        {
+          "columns": [
+            "account_id",
+            "strategy_name"
+          ],
+          "name": "idx_promotion_reviews_open_requested",
+          "origin": "c",
+          "unique": true
         },
         {
           "columns": [
@@ -4516,19 +4477,19 @@
       "indexes": [
         {
           "columns": [
-            "rotation_action",
+            "book_id",
             "decision_time"
           ],
-          "name": "idx_rotation_decisions_action_time_book",
+          "name": "idx_rotation_decisions_book_time",
           "origin": "c",
           "unique": false
         },
         {
           "columns": [
-            "book_id",
+            "rotation_action",
             "decision_time"
           ],
-          "name": "idx_rotation_decisions_book_time",
+          "name": "idx_rotation_decisions_action_time_book",
           "origin": "c",
           "unique": false
         }
@@ -4652,7 +4613,6 @@
         "books",
         "daily_metrics",
         "equity_snapshots",
-        "feature_providers",
         "global_settings",
         "global_settings_change_events",
         "ledger",
@@ -4764,7 +4724,6 @@
       "label": "Shared catalogs",
       "tables": [
         "strategies",
-        "feature_providers",
         "global_settings",
         "global_settings_change_events",
         "book_rotation_settings",
