@@ -8,7 +8,7 @@ Purpose: Schema orientation for agents and developers — quick-reference table 
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
-- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the base DDL; later revisions amend it)
+- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the complete current schema)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
@@ -35,13 +35,13 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
-| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`; the CHECK also still admits the retired `rolling_window` for historical rows, revisions `0016`/`0027`) and the benchmark frozen at run time (`benchmark_ticker`, `benchmark_return_pct`; null before revision `0030`) | → `accounts` |
+| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`) and the benchmark frozen at run time (`benchmark_ticker`, `benchmark_return_pct`) | → `accounts` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review cases; new rows require stable strategy identity and closure uses an expected-open-state guard | → `accounts`, `strategies` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols` (revisions `0004`–`0008`, `0029`); one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols`; one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
 | `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
@@ -49,15 +49,15 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
-| `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account (revision `0019`) | → `accounts`, `books` |
-| `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
-| `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run (renamed from `backtest_trades`, revision `0016`) | → `backtest_runs` |
-| `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link (revision `0021`); `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws (revision `0024`) | → `accounts`, `strategies`, `backtest_runs` |
-| `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied; revision `0022`) | → `optimization_experiments`, `backtest_runs` |
-| `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag (revision `0022`) | → `optimization_windows` |
-| `optimization_run_manifests` | Frozen provenance snapshot per optimizer run (1:1): effective economics, the book's risk/sizing knobs, exact universe membership + lineage, provider + as-of, and engine revision — audit record, not a replay guarantee (revision `0023`) | → `optimization_experiments`, `books` |
-| `book_rotation_settings_change_events` | Change-audit event log for `book_rotation_settings` edits: which fields changed, their old/new values (JSON), when (revision `0025`) | → `books` |
-| `global_settings_change_events` | Change-audit event log for `global_settings` edits: which fields changed, their old/new values (JSON), when (revision `0025`) | — |
+| `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account | → `accounts`, `books` |
+| `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`) | → `books` |
+| `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run | → `backtest_runs` |
+| `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link; `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws | → `accounts`, `strategies`, `backtest_runs` |
+| `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied) | → `optimization_experiments`, `backtest_runs` |
+| `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag | → `optimization_windows` |
+| `optimization_run_manifests` | Frozen provenance snapshot per optimizer run (1:1): effective economics, the book's risk/sizing knobs, exact universe membership + lineage, provider + as-of, and engine revision — audit record, not a replay guarantee | → `optimization_experiments`, `books` |
+| `book_rotation_settings_change_events` | Change-audit event log for `book_rotation_settings` edits: which fields changed, their old/new values (JSON), when | → `books` |
+| `global_settings_change_events` | Change-audit event log for `global_settings` edits: which fields changed, their old/new values (JSON), when | — |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
@@ -100,8 +100,8 @@ stored values.
 
 ### `promotion_reviews`
 
-`strategy_id` remains nullable in the physical schema for historical rows that could not be
-backfilled in revision `0007`, but every newly requested review must resolve a real strategy row.
+`strategy_id` is nullable in the physical schema, but every newly requested review must resolve a
+real strategy row.
 `strategy_name` is the frozen display snapshot, not the identity key. Review closure and note writes
 update only a row whose current state is still `requested`; if another action closed it first, the
 transaction rolls back the attempted event and state change together.
@@ -131,7 +131,7 @@ the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any 
 
 ### Account trade history
 
-The account-level `trades` table was dropped in revision `0006`. Execution history is
+The account-level `trades` table was dropped. Execution history is
 `orders`/`order_fills` (book-keyed); deposits/withdrawals are `ledger` entries. Account state
 (`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
 account's fills plus its ledger cash events (`trading.services.execution.ledger`). Free-text trade notes
