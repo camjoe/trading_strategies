@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import platform
 import sys
 from pathlib import Path
 from typing import Literal
 
 from common.git import get_repo_root
 from common.paths import JOB_SCHEDULE_PATH
+from common.time import utc_now_iso
+from trading.interfaces.runtime.jobs.job_helpers import write_artifact
 from trading.interfaces.runtime.scheduling.job_catalog import (
     ALL_TASK_NAMES,
     ScheduleResolution,
@@ -18,6 +21,7 @@ from trading.interfaces.runtime.scheduling.job_catalog import (
 from trading.interfaces.runtime.scheduling.scheduler_installer import (
     register_tasks_for_platform,
     registered_task_names,
+    resolve_scheduler_backend,
     unregister_tasks_for_platform,
 )
 
@@ -130,12 +134,60 @@ def apply_schedule_config(
     )
 
 
-def run_status_report(config_path: Path, *, scheduler_type: SchedulerChoice, repo_root: Path) -> int:
-    """Print config-vs-installed drift. Return 0 in sync, 1 on drift, 2 if not readable."""
+def build_schedule_status(config_path: Path, *, scheduler_type: SchedulerChoice, repo_root: Path) -> dict[str, object]:
+    """Return the registered-vs-desired state of every catalog job.
+
+    ``registered`` is ``None`` and ``state`` is ``"unknown"`` for a job when the
+    installed schedules cannot be read from this host (a systemd target queried
+    off-host). Keys are snake_case; the web boundary maps them to camelCase.
+    """
     resolution = resolve_schedule_config(config_path)
     desired = {spec.task_name for spec in resolution.to_register}
     installed = registered_task_names(ALL_TASK_NAMES, scheduler_type=scheduler_type, repo_root=repo_root)
-    if installed is None:
+
+    jobs: list[dict[str, object]] = []
+    for name in ALL_TASK_NAMES:
+        want = name in desired
+        if installed is None:
+            registered: bool | None = None
+            state = "unknown"
+        else:
+            registered = name in installed
+            if want and registered:
+                state = "ok"
+            elif want and not registered:
+                state = "missing"
+            elif registered and not want:
+                state = "stale"
+            else:
+                state = "off"
+        jobs.append({"task_name": name, "desired": want, "registered": registered, "state": state})
+
+    in_sync = installed is not None and not (desired - installed) and not (installed - desired)
+    return {
+        "generated_at": utc_now_iso(),
+        "host": platform.node(),
+        "scheduler": resolve_scheduler_backend(scheduler_type),
+        "config_path": str(config_path),
+        "installed_readable": installed is not None,
+        "in_sync": in_sync,
+        "jobs": jobs,
+    }
+
+
+def write_schedule_status_artifact(status: dict[str, object], *, repo_root: Path) -> Path:
+    """Write *status* to the schedule-status artifact the web Admin panel reads."""
+    path = repo_root / "local" / "artifacts" / "schedule_status.json"
+    write_artifact(path, status)
+    return path
+
+
+def run_status_report(config_path: Path, *, scheduler_type: SchedulerChoice, repo_root: Path) -> int:
+    """Print config-vs-installed drift and refresh the artifact. Return 0 in sync, 1 drift, 2 unreadable."""
+    status = build_schedule_status(config_path, scheduler_type=scheduler_type, repo_root=repo_root)
+    write_schedule_status_artifact(status, repo_root=repo_root)
+
+    if not status["installed_readable"]:
         print(
             "Cannot read installed schedules from this host (systemd target). "
             "Run --status on the runtime host itself.",
@@ -143,23 +195,19 @@ def run_status_report(config_path: Path, *, scheduler_type: SchedulerChoice, rep
         )
         return 2
 
+    _labels = {
+        "ok": "OK        (enabled, registered)",
+        "missing": "MISSING   (enabled, not registered)",
+        "stale": "STALE     (registered, should be off)",
+        "off": "off       (disabled, not registered)",
+    }
     print(f"Schedule config: {config_path}")
-    for name in ALL_TASK_NAMES:
-        want = name in desired
-        have = name in installed
-        if want and have:
-            state = "OK        (enabled, registered)"
-        elif want and not have:
-            state = "MISSING   (enabled, not registered)"
-        elif have and not want:
-            state = "STALE     (registered, should be off)"
-        else:
-            state = "off       (disabled, not registered)"
-        print(f"  {state}  {name}")
+    jobs = status["jobs"]
+    assert isinstance(jobs, list)
+    for entry in jobs:
+        print(f"  {_labels[str(entry['state'])]}  {entry['task_name']}")
 
-    missing = desired - installed
-    stale = installed - desired
-    if not missing and not stale:
+    if status["in_sync"]:
         print("In sync.")
         return 0
     print("Drift found. Run an apply to reconcile:")
@@ -213,6 +261,15 @@ def main() -> int:
     if code != 0:
         print("Scheduler command returned a non-zero exit code.", file=sys.stderr)
         return code
+
+    # Refresh the drift artifact the web panel reads so it reflects this apply.
+    # Best-effort: a status-read failure must not fail an apply that succeeded.
+    if not args.dry_run:
+        try:
+            status = build_schedule_status(_config_path(args), scheduler_type=args.scheduler, repo_root=repo_root)
+            write_schedule_status_artifact(status, repo_root=repo_root)
+        except Exception as exc:
+            print(f"[WARN] Could not refresh schedule status artifact: {exc}", file=sys.stderr)
 
     print("Runtime job schedules applied from config.")
     print(f"Config: {_config_path(args)}")

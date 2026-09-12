@@ -79,3 +79,26 @@ def test_period_tag_matches_job_helpers_spellings() -> None:
     assert job_status.period_tag("daily", NOW) == day_tag(NOW)
     assert job_status.period_tag("weekly", NOW) == week_tag(NOW)
     assert job_status.period_tag("monthly", NOW) == month_tag(NOW)
+
+
+def test_fetch_schedule_status_returns_none_when_missing(tmp_path: Path) -> None:
+    from trading.services.operations.schedule_status import fetch_schedule_status
+
+    assert fetch_schedule_status(tmp_path / "absent.json") is None
+
+
+def test_fetch_schedule_status_reads_written_artifact(tmp_path: Path) -> None:
+    from trading.services.operations.schedule_status import fetch_schedule_status
+
+    artifact = tmp_path / "schedule_status.json"
+    artifact.write_text('{"in_sync": true, "jobs": []}', encoding="utf-8")
+    result = fetch_schedule_status(artifact)
+    assert result == {"in_sync": True, "jobs": []}
+
+
+def test_fetch_schedule_status_returns_none_on_bad_json(tmp_path: Path) -> None:
+    from trading.services.operations.schedule_status import fetch_schedule_status
+
+    artifact = tmp_path / "schedule_status.json"
+    artifact.write_text("{not json", encoding="utf-8")
+    assert fetch_schedule_status(artifact) is None

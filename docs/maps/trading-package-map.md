@@ -104,8 +104,9 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `manage_job_schedules.py` | Operator entrypoint: install/remove OS-level schedules that invoke the runtime jobs |
-| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) |
+| `job_catalog.py` | Catalog of schedulable jobs (`JOB_CATALOG`) and the declarative `job_schedule.json` loader (`resolve_schedule_config`) that turns it into register/unregister task lists |
+| `manage_job_schedules.py` | Operator entrypoint: apply the schedule config (install/remove OS-level schedules), report drift (`--status`), and write the drift artifact the web panel reads |
+| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) plus the registered-task query |
 
 **Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 
@@ -188,6 +189,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
+| `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
+| `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
 | `books/helpers.py` | Shared book service helpers (window math) |
 | `books/rotation/account_rotation.py` | Account-level coordinator for enumerating and applying each book's rotation decision |

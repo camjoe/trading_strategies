@@ -30,6 +30,9 @@ JOB_SCHEDULE_EXAMPLE_PATH = TRADING_CONFIG_DIR / "job_schedule.example.json"
 # times are private), so it sits beside the tracked example, like .env / .env.example.
 JOB_SCHEDULE_PATH = TRADING_CONFIG_DIR / "job_schedule.json"
 PAPER_TRADING_DB_PATH = LOCAL_DIR / "paper_trading.db"
+# Current registered-vs-desired schedule drift, written by manage_job_schedules and
+# read by the web Admin panel. Overwritten each write — it is current state, not history.
+SCHEDULE_STATUS_ARTIFACT_PATH = LOCAL_DIR / "artifacts" / "schedule_status.json"
 DB_BACKUPS_DIR = LOCAL_DIR / "db_backups"
 LOGS_DIR = LOCAL_DIR / "logs"
 EXPORTS_DIR = LOCAL_DIR / "exports"

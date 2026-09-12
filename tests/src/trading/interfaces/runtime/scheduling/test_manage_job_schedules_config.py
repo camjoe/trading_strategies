@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -173,3 +174,54 @@ def test_status_returns_two_when_installed_state_unreadable(
 
     assert _run_main_with_args(status=True) == 2
     assert "Cannot read installed schedules" in capsys.readouterr().err
+
+
+def test_build_schedule_status_classifies_each_task(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        module,
+        "resolve_schedule_config",
+        lambda _path: ScheduleResolution(to_register=[_paper_spec()]),
+    )
+    # Backup is registered but not desired (stale); paper is desired and registered.
+    monkeypatch.setattr(
+        module,
+        "registered_task_names",
+        lambda names, **_kwargs: {r"Trading\DailyPaperTrading", r"Trading\WeeklyDbBackup"},
+    )
+
+    status = module.build_schedule_status(Path("/cfg.json"), scheduler_type="auto", repo_root=tmp_path)
+
+    states = {entry["task_name"]: entry["state"] for entry in status["jobs"]}
+    assert states[r"Trading\DailyPaperTrading"] == "ok"
+    assert states[r"Trading\WeeklyDbBackup"] == "stale"
+    assert states[r"Trading\DailyTraderHealthCheck"] == "off"
+    assert status["in_sync"] is False
+    assert status["installed_readable"] is True
+
+
+def test_build_schedule_status_marks_unknown_when_unreadable(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        module, "resolve_schedule_config", lambda _path: ScheduleResolution(to_register=[_paper_spec()])
+    )
+    monkeypatch.setattr(module, "registered_task_names", lambda names, **_kwargs: None)
+
+    status = module.build_schedule_status(Path("/cfg.json"), scheduler_type="systemd", repo_root=tmp_path)
+
+    assert status["installed_readable"] is False
+    assert status["in_sync"] is False
+    assert all(entry["state"] == "unknown" for entry in status["jobs"])
+
+
+def test_run_status_report_writes_the_drift_artifact(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        module, "resolve_schedule_config", lambda _path: ScheduleResolution(to_register=[_paper_spec()])
+    )
+    monkeypatch.setattr(module, "registered_task_names", lambda names, **_kwargs: {r"Trading\DailyPaperTrading"})
+
+    module.run_status_report(Path("/cfg.json"), scheduler_type="auto", repo_root=tmp_path)
+
+    artifact = tmp_path / "local" / "artifacts" / "schedule_status.json"
+    assert artifact.exists()
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    assert payload["installed_readable"] is True
+    assert any(entry["task_name"] == r"Trading\DailyPaperTrading" for entry in payload["jobs"])

@@ -106,3 +106,44 @@ def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch)
     assert payload["evaluation"]["confidence"]["blendedScore"] is None
     assert payload["history"][0]["review"]["review_state"] == "requested"
     assert payload["history"][0]["events"][0]["event_type"] == "requested"
+
+
+def test_list_operations_overview_maps_schedule_status_to_camelcase(tmp_path, monkeypatch) -> None:
+    import json as _json
+
+    artifact = tmp_path / "schedule_status.json"
+    artifact.write_text(
+        _json.dumps(
+            {
+                "generated_at": "2026-09-12T13:00:00Z",
+                "host": "trading-host",
+                "scheduler": "windows",
+                "in_sync": False,
+                "installed_readable": True,
+                "jobs": [
+                    {"task_name": "Trading\DailyPaperTrading", "desired": True, "registered": True, "state": "ok"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(services_operations, "SCHEDULE_STATUS_PATH", artifact)
+    monkeypatch.setattr(services_operations, "LOGS_DIR", tmp_path / "logs")
+
+    payload = services_operations.list_operations_overview()
+
+    schedule = payload["scheduleStatus"]
+    assert schedule is not None
+    assert schedule["inSync"] is False
+    assert schedule["installedReadable"] is True
+    assert schedule["jobs"][0]["taskName"] == "Trading\DailyPaperTrading"
+    assert schedule["jobs"][0]["state"] == "ok"
+
+
+def test_list_operations_overview_schedule_status_none_when_artifact_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(services_operations, "SCHEDULE_STATUS_PATH", tmp_path / "absent.json")
+    monkeypatch.setattr(services_operations, "LOGS_DIR", tmp_path / "logs")
+
+    payload = services_operations.list_operations_overview()
+
+    assert payload["scheduleStatus"] is None
