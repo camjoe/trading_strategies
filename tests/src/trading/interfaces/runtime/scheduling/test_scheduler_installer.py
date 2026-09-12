@@ -24,7 +24,7 @@ def test_validate_time_rejects_invalid_values(value: str) -> None:
         scheduler_installer.validate_time(value)
 
 
-def test_schedule_expression_requires_day_for_weekly_task() -> None:
+def test_cron_day_field_requires_day_for_weekly_task() -> None:
     task = scheduler_installer.ScheduledTaskSpec(
         task_name="weekly",
         module="pkg.mod",
@@ -33,7 +33,15 @@ def test_schedule_expression_requires_day_for_weekly_task() -> None:
     )
 
     with pytest.raises(ValueError, match="requires day_of_week"):
-        scheduler_installer._schedule_expression(task)
+        scheduler_installer._cron_day_of_week_field(task)
+
+
+def test_cron_day_field_renders_range_for_weekdays() -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name="t", module="pkg.mod", time="09:30", schedule_kind="weekdays"
+    )
+
+    assert scheduler_installer._cron_day_of_week_field(task) == "1-5"
 
 
 def test_load_crontab_lines_handles_missing_crontab(monkeypatch) -> None:
@@ -400,6 +408,20 @@ def test_systemd_calendar_expression_for_daily_and_weekly() -> None:
 
     assert scheduler_installer._systemd_calendar_expression(daily) == "*-*-* 13:05:00"
     assert scheduler_installer._systemd_calendar_expression(weekly) == "Sun *-*-* 12:58:00"
+
+
+def test_weekdays_task_renders_for_every_backend(tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00", schedule_kind="weekdays"
+    )
+
+    cron_line = scheduler_installer.build_linux_cron_line(task, tmp_path, tmp_path / "python", tmp_path / "job.log")
+    assert cron_line.startswith("0 13 * * 1-5 ")
+
+    assert scheduler_installer._systemd_calendar_expression(task) == "Mon..Fri *-*-* 13:00:00"
+
+    windows = scheduler_installer.build_windows_register_command(task, tmp_path, tmp_path / "python.exe")
+    assert "-DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday" in windows
 
 
 def test_build_systemd_timer_unit_sets_wake_system() -> None:

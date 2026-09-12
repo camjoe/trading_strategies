@@ -40,7 +40,7 @@ JOB_CATALOG: dict[str, JobDefinition] = {
         job_id="daily_paper_trading",
         task_name=r"Trading\DailyPaperTrading",
         module=DAILY_PAPER_TRADING_MODULE,
-        schedule_kind="daily",
+        schedule_kind="weekdays",
         log_name="daily_paper_trading_scheduler.log",
     ),
     "daily_challenger_shadow_eval": JobDefinition(
@@ -54,7 +54,7 @@ JOB_CATALOG: dict[str, JobDefinition] = {
         job_id="daily_trader_health",
         task_name=r"Trading\DailyTraderHealthCheck",
         module=DAILY_TRADER_HEALTH_CHECK_MODULE,
-        schedule_kind="daily",
+        schedule_kind="weekdays",
         log_name="daily_trader_health_check_scheduler.log",
     ),
     "weekly_db_backup": JobDefinition(

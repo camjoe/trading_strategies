@@ -25,9 +25,9 @@ in `job_schedule.json`).
 
 | Job | Config id | Entrypoint | Task name | Frequency | What it does |
 |---|---|---|---|---|---|
-| Daily paper trading | `daily_paper_trading` | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Daily | Main daily workflow: shadow eval, auto trades, snapshots, report, notifications. |
+| Daily paper trading | `daily_paper_trading` | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Weekdays | Main daily workflow: shadow eval, auto trades, snapshots, report, notifications. Runs Monday–Friday; the market-closed path still completes and writes the success sentinel. |
 | Challenger shadow evaluation | `daily_challenger_shadow_eval` | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily | Scores challengers against incumbents per account. No-op without `--enable-run` (set it in the entry's `args`) or `DAILY_CHALLENGER_SHADOW_EVAL_ENABLED=1`. |
-| Daily trader health check | `daily_trader_health` | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Daily | Checks the latest daily log is recent and carries the success sentinel. |
+| Daily trader health check | `daily_trader_health` | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Weekdays | Checks the latest daily log is recent and carries the success sentinel. Runs Monday–Friday to match the trading job, so a weekend does not read as a stale run. |
 | Weekly DB backup | `weekly_db_backup` | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly | Database backup with a same-week duplicate guard. |
 
 ## Manual or indirect jobs
