@@ -23,6 +23,7 @@ import traceback
 from pathlib import Path
 
 from common.git import get_repo_root
+from common.logging_setup import bind_run_id, configure_logging, resolve_run_id
 from common.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.daily.paper_trading.arguments import parse_args
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import (
@@ -100,6 +101,10 @@ def main() -> int:
         )
         return 0
 
+    # Bind a run id (exported so the shelled-out workers inherit it) before the
+    # run's log file exists, so every line this run emits carries the same id.
+    bind_run_id(resolve_run_id(), export=True)
+
     all_accounts = load_account_names()
     try:
         context = build_run_context(
@@ -113,5 +118,8 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
+    # Route library logging (market data, brokers, services) into this run's log
+    # file and stdout; the operational lines still go through tee_line.
+    configure_logging(log_file=context.log_path)
     _startup_log(f"RUN log_path={context.log_path}", logs_dir)
     return run_workflow(args, context)

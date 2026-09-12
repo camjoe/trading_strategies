@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 from common.git import get_repo_root
+from common.logging_setup import bind_run_id, configure_logging, resolve_run_id
 from infrastructure.database.connection import DBConnection, db_session
 from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
@@ -156,6 +157,7 @@ class _Prepared:
     tag: str
     log_path: Path
     artifact_path: Path
+    run_id: str
 
 
 def _prepare_run(
@@ -199,6 +201,11 @@ def _prepare_run(
     else:
         artifact_path = artifacts_dir / f"{job_name}_{timestamp}.json"
 
+    # Bind a run id (exported for any subprocess) and route library logging into
+    # this run's log file, so provider/service logs are captured, not dropped.
+    run_id = bind_run_id(resolve_run_id(), export=True)
+    configure_logging(log_file=log_path)
+
     return _Prepared(
         args=args,
         repo_root=repo_root,
@@ -207,6 +214,7 @@ def _prepare_run(
         tag=tag,
         log_path=log_path,
         artifact_path=artifact_path,
+        run_id=run_id,
     )
 
 
@@ -291,6 +299,7 @@ def _run_per_account_job(
 
     run_meta: dict[str, object] = {
         "job": job_name,
+        "run_id": prep.run_id,
         "run_source": getattr(prep.args, "run_source", None),
         "force_run": bool(prep.args.force_run),
         f"{period}_tag": prep.tag,
