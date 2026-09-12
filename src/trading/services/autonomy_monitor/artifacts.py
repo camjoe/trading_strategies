@@ -97,11 +97,16 @@ def fetch_daily_workflow_status(repo_root: Path | None = None) -> dict[str, Any]
             "completed_steps": 0,
             "duration_seconds": None,
             "failed_step": None,
+            "summary": {},
         }
 
     step_results = artifact.get("step_results", [])
     if not isinstance(step_results, list):
         step_results = []
+
+    summary = artifact.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
 
     return {
         "status": artifact.get("status", "unknown"),
@@ -112,6 +117,9 @@ def fetch_daily_workflow_status(repo_root: Path | None = None) -> dict[str, Any]
         ),
         "duration_seconds": _run_duration_seconds(artifact),
         "failed_step": artifact.get("failed_step"),
+        # Roll-up written by the daily workflow (orders, decisions, kill switches,
+        # log warning/error counts); {} for older artifacts that predate it.
+        "summary": summary,
     }
 
 
