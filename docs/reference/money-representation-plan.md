@@ -5,7 +5,7 @@ Status: Draft
 Created: 2026-09-12
 Last Reviewed: 2026-09-12
 Purpose: Plan the change from float money and quantity storage to integer minor units with a defined fractional-share precision, before any code is written.
-Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [Architecture Conventions](../architecture/architecture-conventions.md), [ADR 020 Shared Financial Math Ownership](../adr/020-shared-financial-math-ownership.md)
+Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [Architecture Conventions](../architecture/architecture-conventions.md), [ADR 015 Numbered Alembic Migrations](../adr/015-numbered-alembic-migrations.md), [ADR 020 Shared Financial Math Ownership](../adr/020-shared-financial-math-ownership.md)
 
 ## Purpose
 
@@ -75,10 +75,14 @@ storing. So fix both numbers from evidence, not from a guess — see the evidenc
 2. **Quantity precision.** Choose the decimal precision for a share quantity, matched to the broker's
    fractional-order granularity — no finer. Fractional shares need a defined precision, not an open
    float.
-3. **In-memory type. Decided (2026-09-12): a custom `Money`/`Quantity` value object.** Each object
-   wraps an `int` minor-unit count and owns its scale. It keeps the scale in one place and blocks a
-   raw-float mix at the type level. Do not compute money with bare `int`, `float`, or `Decimal` in
-   the domain.
+3. **In-memory type. Decided (2026-09-12): `decimal.Decimal`.** The domain computes money and
+   quantity with `Decimal`, which gives exact arithmetic from the standard library and kills the
+   float dust. A single shared truncation helper applies the rounding rule (decision 4), and the
+   persistence encoder converts `Decimal` to and from the integer minor unit at the repository
+   boundary. A typed `Money`/`Quantity` wrapper was considered and **deferred**: its benefit is
+   unit-mixing safety and a compile-time scale guard, not precision, so it stays a cheap
+   non-breaking add-on if a real unit-mixing bug appears. See
+   [Storage representation](#storage-representation).
 4. **Rounding rule. Decided (2026-09-12): truncate toward zero, through one swappable policy.** A
    division or a percentage sizing result truncates toward zero to the minor unit. Apply it through a
    single named rounding function or constant, documented so the rule can be changed without touching
@@ -88,6 +92,40 @@ storing. So fix both numbers from evidence, not from a guess — see the evidenc
    revision changes the classified columns from `REAL` to `INTEGER` and needs no data conversion
    (see [`db-migration-system.md`](db-migration-system.md)).
 
+## Storage representation
+
+**Storage stays integer minor units, not `Decimal`-as-`TEXT`.** SQLite has no decimal type. Its
+affinities are `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `NUMERIC`. Integer minor units let SQL `SUM`,
+`ORDER BY`, and range filters stay correct, which the app relies on (`check_cash_invariant` sums the
+`ledger` in SQL). A `TEXT` decimal breaks those aggregations the same way a mixed-spelling timestamp
+breaks ordering, so it is rejected.
+
+**The conversion lives in one place: a persistence-layer encoder and decoder at the repository
+boundary.** Repositories already cross there — `execute(...)` to `dict(row)` to
+`Model.from_mapping(...)` on the way in, and an insert tuple on the way out. The encoder decodes an
+integer column to a `Decimal` and encodes a `Decimal` back to an integer at the fixed scale, so no
+caller hand-converts. `persistence/` owns column encoding and has no such module yet, so it is the
+home.
+
+**SQLAlchemy does not apply here, and we investigated it (2026-09-12).** The suggestion was to let
+SQLAlchemy map a `Decimal` to a database representation automatically. This repo does not use
+SQLAlchemy at runtime by explicit decision:
+
+- SQLAlchemy and Alembic are **ops-only** dependencies (`requirements-dev.txt`). The only runtime
+  imports outside the Alembic directory are `create_engine`/`StaticPool` in the ops-only
+  `migration_runner.py`. The application has no ORM and no model metadata
+  ([ADR 015](../adr/015-numbered-alembic-migrations.md)).
+- The runtime path is raw `sqlite3`: `sqlite3.connect`, `row_factory = sqlite3.Row`, and repository
+  `execute(...)` calls.
+- On SQLite, SQLAlchemy does not preserve a `Decimal` for free anyway. Its `Numeric` type processes
+  as float on the pysqlite dialect and warns about precision loss, so exact storage still needs a
+  hand-written `TypeDecorator` (`Decimal` to `TEXT` or scaled `int`) — the same conversion the
+  boundary encoder does.
+
+So adopting SQLAlchemy would reverse ADR 015 and add an ORM the app does not have, to gain a
+per-column hook that on SQLite still needs a custom type. The boundary encoder is that hook without
+the ORM. Do not add SQLAlchemy to the runtime.
+
 ## Staged plan
 
 Keep each stage small and green. This order follows the "inject first, move the adapter last"
@@ -95,11 +133,12 @@ convention in the architecture guide.
 
 1. **Stage 0 — decide.** Record the answers to the five decisions above in this document. Then
    promote the accepted decision to an ADR.
-2. **Stage 1 — the type.** Add the `Money`/`Quantity` value type (or the chosen representation) at
-   its lowest owning layer, plus a persistence encoder and decoder. The `persistence/` package owns
-   column encoding and currently has no such module, so it is the natural home. Storage stays float
-   in this stage; the type flows through the domain only.
-3. **Stage 2 — accounting.** Convert `domain/accounting/` and the sizing functions to the new type.
+2. **Stage 1 — the encoder.** Add the persistence encoder and decoder (`Decimal` to and from the
+   integer minor unit) and the shared truncation helper at their lowest owning layers. `persistence/`
+   owns column encoding and has no such module yet, so it is the home. Storage stays float in this
+   stage; `Decimal` flows through the domain only. The scale can start as a named provisional
+   constant and be finalized once the evidence step lands.
+3. **Stage 2 — accounting.** Convert `domain/accounting/` and the sizing functions to `Decimal`.
    Keep the whole-units guard until Stage 4. Prove the backtest replay still matches.
 4. **Stage 3 — schema.** Author the numbered revision that changes the classified columns from
    `REAL` to `INTEGER`. Wire the encoder to write and read integers. Update
