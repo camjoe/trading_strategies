@@ -59,22 +59,34 @@ quantity, or derived before the migration.
 
 ## Decisions to make first
 
-These decisions gate the design. They belong to Cameron. Do not start Stage 1 until they are made.
+These decisions gate the design. They belong to Cameron. Decisions 3, 4, and 5 are made (see below).
+Decisions 1 and 2 wait on the evidence step. Do not start Stage 1 until 1 and 2 are also fixed.
 
-1. **Money scale.** Choose the integer minor unit for money. Cents (`1e-2`) cannot represent a
-   sub-cent fee or price. A finer scale (for example `1e-4` of a dollar, or micro-dollars `1e-6`)
-   holds sub-cent prices and fees exactly. Pick one scale and apply it to every money column.
-2. **Quantity precision.** Choose the decimal precision for a share quantity (for example `1e-6`
-   shares as an integer count). Fractional shares need a defined precision, not an open float.
-3. **In-memory type.** Choose the type the domain computes with. Options: `int` minor units
-   everywhere; `decimal.Decimal`; or a small `Money`/`Quantity` value object that wraps an `int` and
-   owns its scale. The value-object option keeps the scale in one place and blocks a raw-float mix.
-4. **Rounding rule.** Define how a division or a percentage sizing result rounds to the minor unit
-   (round-half-even, or truncate toward zero). State it once; apply it everywhere.
-5. **Migration data path.** The deployed-database rollout is drop and reseed
-   (see [`db-migration-system.md`](db-migration-system.md)). If every accounting table is empty at
-   migration time, the revision only changes column types and needs no value conversion. Confirm the
-   row counts on staging and prod before you rely on this.
+**Recorded direction (2026-09-12): precision is broker-driven, and the two axes have different
+drivers.** Two decimals are not enough. Money precision follows what the broker **reports**: an IBKR
+commission is sub-cent and an averaged fill price carries many decimals. Quantity precision follows
+what the broker lets us **trade**: a finer share fraction than the broker executes is not worth
+storing. So fix both numbers from evidence, not from a guess — see the evidence step below.
+
+1. **Money scale.** Choose the integer minor unit for money, fine enough to hold a reported
+   commission and an averaged fill price without truncation. Cents (`1e-2`) truncate both. A finer
+   scale (for example `1e-4` of a dollar, or micro-dollars `1e-6`) holds them exactly. Pick one scale
+   and apply it to every money column.
+2. **Quantity precision.** Choose the decimal precision for a share quantity, matched to the broker's
+   fractional-order granularity — no finer. Fractional shares need a defined precision, not an open
+   float.
+3. **In-memory type. Decided (2026-09-12): a custom `Money`/`Quantity` value object.** Each object
+   wraps an `int` minor-unit count and owns its scale. It keeps the scale in one place and blocks a
+   raw-float mix at the type level. Do not compute money with bare `int`, `float`, or `Decimal` in
+   the domain.
+4. **Rounding rule. Decided (2026-09-12): truncate toward zero, through one swappable policy.** A
+   division or a percentage sizing result truncates toward zero to the minor unit. Apply it through a
+   single named rounding function or constant, documented so the rule can be changed without touching
+   every call site. Do not scatter raw `int()` truncations across the code.
+5. **Migration data path. Decided (2026-09-12): type-only, no value conversion.** Staging and prod
+   will be reset, and dev resets too, so every accounting table is empty at migration time. The
+   revision changes the classified columns from `REAL` to `INTEGER` and needs no data conversion
+   (see [`db-migration-system.md`](db-migration-system.md)).
 
 ## Staged plan
 
@@ -106,9 +118,20 @@ convention in the architecture guide.
   (see the migration authoring rules).
 - Keep money math in `domain/`; `common/` keeps unit scales only (ADR 020).
 
+## Evidence step (resolves the money scale and quantity precision)
+
+Before you fix the two scales, capture the real precision from the broker. The socket adapter
+[`ibkr_socket/adapter.py`](../../src/infrastructure/brokers/ibkr_socket/adapter.py) already surfaces
+the fields as floats: `fill.price`, `fill.commission`, `trade.avg_fill_price`, and `fill.shares`.
+
+1. Place one fractional-share order against an IBKR paper account.
+2. Read the observed decimal count of `fill.price`, `fill.commission`, `avg_fill_price`, and
+   `fill.shares` from the reconciled fill.
+3. Set the money scale from the finest reported money value, and the quantity precision from the
+   smallest fractional share the broker accepts and reports.
+
 ## Open questions
 
-- What sub-cent precision does the broker report for a real fill price and fee?
 - Do any external feeds or reports expect a float money value at their boundary, and where must the
   value convert back to a display float?
 
