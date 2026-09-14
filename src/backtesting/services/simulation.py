@@ -238,7 +238,9 @@ def _execute_buys(
     # Every buy is sized against the same post-sell equity, so sizing does not
     # drift as earlier buys in the list execute.
     post_sell_equity = state.cash + compute_market_value(state.positions, trade_prices.to_dict())
-    sized_buys: list[tuple[str, float, int]] = []
+    # The backtest sizes whole shares: choose_buy_qty/allocate_buy_quantities default
+    # to WHOLE_SHARE_STEP, so these float quantities are whole-valued.
+    sized_buys: list[tuple[str, float, float]] = []
     for ticker in tickers:
         if signals[ticker] != "buy" or ticker not in active_tickers or state.positions[ticker] > 0:
             continue

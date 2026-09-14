@@ -74,8 +74,11 @@ one. Both orders are seeded per run date rather than taken from a natural key
 (``domain.auto_trading.fairness.order_signal_candidates`` for tickers,
 ``order_capacity_claimants`` for books): stable within a day, varied across days.
 
-Quantities are whole units throughout — ``BookTradeCandidate.qty`` is an ``int``
-and the sizing policy filters ``qty >= 1`` before intents reach here.
+Quantities may be fractional. A buy that fits within every cap is approved at its
+exact requested quantity (the original intent passes through untouched), so the
+fractional size the sizing policy chose reaches submission. A buy that a cap
+rescales is floored to a whole unit — a conservative, instrument-agnostic bound
+that keeps options at whole contracts and never fills more than the cap allows.
 """
 
 from __future__ import annotations
@@ -233,8 +236,8 @@ def evaluate_risk_gate(
     for intent in intents:
         side = intent.side.lower().strip()
         symbol = intent.symbol.upper().strip()
-        requested_qty = int(intent.qty)
-        requested_notional = float(requested_qty) * float(intent.requested_price)
+        requested_qty = float(intent.qty)
+        requested_notional = requested_qty * float(intent.requested_price)
         if requested_qty <= 0:
             blocked_count += 1
             decisions.append(
@@ -314,7 +317,9 @@ def evaluate_risk_gate(
         )
 
         price = float(intent.requested_price)
-        max_qty = int(math.floor(max_notional / price)) if price > 0 else 0
+        # A rescaled buy floors to a whole unit: a conservative, instrument-agnostic
+        # bound that keeps options at whole contracts and never exceeds the cap.
+        max_qty = float(math.floor(max_notional / price)) if price > 0 else 0.0
         if max_qty <= 0:
             blocked_count += 1
             decisions.append(

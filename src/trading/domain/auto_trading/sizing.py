@@ -1,11 +1,32 @@
-"""Buy and sell sizing — how many whole shares a signalled trade funds."""
+"""Buy and sell sizing — how large a signalled trade the book funds.
 
+Sizing rounds down to a tradeable increment, ``quantity_step``. The default is
+whole shares (``WHOLE_SHARE_STEP``), which the backtest and options/leaps use;
+the live equity path passes ``FRACTIONAL_SHARE_STEP`` so it can size fractional
+shares at the storage precision.
+"""
+
+import math
 from collections.abc import Sequence
+
+from common.constants import QUANTITY_MINOR_UNITS_PER_SHARE
 
 # Default account-level buy sizing controls. Percent fields in this repository
 # are stored as 0-100 values, not 0-1 fractions.
 DEFAULT_TRADE_SIZE_PCT = 10.0
 DEFAULT_MAX_POSITION_PCT = 20.0
+
+# The tradeable share increment sizing rounds down to. Whole shares is the
+# default; the fractional step is the smallest storable share fraction.
+WHOLE_SHARE_STEP = 1.0
+FRACTIONAL_SHARE_STEP = 1.0 / QUANTITY_MINOR_UNITS_PER_SHARE
+
+
+def _truncate_to_step(quantity: float, step: float) -> float:
+    """The largest multiple of ``step`` not exceeding ``quantity`` (never negative)."""
+    if quantity <= 0 or step <= 0:
+        return 0.0
+    return math.floor(quantity / step) * step
 
 
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
@@ -26,9 +47,10 @@ def choose_buy_qty(
     max_position_pct: float | None = None,
     current_position_value: float = 0.0,
     portfolio_equity: float | None = None,
-) -> int:
+    quantity_step: float = WHOLE_SHARE_STEP,
+) -> float:
     if price <= 0:
-        return 0
+        return 0.0
 
     resolved_trade_size_pct = _resolve_sizing_pct(
         trade_size_pct,
@@ -45,30 +67,28 @@ def choose_buy_qty(
 
     effective_equity = float(portfolio_equity) if portfolio_equity is not None else float(cash)
     if effective_equity <= 0 or cash <= fee:
-        return 0
+        return 0.0
 
     trade_budget = effective_equity * (resolved_trade_size_pct / 100.0)
     position_cap = effective_equity * (resolved_max_position_pct / 100.0)
     remaining_position_budget = max(0.0, position_cap - max(0.0, float(current_position_value)))
     spendable_budget = min(max(0.0, cash - fee), trade_budget, remaining_position_budget)
-    if spendable_budget < price:
-        return 0
-
-    return int(spendable_budget // price)
+    return _truncate_to_step(spendable_budget / price, quantity_step)
 
 
 def allocate_buy_quantities(
-    sized_buys: Sequence[tuple[str, float, int]],
+    sized_buys: Sequence[tuple[str, float, float]],
     *,
     cash: float,
     fee_per_trade: float,
-) -> dict[str, int]:
+    quantity_step: float = WHOLE_SHARE_STEP,
+) -> dict[str, float]:
     """Fund one bar's buy signals, scaling proportionally when cash cannot cover them all.
 
     *sized_buys* is ``(ticker, execution_price, requested_qty)`` per signaled
     ticker, already sized by :func:`choose_buy_qty` against the book's policy.
     Returns the quantity actually funded per ticker, omitting any that cannot
-    afford a single share.
+    afford one ``quantity_step``.
 
     A buy signal carries no conviction — every "buy" on a bar is equally
     preferred, because that is all the strategy said. So when cash binds, the
@@ -81,10 +101,10 @@ def allocate_buy_quantities(
     total.
 
     When the requests fit, every ticker gets exactly what it asked for and this
-    is a no-op. Integer share counts mean the allocation can leave a little cash
-    unspent; that is left uninvested rather than handed to an arbitrary winner.
+    is a no-op. Rounding to ``quantity_step`` can leave a little cash unspent;
+    that is left uninvested rather than handed to an arbitrary winner.
     """
-    requests = [(ticker, price, qty) for ticker, price, qty in sized_buys if qty >= 1 and price > 0]
+    requests = [(ticker, price, qty) for ticker, price, qty in sized_buys if qty >= quantity_step and price > 0]
     if not requests:
         return {}
 
@@ -93,19 +113,16 @@ def allocate_buy_quantities(
     if total_cost <= cash:
         return {ticker: qty for ticker, _price, qty in requests}
 
-    granted: dict[str, int] = {}
+    granted: dict[str, float] = {}
     for ticker, price, requested_qty in requests:
         share = cash * (costs[ticker] / total_cost)
         spendable = share - fee_per_trade
-        if spendable < price:
-            continue
-        affordable = min(int(spendable // price), requested_qty)
-        if affordable >= 1:
+        affordable = min(_truncate_to_step(spendable / price, quantity_step), requested_qty)
+        if affordable >= quantity_step:
             granted[ticker] = affordable
     return granted
 
 
-def closing_sell_qty(position_qty: float) -> int:
-    """Whole-share quantity that closes the position outright."""
-    max_qty = int(position_qty)
-    return max_qty if max_qty >= 1 else 0
+def closing_sell_qty(position_qty: float, *, quantity_step: float = WHOLE_SHARE_STEP) -> float:
+    """The quantity that closes the position outright, rounded down to ``quantity_step``."""
+    return _truncate_to_step(position_qty, quantity_step)

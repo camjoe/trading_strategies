@@ -26,12 +26,15 @@ class TestApplyBuy:
         with pytest.raises(ValueError, match="positive"):
             apply_buy("AAPL", 0.0, 100.0, 0.0, positions, avg_cost, 1000.0)
 
-    def test_fractional_qty_raises_value_error(self) -> None:
+    def test_fractional_qty_is_allowed(self) -> None:
+        # Fractional shares are supported: the whole-units guard was removed in
+        # the money-representation plan (Stage 4).
         positions = {"AAPL": 0.0}
         avg_cost = {"AAPL": 0.0}
+        remaining_cash = apply_buy("AAPL", 1.5, 100.0, 0.0, positions, avg_cost, 1000.0)
 
-        with pytest.raises(ValueError, match="whole units"):
-            apply_buy("AAPL", 1.5, 100.0, 0.0, positions, avg_cost, 1000.0)
+        assert positions["AAPL"] == pytest.approx(1.5)
+        assert remaining_cash == pytest.approx(850.0)
 
     def test_valid_buy_updates_position_and_avg_cost(self) -> None:
         positions = {"AAPL": 0.0}
@@ -183,30 +186,36 @@ class TestComputeAccountState:
         assert float(state.total_deposited) == pytest.approx(0.0)
 
 
-class TestWholeUnitQuantities:
-    """Instrument quantities must be whole units — the flat test in ``_compact_positions``
-    (``qty > 0``) reads a fractional remainder as a phantom open position."""
+class TestFractionalQuantities:
+    """Fractional shares are supported (Stage 4). Exact Decimal arithmetic over
+    truncated quantities keeps a fully-sold position at exactly zero, so
+    ``_compact_positions`` (``qty > 0``) never reads a fraction as a phantom open
+    position."""
 
-    def test_rejects_fractional_buy(self) -> None:
-        with pytest.raises(ValueError, match="whole units"):
-            compute_account_state(
-                initial_cash=Decimal("1000"),
-                trades=[{"ticker": "AAPL", "side": "buy", "qty": 0.5, "price": 100, "fee": 0}],
-            )
+    def test_allows_a_fractional_buy(self) -> None:
+        state = compute_account_state(
+            initial_cash=Decimal("1000"),
+            trades=[{"ticker": "AAPL", "side": "buy", "qty": 0.5, "price": 100, "fee": 0}],
+        )
 
-    def test_rejects_fractional_sell(self) -> None:
-        with pytest.raises(ValueError, match="whole units"):
-            compute_account_state(
-                initial_cash=Decimal("1000"),
-                trades=[
-                    {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
-                    {"ticker": "AAPL", "side": "sell", "qty": 1.5, "price": 110, "fee": 0},
-                ],
-            )
+        assert state.positions == {"AAPL": Decimal("0.5")}
+        assert float(state.cash) == pytest.approx(950.0)
 
-    def test_cash_movements_are_exempt(self) -> None:
+    def test_allows_a_fractional_sell_and_flattens_exactly(self) -> None:
+        state = compute_account_state(
+            initial_cash=Decimal("1000"),
+            trades=[
+                {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+                {"ticker": "AAPL", "side": "sell", "qty": 1.5, "price": 110, "fee": 0},
+            ],
+        )
+
+        assert state.positions == {"AAPL": Decimal("0.5")}
+        assert float(state.cash) == pytest.approx(1000.0 - 200.0 + 165.0)
+
+    def test_cash_movements_are_fractional(self) -> None:
         # Deposits ride the settlement ticker as qty=dollars, price=1.0, and are
-        # genuinely fractional. They return before the position math.
+        # genuinely fractional.
         state = compute_account_state(
             initial_cash=Decimal("0"),
             trades=[

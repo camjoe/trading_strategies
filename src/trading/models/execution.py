@@ -18,7 +18,7 @@ class BookTradeCandidate:
     strategy_name: str
     side: str
     symbol: str
-    qty: int
+    qty: float
     requested_price: float
     forced_sell: str | None
     delta_est: float | None
@@ -125,8 +125,8 @@ class RiskGateDecision:
     side: str
     action: str
     reason_code: str
-    requested_qty: int
-    approved_qty: int
+    requested_qty: float
+    approved_qty: float
     requested_notional: float
     approved_notional: float
 

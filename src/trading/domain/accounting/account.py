@@ -30,19 +30,6 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
     )
 
 
-def _require_whole_units(ticker: str, qty: Number) -> None:
-    """Instrument quantities are whole units, as sized in ``domain.auto_trading.sizing``.
-
-    ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
-    is what makes a fully-sold position read as flat. A fractional quantity leaves float
-    dust that would present as a phantom open position holding a stale average cost.
-    Cash movements are exempt — they ride the settlement ticker, which returns before
-    either apply function.
-    """
-    if qty % 1 != 0:
-        raise ValueError(f"Fractional quantity {qty} for {ticker}: instrument quantities must be whole units.")
-
-
 def apply_buy(
     ticker: str,
     qty: Number,
@@ -59,9 +46,10 @@ def apply_buy(
     basis, so ``avg_cost`` is what the shares actually cost to acquire.
 
     Shared with the backtest (float) and the live replay (Decimal): the number
-    type follows the caller's, and a fill costs the same on both paths.
+    type follows the caller's, and a fill costs the same on both paths. Quantities
+    may be fractional; exact Decimal (or float in the backtest) arithmetic keeps a
+    fully-sold position at exactly zero for ``_compact_positions``.
     """
-    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if old_qty + qty <= 0:
         raise ValueError(
@@ -89,7 +77,6 @@ def apply_sell(
     netted out of proceeds, so a round trip is costed on both legs. Shared with the
     backtest (float) and the live replay (Decimal): the number type follows the caller's.
     """
-    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
@@ -106,8 +93,9 @@ def _compact_positions(
     """Drop sold-out positions, keeping the average cost of the ones still open.
 
     A closed position's stale ``avg_cost`` is dropped here rather than cleared on
-    the sell: at zero quantity nothing reads it. Exact ``qty > 0`` requires whole
-    units — see :func:`_require_whole_units`.
+    the sell: at zero quantity nothing reads it. Exact arithmetic (Decimal live,
+    float in the backtest) over truncated quantities keeps a fully-sold position at
+    exactly zero, so ``qty > 0`` is a reliable open-position test even for fractions.
     """
     open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
     open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
