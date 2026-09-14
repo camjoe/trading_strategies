@@ -1,9 +1,9 @@
 # Money Representation Plan: REAL floats to integer minor units
 
 Type: plan
-Status: Draft
+Status: Ready (provisional scale; awaiting the fill for the final number)
 Created: 2026-09-12
-Last Reviewed: 2026-09-12
+Last Reviewed: 2026-09-13
 Purpose: Plan the change from float money and quantity storage to integer minor units with a defined fractional-share precision, before any code is written.
 Related: [Database Schema Reference](db-schema.md), [DB Migration System](db-migration-system.md), [Architecture Conventions](../architecture/architecture-conventions.md), [ADR 015 Numbered Alembic Migrations](../adr/015-numbered-alembic-migrations.md), [ADR 020 Shared Financial Math Ownership](../adr/020-shared-financial-math-ownership.md)
 
@@ -59,8 +59,10 @@ quantity, or derived before the migration.
 
 ## Decisions to make first
 
-These decisions gate the design. They belong to Cameron. Decisions 3, 4, and 5 are made (see below).
-Decisions 1 and 2 wait on the evidence step. Do not start Stage 1 until 1 and 2 are also fixed.
+These decisions gate the design. Decisions 3, 4, and 5 are made (see below). Decisions 1 and 2 are
+the two scale numbers; they wait on the evidence step. **Stage 1 does not wait on them** — it builds
+against a provisional scale (see [Provisional scale](#provisional-scale-and-how-to-finalize-it)), and
+the final number is a one-line constant change later.
 
 **Recorded direction (2026-09-12): precision is broker-driven, and the two axes have different
 drivers.** Two decimals are not enough. Money precision follows what the broker **reports**: an IBKR
@@ -136,13 +138,58 @@ So adopting SQLAlchemy would reverse ADR 015 and add an ORM the app does not hav
 per-column hook that on SQLite still needs a custom type. The boundary encoder is that hook without
 the ORM. Do not add SQLAlchemy to the runtime.
 
+## Provisional scale and how to finalize it
+
+Stage 1 starts now, before the fill, because the whole design derives from two integer constants. Set
+them provisionally, then change only these two values when the evidence step lands. No accounting
+data exists yet on any database (all reset), so a scale change before implementation carries no
+stored-value risk.
+
+Add to `src/common/constants.py` (ADR 020: `common/` keeps unit scales):
+
+- `MONEY_MINOR_UNITS_PER_DOLLAR = 1_000_000` — provisional micro-dollars (`1e-6`). It holds a
+  sub-cent commission and an averaged price as a safe superset.
+- `QUANTITY_MINOR_UNITS_PER_SHARE = 1_000_000` — provisional micro-shares (`1e-6`).
+
+Pick the provisional values **finer** than the broker is likely to report, so the real precision is a
+subset. If the fill shows a coarser precision, the constant still holds it exactly and the change is
+optional. If the fill shows a finer precision, widen the constant.
+
+Put the pure conversion helpers in a new `money.py` module under `src/common/`, reachable by both
+`domain/` and `persistence/` (`domain` may import `common`; it may not import `persistence`, so the
+shared math lives in `common`):
+
+- `to_minor_units(value: Decimal, units_per_whole: int) -> int` — truncate toward zero (decision 4).
+- `from_minor_units(units: int, units_per_whole: int) -> Decimal`.
+
+The repository-boundary encoder in `src/trading/persistence/` wraps these for column read and write.
+Confirm the placement with `python -m scripts.checks.repo.layer_check`.
+
+**The one-hour finalize edit:** change the two integers in `common/constants.py` to the observed
+`10^n`, then run the validation below. Nothing else changes, because every site derives from them.
+
+## Validation per stage
+
+After each stage, run the touched suite and the quick checks; do not proceed on red. POSIX paths for
+the Linux box (Windows uses `.venv\Scripts\...`):
+
+```bash
+./.venv/bin/python -m scripts.checks.run_suite --changed --no-cov
+./.venv/bin/python -m scripts.run_checks quick
+```
+
+Stage 3 (the migration) additionally runs `python -m scripts.checks.repo.migration_check` and the
+database suites. Stage 5 regenerates `docs/reference/database-diagram-viewer.html` and runs
+`python -m scripts.checks.docs.readme_check`.
+
 ## Staged plan
 
 Keep each stage small and green. This order follows the "inject first, move the adapter last"
-convention in the architecture guide.
+convention in the architecture guide. Start at Stage 1; Stage 0 is recorded below.
 
-1. **Stage 0 — decide.** Record the answers to the five decisions above in this document. Then
-   promote the accepted decision to an ADR.
+1. **Stage 0 — decide. Done for implementation.** Decisions 3, 4, and 5 are recorded above;
+   decisions 1 and 2 run on a provisional scale until the fill. A formal ADR that amends the
+   "Money as REAL" stance is optional and can wait until the change lands — it does not block Stage 1.
 2. **Stage 1 — the encoder.** Add the persistence encoder and decoder (`Decimal` to and from the
    integer minor unit) and the shared truncation helper at their lowest owning layers. `persistence/`
    owns column encoding and has no such module yet, so it is the home. Storage stays float in this
@@ -169,15 +216,34 @@ convention in the architecture guide.
 
 ## Evidence step (resolves the money scale and quantity precision)
 
-Before you fix the two scales, capture the real precision from the broker. The socket adapter
-[`ibkr_socket/adapter.py`](../../src/infrastructure/brokers/ibkr_socket/adapter.py) already surfaces
-the fields as floats: `fill.price`, `fill.commission`, `trade.avg_fill_price`, and `fill.shares`.
+This is operator work on the Linux socket box, done in parallel with the code. It sets decisions 1
+and 2. Run it during regular US market hours, against a `DU` paper account, with IB Gateway (paper
+port `4002`) or TWS (paper port `7497`) running and the API enabled.
 
-1. Place one fractional-share order against an IBKR paper account.
-2. Read the observed decimal count of `fill.price`, `fill.commission`, `avg_fill_price`, and
-   `fill.shares` from the reconciled fill.
-3. Set the money scale from the finest reported money value, and the quantity precision from the
-   smallest fractional share the broker accepts and reports.
+1. **Connectivity, read-only.** Confirm the account and that a submitted order reads back:
+   ```bash
+   ./.venv/bin/python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99
+   ```
+   The reported account must start with `DU`.
+2. **Quantity acceptance, no fill.** Probe what fractional quantity IBKR accepts on a resting,
+   non-marketable order (auto-cancelled). Try smaller fractions to find the smallest accepted:
+   ```bash
+   ./.venv/bin/python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99 \
+     --paper-order-check --paper-order-symbol AAPL --paper-order-limit-price 1.00 --paper-order-qty 0.001
+   ```
+   A rejection is also data — it means fractional needs a market order, so read quantity from step 3.
+3. **A real fill.** In TWS on the box, place a fractional **market** buy of a liquid low-price ticker
+   (for example `1.5` shares). When it fills, read from IBKR's execution report the decimal count of:
+   the fill price, the commission, and the filled quantity. A single fill's average price equals its
+   fill price.
+4. **Finalize.** Money scale = `10^(finest of the price and commission decimals)`. Quantity scale =
+   `10^(quantity decimals, or the smallest fraction step 2 accepted)`. Set the two constants in
+   `src/common/constants.py` (see [Provisional scale](#provisional-scale-and-how-to-finalize-it)) and
+   run the stage validation.
+
+This fill is also the first real end-to-end exercise of the fill path, which the runbook records as
+unproven (`docs/runbooks/ibkr-paper-trading.md`, "What has been verified"). Watch for a
+`PaperBrokerAccountMismatchError` or a stranded `order_fills` write.
 
 ## Open questions
 
