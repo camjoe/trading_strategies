@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 import pytest
 
@@ -341,6 +342,30 @@ def test_position_and_ledger_round_trips(conn) -> None:
 
     with pytest.raises(sqlite3.IntegrityError):
         ledger.insert(book_id=book_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
+
+
+def test_fractional_position_round_trips_exactly(conn) -> None:
+    # A fractional share and a sub-cent price survive the integer-minor-unit
+    # storage exactly: the values sit on the 1e-6 grid, so encode -> store ->
+    # decode returns the same Decimal (Stage 3 encoder + Stage 4 fractional).
+    _account_id, book_id = _insert_book(conn)
+    positions = PositionRepository(conn)
+    positions.upsert(
+        book_id=book_id,
+        symbol="AAPL",
+        qty=Decimal("6.666666"),
+        avg_cost=Decimal("150.123456"),
+        market_value=Decimal("1000.82"),
+        unrealized_pnl=Decimal("0.5"),
+        updated_at=NOW,
+    )
+
+    fetched = positions.fetch(book_id=book_id, symbol="AAPL")
+    assert fetched is not None
+    assert fetched.qty == Decimal("6.666666")
+    assert fetched.avg_cost == Decimal("150.123456")
+    assert fetched.market_value == Decimal("1000.82")
+    assert fetched.unrealized_pnl == Decimal("0.5")
 
 
 def test_risk_round_trips(conn) -> None:

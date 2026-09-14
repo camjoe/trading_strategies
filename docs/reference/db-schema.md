@@ -121,18 +121,32 @@ value and resumes default tracking for that field. This differs intentionally fr
 settings. Revision `0014` removed eleven unused cadence, hard-regime-mapping, and overlay columns;
 the table now exposes only settings consumed by the active rotation path.
 
-### Money as REAL
+### Money and quantity as integer minor units
 
-Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. Float drift surfaces
-via a reconciliation check rather than the storage type: `python -m scripts.data_ops.check_cash_invariant`
-reports any book whose `current_cash` diverges from `start_equity` plus its `ledger` sum beyond a
-tolerance.
+Live money and quantity columns are stored as **integer minor units**, not floats. The scale is set
+by two constants in `src/common/constants.py`: `MONEY_MINOR_UNITS_PER_DOLLAR` and
+`QUANTITY_MINOR_UNITS_PER_SHARE` (both provisionally `1_000_000` — micro-dollars and micro-shares —
+until a real IBKR paper fill fixes the broker-reported precision). This lets the system trade
+fractional shares without float dust reading as a phantom open position.
 
-This float representation is **planned for replacement** by integer minor units, because Cameron
-intends to trade fractional shares and float dust then reads as a phantom open position. The change
-is not started; see [Money Representation Plan](money-representation-plan.md) for the scope, the open
-decisions, and the staged order. Do not add new float money columns on the assumption that the
-representation is permanent.
+- **What is integer.** The live money and quantity columns on `accounts`, `books`, `orders`,
+  `order_fills`, `positions`, `ledger`, `equity_snapshots`, `daily_metrics`, `risk_snapshots`, and
+  `risk_decisions` (revision `0002`).
+- **What stays `REAL`.** Rate, ratio, percent, basis-point, and weight columns (they encode rates,
+  not money), and the `backtest_*` / `optimization_*` tables (the backtest computes in `float` and
+  its stored metrics are approximate).
+- **The conversion lives in one place.** `src/trading/persistence/money_columns.py` encodes a
+  `Decimal` to the integer minor unit on write and decodes it back on read, at the repository
+  boundary. The domain computes money and quantity in `decimal.Decimal`; nothing else hand-converts.
+  See [ADR 020](../adr/020-shared-financial-math-ownership.md).
+- **SQL money math stays exact.** Because the columns are integers, `SUM`/`MAX` aggregations (the
+  equity-snapshot account roll-up, drawdown peak) stay exact and order correctly.
+- **Reconciliation is exact.** `python -m scripts.data_ops.check_cash_invariant` reports any book
+  whose `current_cash` does not equal `start_equity` plus its `ledger` sum — an exact integer check,
+  no float tolerance.
+
+Do not add a new money or quantity column as `REAL`; add it as `INTEGER` and route it through the
+encoder. The rollout is recorded in [Money Representation Plan](money-representation-plan.md).
 
 ### Account trade history
 
