@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from collections.abc import Callable, Sequence
+from decimal import Decimal
 
 from common.time import utc_now_iso
 from trading.domain.accounting.book import apply_book_fill_transition
@@ -94,17 +95,19 @@ def apply_book_fill(
     position_qty = current.qty if current is not None else 0.0
     position_avg_cost = current.avg_cost if current is not None else 0.0
 
+    # The fill math computes in Decimal; storage is still float this stage (the
+    # persistence encoder is wired in Stage 3), so convert in here and back out below.
     transition = apply_book_fill_transition(
         side=side,
         symbol=symbol,
-        qty=fill_qty,
-        fill_price=fill_price,
-        commission=transaction_cost,
+        qty=Decimal(str(fill_qty)),
+        fill_price=Decimal(str(fill_price)),
+        commission=Decimal(str(transaction_cost)),
         requested_price=None,
-        position_qty=position_qty,
-        position_avg_cost=position_avg_cost,
-        cash=0.0,
-        realized_pnl=0.0,
+        position_qty=Decimal(str(position_qty)),
+        position_avg_cost=Decimal(str(position_avg_cost)),
+        cash=Decimal("0"),
+        realized_pnl=Decimal("0"),
     )
 
     # The position, ledger, and balance writes are one atomic unit: a fill's
@@ -115,10 +118,10 @@ def apply_book_fill(
             position_repo.upsert(
                 book_id=book_id,
                 symbol=transition.symbol,
-                qty=transition.ending_qty,
-                avg_cost=transition.ending_avg_cost,
-                market_value=transition.ending_market_value,
-                unrealized_pnl=transition.ending_unrealized_pnl,
+                qty=float(transition.ending_qty),
+                avg_cost=float(transition.ending_avg_cost),
+                market_value=float(transition.ending_market_value),
+                unrealized_pnl=float(transition.ending_unrealized_pnl),
                 updated_at=fill_time,
             )
         else:
@@ -155,7 +158,7 @@ def apply_book_fill(
             # balance write would silently match no row while the position and
             # ledger entries above it stand. Raising rolls the whole fill back.
             raise LookupError(f"Book {book_id} does not exist; cannot apply a fill to it.")
-        new_cash = book.current_cash + transition.cash_delta
+        new_cash = book.current_cash + float(transition.cash_delta)
         market_value = sum(position.market_value for position in position_repo.fetch_for_book(book_id=book_id))
         book_repo.update_balances(
             book_id=book_id,
@@ -170,7 +173,7 @@ def apply_book_fill(
         if transition.side == "sell":
             OrderRepository(conn).add_realized_pnl_delta(
                 order_id=order_id,
-                realized_pnl_delta=transition.realized_pnl_delta,
+                realized_pnl_delta=float(transition.realized_pnl_delta),
             )
 
 

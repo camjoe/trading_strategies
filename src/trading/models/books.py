@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 
 from common.coercion import (
     row_expect_float,
@@ -422,20 +423,20 @@ class LedgerEntryRecord:
 class BookFillTransition:
     symbol: str
     side: str
-    qty: float
-    fill_price: float
-    commission: float
-    requested_price: float | None
-    cash_delta: float
-    realized_pnl_delta: float
-    slippage_amount: float
-    ending_qty: float
-    ending_avg_cost: float
-    ending_cash: float
-    ending_realized_pnl: float
-    ending_market_value: float
-    ending_unrealized_pnl: float
-    ending_equity: float
+    qty: Decimal
+    fill_price: Decimal
+    commission: Decimal
+    requested_price: Decimal | None
+    cash_delta: Decimal
+    realized_pnl_delta: Decimal
+    slippage_amount: Decimal
+    ending_qty: Decimal
+    ending_avg_cost: Decimal
+    ending_cash: Decimal
+    ending_realized_pnl: Decimal
+    ending_market_value: Decimal
+    ending_unrealized_pnl: Decimal
+    ending_equity: Decimal
 
 
 # --- Risk ---

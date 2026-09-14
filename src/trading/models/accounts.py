@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, fields
+from decimal import Decimal
 
 from common.coercion import (
     coerce_bool,
@@ -197,14 +198,14 @@ class AccountState:
         percentage denominator for ``initial_cash = 0`` accounts.
     """
 
-    cash: float
-    positions: dict[str, float]
-    avg_cost: dict[str, float]
-    realized_pnl: float
-    # Gross cumulative settlement-ticker deposits; 0.0 unless the deposit model
+    cash: Decimal
+    positions: dict[str, Decimal]
+    avg_cost: dict[str, Decimal]
+    realized_pnl: Decimal
+    # Gross cumulative settlement-ticker deposits; 0 unless the deposit model
     # is active (i.e. settlement_ticker is set in compute_account_state).
     # Withdrawals do not reduce this value — it represents total capital invested.
-    total_deposited: float = field(default=0.0)
+    total_deposited: Decimal = field(default_factory=lambda: Decimal("0"))
 
 
 @dataclass(frozen=True)

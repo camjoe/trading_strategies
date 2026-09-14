@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from decimal import Decimal
 
 from common.coercion import row_float
 from common.constants import SETTLEMENT_TICKER
-from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
+from trading.domain.accounting.ledger import Number, buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
 
@@ -29,7 +30,7 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
     )
 
 
-def _require_whole_units(ticker: str, qty: float) -> None:
+def _require_whole_units(ticker: str, qty: Number) -> None:
     """Instrument quantities are whole units, as sized in ``domain.auto_trading.sizing``.
 
     ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
@@ -38,26 +39,27 @@ def _require_whole_units(ticker: str, qty: float) -> None:
     Cash movements are exempt — they ride the settlement ticker, which returns before
     either apply function.
     """
-    if not qty.is_integer():
+    if qty % 1 != 0:
         raise ValueError(f"Fractional quantity {qty} for {ticker}: instrument quantities must be whole units.")
 
 
 def apply_buy(
     ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-) -> float:
+    qty: Number,
+    price: Number,
+    fee: Number,
+    positions: dict[str, Number],
+    avg_cost: dict[str, Number],
+    cash: Number,
+) -> Number:
     """Apply a buy fill, returning the new cash balance.
 
     Raises the position and re-averages its cost **in place** in the caller's
     ``positions`` and ``avg_cost`` dicts. The fee is capitalized into the cost
     basis, so ``avg_cost`` is what the shares actually cost to acquire.
 
-    Shared with the backtest so a simulated fill costs what a real one does.
+    Shared with the backtest (float) and the live replay (Decimal): the number
+    type follows the caller's, and a fill costs the same on both paths.
     """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
@@ -73,19 +75,19 @@ def apply_buy(
 
 def apply_sell(
     ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-    realized: float,
-) -> tuple[float, float]:
+    qty: Number,
+    price: Number,
+    fee: Number,
+    positions: dict[str, Number],
+    avg_cost: dict[str, Number],
+    cash: Number,
+    realized: Number,
+) -> tuple[Number, Number]:
     """Apply a sell fill, returning the new ``(cash, realized)`` pair.
 
     Reduces the position **in place**. The fee is charged against realized P&L and
     netted out of proceeds, so a round trip is costed on both legs. Shared with the
-    backtest so a simulated fill realizes what a real one does.
+    backtest (float) and the live replay (Decimal): the number type follows the caller's.
     """
     _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
@@ -99,8 +101,8 @@ def apply_sell(
 
 
 def _compact_positions(
-    positions: dict[str, float], avg_cost: dict[str, float]
-) -> tuple[dict[str, float], dict[str, float]]:
+    positions: dict[str, Decimal], avg_cost: dict[str, Decimal]
+) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
     """Drop sold-out positions, keeping the average cost of the ones still open.
 
     A closed position's stale ``avg_cost`` is dropped here rather than cleared on
@@ -114,14 +116,19 @@ def _compact_positions(
 
 def _apply_trade_to_state(
     trade: dict[str, object],
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-    realized: float,
-    total_deposited: float,
+    positions: dict[str, Decimal],
+    avg_cost: dict[str, Decimal],
+    cash: Decimal,
+    realized: Decimal,
+    total_deposited: Decimal,
     settlement_ticker: str | None,
-) -> tuple[float, float, float]:
-    ticker, side, qty, price, fee = normalize_trade_fields(trade)
+) -> tuple[Decimal, Decimal, Decimal]:
+    ticker, side, raw_qty, raw_price, raw_fee = normalize_trade_fields(trade)
+    # The row parser reads storage floats; the replay computes in Decimal. str()
+    # gives the clean decimal of the stored value, not the float's binary tail.
+    qty = Decimal(str(raw_qty))
+    price = Decimal(str(raw_price))
+    fee = Decimal(str(raw_fee))
     validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
@@ -139,17 +146,19 @@ def _apply_trade_to_state(
 
 
 def compute_account_state(
-    initial_cash: float,
+    initial_cash: Decimal,
     trades: list[dict[str, object]],
     settlement_ticker: str | None = SETTLEMENT_TICKER,
 ) -> AccountState:
     """Replay a trade list and return the resulting ``AccountState``.
 
+    The replay computes in ``Decimal`` for exact money and quantity arithmetic.
+
     Parameters
     ----------
     initial_cash:
-        Starting cash balance.  Set to ``0.0`` for accounts that seed capital
-        exclusively through deposit trades (see ``settlement_ticker``).
+        Starting cash balance.  Set to ``Decimal("0")`` for accounts that seed
+        capital exclusively through deposit trades (see ``settlement_ticker``).
     trades:
         Ordered list of trade rows from the ``trades`` table.  Each row must
         expose ``ticker``, ``side``, ``qty``, ``price``, and ``fee`` keys.
@@ -161,11 +170,11 @@ def compute_account_state(
         ``state.cash``.  Pass ``None`` to disable this behaviour and treat every
         ticker as a regular equity.
     """
-    positions: dict[str, float] = defaultdict(float)
-    avg_cost: dict[str, float] = defaultdict(float)
-    cash = float(initial_cash)
-    realized = 0.0
-    total_deposited = 0.0
+    positions: dict[str, Decimal] = defaultdict(Decimal)
+    avg_cost: dict[str, Decimal] = defaultdict(Decimal)
+    cash = initial_cash
+    realized = Decimal("0")
+    total_deposited = Decimal("0")
     for trade in trades:
         cash, realized, total_deposited = _apply_trade_to_state(
             trade, positions, avg_cost, cash, realized, total_deposited, settlement_ticker

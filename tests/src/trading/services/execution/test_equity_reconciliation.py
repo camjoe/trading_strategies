@@ -162,7 +162,8 @@ def test_book_and_account_accounting_agree_and_reconcile(conn):
 
     # Independent account/trades equity, marked at the same prices.
     state = load_account_state(conn, account_id=account_id, initial_cash=10_000.0)
-    account_equity = state.cash + sum(qty * prices[symbol] for symbol, qty in state.positions.items())
+    # The account state carries Decimal; the book NAV path is float, so compare in float.
+    account_equity = float(state.cash) + sum(float(qty) * prices[symbol] for symbol, qty in state.positions.items())
 
     assert nav.current_equity == pytest.approx(account_equity)
 
@@ -170,8 +171,8 @@ def test_book_and_account_accounting_agree_and_reconcile(conn):
     EquitySnapshotRepository(conn).insert_for_book(
         book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=NOW,
-        cash=state.cash,
-        market_value=account_equity - state.cash,
+        cash=float(state.cash),
+        market_value=account_equity - float(state.cash),
         equity=account_equity,
         realized_pnl=0.0,
         unrealized_pnl=0.0,

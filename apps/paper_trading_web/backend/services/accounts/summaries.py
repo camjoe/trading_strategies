@@ -25,7 +25,7 @@ def build_account_summary(
     state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
     equity = settlement_corrected_equity(state, prices)
-    return _build_summary_from_stats(conn, row, equity, state.cash, state.total_deposited)
+    return _build_summary_from_stats(conn, row, equity, float(state.cash), float(state.total_deposited))
 
 
 def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
@@ -53,7 +53,7 @@ def build_account_summary_and_positions(
     state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
     equity = settlement_corrected_equity(state, prices)
-    summary = _build_summary_from_stats(conn, row, equity, state.cash, state.total_deposited)
+    summary = _build_summary_from_stats(conn, row, equity, float(state.cash), float(state.total_deposited))
     positions = _build_positions_from_stats(state, prices)
     return summary, positions
 
@@ -135,10 +135,12 @@ def _build_summary_from_stats(
 
 def _build_positions_from_stats(state: AccountState, prices: dict[str, float]) -> list[dict[str, object]]:
     result = []
-    for ticker, qty in sorted(state.positions.items()):
-        if qty <= 0 or ticker == _SETTLEMENT_TICKER:
+    for ticker, qty_raw in sorted(state.positions.items()):
+        if qty_raw <= 0 or ticker == _SETTLEMENT_TICKER:
             continue
-        avg_cost = state.avg_cost.get(ticker, 0.0)
+        # The account state carries Decimal; the payload renders to float.
+        qty = float(qty_raw)
+        avg_cost = float(state.avg_cost.get(ticker, 0.0))
         market_price = prices.get(ticker)
         if market_price is None:
             continue

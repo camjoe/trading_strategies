@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from trading.domain.accounting.ledger import Number
+
 # Supported order directions for both account trades and book fills.
 VALID_SIDES = {"buy", "sell"}
 
@@ -24,9 +26,9 @@ def normalize_order_input(side: str, symbol: str, *, require_symbol: bool = Fals
 def validate_order_values(
     *,
     side: str,
-    qty: float,
-    price: float,
-    commission: float | None = None,
+    qty: Number,
+    price: Number,
+    commission: Number | None = None,
     noun: str,
 ) -> None:
     """Reject non-positive quantity, a non-positive buy price, and negative values.
@@ -47,10 +49,10 @@ def validate_order_values(
 
 def ensure_sufficient_cash_for_buy(
     side: str,
-    qty: float,
-    price: float,
-    fee: float,
-    available_cash: float,
+    qty: Number,
+    price: Number,
+    fee: Number,
+    available_cash: Number,
 ) -> None:
     """Raise if a buy's notional plus fee exceeds ``available_cash``. Sells are exempt."""
     if side != "buy":

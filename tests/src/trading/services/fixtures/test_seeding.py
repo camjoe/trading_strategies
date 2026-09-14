@@ -88,13 +88,13 @@ def test_seeded_fills_reconcile_with_book_accounting(demo_conn: sqlite3.Connecti
             initial_cash=float(account["initial_cash"]),
         )
         books = BookRepository(demo_conn).fetch_for_account(account_id=int(account["id"]))
-        assert sum(book.current_cash for book in books) == pytest.approx(state.cash, abs=0.01)
+        assert sum(book.current_cash for book in books) == pytest.approx(float(state.cash), abs=0.01)
 
         held: dict[str, float] = {}
         for book in books:
             for position in PositionRepository(demo_conn).fetch_for_book(book_id=book.id):
                 held[position.symbol] = held.get(position.symbol, 0.0) + position.qty
-        assert held == pytest.approx(state.positions)
+        assert held == pytest.approx({ticker: float(qty) for ticker, qty in state.positions.items()})
 
 
 def test_seeded_fills_write_ledger_entries(demo_conn: sqlite3.Connection) -> None:

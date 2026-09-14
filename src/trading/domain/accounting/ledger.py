@@ -2,24 +2,34 @@
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Generic, TypeVar
+
+# One implementation serves two callers: the float backtest loop and the Decimal
+# live accounting path (ADR 020). The constrained type variable keeps each call
+# single-typed — a caller passes all float or all Decimal and gets that type back —
+# so mypy rejects a float/Decimal mix, which Python would raise on at runtime.
+Number = TypeVar("Number", float, Decimal)
 
 
-class BuyDelta(NamedTuple):
-    ending_qty: float
-    ending_avg_cost: float
-    cash_delta: float
+@dataclass(frozen=True, slots=True)
+class BuyDelta(Generic[Number]):
+    ending_qty: Number
+    ending_avg_cost: Number
+    cash_delta: Number
 
 
-class SellDelta(NamedTuple):
-    ending_qty: float
-    cash_delta: float
-    realized_delta: float
+@dataclass(frozen=True, slots=True)
+class SellDelta(Generic[Number]):
+    ending_qty: Number
+    cash_delta: Number
+    realized_delta: Number
 
 
 def buy_position_delta(
-    *, position_qty: float, position_avg_cost: float, qty: float, price: float, fee: float
-) -> BuyDelta:
+    *, position_qty: Number, position_avg_cost: Number, qty: Number, price: Number, fee: Number
+) -> BuyDelta[Number]:
     """The position, average cost, and cash change from one buy fill.
 
     The fee is capitalized into the cost basis, so ``ending_avg_cost`` is what the
@@ -33,8 +43,8 @@ def buy_position_delta(
 
 
 def sell_position_delta(
-    *, position_qty: float, position_avg_cost: float, qty: float, price: float, fee: float
-) -> SellDelta:
+    *, position_qty: Number, position_avg_cost: Number, qty: Number, price: Number, fee: Number
+) -> SellDelta[Number]:
     """The position, cash, and realized-P&L change from one sell fill.
 
     The fee is charged against realized P&L and netted out of proceeds, so a round

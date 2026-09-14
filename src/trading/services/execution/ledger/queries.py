@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.constants import SETTLEMENT_TICKER
 from trading.domain.accounting.account import compute_account_state
@@ -68,4 +69,4 @@ def load_account_state(
     initial_cash: float | int | None,
 ) -> AccountState:
     trades = list_account_trades(conn, account_id)
-    return compute_account_state(float(initial_cash or 0.0), trades)
+    return compute_account_state(Decimal(str(initial_cash or 0)), trades)
