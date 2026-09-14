@@ -23,6 +23,20 @@ ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 SECONDS_PER_DAY = 86_400
 
 # ---------------------------------------------------------------------------
+# Money and quantity minor-unit scales
+# ---------------------------------------------------------------------------
+
+# Integer minor units per whole dollar for money storage. Provisional micro-dollars
+# (1e-6): fine enough to hold a sub-cent IBKR commission and an averaged fill price
+# without truncation. Finalized from a real fill (see money-representation-plan.md).
+MONEY_MINOR_UNITS_PER_DOLLAR = 1_000_000
+
+# Integer minor units per whole share for quantity storage. Provisional micro-shares
+# (1e-6): a superset of the broker fractional-order granularity. Finalized from a real
+# fill (see money-representation-plan.md).
+QUANTITY_MINOR_UNITS_PER_SHARE = 1_000_000
+
+# ---------------------------------------------------------------------------
 # Percent and basis-point scaling
 # ---------------------------------------------------------------------------
 
