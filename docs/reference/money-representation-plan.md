@@ -95,10 +95,20 @@ storing. So fix both numbers from evidence, not from a guess — see the evidenc
 ## Storage representation
 
 **Storage stays integer minor units, not `Decimal`-as-`TEXT`.** SQLite has no decimal type. Its
-affinities are `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `NUMERIC`. Integer minor units let SQL `SUM`,
-`ORDER BY`, and range filters stay correct, which the app relies on (`check_cash_invariant` sums the
-`ledger` in SQL). A `TEXT` decimal breaks those aggregations the same way a mixed-spelling timestamp
-breaks ordering, so it is rejected.
+affinities are `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `NUMERIC`. A `TEXT` decimal is storable and
+exact for a single value, and it needs no chosen scale. It is rejected for one concrete reason: the
+app does money math **in SQL**, and `TEXT` breaks it.
+
+- `repositories/snapshots.py` rolls per-book equity snapshots into an account view with SQL
+  `SUM(cash)`, `SUM(market_value)`, `SUM(equity)`, `SUM(realized_pnl)`, and `SUM(unrealized_pnl)`,
+  and takes `MAX(equity)` for the peak that drives drawdown.
+- `scripts/data_ops/check_cash_invariant.py` sums `ledger.amount` in SQL.
+
+On a `TEXT` column SQLite coerces `SUM(...)` to **float** — the aggregate reintroduces the float
+error we are removing — and compares `MAX`/`ORDER BY`/ranges **lexicographically**, so `"9" > "100"`
+and the peak is wrong. To keep `TEXT`, every such aggregation must move into Python, which is a real
+refactor and a standing "no SQL money aggregation" rule. Integer minor units keep the SQL exact and
+correct; their only cost is a fixed scale, which is a one-time number set from the evidence step.
 
 **The conversion lives in one place: a persistence-layer encoder and decoder at the repository
 boundary.** Repositories already cross there — `execute(...)` to `dict(row)` to
