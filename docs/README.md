@@ -64,7 +64,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — numbered Alembic migration system: revisions, operator commands, runtime verification
-- [`reference/money-representation-plan.md`](reference/money-representation-plan.md) — plan to change money and quantity storage from float to integer minor units with fractional-share precision: scope, open decisions, staged order
 - [`reference/database-transactions.md`](reference/database-transactions.md) — the `unit_of_work` / `commit_unit_of_work` pattern for atomic multi-write database operations
 - [`reference/performance-and-risk-tables.md`](reference/performance-and-risk-tables.md) — where reading equity_snapshots, daily_metrics, risk_snapshots, and the books exit-threshold columns gives a wrong answer: grain, misleading units, reused names, columns with no data
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows

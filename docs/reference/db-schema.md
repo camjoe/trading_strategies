@@ -146,7 +146,12 @@ fractional shares without float dust reading as a phantom open position.
   no float tolerance.
 
 Do not add a new money or quantity column as `REAL`; add it as `INTEGER` and route it through the
-encoder. The rollout is recorded in [Money Representation Plan](money-representation-plan.md).
+encoder.
+
+The two scale constants are **provisional** until a real IBKR paper fill fixes the broker-reported
+precision (a fill's price, commission, and quantity decimals). Finalizing them is a one-line edit per
+constant in `src/common/constants.py` followed by the standard checks; every site derives its scale
+from those two constants.
 
 ### Account trade history
 
