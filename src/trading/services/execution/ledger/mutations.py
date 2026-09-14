@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
@@ -24,7 +25,7 @@ def _record_cash_event(
     *,
     book_id: int,
     side: str,
-    amount: float,
+    amount: Decimal,
     entry_time: str,
 ) -> None:
     """Deposit (buy) or withdrawal (sell) of the settlement ticker."""
@@ -80,22 +81,28 @@ def record_trade(
         raise NotFoundError(f"Default book missing for account '{account_name}'.")
     entry_time = trade_time or utc_now_iso()
 
+    # Manual input arrives as float; the accounting stores exact integer minor
+    # units, so convert once here and keep float only for the float apply path.
+    qty_amount = Decimal(str(qty))
+    price_amount = Decimal(str(price))
+    fee_amount = Decimal(str(fee))
+
     if ticker == SETTLEMENT_TICKER:
         _record_cash_event(
             conn,
             book_id=book.id,
             side=side,
-            amount=float(qty) * float(price),
+            amount=qty_amount * price_amount,
             entry_time=entry_time,
         )
         return
 
     if side == "buy":
-        ensure_sufficient_cash_for_buy(side, qty, price, fee, book.current_cash)
+        ensure_sufficient_cash_for_buy(side, qty_amount, price_amount, fee_amount, book.current_cash)
     else:
         position = PositionRepository(conn).fetch(book_id=book.id, symbol=ticker)
-        held = position.qty if position is not None else 0.0
-        if qty > held:
+        held = position.qty if position is not None else Decimal("0")
+        if qty_amount > held:
             raise ValidationError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {held}.")
 
     order_repo = OrderRepository(conn)
@@ -108,22 +115,22 @@ def record_trade(
                 account_id=account.id,
                 symbol=ticker,
                 side=side,
-                qty=float(qty),
-                requested_price=float(price),
+                qty=qty_amount,
+                requested_price=price_amount,
                 status="filled",
-                filled_qty=float(qty),
-                avg_fill_price=float(price),
-                commission=float(fee),
+                filled_qty=qty_amount,
+                avg_fill_price=price_amount,
+                commission=fee_amount,
                 submitted_at=entry_time,
                 updated_at=entry_time,
             )
         )
         order_repo.insert_fill(
             order_id=order_id,
-            filled_qty=float(qty),
-            fill_price=float(price),
+            filled_qty=qty_amount,
+            fill_price=price_amount,
             fill_time=entry_time,
-            commission=float(fee),
+            commission=fee_amount,
             exec_id=f"manual:{order_id}",
         )
         apply_book_fill(

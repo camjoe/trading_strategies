@@ -25,6 +25,7 @@ No domain dependencies; usable from any layer.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 
 
 def coerce_str(value: object | None) -> str | None:
@@ -38,7 +39,7 @@ def coerce_str(value: object | None) -> str | None:
 def coerce_float(value: object | None) -> float | None:
     if value is None:
         return None
-    if isinstance(value, (int, float, str)):
+    if isinstance(value, (int, float, str, Decimal)):
         return float(value)
     raise ValueError(f"Expected float-convertible value, got {type(value).__name__}")
 
@@ -46,7 +47,7 @@ def coerce_float(value: object | None) -> float | None:
 def coerce_int(value: object | None) -> int | None:
     if value is None:
         return None
-    if isinstance(value, (int, float, str)):
+    if isinstance(value, (int, float, str, Decimal)):
         return int(value)
     raise ValueError(f"Expected int-convertible value, got {type(value).__name__}")
 

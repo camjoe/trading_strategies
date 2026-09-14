@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.time import next_date_str
 from trading.models.portfolio import EquitySnapshotRecord
+from trading.persistence.money_columns import decode_money, encode_money
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
@@ -84,11 +86,11 @@ class EquitySnapshotRepository:
         *,
         book_id: int,
         snapshot_time: str,
-        cash: float,
-        market_value: float,
-        equity: float,
-        realized_pnl: float,
-        unrealized_pnl: float,
+        cash: Decimal,
+        market_value: Decimal,
+        equity: Decimal,
+        realized_pnl: Decimal,
+        unrealized_pnl: Decimal,
     ) -> None:
         self._conn.execute(
             """
@@ -97,7 +99,15 @@ class EquitySnapshotRepository:
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (book_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl),
+            (
+                book_id,
+                snapshot_time,
+                encode_money(cash),
+                encode_money(market_value),
+                encode_money(equity),
+                encode_money(realized_pnl),
+                encode_money(unrealized_pnl),
+            ),
         )
         commit_unit_of_work(self._conn)
 
@@ -135,19 +145,20 @@ class EquitySnapshotRepository:
     def fetch_latest(self, *, account_id: int) -> EquitySnapshotRecord | None:
         return self._fetch_one(_ACCOUNT_VIEW_SELECT, _ACCOUNT_NEWEST_FIRST, (account_id,))
 
-    def fetch_max_equity(self, *, account_id: int) -> float | None:
+    def fetch_max_equity(self, *, account_id: int) -> Decimal | None:
         """The account's highest rolled-up equity ever recorded, or None with no snapshots.
 
         Used as the running-peak input for point-in-time drawdown (see
         ``risk_snapshots.drawdown_pct``): the caller compares current equity
-        against this historical peak.
+        against this historical peak. ``MAX`` over the summed integer minor-unit
+        column stays an integer, so the peak is decoded, not float-approximated.
         """
         row = self._conn.execute(
             f"SELECT MAX(equity) AS max_equity FROM ({_ACCOUNT_VIEW_SELECT}) AS account_equity",
             (account_id,),
         ).fetchone()
         value = row["max_equity"] if row is not None else None
-        return float(value) if value is not None else None
+        return decode_money(int(value)) if value is not None else None
 
     def fetch_earliest(self, *, account_id: int) -> EquitySnapshotRecord | None:
         return self._fetch_one(_ACCOUNT_VIEW_SELECT, _ACCOUNT_OLDEST_FIRST, (account_id,))

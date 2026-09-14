@@ -118,10 +118,10 @@ def apply_book_fill(
             position_repo.upsert(
                 book_id=book_id,
                 symbol=transition.symbol,
-                qty=float(transition.ending_qty),
-                avg_cost=float(transition.ending_avg_cost),
-                market_value=float(transition.ending_market_value),
-                unrealized_pnl=float(transition.ending_unrealized_pnl),
+                qty=transition.ending_qty,
+                avg_cost=transition.ending_avg_cost,
+                market_value=transition.ending_market_value,
+                unrealized_pnl=transition.ending_unrealized_pnl,
                 updated_at=fill_time,
             )
         else:
@@ -129,7 +129,7 @@ def apply_book_fill(
 
         # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry; the
         # two sum to transition.cash_delta (the net applied to book cash).
-        gross_cash = float(fill_qty) * float(fill_price)
+        gross_cash = transition.qty * transition.fill_price
         ledger_repo.insert(
             book_id=book_id,
             entry_type=LEDGER_ENTRY_TYPE_TRADE,
@@ -139,11 +139,11 @@ def apply_book_fill(
             entry_time=fill_time,
             created_at=fill_time,
         )
-        if transaction_cost > 0:
+        if transition.commission > 0:
             ledger_repo.insert(
                 book_id=book_id,
                 entry_type=LEDGER_ENTRY_TYPE_FEE,
-                amount=-float(transaction_cost),
+                amount=-transition.commission,
                 reference_type=LEDGER_REFERENCE_TYPE_ORDER,
                 reference_id=str(order_id),
                 entry_time=fill_time,
@@ -158,8 +158,11 @@ def apply_book_fill(
             # balance write would silently match no row while the position and
             # ledger entries above it stand. Raising rolls the whole fill back.
             raise LookupError(f"Book {book_id} does not exist; cannot apply a fill to it.")
-        new_cash = book.current_cash + float(transition.cash_delta)
-        market_value = sum(position.market_value for position in position_repo.fetch_for_book(book_id=book_id))
+        new_cash = book.current_cash + transition.cash_delta
+        market_value = sum(
+            (position.market_value for position in position_repo.fetch_for_book(book_id=book_id)),
+            Decimal("0"),
+        )
         book_repo.update_balances(
             book_id=book_id,
             current_cash=new_cash,
@@ -173,7 +176,7 @@ def apply_book_fill(
         if transition.side == "sell":
             OrderRepository(conn).add_realized_pnl_delta(
                 order_id=order_id,
-                realized_pnl_delta=float(transition.realized_pnl_delta),
+                realized_pnl_delta=transition.realized_pnl_delta,
             )
 
 
@@ -238,10 +241,10 @@ def submit_book_intents(
                 client_order_id=client_order_id,
                 symbol=intent.symbol,
                 side=intent.side,
-                qty=float(intent.qty),
+                qty=Decimal(str(intent.qty)),
                 order_type=intent.order_type,
                 time_in_force=intent.time_in_force,
-                requested_price=intent.requested_price,
+                requested_price=None if intent.requested_price is None else Decimal(str(intent.requested_price)),
                 status=ORDER_STATUS_PENDING,
                 submitted_at=submitted_at,
                 updated_at=submitted_at,
@@ -272,9 +275,9 @@ def submit_book_intents(
                 order_id=order_id,
                 broker_order_id=placed.broker_order_id,
                 status=clean_order_status(placed.status),
-                filled_qty=float(placed.filled_qty),
-                avg_fill_price=placed.avg_fill_price,
-                commission=float(placed.commission),
+                filled_qty=Decimal(str(placed.filled_qty)),
+                avg_fill_price=None if placed.avg_fill_price is None else Decimal(str(placed.avg_fill_price)),
+                commission=Decimal(str(placed.commission)),
                 submitted_at=placed.submitted_at or submitted_at,
                 updated_at=updated_at,
                 status_reason=placed.status_reason,
@@ -289,10 +292,10 @@ def submit_book_intents(
                 fee_share = float(fee) if is_filled and fill_index == 0 else 0.0
                 order_repo.insert_fill(
                     order_id=order_id,
-                    filled_qty=float(fill.filled_qty),
-                    fill_price=float(fill.fill_price),
+                    filled_qty=Decimal(str(fill.filled_qty)),
+                    fill_price=Decimal(str(fill.fill_price)),
                     fill_time=fill.fill_time,
-                    commission=float(fill.commission) + fee_share,
+                    commission=Decimal(str(fill.commission)) + Decimal(str(fee_share)),
                     exec_id=fill.exec_id,
                 )
 
@@ -309,10 +312,10 @@ def submit_book_intents(
                     # aggregate so derived account history stays complete.
                     order_repo.insert_fill(
                         order_id=order_id,
-                        filled_qty=fill_qty,
-                        fill_price=fill_price,
+                        filled_qty=Decimal(str(fill_qty)),
+                        fill_price=Decimal(str(fill_price)),
                         fill_time=fill_time,
-                        commission=float(placed.commission) + float(fee),
+                        commission=Decimal(str(placed.commission)) + Decimal(str(fee)),
                         exec_id=None,
                     )
                 apply_book_fill(

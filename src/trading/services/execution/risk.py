@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import Any
 
 from common.json_columns import dumps_json_column
@@ -66,7 +67,7 @@ def build_risk_snapshot(
     payload: dict[str, object],
     position_rows: Sequence[PositionRecord],
     book_rows: Sequence[BookRecord],
-    peak_equity: float | None,
+    peak_equity: Decimal | None,
     symbol_sector_map: dict[str, str],
 ) -> RiskSnapshotInsert:
     """Derive the account's risk snapshot row from already-fetched rows."""
@@ -80,11 +81,13 @@ def build_risk_snapshot(
     return RiskSnapshotInsert(
         account_id=account_id,
         snapshot_time=snapshot_time,
-        gross_exposure=gross_exposure,
-        net_exposure=net_exposure,
+        gross_exposure=Decimal(str(gross_exposure)),
+        net_exposure=Decimal(str(net_exposure)),
         max_symbol_concentration_pct=max_symbol_concentration_pct,
         max_sector_concentration_pct=max_sector_concentration_pct,
-        drawdown_pct=point_in_time_drawdown_pct(total_equity=total_equity, peak_equity=peak_equity),
+        drawdown_pct=point_in_time_drawdown_pct(
+            total_equity=total_equity, peak_equity=None if peak_equity is None else float(peak_equity)
+        ),
         leverage_proxy=_compute_leverage_proxy(gross_exposure=gross_exposure, total_equity=total_equity),
         # daily_loss_pct is a single-day peak-to-trough figure; still needs
         # intraday equity ticks this codebase does not persist (unlike
@@ -125,10 +128,14 @@ def persist_normalized_risk_decisions(
                 side=side,
                 action=action,
                 reason_code=reason_code,
-                requested_qty=float(requested_qty_value) if requested_qty_value is not None else None,
-                approved_qty=float(approved_qty_value) if approved_qty_value is not None else None,
-                requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
-                approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
+                requested_qty=Decimal(str(requested_qty_value)) if requested_qty_value is not None else None,
+                approved_qty=Decimal(str(approved_qty_value)) if approved_qty_value is not None else None,
+                requested_notional=(
+                    Decimal(str(requested_notional_value)) if requested_notional_value is not None else None
+                ),
+                approved_notional=(
+                    Decimal(str(approved_notional_value)) if approved_notional_value is not None else None
+                ),
                 risk_payload_json=dumps_json_column(decision),
                 created_at=decision_time,
             )

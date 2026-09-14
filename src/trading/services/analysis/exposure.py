@@ -36,9 +36,9 @@ def _account_exposure(
         account_id=account_id,
         account_name=account_name,
         snapshot_time=latest.snapshot_time,
-        cash=latest.cash,
-        market_value=latest.market_value,
-        equity=latest.equity,
+        cash=float(latest.cash),
+        market_value=float(latest.market_value),
+        equity=float(latest.equity),
         position_count=position_count,
     )
 

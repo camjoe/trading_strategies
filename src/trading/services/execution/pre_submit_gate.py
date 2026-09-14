@@ -110,16 +110,18 @@ class BookPreSubmitGate:
         intents: list[BookTradeIntent],
     ) -> tuple[list, list[BookTradeIntent], list[BookTradeIntent], list[BookTradeIntent]]:
         books = BookRepository(conn).fetch_for_account(account_id=account_id)
-        equity_by_book = {book.id: book.current_equity for book in books}
+        # The risk gate is float policy math; convert the Decimal balances and
+        # positions to float at this read boundary.
+        equity_by_book = {book.id: float(book.current_equity) for book in books}
         positions = PositionRepository(conn).fetch_for_account(account_id=account_id)
         gate_positions = [
             RiskGatePosition(
                 book_id=position.book_id,
                 symbol=position.symbol,
-                qty=position.qty,
-                avg_cost=position.avg_cost,
-                market_value=position.market_value,
-                unrealized_pnl=position.unrealized_pnl,
+                qty=float(position.qty),
+                avg_cost=float(position.avg_cost),
+                market_value=float(position.market_value),
+                unrealized_pnl=float(position.unrealized_pnl),
                 updated_at=position.updated_at,
             )
             for position in positions
@@ -163,7 +165,10 @@ class BookPreSubmitGate:
         marks books to market before the gate, so the roll-up is the live number.
         """
         peak_equity = EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id)
-        return point_in_time_drawdown_pct(total_equity=sum(equity_by_book.values()), peak_equity=peak_equity)
+        return point_in_time_drawdown_pct(
+            total_equity=sum(equity_by_book.values()),
+            peak_equity=None if peak_equity is None else float(peak_equity),
+        )
 
     def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
         # book_id is the risk bucket key; the policy only uses side,

@@ -73,13 +73,13 @@ def _build_summary_from_stats(
     active_strategy = active_strategy_for_account(conn, row.id)
     book = get_default_book(conn, account_id=row.id)
 
-    effective_initial = row.initial_cash if row.initial_cash else total_deposited
+    effective_initial = float(row.initial_cash) if row.initial_cash else total_deposited
     delta = equity - effective_initial
     delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0
 
     change_since_snapshot = None
     if latest_snapshot is not None:
-        previous_equity = latest_snapshot.equity
+        previous_equity = float(latest_snapshot.equity)
         change_since_snapshot = equity - previous_equity
 
     return {

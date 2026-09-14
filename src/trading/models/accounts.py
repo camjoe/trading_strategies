@@ -12,12 +12,12 @@ from common.coercion import (
     coerce_float,
     coerce_int,
     coerce_str,
-    row_expect_float,
     row_expect_int,
     row_expect_str,
     row_int,
     row_str,
 )
+from trading.persistence.money_columns import row_expect_money
 
 # --- Persisted rows and writes ---
 
@@ -33,7 +33,7 @@ class AccountRecord(Mapping[str, object]):
 
     id: int
     name: str
-    initial_cash: float
+    initial_cash: Decimal
     created_at: str
     benchmark_ticker: str
     descriptive_name: str
@@ -48,7 +48,7 @@ class AccountRecord(Mapping[str, object]):
         return cls(
             id=row_expect_int(values, "id"),
             name=row_expect_str(values, "name"),
-            initial_cash=row_expect_float(values, "initial_cash"),
+            initial_cash=row_expect_money(values, "initial_cash"),
             created_at=row_expect_str(values, "created_at"),
             benchmark_ticker=row_expect_str(values, "benchmark_ticker"),
             descriptive_name=row_expect_str(values, "descriptive_name"),
@@ -76,7 +76,7 @@ class AccountInsert:
     """Repository-ready create payload after validation, defaults, and normalization."""
 
     name: str
-    initial_cash: float
+    initial_cash: Decimal
     created_at: str
     updated_at: str
     benchmark_ticker: str

@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from infrastructure.market_data.demo_provider import DemoMarketDataProvider
+from trading.persistence.money_columns import decode_money
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.ledger.queries import load_account_state
@@ -85,15 +86,16 @@ def test_seeded_fills_reconcile_with_book_accounting(demo_conn: sqlite3.Connecti
         state = load_account_state(
             demo_conn,
             account_id=int(account["id"]),
-            initial_cash=float(account["initial_cash"]),
+            # accounts.initial_cash is stored as integer minor units; decode to dollars.
+            initial_cash=float(decode_money(account["initial_cash"])),
         )
         books = BookRepository(demo_conn).fetch_for_account(account_id=int(account["id"]))
-        assert sum(book.current_cash for book in books) == pytest.approx(float(state.cash), abs=0.01)
+        assert sum(float(book.current_cash) for book in books) == pytest.approx(float(state.cash), abs=0.01)
 
         held: dict[str, float] = {}
         for book in books:
             for position in PositionRepository(demo_conn).fetch_for_book(book_id=book.id):
-                held[position.symbol] = held.get(position.symbol, 0.0) + position.qty
+                held[position.symbol] = held.get(position.symbol, 0.0) + float(position.qty)
         assert held == pytest.approx({ticker: float(qty) for ticker, qty in state.positions.items()})
 
 

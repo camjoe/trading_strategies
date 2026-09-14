@@ -24,6 +24,7 @@ import math
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
+from decimal import Decimal
 
 import pandas as pd
 
@@ -73,7 +74,7 @@ SNAPSHOT_CLOSE_HOUR = 16
 
 # A flat per-trade commission. Non-zero on purpose: a zero fee would leave the
 # ledger's `fee` entries and the commission-aware cost-basis math unexercised.
-FIXTURE_COMMISSION = 1.0
+FIXTURE_COMMISSION = Decimal("1.0")
 
 # Throttle values written to `global_settings` for profiles that seed it.
 # Deliberately loose — the fixture is not exercising throttle rejection.
@@ -95,7 +96,7 @@ class _BookPlan:
 
     book_id: int
     trades: tuple[FixtureTrade, ...]
-    realized_pnl: float = 0.0
+    realized_pnl: Decimal = Decimal("0")
 
 
 @dataclass
@@ -145,7 +146,8 @@ def _fund_additional_book(
     default_book = books.fetch_by_id(book_id=default_book_id)
     if default_book is None:
         raise ValueError(f"Default book {default_book_id} is missing; cannot fund '{name}'.")
-    remaining = default_book.current_cash - opening_cash
+    opening = Decimal(str(opening_cash))
+    remaining = default_book.current_cash - opening
     if remaining < 0:
         raise ValueError(
             f"Book '{name}' opening cash {opening_cash:.2f} exceeds the default book's "
@@ -156,9 +158,9 @@ def _fund_additional_book(
         account_id=account_id,
         name=name,
         is_default=0,
-        start_equity=opening_cash,
-        current_cash=opening_cash,
-        current_equity=opening_cash,
+        start_equity=opening,
+        current_cash=opening,
+        current_equity=opening,
         trade_symbols=trade_symbols,
         created_at=now_iso,
         updated_at=now_iso,
@@ -166,7 +168,7 @@ def _fund_additional_book(
     books.update(
         book_id=default_book_id,
         values={
-            "start_equity": default_book.start_equity - opening_cash,
+            "start_equity": default_book.start_equity - opening,
             "current_cash": remaining,
             "current_equity": remaining,
         },
@@ -235,7 +237,7 @@ def _resolve_fill_quantity(
     position = PositionRepository(conn).fetch(book_id=book_id, symbol=trade.symbol)
     if position is None:
         return 0.0
-    return float(math.floor(position.qty * trade.fraction))
+    return float(math.floor(float(position.qty) * trade.fraction))
 
 
 def _apply_fill(
@@ -255,6 +257,8 @@ def _apply_fill(
     explicit ``book_id`` so non-default books trade too.
     """
     orders = OrderRepository(conn)
+    qty_amount = Decimal(str(qty))
+    price_amount = Decimal(str(price))
     with unit_of_work(conn):
         order_id = orders.insert(
             OrderInsert(
@@ -262,11 +266,11 @@ def _apply_fill(
                 account_id=account_id,
                 symbol=symbol,
                 side=side,
-                qty=qty,
-                requested_price=price,
+                qty=qty_amount,
+                requested_price=price_amount,
                 status="filled",
-                filled_qty=qty,
-                avg_fill_price=price,
+                filled_qty=qty_amount,
+                avg_fill_price=price_amount,
                 commission=FIXTURE_COMMISSION,
                 submitted_at=when_iso,
                 updated_at=when_iso,
@@ -274,8 +278,8 @@ def _apply_fill(
         )
         orders.insert_fill(
             order_id=order_id,
-            filled_qty=qty,
-            fill_price=price,
+            filled_qty=qty_amount,
+            fill_price=price_amount,
             fill_time=when_iso,
             commission=FIXTURE_COMMISSION,
             exec_id=f"fixture:{order_id}",
@@ -288,7 +292,7 @@ def _apply_fill(
             symbol=symbol,
             fill_qty=qty,
             fill_price=price,
-            transaction_cost=FIXTURE_COMMISSION,
+            transaction_cost=float(FIXTURE_COMMISSION),
             fill_time=when_iso,
         )
 
@@ -316,7 +320,7 @@ def _place_day_trades(
         if isinstance(trade, FixtureBuy):
             record = BookRepository(conn).fetch_by_id(book_id=book.book_id)
             assert record is not None
-            cost = qty * price + FIXTURE_COMMISSION
+            cost = Decimal(str(qty * price)) + FIXTURE_COMMISSION
             if cost > record.current_cash:
                 raise ValueError(
                     f"Fixture profile overdraws book {book.book_id} on day {day_index}: "
@@ -336,7 +340,7 @@ def _place_day_trades(
     # A sell persists its realized P&L on the order; roll the day's closings into
     # the book's running total so the equity snapshot can report it.
     for order in OrderRepository(conn).fetch_filled_for_book_on_date(book_id=book.book_id, date_str=date_text):
-        book.realized_pnl += order.realized_pnl_delta or 0.0
+        book.realized_pnl += order.realized_pnl_delta or Decimal("0")
 
 
 def _write_book_snapshot(conn: sqlite3.Connection, *, book: _BookPlan, when_iso: str) -> None:
@@ -344,8 +348,8 @@ def _write_book_snapshot(conn: sqlite3.Connection, *, book: _BookPlan, when_iso:
     record = BookRepository(conn).fetch_by_id(book_id=book.book_id)
     assert record is not None
     positions = PositionRepository(conn).fetch_for_book(book_id=book.book_id)
-    market_value = sum(position.market_value for position in positions)
-    unrealized = sum(position.unrealized_pnl for position in positions)
+    market_value = sum((position.market_value for position in positions), Decimal("0"))
+    unrealized = sum((position.unrealized_pnl for position in positions), Decimal("0"))
     EquitySnapshotRepository(conn).insert_for_book(
         book_id=book.book_id,
         snapshot_time=when_iso,
@@ -492,7 +496,7 @@ def _seed_research_records(
     for account_name in profile.backtest_accounts:
         plan = by_name[account_name]
         history = snapshots.fetch_history(account_id=plan.account_id, limit=profile.business_days)
-        curve = sorted((row.snapshot_time[:10], row.equity) for row in history)
+        curve = sorted((row.snapshot_time[:10], float(row.equity)) for row in history)
         if len(curve) <= _BACKTEST_EXECUTION_MARGIN_DAYS * 2:
             raise ValueError(f"Profile '{profile.name}' is too short to anchor a fixture backtest curve.")
         seed_fixture_backtest(

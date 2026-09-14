@@ -49,7 +49,7 @@ def reconcile_book_equity(
 
     reasons: list[str] = []
     books = BookRepository(conn).fetch_for_account(account_id=account_id)
-    total_book_equity = sum(book.current_equity for book in books)
+    total_book_equity = sum(float(book.current_equity) for book in books)
     if abs(total_book_equity - float(snapshot.equity)) > abs(float(equity_tolerance)):
         reasons.append(KILL_SWITCH_REASON_RECONCILIATION_MISMATCH)
     return reasons

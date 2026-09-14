@@ -42,7 +42,7 @@ def infer_overall_trend(
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
-    history = [snapshot.equity for snapshot in snapshots]
+    history = [float(snapshot.equity) for snapshot in snapshots]
     history.reverse()
     history.append(current_equity)
 

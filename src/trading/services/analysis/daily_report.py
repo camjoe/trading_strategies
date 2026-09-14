@@ -129,10 +129,10 @@ def _build_book_performance(
                 drawdown_pct=metric.drawdown_pct if metric else None,
                 hit_rate=metric.hit_rate if metric else None,
                 trade_count=metric.trade_count if metric else None,
-                fees_total=metric.fees_total if metric else None,
+                fees_total=(float(metric.fees_total) if metric and metric.fees_total is not None else None),
                 risk_adjusted_score=metric.risk_adjusted_score if metric else None,
-                current_equity=book.current_equity,
-                start_equity=book.start_equity,
+                current_equity=float(book.current_equity),
+                start_equity=float(book.start_equity),
             )
         )
     return rows

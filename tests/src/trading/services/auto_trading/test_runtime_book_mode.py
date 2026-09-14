@@ -10,6 +10,7 @@ from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConf
 from trading.models.execution import BookTradeCandidate
 from trading.models.market_data import MarketInputs
 from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
+from trading.persistence.money_columns import decode_quantity
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
@@ -348,8 +349,8 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     assert rescale_row is not None
     assert rescale_row["action"] == "rescale"
     assert rescale_row["reason_code"] == "book_notional_cap"
-    assert int(rescale_row["requested_qty"]) == 5
-    assert int(rescale_row["approved_qty"]) == 2
+    assert int(decode_quantity(rescale_row["requested_qty"])) == 5
+    assert int(decode_quantity(rescale_row["approved_qty"])) == 2
 
 
 def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(book_env, conn, monkeypatch) -> None:

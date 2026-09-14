@@ -47,17 +47,17 @@ def _build_account_overview(
     against the whole account's capital and report a fictitious return. The
     book count is the non-default sleeves only, matching the books panel.
     """
-    total_equity = sum(b.current_equity for b in account_books)
-    total_cash = sum(b.current_cash for b in account_books)
+    total_equity = sum(float(b.current_equity) for b in account_books)
+    total_cash = sum(float(b.current_cash) for b in account_books)
 
     return {
         "account_id": account.id,
         "name": account.name,
-        "initial_cash": account.initial_cash,
+        "initial_cash": float(account.initial_cash),
         "total_equity": round(total_equity, 2),
         "total_cash": round(total_cash, 2),
         "positions_market_value": round(total_equity - total_cash, 2),
-        "return_pct": _return_pct(total_equity, account.initial_cash),
+        "return_pct": _return_pct(total_equity, float(account.initial_cash)),
         "book_count": sum(1 for b in account_books if not b.is_default),
     }
 
@@ -96,9 +96,9 @@ def _fetch_account_books(conn: sqlite3.Connection, report_books: ReportBooks) ->
                 "metric_date": None,
             }
 
-        start_equity = book.start_equity or 0.0
-        curr_equity = book.current_equity or 0.0
-        curr_cash = book.current_cash or 0.0
+        start_equity = float(book.start_equity or 0.0)
+        curr_equity = float(book.current_equity or 0.0)
+        curr_cash = float(book.current_cash or 0.0)
 
         result.append(
             {

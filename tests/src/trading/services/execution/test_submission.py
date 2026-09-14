@@ -449,7 +449,7 @@ def test_buy_updates_book_cash_and_equity(conn, book_env):
     assert book.current_equity == pytest.approx(BOOK_START_CASH)
     # Ledger sums to the cash delta applied to the book.
     ledger = LedgerRepository(conn).fetch_for_book(book_id=book_id)
-    assert sum(entry.amount for entry in ledger) == pytest.approx(book.current_cash - BOOK_START_CASH)
+    assert sum(float(entry.amount) for entry in ledger) == pytest.approx(float(book.current_cash) - BOOK_START_CASH)
 
 
 def test_fee_reduces_book_equity(conn, book_env):

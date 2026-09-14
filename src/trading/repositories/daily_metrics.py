@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from trading.models.portfolio import DailyMetricRecord
+from trading.persistence.money_columns import encode_money
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 _METRIC_COLUMNS = (
@@ -52,10 +54,10 @@ class DailyMetricsRepository:
         turnover_pct: float | None,
         slippage_bps: float | None,
         hit_rate: float | None,
-        expectancy: float | None,
+        expectancy: Decimal | None,
         risk_adjusted_score: float | None,
         trade_count: int | None,
-        fees_total: float | None,
+        fees_total: Decimal | None,
         created_at: str,
         updated_at: str,
     ) -> None:
@@ -79,10 +81,10 @@ class DailyMetricsRepository:
                 turnover_pct,
                 slippage_bps,
                 hit_rate,
-                expectancy,
+                encode_money(expectancy),
                 risk_adjusted_score,
                 trade_count,
-                fees_total,
+                encode_money(fees_total),
                 created_at,
                 updated_at,
             ),

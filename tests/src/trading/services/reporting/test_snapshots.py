@@ -1,6 +1,7 @@
 import pytest
 
 from tests.support.books import ensure_default_book_id
+from trading.persistence.money_columns import decode_money
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts.mutations import create_account, get_account
 from trading.services.reporting.snapshots import show_snapshots, snapshot_account
@@ -37,7 +38,7 @@ def test_snapshot_account_inserts_and_defaults_time(conn, monkeypatch: pytest.Mo
         (account["id"],),
     ).fetchone()
     assert row["snapshot_time"] == "2099-01-01T00:00:00Z"
-    assert float(row["equity"]) == pytest.approx(1050.0)
+    assert float(decode_money(row["equity"])) == pytest.approx(1050.0)
 
 
 def test_show_snapshots_handles_empty_and_rows(conn, capsys) -> None:

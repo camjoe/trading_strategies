@@ -358,7 +358,7 @@ def test_risk_round_trips(conn) -> None:
         )
     )
     latest = snapshots.fetch_latest(account_id=account_id)
-    assert latest is not None and latest.gross_exposure == pytest.approx(1.2)
+    assert latest is not None and float(latest.gross_exposure) == pytest.approx(1.2)
 
     decisions = RiskDecisionRepository(conn)
     decisions.insert(

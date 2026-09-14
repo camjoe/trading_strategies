@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from trading.models.books import LedgerEntryRecord
+from trading.persistence.money_columns import encode_money
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 
@@ -17,7 +19,7 @@ class LedgerRepository:
         *,
         book_id: int,
         entry_type: str,
-        amount: float,
+        amount: Decimal,
         reference_type: str | None = None,
         reference_id: str | None = None,
         entry_time: str,
@@ -34,7 +36,7 @@ class LedgerRepository:
             (
                 book_id,
                 entry_type,
-                amount,
+                encode_money(amount),
                 reference_type,
                 reference_id,
                 entry_time,

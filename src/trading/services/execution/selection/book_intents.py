@@ -30,8 +30,9 @@ def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeSta
     for pos in PositionRepository(conn).fetch_for_book(book_id=book_id):
         if pos.qty <= 0:
             continue
-        positions[pos.symbol] = pos.qty
-        avg_cost[pos.symbol] = pos.avg_cost
+        # Selection is float policy math; convert the Decimal position at this edge.
+        positions[pos.symbol] = float(pos.qty)
+        avg_cost[pos.symbol] = float(pos.avg_cost)
     return BookTradeState(
         cash=float(current_cash),
         positions=positions,
