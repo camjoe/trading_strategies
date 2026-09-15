@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from trading.models.books import PositionRecord
+from trading.persistence.money_columns import encode_money, encode_quantity
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 
@@ -17,10 +19,10 @@ class PositionRepository:
         *,
         book_id: int,
         symbol: str,
-        qty: float,
-        avg_cost: float,
-        market_value: float,
-        unrealized_pnl: float,
+        qty: Decimal,
+        avg_cost: Decimal,
+        market_value: Decimal,
+        unrealized_pnl: Decimal,
         updated_at: str,
     ) -> None:
         self._conn.execute(
@@ -39,10 +41,10 @@ class PositionRepository:
             (
                 book_id,
                 symbol,
-                qty,
-                avg_cost,
-                market_value,
-                unrealized_pnl,
+                encode_quantity(qty),
+                encode_money(avg_cost),
+                encode_money(market_value),
+                encode_money(unrealized_pnl),
                 updated_at,
             ),
         )

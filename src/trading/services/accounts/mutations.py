@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.time import utc_now_iso
 from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
@@ -71,7 +72,7 @@ def _create_account(
         AccountRepository(conn).insert(
             AccountInsert(
                 name=name,
-                initial_cash=float(initial_cash),
+                initial_cash=Decimal(str(initial_cash)),
                 created_at=created_ts,
                 updated_at=created_ts,
                 benchmark_ticker=_normalize_benchmark_ticker(benchmark_ticker),

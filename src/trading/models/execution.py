@@ -18,11 +18,16 @@ class BookTradeCandidate:
     strategy_name: str
     side: str
     symbol: str
-    qty: int
+    qty: float
     requested_price: float
     forced_sell: str | None
     delta_est: float | None
     iv_est: float | None
+    # Tradeable increment the risk gate rounds a rescaled buy down to. 1.0 (whole
+    # units, the WHOLE_SHARE_STEP value) unless a caller sets the equity fraction.
+    # A literal, not the sizing constant: models is the lowest layer and imports
+    # no domain policy.
+    quantity_step: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,8 +130,8 @@ class RiskGateDecision:
     side: str
     action: str
     reason_code: str
-    requested_qty: int
-    approved_qty: int
+    requested_qty: float
+    approved_qty: float
     requested_notional: float
     approved_notional: float
 

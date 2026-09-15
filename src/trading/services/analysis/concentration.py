@@ -90,8 +90,8 @@ def fetch_portfolio_concentration(conn: sqlite3.Connection) -> PortfolioConcentr
         for position in positions.fetch_for_account(account_id=account.id):
             if position.symbol == SETTLEMENT_TICKER:
                 continue
-            per_symbol_market_value[position.symbol] = (
-                per_symbol_market_value.get(position.symbol, 0.0) + position.market_value
+            per_symbol_market_value[position.symbol] = per_symbol_market_value.get(position.symbol, 0.0) + float(
+                position.market_value
             )
             per_symbol_accounts.setdefault(position.symbol, set()).add(account.name)
 

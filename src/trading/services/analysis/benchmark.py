@@ -25,7 +25,7 @@ def _snapshot_time(snapshot: EquitySnapshotRecord) -> str:
 
 
 def _snapshot_equity(snapshot: EquitySnapshotRecord) -> float:
-    return snapshot.equity
+    return float(snapshot.equity)
 
 
 def fetch_benchmark_close_history(

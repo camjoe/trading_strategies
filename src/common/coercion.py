@@ -25,6 +25,7 @@ No domain dependencies; usable from any layer.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 
 
 def coerce_str(value: object | None) -> str | None:
@@ -38,7 +39,7 @@ def coerce_str(value: object | None) -> str | None:
 def coerce_float(value: object | None) -> float | None:
     if value is None:
         return None
-    if isinstance(value, (int, float, str)):
+    if isinstance(value, (int, float, str, Decimal)):
         return float(value)
     raise ValueError(f"Expected float-convertible value, got {type(value).__name__}")
 
@@ -46,9 +47,21 @@ def coerce_float(value: object | None) -> float | None:
 def coerce_int(value: object | None) -> int | None:
     if value is None:
         return None
-    if isinstance(value, (int, float, str)):
+    if isinstance(value, (int, float, str, Decimal)):
         return int(value)
     raise ValueError(f"Expected int-convertible value, got {type(value).__name__}")
+
+
+def coerce_decimal(value: object | None) -> Decimal | None:
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float, str)):
+        # str() first so a float's binary tail (0.1 -> 0.1000000000000000055...)
+        # does not leak into the Decimal.
+        return Decimal(str(value))
+    raise ValueError(f"Expected decimal-convertible value, got {type(value).__name__}")
 
 
 def coerce_bool(value: object | None) -> bool | None:
@@ -88,6 +101,13 @@ def expect_int(value: object | None, field_name: str = "value") -> int:
     return converted
 
 
+def expect_decimal(value: object | None, field_name: str = "value") -> Decimal:
+    converted = coerce_decimal(value)
+    if converted is None:
+        raise ValueError(f"{field_name} cannot be null")
+    return converted
+
+
 def row_str(row: Mapping[str, object], key: str) -> str | None:
     return coerce_str(row[key])
 
@@ -110,3 +130,11 @@ def row_int(row: Mapping[str, object], key: str) -> int | None:
 
 def row_expect_int(row: Mapping[str, object], key: str) -> int:
     return expect_int(row[key], key)
+
+
+def row_decimal(row: Mapping[str, object], key: str) -> Decimal | None:
+    return coerce_decimal(row[key])
+
+
+def row_expect_decimal(row: Mapping[str, object], key: str) -> Decimal:
+    return expect_decimal(row[key], key)

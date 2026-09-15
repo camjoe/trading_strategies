@@ -238,7 +238,9 @@ def _execute_buys(
     # Every buy is sized against the same post-sell equity, so sizing does not
     # drift as earlier buys in the list execute.
     post_sell_equity = state.cash + compute_market_value(state.positions, trade_prices.to_dict())
-    sized_buys: list[tuple[str, float, int]] = []
+    # The backtest sizes whole shares: choose_buy_qty/allocate_buy_quantities default
+    # to WHOLE_SHARE_STEP, so these float quantities are whole-valued.
+    sized_buys: list[tuple[str, float, float]] = []
     for ticker in tickers:
         if signals[ticker] != "buy" or ticker not in active_tickers or state.positions[ticker] > 0:
             continue
@@ -519,7 +521,7 @@ def _resolve_run_inputs(
     # Frozen onto the run row below rather than left for readers to recompute: this
     # is the only point where the provider and the run's own benchmark ticker are
     # both in hand.
-    benchmark_return = benchmark_return_pct(benchmark_series, scope.account.initial_cash)
+    benchmark_return = benchmark_return_pct(benchmark_series, float(scope.account.initial_cash))
 
     feature_bundle = None
     if strategy_spec.required_features:
@@ -599,7 +601,7 @@ def run_backtest(
             else 0
         )
 
-        state = _PortfolioState(cash=scope.account.initial_cash)
+        state = _PortfolioState(cash=float(scope.account.initial_cash))
         ctx = _ExecutionContext(
             conn=conn,
             run_id=run_id,
@@ -619,7 +621,7 @@ def run_backtest(
 
     ending_equity = equity_curve[-1]
     total_return = total_return_pct(
-        first_equity=scope.account.initial_cash,
+        first_equity=float(scope.account.initial_cash),
         last_equity=ending_equity,
     )
     performance = summarize_backtest_performance(equity_curve, state.executed_trades)

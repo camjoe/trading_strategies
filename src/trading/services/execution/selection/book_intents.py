@@ -30,8 +30,9 @@ def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeSta
     for pos in PositionRepository(conn).fetch_for_book(book_id=book_id):
         if pos.qty <= 0:
             continue
-        positions[pos.symbol] = pos.qty
-        avg_cost[pos.symbol] = pos.avg_cost
+        # Selection is float policy math; convert the Decimal position at this edge.
+        positions[pos.symbol] = float(pos.qty)
+        avg_cost[pos.symbol] = float(pos.avg_cost)
     return BookTradeState(
         cash=float(current_cash),
         positions=positions,
@@ -95,7 +96,7 @@ def generate_book_trade_intents(
         risk_policy = book.risk_policy.strip().lower()
         instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
-        can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
+        can_sell = [ticker for ticker, qty in state.positions.items() if qty > 0]
         forced_sells = order_risk_breaches(
             can_sell,
             market.prices,

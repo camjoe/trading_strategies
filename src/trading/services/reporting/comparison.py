@@ -82,7 +82,9 @@ def compare_strategies(
         summary = build_account_return_summary(account, state, equity, provider=provider)
         trend = infer_overall_trend(conn, account.id, equity, lookback)
 
-        position_count, positions_text = positions_summary_text(state.positions)
+        position_count, positions_text = positions_summary_text(
+            {ticker: float(qty) for ticker, qty in state.positions.items()}
+        )
 
         print(_compare_account_header(account))
         active_strategy, compare_book = resolve_render_context(conn, account)

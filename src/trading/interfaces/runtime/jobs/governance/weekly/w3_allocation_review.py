@@ -58,11 +58,11 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         # current_equity already includes cash for each book — sum live book
         # balances, never frozen/stale ones.
-        current_navs = [b.current_equity for b in books]
+        current_navs = [float(b.current_equity) for b in books]
         total_nav = sum(current_navs)
 
         # Compute target allocation from original start_equity.
-        start_equities = [b.start_equity for b in books]
+        start_equities = [float(b.start_equity) for b in books]
         total_start_equity = sum(start_equities)
 
         book_rows: list[WeeklyAllocationBookPayload] = []

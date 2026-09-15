@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 
 from common.coercion import (
     row_expect_float,
@@ -15,6 +16,12 @@ from common.coercion import (
     row_str,
 )
 from common.json_columns import row_json_object
+from trading.persistence.money_columns import (
+    row_expect_money,
+    row_expect_quantity,
+    row_money,
+    row_quantity,
+)
 
 # Which book_rotation_settings upsert wrote a book_rotation_settings_change_events row.
 BOOK_ROTATION_SETTINGS_GROUP_SCHEDULING = "scheduling"
@@ -50,9 +57,9 @@ class BookRecord(Mapping[str, object]):
     name: str
     status: str
     is_default: int
-    start_equity: float
-    current_cash: float
-    current_equity: float
+    start_equity: Decimal
+    current_cash: Decimal
+    current_equity: Decimal
     # NOT NULL since revision 0008 — books are always explicitly set.
     trade_symbols: str
     goal_min_return_pct: float | None
@@ -76,7 +83,7 @@ class BookRecord(Mapping[str, object]):
     option_type: str | None
     target_delta_min: float | None
     target_delta_max: float | None
-    max_premium_per_trade: float | None
+    max_premium_per_trade: Decimal | None
     max_contracts_per_trade: int | None
     iv_rank_min: float | None
     iv_rank_max: float | None
@@ -92,9 +99,9 @@ class BookRecord(Mapping[str, object]):
             name=row_expect_str(values, "name"),
             status=row_expect_str(values, "status"),
             is_default=row_expect_int(values, "is_default"),
-            start_equity=row_expect_float(values, "start_equity"),
-            current_cash=row_expect_float(values, "current_cash"),
-            current_equity=row_expect_float(values, "current_equity"),
+            start_equity=row_expect_money(values, "start_equity"),
+            current_cash=row_expect_money(values, "current_cash"),
+            current_equity=row_expect_money(values, "current_equity"),
             trade_symbols=row_expect_str(values, "trade_symbols"),
             goal_min_return_pct=row_float(values, "goal_min_return_pct"),
             goal_max_return_pct=row_float(values, "goal_max_return_pct"),
@@ -115,7 +122,7 @@ class BookRecord(Mapping[str, object]):
             option_type=row_str(values, "option_type"),
             target_delta_min=row_float(values, "target_delta_min"),
             target_delta_max=row_float(values, "target_delta_max"),
-            max_premium_per_trade=row_float(values, "max_premium_per_trade"),
+            max_premium_per_trade=row_money(values, "max_premium_per_trade"),
             max_contracts_per_trade=row_int(values, "max_contracts_per_trade"),
             iv_rank_min=row_float(values, "iv_rank_min"),
             iv_rank_max=row_float(values, "iv_rank_max"),
@@ -183,7 +190,7 @@ class BookSettingsUpdate:
     option_max_dte: int | None = None
     target_delta_min: float | None = None
     target_delta_max: float | None = None
-    max_premium_per_trade: float | None = None
+    max_premium_per_trade: Decimal | None = None
     max_contracts_per_trade: int | None = None
     iv_rank_min: float | None = None
     iv_rank_max: float | None = None
@@ -372,10 +379,10 @@ class PositionRecord:
 
     book_id: int
     symbol: str
-    qty: float
-    avg_cost: float
-    market_value: float
-    unrealized_pnl: float
+    qty: Decimal
+    avg_cost: Decimal
+    market_value: Decimal
+    unrealized_pnl: Decimal
     updated_at: str
 
     @classmethod
@@ -383,10 +390,10 @@ class PositionRecord:
         return cls(
             book_id=row_expect_int(values, "book_id"),
             symbol=row_expect_str(values, "symbol"),
-            qty=row_expect_float(values, "qty"),
-            avg_cost=row_expect_float(values, "avg_cost"),
-            market_value=row_expect_float(values, "market_value"),
-            unrealized_pnl=row_expect_float(values, "unrealized_pnl"),
+            qty=row_expect_quantity(values, "qty"),
+            avg_cost=row_expect_money(values, "avg_cost"),
+            market_value=row_expect_money(values, "market_value"),
+            unrealized_pnl=row_expect_money(values, "unrealized_pnl"),
             updated_at=row_expect_str(values, "updated_at"),
         )
 
@@ -398,7 +405,7 @@ class LedgerEntryRecord:
     id: int
     book_id: int
     entry_type: str
-    amount: float
+    amount: Decimal
     reference_type: str | None
     reference_id: str | None
     entry_time: str
@@ -410,7 +417,7 @@ class LedgerEntryRecord:
             id=row_expect_int(values, "id"),
             book_id=row_expect_int(values, "book_id"),
             entry_type=row_expect_str(values, "entry_type"),
-            amount=row_expect_float(values, "amount"),
+            amount=row_expect_money(values, "amount"),
             reference_type=row_str(values, "reference_type"),
             reference_id=row_str(values, "reference_id"),
             entry_time=row_expect_str(values, "entry_time"),
@@ -422,20 +429,20 @@ class LedgerEntryRecord:
 class BookFillTransition:
     symbol: str
     side: str
-    qty: float
-    fill_price: float
-    commission: float
-    requested_price: float | None
-    cash_delta: float
-    realized_pnl_delta: float
-    slippage_amount: float
-    ending_qty: float
-    ending_avg_cost: float
-    ending_cash: float
-    ending_realized_pnl: float
-    ending_market_value: float
-    ending_unrealized_pnl: float
-    ending_equity: float
+    qty: Decimal
+    fill_price: Decimal
+    commission: Decimal
+    requested_price: Decimal | None
+    cash_delta: Decimal
+    realized_pnl_delta: Decimal
+    slippage_amount: Decimal
+    ending_qty: Decimal
+    ending_avg_cost: Decimal
+    ending_cash: Decimal
+    ending_realized_pnl: Decimal
+    ending_market_value: Decimal
+    ending_unrealized_pnl: Decimal
+    ending_equity: Decimal
 
 
 # --- Risk ---
@@ -456,10 +463,10 @@ class RiskDecisionInsert:
     side: str | None = None
     action: str
     reason_code: str
-    requested_qty: float | None = None
-    approved_qty: float | None = None
-    requested_notional: float | None = None
-    approved_notional: float | None = None
+    requested_qty: Decimal | None = None
+    approved_qty: Decimal | None = None
+    requested_notional: Decimal | None = None
+    approved_notional: Decimal | None = None
     risk_payload_json: str = "{}"
     created_at: str
 
@@ -484,10 +491,10 @@ class RiskDecisionRecord(RiskDecisionInsert):
             side=row_str(values, "side"),
             action=row_expect_str(values, "action"),
             reason_code=row_expect_str(values, "reason_code"),
-            requested_qty=row_float(values, "requested_qty"),
-            approved_qty=row_float(values, "approved_qty"),
-            requested_notional=row_float(values, "requested_notional"),
-            approved_notional=row_float(values, "approved_notional"),
+            requested_qty=row_quantity(values, "requested_qty"),
+            approved_qty=row_quantity(values, "approved_qty"),
+            requested_notional=row_money(values, "requested_notional"),
+            approved_notional=row_money(values, "approved_notional"),
             risk_payload_json=row_expect_str(values, "risk_payload_json"),
             created_at=row_expect_str(values, "created_at"),
         )
@@ -503,8 +510,8 @@ class RiskSnapshotInsert:
 
     account_id: int
     snapshot_time: str
-    gross_exposure: float
-    net_exposure: float
+    gross_exposure: Decimal
+    net_exposure: Decimal
     max_symbol_concentration_pct: float
     max_sector_concentration_pct: float
     drawdown_pct: float | None = None
@@ -529,8 +536,8 @@ class RiskSnapshotRecord(RiskSnapshotInsert):
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
             snapshot_time=row_expect_str(values, "snapshot_time"),
-            gross_exposure=row_expect_float(values, "gross_exposure"),
-            net_exposure=row_expect_float(values, "net_exposure"),
+            gross_exposure=row_expect_money(values, "gross_exposure"),
+            net_exposure=row_expect_money(values, "net_exposure"),
             max_symbol_concentration_pct=row_expect_float(values, "max_symbol_concentration_pct"),
             max_sector_concentration_pct=row_expect_float(values, "max_sector_concentration_pct"),
             drawdown_pct=row_float(values, "drawdown_pct"),

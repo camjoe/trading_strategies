@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 
 from common.coercion import (
     coerce_float,
@@ -247,7 +248,9 @@ def book_settings_update_from_config(config: AccountConfig) -> BookSettingsUpdat
         option_max_dte=config.option_max_dte,
         target_delta_min=config.target_delta_min,
         target_delta_max=config.target_delta_max,
-        max_premium_per_trade=config.max_premium_per_trade,
+        max_premium_per_trade=(
+            None if config.max_premium_per_trade is None else Decimal(str(config.max_premium_per_trade))
+        ),
         max_contracts_per_trade=config.max_contracts_per_trade,
         iv_rank_min=config.iv_rank_min,
         iv_rank_max=config.iv_rank_max,

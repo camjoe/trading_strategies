@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from collections.abc import Callable, Sequence
+from decimal import Decimal
 
 from common.time import utc_now_iso
 from trading.domain.accounting.book import apply_book_fill_transition
@@ -10,6 +11,7 @@ from trading.domain.broker_connection import BrokerConnection
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution import BookTradeIntent, SubmissionResult
 from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
+from trading.persistence.money_columns import snap_money
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -94,17 +96,19 @@ def apply_book_fill(
     position_qty = current.qty if current is not None else 0.0
     position_avg_cost = current.avg_cost if current is not None else 0.0
 
+    # Inputs arrive as float (broker fills, caller amounts); the fill math is Decimal.
+    # str() converts without carrying a float's binary tail into the value.
     transition = apply_book_fill_transition(
         side=side,
         symbol=symbol,
-        qty=fill_qty,
-        fill_price=fill_price,
-        commission=transaction_cost,
+        qty=Decimal(str(fill_qty)),
+        fill_price=Decimal(str(fill_price)),
+        commission=Decimal(str(transaction_cost)),
         requested_price=None,
-        position_qty=position_qty,
-        position_avg_cost=position_avg_cost,
-        cash=0.0,
-        realized_pnl=0.0,
+        position_qty=Decimal(str(position_qty)),
+        position_avg_cost=Decimal(str(position_avg_cost)),
+        cash=Decimal("0"),
+        realized_pnl=Decimal("0"),
     )
 
     # The position, ledger, and balance writes are one atomic unit: a fill's
@@ -124,23 +128,29 @@ def apply_book_fill(
         else:
             position_repo.delete(book_id=book_id, symbol=transition.symbol)
 
-        # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry; the
-        # two sum to transition.cash_delta (the net applied to book cash).
-        gross_cash = float(fill_qty) * float(fill_price)
+        # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry.
+        # Each amount is snapped to the storage grid here, and book cash is moved by
+        # exactly their sum below. Truncating the two entries and the combined cash
+        # delta on one grid keeps current_cash - start_equity == SUM(ledger.amount)
+        # exact for fractional fills (check_cash_invariant); truncating on two grids
+        # left a sub-cent divergence per fill.
+        gross_cash = transition.qty * transition.fill_price
+        trade_amount = snap_money(-gross_cash if transition.side == "buy" else gross_cash)
+        fee_amount = snap_money(transition.commission)
         ledger_repo.insert(
             book_id=book_id,
             entry_type=LEDGER_ENTRY_TYPE_TRADE,
-            amount=-gross_cash if transition.side == "buy" else gross_cash,
+            amount=trade_amount,
             reference_type=LEDGER_REFERENCE_TYPE_ORDER,
             reference_id=str(order_id),
             entry_time=fill_time,
             created_at=fill_time,
         )
-        if transaction_cost > 0:
+        if fee_amount > 0:
             ledger_repo.insert(
                 book_id=book_id,
                 entry_type=LEDGER_ENTRY_TYPE_FEE,
-                amount=-float(transaction_cost),
+                amount=-fee_amount,
                 reference_type=LEDGER_REFERENCE_TYPE_ORDER,
                 reference_id=str(order_id),
                 entry_time=fill_time,
@@ -155,8 +165,11 @@ def apply_book_fill(
             # balance write would silently match no row while the position and
             # ledger entries above it stand. Raising rolls the whole fill back.
             raise LookupError(f"Book {book_id} does not exist; cannot apply a fill to it.")
-        new_cash = book.current_cash + transition.cash_delta
-        market_value = sum(position.market_value for position in position_repo.fetch_for_book(book_id=book_id))
+        new_cash = book.current_cash + trade_amount - fee_amount
+        market_value = sum(
+            (position.market_value for position in position_repo.fetch_for_book(book_id=book_id)),
+            Decimal("0"),
+        )
         book_repo.update_balances(
             book_id=book_id,
             current_cash=new_cash,
@@ -235,10 +248,10 @@ def submit_book_intents(
                 client_order_id=client_order_id,
                 symbol=intent.symbol,
                 side=intent.side,
-                qty=float(intent.qty),
+                qty=Decimal(str(intent.qty)),
                 order_type=intent.order_type,
                 time_in_force=intent.time_in_force,
-                requested_price=intent.requested_price,
+                requested_price=None if intent.requested_price is None else Decimal(str(intent.requested_price)),
                 status=ORDER_STATUS_PENDING,
                 submitted_at=submitted_at,
                 updated_at=submitted_at,
@@ -269,9 +282,9 @@ def submit_book_intents(
                 order_id=order_id,
                 broker_order_id=placed.broker_order_id,
                 status=clean_order_status(placed.status),
-                filled_qty=float(placed.filled_qty),
-                avg_fill_price=placed.avg_fill_price,
-                commission=float(placed.commission),
+                filled_qty=Decimal(str(placed.filled_qty)),
+                avg_fill_price=None if placed.avg_fill_price is None else Decimal(str(placed.avg_fill_price)),
+                commission=Decimal(str(placed.commission)),
                 submitted_at=placed.submitted_at or submitted_at,
                 updated_at=updated_at,
                 status_reason=placed.status_reason,
@@ -286,10 +299,10 @@ def submit_book_intents(
                 fee_share = float(fee) if is_filled and fill_index == 0 else 0.0
                 order_repo.insert_fill(
                     order_id=order_id,
-                    filled_qty=float(fill.filled_qty),
-                    fill_price=float(fill.fill_price),
+                    filled_qty=Decimal(str(fill.filled_qty)),
+                    fill_price=Decimal(str(fill.fill_price)),
                     fill_time=fill.fill_time,
-                    commission=float(fill.commission) + fee_share,
+                    commission=Decimal(str(fill.commission)) + Decimal(str(fee_share)),
                     exec_id=fill.exec_id,
                 )
 
@@ -306,10 +319,10 @@ def submit_book_intents(
                     # aggregate so derived account history stays complete.
                     order_repo.insert_fill(
                         order_id=order_id,
-                        filled_qty=fill_qty,
-                        fill_price=fill_price,
+                        filled_qty=Decimal(str(fill_qty)),
+                        fill_price=Decimal(str(fill_price)),
                         fill_time=fill_time,
-                        commission=float(placed.commission) + float(fee),
+                        commission=Decimal(str(placed.commission)) + Decimal(str(fee)),
                         exec_id=None,
                     )
                 apply_book_fill(

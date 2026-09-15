@@ -47,7 +47,7 @@ def fetch_account_analysis(
         summary.benchmark_return_pct,
         summary.alpha_pct,
         position_analysis,
-        state.realized_pnl,
+        float(state.realized_pnl),
     )
 
     winners = ranked[:TOP_POSITIONS_COUNT]

@@ -17,7 +17,12 @@ from trading.domain.auto_trading.options import (
     estimate_option_premium,
     option_candidate_allowed,
 )
-from trading.domain.auto_trading.sizing import allocate_buy_quantities, choose_buy_qty, closing_sell_qty
+from trading.domain.auto_trading.sizing import (
+    allocate_buy_quantities,
+    choose_buy_qty,
+    closing_sell_qty,
+    quantity_step_for,
+)
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
 
@@ -45,8 +50,9 @@ FeatureHistoryFn = Callable[[str, str], "pd.DataFrame | None"]
 _ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 
 
-# (side, ticker, qty, price, delta_est, iv_est) — one prepared trade.
-TradeSelection = tuple[str, str, int, float, float | None, float | None]
+# (side, ticker, qty, price, delta_est, iv_est) — one prepared trade. Quantity is
+# fractional for equity and whole for leaps (see the sizing quantity_step).
+TradeSelection = tuple[str, str, float, float, float | None, float | None]
 
 
 @dataclass
@@ -193,7 +199,7 @@ def select_signal_trade_candidates(
     Missing history is treated as hold; too-short history holds inside the
     signal functions themselves.
     """
-    held = {ticker for ticker, qty in positions.items() if qty >= 1}
+    held = {ticker for ticker, qty in positions.items() if qty > 0}
     buy_candidates: list[str] = []
     sell_candidates: list[str] = []
     for ticker in universe:
@@ -266,7 +272,7 @@ def prepare_book_trades(
     selections: list[TradeSelection] = []
 
     for ticker, qty, price in iter_sellable_trades(
-        sell_candidates, forced_sells, prices, working.positions, selection_seed
+        sell_candidates, forced_sells, prices, working.positions, selection_seed, instrument_mode=instrument_mode
     ):
         if len(selections) >= max_trades:
             break
@@ -304,7 +310,7 @@ def _size_buy_for_ticker(
     *,
     trade_size_pct: float | None,
     max_position_pct: float | None,
-) -> tuple[str, int, float, float | None, float | None] | None:
+) -> tuple[str, float, float, float | None, float | None] | None:
     """Size a buy for one signaled ticker; None when it cannot be sized (or leaps-blocked)."""
     price = float(prices[ticker])
     if instrument_mode == "leaps":
@@ -351,12 +357,14 @@ def _size_buy_for_ticker(
             trade_ticker=ticker,
             trade_price=trade_price,
         ),
+        quantity_step=quantity_step_for(instrument_mode),
     )
     if qty <= 0:
         return None
 
     if instrument_mode == "leaps":
-        qty = apply_leaps_buy_qty_limits(qty, trade_price, option_settings)
+        # Options trade in whole contracts, so the sized qty is already whole here.
+        qty = float(apply_leaps_buy_qty_limits(int(qty), trade_price, option_settings))
         if qty <= 0:
             return None
 
@@ -387,7 +395,7 @@ def prepare_buy_trades(
     if max_buys <= 0:
         return []
 
-    sized: list[tuple[str, float, int, float | None, float | None]] = []
+    sized: list[tuple[str, float, float, float | None, float | None]] = []
     for ticker in order_signal_candidates(buy_candidates, seed=selection_seed):
         if len(sized) >= max_buys:
             break
@@ -413,11 +421,12 @@ def prepare_buy_trades(
         [(ticker, price, qty) for ticker, price, qty, _d, _iv in sized],
         cash=float(state.cash),
         fee_per_trade=fee,
+        quantity_step=quantity_step_for(instrument_mode),
     )
     return [
         ("buy", ticker, granted[ticker], price, delta_est, iv_est)
         for ticker, price, _qty, delta_est, iv_est in sized
-        if granted.get(ticker, 0) >= 1
+        if granted.get(ticker, 0.0) > 0
     ]
 
 
@@ -446,23 +455,27 @@ def iter_sellable_trades(
     prices: Mapping[str, float],
     positions: Mapping[str, float],
     selection_seed: str = "",
-) -> Iterator[tuple[str, int, float]]:
+    *,
+    instrument_mode: str = "equity",
+) -> Iterator[tuple[str, float, float]]:
     """Yield ``(ticker, qty, price)`` per candidate that can actually be sold.
 
     A sell exits the whole position, matching ``simulation._execute_sells``.
-    Candidates with no usable price, or holding too little to close a whole
-    share, are skipped rather than ending the walk.
+    Candidates with no usable price, or holding too little to close one
+    ``quantity_step`` (a whole share for leaps, a share fraction for equity),
+    are skipped rather than ending the walk.
 
     ``positions`` is read per candidate rather than up front, so a caller
     closing positions as it consumes this sees its own writes — which is what
     stops a ticker listed twice from being sold twice.
     """
+    quantity_step = quantity_step_for(instrument_mode)
     for ticker in _order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
             continue
 
-        qty = closing_sell_qty(positions.get(ticker, 0.0))
+        qty = closing_sell_qty(positions.get(ticker, 0.0), quantity_step=quantity_step)
         if qty <= 0:
             continue
 

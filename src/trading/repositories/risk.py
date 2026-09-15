@@ -10,6 +10,7 @@ from trading.models.books import (
     RiskSnapshotInsert,
     RiskSnapshotRecord,
 )
+from trading.persistence.money_columns import encode_columns
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 
@@ -24,6 +25,12 @@ _SNAPSHOT_COLUMNS = tuple(field.name for field in fields(RiskSnapshotInsert))
 _SNAPSHOT_INSERT_SQL = _insert_sql("risk_snapshots", _SNAPSHOT_COLUMNS)
 _DECISION_COLUMNS = tuple(field.name for field in fields(RiskDecisionInsert))
 _DECISION_INSERT_SQL = _insert_sql("risk_decisions", _DECISION_COLUMNS)
+
+# Money and quantity columns stored as integer minor units; encoded on write.
+_SNAPSHOT_MONEY_COLUMNS = frozenset({"gross_exposure", "net_exposure"})
+_DECISION_MONEY_COLUMNS = frozenset({"requested_notional", "approved_notional"})
+_DECISION_QUANTITY_COLUMNS = frozenset({"requested_qty", "approved_qty"})
+_NO_QUANTITY_COLUMNS: frozenset[str] = frozenset()
 
 
 class RiskSnapshotRepository:
@@ -42,9 +49,14 @@ class RiskSnapshotRepository:
         self._conn = conn
 
     def insert(self, snapshot: RiskSnapshotInsert) -> int:
+        encoded = encode_columns(
+            {column: getattr(snapshot, column) for column in _SNAPSHOT_COLUMNS},
+            money_columns=_SNAPSHOT_MONEY_COLUMNS,
+            quantity_columns=_NO_QUANTITY_COLUMNS,
+        )
         cursor = self._conn.execute(
             _SNAPSHOT_INSERT_SQL,
-            tuple(getattr(snapshot, column) for column in _SNAPSHOT_COLUMNS),
+            tuple(encoded[column] for column in _SNAPSHOT_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
@@ -79,9 +91,14 @@ class RiskDecisionRepository:
         self._conn = conn
 
     def insert(self, decision: RiskDecisionInsert) -> int:
+        encoded = encode_columns(
+            {column: getattr(decision, column) for column in _DECISION_COLUMNS},
+            money_columns=_DECISION_MONEY_COLUMNS,
+            quantity_columns=_DECISION_QUANTITY_COLUMNS,
+        )
         cursor = self._conn.execute(
             _DECISION_INSERT_SQL,
-            tuple(getattr(decision, column) for column in _DECISION_COLUMNS),
+            tuple(encoded[column] for column in _DECISION_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)

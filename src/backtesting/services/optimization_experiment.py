@@ -298,7 +298,7 @@ def _manifest_insert(
         manifest_version=MANIFEST_V1,
         account_name=account.name,
         book_id=book.id if book is not None else None,
-        initial_cash=account.initial_cash,
+        initial_cash=float(account.initial_cash),
         benchmark_ticker=account.benchmark_ticker,
         slippage_bps=cfg.slippage_bps,
         fee_per_trade=cfg.fee_per_trade,

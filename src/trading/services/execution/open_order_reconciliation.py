@@ -29,6 +29,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from common.coercion import row_expect_int
 from common.time import utc_now_iso
@@ -153,10 +154,10 @@ def reconcile_open_orders(
                         continue
                     order_repo.insert_fill(
                         order_id=persisted.id,
-                        filled_qty=fill.filled_qty,
-                        fill_price=fill.fill_price,
+                        filled_qty=Decimal(str(fill.filled_qty)),
+                        fill_price=Decimal(str(fill.fill_price)),
                         fill_time=fill.fill_time,
-                        commission=fill.commission,
+                        commission=Decimal(str(fill.commission)),
                         exec_id=exec_id,
                     )
                     apply_book_fill(
@@ -175,8 +176,8 @@ def reconcile_open_orders(
                 order_repo.update_status(
                     order_id=persisted.id,
                     status=clean_order_status(live.status),
-                    filled_qty=live.filled_qty,
-                    avg_fill_price=live.avg_fill_price,
+                    filled_qty=Decimal(str(live.filled_qty)),
+                    avg_fill_price=None if live.avg_fill_price is None else Decimal(str(live.avg_fill_price)),
                     updated_at=now,
                     status_reason=live.status_reason,
                 )
@@ -222,9 +223,9 @@ def _adopt_pending_orders(
             order_id=persisted.id,
             broker_order_id=live.broker_order_id,
             status=clean_order_status(live.status),
-            filled_qty=live.filled_qty,
-            avg_fill_price=live.avg_fill_price,
-            commission=live.commission,
+            filled_qty=Decimal(str(live.filled_qty)),
+            avg_fill_price=None if live.avg_fill_price is None else Decimal(str(live.avg_fill_price)),
+            commission=Decimal(str(live.commission)),
             # The send time the pending row already carries, not this poll's clock.
             submitted_at=persisted.submitted_at,
             updated_at=now,

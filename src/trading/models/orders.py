@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
+from decimal import Decimal
 from enum import Enum
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_int, row_expect_str, row_int, row_str
+from trading.persistence.money_columns import (
+    row_expect_money,
+    row_expect_quantity,
+    row_money,
+)
 
 # The `orders.status` value for a row written before its broker send: the order
 # may or may not have reached the broker, and `client_order_id` is what identifies
@@ -112,9 +118,9 @@ class FillEventRecord:
     book_id: int
     ticker: str
     side: str
-    qty: float
-    price: float
-    fee: float
+    qty: Decimal
+    price: Decimal
+    fee: Decimal
     trade_time: str
     order_id: int
 
@@ -124,9 +130,9 @@ class FillEventRecord:
             book_id=row_expect_int(values, "book_id"),
             ticker=row_expect_str(values, "ticker"),
             side=row_expect_str(values, "side"),
-            qty=row_expect_float(values, "qty"),
-            price=row_expect_float(values, "price"),
-            fee=row_expect_float(values, "fee"),
+            qty=row_expect_quantity(values, "qty"),
+            price=row_expect_money(values, "price"),
+            fee=row_expect_money(values, "fee"),
             trade_time=row_expect_str(values, "trade_time"),
             order_id=row_expect_int(values, "order_id"),
         )
@@ -151,14 +157,14 @@ class OrderInsert:
     client_order_id: str | None = None
     symbol: str
     side: str
-    qty: float
+    qty: Decimal
     order_type: str = OrderType.MARKET.value
     time_in_force: str = TimeInForce.DAY.value
-    requested_price: float | None = None
+    requested_price: Decimal | None = None
     status: str
-    filled_qty: float = 0.0
-    avg_fill_price: float | None = None
-    commission: float = 0.0
+    filled_qty: Decimal = Decimal("0")
+    avg_fill_price: Decimal | None = None
+    commission: Decimal = Decimal("0")
     submitted_at: str
     updated_at: str
     status_reason: str | None = None
@@ -175,7 +181,7 @@ class OrderRecord(OrderInsert):
     id: int
     # Realized P&L for a closing order (sell), net of commission. NULL for opening
     # orders (buys realize nothing) — so NOT NULL identifies a closing trade.
-    realized_pnl_delta: float | None = None
+    realized_pnl_delta: Decimal | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> OrderRecord:
@@ -189,16 +195,16 @@ class OrderRecord(OrderInsert):
             client_order_id=row_str(values, "client_order_id"),
             symbol=row_expect_str(values, "symbol"),
             side=row_expect_str(values, "side"),
-            qty=row_expect_float(values, "qty"),
+            qty=row_expect_quantity(values, "qty"),
             order_type=row_expect_str(values, "order_type"),
             time_in_force=row_expect_str(values, "time_in_force"),
-            requested_price=row_float(values, "requested_price"),
+            requested_price=row_money(values, "requested_price"),
             status=row_expect_str(values, "status"),
-            filled_qty=row_expect_float(values, "filled_qty"),
-            avg_fill_price=row_float(values, "avg_fill_price"),
-            commission=row_expect_float(values, "commission"),
+            filled_qty=row_expect_quantity(values, "filled_qty"),
+            avg_fill_price=row_money(values, "avg_fill_price"),
+            commission=row_expect_money(values, "commission"),
             submitted_at=row_expect_str(values, "submitted_at"),
             updated_at=row_expect_str(values, "updated_at"),
             status_reason=row_str(values, "status_reason"),
-            realized_pnl_delta=row_float(values, "realized_pnl_delta"),
+            realized_pnl_delta=row_money(values, "realized_pnl_delta"),
         )

@@ -16,7 +16,7 @@ def _first_sellable(
     forced_sells: list[str],
     prices: dict[str, float],
     positions: dict[str, float],
-) -> tuple[str, int, float] | None:
+) -> tuple[str, float, float] | None:
     """The first trade the live sell walk would take, or None if it takes none."""
     return next(
         trade_execution_service.iter_sellable_trades(sell_candidates, forced_sells, prices, positions),
@@ -175,14 +175,20 @@ def test_sellable_trades_skip_an_invalid_price() -> None:
     assert result is None
 
 
-def test_sellable_trades_skip_a_sub_share_position() -> None:
+def test_sellable_trades_close_a_fractional_equity_position() -> None:
+    # Equity sells are fractional (Stage 4): a sub-share holding is closed in full,
+    # not skipped.
     result = _first_sellable(
         sell_candidates=["AAPL"],
         forced_sells=[],
         prices={"AAPL": 100.0},
         positions={"AAPL": 0.4},
     )
-    assert result is None
+    assert result is not None
+    ticker, qty, price = result
+    assert ticker == "AAPL"
+    assert qty == pytest.approx(0.4)
+    assert price == pytest.approx(100.0)
 
 
 def test_prepare_buy_trades_returns_empty_when_equity_price_missing() -> None:

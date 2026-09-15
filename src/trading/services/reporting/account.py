@@ -123,27 +123,30 @@ def account_report(
     _print_account_header(conn, account)
     _print_performance_lines(
         account,
-        state.cash,
+        float(state.cash),
         market_value,
         equity,
-        state.realized_pnl,
+        float(state.realized_pnl),
         unrealized,
         strategy_return_pct_value,
         summary.benchmark_equity,
         summary.benchmark_return_pct,
     )
     print(evaluation_summary_line(evaluation, prefix="Evaluation Summary: "))
-    _print_open_positions(state.positions, state.avg_cost, prices)
+    # The account state carries Decimal; this report renders and returns float.
+    positions = {ticker: float(qty) for ticker, qty in state.positions.items()}
+    avg_cost = {ticker: float(cost) for ticker, cost in state.avg_cost.items()}
+    _print_open_positions(positions, avg_cost, prices)
 
     stats = {
-        "cash": state.cash,
+        "cash": float(state.cash),
         "market_value": market_value,
         "equity": equity,
-        "realized_pnl": state.realized_pnl,
+        "realized_pnl": float(state.realized_pnl),
         "unrealized_pnl": unrealized,
         "strategy_return_pct": strategy_return_pct_value,
     }
-    return stats, state.positions
+    return stats, positions
 
 
 __all__ = ["account_report"]

@@ -28,10 +28,12 @@ def compute_position_analysis(
     total_equity: float,
 ) -> list[dict[str, float | str]]:
     result: list[dict[str, float | str]] = []
-    for ticker, qty in sorted(state.positions.items()):
-        if qty <= 0:
+    for ticker, qty_raw in sorted(state.positions.items()):
+        if qty_raw <= 0:
             continue
-        avg_cost = state.avg_cost.get(ticker, 0.0)
+        # The account state carries Decimal; this analysis renders to float.
+        qty = float(qty_raw)
+        avg_cost = float(state.avg_cost.get(ticker, 0.0))
         market_price = prices.get(ticker, 0.0)
         market_value = qty * market_price if market_price else 0.0
         unrealized_pnl = (market_price - avg_cost) * qty if market_price else 0.0

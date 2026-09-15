@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models import AccountRecord
 from trading.models.portfolio import EquitySnapshotRecord
 from trading.services.accounts.mutations import create_account
 from trading.services.analysis import portfolio as analysis_portfolio
@@ -34,7 +35,7 @@ def make_analysis_account(
     name: str,
     *,
     initial_cash: float = 1000.0,
-) -> sqlite3.Row:
+) -> AccountRecord:
     if initial_cash > 0:
         create_account(conn, name, "trend", initial_cash, "SPY")
     else:
@@ -48,7 +49,8 @@ def make_analysis_account(
         conn.commit()
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
     assert row is not None
-    return row
+    # Match production: analysis consumers take a decoded AccountRecord, not a raw row.
+    return AccountRecord.from_mapping(dict(row))
 
 
 def record_analysis_buy(

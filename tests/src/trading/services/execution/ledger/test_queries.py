@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from tests.support.fills import seed_fill_event
+from trading.persistence.money_columns import encode_money
 from trading.services.execution.ledger.queries import list_account_trades
 
 
@@ -60,9 +62,9 @@ def test_list_account_trades_includes_ledger_cash_events(
     conn.execute(
         """
         INSERT INTO ledger (book_id, entry_type, amount, entry_time, created_at)
-        VALUES (?, 'deposit', 500.0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+        VALUES (?, 'deposit', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
         """,
-        (int(book_row[0]),),
+        (int(book_row[0]), encode_money(Decimal("500"))),
     )
     conn.commit()
 

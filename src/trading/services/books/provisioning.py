@@ -10,6 +10,7 @@ for accounts that predate the default-book model.
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.json_columns import dumps_json_column
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
@@ -71,9 +72,9 @@ def bootstrap_default_book(
         account_id=account_id,
         name="default",
         is_default=1,
-        start_equity=float(initial_cash),
-        current_cash=float(initial_cash),
-        current_equity=float(initial_cash),
+        start_equity=Decimal(str(initial_cash)),
+        current_cash=Decimal(str(initial_cash)),
+        current_equity=Decimal(str(initial_cash)),
         trade_symbols=dumps_json_column(symbols),
         created_at=now_iso,
         updated_at=now_iso,
@@ -98,7 +99,9 @@ def bootstrap_default_book(
             option_type=normalize_option_type(config.option_type) if config.option_type else None,
             target_delta_min=config.target_delta_min,
             target_delta_max=config.target_delta_max,
-            max_premium_per_trade=config.max_premium_per_trade,
+            max_premium_per_trade=(
+                None if config.max_premium_per_trade is None else Decimal(str(config.max_premium_per_trade))
+            ),
             max_contracts_per_trade=config.max_contracts_per_trade,
             iv_rank_min=config.iv_rank_min,
             iv_rank_max=config.iv_rank_max,

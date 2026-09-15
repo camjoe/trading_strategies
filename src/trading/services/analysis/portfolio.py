@@ -42,7 +42,7 @@ def infer_overall_trend(
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
-    history = [snapshot.equity for snapshot in snapshots]
+    history = [float(snapshot.equity) for snapshot in snapshots]
     history.reverse()
     history.append(current_equity)
 
@@ -69,7 +69,7 @@ def settlement_corrected_equity(state: AccountState, prices: dict[str, float]) -
     priced at ``_SETTLEMENT_PRICE`` before calling this function (see
     ``inject_settlement_price``).
     """
-    return state.cash + sum(state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions)
+    return float(state.cash) + sum(float(state.positions[t]) * prices.get(t, 0.0) for t in state.positions)
 
 
 def inject_settlement_price(state: AccountState, prices: dict[str, float]) -> None:
@@ -95,8 +95,12 @@ def build_account_stats(
     state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
     tickers = sorted(state.positions.keys())
     prices = fetch_latest_prices(tickers, provider=provider) if tickers else {}
-    market_value, unrealized = compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
-    equity = state.cash + market_value
+    # The account state carries Decimal; the shared valuation math takes float, and
+    # this view renders to float, so convert at the boundary.
+    positions = {ticker: float(qty) for ticker, qty in state.positions.items()}
+    avg_cost = {ticker: float(cost) for ticker, cost in state.avg_cost.items()}
+    market_value, unrealized = compute_market_value_and_unrealized(positions, avg_cost, prices)
+    equity = float(state.cash) + market_value
     return state, prices, market_value, unrealized, equity
 
 
@@ -125,7 +129,7 @@ def build_account_return_summary(
     initial_cash = row_expect_float(account, "initial_cash")
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     created_at = row_expect_str(account, "created_at")
-    effective_initial = initial_cash if initial_cash else state.total_deposited
+    effective_initial = initial_cash if initial_cash else float(state.total_deposited)
     account_return_pct = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
     benchmark_equity, benchmark_return_pct = benchmark_stats(
         benchmark_ticker, effective_initial, created_at, provider=provider

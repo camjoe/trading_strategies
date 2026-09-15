@@ -17,7 +17,8 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 |---|---|
 | `coercion.py` | Defensive value/row coercion helpers (`coerce_float`, `row_expect_float/int/str`, `row_float`) |
 | `json_columns.py` | The one wire format for JSON stored in a database column — `dumps_json_column` writes it, `row_json_object` reads it back |
-| `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, …) |
+| `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, money/quantity minor-unit scales, …) |
+| `money.py` | Pure scale conversion between a `Decimal` and integer minor units (`to_minor_units`, `from_minor_units`, `truncate_to_scale`) with one swappable rounding policy |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
 | `git.py` | Best-effort git interrogation of the checkout — arbitrary commands (`run_git`), repo-root discovery (`get_repo_root`), and HEAD revision for provenance (`git_head_revision`) |
 | `logging_setup.py` | Central stdlib-logging config for runtime jobs (`configure_logging`), a per-run correlation id (`bind_run_id`/`resolve_run_id`/`current_run_id`), and a WARNING+ tally (`log_counts`) |

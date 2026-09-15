@@ -256,6 +256,7 @@ Owns *using* a connection; `infrastructure/database/` owns *getting* one. See
 |---|---|
 | `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
 | `change_events.py` | The old/new field diff behind the settings change-event trail |
+| `money_columns.py` | Encodes/decodes money and quantity columns between `Decimal` and integer minor units at the repository boundary (`encode/decode_money`, `encode/decode_quantity`, `row_*` readers, `encode_columns`) |
 
 ---
 

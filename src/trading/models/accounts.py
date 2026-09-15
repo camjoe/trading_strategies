@@ -5,18 +5,19 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, fields
+from decimal import Decimal
 
 from common.coercion import (
     coerce_bool,
     coerce_float,
     coerce_int,
     coerce_str,
-    row_expect_float,
     row_expect_int,
     row_expect_str,
     row_int,
     row_str,
 )
+from trading.persistence.money_columns import row_expect_money
 
 # --- Persisted rows and writes ---
 
@@ -32,7 +33,7 @@ class AccountRecord(Mapping[str, object]):
 
     id: int
     name: str
-    initial_cash: float
+    initial_cash: Decimal
     created_at: str
     benchmark_ticker: str
     descriptive_name: str
@@ -47,7 +48,7 @@ class AccountRecord(Mapping[str, object]):
         return cls(
             id=row_expect_int(values, "id"),
             name=row_expect_str(values, "name"),
-            initial_cash=row_expect_float(values, "initial_cash"),
+            initial_cash=row_expect_money(values, "initial_cash"),
             created_at=row_expect_str(values, "created_at"),
             benchmark_ticker=row_expect_str(values, "benchmark_ticker"),
             descriptive_name=row_expect_str(values, "descriptive_name"),
@@ -75,7 +76,7 @@ class AccountInsert:
     """Repository-ready create payload after validation, defaults, and normalization."""
 
     name: str
-    initial_cash: float
+    initial_cash: Decimal
     created_at: str
     updated_at: str
     benchmark_ticker: str
@@ -197,14 +198,14 @@ class AccountState:
         percentage denominator for ``initial_cash = 0`` accounts.
     """
 
-    cash: float
-    positions: dict[str, float]
-    avg_cost: dict[str, float]
-    realized_pnl: float
-    # Gross cumulative settlement-ticker deposits; 0.0 unless the deposit model
+    cash: Decimal
+    positions: dict[str, Decimal]
+    avg_cost: dict[str, Decimal]
+    realized_pnl: Decimal
+    # Gross cumulative settlement-ticker deposits; 0 unless the deposit model
     # is active (i.e. settlement_ticker is set in compute_account_state).
     # Withdrawals do not reduce this value — it represents total capital invested.
-    total_deposited: float = field(default=0.0)
+    total_deposited: Decimal = field(default_factory=lambda: Decimal("0"))
 
 
 @dataclass(frozen=True)
