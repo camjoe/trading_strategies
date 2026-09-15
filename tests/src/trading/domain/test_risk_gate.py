@@ -76,9 +76,7 @@ _FRACTIONAL_STEP = 1.0 / 1_000_000
 def test_allows_fractional_buy_within_limits() -> None:
     # 0.6 shares at 100 = 60 notional, well inside the 0.25 * 10_000 book cap.
     result = evaluate_risk_gate(
-        intents=[
-            _intent(book_id=1, side="buy", symbol="AAPL", qty=0.6, price=100.0, quantity_step=_FRACTIONAL_STEP)
-        ],
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=0.6, price=100.0, quantity_step=_FRACTIONAL_STEP)],
         book_equity_by_id={1: 10_000.0},
         positions=[],
     )
