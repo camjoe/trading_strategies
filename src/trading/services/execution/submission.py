@@ -11,6 +11,7 @@ from trading.domain.broker_connection import BrokerConnection
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution import BookTradeIntent, SubmissionResult
 from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
+from trading.persistence.money_columns import snap_money
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
@@ -95,8 +96,8 @@ def apply_book_fill(
     position_qty = current.qty if current is not None else 0.0
     position_avg_cost = current.avg_cost if current is not None else 0.0
 
-    # The fill math computes in Decimal; storage is still float this stage (the
-    # persistence encoder is wired in Stage 3), so convert in here and back out below.
+    # Inputs arrive as float (broker fills, caller amounts); the fill math is Decimal.
+    # str() converts without carrying a float's binary tail into the value.
     transition = apply_book_fill_transition(
         side=side,
         symbol=symbol,
@@ -127,23 +128,29 @@ def apply_book_fill(
         else:
             position_repo.delete(book_id=book_id, symbol=transition.symbol)
 
-        # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry; the
-        # two sum to transition.cash_delta (the net applied to book cash).
+        # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry.
+        # Each amount is snapped to the storage grid here, and book cash is moved by
+        # exactly their sum below. Truncating the two entries and the combined cash
+        # delta on one grid keeps current_cash - start_equity == SUM(ledger.amount)
+        # exact for fractional fills (check_cash_invariant); truncating on two grids
+        # left a sub-cent divergence per fill.
         gross_cash = transition.qty * transition.fill_price
+        trade_amount = snap_money(-gross_cash if transition.side == "buy" else gross_cash)
+        fee_amount = snap_money(transition.commission)
         ledger_repo.insert(
             book_id=book_id,
             entry_type=LEDGER_ENTRY_TYPE_TRADE,
-            amount=-gross_cash if transition.side == "buy" else gross_cash,
+            amount=trade_amount,
             reference_type=LEDGER_REFERENCE_TYPE_ORDER,
             reference_id=str(order_id),
             entry_time=fill_time,
             created_at=fill_time,
         )
-        if transition.commission > 0:
+        if fee_amount > 0:
             ledger_repo.insert(
                 book_id=book_id,
                 entry_type=LEDGER_ENTRY_TYPE_FEE,
-                amount=-transition.commission,
+                amount=-fee_amount,
                 reference_type=LEDGER_REFERENCE_TYPE_ORDER,
                 reference_id=str(order_id),
                 entry_time=fill_time,
@@ -158,7 +165,7 @@ def apply_book_fill(
             # balance write would silently match no row while the position and
             # ledger entries above it stand. Raising rolls the whole fill back.
             raise LookupError(f"Book {book_id} does not exist; cannot apply a fill to it.")
-        new_cash = book.current_cash + transition.cash_delta
+        new_cash = book.current_cash + trade_amount - fee_amount
         market_value = sum(
             (position.market_value for position in position_repo.fetch_for_book(book_id=book_id)),
             Decimal("0"),

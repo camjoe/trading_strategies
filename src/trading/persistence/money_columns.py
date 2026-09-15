@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from common.coercion import coerce_int
 from common.constants import MONEY_MINOR_UNITS_PER_DOLLAR, QUANTITY_MINOR_UNITS_PER_SHARE
-from common.money import from_minor_units, to_minor_units
+from common.money import from_minor_units, to_minor_units, truncate_to_scale
 
 
 def _as_decimal(value: Decimal | float) -> Decimal:
@@ -38,6 +38,16 @@ def decode_money(units: int | None) -> Decimal | None:
     if units is None:
         return None
     return from_minor_units(units, MONEY_MINOR_UNITS_PER_DOLLAR)
+
+
+def snap_money(value: Decimal) -> Decimal:
+    """Truncate a money ``Decimal`` to the storage grid, still a ``Decimal``.
+
+    The result equals what ``encode_money`` would store, decoded back. Use it when a
+    value must both land in a money column and drive further exact arithmetic that
+    has to match the stored figure minor unit for minor unit.
+    """
+    return truncate_to_scale(value, MONEY_MINOR_UNITS_PER_DOLLAR)
 
 
 def encode_quantity(value: Decimal | None) -> int | None:
