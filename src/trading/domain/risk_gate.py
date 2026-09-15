@@ -317,9 +317,11 @@ def evaluate_risk_gate(
         )
 
         price = float(intent.requested_price)
-        # A rescaled buy floors to a whole unit: a conservative, instrument-agnostic
-        # bound that keeps options at whole contracts and never exceeds the cap.
-        max_qty = float(math.floor(max_notional / price)) if price > 0 else 0.0
+        # A rescaled buy floors to the intent's tradeable increment: a whole
+        # contract for leaps, a share fraction for equity. Flooring to the step
+        # keeps the approved size on the tradeable grid and never exceeds the cap.
+        step = intent.quantity_step if intent.quantity_step > 0 else 1.0
+        max_qty = math.floor(max_notional / price / step) * step if price > 0 else 0.0
         if max_qty <= 0:
             blocked_count += 1
             decisions.append(

@@ -10,7 +10,9 @@ from trading.domain.risk_gate import (
 from trading.models.execution import BookTradeCandidate, RiskGateConfig, RiskGatePosition
 
 
-def _intent(*, book_id: int, side: str, symbol: str, qty: int, price: float) -> BookTradeCandidate:
+def _intent(
+    *, book_id: int, side: str, symbol: str, qty: float, price: float, quantity_step: float = 1.0
+) -> BookTradeCandidate:
     return BookTradeCandidate(
         account_id=1,
         book_id=book_id,
@@ -22,6 +24,7 @@ def _intent(*, book_id: int, side: str, symbol: str, qty: int, price: float) -> 
         forced_sell=None,
         delta_est=None,
         iv_est=None,
+        quantity_step=quantity_step,
     )
 
 
@@ -65,6 +68,52 @@ def test_rescales_by_book_notional_cap() -> None:
     assert decision.action == "rescale"
     assert decision.approved_qty == 2
     assert decision.reason_code == "book_notional_cap"
+
+
+_FRACTIONAL_STEP = 1.0 / 1_000_000
+
+
+def test_allows_fractional_buy_within_limits() -> None:
+    # 0.6 shares at 100 = 60 notional, well inside the 0.25 * 10_000 book cap.
+    result = evaluate_risk_gate(
+        intents=[
+            _intent(book_id=1, side="buy", symbol="AAPL", qty=0.6, price=100.0, quantity_step=_FRACTIONAL_STEP)
+        ],
+        book_equity_by_id={1: 10_000.0},
+        positions=[],
+    )
+
+    assert result.allowed_count == 1
+    assert result.approved_intents[0].qty == pytest.approx(0.6)
+    assert result.decisions[0].action == "allow"
+
+
+def test_rescales_a_fractional_buy_to_the_step_not_a_whole_share() -> None:
+    # Book equity 1_000 * 0.25 = 250 notional ceiling => 2.5 shares at 100, kept
+    # fractional. A whole-share floor would drop it to 2.
+    result = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=5, price=100.0, quantity_step=_FRACTIONAL_STEP)],
+        book_equity_by_id={1: 1_000.0},
+        positions=[],
+    )
+
+    assert result.rescaled_count == 1
+    assert result.approved_intents[0].qty == pytest.approx(2.5)
+    assert result.decisions[0].action == "rescale"
+
+
+def test_rescaled_fractional_buy_below_one_share_is_not_blocked() -> None:
+    # Cap room is 60 notional at a 100 price — less than one share. The whole-unit
+    # floor blocked this outright; the fractional step approves 0.6 shares.
+    result = evaluate_risk_gate(
+        intents=[_intent(book_id=1, side="buy", symbol="AAPL", qty=5, price=100.0, quantity_step=_FRACTIONAL_STEP)],
+        book_equity_by_id={1: 240.0},
+        positions=[],
+    )
+
+    assert result.blocked_count == 0
+    assert result.rescaled_count == 1
+    assert result.approved_intents[0].qty == pytest.approx(0.6)
 
 
 def test_blocks_when_gross_exposure_is_exhausted() -> None:

@@ -105,7 +105,8 @@ def test_allow_within_limits_passes_intent_through(conn):
 
 
 def test_rescale_trims_qty_to_cap(conn):
-    # Book equity 1000 → per-book symbol cap = 1000 * 0.25 = 250 notional → max 2 @ 100.
+    # Book equity 1000 → per-book symbol cap = 1000 * 0.25 = 250 notional. The equity
+    # book trades fractional shares, so the cap funds exactly 2.5 @ 100, not a floored 2.
     account_id, book_id = _book_env(conn, equity=1_000.0)
     _snapshot(conn, book_id, equity=1_000.0)
 
@@ -114,13 +115,14 @@ def test_rescale_trims_qty_to_cap(conn):
     )
 
     assert result.kill_switch_reasons == []
-    assert [i.qty for i in result.approved_intents] == [2.0]
-    assert [i.qty for i in result.rescaled_intents] == [2.0]
+    assert [i.qty for i in result.approved_intents] == [2.5]
+    assert [i.qty for i in result.rescaled_intents] == [2.5]
     assert result.blocked_intents == []
 
 
-def test_block_when_no_notional_headroom(conn):
-    # Equity 50 → every cap under one share's notional → blocked.
+def test_sub_share_headroom_rescales_to_a_fraction(conn):
+    # Equity 50 → book cap 0.25 * 50 = 12.5 notional, under one share at 100. A whole-share
+    # floor blocked this; the equity book instead funds the 0.125-share fraction the cap allows.
     account_id, book_id = _book_env(conn, equity=50.0)
     _snapshot(conn, book_id, equity=50.0)
 
@@ -129,8 +131,9 @@ def test_block_when_no_notional_headroom(conn):
     )
 
     assert result.kill_switch_reasons == []
-    assert result.approved_intents == []
-    assert len(result.blocked_intents) == 1
+    assert [i.qty for i in result.approved_intents] == [0.125]
+    assert [i.qty for i in result.rescaled_intents] == [0.125]
+    assert result.blocked_intents == []
 
 
 # --- kill switches ----------------------------------------------------------

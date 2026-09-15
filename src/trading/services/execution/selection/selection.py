@@ -18,11 +18,10 @@ from trading.domain.auto_trading.options import (
     option_candidate_allowed,
 )
 from trading.domain.auto_trading.sizing import (
-    FRACTIONAL_SHARE_STEP,
-    WHOLE_SHARE_STEP,
     allocate_buy_quantities,
     choose_buy_qty,
     closing_sell_qty,
+    quantity_step_for,
 )
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
@@ -54,11 +53,6 @@ _ALTERNATIVE_FEATURE_FETCHER_ATTRS: dict[str, str] = {}
 # (side, ticker, qty, price, delta_est, iv_est) — one prepared trade. Quantity is
 # fractional for equity and whole for leaps (see the sizing quantity_step).
 TradeSelection = tuple[str, str, float, float, float | None, float | None]
-
-
-def _quantity_step(instrument_mode: str) -> float:
-    """Equity trades fractional shares; options/leaps trade whole contracts."""
-    return WHOLE_SHARE_STEP if instrument_mode == "leaps" else FRACTIONAL_SHARE_STEP
 
 
 @dataclass
@@ -363,7 +357,7 @@ def _size_buy_for_ticker(
             trade_ticker=ticker,
             trade_price=trade_price,
         ),
-        quantity_step=_quantity_step(instrument_mode),
+        quantity_step=quantity_step_for(instrument_mode),
     )
     if qty <= 0:
         return None
@@ -427,7 +421,7 @@ def prepare_buy_trades(
         [(ticker, price, qty) for ticker, price, qty, _d, _iv in sized],
         cash=float(state.cash),
         fee_per_trade=fee,
-        quantity_step=_quantity_step(instrument_mode),
+        quantity_step=quantity_step_for(instrument_mode),
     )
     return [
         ("buy", ticker, granted[ticker], price, delta_est, iv_est)
@@ -475,7 +469,7 @@ def iter_sellable_trades(
     closing positions as it consumes this sees its own writes — which is what
     stops a ticker listed twice from being sold twice.
     """
-    quantity_step = _quantity_step(instrument_mode)
+    quantity_step = quantity_step_for(instrument_mode)
     for ticker in _order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:

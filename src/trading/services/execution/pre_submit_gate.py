@@ -19,6 +19,7 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
+from trading.domain.auto_trading.sizing import WHOLE_SHARE_STEP, quantity_step_for
 from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy, point_in_time_drawdown_pct
 from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
 from trading.repositories.books import BookRepository
@@ -113,6 +114,9 @@ class BookPreSubmitGate:
         # The risk gate is float policy math; convert the Decimal balances and
         # positions to float at this read boundary.
         equity_by_book = {book.id: float(book.current_equity) for book in books}
+        # The gate rescales a cap-bound buy down to this step; equity books trade
+        # fractional shares, so a whole-unit floor would drop the fractional part.
+        step_by_book = {book.id: quantity_step_for(book.instrument_mode) for book in books}
         positions = PositionRepository(conn).fetch_for_account(account_id=account_id)
         gate_positions = [
             RiskGatePosition(
@@ -127,7 +131,7 @@ class BookPreSubmitGate:
             for position in positions
         ]
         result = evaluate_risk_gate_policy(
-            intents=[self._as_bucket_intent(intent) for intent in intents],
+            intents=[self._as_bucket_intent(intent, step_by_book) for intent in intents],
             book_equity_by_id=equity_by_book,
             positions=gate_positions,
             config=self._config,
@@ -170,20 +174,21 @@ class BookPreSubmitGate:
             peak_equity=None if peak_equity is None else float(peak_equity),
         )
 
-    def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
+    def _as_bucket_intent(self, intent: BookTradeIntent, step_by_book: Mapping[int, float]) -> BookTradeCandidate:
         # book_id is the risk bucket key; the policy only uses side,
-        # symbol, qty, requested_price, and the bucket id from the intent.
+        # symbol, qty, requested_price, quantity_step, and the bucket id.
         return BookTradeCandidate(
             account_id=intent.account_id,
             book_id=intent.book_id,
             strategy_name="",
             side=intent.side,
             symbol=intent.symbol,
-            qty=int(intent.qty),
+            qty=float(intent.qty),
             requested_price=float(intent.requested_price or 0.0),
             forced_sell=None,
             delta_est=None,
             iv_est=None,
+            quantity_step=step_by_book.get(intent.book_id, WHOLE_SHARE_STEP),
         )
 
     # --- stale-price kill switch --------------------------------------------

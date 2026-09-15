@@ -96,7 +96,7 @@ def generate_book_trade_intents(
         risk_policy = book.risk_policy.strip().lower()
         instrument_mode = book.instrument_mode.strip().lower()
         state = _build_book_state(conn, book_id=book_id)
-        can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
+        can_sell = [ticker for ticker, qty in state.positions.items() if qty > 0]
         forced_sells = order_risk_breaches(
             can_sell,
             market.prices,

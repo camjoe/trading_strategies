@@ -22,6 +22,11 @@ WHOLE_SHARE_STEP = 1.0
 FRACTIONAL_SHARE_STEP = 1.0 / QUANTITY_MINOR_UNITS_PER_SHARE
 
 
+def quantity_step_for(instrument_mode: str) -> float:
+    """The tradeable increment for an instrument: whole contracts for leaps, fractions for equity."""
+    return WHOLE_SHARE_STEP if instrument_mode == "leaps" else FRACTIONAL_SHARE_STEP
+
+
 def _truncate_to_step(quantity: float, step: float) -> float:
     """The largest multiple of ``step`` not exceeding ``quantity`` (never negative)."""
     if quantity <= 0 or step <= 0:
