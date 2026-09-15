@@ -2,7 +2,43 @@ from decimal import Decimal
 
 import pytest
 
-from trading.domain.accounting.account import apply_buy, apply_sell, compute_account_state
+from trading.domain.accounting.account import (
+    apply_buy,
+    apply_sell,
+    compute_account_state,
+    normalize_trade_fields_decimal,
+)
+
+
+class TestNormalizeTradeFieldsDecimal:
+    """The live replay reads trade numerics as exact Decimal, not through float."""
+
+    def test_passes_a_decimal_through_unchanged(self) -> None:
+        trade = {
+            "ticker": "aapl",
+            "side": "BUY",
+            "qty": Decimal("0.333333"),
+            "price": Decimal("100.55"),
+            "fee": Decimal("1.0035"),
+        }
+        ticker, side, qty, price, fee = normalize_trade_fields_decimal(trade)
+        assert (ticker, side) == ("AAPL", "buy")
+        assert qty == Decimal("0.333333")
+        assert price == Decimal("100.55")
+        assert fee == Decimal("1.0035")
+
+    def test_converts_a_float_without_a_binary_tail(self) -> None:
+        _t, _s, qty, price, _f = normalize_trade_fields_decimal(
+            {"ticker": "AAPL", "side": "buy", "qty": 0.1, "price": 0.3, "fee": 0.0}
+        )
+        assert qty == Decimal("0.1")
+        assert price == Decimal("0.3")
+
+    def test_missing_numerics_default_to_zero(self) -> None:
+        _t, _s, qty, price, fee = normalize_trade_fields_decimal(
+            {"ticker": "AAPL", "side": "sell", "qty": None, "price": None, "fee": None}
+        )
+        assert (qty, price, fee) == (Decimal("0"), Decimal("0"), Decimal("0"))
 
 
 class TestApplyBuy:

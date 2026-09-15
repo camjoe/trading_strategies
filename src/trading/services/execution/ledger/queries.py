@@ -32,15 +32,15 @@ def _cash_events(conn: sqlite3.Connection, account_id: int) -> list[dict[str, ob
     # withdrawal a CASH sell (outflow). Ledger amounts are signed cash flows.
     events: list[dict[str, object]] = []
     for entry in LedgerRepository(conn).fetch_cash_events_for_account(account_id=account_id):
-        amount = float(entry.amount)
+        # entry.amount is exact Decimal; keep it Decimal so the replay stays exact.
         events.append(
             {
                 "book_id": entry.book_id,
                 "ticker": SETTLEMENT_TICKER,
                 "side": "buy" if entry.entry_type == "deposit" else "sell",
-                "qty": abs(amount),
-                "price": 1.0,
-                "fee": 0.0,
+                "qty": abs(entry.amount),
+                "price": Decimal("1"),
+                "fee": Decimal("0"),
                 "trade_time": entry.entry_time,
                 "note": entry.entry_type,
             }

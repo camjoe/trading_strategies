@@ -6,7 +6,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from decimal import Decimal
 
-from common.coercion import row_float
+from common.coercion import row_decimal, row_float
 from common.constants import SETTLEMENT_TICKER
 from trading.domain.accounting.ledger import Number, buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import validate_order_values
@@ -16,10 +16,11 @@ from trading.models import AccountState
 def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
     """A trade row's ``(ticker, side, qty, price, fee)``, coerced and case-normalized.
 
-    Shared with the backtest metrics replay so a persisted trade reads the same on
-    both paths. An absent or unparseable numeric becomes ``0.0``; callers reject it
-    on their own quantity and price rules, which differ (a $0 sell is valid for an
-    expired option, a $0 buy never is).
+    The backtest metrics replay computes in float and reads float REAL columns, so
+    this returns float. The live account replay uses
+    :func:`normalize_trade_fields_decimal` instead. An absent or unparseable numeric
+    becomes ``0.0``; callers reject it on their own quantity and price rules, which
+    differ (a $0 sell is valid for an expired option, a $0 buy never is).
     """
     return (
         str(trade["ticker"]).upper(),
@@ -27,6 +28,22 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
         row_float(trade, "qty") or 0.0,
         row_float(trade, "price") or 0.0,
         row_float(trade, "fee") or 0.0,
+    )
+
+
+def normalize_trade_fields_decimal(trade: Mapping[str, object]) -> tuple[str, str, Decimal, Decimal, Decimal]:
+    """A trade row's ``(ticker, side, qty, price, fee)`` with exact ``Decimal`` numerics.
+
+    The live account replay computes in ``Decimal``, so it reads the numeric fields
+    as ``Decimal`` directly rather than through float. Absent or unparseable numerics
+    become ``Decimal("0")``, matching :func:`normalize_trade_fields`.
+    """
+    return (
+        str(trade["ticker"]).upper(),
+        str(trade["side"]).lower(),
+        row_decimal(trade, "qty") or Decimal("0"),
+        row_decimal(trade, "price") or Decimal("0"),
+        row_decimal(trade, "fee") or Decimal("0"),
     )
 
 
@@ -111,12 +128,7 @@ def _apply_trade_to_state(
     total_deposited: Decimal,
     settlement_ticker: str | None,
 ) -> tuple[Decimal, Decimal, Decimal]:
-    ticker, side, raw_qty, raw_price, raw_fee = normalize_trade_fields(trade)
-    # The row parser reads storage floats; the replay computes in Decimal. str()
-    # gives the clean decimal of the stored value, not the float's binary tail.
-    qty = Decimal(str(raw_qty))
-    price = Decimal(str(raw_price))
-    fee = Decimal(str(raw_fee))
+    ticker, side, qty, price, fee = normalize_trade_fields_decimal(trade)
     validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
