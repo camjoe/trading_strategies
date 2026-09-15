@@ -142,6 +142,24 @@ def test_account_owned_foreign_keys_cascade(migrated_conn: Any) -> None:
     assert _fk_delete_action(migrated_conn, "rotation_decisions", "book_id", "books") == "CASCADE"
 
 
+def test_revision_0002_aborts_when_a_money_table_is_not_empty(tmp_path: Path) -> None:
+    # Revision 0002 changes money/quantity affinity without scaling values, so it
+    # must run on a reset database. A populated table has to fail loudly rather than
+    # store the values off by the minor-unit scale.
+    conn = sqlite3.connect(tmp_path / "populated.db")
+    try:
+        migration_runner.upgrade("0001", connection=conn)
+        conn.execute(
+            "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            ("acct", 100.0, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+        )
+        conn.commit()
+        with pytest.raises(RuntimeError, match="requires an empty 'accounts' table"):
+            migration_runner.upgrade("0002", connection=conn)
+    finally:
+        conn.close()
+
+
 def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # Live Trading Safety Guard: the migrated schema must never enable live
     # trading by default.

@@ -21,6 +21,7 @@ rewritten.
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
 
 revision = "0002"
@@ -393,8 +394,28 @@ _REAL_CREATE: dict[str, str] = {
 }
 
 
+def _require_empty(table: str) -> None:
+    """Abort the migration if ``table`` holds any row.
+
+    The rebuild copies values verbatim; it changes column affinity without scaling.
+    A money value copied that way stores dollars as raw integer minor units (or the
+    reverse on downgrade), off by the minor-unit scale, and does so silently. Every
+    environment is reset before this revision (money-representation plan, Stage 3),
+    so a populated table means that reset did not happen — fail loudly instead of
+    corrupting the values.
+    """
+    count = op.get_bind().execute(sa.text(f"SELECT COUNT(*) FROM {table}")).scalar()  # noqa: S608
+    if count:
+        raise RuntimeError(
+            f"Revision 0002 requires an empty '{table}' table but found {count} rows. It changes "
+            "money and quantity columns from REAL to INTEGER minor units without scaling values, so "
+            "it must run on a reset database. See docs/reference/database-reset-plan.md."
+        )
+
+
 def _rebuild(table: str, create_new_sql: str) -> None:
     columns = _COPY_COLUMNS[table]
+    _require_empty(table)
     op.execute(create_new_sql)
     op.execute(f"INSERT INTO {table}_new ({columns}) SELECT {columns} FROM {table}")
     op.execute(f"DROP TABLE {table}")
