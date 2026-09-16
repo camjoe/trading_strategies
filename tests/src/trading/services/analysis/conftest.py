@@ -8,10 +8,11 @@ import pytest
 from tests.support.analysis import make_analysis_account
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
+from trading.models import AccountRecord
 
 
 @pytest.fixture
-def analysis_account(conn: sqlite3.Connection) -> sqlite3.Row:
+def analysis_account(conn: sqlite3.Connection) -> AccountRecord:
     """Standard analysis account seeded with 1 000 initial cash.
 
     Use this instead of calling ``make_analysis_account`` directly in tests

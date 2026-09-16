@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import fields
+from decimal import Decimal
 
 from common.time import next_date_str
 from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord, OrderStatus
+from trading.persistence.money_columns import encode_columns, encode_money, encode_quantity
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Derived rather than listed: the payload's field names are the column names, so
@@ -14,6 +16,10 @@ _ORDER_INSERT_COLUMNS = tuple(field.name for field in fields(OrderInsert))
 _ORDER_INSERT_SQL = (
     f"INSERT INTO orders ({', '.join(_ORDER_INSERT_COLUMNS)}) VALUES ({', '.join('?' for _ in _ORDER_INSERT_COLUMNS)})"
 )
+
+# Money and quantity columns stored as integer minor units; encoded on write.
+_ORDER_MONEY_COLUMNS = frozenset({"requested_price", "avg_fill_price", "commission"})
+_ORDER_QUANTITY_COLUMNS = frozenset({"qty", "filled_qty"})
 
 # Taken from the enum so the stored vocabulary has one spelling.
 _OPEN_STATUSES = (OrderStatus.SUBMITTED.value, OrderStatus.PARTIALLY_FILLED.value)
@@ -115,9 +121,14 @@ class OrderRepository:
             raise BookAccountMismatchError(
                 f"Book {order.book_id} does not belong to account {order.account_id}; refusing to insert order."
             )
+        encoded = encode_columns(
+            {column: getattr(order, column) for column in _ORDER_INSERT_COLUMNS},
+            money_columns=_ORDER_MONEY_COLUMNS,
+            quantity_columns=_ORDER_QUANTITY_COLUMNS,
+        )
         cursor = self._conn.execute(
             _ORDER_INSERT_SQL,
-            tuple(getattr(order, column) for column in _ORDER_INSERT_COLUMNS),
+            tuple(encoded[column] for column in _ORDER_INSERT_COLUMNS),
         )
         commit_unit_of_work(self._conn)
         return int(cursor.lastrowid or 0)
@@ -128,9 +139,9 @@ class OrderRepository:
         order_id: int,
         broker_order_id: str | None,
         status: str,
-        filled_qty: float,
-        avg_fill_price: float | None,
-        commission: float,
+        filled_qty: Decimal,
+        avg_fill_price: Decimal | None,
+        commission: Decimal,
         submitted_at: str,
         updated_at: str,
         status_reason: str | None = None,
@@ -156,9 +167,9 @@ class OrderRepository:
             (
                 broker_order_id,
                 status,
-                filled_qty,
-                avg_fill_price,
-                commission,
+                encode_quantity(filled_qty),
+                encode_money(avg_fill_price),
+                encode_money(commission),
                 submitted_at,
                 updated_at,
                 status_reason,
@@ -172,8 +183,8 @@ class OrderRepository:
         *,
         order_id: int,
         status: str,
-        filled_qty: float | None = None,
-        avg_fill_price: float | None = None,
+        filled_qty: Decimal | None = None,
+        avg_fill_price: Decimal | None = None,
         updated_at: str,
         status_reason: str | None = None,
     ) -> None:
@@ -189,20 +200,21 @@ class OrderRepository:
                 updated_at = ?
             WHERE id = ?
             """,
-            (status, filled_qty, avg_fill_price, status_reason, updated_at, order_id),
+            (status, encode_quantity(filled_qty), encode_money(avg_fill_price), status_reason, updated_at, order_id),
         )
         commit_unit_of_work(self._conn)
 
-    def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: float) -> None:
+    def add_realized_pnl_delta(self, *, order_id: int, realized_pnl_delta: Decimal) -> None:
         """Accumulate a closing fill's realized P&L onto its order.
 
         Additive so an order filled in several closing executions (partial fills
         across reconciliation polls) accrues its total realized P&L. Leaves the
         column NULL for orders this is never called for (opening/buy orders).
+        Both operands are integer minor units, so the running sum stays exact.
         """
         self._conn.execute(
             "UPDATE orders SET realized_pnl_delta = COALESCE(realized_pnl_delta, 0) + ? WHERE id = ?",
-            (realized_pnl_delta, order_id),
+            (encode_money(realized_pnl_delta), order_id),
         )
         commit_unit_of_work(self._conn)
 
@@ -241,10 +253,10 @@ class OrderRepository:
         self,
         *,
         order_id: int,
-        filled_qty: float,
-        fill_price: float,
+        filled_qty: Decimal,
+        fill_price: Decimal,
         fill_time: str,
-        commission: float = 0.0,
+        commission: Decimal = Decimal("0"),
         exec_id: str | None = None,
     ) -> None:
         # Fills key directly on the clean order_id (the execution service owns it).
@@ -258,9 +270,9 @@ class OrderRepository:
             (
                 order_id,
                 exec_id,
-                filled_qty,
-                fill_price,
-                commission,
+                encode_quantity(filled_qty),
+                encode_money(fill_price),
+                encode_money(commission),
                 fill_time,
             ),
         )

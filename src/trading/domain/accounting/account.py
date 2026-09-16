@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from decimal import Decimal
 
-from common.coercion import row_float
+from common.coercion import row_decimal, row_float
 from common.constants import SETTLEMENT_TICKER
-from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
+from trading.domain.accounting.ledger import Number, buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
 
@@ -15,10 +16,11 @@ from trading.models import AccountState
 def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
     """A trade row's ``(ticker, side, qty, price, fee)``, coerced and case-normalized.
 
-    Shared with the backtest metrics replay so a persisted trade reads the same on
-    both paths. An absent or unparseable numeric becomes ``0.0``; callers reject it
-    on their own quantity and price rules, which differ (a $0 sell is valid for an
-    expired option, a $0 buy never is).
+    The backtest metrics replay computes in float and reads float REAL columns, so
+    this returns float. The live account replay uses
+    :func:`normalize_trade_fields_decimal` instead. An absent or unparseable numeric
+    becomes ``0.0``; callers reject it on their own quantity and price rules, which
+    differ (a $0 sell is valid for an expired option, a $0 buy never is).
     """
     return (
         str(trade["ticker"]).upper(),
@@ -29,37 +31,42 @@ def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float
     )
 
 
-def _require_whole_units(ticker: str, qty: float) -> None:
-    """Instrument quantities are whole units, as sized in ``domain.auto_trading.sizing``.
+def normalize_trade_fields_decimal(trade: Mapping[str, object]) -> tuple[str, str, Decimal, Decimal, Decimal]:
+    """A trade row's ``(ticker, side, qty, price, fee)`` with exact ``Decimal`` numerics.
 
-    ``_compact_positions`` calls any ``qty > 0`` an open position, so exact arithmetic
-    is what makes a fully-sold position read as flat. A fractional quantity leaves float
-    dust that would present as a phantom open position holding a stale average cost.
-    Cash movements are exempt — they ride the settlement ticker, which returns before
-    either apply function.
+    The live account replay computes in ``Decimal``, so it reads the numeric fields
+    as ``Decimal`` directly rather than through float. Absent or unparseable numerics
+    become ``Decimal("0")``, matching :func:`normalize_trade_fields`.
     """
-    if not qty.is_integer():
-        raise ValueError(f"Fractional quantity {qty} for {ticker}: instrument quantities must be whole units.")
+    return (
+        str(trade["ticker"]).upper(),
+        str(trade["side"]).lower(),
+        row_decimal(trade, "qty") or Decimal("0"),
+        row_decimal(trade, "price") or Decimal("0"),
+        row_decimal(trade, "fee") or Decimal("0"),
+    )
 
 
 def apply_buy(
     ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-) -> float:
+    qty: Number,
+    price: Number,
+    fee: Number,
+    positions: dict[str, Number],
+    avg_cost: dict[str, Number],
+    cash: Number,
+) -> Number:
     """Apply a buy fill, returning the new cash balance.
 
     Raises the position and re-averages its cost **in place** in the caller's
     ``positions`` and ``avg_cost`` dicts. The fee is capitalized into the cost
     basis, so ``avg_cost`` is what the shares actually cost to acquire.
 
-    Shared with the backtest so a simulated fill costs what a real one does.
+    Shared with the backtest (float) and the live replay (Decimal): the number
+    type follows the caller's, and a fill costs the same on both paths. Quantities
+    may be fractional; exact Decimal (or float in the backtest) arithmetic keeps a
+    fully-sold position at exactly zero for ``_compact_positions``.
     """
-    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if old_qty + qty <= 0:
         raise ValueError(
@@ -73,21 +80,20 @@ def apply_buy(
 
 def apply_sell(
     ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-    realized: float,
-) -> tuple[float, float]:
+    qty: Number,
+    price: Number,
+    fee: Number,
+    positions: dict[str, Number],
+    avg_cost: dict[str, Number],
+    cash: Number,
+    realized: Number,
+) -> tuple[Number, Number]:
     """Apply a sell fill, returning the new ``(cash, realized)`` pair.
 
     Reduces the position **in place**. The fee is charged against realized P&L and
     netted out of proceeds, so a round trip is costed on both legs. Shared with the
-    backtest so a simulated fill realizes what a real one does.
+    backtest (float) and the live replay (Decimal): the number type follows the caller's.
     """
-    _require_whole_units(ticker, qty)
     old_qty = positions[ticker]
     if qty > old_qty:
         raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
@@ -99,13 +105,14 @@ def apply_sell(
 
 
 def _compact_positions(
-    positions: dict[str, float], avg_cost: dict[str, float]
-) -> tuple[dict[str, float], dict[str, float]]:
+    positions: dict[str, Decimal], avg_cost: dict[str, Decimal]
+) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
     """Drop sold-out positions, keeping the average cost of the ones still open.
 
     A closed position's stale ``avg_cost`` is dropped here rather than cleared on
-    the sell: at zero quantity nothing reads it. Exact ``qty > 0`` requires whole
-    units — see :func:`_require_whole_units`.
+    the sell: at zero quantity nothing reads it. Exact arithmetic (Decimal live,
+    float in the backtest) over truncated quantities keeps a fully-sold position at
+    exactly zero, so ``qty > 0`` is a reliable open-position test even for fractions.
     """
     open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
     open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
@@ -114,14 +121,14 @@ def _compact_positions(
 
 def _apply_trade_to_state(
     trade: dict[str, object],
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-    realized: float,
-    total_deposited: float,
+    positions: dict[str, Decimal],
+    avg_cost: dict[str, Decimal],
+    cash: Decimal,
+    realized: Decimal,
+    total_deposited: Decimal,
     settlement_ticker: str | None,
-) -> tuple[float, float, float]:
-    ticker, side, qty, price, fee = normalize_trade_fields(trade)
+) -> tuple[Decimal, Decimal, Decimal]:
+    ticker, side, qty, price, fee = normalize_trade_fields_decimal(trade)
     validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
@@ -139,17 +146,19 @@ def _apply_trade_to_state(
 
 
 def compute_account_state(
-    initial_cash: float,
+    initial_cash: Decimal,
     trades: list[dict[str, object]],
     settlement_ticker: str | None = SETTLEMENT_TICKER,
 ) -> AccountState:
     """Replay a trade list and return the resulting ``AccountState``.
 
+    The replay computes in ``Decimal`` for exact money and quantity arithmetic.
+
     Parameters
     ----------
     initial_cash:
-        Starting cash balance.  Set to ``0.0`` for accounts that seed capital
-        exclusively through deposit trades (see ``settlement_ticker``).
+        Starting cash balance.  Set to ``Decimal("0")`` for accounts that seed
+        capital exclusively through deposit trades (see ``settlement_ticker``).
     trades:
         Ordered list of trade rows from the ``trades`` table.  Each row must
         expose ``ticker``, ``side``, ``qty``, ``price``, and ``fee`` keys.
@@ -161,11 +170,11 @@ def compute_account_state(
         ``state.cash``.  Pass ``None`` to disable this behaviour and treat every
         ticker as a regular equity.
     """
-    positions: dict[str, float] = defaultdict(float)
-    avg_cost: dict[str, float] = defaultdict(float)
-    cash = float(initial_cash)
-    realized = 0.0
-    total_deposited = 0.0
+    positions: dict[str, Decimal] = defaultdict(Decimal)
+    avg_cost: dict[str, Decimal] = defaultdict(Decimal)
+    cash = initial_cash
+    realized = Decimal("0")
+    total_deposited = Decimal("0")
     for trade in trades:
         cash, realized, total_deposited = _apply_trade_to_state(
             trade, positions, avg_cost, cash, realized, total_deposited, settlement_ticker

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
+from trading.persistence.money_columns import encode_money
+
 
 def insert_repository_account(
     conn,
@@ -9,12 +13,14 @@ def insert_repository_account(
     benchmark_ticker: str = "SPY",
     created_at: str = "2026-01-01T00:00:00Z",
 ) -> int:
+    # initial_cash stores integer minor units; encode like the repository. The
+    # default-book bootstrap copies this column into the book, so it stays encoded.
     cursor = conn.execute(
         """
         INSERT INTO accounts (name, initial_cash, benchmark_ticker, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (name, initial_cash, benchmark_ticker, created_at, created_at),
+        (name, encode_money(Decimal(str(initial_cash))), benchmark_ticker, created_at, created_at),
     )
     conn.commit()
     assert cursor.lastrowid is not None

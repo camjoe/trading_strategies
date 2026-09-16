@@ -150,6 +150,57 @@ discarded by lossy downgrades.
 
 ---
 
+## Squash rollout for deployed databases
+
+The migration chain `0001`–`0031` was squashed to a single `0001` baseline on 2026-09-12. The squash
+changed the code, not any running database. An existing database is still stamped `0031` and fails
+`ensure_db()` until it joins the new chain. The data path is **drop and reseed**; no
+reconcile-and-stamp helper exists. Dev `local/paper_trading.db` is one such database. Confirm the
+staging and prod row counts first.
+
+**Before you drop, confirm the row counts.** `ledger`, `orders`, and `order_fills` are the
+account-accounting source of truth; `AccountState` (cash, positions, realized P&L, `total_deposited`)
+is derived by replaying them. Dev holds zero rows in all three, so the loss is free there. Staging and
+prod may hold real rows. Every history, audit, research, and operational table is dropped and not
+recreated. The pre-drop backup is the only recovery path.
+
+Procedure per database:
+
+1. Confirm the revision and row counts: `python -m scripts.data_ops.manage_db_migrations status`.
+2. Back up the database file. The backup is the only recovery path for the dropped rows.
+3. Drop the file, then `python -m scripts.data_ops.manage_db_migrations upgrade` to build a fresh
+   database at the new `0001`.
+4. Recreate the strategy catalog and default books:
+   `python -m trading.interfaces.runtime.data_ops.seed_clean_schema`.
+5. Recreate accounts and their books through the account-create path (account profiles / CLI). No
+   seeder reproduces the real accounts — the `sandbox`/`demo` fixture profiles build synthetic
+   accounts for a test bed, not the live configuration.
+6. Set `live_trading_enabled = 1` by hand only where an account is meant to trade live. The Live
+   Trading Safety Guard forbids any seed or script from setting it.
+
+### Catalog recreation
+
+| Table | Recreation path |
+|---|---|
+| `accounts` | Manual re-entry through the account-create path (profiles / CLI). No seeder creates real accounts. |
+| `books` | Created with each account; `ensure_default_books` repairs a missing default book for an existing account only. |
+| `book_rotation_settings` | Created with each book; `seed_clean_schema` writes the disabled-rotation defaults. |
+| `strategies` | `seed_strategy_catalog` rebuilds one row per code primitive. Nothing is tuned, so no export is needed. Recreate the alias rows by hand only if you still want the aliases. |
+| `global_settings` | Optional operator overrides; when the row is absent the system uses code defaults. Set values through the settings CLI if wanted. |
+
+### Reseed caveats
+
+- **Do not add a synthetic opening deposit.** `create_account` seeds `initial_cash` and bootstraps
+  the default book's `current_cash` from it; it writes no opening `deposit` ledger row.
+  `load_account_state` computes `total_deposited` only from ledger `deposit`/`withdrawal` entries, so
+  it reports `0.0` for an account that was never manually funded. Cash is still correct, because the
+  replay starts from `initial_cash`. A synthetic opening deposit at reseed double-counts the opening
+  balance.
+- **Seed through the real writers.** A table the seeder cannot populate through application code is a
+  finding about the data model, not a reason to hand-write the `INSERT`. The `sandbox` fixture profile
+  is the checked-in seed definition; a coverage check fails when a new table is neither seeded nor
+  listed in `KNOWN_EMPTY_SANDBOX_TABLES`.
+
 ## Relevant Architecture Conventions
 
 - Schema and migration logic → `src/infrastructure/database/` only.

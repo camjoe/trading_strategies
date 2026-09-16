@@ -8,6 +8,7 @@ recent snapshot history. Report rendering is delegated to ``account``.
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.time import utc_now_iso
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -32,11 +33,11 @@ def snapshot_account(
     EquitySnapshotRepository(conn).insert_for_book(
         book_id=default_book_id(conn, account_id=account.id),
         snapshot_time=resolved_time,
-        cash=stats["cash"],
-        market_value=stats["market_value"],
-        equity=stats["equity"],
-        realized_pnl=stats["realized_pnl"],
-        unrealized_pnl=stats["unrealized_pnl"],
+        cash=Decimal(str(stats["cash"])),
+        market_value=Decimal(str(stats["market_value"])),
+        equity=Decimal(str(stats["equity"])),
+        realized_pnl=Decimal(str(stats["realized_pnl"])),
+        unrealized_pnl=Decimal(str(stats["unrealized_pnl"])),
     )
     # The snapshot just written is the end-of-day equity the metrics derive return from.
     write_daily_metrics_for_account(conn, account, metric_date=resolved_time[:10], now_iso=resolved_time)

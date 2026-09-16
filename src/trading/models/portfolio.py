@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int
+from trading.persistence.money_columns import row_expect_money, row_money
 
 # Sector bucket for symbols missing from the symbol->sector reference data
 # (symbol_sectors.json); the rollup degrades gracefully instead of requiring
@@ -31,11 +33,11 @@ class EquitySnapshotRecord:
     account_id: int
     book_id: int | None
     snapshot_time: str
-    cash: float
-    market_value: float
-    equity: float
-    realized_pnl: float
-    unrealized_pnl: float
+    cash: Decimal
+    market_value: Decimal
+    equity: Decimal
+    realized_pnl: Decimal
+    unrealized_pnl: Decimal
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> EquitySnapshotRecord:
@@ -44,11 +46,11 @@ class EquitySnapshotRecord:
             account_id=row_expect_int(values, "account_id"),
             book_id=row_int(values, "book_id"),
             snapshot_time=row_expect_str(values, "snapshot_time"),
-            cash=row_expect_float(values, "cash"),
-            market_value=row_expect_float(values, "market_value"),
-            equity=row_expect_float(values, "equity"),
-            realized_pnl=row_expect_float(values, "realized_pnl"),
-            unrealized_pnl=row_expect_float(values, "unrealized_pnl"),
+            cash=row_expect_money(values, "cash"),
+            market_value=row_expect_money(values, "market_value"),
+            equity=row_expect_money(values, "equity"),
+            realized_pnl=row_expect_money(values, "realized_pnl"),
+            unrealized_pnl=row_expect_money(values, "unrealized_pnl"),
         )
 
 
@@ -69,10 +71,10 @@ class DailyMetricRecord:
     turnover_pct: float | None
     slippage_bps: float | None
     hit_rate: float | None
-    expectancy: float | None
+    expectancy: Decimal | None
     risk_adjusted_score: float | None
     trade_count: int | None
-    fees_total: float | None
+    fees_total: Decimal | None
     created_at: str
     updated_at: str
 
@@ -88,10 +90,10 @@ class DailyMetricRecord:
             turnover_pct=row_float(values, "turnover_pct"),
             slippage_bps=row_float(values, "slippage_bps"),
             hit_rate=row_float(values, "hit_rate"),
-            expectancy=row_float(values, "expectancy"),
+            expectancy=row_money(values, "expectancy"),
             risk_adjusted_score=row_float(values, "risk_adjusted_score"),
             trade_count=row_int(values, "trade_count"),
-            fees_total=row_float(values, "fees_total"),
+            fees_total=row_money(values, "fees_total"),
             created_at=row_expect_str(values, "created_at"),
             updated_at=row_expect_str(values, "updated_at"),
         )

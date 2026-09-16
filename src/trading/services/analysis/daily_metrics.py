@@ -10,6 +10,7 @@ day, so the return derivation has an end-of-day equity to read.
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 from common.time import utc_now_iso
 from trading.domain.metrics.daily_metrics import (
@@ -53,11 +54,11 @@ def write_daily_metrics_for_account(
             trades = [
                 DailyTrade(
                     side=order.side,
-                    filled_qty=order.filled_qty,
-                    avg_fill_price=order.avg_fill_price if order.avg_fill_price is not None else 0.0,
-                    requested_price=order.requested_price,
-                    commission=order.commission,
-                    realized_pnl_delta=order.realized_pnl_delta,
+                    filled_qty=float(order.filled_qty),
+                    avg_fill_price=float(order.avg_fill_price) if order.avg_fill_price is not None else 0.0,
+                    requested_price=None if order.requested_price is None else float(order.requested_price),
+                    commission=float(order.commission),
+                    realized_pnl_delta=None if order.realized_pnl_delta is None else float(order.realized_pnl_delta),
                 )
                 for order in orders.fetch_filled_for_book_on_date(book_id=book.id, date_str=metric_date)
             ]
@@ -70,8 +71,8 @@ def write_daily_metrics_for_account(
                 limit=RISK_ADJUSTED_WINDOW_SESSIONS - 1,
             )
             computed = compute_daily_book_metrics(
-                prev_equity=prev_snapshot.equity if prev_snapshot is not None else None,
-                end_equity=end_snapshot.equity,
+                prev_equity=float(prev_snapshot.equity) if prev_snapshot is not None else None,
+                end_equity=float(end_snapshot.equity),
                 trades=trades,
                 prior_returns=prior_returns,
             )
@@ -83,10 +84,10 @@ def write_daily_metrics_for_account(
                 turnover_pct=computed.turnover_pct,
                 slippage_bps=computed.slippage_bps,
                 hit_rate=computed.hit_rate,
-                expectancy=computed.expectancy,
+                expectancy=None if computed.expectancy is None else Decimal(str(computed.expectancy)),
                 risk_adjusted_score=computed.risk_adjusted_score,
                 trade_count=computed.trade_count,
-                fees_total=computed.fees_total,
+                fees_total=None if computed.fees_total is None else Decimal(str(computed.fees_total)),
                 created_at=resolved_now,
                 updated_at=resolved_now,
             )

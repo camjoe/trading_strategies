@@ -3,13 +3,19 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import fields
+from decimal import Decimal
 
 from trading.models.books import BookRecord, BookSettingsUpdate
+from trading.persistence.money_columns import encode_columns, encode_money
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # The BookSettingsUpdate fields are book column names; a settings edit writes the
 # non-None subset of them.
 _BOOK_SETTINGS_COLUMNS = tuple(field.name for field in fields(BookSettingsUpdate))
+
+# Money columns stored as integer minor units; books have no quantity columns.
+_BOOK_MONEY_COLUMNS = frozenset({"start_equity", "current_cash", "current_equity", "max_premium_per_trade"})
+_BOOK_QUANTITY_COLUMNS: frozenset[str] = frozenset()
 
 
 class BookRepository:
@@ -30,9 +36,9 @@ class BookRepository:
         name: str,
         status: str = "active",
         is_default: int = 0,
-        start_equity: float,
-        current_cash: float,
-        current_equity: float,
+        start_equity: Decimal,
+        current_cash: Decimal,
+        current_equity: Decimal,
         # Explicitly unset. Resolving a universe name to symbols is service
         # work, so the repository has no default to offer.
         trade_symbols: str = "[]",
@@ -60,9 +66,9 @@ class BookRepository:
                 name,
                 status,
                 is_default,
-                start_equity,
-                current_cash,
-                current_equity,
+                encode_money(start_equity),
+                encode_money(current_cash),
+                encode_money(current_equity),
                 trade_symbols,
                 created_at,
                 updated_at,
@@ -106,10 +112,11 @@ class BookRepository:
         """
         if not values:
             return
-        assignments = ", ".join(f"{column} = ?" for column in values)
+        encoded = encode_columns(values, money_columns=_BOOK_MONEY_COLUMNS, quantity_columns=_BOOK_QUANTITY_COLUMNS)
+        assignments = ", ".join(f"{column} = ?" for column in encoded)
         self._conn.execute(
             f"UPDATE books SET {assignments}, updated_at = ? WHERE id = ?",
-            (*values.values(), updated_at, book_id),
+            (*encoded.values(), updated_at, book_id),
         )
         commit_unit_of_work(self._conn)
 
@@ -161,8 +168,8 @@ class BookRepository:
         self,
         *,
         book_id: int,
-        current_cash: float,
-        current_equity: float,
+        current_cash: Decimal,
+        current_equity: Decimal,
         updated_at: str,
     ) -> None:
         self.update(

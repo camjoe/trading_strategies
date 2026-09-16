@@ -12,6 +12,13 @@ from common import logging_setup
 def _restore_root_logger(monkeypatch):
     """Snapshot and restore the root logger so configure_logging cannot leak across tests."""
     root = logging.getLogger()
+    # Drop any counting handler another test file's configure_logging left on the
+    # root: these tests assert against a clean root, and xdist can schedule them on
+    # a worker that already ran such a test. Without this, log_counts() reads the
+    # leaked tally instead of zero.
+    for handler in [h for h in root.handlers if isinstance(h, logging_setup._LevelCountingHandler)]:
+        root.removeHandler(handler)
+        handler.close()
     saved_handlers = list(root.handlers)
     saved_level = root.level
     monkeypatch.delenv(logging_setup.RUN_ID_ENV, raising=False)

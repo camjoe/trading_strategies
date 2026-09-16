@@ -10,7 +10,12 @@ from trading.domain.auto_trading.options import (
     estimate_option_premium,
     option_candidate_allowed,
 )
-from trading.domain.auto_trading.sizing import allocate_buy_quantities, choose_buy_qty, closing_sell_qty
+from trading.domain.auto_trading.sizing import (
+    FRACTIONAL_SHARE_STEP,
+    allocate_buy_quantities,
+    choose_buy_qty,
+    closing_sell_qty,
+)
 
 
 def _base_account(**overrides):
@@ -45,6 +50,41 @@ def test_choose_qty_helpers() -> None:
     assert closing_sell_qty(position_qty=0.2) == 0
     assert closing_sell_qty(position_qty=9.0) == 9
     assert closing_sell_qty(position_qty=9.7) == 9
+
+
+def test_choose_buy_qty_sizes_fractional_shares_on_the_grid() -> None:
+    # $100 at $30/share is 3.3333... shares. The whole-share step floors to 3; the
+    # fractional step keeps the remainder, truncated to the storage grid.
+    whole = choose_buy_qty(cash=100.0, price=30.0, fee=0.0, trade_size_pct=100.0, max_position_pct=100.0)
+    assert whole == 3
+    frac = choose_buy_qty(
+        cash=100.0,
+        price=30.0,
+        fee=0.0,
+        trade_size_pct=100.0,
+        max_position_pct=100.0,
+        quantity_step=FRACTIONAL_SHARE_STEP,
+    )
+    assert frac == pytest.approx(3.333333)
+
+
+def test_closing_sell_qty_keeps_fractions_on_the_fractional_step() -> None:
+    # The whole-share step drops a sub-share holding; the fractional step exits it.
+    assert closing_sell_qty(position_qty=0.2, quantity_step=FRACTIONAL_SHARE_STEP) == pytest.approx(0.2)
+    assert closing_sell_qty(position_qty=9.7, quantity_step=FRACTIONAL_SHARE_STEP) == pytest.approx(9.7)
+
+
+def test_allocate_buy_quantities_scales_fractionally_when_cash_binds() -> None:
+    # $100 cash against two equal $100 requests: each is funded half a share on the
+    # fractional grid, rather than the first taking a whole share and the second none.
+    granted = allocate_buy_quantities(
+        [("AAA", 100.0, 1.0), ("BBB", 100.0, 1.0)],
+        cash=100.0,
+        fee_per_trade=0.0,
+        quantity_step=FRACTIONAL_SHARE_STEP,
+    )
+    assert granted["AAA"] == pytest.approx(0.5)
+    assert granted["BBB"] == pytest.approx(0.5)
 
 
 def test_choose_buy_qty_respects_custom_trade_and_position_caps() -> None:

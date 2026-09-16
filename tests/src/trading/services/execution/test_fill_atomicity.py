@@ -62,8 +62,9 @@ def test_apply_book_fill_commits_position_ledger_and_balances(conn, book_env) ->
 
     assert _position_count(conn, book_id) == 1
     assert _ledger_count(conn, book_id) == 2  # gross trade + fee
-    cash = conn.execute("SELECT current_cash FROM books WHERE id = ?", (book_id,)).fetchone()[0]
-    assert cash == pytest.approx(10_000.0 - 1_000.0 - 5.0)
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    assert float(book.current_cash) == pytest.approx(10_000.0 - 1_000.0 - 5.0)
 
 
 def _insert_order(conn, *, account_id, book_id, side, qty, price, when) -> int:
@@ -150,8 +151,9 @@ def test_failure_mid_sequence_rolls_back_the_whole_fill(conn, book_env, monkeypa
     # Nothing partial survived: no position, no ledger entries, cash untouched.
     assert _position_count(conn, book_id) == 0
     assert _ledger_count(conn, book_id) == 0
-    cash = conn.execute("SELECT current_cash FROM books WHERE id = ?", (book_id,)).fetchone()[0]
-    assert cash == pytest.approx(10_000.0)
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    assert float(book.current_cash) == pytest.approx(10_000.0)
 
 
 def test_submission_module_exposes_apply_book_fill() -> None:

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from unittest.mock import Mock
 
+import pytest
+
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.books import latest_rotation_decision
@@ -10,6 +12,7 @@ from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConf
 from trading.models.execution import BookTradeCandidate
 from trading.models.market_data import MarketInputs
 from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
+from trading.persistence.money_columns import decode_quantity
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
@@ -40,7 +43,7 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
     )
 
 
-def _make_buy_intent(*, account_id: int, book_id: int, qty: int = 1) -> BookTradeCandidate:
+def _make_buy_intent(*, account_id: int, book_id: int, qty: float = 1) -> BookTradeCandidate:
     return BookTradeCandidate(
         account_id=account_id,
         book_id=book_id,
@@ -256,6 +259,41 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
     broker.disconnect.assert_called_once()
 
 
+def test_run_for_account_book_mode_submits_a_fractional_equity_buy(book_env, conn, monkeypatch) -> None:
+    # An equity book trades fractional shares. The pre-submit gate must not truncate
+    # the intent to a whole share, so a 0.5-share buy persists at 0.5, not 0 (blocked).
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
+    broker = FakeBroker()
+
+    _patch_runtime_book_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_book_trade_intents",
+        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, book_id=book_id, qty=0.5)],
+    )
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
+        max_trades=1,
+        fee=0.0,
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
+    )
+
+    assert executed.submitted_count == 1
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert float(orders[0].qty) == pytest.approx(0.5)
+    position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+    assert position is not None
+    assert float(position.qty) == pytest.approx(0.5)
+
+
 def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkeypatch) -> None:
     # The global trade throttle (operational settings) gates the book path:
     # a hit day cap blocks submission and records a risk decision.
@@ -329,12 +367,13 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     assert executed.submitted_count == 1
     broker.place_order.assert_called_once()
     broker_order = broker.place_order.call_args.args[0]
-    assert broker_order.qty == 2.0
+    # The equity book trades fractional shares: the 250 notional cap rescales the
+    # 5-share intent to the exact 2.5 shares the cap funds, not a floored 2.
+    assert broker_order.qty == pytest.approx(2.5)
 
-    # The notional cap rescaled the intent from 5 to 2 shares before submission.
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
-    assert float(orders[0].qty) == 2.0
+    assert float(orders[0].qty) == pytest.approx(2.5)
     rescale_row = conn.execute(
         """
         SELECT action, reason_code, requested_qty, approved_qty
@@ -348,8 +387,8 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     assert rescale_row is not None
     assert rescale_row["action"] == "rescale"
     assert rescale_row["reason_code"] == "book_notional_cap"
-    assert int(rescale_row["requested_qty"]) == 5
-    assert int(rescale_row["approved_qty"]) == 2
+    assert int(decode_quantity(rescale_row["requested_qty"])) == 5
+    assert float(decode_quantity(rescale_row["approved_qty"])) == pytest.approx(2.5)
 
 
 def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(book_env, conn, monkeypatch) -> None:
