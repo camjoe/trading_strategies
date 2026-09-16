@@ -49,6 +49,10 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `risk_warnings.py` | Config-level warnings raised before a run executes |
 | `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
 | `optimization.py` | Candidate generation and `params_fingerprint`, the `calmar_v1` objective and winner selection, and compounding per-window OOS results into one series |
+| `scenario_bench/contracts.py` | Scenario-bench data contracts: `ScenarioSpec` and the `PathGenerator` seam |
+| `scenario_bench/generators.py` | Seeded synthetic price-path generators (GBM regime, two-phase regime switch) producing valid OHLC bars |
+| `scenario_bench/registry.py` | The scenario catalog `SCENARIO_REGISTRY`, plus `resolve_scenario` / `available_scenario_ids` |
+| `scenario_bench/aggregation.py` | Reduce a scenario's per-path runs into an outcome distribution per metric |
 
 ## `services/`
 
@@ -63,6 +67,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `reporting.py` | Every operator-facing read over persisted runs: one run's full report or summary, the run listings, and the leaderboard that ranks runs against each other. Benchmark and alpha come from the run row, so none of it needs market data |
 | `evidence.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |
 | `audit.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
+| `scenario_bench.py` | Run strategies through scenarios into a `BenchMatrix` of outcome distributions, render the matrix, and set up the reserved bench account and synthetic universe. Persists nothing |
 
 ## `repositories/`
 
@@ -84,6 +89,7 @@ holds the contracts for the tables `trading/repositories/` owns.
 | `backtest.py` | A run's config, resolved universe, and result (`BacktestConfig`, `RunUniverse`, `BacktestResult`, `BacktestBatchConfig`) plus the run-purpose vocabulary |
 | `optimizer.py` | Walk-forward search config and everything an experiment persists — experiment, window, trial, and manifest `*Insert`/`*Record` pairs — plus the shapes derived from them on read: OOS aggregation and the `ExperimentAudit` tree |
 | `report.py` | Report, run-listing, and leaderboard shapes returned to operator surfaces |
+| `scenario_bench.py` | Scenario-bench result contracts: `MetricDistribution`, `ScenarioCellResult`, `BenchMatrix` |
 
 ## Related
 

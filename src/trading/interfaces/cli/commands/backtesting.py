@@ -158,3 +158,39 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
             " evidence) and promote anyway"
         ),
     )
+
+    p_bench = sub.add_parser(
+        "backtest-bench",
+        help=(
+            "Run strategies through synthetic Monte Carlo scenarios and compare their outcome"
+            " distributions. Behavioral only — bench runs are not persisted and are not promotion evidence."
+        ),
+    )
+    p_bench.add_argument(
+        "--strategies",
+        default=None,
+        help="Comma-separated strategies to run (default: all registered strategies)",
+    )
+    p_bench.add_argument(
+        "--scenarios",
+        default=None,
+        help="Comma-separated scenario ids or aliases (default: all scenarios)",
+    )
+    p_bench.add_argument(
+        "--paths",
+        type=int,
+        default=None,
+        help="Monte Carlo paths per scenario (default: each scenario's own count, 200)",
+    )
+    p_bench.add_argument(
+        "--metric",
+        default="total_return_pct",
+        help="Metric rendered in the matrix (default: total_return_pct)",
+    )
+    p_bench.add_argument("--slippage-bps", type=float, default=5.0, help="Slippage in basis points per trade")
+    p_bench.add_argument("--fee", type=float, default=0.0, help="Fixed fee per trade")
+    p_bench.add_argument(
+        "--list-scenarios",
+        action="store_true",
+        help="List the available scenarios and exit",
+    )

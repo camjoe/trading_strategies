@@ -11,6 +11,7 @@ from trading.interfaces.cli.handlers.accounts_handlers import (
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
+    handle_backtest_bench,
     handle_backtest_leaderboard,
     handle_backtest_optimize,
     handle_backtest_optimize_promote,
@@ -78,6 +79,7 @@ COMMAND_HANDLERS = {
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,
+    "backtest-bench": handle_backtest_bench,
     "backtest-optimize": handle_backtest_optimize,
     "backtest-optimize-show": handle_backtest_optimize_show,
     "backtest-optimize-promote": handle_backtest_optimize_promote,

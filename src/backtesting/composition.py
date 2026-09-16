@@ -1,14 +1,29 @@
 from __future__ import annotations
 
+import os
 import sqlite3
+from collections.abc import Mapping, Sequence
 
+import pandas as pd
+
+from backtesting.domain.scenario_bench.contracts import ScenarioSpec
 from backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
 )
+from backtesting.models.scenario_bench import BenchMatrix
 from backtesting.services.run_inputs import fetch_bar_history, fetch_benchmark_close
+from backtesting.services.scenario_bench import (
+    RESERVED_BENCH_ACCOUNT,
+    BenchRunContext,
+    ensure_bench_account,
+    resolve_bench_universe,
+    run_scenario_bench,
+    write_synthetic_universe,
+)
 from backtesting.services.simulation import run_backtest as run_backtest_impl
+from infrastructure.market_data.scenario_provider import ScenarioMarketDataProvider
 from trading.services.market_data.factory import build_feature_provider
 from trading.services.market_data.protocols import MarketDataProvider
 
@@ -102,3 +117,45 @@ def run_backtest_batch(
 
     results.sort(key=lambda item: item.total_return_pct, reverse=True)
     return results
+
+
+def run_bench(
+    conn: sqlite3.Connection,
+    *,
+    strategy_names: Sequence[str],
+    scenario_specs: Sequence[ScenarioSpec],
+    paths_override: int | None,
+    slippage_bps: float,
+    fee_per_trade: float,
+) -> BenchMatrix:
+    """Run strategies through scenarios and return the outcome grid.
+
+    This is the bench composition seam: it builds a fresh
+    ``ScenarioMarketDataProvider`` per generated path and runs each cell through
+    the metrics-only backtest, so no run, trade, or snapshot row is persisted — a
+    behavioral bench is not promotion evidence. The reserved bench account is
+    created on first use.
+    """
+    universe = resolve_bench_universe(scenario_specs)
+    ensure_bench_account(conn, benchmark_ticker=universe.benchmark)
+    tickers_file = write_synthetic_universe(universe.tickers)
+    context = BenchRunContext(
+        account_name=RESERVED_BENCH_ACCOUNT,
+        tickers_file=tickers_file,
+        slippage_bps=slippage_bps,
+        fee_per_trade=fee_per_trade,
+    )
+
+    def run_path(cfg: BacktestConfig, frames: Mapping[str, pd.DataFrame]) -> BacktestResult:
+        return run_backtest_metrics_only(conn, cfg, provider=ScenarioMarketDataProvider(frames))
+
+    try:
+        return run_scenario_bench(
+            strategies=strategy_names,
+            scenarios=scenario_specs,
+            context=context,
+            run_path=run_path,
+            paths_override=paths_override,
+        )
+    finally:
+        os.unlink(tickers_file)

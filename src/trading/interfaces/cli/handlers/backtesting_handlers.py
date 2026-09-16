@@ -5,15 +5,27 @@ from collections import Counter
 from functools import partial
 from typing import Any
 
-from backtesting.composition import run_backtest, run_backtest_batch, run_backtest_metrics_only
+from backtesting.composition import run_backtest, run_backtest_batch, run_backtest_metrics_only, run_bench
+from backtesting.domain.scenario_bench.registry import (
+    SCENARIO_REGISTRY,
+    available_scenario_ids,
+    resolve_scenario,
+)
 from backtesting.models import BacktestBatchConfig, BacktestConfig
 from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit import fetch_experiment_audit
 from backtesting.services.optimization_experiment import run_and_persist_optimization
 from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from backtesting.services.scenario_bench import render_bench_matrix
 from trading.domain.promotion.gate import evaluate_promotion_gate
+from trading.domain.strategies.registry import available_strategy_ids
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
+
+
+def _split_csv(value: str | None) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()] if value else []
 
 
 def _format_metric(value: float | None, *, suffix: str = "") -> str:
@@ -71,6 +83,33 @@ def handle_backtest(conn, args, parser, *, ctx: CliContext) -> None:
         print("Backtest safeguards / approximation notes:")
         for warning in result.warnings:
             print(f"- {warning}")
+
+
+def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
+    if args.list_scenarios:
+        for scenario_id in available_scenario_ids():
+            spec = SCENARIO_REGISTRY[scenario_id]
+            print(f"{scenario_id}: {spec.description} (paths={spec.path_count}, days={spec.days})")
+        return
+
+    strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
+    scenario_labels = _split_csv(args.scenarios) or available_scenario_ids()
+    try:
+        strategy_names = list(dict.fromkeys(validate_strategy_name(label) for label in strategy_labels))
+        scenario_specs = [resolve_scenario(label) for label in scenario_labels]
+        matrix = run_bench(
+            conn,
+            strategy_names=strategy_names,
+            scenario_specs=scenario_specs,
+            paths_override=args.paths,
+            slippage_bps=args.slippage_bps,
+            fee_per_trade=args.fee,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+
+    print(render_bench_matrix(matrix, metric=args.metric))
 
 
 def handle_backtest_report(conn, args, parser, *, ctx: CliContext) -> None:

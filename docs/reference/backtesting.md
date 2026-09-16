@@ -264,6 +264,48 @@ Two consequences worth knowing:
 - LEAPs mode is approximate and requires explicit opt-in (`--allow-approximate-leaps`).
 - Survivorship bias can occur if ticker universes are based only on present-day symbols.
 
+## Scenario Bench
+
+The scenario bench runs strategies through synthetic market conditions and compares their outcome
+distributions side by side. It answers "how does each strategy behave in a crash, a grind, a
+melt-up?" — a **behavioral** question, not an edge question.
+
+A **scenario** is a named market condition with a seeded generator. Each scenario produces
+`path_count` Monte Carlo paths (default **200**), so a cell's result is a distribution — median, a
+5th/95th-percentile band, and the worst case — not a single lucky path. The catalog is one
+declarative registry: `SCENARIO_REGISTRY` in
+`src/backtesting/domain/scenario_bench/registry.py`. Add a scenario with one registry entry; add a
+new regime shape with one function in `generators.py`.
+
+```sh
+# List the scenarios
+python -m trading.interfaces.cli.main backtest-bench --list-scenarios
+
+# Compare all strategies across all scenarios (200 paths each)
+python -m trading.interfaces.cli.main backtest-bench
+
+# A faster, narrower run
+python -m trading.interfaces.cli.main backtest-bench --strategies trend,mean_reversion \
+    --scenarios sharp_crash,strong_uptrend --paths 50
+```
+
+Two honesty properties, by design:
+
+- **Bench runs persist nothing.** Every path runs through the metrics-only backtest, so no
+  `backtest_runs` row is written. The bench never enters the evidence corpus, and promotion stays
+  walk-forward-only (ADR 016).
+- **Synthetic data tests behavior, not edge.** A strategy can ace synthetic scenarios only because
+  they match the generator's assumptions. The bench is a robustness and regression tool, not proof a
+  strategy makes money.
+
+The bench trades one reserved account (`scenario_bench`), created on first use, over a synthetic
+universe the generators price. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
+(`src/infrastructure/market_data/scenario_provider.py`) serves each generated path to the same
+simulation engine a real backtest uses, so a strategy evaluates identically here and in a real run.
+
+Not yet built: bootstrap and replay scenarios from real history, and pass/fail expectations that
+would turn the matrix into a regression gate.
+
 ## Related Docs
 
 - `docs/reference/strategies.md`
