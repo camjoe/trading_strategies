@@ -56,6 +56,30 @@ FIXTURE_DEFINITIONS: dict[str, FixtureDefinition] = {
         end="2017-12-29",
         description="The low-volatility upward grind of 2017.",
     ),
+    "gfc_2008": FixtureDefinition(
+        fixture_id="gfc_2008",
+        tickers=_DEFAULT_BASKET,
+        benchmark=_DEFAULT_BENCHMARK,
+        start="2008-09-02",
+        end="2009-06-30",
+        description="The 2008 global financial crisis crash and the early recovery off the bottom.",
+    ),
+    "correction_2018q4": FixtureDefinition(
+        fixture_id="correction_2018q4",
+        tickers=_DEFAULT_BASKET,
+        benchmark=_DEFAULT_BENCHMARK,
+        start="2018-10-01",
+        end="2018-12-31",
+        description="The sharp fourth-quarter 2018 correction.",
+    ),
+    "recovery_2023": FixtureDefinition(
+        fixture_id="recovery_2023",
+        tickers=_DEFAULT_BASKET,
+        benchmark=_DEFAULT_BENCHMARK,
+        start="2023-01-03",
+        end="2023-07-31",
+        description="The strong 2023 recovery and technology-led rally.",
+    ),
 }
 
 
