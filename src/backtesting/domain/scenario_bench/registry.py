@@ -11,13 +11,22 @@ from __future__ import annotations
 
 from trading.domain.exceptions import ValidationError
 
-from .contracts import ScenarioSpec
-from .generators import gbm_regime, regime_switch
+from .contracts import SCENARIO_MODE_BOOTSTRAP, SCENARIO_MODE_REPLAY, FixtureSource, ScenarioSpec
+from .fixtures import FIXTURE_DEFINITIONS, available_fixture_ids
+from .generators import gbm_regime, regime_switch, unbound_generator
 
 # One trading year of daily bars for the standard scenarios.
 _ONE_YEAR_DAYS = 252
 # One half-year, for the fast crash scenarios.
 _HALF_YEAR_DAYS = 126
+
+# Bootstrap resample length. Replay length comes from the fixture and overrides
+# this placeholder at bind time.
+_BOOTSTRAP_DAYS = _HALF_YEAR_DAYS
+_REPLAY_PLACEHOLDER_DAYS = _ONE_YEAR_DAYS
+# Base seed for the first real-data scenario; each fixture takes a 10-wide band so
+# replay and bootstrap of the same fixture never share a seed.
+_REAL_SCENARIO_SEED_BASE = 3000
 
 # The synthetic tradable universe. Deliberately small and abstract: these are not
 # real symbols, so a bench result can never be mistaken for real-market evidence.
@@ -107,9 +116,58 @@ SCENARIO_REGISTRY: dict[str, ScenarioSpec] = {
 }
 
 
+def _register_real_scenarios() -> None:
+    """Add a replay and a bootstrap scenario for every declared fixture.
+
+    Real-data scenarios carry the unbound generator sentinel and a `FixtureSource`;
+    the composition seam loads the fixture and binds the real generator at run time.
+    Deriving both from one fixture definition keeps a new episode to a single entry
+    in `fixtures.py`.
+    """
+    for index, fixture_id in enumerate(available_fixture_ids()):
+        definition = FIXTURE_DEFINITIONS[fixture_id]
+        seed_base = _REAL_SCENARIO_SEED_BASE + index * 10
+        SCENARIO_REGISTRY[f"{fixture_id}_replay"] = ScenarioSpec(
+            scenario_id=f"{fixture_id}_replay",
+            generator=unbound_generator,
+            params={},
+            path_count=1,
+            tickers=definition.tickers,
+            benchmark=definition.benchmark,
+            base_seed=seed_base,
+            days=_REPLAY_PLACEHOLDER_DAYS,
+            description=f"Replay of real history: {definition.description}",
+            source=FixtureSource(fixture_id=fixture_id, mode=SCENARIO_MODE_REPLAY),
+        )
+        SCENARIO_REGISTRY[f"{fixture_id}_bootstrap"] = ScenarioSpec(
+            scenario_id=f"{fixture_id}_bootstrap",
+            generator=unbound_generator,
+            params={},
+            path_count=200,
+            tickers=definition.tickers,
+            benchmark=definition.benchmark,
+            base_seed=seed_base + 1,
+            days=_BOOTSTRAP_DAYS,
+            description=f"Block bootstrap of real history: {definition.description}",
+            source=FixtureSource(fixture_id=fixture_id, mode=SCENARIO_MODE_BOOTSTRAP),
+        )
+
+
+_register_real_scenarios()
+
+
 def available_scenario_ids() -> list[str]:
     """The registered scenario ids, sorted."""
     return sorted(SCENARIO_REGISTRY.keys())
+
+
+def default_scenario_ids() -> list[str]:
+    """The scenario ids that run offline with no captured fixture (the synthetic set).
+
+    The default run uses these so `backtest-bench` works with no setup. Real-data
+    scenarios need a captured fixture, so they are opt-in by name.
+    """
+    return sorted(scenario_id for scenario_id, spec in SCENARIO_REGISTRY.items() if spec.source is None)
 
 
 def _invalid_scenario_error(scenario_name: str) -> ValidationError:

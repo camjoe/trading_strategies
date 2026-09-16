@@ -34,9 +34,13 @@ class TestResolveScenario:
             resolve_scenario("   ")
 
 
-class TestRegistryEntries:
-    def test_every_scenario_generates_bars_for_tickers_and_benchmark(self) -> None:
-        for spec in SCENARIO_REGISTRY.values():
+def _synthetic_specs() -> list:
+    return [spec for spec in SCENARIO_REGISTRY.values() if spec.source is None]
+
+
+class TestSyntheticRegistryEntries:
+    def test_every_synthetic_scenario_generates_bars_for_tickers_and_benchmark(self) -> None:
+        for spec in _synthetic_specs():
             index = pd.bdate_range(start="2024-01-01", periods=spec.days)
             requested = (*spec.tickers, spec.benchmark)
             frames = spec.generator(
@@ -47,6 +51,34 @@ class TestRegistryEntries:
                 assert len(frame) == spec.days
                 assert list(frame.columns) == list(BAR_COLUMNS)
 
-    def test_path_count_default_is_two_hundred(self) -> None:
-        for spec in SCENARIO_REGISTRY.values():
+    def test_synthetic_path_count_default_is_two_hundred(self) -> None:
+        for spec in _synthetic_specs():
             assert spec.path_count == 200
+
+
+class TestRealRegistryEntries:
+    def test_each_fixture_yields_a_replay_and_a_bootstrap_scenario(self) -> None:
+        ids = set(SCENARIO_REGISTRY)
+        assert "covid_crash_2020_replay" in ids
+        assert "covid_crash_2020_bootstrap" in ids
+
+    def test_real_scenarios_carry_a_fixture_source_and_the_unbound_generator(self) -> None:
+        replay = SCENARIO_REGISTRY["covid_crash_2020_replay"]
+        assert replay.source is not None
+        assert replay.path_count == 1
+        # The generator sentinel must not run without being bound by the seam.
+        with pytest.raises(ValueError, match="not bound"):
+            replay.generator(
+                PathRequest(
+                    index=pd.bdate_range("2024-01-01", periods=5),
+                    tickers=replay.tickers,
+                    seed=replay.base_seed,
+                    params=replay.params,
+                )
+            )
+
+    def test_default_scenarios_are_synthetic_only(self) -> None:
+        from backtesting.domain.scenario_bench.registry import default_scenario_ids
+
+        for scenario_id in default_scenario_ids():
+            assert SCENARIO_REGISTRY[scenario_id].source is None

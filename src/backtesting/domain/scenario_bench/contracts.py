@@ -6,6 +6,27 @@ from typing import Any
 
 import pandas as pd
 
+# How a real-data scenario turns one frozen fixture into paths.
+# replay serves the fixture as one deterministic path; bootstrap block-resamples
+# it into many paths, so its per-cell result is a distribution like a synthetic one.
+SCENARIO_MODE_REPLAY = "replay"
+SCENARIO_MODE_BOOTSTRAP = "bootstrap"
+
+
+@dataclass(frozen=True)
+class FixtureSource:
+    """A real-data scenario's binding to a frozen fixture.
+
+    The registry entry only names the fixture and the mode; the composition seam
+    loads the fixture from ``local/`` and binds a concrete generator, because
+    reading a file is I/O and must not happen in the domain or at import time.
+    ``block_size`` is the moving-block length in trading days, for bootstrap only.
+    """
+
+    fixture_id: str
+    mode: str
+    block_size: int = 0
+
 
 @dataclass(frozen=True)
 class PathRequest:
@@ -49,3 +70,8 @@ class ScenarioSpec:
     days: int
     description: str = ""
     aliases: tuple[str, ...] = ()
+    # Set on a real-data scenario. When present, the composition seam loads the
+    # named fixture, binds a replay/bootstrap generator over it, and (for replay)
+    # overrides ``days`` with the fixture's own length. ``generator`` on such a
+    # spec is the unbound sentinel and is never called directly.
+    source: FixtureSource | None = None

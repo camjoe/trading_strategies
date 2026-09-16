@@ -9,6 +9,7 @@ from backtesting.composition import run_backtest, run_backtest_batch, run_backte
 from backtesting.domain.scenario_bench.registry import (
     SCENARIO_REGISTRY,
     available_scenario_ids,
+    default_scenario_ids,
     resolve_scenario,
 )
 from backtesting.models import BacktestBatchConfig, BacktestConfig
@@ -89,11 +90,12 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
     if args.list_scenarios:
         for scenario_id in available_scenario_ids():
             spec = SCENARIO_REGISTRY[scenario_id]
-            print(f"{scenario_id}: {spec.description} (paths={spec.path_count}, days={spec.days})")
+            origin = f"real; needs fixture {spec.source.fixture_id}" if spec.source else "synthetic"
+            print(f"{scenario_id}: {spec.description} ({origin}, paths={spec.path_count})")
         return
 
     strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
-    scenario_labels = _split_csv(args.scenarios) or available_scenario_ids()
+    scenario_labels = _split_csv(args.scenarios) or default_scenario_ids()
     try:
         strategy_names = list(dict.fromkeys(validate_strategy_name(label) for label in strategy_labels))
         scenario_specs = [resolve_scenario(label) for label in scenario_labels]

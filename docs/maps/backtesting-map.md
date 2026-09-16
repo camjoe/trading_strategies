@@ -50,8 +50,9 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `windowing.py` | A run's date window: resolving it from a range or lookback, month arithmetic, and walk-forward train/test split construction |
 | `optimization.py` | Candidate generation and `params_fingerprint`, the `calmar_v1` objective and winner selection, and compounding per-window OOS results into one series |
 | `scenario_bench/contracts.py` | Scenario-bench data contracts: `ScenarioSpec` and the `PathGenerator` seam |
-| `scenario_bench/generators.py` | Seeded synthetic price-path generators (GBM regime, two-phase regime switch) producing valid OHLC bars |
-| `scenario_bench/registry.py` | The scenario catalog `SCENARIO_REGISTRY`, plus `resolve_scenario` / `available_scenario_ids` |
+| `scenario_bench/generators.py` | Seeded synthetic generators (GBM regime, two-phase switch) plus the real-data `replay_frames` / `bootstrap_frames` and the unbound sentinel, all producing valid OHLC bars |
+| `scenario_bench/registry.py` | The scenario catalog `SCENARIO_REGISTRY` (synthetic + real replay/bootstrap), plus `resolve_scenario` / `available_scenario_ids` / `default_scenario_ids` |
+| `scenario_bench/fixtures.py` | Declared real-history episodes (`FIXTURE_DEFINITIONS`) read by both the capture script and the registry |
 | `scenario_bench/aggregation.py` | Reduce a scenario's per-path runs into an outcome distribution per metric |
 
 ## `services/`
@@ -68,6 +69,7 @@ Side-effect free: no I/O, no SQL, no service calls.
 | `evidence.py` | **Seam.** A strategy's backtest and walk-forward evidence as one pair of `Evaluation*Evidence` records, off a single experiment lookup |
 | `audit.py` | **Seam.** One experiment's audit record, plus the recent-experiments listing. The listing forwards to the repository unchanged — `layer_check` bars `src/trading/` from reaching the tables itself, and its one caller joins account names, which backtesting does not own |
 | `scenario_bench.py` | Run strategies through scenarios into a `BenchMatrix` of outcome distributions, render the matrix, and set up the reserved bench account and synthetic universe. Persists nothing |
+| `scenario_fixtures.py` | Read and write frozen real-history fixtures under the untracked `local/scenario_bench/` (long-format CSV) |
 
 ## `repositories/`
 

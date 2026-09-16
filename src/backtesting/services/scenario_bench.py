@@ -24,11 +24,18 @@ from backtesting.domain.scenario_bench.contracts import PathRequest, ScenarioSpe
 from backtesting.models.backtest import BACKTEST_PURPOSE_STANDALONE, BacktestConfig, BacktestResult
 from backtesting.models.scenario_bench import BenchMatrix, ScenarioCellResult
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.services.accounts.mutations import create_account, get_account
+from trading.services.accounts.mutations import create_account, get_account, set_benchmark
 
-# The synthetic calendar's start. Only the bar count matters for a synthetic run,
-# so the anchor is fixed and arbitrary; a fixed anchor keeps a run reproducible.
+# The bench calendar's start. Only the bar count matters for a bench run — the
+# dates are placeholders, real or synthetic bars are re-stamped onto them — so the
+# anchor is fixed and arbitrary; a fixed anchor keeps a run reproducible.
 _ANCHOR_START = date(2000, 1, 3)
+
+
+def bench_calendar(days: int) -> pd.DatetimeIndex:
+    """The anchored business-day calendar every scenario path is stamped onto."""
+    return pd.bdate_range(start=_ANCHOR_START, periods=days)
+
 
 # The single reserved account every bench run trades through. Auto-created on
 # first use and reused after, so a bench run needs no operator setup and writes no
@@ -70,17 +77,27 @@ def resolve_bench_universe(scenarios: Sequence[ScenarioSpec]) -> BenchUniverse:
 
 
 def ensure_bench_account(conn: sqlite3.Connection, *, benchmark_ticker: str) -> None:
-    """Create the reserved bench account if it does not exist, else leave it as is."""
+    """Create the reserved bench account, or point it at this run's benchmark.
+
+    One reserved account serves every run, but the benchmark differs — synthetic
+    scenarios benchmark against ``BENCH``, real ones against a real symbol like
+    ``SPY``. The account's benchmark is set to match the run so its alpha is
+    measured against the right series.
+    """
+    normalized = benchmark_ticker.upper().strip()
     try:
-        get_account(conn, RESERVED_BENCH_ACCOUNT)
+        account = get_account(conn, RESERVED_BENCH_ACCOUNT)
     except NotFoundError:
         create_account(
             conn,
             RESERVED_BENCH_ACCOUNT,
             strategy=_BENCH_DEFAULT_STRATEGY,
             initial_cash=BENCH_INITIAL_CASH,
-            benchmark_ticker=benchmark_ticker,
+            benchmark_ticker=normalized,
         )
+        return
+    if account.benchmark_ticker != normalized:
+        set_benchmark(conn, RESERVED_BENCH_ACCOUNT, normalized)
 
 
 def write_synthetic_universe(tickers: Sequence[str]) -> str:
@@ -142,7 +159,7 @@ def _run_one_scenario(
     run_path: RunPathFn,
     path_count: int,
 ) -> list[ScenarioCellResult]:
-    calendar = pd.bdate_range(start=_ANCHOR_START, periods=spec.days)
+    calendar = bench_calendar(spec.days)
     requested = (*spec.tickers, spec.benchmark)
     configs = {strategy: _build_config(context, calendar, strategy) for strategy in strategies}
     results: dict[str, list[BacktestResult]] = defaultdict(list)

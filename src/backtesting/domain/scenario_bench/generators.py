@@ -10,6 +10,7 @@ frame.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,11 @@ from common.constants import TRADING_DAYS_PER_YEAR
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 
 from .contracts import PathRequest
+
+# Moving-block length in trading days when a bootstrap scenario does not set one.
+# One month of blocks keeps short-run autocorrelation (a trend or a sell-off runs
+# for several days) that an independent day-by-day resample would destroy.
+DEFAULT_BLOCK_SIZE = 20
 
 # Per-ticker starting price when a scenario does not set one.
 DEFAULT_START_PRICE = 100.0
@@ -139,4 +145,119 @@ def regime_switch(request: PathRequest) -> dict[str, pd.DataFrame]:
         )
         closes = np.concatenate([first, second])
         frames[ticker] = _bars_from_closes(rng, closes, request.index, intraday)
+    return frames
+
+
+def unbound_generator(request: PathRequest) -> dict[str, pd.DataFrame]:
+    """The placeholder a real-data scenario carries until the seam binds it.
+
+    A real-data scenario declares a fixture, not a callable. The composition seam
+    loads the fixture and replaces this with a bound replay/bootstrap generator, so
+    reaching this means a real-data scenario ran without going through that seam.
+    """
+    raise ValueError(
+        "Real-data scenario generator was not bound; run real-data scenarios through composition.run_bench."
+    )
+
+
+def replay_frames(
+    bars: Mapping[str, pd.DataFrame],
+    tickers: Sequence[str],
+    index: pd.DatetimeIndex,
+) -> dict[str, pd.DataFrame]:
+    """Serve frozen fixture bars as one path, re-stamped onto the bench calendar.
+
+    Replay is deterministic: the real bars are the path. Their real dates are
+    replaced with the anchored bench calendar so the run's window is synthetic like
+    every other scenario; the prices and ranges are the real ones.
+    """
+    frames: dict[str, pd.DataFrame] = {}
+    for ticker in tickers:
+        frame = bars[ticker]
+        if len(frame) != len(index):
+            raise ValueError(
+                f"Replay fixture length {len(frame)} does not match scenario days {len(index)} for {ticker}."
+            )
+        frames[ticker] = frame.set_axis(index, axis=0)[list(BAR_COLUMNS)]
+    return frames
+
+
+def _day_ratios(frame: pd.DataFrame) -> dict[str, np.ndarray]:
+    """Each real bar's open/high/low/close as ratios to the prior close, plus volume.
+
+    Rebuilding a path from these ratios preserves every real day's return and its
+    intraday geometry, so a resampled bar is shaped like a bar the market printed.
+    """
+    close = frame[BAR_CLOSE].to_numpy(dtype=float)
+    open_ = frame[BAR_OPEN].to_numpy(dtype=float)
+    high = frame[BAR_HIGH].to_numpy(dtype=float)
+    low = frame[BAR_LOW].to_numpy(dtype=float)
+    prev_close = np.empty_like(close)
+    # The first bar has no prior close, so measure its ratios against its own open.
+    prev_close[0] = open_[0]
+    prev_close[1:] = close[:-1]
+    return {
+        "open": open_ / prev_close,
+        "high": high / prev_close,
+        "low": low / prev_close,
+        "close": close / prev_close,
+        "volume": frame[BAR_VOLUME].to_numpy(dtype=float),
+        "base": np.array([close[0]], dtype=float),
+    }
+
+
+def _block_positions(rng: np.random.Generator, source_len: int, target: int, block_size: int) -> list[int]:
+    """A moving-block resample of source row positions, length *target*.
+
+    Whole blocks of consecutive days are drawn, so a run of days (a trend, a
+    sell-off) is kept intact rather than shuffled away.
+    """
+    block = max(1, min(block_size, source_len))
+    positions: list[int] = []
+    while len(positions) < target:
+        start = int(rng.integers(0, source_len - block + 1))
+        positions.extend(range(start, start + block))
+    return positions[:target]
+
+
+def bootstrap_frames(
+    bars: Mapping[str, pd.DataFrame],
+    tickers: Sequence[str],
+    index: pd.DatetimeIndex,
+    seed: int,
+    block_size: int,
+) -> dict[str, pd.DataFrame]:
+    """Block-bootstrap real bars into one path over the bench calendar.
+
+    One block sequence is drawn per path and shared by every ticker, so the sampled
+    days keep their cross-ticker co-movement — a real correlated sell-off stays
+    correlated. Each ticker's path chains its own real per-day ratios off that
+    shared sequence.
+    """
+    target = len(index)
+    source_len = min(len(bars[ticker]) for ticker in tickers)
+    rng = np.random.default_rng([int(seed)])
+    positions = _block_positions(rng, source_len, target, block_size or DEFAULT_BLOCK_SIZE)
+
+    frames: dict[str, pd.DataFrame] = {}
+    for ticker in tickers:
+        ratios = _day_ratios(bars[ticker])
+        opens = np.empty(target)
+        highs = np.empty(target)
+        lows = np.empty(target)
+        closes = np.empty(target)
+        volume = np.empty(target)
+        prev = float(ratios["base"][0])
+        for i, position in enumerate(positions):
+            opens[i] = prev * ratios["open"][position]
+            highs[i] = prev * ratios["high"][position]
+            lows[i] = prev * ratios["low"][position]
+            closes[i] = prev * ratios["close"][position]
+            volume[i] = ratios["volume"][position]
+            prev = closes[i]
+        frame = pd.DataFrame(
+            {BAR_OPEN: opens, BAR_HIGH: highs, BAR_LOW: lows, BAR_CLOSE: closes, BAR_VOLUME: volume},
+            index=index,
+        )
+        frames[ticker] = frame[list(BAR_COLUMNS)]
     return frames

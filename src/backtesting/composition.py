@@ -3,10 +3,17 @@ from __future__ import annotations
 import os
 import sqlite3
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
 import pandas as pd
 
-from backtesting.domain.scenario_bench.contracts import ScenarioSpec
+from backtesting.domain.scenario_bench.contracts import (
+    SCENARIO_MODE_BOOTSTRAP,
+    SCENARIO_MODE_REPLAY,
+    PathRequest,
+    ScenarioSpec,
+)
+from backtesting.domain.scenario_bench.generators import bootstrap_frames, replay_frames
 from backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -22,8 +29,10 @@ from backtesting.services.scenario_bench import (
     run_scenario_bench,
     write_synthetic_universe,
 )
+from backtesting.services.scenario_fixtures import load_fixture
 from backtesting.services.simulation import run_backtest as run_backtest_impl
 from infrastructure.market_data.scenario_provider import ScenarioMarketDataProvider
+from trading.domain.exceptions import ValidationError
 from trading.services.market_data.factory import build_feature_provider
 from trading.services.market_data.protocols import MarketDataProvider
 
@@ -119,6 +128,38 @@ def run_backtest_batch(
     return results
 
 
+def _bind_scenario(spec: ScenarioSpec) -> ScenarioSpec:
+    """Bind a real-data scenario to its loaded fixture, or pass a synthetic one through.
+
+    A real-data scenario carries a `FixtureSource` and the unbound generator
+    sentinel. This loads the fixture (the only file read) and replaces the
+    generator with a replay or bootstrap closure over the real bars. Replay also
+    takes its length from the fixture, so `days` is overridden with the real count.
+    """
+    source = spec.source
+    if source is None:
+        return spec
+
+    bars = load_fixture(source.fixture_id)
+    if source.mode == SCENARIO_MODE_REPLAY:
+        length = min(len(frame) for frame in bars.values())
+
+        def replay_generator(request: PathRequest) -> dict[str, pd.DataFrame]:
+            return replay_frames(bars, request.tickers, request.index)
+
+        return replace(spec, generator=replay_generator, days=length, source=None)
+
+    if source.mode == SCENARIO_MODE_BOOTSTRAP:
+        block_size = source.block_size
+
+        def bootstrap_generator(request: PathRequest) -> dict[str, pd.DataFrame]:
+            return bootstrap_frames(bars, request.tickers, request.index, request.seed, block_size)
+
+        return replace(spec, generator=bootstrap_generator, source=None)
+
+    raise ValidationError(f"Unknown scenario source mode '{source.mode}'.")
+
+
 def run_bench(
     conn: sqlite3.Connection,
     *,
@@ -130,15 +171,16 @@ def run_bench(
 ) -> BenchMatrix:
     """Run strategies through scenarios and return the outcome grid.
 
-    This is the bench composition seam: it builds a fresh
-    ``ScenarioMarketDataProvider`` per generated path and runs each cell through
-    the metrics-only backtest, so no run, trade, or snapshot row is persisted — a
-    behavioral bench is not promotion evidence. The reserved bench account is
-    created on first use.
+    This is the bench composition seam: it binds real-data scenarios to their
+    fixtures, builds a fresh ``ScenarioMarketDataProvider`` per generated path, and
+    runs each cell through the metrics-only backtest, so no run, trade, or snapshot
+    row is persisted — a behavioral bench is not promotion evidence. The reserved
+    bench account is created on first use and pointed at the run's benchmark.
     """
     universe = resolve_bench_universe(scenario_specs)
     ensure_bench_account(conn, benchmark_ticker=universe.benchmark)
     tickers_file = write_synthetic_universe(universe.tickers)
+    bound_specs = [_bind_scenario(spec) for spec in scenario_specs]
     context = BenchRunContext(
         account_name=RESERVED_BENCH_ACCOUNT,
         tickers_file=tickers_file,
@@ -152,7 +194,7 @@ def run_bench(
     try:
         return run_scenario_bench(
             strategies=strategy_names,
-            scenarios=scenario_specs,
+            scenarios=bound_specs,
             context=context,
             run_path=run_path,
             paths_override=paths_override,

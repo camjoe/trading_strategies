@@ -298,13 +298,40 @@ Two honesty properties, by design:
   they match the generator's assumptions. The bench is a robustness and regression tool, not proof a
   strategy makes money.
 
-The bench trades one reserved account (`scenario_bench`), created on first use, over a synthetic
-universe the generators price. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
+The bench trades one reserved account (`scenario_bench`), created on first use, over the scenario's
+universe. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
 (`src/infrastructure/market_data/scenario_provider.py`) serves each generated path to the same
 simulation engine a real backtest uses, so a strategy evaluates identically here and in a real run.
 
-Not yet built: bootstrap and replay scenarios from real history, and pass/fail expectations that
-would turn the matrix into a regression gate.
+### Real-history scenarios (replay and bootstrap)
+
+Beyond the synthetic regimes, the bench runs real market episodes:
+
+- **replay** — one real episode (`covid_crash_2020`, `bear_2022`, `grind_2017`) as one deterministic
+  path. The real bars are the path, re-stamped onto the bench calendar.
+- **bootstrap** — a moving-block resample of the real bars into 200 paths, so the per-cell result is
+  a distribution with real tails. One block sequence is shared across tickers per path, so a real
+  correlated sell-off stays correlated — the fidelity gap that independent synthetic tickers cannot
+  close.
+
+Real bars are **not** tracked in the repository (Yahoo data is not redistributed). Each operator
+captures once into the untracked `local/scenario_bench/`:
+
+```sh
+# Capture the declared episodes (one, or all)
+python -m scripts.data_ops.capture_scenario_fixture --id covid_crash_2020
+python -m scripts.data_ops.capture_scenario_fixture
+
+# Then run them by name (real scenarios are opt-in; the default run is synthetic-only)
+python -m trading.interfaces.cli.main backtest-bench \
+    --scenarios covid_crash_2020_replay,covid_crash_2020_bootstrap
+```
+
+Episodes are declared once in `src/backtesting/domain/scenario_bench/fixtures.py`; both the capture
+script and the registry read that, so a new episode is a single entry. Real scenarios still persist
+nothing, and the reserved account's benchmark is pointed at the episode's real benchmark for the run.
+
+Still deferred: pass/fail expectations that would turn the matrix into a regression gate.
 
 ## Related Docs
 
