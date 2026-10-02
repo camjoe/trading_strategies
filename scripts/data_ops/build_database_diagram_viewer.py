@@ -73,7 +73,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
         "id": "promotion",
         "label": "Promotion governance",
         "color": "#db2777",
-        "tables": ("promotion_reviews", "promotion_review_events"),
+        "tables": ("promotion_reviews", "promotion_review_events", "strategy_decisions"),
     },
     {
         "id": "risk",
@@ -125,6 +125,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
             "optimization_run_manifests",
             "promotion_reviews",
             "promotion_review_events",
+            "strategy_decisions",
             "risk_snapshots",
             "risk_decisions",
         ),
@@ -169,12 +170,17 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
         "id": "promotion_governance",
         "label": "Promotion governance",
-        "description": "Promotion review cases, event history, and their account and strategy anchors.",
+        "description": (
+            "Promotion review cases, event history, the advisor decision ledger, and their account, book, "
+            "and strategy anchors."
+        ),
         "tables": (
             "accounts",
+            "books",
             "strategies",
             "promotion_reviews",
             "promotion_review_events",
+            "strategy_decisions",
         ),
     },
     {
@@ -254,6 +260,7 @@ ROLE_DEFINITIONS: tuple[dict[str, object], ...] = (
             "ledger",
             "rotation_decisions",
             "risk_decisions",
+            "strategy_decisions",
             "promotion_review_events",
             "global_settings_change_events",
             "book_rotation_settings_change_events",

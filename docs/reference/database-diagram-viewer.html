@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 09:38 14-09-2026 PST. Tables: 27.</div>
+      <div class="meta">Source: fresh code schema. Generated: 18:57 01-10-2026 PST. Tables: 28.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -422,7 +422,8 @@
         "accounts",
         "books",
         "promotion_reviews",
-        "promotion_review_events"
+        "promotion_review_events",
+        "strategy_decisions"
       ]
     },
     {
@@ -449,7 +450,7 @@
       ]
     }
   ],
-  "generatedAt": "09:38 14-09-2026 PST",
+  "generatedAt": "18:57 01-10-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -483,6 +484,7 @@
         "ledger",
         "rotation_decisions",
         "risk_decisions",
+        "strategy_decisions",
         "promotion_review_events",
         "global_settings_change_events",
         "book_rotation_settings_change_events"
@@ -583,7 +585,8 @@
       "label": "Promotion governance",
       "tables": [
         "promotion_reviews",
-        "promotion_review_events"
+        "promotion_review_events",
+        "strategy_decisions"
       ]
     },
     {
@@ -4593,6 +4596,265 @@
         "id": "catalogs",
         "label": "Catalogs and settings"
       }
+    },
+    {
+      "columns": [
+        {
+          "default": null,
+          "name": "id",
+          "notNull": false,
+          "primaryKeyPosition": 1,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "account_id",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "book_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#0f8b5f",
+            "id": "books",
+            "label": "Books"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "strategy_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#64748b",
+            "id": "catalogs",
+            "label": "Catalogs and settings"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "decision_type",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "rationale",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "evidence_json",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "optimization_experiment_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "promotion_review_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#db2777",
+            "id": "promotion",
+            "label": "Promotion governance"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "decided_by",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "created_at",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": "21",
+          "name": "outcome_window_days",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": "'pending'",
+          "name": "outcome_status",
+          "notNull": true,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "outcome_window_start",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "outcome_window_end",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "realized_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "realized_benchmark_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "outcome_verdict",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "outcome_note",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "outcome_measured_at",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "TEXT"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "promotion_review_id",
+          "onDelete": "SET NULL",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "promotion_reviews"
+        },
+        {
+          "column": "book_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "account_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "account_id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "book_id",
+          "onDelete": "SET NULL",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "books"
+        },
+        {
+          "column": "account_id",
+          "onDelete": "CASCADE",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "accounts"
+        },
+        {
+          "column": "strategy_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "strategies"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "outcome_status",
+            "created_at"
+          ],
+          "name": "idx_strategy_decisions_outcome_status_created",
+          "origin": "c",
+          "unique": false
+        },
+        {
+          "columns": [
+            "strategy_id",
+            "created_at"
+          ],
+          "name": "idx_strategy_decisions_strategy_created",
+          "origin": "c",
+          "unique": false
+        },
+        {
+          "columns": [
+            "account_id",
+            "created_at"
+          ],
+          "name": "idx_strategy_decisions_account_created",
+          "origin": "c",
+          "unique": false
+        }
+      ],
+      "name": "strategy_decisions",
+      "section": {
+        "color": "#db2777",
+        "id": "promotion",
+        "label": "Promotion governance"
+      }
     }
   ],
   "title": "Trading Strategies Database Diagram Viewer",
@@ -4628,7 +4890,8 @@
         "risk_decisions",
         "risk_snapshots",
         "rotation_decisions",
-        "strategies"
+        "strategies",
+        "strategy_decisions"
       ]
     },
     {
@@ -4655,6 +4918,7 @@
         "optimization_run_manifests",
         "promotion_reviews",
         "promotion_review_events",
+        "strategy_decisions",
         "risk_snapshots",
         "risk_decisions"
       ]
@@ -4697,14 +4961,16 @@
       ]
     },
     {
-      "description": "Promotion review cases, event history, and their account and strategy anchors.",
+      "description": "Promotion review cases, event history, the advisor decision ledger, and their account, book, and strategy anchors.",
       "id": "promotion_governance",
       "label": "Promotion governance",
       "tables": [
         "accounts",
+        "books",
         "strategies",
         "promotion_reviews",
-        "promotion_review_events"
+        "promotion_review_events",
+        "strategy_decisions"
       ]
     },
     {

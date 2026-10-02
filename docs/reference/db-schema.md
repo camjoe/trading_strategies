@@ -20,7 +20,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+28 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
 `sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`), the retired
 `strategy_param_sets` store, the rolling-window `walk_forward_experiments`/`walk_forward_windows`
@@ -50,6 +50,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
 | `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account | → `accounts`, `books` |
+| `strategy_decisions` | Advisor decision ledger (including `hold`): write-once decision, rationale, and frozen evidence, plus outcome columns scored after the decision's window | → `accounts`, `books`, `strategies`, `promotion_reviews` |
 | `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`) | → `books` |
 | `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run | → `backtest_runs` |
 | `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link; `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws | → `accounts`, `strategies`, `backtest_runs` |
@@ -112,6 +113,18 @@ Rows with a `book_id` are constrained by `(book_id, account_id) -> books(id, acc
 decision cannot pair a valid book with the wrong account. `book_id` remains nullable for genuinely
 account-level decisions. The original single-column book FK still owns `ON DELETE SET NULL`, keeping
 the account-level decision history when a standalone book is deleted.
+
+### `strategy_decisions`
+
+Decision columns are **write-once**: trigger `trg_strategy_decisions_write_once` aborts any update
+that changes them, so a decision's rationale and evidence cannot be revised after the outcome is
+known. Only the `outcome_*` and realized-return columns are updated, by the scoring path. `book_id`
+and `promotion_review_id` may change only to NULL, which is how their `ON DELETE SET NULL` actions
+run; deleting a book or review keeps the decision history.
+
+`optimization_experiment_id` is a plain id with no foreign key, because `optimization_experiments`
+belongs to the backtesting context. The frozen `evidence_json` is the durable record of what the
+decision rested on, and stays valid if the experiment is deleted.
 
 ### `book_rotation_settings`
 
