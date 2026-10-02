@@ -99,6 +99,15 @@ and reporting services alike.
 Self-contained: two dedicated tables (`promotion_reviews`, `promotion_review_events`) read only by
 `services/promotion/`. The most cohesive context in the package.
 
+### Advisor
+
+| Module | Responsibility |
+|---|---|
+| `strategy_decisions.py` | The advisor decision ledger: write-once decisions plus their later outcome |
+
+Only `insert` and `update_outcome` write. A table trigger rejects any update to a decision column,
+so there is deliberately no general update method.
+
 ### Cross-cutting
 
 These belong to no single context and stay at the root deliberately.

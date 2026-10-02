@@ -15,6 +15,9 @@ from trading.domain.evaluation.confidence import (
 from trading.domain.metrics.returns import safe_return_pct
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.models.evaluation import (
+    BACKTEST_EVIDENCE_GAP,
+    PAPER_LIVE_EVIDENCE_GAP,
+    WALK_FORWARD_EVIDENCE_GAP,
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,
@@ -44,15 +47,6 @@ ACTIVE_STRATEGY_WINDOW_SOURCE_LEVEL = "book_active_strategy"
 # A closed book snapshot window gives strategy-isolated historical evidence for a
 # strategy the book has since rotated away from.
 CLOSED_STRATEGY_WINDOW_SOURCE_LEVEL = "book_closed_strategy"
-
-# Diagnostics key used when no strategy-matched backtest rows are persisted.
-BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
-
-# Diagnostics key used when no strategy-safe paper/live rows are persisted.
-PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
-
-# Diagnostics key used when no walk-forward window evidence is persisted.
-WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
 
 
 def resolve_active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:

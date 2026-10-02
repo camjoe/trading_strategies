@@ -10,6 +10,15 @@ EVALUATION_ARTIFACT_VERSION = "phase2.v1"
 # The initial assembler only reads persisted evidence already stored in SQLite.
 EVALUATION_SOURCE_MODE = "persisted_only"
 
+# Diagnostics key used when no strategy-matched backtest rows are persisted.
+BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
+
+# Diagnostics key used when no strategy-safe paper/live rows are persisted.
+PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
+
+# Diagnostics key used when no walk-forward window evidence is persisted.
+WALK_FORWARD_EVIDENCE_GAP = "missing_walk_forward_evidence"
+
 
 # --- Scope and metadata ---
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from trading.interfaces.cli.commands.accounts import add_account_commands
+from trading.interfaces.cli.commands.advisor import add_advisor_commands
 from trading.interfaces.cli.commands.backtesting import add_backtesting_commands
 from trading.interfaces.cli.commands.options import add_option_args
 from trading.interfaces.cli.commands.reporting import add_reporting_commands
@@ -19,5 +20,6 @@ def build_parser() -> argparse.ArgumentParser:
     add_settings_commands(sub)
     add_strategy_catalog_commands(sub)
     add_backtesting_commands(sub)
+    add_advisor_commands(sub)
 
     return parser

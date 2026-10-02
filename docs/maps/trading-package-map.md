@@ -51,6 +51,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | Module | Responsibility |
 |---|---|
 | `commands/accounts.py` | argparse subcommands for account actions |
+| `commands/advisor.py` | argparse subcommands for the advisor ledger and digest (`advisor-record`, `advisor-digest`) |
 | `commands/backtesting.py` | argparse subcommands for backtesting |
 | `commands/reporting.py` | argparse subcommands for reporting |
 | `commands/settings.py` | argparse subcommands for operational-settings and rotation-policy edits |
@@ -58,6 +59,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `commands/builder.py` | Assembles the argparse parser + subcommand groups |
 | `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
+| `handlers/advisor_handlers.py` | Business dispatch for advisor CLI commands (parses `--note KEY=VALUE` evidence) |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
 | `handlers/context.py` | Shared request-scoped context resolver for CLI handlers |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
@@ -135,6 +137,9 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
+| `advisor/decisions.py` | Record an advisor decision in the `strategy_decisions` ledger, resolving its book and strategy and freezing the current evaluation as its evidence |
+| `advisor/digest.py` | Read-only advisor digest: per-account evaluation + recent and due ledger decisions + review flags |
+| `advisor/presentation.py` | Pure string builders for the advisor digest and decision lines |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |
@@ -237,6 +242,7 @@ For these modules grouped by ownership, the transaction rules, and the usage pat
 | `rotation_decisions.py` | Rotation decision records |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs) |
+| `strategy_decisions.py` | Advisor decision ledger; only `insert` and `update_outcome` write (decision columns are write-once) |
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
 | `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
@@ -270,6 +276,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
 | `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
 | `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
+| `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, and which digest review flags to raise |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
@@ -282,7 +289,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
 | `evaluation/risk_limits.py` | Risk limit policy rules and validation for evaluation workflows |
-| `market/hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
+| `market/hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes, N-trading-day offsets) |
 | `market/bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
 | `metrics/returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
 | `metrics/risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
@@ -315,6 +322,7 @@ otherwise import from the feature module (`from trading.models.books import Book
 | Module | Contracts |
 |---|---|
 | `accounts.py` | `AccountRecord` (implements `Mapping`), `AccountInsert`, `AccountConfig`, `AccountState`, `AccountDeletionPreview` + config field-name vocabulary |
+| `advisor.py` | `StrategyDecisionInsert`, `StrategyDecisionOutcome`, `StrategyDecisionRecord`, `AdvisorFlag`, `AdvisorAccountDigest`, `AdvisorDigest` + decision-type, outcome, and flag vocabulary |
 | `books.py` | `BookRecord` (implements `Mapping`), `BookAssignmentView`, `BookStrategyAssignmentRecord`, `TradingBook`, `BookRotationSettingsRecord`, `BookRotationSettingsChangeEvent`, `RotationDecisionRecord`, `PositionRecord`, `LedgerEntryRecord`, `BookFillTransition`, `RiskDecisionRecord`, `RiskSnapshotRecord` + settings-group vocabulary |
 | `execution.py` | `BookTradeCandidate`, `BookTradeIntent`, `BookTradeState`, `RiskGateConfig`, `RiskGatePosition`, `RiskGateDecision`, `RiskGateResult`, `GateResult`, `SubmissionResult`, `BookNavMarkResult`, `BookRunAudit` + risk-gate defaults |
 | `orders.py` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `OrderRecord` |
@@ -323,7 +331,7 @@ otherwise import from the feature module (`from trading.models.books import Book
 | `rotation.py` | `BookRotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationScoreWeights`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationDecision` |
 | `strategy.py` | `StrategyRecord`, `FeatureProviderRecord` |
 | `settings.py` | `GlobalSettingsRecord`, `GlobalSettingsChangeEvent` + settings-group vocabulary |
-| `evaluation.py` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `BacktestFreshness`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDecisionScore`, `EvaluationDiagnostics`) + version constants |
+| `evaluation.py` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `BacktestFreshness`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDecisionScore`, `EvaluationDiagnostics`) + version and data-gap vocabulary constants |
 | `promotion.py` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + `PromotionStage`/`PromotionStatus`/`PromotionReviewState`/`PromotionReviewEventType` enums and review vocabulary |
 | `market_data.py` | Bar-column vocabulary (`BAR_OPEN`/`BAR_HIGH`/`BAR_LOW`/`BAR_CLOSE`/`BAR_VOLUME`, `BAR_COLUMNS`, `BAR_PRICE_COLUMNS`, `BAR_VOLUME_FILL`) |
 

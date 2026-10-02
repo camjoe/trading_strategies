@@ -43,6 +43,8 @@ _EXPECTED_COMMANDS = {
     "backtest-optimize",
     "backtest-optimize-show",
     "backtest-optimize-promote",
+    "advisor-record",
+    "advisor-digest",
 }
 
 
