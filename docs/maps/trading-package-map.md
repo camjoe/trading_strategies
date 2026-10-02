@@ -209,7 +209,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
 | `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
-| `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`) — merges persisted rotation settings over code defaults |
+| `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`, `assign_catalog_strategy`) — merges persisted rotation settings over code defaults; `assign_catalog_strategy` assigns only existing, enabled catalog keys |
 | `books/settings_validation.py` | Book execution/goal/option settings validation and normalization (enum/range/sizing/option checks) + `book_settings_update_from_config` builder |
 | `books/default_book.py` | Resolve an account to its default book (`default_book_id`) |
 | `books/provisioning.py` | Create-time default-book provisioning (`bootstrap_default_book`): validate create settings, insert the default book, open its assignment, write execution/goal/option columns |

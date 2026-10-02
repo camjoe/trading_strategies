@@ -76,6 +76,7 @@ Current skill inventory:
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
+| `strategy-advisor/` | Advisor session: score past decisions, read the digest, record a decision per book (including hold), act only on approval |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
 | `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 
@@ -104,6 +105,7 @@ Default to the most specific matching skill; work without one when nothing match
 | Broker adapters or live-trading safety review | `code-review/` (Aggressive mode) + the Live Trading Safety Guard in `docs/architecture/architecture-conventions.md` |
 | Runtime job / scheduler work | `create-runtime-job/` for new jobs; `docs/reference/runtime-jobs.md` + `docs/runbooks/` for operating existing ones |
 | Backtest methodology, walk-forward, evaluation honesty | `finance-strategy/` (Evaluation honesty) + `docs/reference/backtesting.md` |
+| Run the advisor, review strategy performance, decide what to change | `strategy-advisor/` |
 
 ## Shortcut workflows
 

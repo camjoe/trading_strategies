@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
+    handle_assign_strategy,
     handle_configure_account,
     handle_create_account,
     handle_init,
@@ -55,6 +56,7 @@ from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
 COMMAND_HANDLERS = {
     "init": handle_init,
     "create-account": handle_create_account,
+    "assign-strategy": handle_assign_strategy,
     "configure-account": handle_configure_account,
     "set-benchmark": handle_set_benchmark,
     "list-accounts": handle_list_accounts,

@@ -10,6 +10,7 @@ from trading.interfaces.cli.handlers.router import COMMAND_HANDLERS, dispatch_co
 _EXPECTED_COMMANDS = {
     "init",
     "create-account",
+    "assign-strategy",
     "configure-account",
     "set-benchmark",
     "list-accounts",

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from trading.interfaces.cli.commands.options import add_account_arg
+from trading.interfaces.cli.commands.options import add_account_arg, add_book_arg
 
 
 def add_account_commands(
@@ -27,6 +27,14 @@ def add_account_commands(
     p_set_benchmark = sub.add_parser("set-benchmark", help="Set benchmark ticker for an account.")
     add_account_arg(p_set_benchmark)
     p_set_benchmark.add_argument("--benchmark", required=True, help="Benchmark ticker, e.g. SPY")
+
+    p_assign = sub.add_parser(
+        "assign-strategy",
+        help="Assign an existing, enabled catalog strategy to a book (unknown keys are rejected).",
+    )
+    add_account_arg(p_assign)
+    add_book_arg(p_assign)
+    p_assign.add_argument("--strategy", required=True, help="Catalog strategy key to assign")
 
     p_configure = sub.add_parser("configure-account", help="Update per-account metadata and goals.")
     add_account_arg(p_configure)

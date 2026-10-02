@@ -37,6 +37,9 @@ Operators edit the catalog through the CLI (`trading.services.strategy_catalog.m
   knobs (merged over the existing ones); knob overrides are validated against the primitive schema.
 - `freeze-strategy --strategy <key>` — freeze a strategy once it has evidence or live usage; tuning a
   frozen row then requires a new variant.
+- `assign-strategy --account <name> [--book <book>] --strategy <key>` — switch a book to an existing,
+  enabled catalog strategy. Unlike the web edit path, an unknown key is rejected rather than minted
+  as a new draft row.
 
 ## Strategy Families
 

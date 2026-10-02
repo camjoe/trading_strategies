@@ -7,6 +7,7 @@ import pytest
 import trading.interfaces.cli.handlers.accounts_handlers as module
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
 from trading.interfaces.cli.handlers.accounts_handlers import (
+    handle_assign_strategy,
     handle_configure_account,
     handle_create_account,
     handle_init,
@@ -173,3 +174,36 @@ def test_handle_configure_account_records_parser_error_without_printing_success(
 
     assert parser.message == "Use only one of --learning-enabled or --learning-disabled"
     assert "Updated account configuration" not in capsys.readouterr().out
+
+
+def test_assign_strategy_reports_the_previous_and_new_strategy(capsys, monkeypatch) -> None:
+    calls: dict = {}
+
+    def _assign(_conn, **kwargs):
+        calls.update(kwargs)
+        return "trend", "trend_fast"
+
+    patch_services(monkeypatch, module, assign_catalog_strategy=_assign)
+    handle_assign_strategy(
+        object(),
+        types.SimpleNamespace(account="acct", book=None, strategy="trend_fast"),
+        fake_parser(),
+        ctx=make_ctx(),
+    )
+
+    assert calls == {"account_name": "acct", "book_name": None, "strategy_key": "trend_fast"}
+    assert "Assigned 'trend_fast' to acct (default book); previously 'trend'." in capsys.readouterr().out
+
+
+def test_assign_strategy_surfaces_a_rejected_key(monkeypatch) -> None:
+    def _assign(_conn, **_kwargs):
+        raise ValueError("No strategy catalog row for 'trend_fsat'.")
+
+    patch_services(monkeypatch, module, assign_catalog_strategy=_assign)
+    with pytest.raises(SystemExit, match="No strategy catalog row"):
+        handle_assign_strategy(
+            object(),
+            types.SimpleNamespace(account="acct", book=None, strategy="trend_fsat"),
+            fake_parser(),
+            ctx=make_ctx(),
+        )
