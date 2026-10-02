@@ -62,6 +62,17 @@ def resolve_catalog_strategy(conn: sqlite3.Connection, strategy_key: str) -> Res
     return ResolvedStrategy(strategy_key=record.strategy_key, primitive_spec=primitive_spec, params=params)
 
 
+def find_catalog_strategy(conn: sqlite3.Connection, strategy_key: str) -> ResolvedStrategy | None:
+    """Resolve a catalog strategy key as :func:`resolve_catalog_strategy` does, or ``None`` without a row.
+
+    For callers that also accept ad-hoc labels with no catalog row. A row whose
+    primitive does not resolve still raises :class:`UnknownCatalogStrategyError`.
+    """
+    if StrategyRepository(conn).fetch_by_key(strategy_key=strategy_key.strip().lower()) is None:
+        return None
+    return resolve_catalog_strategy(conn, strategy_key)
+
+
 def resolve_catalog_params(conn: sqlite3.Connection, strategy_key: str) -> dict[str, Any]:
     """The effective signal knobs for a catalog strategy key (see ``resolve_catalog_strategy``)."""
     return resolve_catalog_strategy(conn, strategy_key).params

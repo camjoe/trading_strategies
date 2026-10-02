@@ -94,7 +94,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         help=(
             "Walk-forward parameter optimization for one strategy: grid-search on each"
             " training window, freeze the winner, then report out-of-sample and holdout"
-            " evidence against the strategy's default parameters."
+            " evidence against the strategy's current catalog parameters."
         ),
     )
     add_account_arg(p_optimize)
@@ -155,7 +155,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         "--allow-no-edge",
         action="store_true",
         help=(
-            "Bypass the promotion quality bar (winner must beat its own default on OOS and holdout"
+            "Bypass the promotion quality bar (winner must beat its baseline on OOS and holdout"
             " evidence) and promote anyway"
         ),
     )

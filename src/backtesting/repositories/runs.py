@@ -37,9 +37,9 @@ def insert_run(
     created_at: str | None = None,
     notes: str = "First working backtest version: deterministic daily-bar simulator.",
 ) -> int:
-    # The backtested strategy is a strategies FK. The caller
-    # passes the canonical strategy key (resolved via resolve_strategy in the
-    # service); the catalog row is seeded, so this is a lookup, not a create.
+    # The backtested strategy is a strategies FK. The caller passes the catalog
+    # key the run resolved to (resolve_run_strategy) — a variant's own key, or a
+    # primitive id for an ad-hoc label — so this is normally a lookup, not a create.
     created_at = created_at or utc_now_iso()
     strategy_id = StrategyRepository(conn).ensure_id_for_label(label=strategy_name, now_iso=created_at)
     cursor = conn.execute(

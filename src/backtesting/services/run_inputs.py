@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import sqlite3
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
 from backtesting.models import RunUniverse
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
+from trading.domain.strategies.contracts import StrategySpec
+from trading.domain.strategies.resolution import resolve_strategy
 from trading.models.market_data import BAR_CLOSE
 from trading.services.market_data.protocols import MarketDataProvider, require_provider
+from trading.services.strategy_catalog.resolution import UnknownCatalogStrategyError, find_catalog_strategy
 
 
 def fetch_bar_history(
@@ -133,5 +139,56 @@ def resolve_universe(
         default_tickers=default_tickers,
         month_to_tickers=month_to_tickers,
         all_tickers=all_tickers,
+        warnings=warnings,
+    )
+
+
+@dataclass(frozen=True)
+class RunStrategy:
+    """The strategy a run simulates: the catalog key its evidence is filed under,
+    the code primitive that produces its signals, and the knobs it runs with."""
+
+    strategy_key: str
+    spec: StrategySpec
+    # Code defaults with the catalog row's params_json layered over them.
+    params: dict[str, Any]
+    # The knobs in ``params`` that differ from the primitive's code defaults.
+    overrides: dict[str, Any]
+    warnings: list[str] = field(default_factory=list)
+
+
+def resolve_run_strategy(conn: sqlite3.Connection, label: str) -> RunStrategy:
+    """Resolve a strategy label to what a backtest runs, the same way live trading does.
+
+    A catalog key resolves through its row, so a variant runs its own
+    ``params_json`` knobs. A label with no catalog row falls back to the code
+    registry (aliases and keyword matching) with the primitive's defaults, and the
+    run carries a warning naming what it actually ran.
+    """
+    try:
+        resolved = find_catalog_strategy(conn, label)
+    except UnknownCatalogStrategyError as error:
+        raise ValidationError(str(error)) from error
+    if resolved is not None:
+        spec = resolve_strategy(resolved.primitive)
+        params = dict(resolved.params)
+        return RunStrategy(
+            strategy_key=resolved.strategy_key,
+            spec=spec,
+            params=params,
+            overrides={key: value for key, value in params.items() if spec.default_params.get(key) != value},
+        )
+
+    spec = resolve_strategy(label)
+    warnings = []
+    if label.strip().lower() != spec.strategy_id:
+        warnings.append(
+            f"Strategy '{label}' has no catalog row; ran primitive '{spec.strategy_id}' with its code defaults."
+        )
+    return RunStrategy(
+        strategy_key=spec.strategy_id,
+        spec=spec,
+        params=dict(spec.default_params),
+        overrides={},
         warnings=warnings,
     )

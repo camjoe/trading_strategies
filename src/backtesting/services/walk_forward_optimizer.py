@@ -33,8 +33,8 @@ from backtesting.models.optimizer import (
     WalkForwardSplit,
     WindowSelection,
 )
+from backtesting.services.run_inputs import resolve_run_strategy
 from trading.domain.exceptions import ValidationError
-from trading.domain.strategies.resolution import resolve_strategy
 
 # A metrics-only run computes performance without persisting; a persisted run writes a
 # backtest_runs row (used for the winner's OOS and holdout evidence).
@@ -81,16 +81,16 @@ def run_walk_forward_optimization(
     For each chronological window: evaluate every grid candidate on the training
     interval (persistence-free), freeze the best eligible candidate, then run that
     winner once over the out-of-sample interval. After all windows, run the
-    forward-carried winner once over the untouched holdout. The strategy's default
-    parameters are run over the same OOS/holdout intervals as a baseline. Training,
+    forward-carried winner once over the untouched holdout. The strategy's catalog
+    parameters — what it trades with — are run over the same OOS/holdout intervals
+    as a baseline, and candidates are layered over them. Training,
     OOS, and holdout evidence are kept strictly separate and never blended.
 
     The winner's OOS and holdout runs are persisted (purposes ``walk_forward_oos`` /
     ``final_holdout``); training trials and baseline comparison runs are metrics-only.
     """
-    spec = resolve_strategy(cfg.strategy)
-    default_params: dict[str, Any] = dict(spec.default_params)
-    unknown = set(cfg.search_space) - set(default_params)
+    strategy = resolve_run_strategy(conn, cfg.strategy)
+    unknown = set(cfg.search_space) - set(strategy.params)
     if unknown:
         raise ValidationError(f"search_space keys are not parameters of strategy '{cfg.strategy}': {sorted(unknown)}")
 
@@ -150,7 +150,8 @@ def run_walk_forward_optimization(
         strategy=cfg.strategy,
         account_name=cfg.account_name,
         objective_name=cfg.objective_name,
-        default_params=default_params,
+        baseline_params=strategy.params,
+        promotion_params=({**strategy.overrides, **window_selections[-1].winner.params} if window_selections else {}),
         windows=window_selections,
         holdout=holdout_outcome,
     )
@@ -166,8 +167,8 @@ def _run_one_window(
     run_metrics_only_fn: RunFn,
     run_persisted_fn: RunFn,
 ) -> WindowSelection:
-    """Select the window's winner on training data, then run it (and the default
-    baseline) once over the out-of-sample interval."""
+    """Select the window's winner on training data, then run it (and the catalog-
+    parameter baseline) once over the out-of-sample interval."""
     winner, candidate_results = _select_window_winner(
         conn,
         cfg,

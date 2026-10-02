@@ -324,7 +324,7 @@ def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
     if experiment.oos_mean_winner_return_pct is not None:
         print(
             f"OOS means: return {_pair(experiment.oos_mean_winner_return_pct, experiment.oos_mean_baseline_return_pct)} "
-            f"| winner beat default in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
+            f"| winner beat baseline in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
         )
     if experiment.holdout_run_id is None:
         print("Holdout: none")
@@ -424,7 +424,7 @@ def _rejection_tally(window_trials: list[Any]) -> list[tuple[str, int]]:
 
 
 def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:
-    """Format a winner/default metric pair for the optimizer summary."""
+    """Format a winner/baseline metric pair for the optimizer summary."""
     return f"{_format_metric(winner, suffix=suffix)}/{_format_metric(default, suffix=suffix)}"
 
 
@@ -433,8 +433,8 @@ def _print_optimization_summary(summary: Any) -> None:
         f"Walk-forward optimization: account={summary.account_name} strategy={summary.strategy} "
         f"objective={summary.objective_name}"
     )
-    print(f"Default params: {summary.default_params}")
-    print(f"Windows: {len(summary.windows)} (metrics shown as winner/default)")
+    print(f"Baseline params: {summary.baseline_params}")
+    print(f"Windows: {len(summary.windows)} (metrics shown as winner/baseline)")
     for window in summary.windows:
         winner, default = window.winner_oos, window.baseline_oos
         print(
@@ -452,7 +452,7 @@ def _print_optimization_summary(summary: Any) -> None:
         beats = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
         print(
             f"OOS means: return {_pair(avg_win_return, avg_def_return)} | maxDD {_pair(avg_win_dd, avg_def_dd)} "
-            f"| winner beat default on return in {beats}/{count} windows"
+            f"| winner beat baseline on return in {beats}/{count} windows"
         )
     if summary.holdout is None:
         print("Holdout: disabled")

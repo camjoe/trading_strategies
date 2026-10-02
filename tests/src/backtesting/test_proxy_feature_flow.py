@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import backtesting.composition as composition
+import backtesting.services.run_inputs as run_inputs
 import backtesting.services.simulation as simulation
 from tests.support.backtesting import (
     create_backtest_account,
@@ -101,7 +102,7 @@ class TestBacktestProxyFeatureFlow:
         # that declares features gets a bundle built and per-ticker history passed
         # to its signal � not any particular strategy.
         monkeypatch.setattr(
-            simulation,
+            run_inputs,
             "resolve_strategy",
             lambda _name: SimpleNamespace(
                 indicators=(),

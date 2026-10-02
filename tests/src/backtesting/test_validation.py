@@ -11,6 +11,7 @@ from tests.support.backtesting import (
     stub_market_data_provider,
 )
 from tests.support.strategies import ensure_strategy_id_for_label
+from trading.domain.exceptions import ValidationError
 
 
 class TestBacktestValidationAndFailurePaths:
@@ -31,7 +32,7 @@ class TestBacktestValidationAndFailurePaths:
         )
         bt_market_data(["AAPL"], [100.0, 101.0])
 
-        with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+        with pytest.raises(ValidationError, match="'mystery_strategy' .* does not resolve to a code primitive"):
             composition.run_backtest(
                 conn, make_backtest_config("acct_invalid_strategy"), provider=stub_market_data_provider()
             )

@@ -7,8 +7,8 @@ record the audit link back to the experiment. The variant is frozen by default
 (evidence-backed -> immutable) and, being enabled, is immediately a first-class
 catalog strategy available to rotation/assignment.
 
-The gate is **quality-gated by default**: the winner must beat its own default on
-OOS evidence (mean return and a majority of windows) and on the untouched holdout
+The gate is **quality-gated by default**: the winner must beat its baseline (the
+optimized strategy's catalog parameters) on OOS evidence (mean return and a majority of windows) and on the untouched holdout
 (see ``evaluate_promotion_gate``) — see ``docs/reference/backtesting.md`` for the
 exact bar. ``allow_no_edge=True`` bypasses the bar (e.g. to prove the promotion
 mechanism works before any edge exists), leaving only the existence/failed/
@@ -103,7 +103,7 @@ def _provenance(experiment: OptimizationExperimentRecord) -> str:
     if experiment.holdout_winner_return_pct is not None and experiment.holdout_baseline_return_pct is not None:
         parts.append(
             f"holdout winner {experiment.holdout_winner_return_pct:.2f}% "
-            f"vs default {experiment.holdout_baseline_return_pct:.2f}%"
+            f"vs baseline {experiment.holdout_baseline_return_pct:.2f}%"
         )
     parts.append(experiment.created_at)
     return "; ".join(parts)

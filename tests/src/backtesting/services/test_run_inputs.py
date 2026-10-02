@@ -8,6 +8,7 @@ import pytest
 
 from backtesting.services import run_inputs as run_inputs
 from trading.models.market_data import BAR_CLOSE
+from trading.repositories.strategies import StrategyRepository
 
 
 def test_build_monthly_universe_without_history_dir() -> None:
@@ -102,3 +103,41 @@ def test_fetch_benchmark_close_returns_clean_series(monkeypatch: pytest.MonkeyPa
     out = run_inputs.fetch_benchmark_close("SPY", date(2026, 1, 1), date(2026, 1, 31))
 
     assert list(out.values) == [100.0, 101.0]
+
+
+def _insert_variant(conn, strategy_key: str, primitive: str, params_json: str) -> None:
+    StrategyRepository(conn).insert(
+        strategy_key=strategy_key,
+        primitive=primitive,
+        params_json=params_json,
+        created_at="2026-07-12T12:00:00Z",
+        updated_at="2026-07-12T12:00:00Z",
+    )
+
+
+def test_resolve_run_strategy_runs_a_variant_with_its_catalog_knobs(conn) -> None:
+    # The key would keyword-match the trend primitive's defaults; the catalog row wins.
+    _insert_variant(conn, "trend_wfo_2026", "trend", '{"fast_window": 5}')
+
+    strategy = run_inputs.resolve_run_strategy(conn, "trend_wfo_2026")
+
+    assert strategy.strategy_key == "trend_wfo_2026"
+    assert strategy.spec.strategy_id == "trend"
+    assert strategy.params == {"fast_window": 5, "slow_window": 20}
+    assert strategy.overrides == {"fast_window": 5}
+    assert strategy.warnings == []
+
+
+def test_resolve_run_strategy_falls_back_to_code_defaults_with_a_warning(conn) -> None:
+    strategy = run_inputs.resolve_run_strategy(conn, "rsi_tuned")
+
+    assert strategy.strategy_key == "rsi"
+    assert strategy.params == {"window": 14, "oversold": 30, "overbought": 70}
+    assert strategy.overrides == {}
+    assert strategy.warnings == [
+        "Strategy 'rsi_tuned' has no catalog row; ran primitive 'rsi' with its code defaults."
+    ]
+
+
+def test_resolve_run_strategy_does_not_warn_for_an_unseeded_primitive_id(conn) -> None:
+    assert run_inputs.resolve_run_strategy(conn, "breakout").warnings == []

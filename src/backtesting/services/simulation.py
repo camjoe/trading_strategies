@@ -20,18 +20,17 @@ from backtesting.domain.risk_warnings import build_backtest_warnings
 from backtesting.domain.windowing import resolve_run_window, shift_months
 from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
-from backtesting.services.run_inputs import resolve_universe
+from backtesting.services.run_inputs import RunStrategy, resolve_run_strategy, resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.domain.accounting.account import apply_buy, apply_sell
 from trading.domain.auto_trading.sizing import allocate_buy_quantities, choose_buy_qty
 from trading.domain.metrics.portfolio_math import compute_market_value, compute_unrealized_pnl
 from trading.domain.metrics.returns import total_return_pct
-from trading.domain.strategies.contracts import StrategySpec
 from trading.domain.strategies.indicator_view import (
     IndicatorView,
     build_signal_inputs,
 )
-from trading.domain.strategies.resolution import evaluate_signal, resolve_strategy
+from trading.domain.strategies.resolution import evaluate_signal
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
@@ -145,7 +144,7 @@ class _ExecutionContext:
     default_book: BookRecord | None
     universe: RunUniverse
     signal_inputs: dict[str, Any]
-    strategy_name: str
+    primitive: str
     effective_params: dict[str, Any]
     feature_bundle: FeatureBundle | None
 
@@ -305,7 +304,7 @@ def _evaluate_signals(
             index=signal_index,
             priced_bars=priced_bars,
         )
-        signals[ticker] = evaluate_signal(ctx.strategy_name, view, ctx.effective_params, feature_history)
+        signals[ticker] = evaluate_signal(ctx.primitive, view, ctx.effective_params, feature_history)
     return signals
 
 
@@ -430,7 +429,7 @@ class _RunInputs:
     benchmark_return: float | None
     close: pd.DataFrame
     strategy_key: str
-    strategy_name: str
+    primitive: str
     effective_params: dict[str, Any]
     signal_inputs: dict[str, Any]
     feature_bundle: FeatureBundle | None
@@ -443,24 +442,21 @@ def _resolve_strategy_inputs(
     account_id: int,
     panel: Any,
     all_tickers: list[str],
-) -> tuple[StrategySpec, str, dict[str, Any], dict[str, Any]]:
+) -> tuple[RunStrategy, dict[str, Any], dict[str, Any]]:
     """The strategy this run simulates, its effective parameters, and its
     indicators precomputed once per ticker."""
     # An explicit override backtests a specific strategy (e.g. a rotation
     # challenger); otherwise the account's active strategy is used.
     strategy_override = cfg.strategy
-    strategy_name = (
+    strategy_label = (
         strategy_override.strip()
         if strategy_override and strategy_override.strip()
         else active_strategy_for_account(conn, account_id)
     )
-    strategy_spec = resolve_strategy(strategy_name)
+    strategy = resolve_run_strategy(conn, strategy_label)
     # A param override (walk-forward optimizer candidates) is merged over the
-    # strategy's catalog defaults for this run only; the catalog is never mutated.
-    param_override = cfg.param_override
-    effective_params = (
-        strategy_spec.default_params if not param_override else {**strategy_spec.default_params, **param_override}
-    )
+    # strategy's catalog params for this run only; the catalog is never mutated.
+    effective_params = {**strategy.params, **(cfg.param_override or {})}
 
     # Computed once for the whole run: deriving indicators inside the signal would
     # recompute the same rolling windows on every bar to keep only their last value.
@@ -473,11 +469,11 @@ def _resolve_strategy_inputs(
     calendar = pd.DatetimeIndex(panel.dates)
     signal_inputs = {
         ticker: build_signal_inputs(
-            panel.source(ticker), strategy_spec.indicators, effective_params, calendar=calendar
+            panel.source(ticker), strategy.spec.indicators, effective_params, calendar=calendar
         )
         for ticker in all_tickers
     }
-    return strategy_spec, strategy_name, effective_params, signal_inputs
+    return strategy, effective_params, signal_inputs
 
 
 def _resolve_run_inputs(
@@ -509,13 +505,14 @@ def _resolve_run_inputs(
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
-    strategy_spec, strategy_name, effective_params, signal_inputs = _resolve_strategy_inputs(
+    strategy, effective_params, signal_inputs = _resolve_strategy_inputs(
         conn,
         cfg,
         account_id=scope.account.id,
         panel=panel,
         all_tickers=all_tickers,
     )
+    scope.warnings.extend(strategy.warnings)
 
     benchmark_series = fetch_benchmark_close_fn(scope.account.benchmark_ticker, scope.start_date, scope.end_date)
     # Frozen onto the run row below rather than left for readers to recompute: this
@@ -524,7 +521,7 @@ def _resolve_run_inputs(
     benchmark_return = benchmark_return_pct(benchmark_series, float(scope.account.initial_cash))
 
     feature_bundle = None
-    if strategy_spec.required_features:
+    if strategy.spec.required_features:
         active_feature_provider = require_feature_provider(feature_provider)
         feature_bundle = active_feature_provider.build_feature_bundle(
             all_tickers, scope.start_date, scope.end_date, close
@@ -535,10 +532,10 @@ def _resolve_run_inputs(
         scope=scope,
         benchmark_return=benchmark_return,
         close=close,
-        # backtest_runs stores a strategies FK, so aliases and display names must
-        # resolve to the seeded catalog key before the header is written.
-        strategy_key=strategy_spec.strategy_id,
-        strategy_name=strategy_name,
+        # backtest_runs stores a strategies FK: a catalog key (a variant included) is
+        # filed under itself, an ad-hoc label under the primitive it resolved to.
+        strategy_key=strategy.strategy_key,
+        primitive=strategy.spec.strategy_id,
         effective_params=effective_params,
         signal_inputs=signal_inputs,
         feature_bundle=feature_bundle,
@@ -612,7 +609,7 @@ def run_backtest(
             default_book=scope.default_book,
             universe=scope.universe,
             signal_inputs=inputs.signal_inputs,
-            strategy_name=inputs.strategy_name,
+            primitive=inputs.primitive,
             effective_params=inputs.effective_params,
             feature_bundle=inputs.feature_bundle,
         )

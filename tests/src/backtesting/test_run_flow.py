@@ -14,6 +14,7 @@ from backtesting.models.report import (
     BacktestReportTrade,
 )
 from tests.support.backtesting import create_backtest_account, make_backtest_config, stub_market_data_provider
+from trading.repositories.strategies import StrategyRepository
 
 
 class TestBacktestRunFlow:
@@ -209,11 +210,10 @@ class TestBacktestRunFlow:
         set_account_strategy(conn, "acct_strategy_snapshot", "mean_reversion")
 
         # The report reflects the run's own strategy (a strategies FK snapshot),
-        # not the account's later strategy. The catalog stores the canonical key,
-        # so the alias "trend_v1" surfaces as "trend" — still independent of the
-        # account now being "mean_reversion".
+        # not the account's later strategy. The run is filed under the catalog key
+        # the account traded, "trend_v1", independent of it now being "mean_reversion".
         summary = reporting.fetch_report(conn, run_id=result.run_id).to_payload()
-        assert summary["strategy"] == "trend"
+        assert summary["strategy"] == "trend_v1"
 
         filtered = reporting.fetch_leaderboard(conn, limit=10, strategy="trend")
         assert any(entry.run_id == result.run_id for entry in filtered)
@@ -271,3 +271,62 @@ class TestBacktestRunFlow:
 
         assert any("Monthly universe reconstitution enabled" in warning for warning in result.warnings)
         assert any("Universe snapshot missing" in warning for warning in result.warnings)
+
+
+class TestCatalogVariantBacktest:
+    @pytest.fixture
+    def variant_account(self, conn, bt_market_data) -> None:
+        StrategyRepository(conn).insert(
+            strategy_key="trend_wfo_2026",
+            primitive="trend",
+            params_json='{"fast_window": 5, "slow_window": 40}',
+            created_at="2026-07-12T12:00:00Z",
+            updated_at="2026-07-12T12:00:00Z",
+        )
+        create_backtest_account(conn, "acct_variant")
+        bt_market_data(["AAPL"], [100.0, 101.0])
+
+    def _run_capturing_signal(self, conn, monkeypatch: pytest.MonkeyPatch, **cfg_overrides):
+        """Run a backtest and return its result plus the one (primitive, params) every signal saw."""
+        seen: set[tuple[str, tuple[tuple[str, object], ...]]] = set()
+
+        def capture_signal(primitive, _view, params, _feature_history=None) -> str:
+            seen.add((primitive, tuple(sorted(params.items()))))
+            return "hold"
+
+        monkeypatch.setattr(simulation, "evaluate_signal", capture_signal)
+        result = composition.run_backtest(
+            conn,
+            make_backtest_config("acct_variant", **cfg_overrides),
+            provider=stub_market_data_provider(),
+        )
+        assert len(seen) == 1
+        primitive, params = seen.pop()
+        return result, primitive, dict(params)
+
+    @pytest.mark.usefixtures("variant_account")
+    def test_variant_backtest_runs_its_params_json_knobs(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        result, primitive, params = self._run_capturing_signal(conn, monkeypatch, strategy="trend_wfo_2026")
+
+        assert primitive == "trend"
+        assert params == {"fast_window": 5, "slow_window": 40}
+        summary = reporting.fetch_report(conn, run_id=result.run_id).to_payload()
+        assert summary["strategy"] == "trend_wfo_2026"
+
+    @pytest.mark.usefixtures("variant_account")
+    def test_param_override_layers_over_the_variant_knobs(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _result, _primitive, params = self._run_capturing_signal(
+            conn, monkeypatch, strategy="trend_wfo_2026", param_override={"slow_window": 30}
+        )
+
+        assert params == {"fast_window": 5, "slow_window": 30}
+
+    @pytest.mark.usefixtures("variant_account")
+    def test_account_assigned_to_a_variant_backtests_the_variant(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        from trading.services.accounts.mutations import set_account_strategy
+
+        set_account_strategy(conn, "acct_variant", "trend_wfo_2026")
+
+        _result, _primitive, params = self._run_capturing_signal(conn, monkeypatch)
+
+        assert params == {"fast_window": 5, "slow_window": 40}
