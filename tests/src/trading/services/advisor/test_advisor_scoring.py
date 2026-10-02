@@ -29,12 +29,12 @@ _ACCOUNT = "advisor_scoring"
 _DECIDED_AT = "2026-08-03T15:00:00Z"
 _AS_OF = date(2026, 10, 1)
 
-# Backtest return per arm, keyed by the fast_window knob the scorer passes from the catalog row.
-_ARM_RETURNS = {5: 6.0, 30: 2.0}
+# Backtest return per arm, keyed by the catalog strategy key the scorer passes.
+_ARM_RETURNS = {"trend_fast": 6.0, "trend_slow": 2.0}
 
 
 class _FakeBacktests:
-    """Records each arm's config; returns a total return keyed by the arm's fast_window knob."""
+    """Records each arm's config; returns a total return keyed by the arm's strategy key."""
 
     def __init__(self, *, fail: bool = False) -> None:
         self.configs: list[BacktestConfig] = []
@@ -44,10 +44,9 @@ class _FakeBacktests:
         self.configs.append(cfg)
         if self.fail:
             raise ValueError("Not enough historical bars in selected range.")
-        fast_window = int((cfg.param_override or {}).get("fast_window", 0))
         return make_backtest_result(
             cfg.account_name,
-            total_return_pct=_ARM_RETURNS.get(fast_window, 0.0),
+            total_return_pct=_ARM_RETURNS.get(cfg.strategy or "", 0.0),
             benchmark_return_pct=3.0,
         )
 
@@ -109,14 +108,15 @@ def test_scores_the_chosen_arm_against_the_rejected_one(conn, account, chosen, a
     assert outcome.outcome_note == f"chosen {chosen} vs rejected {alternative}"
 
 
-def test_each_arm_runs_with_its_catalog_knobs_not_the_primitive_defaults(conn, account) -> None:
+def test_each_arm_is_backtested_by_its_catalog_key(conn, account) -> None:
     _due_decision(conn, account, decision_type=DECISION_TYPE_HOLD, chosen="trend_fast", alternative="trend_slow")
     backtests = _FakeBacktests()
 
     score_due_decisions(conn, run_backtest_fn=backtests, as_of=_AS_OF)
 
-    assert {cfg.strategy for cfg in backtests.configs} == {"trend"}
-    assert sorted(cfg.param_override["fast_window"] for cfg in backtests.configs) == [5, 30]
+    # The engine resolves each key through the catalog, so a variant runs with its own knobs.
+    assert sorted(cfg.strategy or "" for cfg in backtests.configs) == ["trend_fast", "trend_slow"]
+    assert all(cfg.param_override is None for cfg in backtests.configs)
     first = backtests.configs[0]
     assert (first.start, first.warmup_months) == ("2026-08-03", 6)
     # Both arms trade the book's own universe.

@@ -33,7 +33,6 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.strategy_decisions import StrategyDecisionRepository
 from trading.services.accounts.mutations import get_account
-from trading.services.strategy_catalog.resolution import resolve_catalog_strategy
 
 # Runs one metrics-only backtest; the interface binds the market-data provider into it.
 RunBacktestFn = Callable[[sqlite3.Connection, BacktestConfig], BacktestResult]
@@ -161,9 +160,8 @@ def _backtest_arm(
     tickers_file: str,
     window: tuple[date, date],
 ) -> tuple[str, BacktestResult]:
-    """Backtest one arm with its catalog knobs, so a variant runs as the variant, not its primitive."""
+    """Backtest one arm by its catalog key; the engine runs a variant with its own knobs."""
     strategy_key = _strategy_key(conn, strategy_id)
-    resolved = resolve_catalog_strategy(conn, strategy_key)
     start, end = window
     result = run_backtest_fn(
         conn,
@@ -178,9 +176,9 @@ def _backtest_arm(
             fee_per_trade=SCORING_FEE_PER_TRADE,
             run_name=None,
             allow_approximate_leaps=False,
-            strategy=resolved.primitive,
+            strategy=strategy_key,
             purpose=BACKTEST_PURPOSE_STANDALONE,
-            param_override=resolved.params,
+            param_override=None,
             warmup_months=SCORING_WARMUP_MONTHS,
         ),
     )
