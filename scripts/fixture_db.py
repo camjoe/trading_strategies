@@ -74,6 +74,7 @@ def build_fixture_database(
         conn.row_factory = sqlite3.Row
         try:
             conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
             upgrade(connection=conn)
             seed_fixture_database(conn, profile=profile, provider=DemoMarketDataProvider())
         finally:
@@ -134,4 +135,16 @@ def checkout_sandbox(
     # Replace the working copy wholesale so no prior run's writes survive.
     remove_exact_targets(local_dir, working_name)
     shutil.copyfile(golden_path, working_path)
+    _set_wal_mode(working_path)
     return working_path, rebuilt
+
+
+def _set_wal_mode(database_path: Path) -> None:
+    # The web backend opens several connections at once. If each one converts a
+    # rollback-journal file to WAL, two conversions can fail at once with
+    # "database is locked", because busy_timeout does not cover that deadlock.
+    conn = sqlite3.connect(database_path)
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+    finally:
+        conn.close()

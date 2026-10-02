@@ -92,6 +92,20 @@ def test_checkout_rebuilds_once_then_reuses_the_golden(repo_root: Path) -> None:
     assert second_rebuilt is False
 
 
+def test_checkout_restores_the_working_copy_in_wal_mode(repo_root: Path) -> None:
+    working_path, _ = checkout_sandbox(
+        repo_root,
+        profile=DEMO_PROFILE,
+        golden_name=GOLDEN_NAME,
+        working_name=WORKING_NAME,
+    )
+    conn = sqlite3.connect(working_path)
+    try:
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    finally:
+        conn.close()
+
+
 def test_checkout_rebuilds_when_the_fingerprint_goes_stale(repo_root: Path) -> None:
     checkout_sandbox(
         repo_root,
