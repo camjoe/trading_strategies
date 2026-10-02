@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
 import pytest
 
+from common.paths import JOB_SCHEDULE_EXAMPLE_PATH
 from trading.interfaces.runtime.scheduling import job_catalog
 
 
@@ -98,3 +100,17 @@ def test_resolve_rejects_non_object_root(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="'jobs' array"):
         job_catalog.resolve_schedule_config(config_path)
+
+
+def test_example_config_schedules_every_catalog_job() -> None:
+    resolution = job_catalog.resolve_schedule_config(JOB_SCHEDULE_EXAMPLE_PATH)
+
+    assert {spec.task_name for spec in resolution.to_register} == set(job_catalog.ALL_TASK_NAMES)
+    assert resolution.to_unregister == []
+
+
+@pytest.mark.parametrize("definition", job_catalog.JOB_CATALOG.values(), ids=lambda definition: definition.job_id)
+def test_catalog_module_is_runnable(definition: job_catalog.JobDefinition) -> None:
+    module = importlib.import_module(definition.module)
+
+    assert callable(getattr(module, "main", None))
