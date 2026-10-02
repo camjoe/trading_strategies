@@ -50,7 +50,7 @@ column details, run `python -m scripts.data_ops.describe_db_schema`.
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
 | `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account | → `accounts`, `books` |
-| `strategy_decisions` | Advisor decision ledger (including `hold`): write-once decision, rationale, and frozen evidence, plus outcome columns scored after the decision's window | → `accounts`, `books`, `strategies`, `promotion_reviews` |
+| `strategy_decisions` | Advisor decision ledger (including `hold`): write-once decision, the alternative it rejected, rationale, and frozen evidence, plus outcome columns scored counterfactually after the decision's window | → `accounts`, `books`, `strategies`, `promotion_reviews` |
 | `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`) | → `books` |
 | `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run | → `backtest_runs` |
 | `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link; `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws | → `accounts`, `strategies`, `backtest_runs` |
@@ -125,6 +125,14 @@ run; deleting a book or review keeps the decision history.
 `optimization_experiment_id` is a plain id with no foreign key, because `optimization_experiments`
 belongs to the backtesting context. The frozen `evidence_json` is the durable record of what the
 decision rested on, and stays valid if the experiment is deleted.
+
+Outcomes are scored **counterfactually** (revision `0004`). `strategy_id` is the arm the decision
+put or kept in place and `alternative_strategy_id` the arm it rejected; both are backtested over
+the window that followed, into `chosen_return_pct` and `alternative_return_pct`, and the verdict
+comes from their difference. A `disable_strategy` decision's chosen arm is cash. `realized_return_pct` (the
+book's paper equity) and `realized_benchmark_return_pct` are context only: they score the market,
+not the decision. A decision with no rejected alternative, or a `run_experiment`, scores
+`inconclusive`.
 
 ### `book_rotation_settings`
 

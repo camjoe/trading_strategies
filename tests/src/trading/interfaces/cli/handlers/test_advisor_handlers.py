@@ -6,7 +6,11 @@ import pytest
 
 import trading.interfaces.cli.handlers.advisor_handlers as module
 from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_ctx, patch_services
-from trading.interfaces.cli.handlers.advisor_handlers import handle_advisor_digest, handle_advisor_record
+from trading.interfaces.cli.handlers.advisor_handlers import (
+    handle_advisor_digest,
+    handle_advisor_record,
+    handle_advisor_score,
+)
 from trading.models.advisor import AdvisorDigest
 
 
@@ -18,6 +22,7 @@ def _record_args(**overrides):
         "decided_by": "agent",
         "book": None,
         "strategy": None,
+        "alternative": None,
         "note": [],
         "experiment_id": None,
         "promotion_review_id": None,
@@ -93,3 +98,19 @@ def test_digest_rejects_a_malformed_as_of(monkeypatch) -> None:
             fake_parser(),
             ctx=make_ctx(),
         )
+
+
+def test_score_binds_the_provider_and_prints_the_results(capsys, monkeypatch) -> None:
+    calls: dict = {}
+
+    def _score(_conn, **kwargs):
+        calls.update(kwargs)
+        return []
+
+    patch_services(monkeypatch, module, score_due_decisions=_score)
+    ctx = make_ctx()
+    handle_advisor_score(object(), types.SimpleNamespace(account="acct", as_of=None), fake_parser(), ctx=ctx)
+
+    assert calls["account_name"] == "acct"
+    assert calls["run_backtest_fn"].keywords == {"provider": ctx.provider}
+    assert "No decisions are due for scoring." in capsys.readouterr().out

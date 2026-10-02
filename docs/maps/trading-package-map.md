@@ -51,7 +51,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | Module | Responsibility |
 |---|---|
 | `commands/accounts.py` | argparse subcommands for account actions |
-| `commands/advisor.py` | argparse subcommands for the advisor ledger and digest (`advisor-record`, `advisor-digest`) |
+| `commands/advisor.py` | argparse subcommands for the advisor ledger (`advisor-record`, `advisor-digest`, `advisor-score`) |
 | `commands/backtesting.py` | argparse subcommands for backtesting |
 | `commands/reporting.py` | argparse subcommands for reporting |
 | `commands/settings.py` | argparse subcommands for operational-settings and rotation-policy edits |
@@ -139,7 +139,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `advisor/decisions.py` | Record an advisor decision in the `strategy_decisions` ledger, resolving its book and strategy and freezing the current evaluation as its evidence |
 | `advisor/digest.py` | Read-only advisor digest: per-account evaluation + recent and due ledger decisions + review flags |
-| `advisor/presentation.py` | Pure string builders for the advisor digest and decision lines |
+| `advisor/presentation.py` | Pure string builders for the advisor digest, decision, and scoring lines |
+| `advisor/scoring.py` | Score due decisions counterfactually: backtest the chosen and rejected arms (with their catalog knobs) over the window that followed and record the verdict |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |
@@ -276,7 +277,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
 | `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
 | `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
-| `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, and which digest review flags to raise |
+| `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, which digest review flags to raise, which arms a decision is scored on, and the neutral-band verdict rule |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
@@ -322,7 +323,7 @@ otherwise import from the feature module (`from trading.models.books import Book
 | Module | Contracts |
 |---|---|
 | `accounts.py` | `AccountRecord` (implements `Mapping`), `AccountInsert`, `AccountConfig`, `AccountState`, `AccountDeletionPreview` + config field-name vocabulary |
-| `advisor.py` | `StrategyDecisionInsert`, `StrategyDecisionOutcome`, `StrategyDecisionRecord`, `AdvisorFlag`, `AdvisorAccountDigest`, `AdvisorDigest` + decision-type, outcome, and flag vocabulary |
+| `advisor.py` | `StrategyDecisionInsert`, `StrategyDecisionOutcome`, `StrategyDecisionRecord`, `AdvisorFlag`, `AdvisorAccountDigest`, `AdvisorDigest`, `CounterfactualPlan`, `DecisionScoreResult` + decision-type, outcome, and flag vocabulary |
 | `books.py` | `BookRecord` (implements `Mapping`), `BookAssignmentView`, `BookStrategyAssignmentRecord`, `TradingBook`, `BookRotationSettingsRecord`, `BookRotationSettingsChangeEvent`, `RotationDecisionRecord`, `PositionRecord`, `LedgerEntryRecord`, `BookFillTransition`, `RiskDecisionRecord`, `RiskSnapshotRecord` + settings-group vocabulary |
 | `execution.py` | `BookTradeCandidate`, `BookTradeIntent`, `BookTradeState`, `RiskGateConfig`, `RiskGatePosition`, `RiskGateDecision`, `RiskGateResult`, `GateResult`, `SubmissionResult`, `BookNavMarkResult`, `BookRunAudit` + risk-gate defaults |
 | `orders.py` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `OrderRecord` |

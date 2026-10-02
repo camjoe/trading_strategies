@@ -111,3 +111,35 @@ def test_digest_covers_every_account_and_renders(conn, account) -> None:
     assert {item.account_name for item in digest.accounts} == {_ACCOUNT, "advisor_other"}
     assert f"== {_ACCOUNT} ==" in lines
     assert any("hold by agent" in line for line in lines)
+
+
+def test_scoring_lines_show_the_verdict_or_the_reason() -> None:
+    from trading.models.advisor import DecisionScoreResult, StrategyDecisionOutcome
+    from trading.services.advisor.presentation import render_scoring_lines
+
+    measured = DecisionScoreResult(
+        strategy_decision_id=1,
+        account_name=_ACCOUNT,
+        decision_type="hold",
+        outcome=StrategyDecisionOutcome(
+            outcome_status="measured",
+            outcome_window_start="2026-08-03",
+            outcome_window_end="2026-09-01",
+            chosen_return_pct=4.0,
+            alternative_return_pct=1.0,
+            outcome_verdict="helped",
+            outcome_note="chosen a vs rejected b",
+        ),
+    )
+    inconclusive = DecisionScoreResult(
+        strategy_decision_id=2,
+        account_name=_ACCOUNT,
+        decision_type="run_experiment",
+        outcome=StrategyDecisionOutcome(outcome_status="inconclusive", outcome_note="nothing to compare"),
+    )
+
+    lines = render_scoring_lines([measured, inconclusive])
+
+    assert lines[0] == "Scored 2 decision(s):"
+    assert "helped | chosen 4.00% vs rejected 1.00% over 2026-08-03..2026-09-01" in lines[1]
+    assert lines[2].endswith("inconclusive (nothing to compare)")

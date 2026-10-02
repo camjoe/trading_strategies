@@ -293,7 +293,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 18:57 01-10-2026 PST. Tables: 28.</div>
+      <div class="meta">Source: fresh code schema. Generated: 20:00 01-10-2026 PST. Tables: 28.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
@@ -450,7 +450,7 @@
       ]
     }
   ],
-  "generatedAt": "18:57 01-10-2026 PST",
+  "generatedAt": "20:00 01-10-2026 PST",
   "roleViews": [
     {
       "description": "Mutable system-of-record tables: identity, configuration, catalogs, and live positions. Updated in place; they hold what is true now, not a history of changes.",
@@ -4774,6 +4774,34 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "alternative_strategy_id",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": {
+            "color": "#64748b",
+            "id": "catalogs",
+            "label": "Catalogs and settings"
+          },
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "chosen_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "alternative_return_pct",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
         }
       ],
       "foreignKeys": [
@@ -4811,6 +4839,13 @@
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "accounts"
+        },
+        {
+          "column": "alternative_strategy_id",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "referencesColumn": "id",
+          "referencesTable": "strategies"
         },
         {
           "column": "strategy_id",

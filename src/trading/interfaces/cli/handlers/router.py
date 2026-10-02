@@ -8,7 +8,11 @@ from trading.interfaces.cli.handlers.accounts_handlers import (
     handle_set_benchmark,
     handle_trade,
 )
-from trading.interfaces.cli.handlers.advisor_handlers import handle_advisor_digest, handle_advisor_record
+from trading.interfaces.cli.handlers.advisor_handlers import (
+    handle_advisor_digest,
+    handle_advisor_record,
+    handle_advisor_score,
+)
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
@@ -86,6 +90,7 @@ COMMAND_HANDLERS = {
     "backtest-optimize-promote": handle_backtest_optimize_promote,
     "advisor-record": handle_advisor_record,
     "advisor-digest": handle_advisor_digest,
+    "advisor-score": handle_advisor_score,
 }
 
 

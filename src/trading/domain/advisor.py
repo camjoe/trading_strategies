@@ -1,6 +1,7 @@
-"""Advisor digest policy: when a decision is due for scoring, and which review flags to raise.
+"""Advisor policy: when a decision is due, which review flags to raise, and how a decision is scored.
 
-Flags are prompts for a reviewer, not chosen actions; the digest never picks a decision.
+Flags are prompts for a reviewer, not chosen actions; the digest never picks a decision. A decision
+is scored against the alternative it rejected, not against the market.
 """
 
 from __future__ import annotations
@@ -10,13 +11,19 @@ from datetime import date, datetime
 
 from trading.domain.market.hours import add_us_equity_trading_days
 from trading.models.advisor import (
+    DECISION_TYPE_DISABLE_STRATEGY,
+    DECISION_TYPE_RUN_EXPERIMENT,
     FLAG_BACKTEST_STALE,
     FLAG_DATA_GAPS,
     FLAG_DECISIONS_DUE,
     FLAG_NO_PAPER_EVIDENCE,
     FLAG_NO_WALK_FORWARD,
     FLAG_PAPER_RETURN_NEGATIVE,
+    OUTCOME_VERDICT_HELPED,
+    OUTCOME_VERDICT_HURT,
+    OUTCOME_VERDICT_NEUTRAL,
     AdvisorFlag,
+    CounterfactualPlan,
     StrategyDecisionRecord,
 )
 from trading.models.evaluation import (
@@ -24,6 +31,10 @@ from trading.models.evaluation import (
     WALK_FORWARD_EVIDENCE_GAP,
     StrategyEvaluationArtifact,
 )
+
+# Arms whose returns differ by less than this many percentage points score neutral: one
+# window cannot separate a gap that small from noise.
+DECISION_NEUTRAL_BAND_PCT = 1.0
 
 # Data gaps already reported by their own flag, so the data_gaps flag omits them.
 _GAPS_WITH_THEIR_OWN_FLAG = frozenset({PAPER_LIVE_EVIDENCE_GAP, WALK_FORWARD_EVIDENCE_GAP})
@@ -78,3 +89,33 @@ def build_review_flags(
     if other_gaps:
         flags.append(AdvisorFlag(FLAG_DATA_GAPS, ", ".join(other_gaps)))
     return flags
+
+
+def plan_counterfactual(record: StrategyDecisionRecord) -> CounterfactualPlan:
+    """The arms a decision is scored on: what it put or kept in place versus what it rejected.
+
+    A disabled strategy's chosen arm is cash; ``run_experiment`` gathers evidence rather than
+    choosing between strategies, so it has no counterfactual.
+    """
+    if record.decision_type == DECISION_TYPE_RUN_EXPERIMENT:
+        return CounterfactualPlan(unscorable_reason="run_experiment chooses no strategy to compare")
+    if record.strategy_id is None:
+        return CounterfactualPlan(unscorable_reason="no strategy recorded on the decision")
+    if record.decision_type == DECISION_TYPE_DISABLE_STRATEGY:
+        return CounterfactualPlan(chosen_strategy_id=None, alternative_strategy_id=record.strategy_id)
+    if record.alternative_strategy_id is None:
+        return CounterfactualPlan(unscorable_reason="no rejected alternative recorded on the decision")
+    return CounterfactualPlan(
+        chosen_strategy_id=record.strategy_id,
+        alternative_strategy_id=record.alternative_strategy_id,
+    )
+
+
+def counterfactual_verdict(*, chosen_return_pct: float, alternative_return_pct: float) -> str:
+    """helped / hurt when the chosen arm beat / trailed the rejected one by more than the band."""
+    edge = chosen_return_pct - alternative_return_pct
+    if edge > DECISION_NEUTRAL_BAND_PCT:
+        return OUTCOME_VERDICT_HELPED
+    if edge < -DECISION_NEUTRAL_BAND_PCT:
+        return OUTCOME_VERDICT_HURT
+    return OUTCOME_VERDICT_NEUTRAL

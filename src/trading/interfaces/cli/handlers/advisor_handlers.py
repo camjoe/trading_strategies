@@ -1,13 +1,16 @@
-"""Handlers for the advisor ledger and digest commands."""
+"""Handlers for the advisor ledger, digest, and scoring commands."""
 
 from __future__ import annotations
 
 from datetime import date
+from functools import partial
 
+from backtesting.composition import run_backtest_metrics_only
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.advisor.decisions import record_decision
 from trading.services.advisor.digest import build_advisor_digest
-from trading.services.advisor.presentation import render_advisor_digest_lines
+from trading.services.advisor.presentation import render_advisor_digest_lines, render_scoring_lines
+from trading.services.advisor.scoring import score_due_decisions
 
 
 def _parse_notes(raw_notes: list[str]) -> dict[str, str]:
@@ -30,6 +33,7 @@ def handle_advisor_record(conn, args, parser, *, ctx: CliContext) -> None:
             decided_by=args.decided_by,
             book_name=args.book,
             strategy_key=args.strategy,
+            alternative_strategy_key=args.alternative,
             notes=_parse_notes(args.note),
             optimization_experiment_id=args.experiment_id,
             promotion_review_id=args.promotion_review_id,
@@ -51,3 +55,18 @@ def handle_advisor_digest(conn, args, parser, *, ctx: CliContext) -> None:
         parser.error(str(error))
         return
     print("\n".join(render_advisor_digest_lines(digest)))
+
+
+def handle_advisor_score(conn, args, parser, *, ctx: CliContext) -> None:
+    try:
+        as_of = date.fromisoformat(args.as_of) if args.as_of else None
+        results = score_due_decisions(
+            conn,
+            run_backtest_fn=partial(run_backtest_metrics_only, provider=ctx.provider),
+            account_name=args.account,
+            as_of=as_of,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+    print("\n".join(render_scoring_lines(results)))

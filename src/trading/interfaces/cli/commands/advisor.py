@@ -23,7 +23,15 @@ def add_advisor_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser
     p_record.add_argument(
         "--strategy",
         default=None,
-        help="Catalog strategy the decision targets (default: the book's assigned strategy)",
+        help="Catalog strategy the decision puts or keeps in place (default: the book's assigned strategy)",
+    )
+    p_record.add_argument(
+        "--alternative",
+        default=None,
+        help=(
+            "Catalog strategy the decision rejected; scoring backtests both over the following window. "
+            "Omit for disable_strategy and run_experiment."
+        ),
     )
     p_record.add_argument(
         "--note",
@@ -47,6 +55,20 @@ def add_advisor_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser
     )
     p_digest.add_argument("--account", default=None, help="Limit to one account (default: all accounts)")
     p_digest.add_argument(
+        "--as-of",
+        default=None,
+        help="Trading date YYYY-MM-DD that decides which decisions are due (default: today, UTC)",
+    )
+
+    p_score = sub.add_parser(
+        "advisor-score",
+        help=(
+            "Score decisions whose outcome window has closed: backtest the chosen and rejected strategies "
+            "over the window that followed and record the verdict."
+        ),
+    )
+    p_score.add_argument("--account", default=None, help="Limit to one account (default: all accounts)")
+    p_score.add_argument(
         "--as-of",
         default=None,
         help="Trading date YYYY-MM-DD that decides which decisions are due (default: today, UTC)",

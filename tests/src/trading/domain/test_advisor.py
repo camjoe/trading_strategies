@@ -3,7 +3,15 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from trading.domain.advisor import build_review_flags, due_for_scoring, outcome_window_end
+import pytest
+
+from trading.domain.advisor import (
+    build_review_flags,
+    counterfactual_verdict,
+    due_for_scoring,
+    outcome_window_end,
+    plan_counterfactual,
+)
 from trading.models.advisor import (
     FLAG_BACKTEST_STALE,
     FLAG_DATA_GAPS,
@@ -113,3 +121,58 @@ def test_data_gaps_flag_omits_gaps_that_have_their_own_flag() -> None:
 
     assert [flag.code for flag in flags] == [FLAG_NO_WALK_FORWARD, FLAG_NO_PAPER_EVIDENCE, FLAG_DATA_GAPS]
     assert flags[-1].reason == "missing_backtest_evidence"
+
+
+@pytest.mark.parametrize(
+    ("chosen", "alternative", "verdict"),
+    [
+        (5.0, 3.0, "helped"),
+        (3.0, 5.0, "hurt"),
+        (3.5, 3.0, "neutral"),
+        (3.0, 3.5, "neutral"),
+        (4.0, 3.0, "neutral"),  # exactly the band edge stays neutral
+    ],
+)
+def test_counterfactual_verdict_uses_a_neutral_band(chosen: float, alternative: float, verdict: str) -> None:
+    assert counterfactual_verdict(chosen_return_pct=chosen, alternative_return_pct=alternative) == verdict
+
+
+def _scored_record(*, decision_type: str, strategy_id: int | None, alternative_strategy_id: int | None):
+    return replace(
+        _record(created_at="2026-10-01T00:00:00Z"),
+        decision_type=decision_type,
+        strategy_id=strategy_id,
+        alternative_strategy_id=alternative_strategy_id,
+    )
+
+
+def test_plan_compares_the_chosen_strategy_with_the_rejected_one() -> None:
+    plan = plan_counterfactual(_scored_record(decision_type="hold", strategy_id=1, alternative_strategy_id=2))
+    assert (plan.chosen_strategy_id, plan.alternative_strategy_id, plan.unscorable_reason) == (1, 2, None)
+
+
+def test_plan_for_a_disabled_strategy_compares_cash_with_that_strategy() -> None:
+    plan = plan_counterfactual(
+        _scored_record(decision_type="disable_strategy", strategy_id=4, alternative_strategy_id=None)
+    )
+    assert (plan.chosen_strategy_id, plan.alternative_strategy_id) == (None, 4)
+
+
+@pytest.mark.parametrize(
+    ("decision_type", "strategy_id", "alternative_strategy_id", "reason"),
+    [
+        ("run_experiment", 1, None, "run_experiment"),
+        ("hold", None, 2, "no strategy"),
+        ("adjust_params", 1, None, "no rejected alternative"),
+        ("disable_strategy", None, None, "no strategy"),
+    ],
+)
+def test_plan_reports_why_a_decision_is_unscorable(
+    decision_type: str, strategy_id: int | None, alternative_strategy_id: int | None, reason: str
+) -> None:
+    plan = plan_counterfactual(
+        _scored_record(
+            decision_type=decision_type, strategy_id=strategy_id, alternative_strategy_id=alternative_strategy_id
+        )
+    )
+    assert reason in (plan.unscorable_reason or "")

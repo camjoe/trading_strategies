@@ -73,6 +73,7 @@ def test_outcome_columns_can_be_scored(conn: sqlite3.Connection) -> None:
         ("decision_type", "adjust_params"),
         ("decided_by", "someone_else"),
         ("outcome_window_days", 5),
+        ("alternative_strategy_id", 999),
     ],
 )
 def test_decision_fields_are_write_once(conn: sqlite3.Connection, column: str, value: object) -> None:
@@ -110,3 +111,12 @@ def test_deleting_the_account_removes_its_decisions(conn: sqlite3.Connection) ->
     ids = _seed(conn)
     conn.execute("DELETE FROM accounts WHERE id = ?", (ids["account"],))
     assert conn.execute("SELECT COUNT(*) FROM strategy_decisions").fetchone()[0] == 0
+
+
+def test_counterfactual_arm_returns_are_outcome_columns(conn: sqlite3.Connection) -> None:
+    ids = _seed(conn)
+    conn.execute(
+        "UPDATE strategy_decisions SET chosen_return_pct = 4.0, alternative_return_pct = 1.0 WHERE id = ?",
+        (ids["decision"],),
+    )
+    assert _column(conn, ids["decision"], "chosen_return_pct") == 4.0

@@ -55,6 +55,7 @@ class StrategyDecisionInsert:
     account_id: int
     book_id: int | None = None
     strategy_id: int | None = None
+    alternative_strategy_id: int | None = None
     decision_type: str
     rationale: str
     evidence_json: str
@@ -76,8 +77,12 @@ class StrategyDecisionOutcome:
     outcome_status: str
     outcome_window_start: str | None = None
     outcome_window_end: str | None = None
+    # What the book's paper equity and the benchmark actually did over the window; context only.
     realized_return_pct: float | None = None
     realized_benchmark_return_pct: float | None = None
+    # Backtests of the chosen and rejected arms over the same window; the verdict comes from these.
+    chosen_return_pct: float | None = None
+    alternative_return_pct: float | None = None
     outcome_verdict: str | None = None
     outcome_note: str | None = None
     outcome_measured_at: str | None = None
@@ -97,6 +102,7 @@ class StrategyDecisionRecord(StrategyDecisionInsert):
             account_id=row_expect_int(values, "account_id"),
             book_id=row_int(values, "book_id"),
             strategy_id=row_int(values, "strategy_id"),
+            alternative_strategy_id=row_int(values, "alternative_strategy_id"),
             decision_type=row_expect_str(values, "decision_type"),
             rationale=row_expect_str(values, "rationale"),
             evidence_json=row_expect_str(values, "evidence_json"),
@@ -111,6 +117,8 @@ class StrategyDecisionRecord(StrategyDecisionInsert):
                 outcome_window_end=row_str(values, "outcome_window_end"),
                 realized_return_pct=row_float(values, "realized_return_pct"),
                 realized_benchmark_return_pct=row_float(values, "realized_benchmark_return_pct"),
+                chosen_return_pct=row_float(values, "chosen_return_pct"),
+                alternative_return_pct=row_float(values, "alternative_return_pct"),
                 outcome_verdict=row_str(values, "outcome_verdict"),
                 outcome_note=row_str(values, "outcome_note"),
                 outcome_measured_at=row_str(values, "outcome_measured_at"),
@@ -153,3 +161,25 @@ class AdvisorDigest:
     generated_at: str
     as_of_date: str
     accounts: list[AdvisorAccountDigest]
+
+
+@dataclass(frozen=True, slots=True)
+class CounterfactualPlan:
+    """The two arms a decision is scored on, or why it cannot be scored.
+
+    ``chosen_strategy_id`` None means the chosen arm holds cash (a disabled strategy).
+    """
+
+    chosen_strategy_id: int | None = None
+    alternative_strategy_id: int | None = None
+    unscorable_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DecisionScoreResult:
+    """What scoring did to one due decision."""
+
+    strategy_decision_id: int
+    account_name: str
+    decision_type: str
+    outcome: StrategyDecisionOutcome

@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from trading.domain.advisor import outcome_window_end
-from trading.models.advisor import AdvisorAccountDigest, AdvisorDigest, StrategyDecisionRecord
+from trading.models.advisor import (
+    AdvisorAccountDigest,
+    AdvisorDigest,
+    DecisionScoreResult,
+    StrategyDecisionRecord,
+)
 
 _MISSING = "n/a"
 
@@ -53,3 +58,23 @@ def render_advisor_digest_lines(digest: AdvisorDigest) -> list[str]:
         lines.append("")
         lines.extend(_render_account(account))
     return lines
+
+
+def render_score_result_line(result: DecisionScoreResult) -> str:
+    outcome = result.outcome
+    head = f"#{result.strategy_decision_id} {result.account_name} {result.decision_type}"
+    if outcome.outcome_verdict is None:
+        return f"{head}: {outcome.outcome_status} ({outcome.outcome_note})"
+    return (
+        f"{head}: {outcome.outcome_verdict} | chosen {_pct(outcome.chosen_return_pct)} "
+        f"vs rejected {_pct(outcome.alternative_return_pct)} over "
+        f"{outcome.outcome_window_start}..{outcome.outcome_window_end} "
+        f"| paper {_pct(outcome.realized_return_pct)}, benchmark {_pct(outcome.realized_benchmark_return_pct)} "
+        f"({outcome.outcome_note})"
+    )
+
+
+def render_scoring_lines(results: list[DecisionScoreResult]) -> list[str]:
+    if not results:
+        return ["No decisions are due for scoring."]
+    return [f"Scored {len(results)} decision(s):", *(f"- {render_score_result_line(result)}" for result in results)]
