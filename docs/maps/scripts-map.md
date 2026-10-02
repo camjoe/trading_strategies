@@ -96,6 +96,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `backup_db.py` | SQLite DB backup — copies the live DB to a timestamped backup file |
 | `check_cash_invariant.py` | Read-only reconciliation report: each book's `current_cash` vs `start_equity` + ledger sum, within a float tolerance |
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
+| `capture_scenario_fixture.py` | Capture a real-history scenario-bench fixture into the untracked `local/scenario_bench/` (one episode, or all) |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
 

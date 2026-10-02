@@ -1,14 +1,39 @@
 from __future__ import annotations
 
+import os
 import sqlite3
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from dataclasses import replace
 
+import pandas as pd
+
+from backtesting.domain.scenario_bench.contracts import (
+    SCENARIO_MODE_BOOTSTRAP,
+    SCENARIO_MODE_REPLAY,
+    PathRequest,
+    ScenarioSpec,
+)
+from backtesting.domain.scenario_bench.generators import bootstrap_frames, replay_frames
 from backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
 )
+from backtesting.models.scenario_bench import BenchMatrix
 from backtesting.services.run_inputs import fetch_bar_history, fetch_benchmark_close
+from backtesting.services.scenario_bench import (
+    RESERVED_BENCH_ACCOUNT,
+    BenchRunContext,
+    ensure_bench_account,
+    resolve_bench_universe,
+    run_scenario_bench,
+    write_synthetic_universe,
+)
+from backtesting.services.scenario_fixtures import load_fixture
 from backtesting.services.simulation import run_backtest as run_backtest_impl
+from infrastructure.market_data.scenario_provider import ScenarioMarketDataProvider
+from trading.domain.exceptions import ValidationError
 from trading.services.market_data.factory import build_feature_provider
 from trading.services.market_data.protocols import MarketDataProvider
 
@@ -102,3 +127,92 @@ def run_backtest_batch(
 
     results.sort(key=lambda item: item.total_return_pct, reverse=True)
     return results
+
+
+def _bind_scenario(spec: ScenarioSpec) -> ScenarioSpec:
+    """Bind a real-data scenario to its loaded fixture, or pass a synthetic one through.
+
+    A real-data scenario carries a `FixtureSource` and the unbound generator
+    sentinel. This loads the fixture (the only file read) and replaces the
+    generator with a replay or bootstrap closure over the real bars. Replay also
+    takes its length from the fixture, so `days` is overridden with the real count.
+    """
+    source = spec.source
+    if source is None:
+        return spec
+
+    bars = load_fixture(source.fixture_id)
+    if source.mode == SCENARIO_MODE_REPLAY:
+        length = min(len(frame) for frame in bars.values())
+
+        def replay_generator(request: PathRequest) -> dict[str, pd.DataFrame]:
+            return replay_frames(bars, request.tickers, request.index)
+
+        return replace(spec, generator=replay_generator, days=length, source=None)
+
+    if source.mode == SCENARIO_MODE_BOOTSTRAP:
+        block_size = source.block_size
+
+        def bootstrap_generator(request: PathRequest) -> dict[str, pd.DataFrame]:
+            return bootstrap_frames(bars, request.tickers, request.index, request.seed, block_size)
+
+        return replace(spec, generator=bootstrap_generator, source=None)
+
+    raise ValidationError(f"Unknown scenario source mode '{source.mode}'.")
+
+
+def run_bench(
+    conn: sqlite3.Connection,
+    *,
+    strategy_names: Sequence[str],
+    scenario_specs: Sequence[ScenarioSpec],
+    paths_override: int | None,
+    slippage_bps: float,
+    fee_per_trade: float,
+) -> BenchMatrix:
+    """Run strategies through scenarios and return the outcome grid.
+
+    This is the bench composition seam: it binds real-data scenarios to their
+    fixtures, builds a fresh ``ScenarioMarketDataProvider`` per generated path, and
+    runs each cell through the metrics-only backtest. Every read and write goes to
+    an in-memory copy of *conn*'s database, so nothing the bench writes — the
+    reserved bench account included — reaches the caller's database.
+    """
+    universe = resolve_bench_universe(scenario_specs)
+    bound_specs = [_bind_scenario(spec) for spec in scenario_specs]
+
+    with _scratch_copy(conn) as scratch:
+        ensure_bench_account(scratch, benchmark_ticker=universe.benchmark)
+
+        def run_path(cfg: BacktestConfig, frames: Mapping[str, pd.DataFrame]) -> BacktestResult:
+            return run_backtest_metrics_only(scratch, cfg, provider=ScenarioMarketDataProvider(frames))
+
+        tickers_file = write_synthetic_universe(universe.tickers)
+        try:
+            return run_scenario_bench(
+                strategies=strategy_names,
+                scenarios=bound_specs,
+                context=BenchRunContext(
+                    account_name=RESERVED_BENCH_ACCOUNT,
+                    tickers_file=tickers_file,
+                    slippage_bps=slippage_bps,
+                    fee_per_trade=fee_per_trade,
+                ),
+                run_path=run_path,
+                paths_override=paths_override,
+            )
+        finally:
+            os.unlink(tickers_file)
+
+
+@contextmanager
+def _scratch_copy(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    """An in-memory copy of *conn*'s database, closed (and discarded) on exit."""
+    scratch = sqlite3.connect(":memory:")
+    try:
+        conn.backup(scratch)
+        scratch.row_factory = sqlite3.Row
+        scratch.execute("PRAGMA foreign_keys = ON")
+        yield scratch
+    finally:
+        scratch.close()

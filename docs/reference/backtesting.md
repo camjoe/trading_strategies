@@ -264,6 +264,79 @@ Two consequences worth knowing:
 - LEAPs mode is approximate and requires explicit opt-in (`--allow-approximate-leaps`).
 - Survivorship bias can occur if ticker universes are based only on present-day symbols.
 
+## Scenario Bench
+
+The scenario bench runs strategies through synthetic market conditions and compares their outcome
+distributions side by side. It answers "how does each strategy behave in a crash, a grind, a
+melt-up?" — a **behavioral** question, not an edge question.
+
+A **scenario** is a named market condition with a seeded generator. Each scenario produces
+`path_count` Monte Carlo paths (default **200**), so a cell's result is a distribution — median, a
+5th/95th-percentile band, and the worst case — not a single lucky path. The catalog is one
+declarative registry: `SCENARIO_REGISTRY` in
+`src/backtesting/domain/scenario_bench/registry.py`. Add a scenario with one registry entry; add a
+new regime shape with one function in `generators.py`.
+
+```sh
+# List the scenarios
+python -m trading.interfaces.cli.main backtest-bench --list-scenarios
+
+# Compare all strategies across all synthetic scenarios (200 paths each)
+python -m trading.interfaces.cli.main backtest-bench
+
+# A faster, narrower run
+python -m trading.interfaces.cli.main backtest-bench --strategies trend,mean_reversion \
+    --scenarios sharp_crash,strong_uptrend --paths 50
+```
+
+Two honesty properties, by design:
+
+- **Bench runs persist nothing.** Every path runs through the metrics-only backtest, so no
+  `backtest_runs` row is written. The bench never enters the evidence corpus, and promotion stays
+  walk-forward-only (ADR 016).
+- **Synthetic data tests behavior, not edge.** A strategy can ace synthetic scenarios only because
+  they match the generator's assumptions. The bench is a robustness and regression tool, not proof a
+  strategy makes money.
+
+The bench trades one reserved account (`scenario_bench`) over the scenario's universe. It runs
+against an in-memory copy of the database, so that account — and anything else the bench writes —
+never reaches the operational database or the accounts that runtime jobs trade. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
+(`src/infrastructure/market_data/scenario_provider.py`) serves each generated path to the same
+simulation engine a real backtest uses, so a strategy evaluates identically here and in a real run.
+
+### Real-history scenarios (replay and bootstrap)
+
+Beyond the synthetic regimes, the bench runs real market episodes:
+
+- **replay** — one real episode as one deterministic path. The real bars are the path, re-stamped
+  onto the bench calendar. A replay always runs once, whatever `--paths` is. The declared episodes
+  are in `src/backtesting/domain/scenario_bench/fixtures.py` (2008 crisis, 2018 Q4 correction, 2020
+  COVID crash, 2022 bear, 2017 grind, 2023 recovery).
+- **bootstrap** — a moving-block resample of the real bars into 200 paths, so the per-cell result is
+  a distribution with real tails. One block sequence is shared across tickers per path, so a real
+  correlated sell-off stays correlated — the fidelity gap that independent synthetic tickers cannot
+  close.
+
+Real bars are **not** tracked in the repository (Yahoo data is not redistributed). Each operator
+captures once into the untracked `local/scenario_bench/`:
+
+```sh
+# Capture the declared episodes (one, or all)
+python -m scripts.data_ops.capture_scenario_fixture --id covid_crash_2020
+python -m scripts.data_ops.capture_scenario_fixture
+
+# Then run them by name (real scenarios are opt-in; the default run is synthetic-only)
+python -m trading.interfaces.cli.main backtest-bench \
+    --scenarios covid_crash_2020_replay,covid_crash_2020_bootstrap
+```
+
+Episodes are declared once in `src/backtesting/domain/scenario_bench/fixtures.py`; both the capture
+script and the registry read that, so a new episode is a single entry. Real scenarios still persist
+nothing; inside the scratch copy, the reserved account's benchmark is set to the episode's real
+benchmark.
+
+Still deferred: pass/fail expectations that would turn the matrix into a regression gate.
+
 ## Related Docs
 
 - `docs/reference/strategies.md`
