@@ -80,6 +80,7 @@ feature provider stay in `src/trading/services/market_data/`.
 | Module | Responsibility |
 |---|---|
 | `demo_provider.py` | Deterministic offline `DemoMarketDataProvider` |
+| `scenario_provider.py` | In-memory `ScenarioMarketDataProvider` serving one generated scenario path's bars to the simulation engine |
 | `yfinance_provider.py` | Network-backed `YFinanceProvider` and yfinance SDK boundary; guards live fetches with a `common.rate_limit.RateLimiter` (only cache-miss network calls) |
 | `factory.py` | `build_provider` + provider routing (`TRADING_MARKET_DATA_PROVIDER`, else the `yfinance` default); an unsupported name raises at build time |
 | `cache.py` | Transport-level market-data cache (pickle-to-disk with TTL), used only by the adapter |

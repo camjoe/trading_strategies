@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.coercion import coerce_float
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models import AccountRecord, AccountState
@@ -90,7 +91,7 @@ def _build_summary_from_stats(
         "brokerType": row.broker_type or "paper",
         "riskPolicy": book.risk_policy if book is not None else "none",
         "benchmark": row.benchmark_ticker,
-        "initialCash": row.initial_cash,
+        "initialCash": float(row.initial_cash),
         "equity": equity,
         "settlementCash": settlement_cash,
         "totalChange": delta,
@@ -117,7 +118,7 @@ def _build_summary_from_stats(
         "optionType": book.option_type if book is not None else None,
         "targetDeltaMin": book.target_delta_min if book is not None else None,
         "targetDeltaMax": book.target_delta_max if book is not None else None,
-        "maxPremiumPerTrade": book.max_premium_per_trade if book is not None else None,
+        "maxPremiumPerTrade": coerce_float(book.max_premium_per_trade) if book is not None else None,
         "maxContractsPerTrade": book.max_contracts_per_trade if book is not None else None,
         "ivRankMin": book.iv_rank_min if book is not None else None,
         "ivRankMax": book.iv_rank_max if book is not None else None,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from backtesting.domain.scenario_bench.aggregation import BENCH_METRICS
 from trading.interfaces.cli.commands.options import add_account_arg
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
@@ -157,4 +158,47 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
             "Bypass the promotion quality bar (winner must beat its own default on OOS and holdout"
             " evidence) and promote anyway"
         ),
+    )
+
+    p_bench = sub.add_parser(
+        "backtest-bench",
+        help=(
+            "Run strategies through synthetic and real-history scenarios and compare their outcome"
+            " distributions. Behavioral only — bench runs are not persisted and are not promotion evidence."
+        ),
+    )
+    p_bench.add_argument(
+        "--strategies",
+        default=None,
+        help="Comma-separated strategies to run (default: all registered strategies)",
+    )
+    p_bench.add_argument(
+        "--scenarios",
+        default=None,
+        help=(
+            "Comma-separated scenario ids or aliases (default: all synthetic scenarios;"
+            " real-history scenarios need a captured fixture and run only by name)"
+        ),
+    )
+    p_bench.add_argument(
+        "--paths",
+        type=int,
+        default=None,
+        help=(
+            "Paths per Monte Carlo scenario (default: each scenario's own count, 200);"
+            " single-path replay scenarios always run once"
+        ),
+    )
+    p_bench.add_argument(
+        "--metric",
+        default="total_return_pct",
+        choices=BENCH_METRICS,
+        help="Metric rendered in the matrix (default: total_return_pct)",
+    )
+    p_bench.add_argument("--slippage-bps", type=float, default=5.0, help="Slippage in basis points per trade")
+    p_bench.add_argument("--fee", type=float, default=0.0, help="Fixed fee per trade")
+    p_bench.add_argument(
+        "--list-scenarios",
+        action="store_true",
+        help="List the available scenarios and exit",
     )

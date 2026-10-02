@@ -4,6 +4,7 @@ import json
 
 from fastapi import APIRouter, HTTPException
 
+from common.coercion import coerce_float
 from infrastructure.market_data.factory import build_provider
 from trading.domain.exceptions import ValidationError
 from trading.services.accounts.queries import list_account_snapshots
@@ -69,9 +70,9 @@ def _book_payload(view: BookConfigurationView) -> dict[str, object]:
         "status": book.status,
         "isDefault": bool(book.is_default),
         "strategy": view.strategy,
-        "startEquity": book.start_equity,
-        "currentCash": book.current_cash,
-        "currentEquity": book.current_equity,
+        "startEquity": float(book.start_equity),
+        "currentCash": float(book.current_cash),
+        "currentEquity": float(book.current_equity),
         # The book's resolved tickers. Writes still take universe *names*
         # (`tradeUniverses` on the PATCH body); the server expands them.
         "tradeSymbols": json.loads(book.trade_symbols),
@@ -92,7 +93,7 @@ def _book_payload(view: BookConfigurationView) -> dict[str, object]:
         "optionType": book.option_type,
         "targetDeltaMin": book.target_delta_min,
         "targetDeltaMax": book.target_delta_max,
-        "maxPremiumPerTrade": book.max_premium_per_trade,
+        "maxPremiumPerTrade": coerce_float(book.max_premium_per_trade),
         "maxContractsPerTrade": book.max_contracts_per_trade,
         "ivRankMin": book.iv_rank_min,
         "ivRankMax": book.iv_rank_max,
@@ -188,13 +189,13 @@ def api_account_detail(account_name: str) -> dict[str, object]:
                     "bookId": row["book_id"],
                     "bookName": row["book_name"],
                     "ticker": row["ticker"],
-                    "qty": row["qty"],
-                    "avgCost": row["avg_cost"],
+                    "qty": float(row["qty"]),
+                    "avgCost": float(row["avg_cost"]),
                     "marketPrice": (
                         float(row["market_value"]) / float(row["qty"]) if float(row["qty"]) != 0.0 else 0.0
                     ),
-                    "marketValue": row["market_value"],
-                    "unrealizedPnl": row["unrealized_pnl"],
+                    "marketValue": float(row["market_value"]),
+                    "unrealizedPnl": float(row["unrealized_pnl"]),
                 }
                 for row in operations["positions"]
             ],
@@ -216,7 +217,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
                     "hitRate": row["metric"].hit_rate,
                     "riskAdjustedScore": row["metric"].risk_adjusted_score,
                     "tradeCount": row["metric"].trade_count,
-                    "feesTotal": row["metric"].fees_total,
+                    "feesTotal": coerce_float(row["metric"].fees_total),
                 }
                 for row in operations["metrics"]
             ],
@@ -229,8 +230,8 @@ def api_account_detail(account_name: str) -> dict[str, object]:
                     "side": row["decision"].side,
                     "action": row["decision"].action,
                     "reason": row["decision"].reason_code,
-                    "requestedNotional": row["decision"].requested_notional,
-                    "approvedNotional": row["decision"].approved_notional,
+                    "requestedNotional": coerce_float(row["decision"].requested_notional),
+                    "approvedNotional": coerce_float(row["decision"].approved_notional),
                 }
                 for row in operations["risk_decisions"]
             ],

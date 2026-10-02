@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from common.coercion import coerce_float
+
 
 def _position_payload(position: dict[str, Any]) -> dict[str, object]:
     return {
@@ -31,7 +33,7 @@ def build_account_analysis_payload(analysis: dict[str, Any]) -> dict[str, object
         "benchmarkReturnPct": analysis["benchmark_return_pct"],
         "benchmarkTicker": analysis["benchmark_ticker"],
         "alphaPct": analysis["alpha_pct"],
-        "realizedPnl": analysis["realized_pnl"],
+        "realizedPnl": coerce_float(analysis["realized_pnl"]),
         "unrealizedPnl": analysis["unrealized_pnl"],
         "equity": analysis["equity"],
         "topWinners": [_position_payload(position) for position in analysis["top_winners"]],
