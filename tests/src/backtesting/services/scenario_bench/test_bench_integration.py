@@ -1,4 +1,4 @@
-"""End to end: run_bench simulates real paths and persists nothing."""
+"""End to end: run_bench simulates real paths and writes nothing to the caller's database."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import sqlite3
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import backtesting.services.scenario_fixtures as scenario_fixtures
 from backtesting.composition import run_bench
@@ -17,6 +18,8 @@ from backtesting.domain.scenario_bench.contracts import (
 )
 from backtesting.domain.scenario_bench.generators import unbound_generator
 from backtesting.domain.scenario_bench.registry import resolve_scenario
+from backtesting.services.scenario_bench import RESERVED_BENCH_ACCOUNT, ensure_bench_account
+from trading.domain.exceptions import NotFoundError
 from trading.models.market_data import BAR_CLOSE, BAR_COLUMNS, BAR_HIGH, BAR_LOW, BAR_OPEN, BAR_VOLUME
 from trading.services.accounts.mutations import get_account
 
@@ -59,6 +62,13 @@ def _real_spec(scenario_id: str, mode: str, *, path_count: int, days: int) -> Sc
     )
 
 
+def _assert_caller_database_untouched(conn: sqlite3.Connection) -> None:
+    run_count = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()["n"])
+    assert run_count == 0
+    with pytest.raises(NotFoundError):
+        get_account(conn, RESERVED_BENCH_ACCOUNT)
+
+
 class TestRunBench:
     def test_produces_a_distribution_per_cell(self, conn: sqlite3.Connection) -> None:
         scenario = resolve_scenario("strong_uptrend")
@@ -77,7 +87,7 @@ class TestRunBench:
         assert distribution.count == 3
         assert distribution.p50 is not None
 
-    def test_persists_no_backtest_runs(self, conn: sqlite3.Connection) -> None:
+    def test_writes_nothing_to_the_caller_database(self, conn: sqlite3.Connection) -> None:
         scenario = resolve_scenario("choppy_flat")
         run_bench(
             conn,
@@ -88,15 +98,11 @@ class TestRunBench:
             fee_per_trade=0.0,
         )
 
-        # The bench is behavioral, not evidence: it must not pollute the run corpus.
-        run_count = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()["n"])
-        assert run_count == 0
+        _assert_caller_database_untouched(conn)
 
 
 class TestRunBenchRealData:
-    def test_replay_runs_one_deterministic_path_and_updates_the_benchmark(
-        self, conn: sqlite3.Connection, tmp_path, monkeypatch
-    ) -> None:
+    def test_replay_runs_one_deterministic_path(self, conn: sqlite3.Connection, tmp_path, monkeypatch) -> None:
         _write_fixture(tmp_path, monkeypatch)
         spec = _real_spec("test_episode_replay", SCENARIO_MODE_REPLAY, path_count=1, days=252)
 
@@ -112,8 +118,7 @@ class TestRunBenchRealData:
         cell = matrix.cell("trend", "test_episode_replay")
         assert cell.path_count == 1
         assert cell.distributions["total_return_pct"].count == 1
-        # The reserved account was pointed at the real benchmark of this run.
-        assert get_account(conn, "scenario_bench").benchmark_ticker == "RB"
+        _assert_caller_database_untouched(conn)
 
     def test_bootstrap_runs_many_paths_and_persists_nothing(
         self, conn: sqlite3.Connection, tmp_path, monkeypatch
@@ -131,5 +136,13 @@ class TestRunBenchRealData:
         )
 
         assert matrix.cell("trend", "test_episode_bootstrap").distributions["total_return_pct"].count == 3
-        run_count = int(conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()["n"])
-        assert run_count == 0
+        _assert_caller_database_untouched(conn)
+
+
+class TestEnsureBenchAccount:
+    def test_creates_the_account_then_repoints_its_benchmark(self, conn: sqlite3.Connection) -> None:
+        ensure_bench_account(conn, benchmark_ticker="BENCH")
+        assert get_account(conn, RESERVED_BENCH_ACCOUNT).benchmark_ticker == "BENCH"
+
+        ensure_bench_account(conn, benchmark_ticker="spy")
+        assert get_account(conn, RESERVED_BENCH_ACCOUNT).benchmark_ticker == "SPY"

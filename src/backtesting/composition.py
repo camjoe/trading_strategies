@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import replace
 
 import pandas as pd
@@ -173,31 +174,45 @@ def run_bench(
 
     This is the bench composition seam: it binds real-data scenarios to their
     fixtures, builds a fresh ``ScenarioMarketDataProvider`` per generated path, and
-    runs each cell through the metrics-only backtest, so no run, trade, or snapshot
-    row is persisted — a behavioral bench is not promotion evidence. The reserved
-    bench account is created on first use and pointed at the run's benchmark.
+    runs each cell through the metrics-only backtest. Every read and write goes to
+    an in-memory copy of *conn*'s database, so nothing the bench writes — the
+    reserved bench account included — reaches the caller's database.
     """
     universe = resolve_bench_universe(scenario_specs)
-    ensure_bench_account(conn, benchmark_ticker=universe.benchmark)
-    tickers_file = write_synthetic_universe(universe.tickers)
     bound_specs = [_bind_scenario(spec) for spec in scenario_specs]
-    context = BenchRunContext(
-        account_name=RESERVED_BENCH_ACCOUNT,
-        tickers_file=tickers_file,
-        slippage_bps=slippage_bps,
-        fee_per_trade=fee_per_trade,
-    )
 
-    def run_path(cfg: BacktestConfig, frames: Mapping[str, pd.DataFrame]) -> BacktestResult:
-        return run_backtest_metrics_only(conn, cfg, provider=ScenarioMarketDataProvider(frames))
+    with _scratch_copy(conn) as scratch:
+        ensure_bench_account(scratch, benchmark_ticker=universe.benchmark)
 
+        def run_path(cfg: BacktestConfig, frames: Mapping[str, pd.DataFrame]) -> BacktestResult:
+            return run_backtest_metrics_only(scratch, cfg, provider=ScenarioMarketDataProvider(frames))
+
+        tickers_file = write_synthetic_universe(universe.tickers)
+        try:
+            return run_scenario_bench(
+                strategies=strategy_names,
+                scenarios=bound_specs,
+                context=BenchRunContext(
+                    account_name=RESERVED_BENCH_ACCOUNT,
+                    tickers_file=tickers_file,
+                    slippage_bps=slippage_bps,
+                    fee_per_trade=fee_per_trade,
+                ),
+                run_path=run_path,
+                paths_override=paths_override,
+            )
+        finally:
+            os.unlink(tickers_file)
+
+
+@contextmanager
+def _scratch_copy(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    """An in-memory copy of *conn*'s database, closed (and discarded) on exit."""
+    scratch = sqlite3.connect(":memory:")
     try:
-        return run_scenario_bench(
-            strategies=strategy_names,
-            scenarios=bound_specs,
-            context=context,
-            run_path=run_path,
-            paths_override=paths_override,
-        )
+        conn.backup(scratch)
+        scratch.row_factory = sqlite3.Row
+        scratch.execute("PRAGMA foreign_keys = ON")
+        yield scratch
     finally:
-        os.unlink(tickers_file)
+        scratch.close()

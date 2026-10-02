@@ -37,9 +37,8 @@ def bench_calendar(days: int) -> pd.DatetimeIndex:
     return pd.bdate_range(start=_ANCHOR_START, periods=days)
 
 
-# The single reserved account every bench run trades through. Auto-created on
-# first use and reused after, so a bench run needs no operator setup and writes no
-# per-run account rows.
+# The account every bench run trades through. The composition seam creates it in
+# a scratch copy of the database, never in the operational database.
 RESERVED_BENCH_ACCOUNT = "scenario_bench"
 # Starting cash for the reserved account. Comfortably above the synthetic prices
 # (~100 per share) so position sizing is never cash-starved by the account size.
@@ -79,10 +78,9 @@ def resolve_bench_universe(scenarios: Sequence[ScenarioSpec]) -> BenchUniverse:
 def ensure_bench_account(conn: sqlite3.Connection, *, benchmark_ticker: str) -> None:
     """Create the reserved bench account, or point it at this run's benchmark.
 
-    One reserved account serves every run, but the benchmark differs — synthetic
-    scenarios benchmark against ``BENCH``, real ones against a real symbol like
-    ``SPY``. The account's benchmark is set to match the run so its alpha is
-    measured against the right series.
+    Synthetic scenarios benchmark against ``BENCH`` and real ones against a real
+    symbol like ``SPY``, so the account's benchmark is set to match the run and its
+    alpha is measured against the right series.
     """
     normalized = benchmark_ticker.upper().strip()
     try:

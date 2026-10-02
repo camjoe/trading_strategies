@@ -298,8 +298,9 @@ Two honesty properties, by design:
   they match the generator's assumptions. The bench is a robustness and regression tool, not proof a
   strategy makes money.
 
-The bench trades one reserved account (`scenario_bench`), created on first use, over the scenario's
-universe. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
+The bench trades one reserved account (`scenario_bench`) over the scenario's universe. It runs
+against an in-memory copy of the database, so that account — and anything else the bench writes —
+never reaches the operational database or the accounts that runtime jobs trade. The provider seam is the whole trick: a `ScenarioMarketDataProvider`
 (`src/infrastructure/market_data/scenario_provider.py`) serves each generated path to the same
 simulation engine a real backtest uses, so a strategy evaluates identically here and in a real run.
 
@@ -331,7 +332,8 @@ python -m trading.interfaces.cli.main backtest-bench \
 
 Episodes are declared once in `src/backtesting/domain/scenario_bench/fixtures.py`; both the capture
 script and the registry read that, so a new episode is a single entry. Real scenarios still persist
-nothing, and the reserved account's benchmark is pointed at the episode's real benchmark for the run.
+nothing; inside the scratch copy, the reserved account's benchmark is set to the episode's real
+benchmark.
 
 Still deferred: pass/fail expectations that would turn the matrix into a regression gate.
 
