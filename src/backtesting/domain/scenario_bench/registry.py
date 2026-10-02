@@ -9,6 +9,8 @@ priced by the same generator over the same window.
 
 from __future__ import annotations
 
+import hashlib
+
 from trading.domain.exceptions import ValidationError
 
 from .contracts import SCENARIO_MODE_BOOTSTRAP, SCENARIO_MODE_REPLAY, FixtureSource, ScenarioSpec
@@ -24,9 +26,6 @@ _HALF_YEAR_DAYS = 126
 # this placeholder at bind time.
 _BOOTSTRAP_DAYS = _HALF_YEAR_DAYS
 _REPLAY_PLACEHOLDER_DAYS = _ONE_YEAR_DAYS
-# Base seed for the first real-data scenario; each fixture takes a 10-wide band so
-# replay and bootstrap of the same fixture never share a seed.
-_REAL_SCENARIO_SEED_BASE = 3000
 
 # The synthetic tradable universe. Deliberately small and abstract: these are not
 # real symbols, so a bench result can never be mistaken for real-market evidence.
@@ -116,6 +115,16 @@ SCENARIO_REGISTRY: dict[str, ScenarioSpec] = {
 }
 
 
+def _fixture_seed_base(fixture_id: str) -> int:
+    """A base seed that depends only on the fixture id.
+
+    Adding or removing another episode never changes this fixture's seeds, so a
+    bootstrap result stays reproducible across catalog edits.
+    """
+    digest = hashlib.sha256(fixture_id.encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "big")
+
+
 def _register_real_scenarios() -> None:
     """Add a replay and a bootstrap scenario for every declared fixture.
 
@@ -124,9 +133,9 @@ def _register_real_scenarios() -> None:
     Deriving both from one fixture definition keeps a new episode to a single entry
     in `fixtures.py`.
     """
-    for index, fixture_id in enumerate(available_fixture_ids()):
+    for fixture_id in available_fixture_ids():
         definition = FIXTURE_DEFINITIONS[fixture_id]
-        seed_base = _REAL_SCENARIO_SEED_BASE + index * 10
+        seed_base = _fixture_seed_base(fixture_id)
         SCENARIO_REGISTRY[f"{fixture_id}_replay"] = ScenarioSpec(
             scenario_id=f"{fixture_id}_replay",
             generator=unbound_generator,

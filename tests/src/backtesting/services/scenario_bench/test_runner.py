@@ -43,7 +43,7 @@ def _fake_run_path(cfg: BacktestConfig, frames: dict[str, pd.DataFrame]) -> Back
     )
 
 
-def _counting_spec(scenario_id: str, seed: int, calls: list[int]) -> ScenarioSpec:
+def _counting_spec(scenario_id: str, seed: int, calls: list[int], *, path_count: int = 3) -> ScenarioSpec:
     def generator(request: PathRequest) -> dict[str, pd.DataFrame]:
         calls.append(request.seed)
         return {ticker: pd.DataFrame(index=request.index) for ticker in request.tickers}
@@ -52,7 +52,7 @@ def _counting_spec(scenario_id: str, seed: int, calls: list[int]) -> ScenarioSpe
         scenario_id=scenario_id,
         generator=generator,
         params={},
-        path_count=3,
+        path_count=path_count,
         tickers=("SYN1",),
         benchmark="BENCH",
         base_seed=seed,
@@ -102,6 +102,19 @@ class TestRunScenarioBench:
         )
         assert calls == [100, 101]
         assert matrix.cell("trend", "crash").path_count == 2
+
+    def test_paths_override_leaves_a_single_path_scenario_at_one(self) -> None:
+        calls: list[int] = []
+        scenarios = [_counting_spec("replay", 300, calls, path_count=1)]
+        matrix = run_scenario_bench(
+            strategies=["trend"],
+            scenarios=scenarios,
+            context=_CONTEXT,
+            run_path=_fake_run_path,
+            paths_override=50,
+        )
+        assert calls == [300]
+        assert matrix.cell("trend", "replay").path_count == 1
 
 
 class TestRenderBenchMatrix:

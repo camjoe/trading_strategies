@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from backtesting.domain.scenario_bench.aggregation import BENCH_METRICS
 from trading.interfaces.cli.commands.options import add_account_arg
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
@@ -162,7 +163,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_bench = sub.add_parser(
         "backtest-bench",
         help=(
-            "Run strategies through synthetic Monte Carlo scenarios and compare their outcome"
+            "Run strategies through synthetic and real-history scenarios and compare their outcome"
             " distributions. Behavioral only — bench runs are not persisted and are not promotion evidence."
         ),
     )
@@ -174,17 +175,24 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_bench.add_argument(
         "--scenarios",
         default=None,
-        help="Comma-separated scenario ids or aliases (default: all scenarios)",
+        help=(
+            "Comma-separated scenario ids or aliases (default: all synthetic scenarios;"
+            " real-history scenarios need a captured fixture and run only by name)"
+        ),
     )
     p_bench.add_argument(
         "--paths",
         type=int,
         default=None,
-        help="Monte Carlo paths per scenario (default: each scenario's own count, 200)",
+        help=(
+            "Paths per Monte Carlo scenario (default: each scenario's own count, 200);"
+            " single-path replay scenarios always run once"
+        ),
     )
     p_bench.add_argument(
         "--metric",
         default="total_return_pct",
+        choices=BENCH_METRICS,
         help="Metric rendered in the matrix (default: total_return_pct)",
     )
     p_bench.add_argument("--slippage-bps", type=float, default=5.0, help="Slippage in basis points per trade")

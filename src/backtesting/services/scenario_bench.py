@@ -179,6 +179,12 @@ def _run_one_scenario(
     return [summarize_cell(strategy, spec.scenario_id, results[strategy]) for strategy in strategies]
 
 
+def _effective_path_count(spec: ScenarioSpec, paths_override: int | None) -> int:
+    if paths_override is None or spec.path_count == 1:
+        return spec.path_count
+    return max(1, paths_override)
+
+
 def run_scenario_bench(
     *,
     strategies: Sequence[str],
@@ -189,15 +195,17 @@ def run_scenario_bench(
 ) -> BenchMatrix:
     """Run every strategy through every scenario and return the outcome grid.
 
-    ``paths_override`` replaces each scenario's own ``path_count`` when set, so the
-    caller can trade resolution for speed without editing the catalog.
+    ``paths_override`` replaces the ``path_count`` of each Monte Carlo scenario
+    (``path_count`` above one) when set, so the caller can trade resolution for
+    speed without editing the catalog. A single-path scenario, such as a replay,
+    is deterministic and always runs once.
     """
     strategy_list = list(strategies)
     scenario_ids = [spec.scenario_id for spec in scenarios]
     cells: dict[tuple[str, str], ScenarioCellResult] = {}
 
     for spec in scenarios:
-        path_count = spec.path_count if paths_override is None else max(1, paths_override)
+        path_count = _effective_path_count(spec, paths_override)
         for cell in _run_one_scenario(
             spec,
             strategies=strategy_list,

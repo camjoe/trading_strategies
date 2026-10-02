@@ -281,7 +281,7 @@ new regime shape with one function in `generators.py`.
 # List the scenarios
 python -m trading.interfaces.cli.main backtest-bench --list-scenarios
 
-# Compare all strategies across all scenarios (200 paths each)
+# Compare all strategies across all synthetic scenarios (200 paths each)
 python -m trading.interfaces.cli.main backtest-bench
 
 # A faster, narrower run
@@ -309,9 +309,9 @@ simulation engine a real backtest uses, so a strategy evaluates identically here
 Beyond the synthetic regimes, the bench runs real market episodes:
 
 - **replay** — one real episode as one deterministic path. The real bars are the path, re-stamped
-  onto the bench calendar. The declared episodes are in
-  `src/backtesting/domain/scenario_bench/fixtures.py` (2008 crisis, 2018 Q4 correction, 2020 COVID
-  crash, 2022 bear, 2017 grind, 2023 recovery).
+  onto the bench calendar. A replay always runs once, whatever `--paths` is. The declared episodes
+  are in `src/backtesting/domain/scenario_bench/fixtures.py` (2008 crisis, 2018 Q4 correction, 2020
+  COVID crash, 2022 bear, 2017 grind, 2023 recovery).
 - **bootstrap** — a moving-block resample of the real bars into 200 paths, so the per-cell result is
   a distribution with real tails. One block sequence is shared across tickers per path, so a real
   correlated sell-off stays correlated — the fidelity gap that independent synthetic tickers cannot

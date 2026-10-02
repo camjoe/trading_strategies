@@ -57,7 +57,7 @@ class ScenarioSpec:
 
     A scenario yields ``path_count`` bar-sets from ``generator`` over a window of
     ``days`` trading days. ``path_count`` above one is a Monte Carlo scenario whose
-    per-cell result is a distribution; a future replay scenario sets it to one.
+    per-cell result is a distribution; a replay scenario sets it to one.
     """
 
     scenario_id: str
