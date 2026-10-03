@@ -10,6 +10,7 @@ from trading.interfaces.cli.handlers.advisor_handlers import (
     handle_advisor_digest,
     handle_advisor_record,
     handle_advisor_score,
+    handle_advisor_scorecard,
 )
 from trading.models.advisor import AdvisorDigest
 
@@ -114,3 +115,21 @@ def test_score_binds_the_provider_and_prints_the_results(capsys, monkeypatch) ->
     assert calls["account_name"] == "acct"
     assert calls["run_backtest_fn"].keywords == {"provider": ctx.provider}
     assert "No decisions are due for scoring." in capsys.readouterr().out
+
+
+def test_scorecard_passes_the_grouping_and_prints_the_card(capsys, monkeypatch) -> None:
+    from trading.models.advisor import Scorecard
+
+    calls: dict = {}
+
+    def _build(_conn, **kwargs):
+        calls.update(kwargs)
+        return Scorecard(
+            generated_at="2026-10-03T00:00:00Z", group_by="regime", groups=[], rankable_count=0, leader=None
+        )
+
+    patch_services(monkeypatch, module, build_advisor_scorecard=_build)
+    handle_advisor_scorecard(object(), types.SimpleNamespace(account=None, by="regime"), fake_parser(), ctx=make_ctx())
+
+    assert calls == {"account_name": None, "group_by": "regime"}
+    assert "No scored decisions yet." in capsys.readouterr().out

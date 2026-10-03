@@ -15,9 +15,11 @@ Repo-specific commands for each step are in [commands.md](commands.md).
 
 ## Session procedure
 
-1. **Close the loop.** Score decisions whose outcome window has closed. Read the verdicts — your
-   own first — before judging anything new. A run of `hurt` verdicts is a reason for more caution,
-   not for bolder changes.
+1. **Close the loop.** Score decisions whose outcome window has closed, then read the scorecard —
+   your own version first — before judging anything new. Below the minimum decision count it is
+   anecdote, not a track record. Read verdicts by regime: a defensive hold that scored `hurt` in an
+   `up` window is the expected cost of protection, not a mistake. A run of `hurt` verdicts in the
+   regimes a decision was meant for is a reason for more caution, not for bolder changes.
 2. **Read the digest.** One block per book, under its account: the book's strategy, its paper
    return since that strategy was assigned, walk-forward evidence, review flags, recent decisions.
 3. **Triage each book.** Map flags to candidate actions; a flag is a prompt, never a verdict:

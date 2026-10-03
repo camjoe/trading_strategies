@@ -210,3 +210,51 @@ class DecisionScoreResult:
     account_name: str
     decision_type: str
     outcome: StrategyDecisionOutcome
+
+
+# Market regime of a scored window, read from the benchmark's return over it.
+REGIME_UP = "up"
+REGIME_FLAT = "flat"
+REGIME_DOWN = "down"
+REGIME_UNKNOWN = "unknown"
+REGIMES = (REGIME_UP, REGIME_FLAT, REGIME_DOWN)
+
+# How the scorecard groups decisions.
+SCORECARD_GROUP_AGENT = "agent"
+SCORECARD_GROUP_DECISION_TYPE = "decision_type"
+SCORECARD_GROUP_REGIME = "regime"
+SCORECARD_GROUPS = (SCORECARD_GROUP_AGENT, SCORECARD_GROUP_DECISION_TYPE, SCORECARD_GROUP_REGIME)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ScorecardGroup:
+    """One group's track record: points, edge with its interval, and points by regime.
+
+    ``edge_interval`` is None when there are too few measured decisions to resample.
+    ``rankable`` is False below the minimum measured count; such a group is shown, never ranked.
+    """
+
+    key: str
+    scored_count: int
+    measured_count: int
+    scorable_rate: float
+    points: int
+    mean_edge_pct: float | None
+    edge_interval: tuple[float, float] | None
+    points_by_regime: dict[str, int]
+    rankable: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Scorecard:
+    """The scorecard across groups.
+
+    ``leader`` is set only when one rankable group's interval lies wholly above every other
+    rankable group's; otherwise the groups are not distinguishable and it is None.
+    """
+
+    generated_at: str
+    group_by: str
+    groups: list[ScorecardGroup]
+    rankable_count: int
+    leader: str | None

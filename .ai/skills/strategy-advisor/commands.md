@@ -8,6 +8,7 @@ The commands behind each step of the session procedure in `SKILL.md`. Prefix eac
 | Step | Command |
 |---|---|
 | Close the loop | `advisor-score` (optionally `--account <name>`) |
+| Read the track record | `advisor-scorecard` (`--by agent`, `decision_type`, or `regime`; optionally `--account <name>`) |
 | Read the digest | `advisor-digest` (optionally `--account <name>`) |
 | Account report | `report --account <name>` |
 | Compare strategies' evaluations | `compare-strategies` |

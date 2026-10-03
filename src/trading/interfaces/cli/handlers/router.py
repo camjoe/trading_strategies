@@ -13,6 +13,7 @@ from trading.interfaces.cli.handlers.advisor_handlers import (
     handle_advisor_digest,
     handle_advisor_record,
     handle_advisor_score,
+    handle_advisor_scorecard,
 )
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
@@ -93,6 +94,7 @@ COMMAND_HANDLERS = {
     "advisor-record": handle_advisor_record,
     "advisor-digest": handle_advisor_digest,
     "advisor-score": handle_advisor_score,
+    "advisor-scorecard": handle_advisor_scorecard,
 }
 
 

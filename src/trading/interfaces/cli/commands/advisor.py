@@ -3,7 +3,13 @@ from __future__ import annotations
 import argparse
 
 from trading.interfaces.cli.commands.options import add_account_arg, add_book_arg
-from trading.models.advisor import DECIDED_BY_OPERATOR, DECISION_TYPES, DEFAULT_OUTCOME_WINDOW_DAYS
+from trading.models.advisor import (
+    DECIDED_BY_OPERATOR,
+    DECISION_TYPES,
+    DEFAULT_OUTCOME_WINDOW_DAYS,
+    SCORECARD_GROUP_AGENT,
+    SCORECARD_GROUPS,
+)
 
 
 def add_advisor_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -72,4 +78,19 @@ def add_advisor_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser
         "--as-of",
         default=None,
         help="Trading date YYYY-MM-DD that decides which decisions are due (default: today, UTC)",
+    )
+
+    p_scorecard = sub.add_parser(
+        "advisor-scorecard",
+        help=(
+            "Show the track record of scored decisions: points, mean edge with an interval, and points "
+            "by market regime. Read-only."
+        ),
+    )
+    p_scorecard.add_argument("--account", default=None, help="Limit to one account (default: all accounts)")
+    p_scorecard.add_argument(
+        "--by",
+        default=SCORECARD_GROUP_AGENT,
+        choices=SCORECARD_GROUPS,
+        help=f"Group decisions by (default: {SCORECARD_GROUP_AGENT})",
     )

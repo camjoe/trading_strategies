@@ -47,6 +47,7 @@ _EXPECTED_COMMANDS = {
     "advisor-record",
     "advisor-digest",
     "advisor-score",
+    "advisor-scorecard",
 }
 
 

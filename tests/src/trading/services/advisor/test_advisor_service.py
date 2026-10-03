@@ -187,3 +187,42 @@ def test_scoring_lines_show_the_verdict_or_the_reason() -> None:
     assert lines[0] == "Scored 2 decision(s):"
     assert "helped | chosen 4.00% vs rejected 1.00% over 2026-08-03..2026-09-01" in lines[1]
     assert lines[2].endswith("inconclusive (nothing to compare)")
+
+
+def test_scorecard_groups_scored_decisions_and_rejects_an_unknown_grouping(conn, account) -> None:
+    from trading.models.advisor import StrategyDecisionOutcome
+    from trading.services.advisor.presentation import render_scorecard_lines
+    from trading.services.advisor.scorecard import build_advisor_scorecard
+
+    decision_id = _record_hold(conn)
+    StrategyDecisionRepository(conn).update_outcome(
+        strategy_decision_id=decision_id,
+        outcome=StrategyDecisionOutcome(
+            outcome_status="measured",
+            outcome_verdict="helped",
+            chosen_return_pct=3.0,
+            alternative_return_pct=1.0,
+            realized_benchmark_return_pct=-2.0,
+            outcome_measured_at="2026-10-01T00:00:00Z",
+        ),
+    )
+    _record_hold(conn)  # still pending: not on the scorecard
+
+    scorecard = build_advisor_scorecard(conn, account_name=_ACCOUNT)
+    lines = render_scorecard_lines(scorecard)
+
+    (group,) = scorecard.groups
+    assert (group.key, group.scored_count, group.points) == (DECIDED_BY_AGENT, 1, 1)
+    assert group.points_by_regime["down"] == 1
+    assert scorecard.leader is None
+    assert any("insufficient decisions (1 of 20)" in line for line in lines)
+    with pytest.raises(ValidationError, match="Unknown scorecard grouping"):
+        build_advisor_scorecard(conn, group_by="mood")
+
+
+def test_scorecard_without_scored_decisions_says_so(conn, account) -> None:
+    from trading.services.advisor.presentation import render_scorecard_lines
+    from trading.services.advisor.scorecard import build_advisor_scorecard
+
+    lines = render_scorecard_lines(build_advisor_scorecard(conn))
+    assert lines[-1] == "No scored decisions yet."

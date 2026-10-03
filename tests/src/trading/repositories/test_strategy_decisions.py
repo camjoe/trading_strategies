@@ -111,3 +111,27 @@ def test_fetch_pending_skips_scored_rows_and_filters_by_account(conn) -> None:
 
     assert [record.rationale for record in repository.fetch_pending()] == ["open_a", "open_b"]
     assert [record.rationale for record in repository.fetch_pending(account_id=second)] == ["open_b"]
+
+
+def test_fetch_scored_returns_measured_and_inconclusive_but_not_pending(conn) -> None:
+    first = insert_repository_account(conn, name="acct_decisions_scored_a")
+    second = insert_repository_account(conn, name="acct_decisions_scored_b")
+    repository = StrategyDecisionRepository(conn)
+    measured = _insert(conn, account_id=first, created_at="2026-09-01T00:00:00Z", rationale="measured")
+    inconclusive = _insert(conn, account_id=second, created_at="2026-09-02T00:00:00Z", rationale="inconclusive")
+    _insert(conn, account_id=first, created_at="2026-09-03T00:00:00Z", rationale="pending")
+    repository.update_outcome(
+        strategy_decision_id=measured,
+        outcome=StrategyDecisionOutcome(
+            outcome_status=OUTCOME_STATUS_MEASURED,
+            outcome_verdict=OUTCOME_VERDICT_HELPED,
+            outcome_measured_at="2026-10-01T00:00:00Z",
+        ),
+    )
+    repository.update_outcome(
+        strategy_decision_id=inconclusive,
+        outcome=StrategyDecisionOutcome(outcome_status="inconclusive", outcome_note="no alternative"),
+    )
+
+    assert [record.rationale for record in repository.fetch_scored()] == ["measured", "inconclusive"]
+    assert [record.rationale for record in repository.fetch_scored(account_id=first)] == ["measured"]

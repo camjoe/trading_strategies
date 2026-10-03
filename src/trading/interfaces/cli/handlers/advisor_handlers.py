@@ -1,4 +1,4 @@
-"""Handlers for the advisor ledger, digest, and scoring commands."""
+"""Handlers for the advisor ledger, digest, scoring, and scorecard commands."""
 
 from __future__ import annotations
 
@@ -9,7 +9,12 @@ from backtesting.composition import run_backtest_metrics_only
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.advisor.decisions import record_decision
 from trading.services.advisor.digest import build_advisor_digest
-from trading.services.advisor.presentation import render_advisor_digest_lines, render_scoring_lines
+from trading.services.advisor.presentation import (
+    render_advisor_digest_lines,
+    render_scorecard_lines,
+    render_scoring_lines,
+)
+from trading.services.advisor.scorecard import build_advisor_scorecard
 from trading.services.advisor.scoring import score_due_decisions
 
 
@@ -70,3 +75,12 @@ def handle_advisor_score(conn, args, parser, *, ctx: CliContext) -> None:
         parser.error(str(error))
         return
     print("\n".join(render_scoring_lines(results)))
+
+
+def handle_advisor_scorecard(conn, args, parser, *, ctx: CliContext) -> None:
+    try:
+        scorecard = build_advisor_scorecard(conn, account_name=args.account, group_by=args.by)
+    except ValueError as error:
+        parser.error(str(error))
+        return
+    print("\n".join(render_scorecard_lines(scorecard)))

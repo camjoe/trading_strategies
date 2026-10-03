@@ -77,3 +77,18 @@ class StrategyDecisionRepository:
                 (OUTCOME_STATUS_PENDING, account_id),
             ).fetchall()
         return [StrategyDecisionRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_scored(self, *, account_id: int | None = None) -> list[StrategyDecisionRecord]:
+        """Decisions scoring has finished with (measured or inconclusive), oldest first."""
+        if account_id is None:
+            rows = self._conn.execute(
+                "SELECT * FROM strategy_decisions WHERE outcome_status <> ? ORDER BY created_at ASC, id ASC",
+                (OUTCOME_STATUS_PENDING,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM strategy_decisions WHERE outcome_status <> ? AND account_id = ? "
+                "ORDER BY created_at ASC, id ASC",
+                (OUTCOME_STATUS_PENDING, account_id),
+            ).fetchall()
+        return [StrategyDecisionRecord.from_mapping(dict(row)) for row in rows]
