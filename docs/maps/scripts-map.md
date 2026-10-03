@@ -132,7 +132,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `finance/` | Finance and market terminology documentation source sync |
 | `api/` | API documentation source content |
 | `software/` | Software/architecture documentation source content |
-| `commands/` | CLI command registry: introspects the `argparse` parser into `assets/commands.json` (group, risk, example, arguments); the check fails on drift or an unclassified command |
+| `commands/` | Command catalog registry: `registry.py` reads the CLI `argparse` parser, `entrypoints.py` reads runtime jobs, scripts, and checks, and `introspect.py` holds the shared parser reader. Output is `assets/commands.json` (kind, group, risk, schedule, example, arguments). The check fails on drift, an unclassified command, or a runnable module with no entry |
 
 ---
 

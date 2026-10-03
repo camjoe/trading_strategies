@@ -63,13 +63,13 @@ API Reference (`scripts/documentation_ui/api/`):
 
 Commands (`scripts/documentation_ui/commands/`):
 
-- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json` from the live CLI `argparse` parser. Every command must be listed as read-only or writes-local in `registry.py`.
-- `check.py`: standalone sync check that validates the command asset matches the CLI parser.
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json`, the catalog of every CLI command, runtime job, script, and check. It reads each `argparse` parser without running the entrypoint. Each CLI command is listed as read-only or writes-local in `registry.py`; jobs and tools are listed with a risk (read-only, writes-local, broker) in `entrypoints.py`.
+- `check.py`: standalone sync check that validates the command asset matches the code. It also fails when a module that defines `main` has no catalog entry.
 
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Finance, Software, and API reference checks together.
-- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, assets/commands.json from the CLI parser, and assets/software.json from requirements.
+- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, assets/commands.json from the CLI parser, jobs, and scripts, and assets/software.json from requirements.
 
 Docs drift fixers (`scripts/fixes/`):
 

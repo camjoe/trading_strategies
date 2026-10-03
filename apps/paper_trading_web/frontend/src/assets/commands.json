@@ -1,35 +1,106 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cli_invocation": "python -m trading.interfaces.cli.main",
   "groups": [
-    "Accounts",
-    "Reporting",
-    "Settings",
-    "Strategy Catalog",
-    "Backtesting",
-    "Advisor"
+    {
+      "name": "Accounts",
+      "kind": "cli"
+    },
+    {
+      "name": "Reporting",
+      "kind": "cli"
+    },
+    {
+      "name": "Settings",
+      "kind": "cli"
+    },
+    {
+      "name": "Strategy Catalog",
+      "kind": "cli"
+    },
+    {
+      "name": "Backtesting",
+      "kind": "cli"
+    },
+    {
+      "name": "Advisor",
+      "kind": "cli"
+    },
+    {
+      "name": "Daily Jobs",
+      "kind": "job"
+    },
+    {
+      "name": "Maintenance Jobs",
+      "kind": "job"
+    },
+    {
+      "name": "Governance Jobs",
+      "kind": "job"
+    },
+    {
+      "name": "Quality Checks",
+      "kind": "tool"
+    },
+    {
+      "name": "Launchers and Demo",
+      "kind": "tool"
+    },
+    {
+      "name": "Operations",
+      "kind": "tool"
+    },
+    {
+      "name": "Broker Smoke Tests",
+      "kind": "tool"
+    },
+    {
+      "name": "Research",
+      "kind": "tool"
+    },
+    {
+      "name": "Data and Database",
+      "kind": "tool"
+    },
+    {
+      "name": "Scheduling",
+      "kind": "tool"
+    },
+    {
+      "name": "Documentation Sync",
+      "kind": "tool"
+    }
   ],
   "commands": [
     {
       "name": "init",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Initialize paper trading database.",
       "example": "python -m trading.interfaces.cli.main init",
       "arguments": []
     },
     {
       "name": "list-accounts",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "List all paper trading accounts.",
       "example": "python -m trading.interfaces.cli.main list-accounts",
       "arguments": []
     },
     {
       "name": "create-account",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Create a new paper account.",
       "example": "python -m trading.interfaces.cli.main create-account --name <NAME> --strategy <STRATEGY> --initial-cash <INITIAL_CASH>",
       "arguments": [
@@ -38,6 +109,7 @@
             "--name"
           ],
           "dest": "name",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -50,6 +122,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -62,6 +135,7 @@
             "--initial-cash"
           ],
           "dest": "initial_cash",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": true,
@@ -74,6 +148,7 @@
             "--display-name"
           ],
           "dest": "display_name",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -86,6 +161,7 @@
             "--goal-min-return-pct"
           ],
           "dest": "goal_min_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -98,6 +174,7 @@
             "--goal-max-return-pct"
           ],
           "dest": "goal_max_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -110,6 +187,7 @@
             "--goal-period"
           ],
           "dest": "goal_period",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -122,6 +200,7 @@
             "--learning-enabled"
           ],
           "dest": "learning_enabled",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -134,6 +213,7 @@
             "--risk-policy"
           ],
           "dest": "risk_policy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -151,6 +231,7 @@
             "--stop-loss-pct"
           ],
           "dest": "stop_loss_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -163,6 +244,7 @@
             "--take-profit-pct"
           ],
           "dest": "take_profit_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -175,6 +257,7 @@
             "--trade-size-pct"
           ],
           "dest": "trade_size_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -187,6 +270,7 @@
             "--max-position-pct"
           ],
           "dest": "max_position_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -199,6 +283,7 @@
             "--instrument-mode"
           ],
           "dest": "instrument_mode",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -214,6 +299,7 @@
             "--option-strike-offset-pct"
           ],
           "dest": "option_strike_offset_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -226,6 +312,7 @@
             "--option-min-dte"
           ],
           "dest": "option_min_dte",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -238,6 +325,7 @@
             "--option-max-dte"
           ],
           "dest": "option_max_dte",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -250,6 +338,7 @@
             "--option-type"
           ],
           "dest": "option_type",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -266,6 +355,7 @@
             "--target-delta-min"
           ],
           "dest": "target_delta_min",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -278,6 +368,7 @@
             "--target-delta-max"
           ],
           "dest": "target_delta_max",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -290,6 +381,7 @@
             "--max-premium-per-trade"
           ],
           "dest": "max_premium_per_trade",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -302,6 +394,7 @@
             "--max-contracts-per-trade"
           ],
           "dest": "max_contracts_per_trade",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -314,6 +407,7 @@
             "--iv-rank-min"
           ],
           "dest": "iv_rank_min",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -326,6 +420,7 @@
             "--iv-rank-max"
           ],
           "dest": "iv_rank_max",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -338,6 +433,7 @@
             "--roll-dte-threshold"
           ],
           "dest": "roll_dte_threshold",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -350,6 +446,7 @@
             "--option-profit-take-pct"
           ],
           "dest": "option_profit_take_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -362,6 +459,7 @@
             "--option-max-loss-pct"
           ],
           "dest": "option_max_loss_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -374,6 +472,7 @@
             "--benchmark"
           ],
           "dest": "benchmark",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -385,8 +484,11 @@
     },
     {
       "name": "set-benchmark",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Set benchmark ticker for an account.",
       "example": "python -m trading.interfaces.cli.main set-benchmark --account <ACCOUNT> --benchmark <BENCHMARK>",
       "arguments": [
@@ -395,6 +497,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -407,6 +510,7 @@
             "--benchmark"
           ],
           "dest": "benchmark",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -418,8 +522,11 @@
     },
     {
       "name": "assign-strategy",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Assign an existing, enabled catalog strategy to a book (unknown keys are rejected).",
       "example": "python -m trading.interfaces.cli.main assign-strategy --account <ACCOUNT> --strategy <STRATEGY>",
       "arguments": [
@@ -428,6 +535,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -440,6 +548,7 @@
             "--book"
           ],
           "dest": "book",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -452,6 +561,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -463,8 +573,11 @@
     },
     {
       "name": "configure-account",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Update per-account metadata and goals.",
       "example": "python -m trading.interfaces.cli.main configure-account --account <ACCOUNT>",
       "arguments": [
@@ -473,6 +586,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -485,6 +599,7 @@
             "--display-name"
           ],
           "dest": "display_name",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -497,6 +612,7 @@
             "--goal-min-return-pct"
           ],
           "dest": "goal_min_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -509,6 +625,7 @@
             "--goal-max-return-pct"
           ],
           "dest": "goal_max_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -521,6 +638,7 @@
             "--goal-period"
           ],
           "dest": "goal_period",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -533,6 +651,7 @@
             "--learning-enabled"
           ],
           "dest": "learning_enabled",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -545,6 +664,7 @@
             "--learning-disabled"
           ],
           "dest": "learning_disabled",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -557,6 +677,7 @@
             "--risk-policy"
           ],
           "dest": "risk_policy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -574,6 +695,7 @@
             "--stop-loss-pct"
           ],
           "dest": "stop_loss_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -586,6 +708,7 @@
             "--take-profit-pct"
           ],
           "dest": "take_profit_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -598,6 +721,7 @@
             "--trade-size-pct"
           ],
           "dest": "trade_size_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -610,6 +734,7 @@
             "--max-position-pct"
           ],
           "dest": "max_position_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -622,6 +747,7 @@
             "--instrument-mode"
           ],
           "dest": "instrument_mode",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -637,6 +763,7 @@
             "--option-strike-offset-pct"
           ],
           "dest": "option_strike_offset_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -649,6 +776,7 @@
             "--option-min-dte"
           ],
           "dest": "option_min_dte",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -661,6 +789,7 @@
             "--option-max-dte"
           ],
           "dest": "option_max_dte",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -673,6 +802,7 @@
             "--option-type"
           ],
           "dest": "option_type",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -689,6 +819,7 @@
             "--target-delta-min"
           ],
           "dest": "target_delta_min",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -701,6 +832,7 @@
             "--target-delta-max"
           ],
           "dest": "target_delta_max",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -713,6 +845,7 @@
             "--max-premium-per-trade"
           ],
           "dest": "max_premium_per_trade",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -725,6 +858,7 @@
             "--max-contracts-per-trade"
           ],
           "dest": "max_contracts_per_trade",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -737,6 +871,7 @@
             "--iv-rank-min"
           ],
           "dest": "iv_rank_min",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -749,6 +884,7 @@
             "--iv-rank-max"
           ],
           "dest": "iv_rank_max",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -761,6 +897,7 @@
             "--roll-dte-threshold"
           ],
           "dest": "roll_dte_threshold",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -773,6 +910,7 @@
             "--option-profit-take-pct"
           ],
           "dest": "option_profit_take_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -785,6 +923,7 @@
             "--option-max-loss-pct"
           ],
           "dest": "option_max_loss_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -796,8 +935,11 @@
     },
     {
       "name": "trade",
+      "kind": "cli",
       "group": "Accounts",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Record a mock buy or sell.",
       "example": "python -m trading.interfaces.cli.main trade --account <ACCOUNT> --side buy --ticker <TICKER> --qty <QTY> --price <PRICE>",
       "arguments": [
@@ -806,6 +948,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -818,6 +961,7 @@
             "--side"
           ],
           "dest": "side",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -833,6 +977,7 @@
             "--ticker"
           ],
           "dest": "ticker",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -845,6 +990,7 @@
             "--qty"
           ],
           "dest": "qty",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": true,
@@ -857,6 +1003,7 @@
             "--price"
           ],
           "dest": "price",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": true,
@@ -869,6 +1016,7 @@
             "--fee"
           ],
           "dest": "fee",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -881,6 +1029,7 @@
             "--time"
           ],
           "dest": "time",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -893,6 +1042,7 @@
             "--note"
           ],
           "dest": "note",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -904,8 +1054,11 @@
     },
     {
       "name": "report",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show account status and open positions.",
       "example": "python -m trading.interfaces.cli.main report --account <ACCOUNT>",
       "arguments": [
@@ -914,6 +1067,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -925,8 +1079,11 @@
     },
     {
       "name": "promotion-status",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show read-only promotion readiness based on the canonical evaluation artifact.",
       "example": "python -m trading.interfaces.cli.main promotion-status --account <ACCOUNT>",
       "arguments": [
@@ -935,6 +1092,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -947,6 +1105,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -958,8 +1117,11 @@
     },
     {
       "name": "promotion-request-review",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Persist the current promotion assessment as a manual review request.",
       "example": "python -m trading.interfaces.cli.main promotion-request-review --account <ACCOUNT>",
       "arguments": [
@@ -968,6 +1130,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -980,6 +1143,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -992,6 +1156,7 @@
             "--requested-by"
           ],
           "dest": "requested_by",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1004,6 +1169,7 @@
             "--note"
           ],
           "dest": "note",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1015,8 +1181,11 @@
     },
     {
       "name": "promotion-review-history",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show persisted promotion review requests and audit events.",
       "example": "python -m trading.interfaces.cli.main promotion-review-history --account <ACCOUNT>",
       "arguments": [
@@ -1025,6 +1194,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1037,6 +1207,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1049,6 +1220,7 @@
             "--limit"
           ],
           "dest": "limit",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1060,8 +1232,11 @@
     },
     {
       "name": "promotion-review-action",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Approve, reject, or annotate an open promotion review request.",
       "example": "python -m trading.interfaces.cli.main promotion-review-action --review-id <REVIEW_ID> --action approve",
       "arguments": [
@@ -1070,6 +1245,7 @@
             "--review-id"
           ],
           "dest": "review_id",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": true,
@@ -1082,6 +1258,7 @@
             "--action"
           ],
           "dest": "action",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1098,6 +1275,7 @@
             "--actor"
           ],
           "dest": "actor",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1110,6 +1288,7 @@
             "--note"
           ],
           "dest": "note",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1121,8 +1300,11 @@
     },
     {
       "name": "snapshot",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Save equity snapshot for an account.",
       "example": "python -m trading.interfaces.cli.main snapshot --account <ACCOUNT>",
       "arguments": [
@@ -1131,6 +1313,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1143,6 +1326,7 @@
             "--time"
           ],
           "dest": "time",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1154,8 +1338,11 @@
     },
     {
       "name": "snapshot-history",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show account snapshot history.",
       "example": "python -m trading.interfaces.cli.main snapshot-history --account <ACCOUNT>",
       "arguments": [
@@ -1164,6 +1351,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1176,6 +1364,7 @@
             "--limit"
           ],
           "dest": "limit",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1187,16 +1376,22 @@
     },
     {
       "name": "portfolio-exposure",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show the cross-account exposure rollup (equity, cash, market value) from each account's latest snapshot.",
       "example": "python -m trading.interfaces.cli.main portfolio-exposure",
       "arguments": []
     },
     {
       "name": "parameters",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show the unified parameter source: global settings, per-book settings, and strategy knobs with their effective values and sources.",
       "example": "python -m trading.interfaces.cli.main parameters",
       "arguments": [
@@ -1205,6 +1400,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1216,16 +1412,22 @@
     },
     {
       "name": "portfolio-concentration",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show cross-account concentration by symbol (share of total market value, overlap across accounts) with a sector rollup.",
       "example": "python -m trading.interfaces.cli.main portfolio-concentration",
       "arguments": []
     },
     {
       "name": "compare-strategies",
+      "kind": "cli",
       "group": "Reporting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Compare current paper accounts by account policy state, holdings, benchmark, and trend (not canonical research scores).",
       "example": "python -m trading.interfaces.cli.main compare-strategies",
       "arguments": [
@@ -1234,6 +1436,7 @@
             "--lookback"
           ],
           "dest": "lookback",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1245,8 +1448,11 @@
     },
     {
       "name": "configure-throttle",
+      "kind": "cli",
       "group": "Settings",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit the global trade throttle (omitted flags keep their current values; pass 'none' to clear).",
       "example": "python -m trading.interfaces.cli.main configure-throttle",
       "arguments": [
@@ -1255,6 +1461,7 @@
             "--max-trades-per-day"
           ],
           "dest": "max_trades_per_day",
+          "positional": false,
           "kind": "value",
           "type": "int_or_none",
           "required": false,
@@ -1267,6 +1474,7 @@
             "--max-trades-per-minute"
           ],
           "dest": "max_trades_per_minute",
+          "positional": false,
           "kind": "value",
           "type": "int_or_none",
           "required": false,
@@ -1278,8 +1486,11 @@
     },
     {
       "name": "configure-evaluation",
+      "kind": "cli",
       "group": "Settings",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit global evaluation confidence settings (omitted flags keep their current values).",
       "example": "python -m trading.interfaces.cli.main configure-evaluation",
       "arguments": [
@@ -1288,6 +1499,7 @@
             "--backtest-trade-count-for-full-confidence"
           ],
           "dest": "backtest_trade_count_for_full_confidence",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1300,6 +1512,7 @@
             "--backtest-snapshot-count-for-full-confidence"
           ],
           "dest": "backtest_snapshot_count_for_full_confidence",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1312,6 +1525,7 @@
             "--paper-live-snapshot-count-for-full-confidence"
           ],
           "dest": "paper_live_snapshot_count_for_full_confidence",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1324,6 +1538,7 @@
             "--backtest-trade-confidence-weight"
           ],
           "dest": "backtest_trade_confidence_weight",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1336,6 +1551,7 @@
             "--backtest-snapshot-confidence-weight"
           ],
           "dest": "backtest_snapshot_confidence_weight",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1348,6 +1564,7 @@
             "--backtest-evidence-weight"
           ],
           "dest": "backtest_evidence_weight",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1360,6 +1577,7 @@
             "--paper-live-evidence-weight"
           ],
           "dest": "paper_live_evidence_weight",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1371,8 +1589,11 @@
     },
     {
       "name": "configure-book-rotation-policy",
+      "kind": "cli",
       "group": "Settings",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit a book's rotation policy (weights, threshold, cooldown, min-trades). Omitted flags keep their current values; pass 'none' to fall back to the code default.",
       "example": "python -m trading.interfaces.cli.main configure-book-rotation-policy --account <ACCOUNT>",
       "arguments": [
@@ -1381,6 +1602,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1393,6 +1615,7 @@
             "--book"
           ],
           "dest": "book",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1405,6 +1628,7 @@
             "--min-trades-in-window"
           ],
           "dest": "min_trades_in_window",
+          "positional": false,
           "kind": "value",
           "type": "int_or_none",
           "required": false,
@@ -1417,6 +1641,7 @@
             "--outperformance-threshold-bps"
           ],
           "dest": "outperformance_threshold_bps",
+          "positional": false,
           "kind": "value",
           "type": "float_or_none",
           "required": false,
@@ -1429,6 +1654,7 @@
             "--cooldown-days"
           ],
           "dest": "cooldown_days",
+          "positional": false,
           "kind": "value",
           "type": "int_or_none",
           "required": false,
@@ -1441,6 +1667,7 @@
             "--risk-adjusted-return-weight"
           ],
           "dest": "risk_adjusted_return_weight",
+          "positional": false,
           "kind": "value",
           "type": "float_or_none",
           "required": false,
@@ -1453,6 +1680,7 @@
             "--stability-weight"
           ],
           "dest": "stability_weight",
+          "positional": false,
           "kind": "value",
           "type": "float_or_none",
           "required": false,
@@ -1465,6 +1693,7 @@
             "--drawdown-penalty-weight"
           ],
           "dest": "drawdown_penalty_weight",
+          "positional": false,
           "kind": "value",
           "type": "float_or_none",
           "required": false,
@@ -1477,6 +1706,7 @@
             "--regime-fit-weight"
           ],
           "dest": "regime_fit_weight",
+          "positional": false,
           "kind": "value",
           "type": "float_or_none",
           "required": false,
@@ -1488,8 +1718,11 @@
     },
     {
       "name": "configure-book-rotation",
+      "kind": "cli",
       "group": "Settings",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit a book's rotation scheduling (enabled gate, challenger schedule, lookback). Omitted flags keep their current values; pass 'none' to clear schedule/lookback.",
       "example": "python -m trading.interfaces.cli.main configure-book-rotation --account <ACCOUNT>",
       "arguments": [
@@ -1498,6 +1731,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1510,6 +1744,7 @@
             "--book"
           ],
           "dest": "book",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1522,6 +1757,7 @@
             "--enabled"
           ],
           "dest": "enabled",
+          "positional": false,
           "kind": "value",
           "type": "bool_flag",
           "required": false,
@@ -1534,6 +1770,7 @@
             "--schedule"
           ],
           "dest": "schedule",
+          "positional": false,
           "kind": "value",
           "type": "schedule_or_none",
           "required": false,
@@ -1546,6 +1783,7 @@
             "--lookback-days"
           ],
           "dest": "lookback_days",
+          "positional": false,
           "kind": "value",
           "type": "int_or_none",
           "required": false,
@@ -1557,8 +1795,11 @@
     },
     {
       "name": "configure-promotion",
+      "kind": "cli",
       "group": "Settings",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit global promotion policy settings (omitted flags keep their current values).",
       "example": "python -m trading.interfaces.cli.main configure-promotion",
       "arguments": [
@@ -1567,6 +1808,7 @@
             "--min-research-backtest-trade-count"
           ],
           "dest": "min_research_backtest_trade_count",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1579,6 +1821,7 @@
             "--min-research-backtest-snapshot-count"
           ],
           "dest": "min_research_backtest_snapshot_count",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1591,6 +1834,7 @@
             "--min-research-backtest-return-pct"
           ],
           "dest": "min_research_backtest_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1603,6 +1847,7 @@
             "--min-research-max-drawdown-pct"
           ],
           "dest": "min_research_max_drawdown_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1615,6 +1860,7 @@
             "--min-research-walk-forward-average-return-pct"
           ],
           "dest": "min_research_walk_forward_average_return_pct",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1627,6 +1873,7 @@
             "--min-live-paper-snapshot-count"
           ],
           "dest": "min_live_paper_snapshot_count",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1639,6 +1886,7 @@
             "--min-live-overall-confidence"
           ],
           "dest": "min_live_overall_confidence",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1650,8 +1898,11 @@
     },
     {
       "name": "settings-history",
+      "kind": "cli",
       "group": "Settings",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show the global settings change-audit history (throttle, evaluation, promotion edits).",
       "example": "python -m trading.interfaces.cli.main settings-history",
       "arguments": [
@@ -1660,6 +1911,7 @@
             "--limit"
           ],
           "dest": "limit",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1671,8 +1923,11 @@
     },
     {
       "name": "book-rotation-history",
+      "kind": "cli",
       "group": "Settings",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show a book's rotation settings change-audit history (scheduling and policy edits).",
       "example": "python -m trading.interfaces.cli.main book-rotation-history --account <ACCOUNT>",
       "arguments": [
@@ -1681,6 +1936,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1693,6 +1949,7 @@
             "--book"
           ],
           "dest": "book",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1705,6 +1962,7 @@
             "--limit"
           ],
           "dest": "limit",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1716,8 +1974,11 @@
     },
     {
       "name": "create-strategy-variant",
+      "kind": "cli",
       "group": "Strategy Catalog",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Create a new draft strategy variant of a code primitive with tuned knobs.",
       "example": "python -m trading.interfaces.cli.main create-strategy-variant --strategy <STRATEGY> --primitive <PRIMITIVE>",
       "arguments": [
@@ -1726,6 +1987,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1738,6 +2000,7 @@
             "--primitive"
           ],
           "dest": "primitive",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1750,6 +2013,7 @@
             "--set"
           ],
           "dest": "set_knobs",
+          "positional": false,
           "kind": "repeatable",
           "type": "knob_assignment",
           "required": false,
@@ -1762,6 +2026,7 @@
             "--description"
           ],
           "dest": "description",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1773,8 +2038,11 @@
     },
     {
       "name": "configure-strategy",
+      "kind": "cli",
       "group": "Strategy Catalog",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Edit a draft strategy's knobs and/or enabled flag (untouched knobs are kept).",
       "example": "python -m trading.interfaces.cli.main configure-strategy --strategy <STRATEGY>",
       "arguments": [
@@ -1783,6 +2051,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1795,6 +2064,7 @@
             "--set"
           ],
           "dest": "set_knobs",
+          "positional": false,
           "kind": "repeatable",
           "type": "knob_assignment",
           "required": false,
@@ -1807,6 +2077,7 @@
             "--enabled"
           ],
           "dest": "enabled",
+          "positional": false,
           "kind": "value",
           "type": "bool_flag",
           "required": false,
@@ -1818,8 +2089,11 @@
     },
     {
       "name": "freeze-strategy",
+      "kind": "cli",
       "group": "Strategy Catalog",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Freeze a draft strategy (one-way; tuning it afterward requires a new variant).",
       "example": "python -m trading.interfaces.cli.main freeze-strategy --strategy <STRATEGY>",
       "arguments": [
@@ -1828,6 +2102,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1839,8 +2114,11 @@
     },
     {
       "name": "backtest",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Run a historical backtest for an existing account configuration.",
       "example": "python -m trading.interfaces.cli.main backtest --account <ACCOUNT>",
       "arguments": [
@@ -1849,6 +2127,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -1861,18 +2140,20 @@
             "--tickers-file"
           ],
           "dest": "tickers_file",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
-          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "default": "<repo-root>/src/infrastructure/config/trade_universes/default.txt",
           "choices": null,
-          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+          "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
           "flags": [
             "--universe-history-dir"
           ],
           "dest": "universe_history_dir",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1885,6 +2166,7 @@
             "--start"
           ],
           "dest": "start",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1897,6 +2179,7 @@
             "--end"
           ],
           "dest": "end",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1909,6 +2192,7 @@
             "--lookback-months"
           ],
           "dest": "lookback_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -1921,6 +2205,7 @@
             "--slippage-bps"
           ],
           "dest": "slippage_bps",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1933,6 +2218,7 @@
             "--fee"
           ],
           "dest": "fee",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -1945,6 +2231,7 @@
             "--allow-approximate-leaps"
           ],
           "dest": "allow_approximate_leaps",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -1957,6 +2244,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1969,6 +2257,7 @@
             "--run-name"
           ],
           "dest": "run_name",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -1980,8 +2269,11 @@
     },
     {
       "name": "backtest-report",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show summary metrics for a previous backtest run tied to an account configuration.",
       "example": "python -m trading.interfaces.cli.main backtest-report --run-id <RUN_ID>",
       "arguments": [
@@ -1990,6 +2282,7 @@
             "--run-id"
           ],
           "dest": "run_id",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": true,
@@ -2001,8 +2294,11 @@
     },
     {
       "name": "backtest-leaderboard",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Rank historical account backtest runs by total return.",
       "example": "python -m trading.interfaces.cli.main backtest-leaderboard",
       "arguments": [
@@ -2011,6 +2307,7 @@
             "--limit"
           ],
           "dest": "limit",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2023,6 +2320,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2035,6 +2333,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2046,8 +2345,11 @@
     },
     {
       "name": "backtest-batch",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Run backtests for multiple accounts with shared date and universe settings.",
       "example": "python -m trading.interfaces.cli.main backtest-batch --accounts <ACCOUNTS>",
       "arguments": [
@@ -2056,6 +2358,7 @@
             "--accounts"
           ],
           "dest": "accounts",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2068,18 +2371,20 @@
             "--tickers-file"
           ],
           "dest": "tickers_file",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
-          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "default": "<repo-root>/src/infrastructure/config/trade_universes/default.txt",
           "choices": null,
-          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+          "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
           "flags": [
             "--universe-history-dir"
           ],
           "dest": "universe_history_dir",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2092,6 +2397,7 @@
             "--start"
           ],
           "dest": "start",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2104,6 +2410,7 @@
             "--end"
           ],
           "dest": "end",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2116,6 +2423,7 @@
             "--lookback-months"
           ],
           "dest": "lookback_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2128,6 +2436,7 @@
             "--slippage-bps"
           ],
           "dest": "slippage_bps",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2140,6 +2449,7 @@
             "--fee"
           ],
           "dest": "fee",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2152,6 +2462,7 @@
             "--allow-approximate-leaps"
           ],
           "dest": "allow_approximate_leaps",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -2164,6 +2475,7 @@
             "--run-name-prefix"
           ],
           "dest": "run_name_prefix",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2175,8 +2487,11 @@
     },
     {
       "name": "backtest-optimize",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Walk-forward parameter optimization for one strategy: grid-search on each training window, freeze the winner, then report out-of-sample and holdout evidence against the strategy's current catalog parameters.",
       "example": "python -m trading.interfaces.cli.main backtest-optimize --account <ACCOUNT> --strategy <STRATEGY> --search-space <SEARCH_SPACE>",
       "arguments": [
@@ -2185,6 +2500,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2197,6 +2513,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2209,6 +2526,7 @@
             "--search-space"
           ],
           "dest": "search_space",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2221,18 +2539,20 @@
             "--tickers-file"
           ],
           "dest": "tickers_file",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
-          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "default": "<repo-root>/src/infrastructure/config/trade_universes/default.txt",
           "choices": null,
-          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+          "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
           "flags": [
             "--universe-history-dir"
           ],
           "dest": "universe_history_dir",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2245,6 +2565,7 @@
             "--start"
           ],
           "dest": "start",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2257,6 +2578,7 @@
             "--end"
           ],
           "dest": "end",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2269,6 +2591,7 @@
             "--lookback-months"
           ],
           "dest": "lookback_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2281,6 +2604,7 @@
             "--slippage-bps"
           ],
           "dest": "slippage_bps",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2293,6 +2617,7 @@
             "--fee"
           ],
           "dest": "fee",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2305,6 +2630,7 @@
             "--allow-approximate-leaps"
           ],
           "dest": "allow_approximate_leaps",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -2317,6 +2643,7 @@
             "--train-months"
           ],
           "dest": "train_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2329,6 +2656,7 @@
             "--test-months"
           ],
           "dest": "test_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2341,6 +2669,7 @@
             "--step-months"
           ],
           "dest": "step_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2353,6 +2682,7 @@
             "--holdout-months"
           ],
           "dest": "holdout_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2365,6 +2695,7 @@
             "--candidate-budget"
           ],
           "dest": "candidate_budget",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2377,6 +2708,7 @@
             "--warmup-months"
           ],
           "dest": "warmup_months",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2388,16 +2720,20 @@
     },
     {
       "name": "backtest-optimize-show",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show a persisted optimization experiment: config, winner params, OOS/holdout evidence, promotion status.",
-      "example": "python -m trading.interfaces.cli.main backtest-optimize-show experiment_id <EXPERIMENT_ID>",
+      "example": "python -m trading.interfaces.cli.main backtest-optimize-show <EXPERIMENT_ID>",
       "arguments": [
         {
           "flags": [
             "experiment_id"
           ],
           "dest": "experiment_id",
+          "positional": true,
           "kind": "value",
           "type": "int",
           "required": true,
@@ -2409,16 +2745,20 @@
     },
     {
       "name": "backtest-optimize-promote",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Promote an optimization experiment's winner into a new tradeable strategy variant (frozen by default) and link it back to the experiment.",
-      "example": "python -m trading.interfaces.cli.main backtest-optimize-promote experiment_id <EXPERIMENT_ID> --key <KEY>",
+      "example": "python -m trading.interfaces.cli.main backtest-optimize-promote <EXPERIMENT_ID> --key <KEY>",
       "arguments": [
         {
           "flags": [
             "experiment_id"
           ],
           "dest": "experiment_id",
+          "positional": true,
           "kind": "value",
           "type": "int",
           "required": true,
@@ -2431,6 +2771,7 @@
             "--key"
           ],
           "dest": "key",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2443,6 +2784,7 @@
             "--no-freeze"
           ],
           "dest": "no_freeze",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -2455,6 +2797,7 @@
             "--allow-no-edge"
           ],
           "dest": "allow_no_edge",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -2466,8 +2809,11 @@
     },
     {
       "name": "backtest-bench",
+      "kind": "cli",
       "group": "Backtesting",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Run strategies through synthetic and real-history scenarios and compare their outcome distributions. Behavioral only \u2014 bench runs are not persisted and are not promotion evidence.",
       "example": "python -m trading.interfaces.cli.main backtest-bench",
       "arguments": [
@@ -2476,6 +2822,7 @@
             "--strategies"
           ],
           "dest": "strategies",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2488,6 +2835,7 @@
             "--scenarios"
           ],
           "dest": "scenarios",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2500,6 +2848,7 @@
             "--paths"
           ],
           "dest": "paths",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2512,6 +2861,7 @@
             "--metric"
           ],
           "dest": "metric",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2529,6 +2879,7 @@
             "--slippage-bps"
           ],
           "dest": "slippage_bps",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2541,6 +2892,7 @@
             "--fee"
           ],
           "dest": "fee",
+          "positional": false,
           "kind": "value",
           "type": "float",
           "required": false,
@@ -2553,6 +2905,7 @@
             "--list-scenarios"
           ],
           "dest": "list_scenarios",
+          "positional": false,
           "kind": "flag",
           "type": "flag",
           "required": false,
@@ -2564,8 +2917,11 @@
     },
     {
       "name": "advisor-record",
+      "kind": "cli",
       "group": "Advisor",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Record an advisor decision (including hold) with its rationale and frozen evidence.",
       "example": "python -m trading.interfaces.cli.main advisor-record --account <ACCOUNT> --type hold --rationale <RATIONALE>",
       "arguments": [
@@ -2574,6 +2930,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2586,6 +2943,7 @@
             "--book"
           ],
           "dest": "book",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2598,6 +2956,7 @@
             "--type"
           ],
           "dest": "type",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2617,6 +2976,7 @@
             "--rationale"
           ],
           "dest": "rationale",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": true,
@@ -2629,6 +2989,7 @@
             "--decided-by"
           ],
           "dest": "decided_by",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2641,6 +3002,7 @@
             "--strategy"
           ],
           "dest": "strategy",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2653,6 +3015,7 @@
             "--alternative"
           ],
           "dest": "alternative",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2665,6 +3028,7 @@
             "--note"
           ],
           "dest": "note",
+          "positional": false,
           "kind": "repeatable",
           "type": "str",
           "required": false,
@@ -2677,6 +3041,7 @@
             "--experiment-id"
           ],
           "dest": "experiment_id",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2689,6 +3054,7 @@
             "--promotion-review-id"
           ],
           "dest": "promotion_review_id",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2701,6 +3067,7 @@
             "--window-days"
           ],
           "dest": "window_days",
+          "positional": false,
           "kind": "value",
           "type": "int",
           "required": false,
@@ -2712,8 +3079,11 @@
     },
     {
       "name": "advisor-digest",
+      "kind": "cli",
       "group": "Advisor",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show each account's evaluation, recent decisions, and review flags. Read-only.",
       "example": "python -m trading.interfaces.cli.main advisor-digest",
       "arguments": [
@@ -2722,6 +3092,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2734,6 +3105,7 @@
             "--as-of"
           ],
           "dest": "as_of",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2745,8 +3117,11 @@
     },
     {
       "name": "advisor-score",
+      "kind": "cli",
       "group": "Advisor",
       "risk": "writes-local",
+      "module": null,
+      "schedule": null,
       "help": "Score decisions whose outcome window has closed: backtest the chosen and rejected strategies over the window that followed and record the verdict.",
       "example": "python -m trading.interfaces.cli.main advisor-score",
       "arguments": [
@@ -2755,6 +3130,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2767,6 +3143,7 @@
             "--as-of"
           ],
           "dest": "as_of",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2778,8 +3155,11 @@
     },
     {
       "name": "advisor-scorecard",
+      "kind": "cli",
       "group": "Advisor",
       "risk": "read-only",
+      "module": null,
+      "schedule": null,
       "help": "Show the track record of scored decisions: points, mean edge with an interval, and points by market regime. Read-only.",
       "example": "python -m trading.interfaces.cli.main advisor-scorecard",
       "arguments": [
@@ -2788,6 +3168,7 @@
             "--account"
           ],
           "dest": "account",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2800,6 +3181,7 @@
             "--by"
           ],
           "dest": "by",
+          "positional": false,
           "kind": "value",
           "type": "str",
           "required": false,
@@ -2810,6 +3192,3976 @@
             "regime"
           ],
           "help": "Group decisions by (default: agent)"
+        }
+      ]
+    },
+    {
+      "name": "daily-paper-trading",
+      "kind": "job",
+      "group": "Daily Jobs",
+      "risk": "broker",
+      "module": "trading.interfaces.runtime.jobs.daily.paper_trading",
+      "schedule": "weekdays",
+      "help": "Run the daily paper-trading workflow.",
+      "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' for every account in DB (default: all)"
+        },
+        {
+          "flags": [
+            "--primary-accounts"
+          ],
+          "dest": "primary_accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "momentum_5k,meanrev_5k",
+          "choices": null,
+          "help": "Accounts that use the stricter primary trade caps (default: momentum_5k,meanrev_5k)"
+        },
+        {
+          "flags": [
+            "--primary-max-trades"
+          ],
+          "dest": "primary_max_trades",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 5,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--other-max-trades"
+          ],
+          "dest": "other_max_trades",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 11,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--account-trade-caps"
+          ],
+          "dest": "account_trade_caps",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Optional per-account maximum overrides in the form account:max,account:max (example: momentum_5k:5,core_growth_20k:8)"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--seed"
+          ],
+          "dest": "seed",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--run-challenger-shadow-eval"
+          ],
+          "dest": "run_challenger_shadow_eval",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run challenger shadow evaluation before auto-trading."
+        },
+        {
+          "flags": [
+            "--shadow-eval-rolling-window-days"
+          ],
+          "dest": "shadow_eval_rolling_window_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Override the challenger shadow-eval lookback window in days (default: each book's own configured lookback)."
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run even if this date already completed successfully"
+        },
+        {
+          "flags": [
+            "--as-of-date"
+          ],
+          "dest": "as_of_date",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Override the trading date for this run (YYYY-MM-DD). Used by replay/backfill tooling to re-run a missed date. Affects the duplicate-run guard key and the log/artifact file name prefix."
+        },
+        {
+          "flags": [
+            "--run-source"
+          ],
+          "dest": "run_source",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "scheduled-daily",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--notify-webhook-url"
+          ],
+          "dest": "notify_webhook_url",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Optional webhook URL for runtime notifications (default: $TRADING_RUNTIME_ALERT_WEBHOOK_URL if set)"
+        },
+        {
+          "flags": [
+            "--notify-on-success"
+          ],
+          "dest": "notify_on_success",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Also send a webhook notification when the run completes successfully"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        }
+      ]
+    },
+    {
+      "name": "challenger-shadow-eval",
+      "kind": "job",
+      "group": "Daily Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval",
+      "schedule": "daily",
+      "help": "Run daily challenger shadow evaluation for runtime-eligible accounts.",
+      "example": "python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-day run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--run-source"
+          ],
+          "dest": "run_source",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "daily-challenger-shadow-eval",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--enable-run"
+          ],
+          "dest": "enable_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Explicitly enable execution for this invocation"
+        },
+        {
+          "flags": [
+            "--rolling-window-days"
+          ],
+          "dest": "rolling_window_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Override the historical lookback window in days for challenger evidence (default: each book's own configured lookback)"
+        }
+      ]
+    },
+    {
+      "name": "trader-health",
+      "kind": "job",
+      "group": "Daily Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.daily.trader_health",
+      "schedule": "weekdays",
+      "help": "Validate the latest daily paper trading log is recent and contains a success sentinel.",
+      "example": "python -m trading.interfaces.runtime.jobs.daily.trader_health",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--max-age-hours"
+          ],
+          "dest": "max_age_hours",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 24.0,
+          "choices": null,
+          "help": "Maximum allowed age of the latest run log in hours (default: 24)"
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "dest": "json",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Print machine-readable JSON output"
+        },
+        {
+          "flags": [
+            "--notify-webhook-url"
+          ],
+          "dest": "notify_webhook_url",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Optional webhook URL for runtime notifications (default: $TRADING_RUNTIME_ALERT_WEBHOOK_URL if set)"
+        },
+        {
+          "flags": [
+            "--notify-on-ok"
+          ],
+          "dest": "notify_on_ok",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Also send a webhook notification for successful health checks"
+        }
+      ]
+    },
+    {
+      "name": "run-auto-trades",
+      "kind": "job",
+      "group": "Daily Jobs",
+      "risk": "broker",
+      "module": "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades",
+      "schedule": "indirect",
+      "help": "Execute signal-driven daily paper trades per account (up to --max-trades).",
+      "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts <ACCOUNTS>",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Comma-separated account names, e.g. momentum_5k,meanrev_5k"
+        },
+        {
+          "flags": [
+            "--tickers-file"
+          ],
+          "dest": "tickers_file",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Override the fetch universe with a ticker file. Default: the union of the books' own trade universes."
+        },
+        {
+          "flags": [
+            "--max-trades"
+          ],
+          "dest": "max_trades",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 5,
+          "choices": null,
+          "help": "Maximum trades per account"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Per-trade fee"
+        },
+        {
+          "flags": [
+            "--seed"
+          ],
+          "dest": "seed",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional random seed"
+        }
+      ]
+    },
+    {
+      "name": "reconcile-orders",
+      "kind": "job",
+      "group": "Daily Jobs",
+      "risk": "broker",
+      "module": "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders",
+      "schedule": "indirect",
+      "help": "Apply outstanding broker fills to the books.",
+      "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts <ACCOUNTS>",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Comma-separated account names, e.g. momentum_5k,meanrev_5k"
+        }
+      ]
+    },
+    {
+      "name": "weekly-db-backup",
+      "kind": "job",
+      "group": "Maintenance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup",
+      "schedule": "weekly",
+      "help": "Run weekly database backup.",
+      "example": "python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup",
+      "arguments": [
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-week run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--backup-dir"
+          ],
+          "dest": "backup_dir",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Optional backup destination directory or .db file path"
+        }
+      ]
+    },
+    {
+      "name": "burn-in-status",
+      "kind": "job",
+      "group": "Maintenance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.maintenance.burn_in_status",
+      "schedule": "manual",
+      "help": "Check burn-in stability of daily paper-trading runs.",
+      "example": "python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status",
+      "arguments": [
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-day run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--min-consecutive-days"
+          ],
+          "dest": "min_consecutive_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 10,
+          "choices": null,
+          "help": "Minimum consecutive successful daily runs required (default: 10)"
+        },
+        {
+          "flags": [
+            "--max-failure-rate-pct"
+          ],
+          "dest": "max_failure_rate_pct",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Maximum acceptable failed-step rate over the window in %%%% (default: 0.0)"
+        },
+        {
+          "flags": [
+            "--window-days"
+          ],
+          "dest": "window_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 30,
+          "choices": null,
+          "help": "How many calendar days of history to scan for artifacts (default: 30)"
+        }
+      ]
+    },
+    {
+      "name": "replay-daily-runs",
+      "kind": "job",
+      "group": "Maintenance Jobs",
+      "risk": "broker",
+      "module": "trading.interfaces.runtime.jobs.maintenance.replay_daily_runs",
+      "schedule": "manual",
+      "help": "Replay missed daily paper-trading runs over a date range.",
+      "example": "python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs --from-date <FROM_DATE> --to-date <TO_DATE>",
+      "arguments": [
+        {
+          "flags": [
+            "--from-date"
+          ],
+          "dest": "from_date",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Start of the replay window (YYYY-MM-DD, inclusive)"
+        },
+        {
+          "flags": [
+            "--to-date"
+          ],
+          "dest": "to_date",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "End of the replay window (YYYY-MM-DD, inclusive)"
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "dest": "dry_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "List missing dates without executing any runs"
+        },
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--run-source"
+          ],
+          "dest": "run_source",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "replay",
+          "choices": null,
+          "help": "run_source tag written into the artifact (default: replay)"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        }
+      ]
+    },
+    {
+      "name": "w1-leaderboard",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard",
+      "schedule": "weekly guard",
+      "help": "W1 weekly governance: rank strategy books by 30-day performance.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-week run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--window-days"
+          ],
+          "dest": "window_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 30,
+          "choices": null,
+          "help": "Lookback window in days for performance metrics (default: 30)"
+        }
+      ]
+    },
+    {
+      "name": "w2-promotion-review",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review",
+      "schedule": "weekly guard",
+      "help": "W2 weekly governance: promotion/retirement review for runtime-eligible accounts.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-week run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        }
+      ]
+    },
+    {
+      "name": "w3-allocation-review",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review",
+      "schedule": "weekly guard",
+      "help": "W3 weekly governance: compare actual book NAV allocation vs original start_equity ratios.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-week run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--drift-threshold-pct"
+          ],
+          "dest": "drift_threshold_pct",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": "Drift threshold percentage to flag reweight suggestion (default: 5.0)"
+        }
+      ]
+    },
+    {
+      "name": "m1-risk-rebaseline",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline",
+      "schedule": "monthly guard",
+      "help": "M1 monthly governance: risk budget rebaseline report per account.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-month run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        }
+      ]
+    },
+    {
+      "name": "m2-parameter-governance",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance",
+      "schedule": "monthly guard",
+      "help": "M2 monthly governance: inventory active strategy parameters per book.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-month run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        }
+      ]
+    },
+    {
+      "name": "m3-performance-audit",
+      "kind": "job",
+      "group": "Governance Jobs",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit",
+      "schedule": "monthly guard",
+      "help": "M3 monthly governance: 90-day long-horizon performance audit across all books.",
+      "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "all",
+          "choices": null,
+          "help": "Comma-separated account names, or 'all' (default: all)"
+        },
+        {
+          "flags": [
+            "--force-run"
+          ],
+          "dest": "force_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow duplicate same-month run"
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>",
+          "choices": null,
+          "help": "Repository root path (default: inferred from script location)"
+        },
+        {
+          "flags": [
+            "--audit-window-days"
+          ],
+          "dest": "audit_window_days",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 90,
+          "choices": null,
+          "help": "Historical lookback window in days for the performance audit (default: 90)"
+        }
+      ]
+    },
+    {
+      "name": "run-checks docs",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.run_checks",
+      "schedule": null,
+      "help": "Run documentation drift and reference-doc checks.",
+      "example": "python -m scripts.run_checks docs",
+      "arguments": [
+        {
+          "flags": [
+            "--advisory"
+          ],
+          "dest": "advisory",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Report enforce-capable documentation findings without failing."
+        },
+        {
+          "flags": [
+            "--skip-reference-docs"
+          ],
+          "dest": "skip_reference_docs",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip generated documentation UI asset checks."
+        }
+      ]
+    },
+    {
+      "name": "run-checks repo",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.run_checks",
+      "schedule": null,
+      "help": "Run repository safety and structure checks.",
+      "example": "python -m scripts.run_checks repo",
+      "arguments": [
+        {
+          "flags": [
+            "--advisory"
+          ],
+          "dest": "advisory",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Report enforce-capable repository findings without failing."
+        }
+      ]
+    },
+    {
+      "name": "run-checks python",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.run_checks",
+      "schedule": null,
+      "help": "Run Python style, type, and test checks.",
+      "example": "python -m scripts.run_checks python",
+      "arguments": [
+        {
+          "flags": [
+            "--suite"
+          ],
+          "dest": "suite_names",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only the specified test suite(s) instead of the full suite."
+        },
+        {
+          "flags": [
+            "--changed"
+          ],
+          "dest": "suite_changed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run only suites with uncommitted changed files (staged + unstaged)."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "suite_base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
+        },
+        {
+          "flags": [
+            "--no-cov"
+          ],
+          "dest": "no_cov",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Disable coverage for faster targeted test runs."
+        }
+      ]
+    },
+    {
+      "name": "run-checks quick",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.run_checks",
+      "schedule": null,
+      "help": "Run normal local checks: repo plus Python.",
+      "example": "python -m scripts.run_checks quick",
+      "arguments": [
+        {
+          "flags": [
+            "--with-frontend"
+          ],
+          "dest": "with_frontend",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Also run frontend lint/typecheck/tests."
+        },
+        {
+          "flags": [
+            "--suite"
+          ],
+          "dest": "suite_names",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only the specified test suite(s) instead of the full suite."
+        },
+        {
+          "flags": [
+            "--changed"
+          ],
+          "dest": "suite_changed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run only suites with uncommitted changed files (staged + unstaged)."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "suite_base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
+        },
+        {
+          "flags": [
+            "--no-cov"
+          ],
+          "dest": "no_cov",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Disable coverage for faster targeted test runs."
+        }
+      ]
+    },
+    {
+      "name": "run-checks ci",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.run_checks",
+      "schedule": null,
+      "help": "Run CI-shaped checks: docs, repo, Python, and frontend.",
+      "example": "python -m scripts.run_checks ci",
+      "arguments": [
+        {
+          "flags": [
+            "--skip-frontend"
+          ],
+          "dest": "skip_frontend",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip frontend checks."
+        }
+      ]
+    },
+    {
+      "name": "fix-checks",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "writes-local",
+      "module": "scripts.fix_checks",
+      "schedule": null,
+      "help": "Apply deterministic, behavior-preserving fixes for local check drift.",
+      "example": "python -m scripts.fix_checks",
+      "arguments": [
+        {
+          "flags": [
+            "targets"
+          ],
+          "dest": "targets",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional Python target paths. Defaults to the same targets as the Ruff check gate."
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root."
+        }
+      ]
+    },
+    {
+      "name": "launch-ui",
+      "kind": "tool",
+      "group": "Launchers and Demo",
+      "risk": "writes-local",
+      "module": "scripts.launch_ui",
+      "schedule": null,
+      "help": "Start the paper-trading backend and frontend together.",
+      "example": "python -m scripts.launch_ui",
+      "arguments": []
+    },
+    {
+      "name": "launch-demo",
+      "kind": "tool",
+      "group": "Launchers and Demo",
+      "risk": "writes-local",
+      "module": "scripts.launch_demo",
+      "schedule": null,
+      "help": "Rebuild the synthetic offline demo database, then start the UI on separate ports.",
+      "example": "python -m scripts.launch_demo",
+      "arguments": []
+    },
+    {
+      "name": "launch-sandbox",
+      "kind": "tool",
+      "group": "Launchers and Demo",
+      "risk": "writes-local",
+      "module": "scripts.launch_sandbox",
+      "schedule": null,
+      "help": "Restore the disposable sandbox database and launch the UI.",
+      "example": "python -m scripts.launch_sandbox",
+      "arguments": [
+        {
+          "flags": [
+            "--rebuild"
+          ],
+          "dest": "rebuild",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Regenerate the golden build before restoring the working copy."
+        },
+        {
+          "flags": [
+            "--no-ui"
+          ],
+          "dest": "no_ui",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Restore the database and print its path without starting the UI."
+        }
+      ]
+    },
+    {
+      "name": "screenshot-ui",
+      "kind": "tool",
+      "group": "Launchers and Demo",
+      "risk": "read-only",
+      "module": "scripts.screenshot_ui",
+      "schedule": null,
+      "help": "Capture a screenshot of the paper trading UI.",
+      "example": "python -m scripts.screenshot_ui",
+      "arguments": [
+        {
+          "flags": [
+            "--tab"
+          ],
+          "dest": "tab",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "accounts",
+          "choices": null,
+          "help": "Tab to open (default: accounts). Options: accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor, alt-strategies, docs, admin"
+        },
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Account name to open detail for (only used with --tab accounts)"
+        },
+        {
+          "flags": [
+            "--wait-analysis"
+          ],
+          "dest": "wait_analysis",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Wait for the Performance Analysis panel to finish loading before screenshotting"
+        },
+        {
+          "flags": [
+            "--output"
+          ],
+          "dest": "output",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Output file path (default: local/screenshots/<tab>_<timestamp>.png)"
+        },
+        {
+          "flags": [
+            "--url"
+          ],
+          "dest": "url",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "http://127.0.0.1:5173",
+          "choices": null,
+          "help": "Base URL of the frontend (default: http://127.0.0.1:5173)"
+        },
+        {
+          "flags": [
+            "--width"
+          ],
+          "dest": "width",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 1440,
+          "choices": null,
+          "help": "Viewport width (default: 1440)"
+        },
+        {
+          "flags": [
+            "--height"
+          ],
+          "dest": "height",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 900,
+          "choices": null,
+          "help": "Viewport height (default: 900)"
+        },
+        {
+          "flags": [
+            "--no-full-page"
+          ],
+          "dest": "full_page",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": true,
+          "choices": null,
+          "help": "Capture only the visible viewport instead of the full page"
+        },
+        {
+          "flags": [
+            "--headed"
+          ],
+          "dest": "headed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run with a visible browser window (useful for debugging)"
+        }
+      ]
+    },
+    {
+      "name": "check-jobs",
+      "kind": "tool",
+      "group": "Operations",
+      "risk": "writes-local",
+      "module": "scripts.check_jobs",
+      "schedule": null,
+      "help": "Check the status of monitored runtime jobs.",
+      "example": "python -m scripts.check_jobs",
+      "arguments": [
+        {
+          "flags": [
+            "--run-missing"
+          ],
+          "dest": "run_missing",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Trigger any unhealthy job (the daily run if it has not completed today, or any job that started but did not finish)."
+        }
+      ]
+    },
+    {
+      "name": "ibkr-web-api-smoke-test",
+      "kind": "tool",
+      "group": "Broker Smoke Tests",
+      "risk": "broker",
+      "module": "scripts.ibkr_web_api_smoke_test",
+      "schedule": null,
+      "help": "Run a read-only IBKR Web API smoke test against the local Client Portal Gateway.",
+      "example": "python -m scripts.ibkr_web_api_smoke_test",
+      "arguments": [
+        {
+          "flags": [
+            "--paper-order-check"
+          ],
+          "dest": "paper_order_check",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Also run a paper-order lifecycle check with an explicit test limit order."
+        },
+        {
+          "flags": [
+            "--paper-order-symbol"
+          ],
+          "dest": "paper_order_symbol",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Ticker symbol for the optional paper-order check."
+        },
+        {
+          "flags": [
+            "--paper-order-qty"
+          ],
+          "dest": "paper_order_qty",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 1.0,
+          "choices": null,
+          "help": "Quantity for the optional paper-order check (default: 1)."
+        },
+        {
+          "flags": [
+            "--paper-order-limit-price"
+          ],
+          "dest": "paper_order_limit_price",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Limit price for the optional paper-order check. Use a clearly non-marketable value."
+        },
+        {
+          "flags": [
+            "--paper-order-side"
+          ],
+          "dest": "paper_order_side",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "buy",
+          "choices": [
+            "buy",
+            "sell"
+          ],
+          "help": "Side for the optional paper-order check (default: buy)."
+        },
+        {
+          "flags": [
+            "--skip-paper-order-cancel"
+          ],
+          "dest": "skip_paper_order_cancel",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Leave the paper test order open instead of requesting cancellation."
+        }
+      ]
+    },
+    {
+      "name": "ibkr-socket-smoke-test",
+      "kind": "tool",
+      "group": "Broker Smoke Tests",
+      "risk": "broker",
+      "module": "scripts.ibkr_socket_smoke_test",
+      "schedule": null,
+      "help": "Run a read-only IBKR socket/TWS smoke test against a local TWS or IB Gateway.",
+      "example": "python -m scripts.ibkr_socket_smoke_test",
+      "arguments": [
+        {
+          "flags": [
+            "--host"
+          ],
+          "dest": "host",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "127.0.0.1",
+          "choices": null,
+          "help": "TWS/Gateway host (default: 127.0.0.1)"
+        },
+        {
+          "flags": [
+            "--port"
+          ],
+          "dest": "port",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 7497,
+          "choices": null,
+          "help": "TWS/Gateway port (default: 7497 = TWS paper; IB Gateway paper is 4002)"
+        },
+        {
+          "flags": [
+            "--client-id"
+          ],
+          "dest": "client_id",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 99,
+          "choices": null,
+          "help": "API client id (default: 99)"
+        },
+        {
+          "flags": [
+            "--quote-tickers"
+          ],
+          "dest": "quote_tickers",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Optional comma-separated tickers to request snapshot quotes for (example: AAPL,MSFT)"
+        },
+        {
+          "flags": [
+            "--paper-order-check"
+          ],
+          "dest": "paper_order_check",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Submit one non-marketable limit order, confirm it comes back through get_open_trades(), then cancel it. Paper accounts only \u2014 refuses to run otherwise."
+        },
+        {
+          "flags": [
+            "--paper-order-symbol"
+          ],
+          "dest": "paper_order_symbol",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Ticker for --paper-order-check"
+        },
+        {
+          "flags": [
+            "--paper-order-limit-price"
+          ],
+          "dest": "paper_order_limit_price",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Limit price for --paper-order-check. Use a clearly non-marketable price."
+        },
+        {
+          "flags": [
+            "--paper-order-qty"
+          ],
+          "dest": "paper_order_qty",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 1.0,
+          "choices": null,
+          "help": "Quantity for --paper-order-check (default: 1)"
+        },
+        {
+          "flags": [
+            "--paper-order-side"
+          ],
+          "dest": "paper_order_side",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "buy",
+          "choices": [
+            "buy",
+            "sell"
+          ],
+          "help": "Side for --paper-order-check (default: buy)"
+        },
+        {
+          "flags": [
+            "--skip-paper-order-cancel"
+          ],
+          "dest": "skip_paper_order_cancel",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Leave the test order resting instead of cancelling it (it will expire at the close)."
+        }
+      ]
+    },
+    {
+      "name": "benchmark-sweep",
+      "kind": "tool",
+      "group": "Research",
+      "risk": "writes-local",
+      "module": "scripts.benchmark_sweep",
+      "schedule": null,
+      "help": "Time the walk-forward optimizer so sweep sizing can be chosen from data. A sweep is ``candidates x windows`` training backtests plus a persisted OOS run and a metrics-only baseline per window, plus two holdout runs. The route's candidate-budget ceiling is derived from what one simulation costs, so re-run this whenever the inner loop changes and re-derive the cap from the result. Runs against a *copy* of the database (SQLite backup API, so WAL content comes along), because a sweep persists its OOS and holdout runs and a benchmark should not leave evidence rows behind. python -m scripts.benchmark_sweep --account momentum_5k --label baseline Add ``--json-out local/sweep_benchmarks.jsonl`` to append a machine-readable row per run for before/after comparison. **Read the output with suspicion.** One run is one sample, and repeated runs of an identical configuration have come in 23% apart on the same machine. A single before/after pair therefore cannot resolve anything below roughly 25%. For a smaller effect, profile where the time goes rather than A/B timing the whole sweep \u2014 or teach this script to interleave repeated trials and report the minimum, since noise only ever adds time.",
+      "example": "python -m scripts.benchmark_sweep --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name to benchmark against."
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "ma_crossover",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--search-space"
+          ],
+          "dest": "search_space",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "{\"fast_window\": [5, 10, 15, 20], \"slow_window\": [40, 60]}",
+          "choices": null,
+          "help": "JSON parameter grid."
+        },
+        {
+          "flags": [
+            "--tickers-file"
+          ],
+          "dest": "tickers_file",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>/src/infrastructure/config/trade_universes/default.txt",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--universe-history-dir"
+          ],
+          "dest": "universe_history_dir",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--lookback-months"
+          ],
+          "dest": "lookback_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 30,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--train-months"
+          ],
+          "dest": "train_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 12,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--test-months"
+          ],
+          "dest": "test_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 1,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--step-months"
+          ],
+          "dest": "step_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 1,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--holdout-months"
+          ],
+          "dest": "holdout_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 6,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--warmup-months"
+          ],
+          "dest": "warmup_months",
+          "positional": false,
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 6,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--slippage-bps"
+          ],
+          "dest": "slippage_bps",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "positional": false,
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--db"
+          ],
+          "dest": "db",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Source database to copy (default: the configured path)."
+        },
+        {
+          "flags": [
+            "--label"
+          ],
+          "dest": "label",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "run",
+          "choices": null,
+          "help": "Tag recorded with the result row."
+        },
+        {
+          "flags": [
+            "--json-out"
+          ],
+          "dest": "json_out",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Append one JSON result line to this file."
+        },
+        {
+          "flags": [
+            "--skip-single"
+          ],
+          "dest": "skip_single",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the single-backtest measurement."
+        },
+        {
+          "flags": [
+            "--skip-sweep"
+          ],
+          "dest": "skip_sweep",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the full-sweep measurement."
+        }
+      ]
+    },
+    {
+      "name": "describe-db-schema",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "read-only",
+      "module": "scripts.data_ops.describe_db_schema",
+      "schedule": null,
+      "help": "Describe the trading database schema from the canonical code-defined schema or from the configured live SQLite database.",
+      "example": "python -m scripts.data_ops.describe_db_schema",
+      "arguments": [
+        {
+          "flags": [
+            "--source"
+          ],
+          "dest": "source",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "fresh",
+          "choices": [
+            "fresh",
+            "live"
+          ],
+          "help": "Read schema from an in-memory database initialized from code, or from the live configured DB."
+        },
+        {
+          "flags": [
+            "--format"
+          ],
+          "dest": "format",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "text",
+          "choices": [
+            "text",
+            "json"
+          ],
+          "help": "Output format."
+        }
+      ]
+    },
+    {
+      "name": "check-cash-invariant",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "read-only",
+      "module": "scripts.data_ops.check_cash_invariant",
+      "schedule": null,
+      "help": "Check that each book's current_cash reconciles with start_equity plus its ledger sum.",
+      "example": "python -m scripts.data_ops.check_cash_invariant",
+      "arguments": [
+        {
+          "flags": [
+            "--format"
+          ],
+          "dest": "format",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "text",
+          "choices": [
+            "text",
+            "json"
+          ],
+          "help": "Output format."
+        }
+      ]
+    },
+    {
+      "name": "build-database-diagram-viewer",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.data_ops.build_database_diagram_viewer",
+      "schedule": null,
+      "help": "Build a self-contained HTML database diagram viewer from the fresh code-defined schema.",
+      "example": "python -m scripts.data_ops.build_database_diagram_viewer",
+      "arguments": [
+        {
+          "flags": [
+            "--output"
+          ],
+          "dest": "output",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": false,
+          "default": "<repo-root>/docs/reference/database-diagram-viewer.html",
+          "choices": null,
+          "help": "Output HTML path."
+        }
+      ]
+    },
+    {
+      "name": "capture-scenario-fixture",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.data_ops.capture_scenario_fixture",
+      "schedule": null,
+      "help": "Capture a real-history fixture for the scenario bench.",
+      "example": "python -m scripts.data_ops.capture_scenario_fixture",
+      "arguments": [
+        {
+          "flags": [
+            "--id"
+          ],
+          "dest": "id",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Fixture id to capture (default: all declared fixtures)"
+        }
+      ]
+    },
+    {
+      "name": "db-migrations status",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "read-only",
+      "module": "scripts.data_ops.manage_db_migrations",
+      "schedule": null,
+      "help": "Show database revision, repository head, and pending revisions.",
+      "example": "python -m scripts.data_ops.manage_db_migrations status",
+      "arguments": []
+    },
+    {
+      "name": "db-migrations upgrade",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.data_ops.manage_db_migrations",
+      "schedule": null,
+      "help": "Apply revisions up to the target (default: head). Backs up first.",
+      "example": "python -m scripts.data_ops.manage_db_migrations upgrade",
+      "arguments": [
+        {
+          "flags": [
+            "revision"
+          ],
+          "dest": "revision",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "head",
+          "choices": null,
+          "help": "Target revision (default: head)."
+        }
+      ]
+    },
+    {
+      "name": "db-migrations downgrade",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.data_ops.manage_db_migrations",
+      "schedule": null,
+      "help": "Revert to an explicit target revision. Backs up first.",
+      "example": "python -m scripts.data_ops.manage_db_migrations downgrade <REVISION>",
+      "arguments": [
+        {
+          "flags": [
+            "revision"
+          ],
+          "dest": "revision",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Target revision, or -1 for one step down."
+        }
+      ]
+    },
+    {
+      "name": "db-migrations history",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "read-only",
+      "module": "scripts.data_ops.manage_db_migrations",
+      "schedule": null,
+      "help": "Display the ordered revision chain.",
+      "example": "python -m scripts.data_ops.manage_db_migrations history",
+      "arguments": []
+    },
+    {
+      "name": "db-admin list-accounts",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "read-only",
+      "module": "trading.interfaces.runtime.data_ops.admin",
+      "schedule": null,
+      "help": "List current accounts in the DB.",
+      "example": "python -m trading.interfaces.runtime.data_ops.admin list-accounts",
+      "arguments": []
+    },
+    {
+      "name": "db-admin backup-db",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.data_ops.admin",
+      "schedule": null,
+      "help": "Create a timestamped backup of the database.",
+      "example": "python -m trading.interfaces.runtime.data_ops.admin backup-db",
+      "arguments": [
+        {
+          "flags": [
+            "destination"
+          ],
+          "dest": "destination",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional target file path (.db) or directory for the backup."
+        }
+      ]
+    },
+    {
+      "name": "db-admin delete-account",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.data_ops.admin",
+      "schedule": null,
+      "help": "Delete one account and its related records.",
+      "example": "python -m trading.interfaces.runtime.data_ops.admin delete-account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "account"
+          ],
+          "dest": "account",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name."
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "dest": "dry_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Show what would be deleted without changes."
+        },
+        {
+          "flags": [
+            "--no-backup"
+          ],
+          "dest": "no_backup",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the automatic pre-delete database backup (deletion is unrecoverable without it)."
+        },
+        {
+          "flags": [
+            "--backup-destination"
+          ],
+          "dest": "backup_destination",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional destination path for the automatic pre-delete backup."
+        }
+      ]
+    },
+    {
+      "name": "seed-clean-schema",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.data_ops.seed_clean_schema",
+      "schedule": null,
+      "help": "Seed the clean-schema strategy catalog and per-account default books.",
+      "example": "python -m trading.interfaces.runtime.data_ops.seed_clean_schema",
+      "arguments": [
+        {
+          "flags": [
+            "--strategies-only"
+          ],
+          "dest": "strategies_only",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Seed only the strategies catalog; skip default-book bootstrap."
+        }
+      ]
+    },
+    {
+      "name": "manage-job-schedules",
+      "kind": "tool",
+      "group": "Scheduling",
+      "risk": "writes-local",
+      "module": "trading.interfaces.runtime.scheduling.manage_job_schedules",
+      "schedule": null,
+      "help": "Manage runtime job schedules from the schedule config file.",
+      "example": "python -m trading.interfaces.runtime.scheduling.manage_job_schedules",
+      "arguments": [
+        {
+          "flags": [
+            "--config"
+          ],
+          "dest": "config",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Path to the declarative job schedule JSON file (see src/infrastructure/config/job_schedule.example.json). Defaults to <repo-root>/src/infrastructure/config/job_schedule.json. The file is the source of truth: enabled jobs are registered and the rest removed."
+        },
+        {
+          "flags": [
+            "--status"
+          ],
+          "dest": "status",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Report drift between the config file and the schedules registered on this host, then exit."
+        },
+        {
+          "flags": [
+            "--unregister"
+          ],
+          "dest": "unregister",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Remove every catalog schedule entry"
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "dest": "dry_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Print actions without applying"
+        },
+        {
+          "flags": [
+            "--python"
+          ],
+          "dest": "python",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "<repo-root>/.venv/Scripts/python.exe",
+          "choices": null,
+          "help": "Python executable used by scheduler (default: auto-detected venv python)"
+        },
+        {
+          "flags": [
+            "--scheduler"
+          ],
+          "dest": "scheduler",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "auto",
+          "choices": [
+            "auto",
+            "cron",
+            "systemd"
+          ],
+          "help": "Scheduler backend: 'auto' picks systemd on Linux if available, else cron (default: auto)"
+        },
+        {
+          "flags": [
+            "--wake-system"
+          ],
+          "dest": "wake_system",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": true,
+          "choices": null,
+          "help": "Wake the system from sleep before each run (systemd WakeSystem / Windows WakeToRun; default: true)"
+        },
+        {
+          "flags": [
+            "--no-wake-system"
+          ],
+          "dest": "wake_system",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": true,
+          "choices": null,
+          "help": "Disable the wake-from-sleep setting on the registered tasks"
+        },
+        {
+          "flags": [
+            "--env-file"
+          ],
+          "dest": "env_file",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "choices": null,
+          "help": "Path to a .env file to inject into each systemd service unit via EnvironmentFile=. The file is treated as optional (missing file is not an error). Has no effect when using cron or Windows Task Scheduler."
+        }
+      ]
+    },
+    {
+      "name": "sync-reference-docs",
+      "kind": "tool",
+      "group": "Documentation Sync",
+      "risk": "writes-local",
+      "module": "scripts.documentation_ui.sync",
+      "schedule": null,
+      "help": "Sync frontend/src/assets reference JSON files from live code and requirements.",
+      "example": "python -m scripts.documentation_ui.sync",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        }
+      ]
+    },
+    {
+      "name": "check-reference-docs",
+      "kind": "tool",
+      "group": "Documentation Sync",
+      "risk": "read-only",
+      "module": "scripts.documentation_ui.check",
+      "schedule": null,
+      "help": "Check documentation UI assets are in sync with their canonical sources.",
+      "example": "python -m scripts.documentation_ui.check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--skip-finance"
+          ],
+          "dest": "skip_finance",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the Finance reference check."
+        },
+        {
+          "flags": [
+            "--skip-software"
+          ],
+          "dest": "skip_software",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the Software reference check."
+        },
+        {
+          "flags": [
+            "--skip-api"
+          ],
+          "dest": "skip_api",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the API reference check."
+        },
+        {
+          "flags": [
+            "--skip-commands"
+          ],
+          "dest": "skip_commands",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the Command reference check."
+        }
+      ]
+    },
+    {
+      "name": "fix-db-schema-doc",
+      "kind": "tool",
+      "group": "Documentation Sync",
+      "risk": "writes-local",
+      "module": "scripts.fixes.db_schema_fix",
+      "schedule": null,
+      "help": "Sync the Quick Reference table in docs/reference/db-schema.md with the current schema: remove stale rows and append TODO scaffold rows for undocumented tables.",
+      "example": "python -m scripts.fixes.db_schema_fix",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        }
+      ]
+    },
+    {
+      "name": "fix-maps-doc",
+      "kind": "tool",
+      "group": "Documentation Sync",
+      "risk": "writes-local",
+      "module": "scripts.fixes.maps_fix",
+      "schedule": null,
+      "help": "Remove structural-map table rows whose files no longer exist on disk.",
+      "example": "python -m scripts.fixes.maps_fix",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        }
+      ]
+    },
+    {
+      "name": "sqlite-diagram",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.database_diagrams.sqlite",
+      "schedule": null,
+      "help": "Inspect a SQLite database and build a neutral schema payload or HTML diagram viewer.",
+      "example": "python -m scripts.database_diagrams.sqlite --database <DATABASE>",
+      "arguments": [
+        {
+          "flags": [
+            "--database"
+          ],
+          "dest": "database",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "SQLite database file to inspect."
+        },
+        {
+          "flags": [
+            "--output-json"
+          ],
+          "dest": "output_json",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional neutral schema JSON output path."
+        },
+        {
+          "flags": [
+            "--output-html"
+          ],
+          "dest": "output_html",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional self-contained HTML viewer output path."
+        },
+        {
+          "flags": [
+            "--title"
+          ],
+          "dest": "title",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "Database Diagram Viewer",
+          "choices": null,
+          "help": "Viewer title."
+        }
+      ]
+    },
+    {
+      "name": "render-diagram-html",
+      "kind": "tool",
+      "group": "Data and Database",
+      "risk": "writes-local",
+      "module": "scripts.database_diagrams.render_html",
+      "schedule": null,
+      "help": "Render a self-contained database diagram viewer from a neutral schema JSON payload.",
+      "example": "python -m scripts.database_diagrams.render_html --schema-json <SCHEMA_JSON> --output <OUTPUT>",
+      "arguments": [
+        {
+          "flags": [
+            "--schema-json"
+          ],
+          "dest": "schema_json",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Input neutral schema JSON payload."
+        },
+        {
+          "flags": [
+            "--output"
+          ],
+          "dest": "output",
+          "positional": false,
+          "kind": "value",
+          "type": "Path",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Output HTML path."
+        }
+      ]
+    },
+    {
+      "name": "ci",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.ci",
+      "schedule": null,
+      "help": "Run local smoke checks that mirror core GitHub Actions workflows.",
+      "example": "python -m scripts.checks.ci",
+      "arguments": [
+        {
+          "flags": [
+            "--skip-frontend"
+          ],
+          "dest": "skip_frontend",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip frontend checks."
+        }
+      ]
+    },
+    {
+      "name": "db-schema-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.db_schema_check",
+      "schedule": null,
+      "help": "Check that the Quick Reference table in docs/reference/db-schema.md covers every table in the current schema. Advisory by default; use --enforce to fail non-zero on drift.",
+      "example": "python -m scripts.checks.docs.db_schema_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when drift is found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "doc-header-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.doc_header_check",
+      "schedule": null,
+      "help": "Verify every docs/ file carries the required header fields with valid vocabulary.",
+      "example": "python -m scripts.checks.docs.doc_header_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "doc-naming-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.doc_naming_check",
+      "schedule": null,
+      "help": "Verify docs/ filenames follow kebab-case and ADRs use unique NNN prefixes.",
+      "example": "python -m scripts.checks.docs.doc_naming_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "docs-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.docs_check",
+      "schedule": null,
+      "help": "Run documentation and documentation-drift checks together.",
+      "example": "python -m scripts.checks.docs.docs_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when enforce-capable checks find problems."
+        },
+        {
+          "flags": [
+            "--quiet"
+          ],
+          "dest": "quiet",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Collapse clean checks to one-line PASS output."
+        },
+        {
+          "flags": [
+            "--skip-reference-docs"
+          ],
+          "dest": "skip_reference_docs",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip generated documentation UI asset checks."
+        }
+      ]
+    },
+    {
+      "name": "link-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.link_check",
+      "schedule": null,
+      "help": "Report markdown links and backtick repo-root paths in docs that do not resolve.",
+      "example": "python -m scripts.checks.docs.link_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when broken references are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "maps-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.maps_check",
+      "schedule": null,
+      "help": "Report drift between structural maps and the modules on disk (read-only).",
+      "example": "python -m scripts.checks.docs.maps_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when drift is found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "module-ref-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.module_ref_check",
+      "schedule": null,
+      "help": "Report `python -m <module>` invocations in docs whose first-party module does not resolve.",
+      "example": "python -m scripts.checks.docs.module_ref_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when stale references are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "readme-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.docs.readme_check",
+      "schedule": null,
+      "help": "Run README consistency audit as a standalone check.",
+      "example": "python -m scripts.checks.docs.readme_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce-style"
+          ],
+          "dest": "enforce_style",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when README style issues are found."
+        }
+      ]
+    },
+    {
+      "name": "function-complexity-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.function_complexity_check",
+      "schedule": null,
+      "help": "Advisory check for changed Python functions with high size or complexity signals.",
+      "example": "python -m scripts.checks.python.function_complexity_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Inspect changes vs a git ref."
+        },
+        {
+          "flags": [
+            "--quiet"
+          ],
+          "dest": "quiet",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Collapse clean output to one PASS line."
+        }
+      ]
+    },
+    {
+      "name": "mypy-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.mypy_check",
+      "schedule": null,
+      "help": "Run mypy check for default or custom Python target paths.",
+      "example": "python -m scripts.checks.python.mypy_check",
+      "arguments": [
+        {
+          "flags": [
+            "targets"
+          ],
+          "dest": "targets",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional mypy target paths. Defaults to backend and trading modules."
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--python-version"
+          ],
+          "dest": "python_version",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "3.14",
+          "choices": null,
+          "help": "Python version passed to mypy."
+        },
+        {
+          "flags": [
+            "--no-ignore-missing-imports"
+          ],
+          "dest": "no_ignore_missing_imports",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Disable --ignore-missing-imports."
+        },
+        {
+          "flags": [
+            "--follow-imports-skip"
+          ],
+          "dest": "follow_imports_skip",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Re-enable --follow-imports=skip. Faster (~3x), but every cross-module type resolves to Any, so the run cannot be trusted as evidence."
+        }
+      ]
+    },
+    {
+      "name": "public-api-test-evidence-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.public_api_test_evidence_check",
+      "schedule": null,
+      "help": "Advisory check for changed public Python APIs without nearby test changes.",
+      "example": "python -m scripts.checks.python.public_api_test_evidence_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Inspect changes vs a git ref."
+        },
+        {
+          "flags": [
+            "--quiet"
+          ],
+          "dest": "quiet",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Collapse clean output to one PASS line."
+        }
+      ]
+    },
+    {
+      "name": "pytest-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.pytest_check",
+      "schedule": null,
+      "help": "Run pytest check as a standalone command.",
+      "example": "python -m scripts.checks.python.pytest_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "pytest_args"
+          ],
+          "dest": "pytest_args",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Extra arguments passed through to pytest."
+        }
+      ]
+    },
+    {
+      "name": "python-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.python_check",
+      "schedule": null,
+      "help": "Run Python style, type, and test checks.",
+      "example": "python -m scripts.checks.python.python_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--suite"
+          ],
+          "dest": "suite_names",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only the specified test suite(s) instead of the full suite."
+        },
+        {
+          "flags": [
+            "--changed"
+          ],
+          "dest": "suite_changed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run only suites with uncommitted changed files (staged + unstaged)."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "suite_base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
+        },
+        {
+          "flags": [
+            "--no-cov"
+          ],
+          "dest": "no_cov",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Disable coverage for faster targeted test runs."
+        },
+        {
+          "flags": [
+            "--verbose"
+          ],
+          "dest": "verbose",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Show full clean-check output instead of compact PASS lines."
+        }
+      ]
+    },
+    {
+      "name": "python-conventions-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.python_conventions_check",
+      "schedule": null,
+      "help": "Check production/tooling Python modules for public return types.",
+      "example": "python -m scripts.checks.python.python_conventions_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "ruff-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.python.ruff_check",
+      "schedule": null,
+      "help": "Run ruff lint and format checks.",
+      "example": "python -m scripts.checks.python.ruff_check",
+      "arguments": [
+        {
+          "flags": [
+            "targets"
+          ],
+          "dest": "targets",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional target paths. Defaults to all source directories."
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root."
+        }
+      ]
+    },
+    {
+      "name": "quick",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.quick",
+      "schedule": null,
+      "help": "Run fast day-to-day checks: repository checks plus Python checks.",
+      "example": "python -m scripts.checks.quick",
+      "arguments": [
+        {
+          "flags": [
+            "--with-frontend"
+          ],
+          "dest": "with_frontend",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Also run frontend lint/typecheck/tests."
+        },
+        {
+          "flags": [
+            "--suite"
+          ],
+          "dest": "suite_names",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only the specified test suite(s) instead of the full suite."
+        },
+        {
+          "flags": [
+            "--changed"
+          ],
+          "dest": "suite_changed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Run only suites with uncommitted changed files (staged + unstaged)."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "suite_base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
+        },
+        {
+          "flags": [
+            "--no-cov"
+          ],
+          "dest": "no_cov",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Disable coverage for faster targeted test runs."
+        }
+      ]
+    },
+    {
+      "name": "layer-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.layer_check",
+      "schedule": null,
+      "help": "Check that layer boundaries defined in docs/architecture/architecture-conventions.md are respected.",
+      "example": "python -m scripts.checks.repo.layer_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        }
+      ]
+    },
+    {
+      "name": "live-safety-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.live_safety_check",
+      "schedule": null,
+      "help": "Check code does not set live_trading_enabled to true/1.",
+      "example": "python -m scripts.checks.repo.live_safety_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when findings are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "migration-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.migration_check",
+      "schedule": null,
+      "help": "Check EXPECTED_HEAD_REVISION against the migration directory head.",
+      "example": "python -m scripts.checks.repo.migration_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--advisory"
+          ],
+          "dest": "advisory",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Report findings without failing."
+        }
+      ]
+    },
+    {
+      "name": "path-safety-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.path_safety_check",
+      "schedule": null,
+      "help": "Check for clear cross-platform path hazards in production/tooling Python modules.",
+      "example": "python -m scripts.checks.repo.path_safety_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "repo-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.repo_check",
+      "schedule": null,
+      "help": "Run repository-level safety and structure checks.",
+      "example": "python -m scripts.checks.repo.repo_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--advisory"
+          ],
+          "dest": "advisory",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Report findings without failing enforce-capable checks."
+        },
+        {
+          "flags": [
+            "--verbose"
+          ],
+          "dest": "verbose",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Show full clean-check output instead of compact PASS lines."
+        }
+      ]
+    },
+    {
+      "name": "review-scope-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.review_scope_check",
+      "schedule": null,
+      "help": "Classify changed files into suggested code-review modes and high-risk triggers.",
+      "example": "python -m scripts.checks.repo.review_scope_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Classify changes vs a git ref."
+        },
+        {
+          "flags": [
+            "--quiet"
+          ],
+          "dest": "quiet",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Collapse empty output to one PASS line."
+        }
+      ]
+    },
+    {
+      "name": "secret-hygiene-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.secret_hygiene_check",
+      "schedule": null,
+      "help": "Check source/config files for committed literal secrets.",
+      "example": "python -m scripts.checks.repo.secret_hygiene_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "sector-map-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.sector_map_check",
+      "schedule": null,
+      "help": "Check that every trade-universe symbol has a sector mapping.",
+      "example": "python -m scripts.checks.repo.sector_map_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--verbose"
+          ],
+          "dest": "verbose",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "List covered universe files too."
+        }
+      ]
+    },
+    {
+      "name": "skills-check",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.repo.skills_check",
+      "schedule": null,
+      "help": "Verify the AGENTS.md skill inventory matches .ai/skills/ and frontmatter is complete.",
+      "example": "python -m scripts.checks.repo.skills_check",
+      "arguments": [
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to detected workspace root."
+        },
+        {
+          "flags": [
+            "--enforce"
+          ],
+          "dest": "enforce",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Exit non-zero when problems are found (default: advisory, always exit 0)."
+        }
+      ]
+    },
+    {
+      "name": "run-suite",
+      "kind": "tool",
+      "group": "Quality Checks",
+      "risk": "read-only",
+      "module": "scripts.checks.run_suite",
+      "schedule": null,
+      "help": "Run a focused subset of the test suite by suite name or file path. Suite names mirror the tests/ directory tree (e.g. 'trading/services', 'trading/services/market_data'). Use 'all' to run the full suite. Individual .py file paths are also accepted. Use --changed or --base to auto-detect suites from git-changed files.",
+      "example": "python -m scripts.checks.run_suite",
+      "arguments": [
+        {
+          "flags": [
+            "--list"
+          ],
+          "dest": "list",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "List all available suite names and exit."
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "dest": "dry_run",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Print which suites would run without actually running them. Works with explicit suite names, --changed, and --base."
+        },
+        {
+          "flags": [
+            "--changed"
+          ],
+          "dest": "changed",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Auto-detect suites from uncommitted changes (staged + unstaged). Mutually exclusive with explicit suite names."
+        },
+        {
+          "flags": [
+            "--base"
+          ],
+          "dest": "base",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Auto-detect suites from changes vs a git ref (e.g. 'main', 'origin/main'). Uses a three-dot diff: all commits on HEAD not on REF. Mutually exclusive with explicit suite names."
+        },
+        {
+          "flags": [
+            "--repo-root"
+          ],
+          "dest": "repo_root",
+          "positional": false,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Repository root. Defaults to auto-detected workspace root."
+        },
+        {
+          "flags": [
+            "suites"
+          ],
+          "dest": "suites",
+          "positional": true,
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Suite names or .py file paths to run."
         }
       ]
     }

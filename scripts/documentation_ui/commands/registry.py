@@ -4,6 +4,16 @@ import argparse
 from collections.abc import Callable
 from typing import Any
 
+from scripts.documentation_ui.commands.entrypoints import build_entrypoint_rows
+from scripts.documentation_ui.commands.introspect import (
+    KIND_CLI,
+    RISK_READ_ONLY,
+    RISK_WRITES_LOCAL,
+    describe_arguments,
+    make_row,
+    subcommand_helps,
+    subparsers_action,
+)
 from trading.interfaces.cli.commands.accounts import add_account_commands
 from trading.interfaces.cli.commands.advisor import add_advisor_commands
 from trading.interfaces.cli.commands.backtesting import add_backtesting_commands
@@ -14,9 +24,6 @@ from trading.interfaces.cli.commands.strategy_catalog import add_strategy_catalo
 
 COMMANDS_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/commands.json"
 CLI_INVOCATION = "python -m trading.interfaces.cli.main"
-
-RISK_READ_ONLY = "read-only"
-RISK_WRITES_LOCAL = "writes-local"
 
 GROUP_ACCOUNTS = "Accounts"
 GROUP_REPORTING = "Reporting"
@@ -86,65 +93,6 @@ WRITES_LOCAL_COMMANDS = frozenset(
 )
 
 
-def _subparsers_action(parser: argparse.ArgumentParser) -> argparse._SubParsersAction[argparse.ArgumentParser]:
-    for action in parser._actions:
-        if isinstance(action, argparse._SubParsersAction):
-            return action
-    raise ValueError("parser has no subcommands")
-
-
-def _json_safe(value: object) -> object:
-    if value is None or isinstance(value, (bool, int, float, str)):
-        return value
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    return str(value)
-
-
-def _argument_kind(action: argparse.Action) -> str:
-    if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
-        return "flag"
-    if isinstance(action, argparse._AppendAction):
-        return "repeatable"
-    return "value"
-
-
-def _type_name(action: argparse.Action) -> str:
-    if _argument_kind(action) == "flag":
-        return "flag"
-    return getattr(action.type, "__name__", "str") if action.type is not None else "str"
-
-
-def _describe_argument(action: argparse.Action) -> dict[str, Any]:
-    flags = list(action.option_strings) or [action.dest]
-    return {
-        "flags": flags,
-        "dest": action.dest,
-        "kind": _argument_kind(action),
-        "type": _type_name(action),
-        "required": bool(action.required),
-        "default": _json_safe(action.default),
-        "choices": _json_safe(list(action.choices)) if action.choices else None,
-        "help": " ".join((action.help or "").split()),
-    }
-
-
-def _example_value(argument: dict[str, Any]) -> str:
-    if argument["choices"]:
-        return str(argument["choices"][0])
-    return f"<{argument['dest'].upper()}>"
-
-
-def _build_example(name: str, arguments: list[dict[str, Any]]) -> str:
-    parts = [CLI_INVOCATION, name]
-    for argument in arguments:
-        if not argument["required"]:
-            continue
-        flag = argument["flags"][0]
-        parts.append(flag if argument["kind"] == "flag" else f"{flag} {_example_value(argument)}")
-    return " ".join(parts)
-
-
 def _risk_for(name: str) -> str:
     in_read_only = name in READ_ONLY_COMMANDS
     in_writes_local = name in WRITES_LOCAL_COMMANDS
@@ -156,28 +104,26 @@ def _risk_for(name: str) -> str:
 def _group_commands(group: str, adder: Callable[[Any], None]) -> list[dict[str, Any]]:
     parser = argparse.ArgumentParser()
     parser.add_subparsers(dest="command")
-    action = _subparsers_action(parser)
+    action = subparsers_action(parser)
+    if action is None:
+        raise ValueError("parser has no subcommands")
     adder(action)
-    helps = {choice.dest: choice.help or "" for choice in action._choices_actions}
-    rows: list[dict[str, Any]] = []
-    for name, command_parser in action.choices.items():
-        arguments = [
-            _describe_argument(item) for item in command_parser._actions if not isinstance(item, argparse._HelpAction)
-        ]
-        rows.append(
-            {
-                "name": name,
-                "group": group,
-                "risk": _risk_for(name),
-                "help": " ".join(helps.get(name, "").split()),
-                "example": _build_example(name, arguments),
-                "arguments": arguments,
-            }
+    helps = subcommand_helps(action)
+    return [
+        make_row(
+            name=name,
+            kind=KIND_CLI,
+            group=group,
+            risk=_risk_for(name),
+            help_text=helps.get(name, ""),
+            invocation=f"{CLI_INVOCATION} {name}",
+            arguments=describe_arguments(command_parser),
         )
-    return rows
+        for name, command_parser in action.choices.items()
+    ]
 
 
-def build_command_rows() -> list[dict[str, Any]]:
+def build_cli_rows() -> list[dict[str, Any]]:
     """Return one row per CLI subcommand, grouped in registration order."""
     rows: list[dict[str, Any]] = []
     for group, adder in GROUP_ADDERS.items():
@@ -190,9 +136,19 @@ def build_command_rows() -> list[dict[str, Any]]:
 
 
 def build_payload() -> dict[str, Any]:
+    rows = [*build_cli_rows(), *build_entrypoint_rows()]
+    names = [row["name"] for row in rows]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate catalog names: {duplicates}")
+    groups: list[dict[str, str]] = []
+    for row in rows:
+        entry = {"name": row["group"], "kind": row["kind"]}
+        if entry not in groups:
+            groups.append(entry)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "cli_invocation": CLI_INVOCATION,
-        "groups": list(GROUP_ADDERS),
-        "commands": build_command_rows(),
+        "groups": groups,
+        "commands": rows,
     }
