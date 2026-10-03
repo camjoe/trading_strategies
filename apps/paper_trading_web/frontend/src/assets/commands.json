@@ -4582,7 +4582,7 @@
           "required": false,
           "default": "accounts",
           "choices": null,
-          "help": "Tab to open (default: accounts). Options: accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor, alt-strategies, docs, admin"
+          "help": "Tab to open (default: accounts). Options: about, accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor, alt-strategies, catalog, docs, admin"
         },
         {
           "flags": [
@@ -5750,6 +5750,19 @@
           "default": false,
           "choices": null,
           "help": "Skip the Command reference check."
+        },
+        {
+          "flags": [
+            "--skip-overview"
+          ],
+          "dest": "skip_overview",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the Overview facts check."
         }
       ]
     },

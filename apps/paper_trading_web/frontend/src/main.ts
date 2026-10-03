@@ -1,6 +1,7 @@
 import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { initNavGroups, syncNav } from "./lib/nav";
+import { createAboutFeature } from "./features/about";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
 import { init as initAutonomyMonitor } from "./features/autonomy-monitor";
@@ -22,6 +23,7 @@ import adminOverviewTemplate from "./views/admin/overview.html?raw";
 import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
 import adminParametersTemplate from "./views/admin/parameters.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
+import aboutTemplate from "./views/about.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import catalogTemplate from "./views/catalog.html?raw";
@@ -66,6 +68,7 @@ function renderShell(): void {
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
+    .replace("<!-- ABOUT_TAB_PARTIAL -->", aboutTemplate)
     .replace("<!-- CATALOG_TAB_PARTIAL -->", catalogTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
@@ -103,12 +106,14 @@ const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
 const strategyLabFeature = createStrategyLabFeature();
 const catalogFeature = createCatalogFeature();
+const aboutFeature = createAboutFeature({ onOpenTab: (target) => openTab(target) });
 
 async function bootstrap(): Promise<void> {
   renderShell();
   initTabs();
   initNavGroups(openTab);
-  openTab("accounts");  // Set initial active tab
+  // The demo opens on the About page; the operator UI opens on Accounts.
+  openTab(import.meta.env.VITE_DEMO_MODE === "1" ? "about" : "accounts");
   initDocsFeature(openTab);
   accountsFeature.wireActions();
   adminFeature.wireActions();
@@ -119,6 +124,7 @@ async function bootstrap(): Promise<void> {
   altStrategiesFeature.wireActions();
   strategyLabFeature.wireActions();
   catalogFeature.wireActions();
+  aboutFeature.wireActions();
   initAutonomyMonitor({
     onOpenAccount: async (accountName, bookName) => {
       openTab("accounts");

@@ -1,6 +1,7 @@
 <nav class="tab-nav" aria-label="Primary sections">
   <div class="tab-nav-primary">
     <!-- Groups. A tab belongs to a group through its data-nav-group attribute in the sub-rows below. -->
+    <button class="nav-group-btn" type="button" data-nav-group-target="about">About</button>
     <button class="nav-group-btn active" type="button" data-nav-group-target="operate">Operate</button>
     <button class="nav-group-btn" type="button" data-nav-group-target="research">Research</button>
     <button class="nav-group-btn" type="button" data-nav-group-target="catalog">Catalog</button>
@@ -25,6 +26,10 @@
     <button class="tab-btn tab-btn--admin" data-tab="admin">Admin</button>
   </div>
 
+  <!-- About: what the system is and does; opens first in the demo. -->
+  <div class="tab-subnav" data-nav-subnav="about" aria-label="About" hidden>
+    <button class="tab-btn tab-btn--sub" data-tab="about" data-nav-group="about">About</button>
+  </div>
   <!-- Operate: live state — what is happening now with real positions. -->
   <div class="tab-subnav" data-nav-subnav="operate" aria-label="Operate">
     <button class="tab-btn tab-btn--sub active" data-tab="accounts" data-nav-group="operate">Accounts</button>

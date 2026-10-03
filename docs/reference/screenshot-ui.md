@@ -47,10 +47,10 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 `apps/paper_trading_web/frontend/src/views/nav.html`:
 
 ```
-accounts        backtesting       alt-strategies
-compare         strategy-lab      catalog
-portfolio       autonomy-monitor  admin
-docs
+about           backtesting       alt-strategies
+accounts        strategy-lab      catalog
+compare         autonomy-monitor  admin
+portfolio       docs
 ```
 
 Two UI labels differ from their tab name: `compare` is shown as **Overview**, `alt-strategies` as

@@ -7,6 +7,7 @@ from common.git import get_repo_root
 from scripts.documentation_ui.api.build_registry import run_build as build_api
 from scripts.documentation_ui.commands.build_registry import run_build as build_commands
 from scripts.documentation_ui.finance.build_registry import run_build as build_finance
+from scripts.documentation_ui.overview.build_registry import run_build as build_overview
 from scripts.documentation_ui.software.build_registry import run_build as build_software
 
 
@@ -24,6 +25,7 @@ def main() -> int:
     build_finance(repo_root)
     build_api(repo_root)
     build_commands(repo_root)
+    build_overview(repo_root)
     build_software(repo_root)
     print("\nSync completed. Edit finance terms in docs/reference/financial-market-knowledge.md.")
     return 0

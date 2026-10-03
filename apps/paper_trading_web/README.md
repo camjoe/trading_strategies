@@ -11,6 +11,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
+- **About tab** — a landing page with the platform summary, repository facts (command, job, endpoint, table, strategy, and test counts), the workflow from research to monitored execution, an architecture diagram, and the safety rules. The demo (`launch_demo`) opens on this tab. The facts come from the generated `assets/overview.json`, `assets/commands.json`, and `assets/api.json`.
 - **Catalog tab** — one page that lists every CLI command, runtime job, script, and check with its arguments, a copyable example, and a risk label (read-only, writes local data, or broker). Search and filters narrow the list. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
 - **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
@@ -20,14 +21,15 @@ Provide a local dashboard and API for paper-trading operations, including:
 
 ## Navigation
 
-Primary navigation has three groups, with Documentation and Admin as direct tabs on the right.
-Selecting a group shows its tabs in a second row and reopens the tab last used in that group.
+Primary navigation has four groups, with Documentation and Admin as direct tabs on the right.
+Selecting a group shows its tabs in a second row and reopens the tab last used in that group. The offline demo opens on About; the operator UI opens on Accounts.
 
 | Group | Tabs |
 |---|---|
+| About | About (a group with one tab shows no second row) |
 | Operate | Accounts, Overview, Portfolio, Autonomy Monitor |
 | Research | Backtesting, Strategy Lab, Sentiment |
-| Catalog | Commands (a group with one tab shows no second row) |
+| Catalog | Commands |
 
 A tab belongs to a group through `data-nav-group` on its button in `frontend/src/views/nav.html`.
 The tab ids (`data-tab`) are unchanged. `frontend/src/lib/nav.ts` keeps the group state in step

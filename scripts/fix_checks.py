@@ -9,6 +9,7 @@ from scripts.checks._runner import resolve_python_exe, run_step
 from scripts.checks.python.ruff_check import DEFAULT_TARGETS
 from scripts.documentation_ui.api.build_registry import run_build as build_api_reference
 from scripts.documentation_ui.commands.build_registry import run_build as build_commands_reference
+from scripts.documentation_ui.overview.build_registry import run_build as build_overview_facts
 from scripts.documentation_ui.software.build_registry import run_build as build_software_reference
 from scripts.fixes.db_schema_fix import run_db_schema_fix
 from scripts.fixes.maps_fix import run_maps_fix
@@ -48,6 +49,7 @@ def run_fix_checks(
         build_api_reference(repo_root)
         build_software_reference(repo_root)
         build_commands_reference(repo_root)
+        build_overview_facts(repo_root)
         print("\n==> Docs drift fix: DB schema Quick Reference")
         exit_code = run_db_schema_fix(repo_root)
         if exit_code:

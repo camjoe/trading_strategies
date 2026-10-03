@@ -102,6 +102,7 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `backtesting/` | Backtest run submission, result display, constants, payloads, types |
 | `alt-strategies.ts` | Alternative strategies feature |
 | `compare.ts` | Account comparison feature |
+| `about.ts` | About page: builds the stat tiles from the generated assets and opens linked tabs |
 | `catalog.ts` | Command catalog view: search, kind and risk filters, and expandable entries read from `assets/commands.json` |
 | `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
 | `docs/` | In-app documentation viewer: accordion, menu, helpers, constants |
@@ -149,6 +150,7 @@ TypeScript type definitions for API response shapes. One file per backend domain
 | `backtesting.ts` | Backtest run and result shapes |
 | `compare.ts` | Account comparison shapes |
 | `autonomy-monitor.ts` | Autonomy monitor response shapes |
+| `about.ts` | About page stat and overview-facts shapes |
 | `catalog.ts` | Command catalog entry and filter shapes |
 | `portfolio.ts` | Portfolio rollup response shapes |
 | `signals.ts` | Feature/signal response shapes |
@@ -169,6 +171,7 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `alt-strategies.html` | Alternative strategies page |
 | `backtesting.html` | Backtesting page |
 | `compare.html` | Account comparison page |
+| `about.html` | About page: summary, workflow, architecture diagram, and safety rules |
 | `catalog.html` | Command catalog page |
 | `portfolio.html` | Cross-account portfolio rollup page |
 | `autonomy-monitor.html` | Autonomy monitor page |
@@ -191,6 +194,7 @@ Per-feature CSS files and design tokens. Import order controlled via `styles.css
 | `alt-strategies.css` | Alternative strategies |
 | `analysis.css` | Analysis view |
 | `compare.css` | Comparison view |
+| `about.css` | About page |
 | `catalog.css` | Command catalog view |
 | `portfolio.css` | Portfolio rollup view |
 | `docs.css` | In-app docs |

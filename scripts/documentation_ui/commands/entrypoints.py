@@ -184,6 +184,7 @@ EXCLUDED_MODULE_PREFIXES: tuple[str, ...] = (
     "scripts.documentation_ui.api.",
     "scripts.documentation_ui.commands.",
     "scripts.documentation_ui.finance.",
+    "scripts.documentation_ui.overview.",
     "scripts.documentation_ui.software.",
 )
 

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "database_tables": 28,
+  "strategies": {
+    "total": 8,
+    "by_style": {
+      "mean_reversion": 3,
+      "trend": 5
+    }
+  },
+  "adrs": 14,
+  "python_tests_floor": 2500
+}

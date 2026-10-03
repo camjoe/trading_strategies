@@ -15,6 +15,7 @@ python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab autonomy-monitor
 python -m scripts.screenshot_ui --tab strategy-lab
+python -m scripts.screenshot_ui --tab about
 python -m scripts.screenshot_ui --tab catalog
 python -m scripts.screenshot_ui --tab admin
 
@@ -32,7 +33,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
+  about, accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
   alt-strategies, catalog, docs, admin
 """
 
@@ -171,9 +172,9 @@ def main() -> int:
     parser.add_argument(
         "--tab",
         default="accounts",
-        help="Tab to open (default: accounts). Options: accounts, "
+        help="Tab to open (default: accounts). Options: about, accounts, "
         "compare, portfolio, backtesting, strategy-lab, autonomy-monitor, "
-        "alt-strategies, docs, admin",
+        "alt-strategies, catalog, docs, admin",
     )
     parser.add_argument(
         "--account",
