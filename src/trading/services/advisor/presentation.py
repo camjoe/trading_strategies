@@ -5,6 +5,7 @@ from __future__ import annotations
 from trading.domain.advisor import outcome_window_end
 from trading.models.advisor import (
     AdvisorAccountDigest,
+    AdvisorBookDigest,
     AdvisorDigest,
     DecisionScoreResult,
     StrategyDecisionRecord,
@@ -26,27 +27,32 @@ def render_decision_line(record: StrategyDecisionRecord) -> str:
     )
 
 
-def _render_account(account: AdvisorAccountDigest) -> list[str]:
-    evaluation = account.evaluation
-    basic = evaluation.basic
-    paper = evaluation.paper_live
-    walk_forward = evaluation.walk_forward
+def _render_book(book: AdvisorBookDigest) -> list[str]:
+    evidence = book.evidence
+    walk_forward = evidence.walk_forward
+    label = f"{book.book_name} (default)" if book.is_default else book.book_name
+    since = f" since {book.assigned_since[:10]}" if book.assigned_since else ""
     lines = [
-        f"== {account.account_name} ==",
-        f"Strategy: {basic.active_strategy or _MISSING} | benchmark {basic.benchmark_ticker or _MISSING} "
-        f"| confidence {evaluation.confidence.overall_confidence:.2f}",
-        f"Paper: return {_pct(paper.return_pct)} over {paper.snapshot_count or 0} snapshots",
-        f"Walk-forward: mean OOS {_pct(walk_forward.average_return_pct)}, "
+        f"-- book {label}: {book.strategy_key or 'no strategy assigned'}{since}",
+        f"   Paper: return {_pct(evidence.paper_return_pct)} over {evidence.paper_snapshot_count} snapshots",
+        f"   Walk-forward: mean OOS {_pct(walk_forward.average_return_pct)}, "
         f"worst {_pct(walk_forward.worst_return_pct)} over {len(walk_forward.window_returns)} windows",
-        "Flags:",
+        "   Flags:",
     ]
-    lines.extend(f"- {flag.code}: {flag.reason}" for flag in account.flags)
-    if not account.flags:
-        lines.append("- none")
-    lines.append("Recent decisions:")
-    lines.extend(f"- {render_decision_line(record)}" for record in account.recent_decisions)
-    if not account.recent_decisions:
-        lines.append("- none recorded")
+    lines.extend(f"   - {flag.code}: {flag.reason}" for flag in book.flags)
+    if not book.flags:
+        lines.append("   - none")
+    lines.append("   Recent decisions:")
+    lines.extend(f"   - {render_decision_line(record)}" for record in book.recent_decisions)
+    if not book.recent_decisions:
+        lines.append("   - none recorded")
+    return lines
+
+
+def _render_account(account: AdvisorAccountDigest) -> list[str]:
+    lines = [f"== {account.account_name} == benchmark {account.benchmark_ticker}, {len(account.books)} book(s)"]
+    for book in account.books:
+        lines.extend(_render_book(book))
     return lines
 
 

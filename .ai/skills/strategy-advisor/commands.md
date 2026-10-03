@@ -19,7 +19,7 @@ The commands behind each step of the session procedure in `SKILL.md`. Prefix eac
 |---|---|
 | A walk-forward experiment and its promotion gate | `backtest-optimize-show <experiment_id>` (prints `Promotion gate: PASS` or `FAIL (...)` and the trial audit) |
 | A new sweep (one per hypothesis; needs approval — it takes minutes) | `backtest-optimize --account <name> --strategy <key> --search-space '<json>' --lookback-months 24` |
-| Behavior and crash tails versus the incumbent | `backtest-bench --strategies <candidate>,<incumbent> --scenarios sharp_crash,melt_up_then_crash,choppy_flat` |
+| Behavior and crash tails versus the incumbent | `backtest-bench --strategies <candidate>,<incumbent> --scenarios sharp_crash,melt_up_then_crash,choppy_flat` (catalog variant keys run with their own knobs) |
 | The same on real history (needs captured fixtures) | `backtest-bench --strategies <candidate>,<incumbent> --scenarios covid_crash_2020_bootstrap,bear_2022_bootstrap` |
 
 Paper results before 2026-07-03 are not strategy evidence (`docs/reference/backtesting.md`).
@@ -29,7 +29,7 @@ Paper results before 2026-07-03 are not strategy evidence (`docs/reference/backt
 ```sh
 advisor-record --account <name> [--book <book>] --type <decision_type> \
     --strategy <kept_or_new_key> --alternative <rejected_key> \
-    --decided-by agent:strategy-advisor/v1 \
+    --decided-by agent:strategy-advisor/v2 \
     --rationale "<why, in one or two sentences>" \
     --note experiment=<id> --note gate=<PASS|FAIL> --note bench="<cells you read>"
 ```

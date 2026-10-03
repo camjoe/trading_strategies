@@ -17,10 +17,10 @@ from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit import fetch_experiment_audit
 from backtesting.services.optimization_experiment import run_and_persist_optimization
 from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from backtesting.services.run_inputs import resolve_run_strategy
 from backtesting.services.scenario_bench import render_bench_matrix
 from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.domain.strategies.registry import available_strategy_ids
-from trading.domain.strategies.resolution import validate_strategy_name
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
@@ -97,7 +97,9 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
     strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
     scenario_labels = _split_csv(args.scenarios) or default_scenario_ids()
     try:
-        strategy_names = list(dict.fromkeys(validate_strategy_name(label) for label in strategy_labels))
+        strategy_names = list(
+            dict.fromkeys(resolve_run_strategy(conn, label).strategy_key for label in strategy_labels)
+        )
         scenario_specs = [resolve_scenario(label) for label in scenario_labels]
         matrix = run_bench(
             conn,

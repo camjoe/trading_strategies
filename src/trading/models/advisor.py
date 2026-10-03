@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
-from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.models.evaluation import BacktestFreshness, EvaluationWalkForwardEvidence
 
 # Allowed strategy_decisions.decision_type values. Mirrors the table's CHECK.
 DECISION_TYPE_HOLD = "hold"
@@ -144,14 +144,41 @@ class AdvisorFlag:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AdvisorAccountDigest:
-    """One account's review substrate: its evaluation, its ledger state, and the flags raised."""
+class BookEvidence:
+    """What the digest knows about one book's current strategy.
 
-    account_name: str
-    evaluation: StrategyEvaluationArtifact
+    Paper figures come from the book's own snapshots since the strategy was assigned,
+    not from the account roll-up, so a sleeve is judged on its own results.
+    """
+
+    walk_forward: EvaluationWalkForwardEvidence
+    backtest_freshness: BacktestFreshness | None
+    paper_return_pct: float | None
+    paper_snapshot_count: int
+    data_gaps: list[str]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AdvisorBookDigest:
+    """One book's review substrate: its strategy, evidence, ledger state, and flags."""
+
+    book_name: str
+    is_default: bool
+    strategy_key: str | None
+    assigned_since: str | None
+    evidence: BookEvidence
     recent_decisions: list[StrategyDecisionRecord]
     due_decisions: list[StrategyDecisionRecord]
     flags: list[AdvisorFlag]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AdvisorAccountDigest:
+    """One account's books, each reviewed on its own."""
+
+    account_name: str
+    benchmark_ticker: str
+    books: list[AdvisorBookDigest]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

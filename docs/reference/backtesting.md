@@ -299,6 +299,9 @@ python -m trading.interfaces.cli.main backtest-bench --strategies trend,mean_rev
     --scenarios sharp_crash,strong_uptrend --paths 50
 ```
 
+`--strategies` takes catalog keys as well as primitive names: a variant runs with its own
+`params_json` knobs under its own key, so a candidate can be screened against its incumbent.
+
 Two honesty properties, by design:
 
 - **Bench runs persist nothing.** Every path runs through the metrics-only backtest, so no

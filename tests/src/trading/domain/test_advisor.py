@@ -19,16 +19,11 @@ from trading.models.advisor import (
     FLAG_NO_PAPER_EVIDENCE,
     FLAG_NO_WALK_FORWARD,
     FLAG_PAPER_RETURN_NEGATIVE,
+    BookEvidence,
     StrategyDecisionOutcome,
     StrategyDecisionRecord,
 )
-from trading.models.evaluation import (
-    BacktestFreshness,
-    EvaluationDiagnostics,
-    EvaluationPaperLiveEvidence,
-    EvaluationWalkForwardEvidence,
-    StrategyEvaluationArtifact,
-)
+from trading.models.evaluation import BacktestFreshness, EvaluationWalkForwardEvidence
 
 
 def _record(*, decision_id: int = 1, created_at: str, window_days: int = 21) -> StrategyDecisionRecord:
@@ -45,20 +40,28 @@ def _record(*, decision_id: int = 1, created_at: str, window_days: int = 21) -> 
     )
 
 
-def _healthy_evaluation() -> StrategyEvaluationArtifact:
-    artifact = StrategyEvaluationArtifact()
-    return replace(
-        artifact,
+def _healthy_evidence() -> BookEvidence:
+    return BookEvidence(
         walk_forward=EvaluationWalkForwardEvidence(available=True),
-        paper_live=EvaluationPaperLiveEvidence(available=True, return_pct=1.2),
-        diagnostics=EvaluationDiagnostics(
-            backtest_freshness=BacktestFreshness(available=True, age_days=3.0, stale_threshold_days=30)
-        ),
+        backtest_freshness=BacktestFreshness(available=True, age_days=3.0, stale_threshold_days=30),
+        paper_return_pct=1.2,
+        paper_snapshot_count=40,
+        data_gaps=[],
     )
 
 
-def _codes(evaluation: StrategyEvaluationArtifact, *, due_count: int = 0) -> list[str]:
-    return [flag.code for flag in build_review_flags(evaluation, due_count=due_count)]
+def _empty_evidence() -> BookEvidence:
+    return BookEvidence(
+        walk_forward=EvaluationWalkForwardEvidence(),
+        backtest_freshness=None,
+        paper_return_pct=None,
+        paper_snapshot_count=0,
+        data_gaps=[],
+    )
+
+
+def _codes(evidence: BookEvidence, *, due_count: int = 0) -> list[str]:
+    return [flag.code for flag in build_review_flags(evidence, strategy_key="trend", due_count=due_count)]
 
 
 def test_window_end_counts_trading_days_from_the_decision_date() -> None:
@@ -80,30 +83,31 @@ def test_a_window_closing_today_is_due() -> None:
     assert due_for_scoring([record], as_of=date(2026, 10, 2)) == [record]
 
 
-def test_healthy_evaluation_raises_no_flags() -> None:
-    assert _codes(_healthy_evaluation()) == []
+def test_healthy_evidence_raises_no_flags() -> None:
+    assert _codes(_healthy_evidence()) == []
 
 
-def test_empty_evaluation_flags_the_missing_evidence() -> None:
-    assert _codes(StrategyEvaluationArtifact()) == [FLAG_NO_WALK_FORWARD, FLAG_NO_PAPER_EVIDENCE]
+def test_empty_evidence_flags_the_missing_evidence() -> None:
+    assert _codes(_empty_evidence()) == [FLAG_NO_WALK_FORWARD, FLAG_NO_PAPER_EVIDENCE]
+
+
+def test_a_single_snapshot_is_not_paper_evidence() -> None:
+    evidence = replace(_healthy_evidence(), paper_return_pct=0.0, paper_snapshot_count=1)
+    assert _codes(evidence) == [FLAG_NO_PAPER_EVIDENCE]
 
 
 def test_due_decisions_are_flagged_first() -> None:
-    assert _codes(_healthy_evaluation(), due_count=2) == [FLAG_DECISIONS_DUE]
+    assert _codes(_healthy_evidence(), due_count=2) == [FLAG_DECISIONS_DUE]
 
 
 def test_stale_backtest_negative_paper_and_gaps_are_flagged() -> None:
-    evaluation = replace(
-        _healthy_evaluation(),
-        paper_live=EvaluationPaperLiveEvidence(available=True, return_pct=-3.4),
-        diagnostics=EvaluationDiagnostics(
-            data_gaps=["missing benchmark"],
-            backtest_freshness=BacktestFreshness(
-                available=True, age_days=45.0, stale_threshold_days=30, is_stale=True
-            ),
-        ),
+    evidence = replace(
+        _healthy_evidence(),
+        paper_return_pct=-3.4,
+        data_gaps=["missing benchmark"],
+        backtest_freshness=BacktestFreshness(available=True, age_days=45.0, stale_threshold_days=30, is_stale=True),
     )
-    flags = build_review_flags(evaluation, due_count=0)
+    flags = build_review_flags(evidence, strategy_key="trend", due_count=0)
 
     assert [flag.code for flag in flags] == [FLAG_BACKTEST_STALE, FLAG_PAPER_RETURN_NEGATIVE, FLAG_DATA_GAPS]
     assert "45 days old" in flags[0].reason
@@ -111,13 +115,11 @@ def test_stale_backtest_negative_paper_and_gaps_are_flagged() -> None:
 
 
 def test_data_gaps_flag_omits_gaps_that_have_their_own_flag() -> None:
-    evaluation = replace(
-        StrategyEvaluationArtifact(),
-        diagnostics=EvaluationDiagnostics(
-            data_gaps=["missing_backtest_evidence", "missing_paper_live_evidence", "missing_walk_forward_evidence"]
-        ),
+    evidence = replace(
+        _empty_evidence(),
+        data_gaps=["missing_backtest_evidence", "missing_paper_live_evidence", "missing_walk_forward_evidence"],
     )
-    flags = build_review_flags(evaluation, due_count=0)
+    flags = build_review_flags(evidence, strategy_key="trend", due_count=0)
 
     assert [flag.code for flag in flags] == [FLAG_NO_WALK_FORWARD, FLAG_NO_PAPER_EVIDENCE, FLAG_DATA_GAPS]
     assert flags[-1].reason == "missing_backtest_evidence"

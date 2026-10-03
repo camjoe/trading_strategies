@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
+from tests.support.books import assign_test_book_strategy, insert_test_book
 from trading.domain.exceptions import NotFoundError, ValidationError
 from trading.models.advisor import (
     DECIDED_BY_AGENT,
@@ -12,6 +14,7 @@ from trading.models.advisor import (
     FLAG_DECISIONS_DUE,
     StrategyDecisionInsert,
 )
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.strategy_decisions import StrategyDecisionRepository
 from trading.services.accounts.mutations import create_account, get_account
 from trading.services.advisor.decisions import record_decision
@@ -82,10 +85,17 @@ def test_record_rejects_unknown_book_and_strategy(conn, account) -> None:
         _record_hold(conn, strategy_key="no_such_strategy")
 
 
+def _default_book_digest(digest):
+    (account_digest,) = digest.accounts
+    return next(book for book in account_digest.books if book.is_default)
+
+
 def test_digest_flags_a_decision_whose_window_has_closed(conn, account) -> None:
+    book = get_default_book(conn, account_id=account.id)
     StrategyDecisionRepository(conn).insert(
         StrategyDecisionInsert(
             account_id=account.id,
+            book_id=book.id,
             decision_type=DECISION_TYPE_HOLD,
             rationale="old hold",
             evidence_json="{}",
@@ -96,9 +106,42 @@ def test_digest_flags_a_decision_whose_window_has_closed(conn, account) -> None:
 
     digest = build_advisor_digest(conn, account_name=_ACCOUNT, as_of=date(2026, 10, 1))
 
+    book_digest = _default_book_digest(digest)
+    assert [record.rationale for record in book_digest.due_decisions] == ["old hold"]
+    assert FLAG_DECISIONS_DUE in [flag.code for flag in book_digest.flags]
+
+
+def test_digest_reviews_every_book_with_its_own_decisions_and_paper(conn, account) -> None:
+    sleeve_id = insert_test_book(conn, account_id=account.id, name="sleeve")
+    assign_test_book_strategy(conn, book_id=sleeve_id, strategy_name="rsi", now_iso="2026-09-01T00:00:00Z")
+    snapshots = EquitySnapshotRepository(conn)
+    for when, equity in (
+        ("2026-08-15T00:00:00Z", 9_000),
+        ("2026-09-02T00:00:00Z", 10_000),
+        ("2026-09-30T00:00:00Z", 11_000),
+    ):
+        snapshots.insert_for_book(
+            book_id=sleeve_id,
+            snapshot_time=when,
+            cash=Decimal(equity),
+            market_value=Decimal(0),
+            equity=Decimal(equity),
+            realized_pnl=Decimal(0),
+            unrealized_pnl=Decimal(0),
+        )
+    _record_hold(conn, book_name="sleeve", strategy_key="rsi")
+
+    digest = build_advisor_digest(conn, account_name=_ACCOUNT, as_of=date(2026, 10, 1))
+
     (account_digest,) = digest.accounts
-    assert [record.rationale for record in account_digest.due_decisions] == ["old hold"]
-    assert FLAG_DECISIONS_DUE in [flag.code for flag in account_digest.flags]
+    sleeve = next(book for book in account_digest.books if book.book_name == "sleeve")
+    default = next(book for book in account_digest.books if book.is_default)
+    assert sleeve.strategy_key == "rsi"
+    # Measured from the snapshot at or after the 2026-09-01 assignment, not the earlier one.
+    assert sleeve.evidence.paper_return_pct == pytest.approx(10.0)
+    assert sleeve.evidence.paper_snapshot_count == 2
+    assert len(sleeve.recent_decisions) == 1
+    assert default.recent_decisions == []
 
 
 def test_digest_covers_every_account_and_renders(conn, account) -> None:
@@ -109,7 +152,8 @@ def test_digest_covers_every_account_and_renders(conn, account) -> None:
     lines = render_advisor_digest_lines(digest)
 
     assert {item.account_name for item in digest.accounts} == {_ACCOUNT, "advisor_other"}
-    assert f"== {_ACCOUNT} ==" in lines
+    assert any(line.startswith(f"== {_ACCOUNT} ==") for line in lines)
+    assert any(line.startswith("-- book default (default): trend") for line in lines)
     assert any("hold by agent" in line for line in lines)
 
 

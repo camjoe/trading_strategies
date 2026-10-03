@@ -23,18 +23,18 @@ from trading.models.advisor import (
     OUTCOME_VERDICT_HURT,
     OUTCOME_VERDICT_NEUTRAL,
     AdvisorFlag,
+    BookEvidence,
     CounterfactualPlan,
     StrategyDecisionRecord,
 )
-from trading.models.evaluation import (
-    PAPER_LIVE_EVIDENCE_GAP,
-    WALK_FORWARD_EVIDENCE_GAP,
-    StrategyEvaluationArtifact,
-)
+from trading.models.evaluation import PAPER_LIVE_EVIDENCE_GAP, WALK_FORWARD_EVIDENCE_GAP
 
 # Arms whose returns differ by less than this many percentage points score neutral: one
 # window cannot separate a gap that small from noise.
 DECISION_NEUTRAL_BAND_PCT = 1.0
+
+# A return needs a start and an end mark.
+MIN_PAPER_SNAPSHOTS = 2
 
 # Data gaps already reported by their own flag, so the data_gaps flag omits them.
 _GAPS_WITH_THEIR_OWN_FLAG = frozenset({PAPER_LIVE_EVIDENCE_GAP, WALK_FORWARD_EVIDENCE_GAP})
@@ -52,19 +52,21 @@ def due_for_scoring(records: Sequence[StrategyDecisionRecord], *, as_of: date) -
 
 
 def build_review_flags(
-    evaluation: StrategyEvaluationArtifact,
+    evidence: BookEvidence,
     *,
+    strategy_key: str | None,
     due_count: int,
 ) -> list[AdvisorFlag]:
+    """The review prompts for one book, from its own evidence."""
     flags: list[AdvisorFlag] = []
     if due_count > 0:
         flags.append(AdvisorFlag(FLAG_DECISIONS_DUE, f"{due_count} decision(s) past their outcome window"))
 
-    strategy = evaluation.basic.requested_strategy or "the active strategy"
-    if not evaluation.walk_forward.available:
+    strategy = strategy_key or "the book's strategy"
+    if not evidence.walk_forward.available:
         flags.append(AdvisorFlag(FLAG_NO_WALK_FORWARD, f"no walk-forward evidence for {strategy}"))
 
-    freshness = evaluation.diagnostics.backtest_freshness
+    freshness = evidence.backtest_freshness
     if freshness is not None and freshness.is_stale and freshness.age_days is not None:
         flags.append(
             AdvisorFlag(
@@ -74,18 +76,17 @@ def build_review_flags(
             )
         )
 
-    paper = evaluation.paper_live
-    if not paper.available:
-        flags.append(AdvisorFlag(FLAG_NO_PAPER_EVIDENCE, "no paper-trading evidence yet"))
-    elif paper.return_pct is not None and paper.return_pct < 0:
+    if evidence.paper_return_pct is None or evidence.paper_snapshot_count < MIN_PAPER_SNAPSHOTS:
+        flags.append(AdvisorFlag(FLAG_NO_PAPER_EVIDENCE, f"no paper-trading evidence for {strategy} on this book yet"))
+    elif evidence.paper_return_pct < 0:
         flags.append(
             AdvisorFlag(
                 FLAG_PAPER_RETURN_NEGATIVE,
-                f"paper return is {paper.return_pct:.2f}% (absolute, not benchmark-relative)",
+                f"paper return is {evidence.paper_return_pct:.2f}% (absolute, not benchmark-relative)",
             )
         )
 
-    other_gaps = [gap for gap in evaluation.diagnostics.data_gaps if gap not in _GAPS_WITH_THEIR_OWN_FLAG]
+    other_gaps = [gap for gap in evidence.data_gaps if gap not in _GAPS_WITH_THEIR_OWN_FLAG]
     if other_gaps:
         flags.append(AdvisorFlag(FLAG_DATA_GAPS, ", ".join(other_gaps)))
     return flags
