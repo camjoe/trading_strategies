@@ -132,6 +132,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `finance/` | Finance and market terminology documentation source sync |
 | `api/` | API documentation source content |
 | `software/` | Software/architecture documentation source content |
+| `commands/` | CLI command registry: introspects the `argparse` parser into `assets/commands.json` (group, risk, example, arguments); the check fails on drift or an unclassified command |
 
 ---
 

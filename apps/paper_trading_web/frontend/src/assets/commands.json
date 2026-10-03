@@ -1,0 +1,2817 @@
+{
+  "schema_version": 1,
+  "cli_invocation": "python -m trading.interfaces.cli.main",
+  "groups": [
+    "Accounts",
+    "Reporting",
+    "Settings",
+    "Strategy Catalog",
+    "Backtesting",
+    "Advisor"
+  ],
+  "commands": [
+    {
+      "name": "init",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Initialize paper trading database.",
+      "example": "python -m trading.interfaces.cli.main init",
+      "arguments": []
+    },
+    {
+      "name": "list-accounts",
+      "group": "Accounts",
+      "risk": "read-only",
+      "help": "List all paper trading accounts.",
+      "example": "python -m trading.interfaces.cli.main list-accounts",
+      "arguments": []
+    },
+    {
+      "name": "create-account",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Create a new paper account.",
+      "example": "python -m trading.interfaces.cli.main create-account --name <NAME> --strategy <STRATEGY> --initial-cash <INITIAL_CASH>",
+      "arguments": [
+        {
+          "flags": [
+            "--name"
+          ],
+          "dest": "name",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name, e.g. trend_v1"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Base strategy label"
+        },
+        {
+          "flags": [
+            "--initial-cash"
+          ],
+          "dest": "initial_cash",
+          "kind": "value",
+          "type": "float",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Starting cash"
+        },
+        {
+          "flags": [
+            "--display-name"
+          ],
+          "dest": "display_name",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Display name shown in operator summaries and reports"
+        },
+        {
+          "flags": [
+            "--goal-min-return-pct"
+          ],
+          "dest": "goal_min_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Goal minimum return percent"
+        },
+        {
+          "flags": [
+            "--goal-max-return-pct"
+          ],
+          "dest": "goal_max_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Goal maximum return percent"
+        },
+        {
+          "flags": [
+            "--goal-period"
+          ],
+          "dest": "goal_period",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "monthly",
+          "choices": null,
+          "help": "Goal time period label, e.g. weekly, monthly, quarterly"
+        },
+        {
+          "flags": [
+            "--learning-enabled"
+          ],
+          "dest": "learning_enabled",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Enable heuristic exploration mode for this account"
+        },
+        {
+          "flags": [
+            "--risk-policy"
+          ],
+          "dest": "risk_policy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "none",
+          "choices": [
+            "none",
+            "fixed_stop",
+            "take_profit",
+            "stop_and_target"
+          ],
+          "help": "Risk management policy"
+        },
+        {
+          "flags": [
+            "--stop-loss-pct"
+          ],
+          "dest": "stop_loss_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Stop-loss percent"
+        },
+        {
+          "flags": [
+            "--take-profit-pct"
+          ],
+          "dest": "take_profit_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Take-profit percent"
+        },
+        {
+          "flags": [
+            "--trade-size-pct"
+          ],
+          "dest": "trade_size_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 10.0,
+          "choices": null,
+          "help": "Target portfolio allocation percent for each new buy"
+        },
+        {
+          "flags": [
+            "--max-position-pct"
+          ],
+          "dest": "max_position_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 20.0,
+          "choices": null,
+          "help": "Maximum portfolio allocation percent allowed for a single position"
+        },
+        {
+          "flags": [
+            "--instrument-mode"
+          ],
+          "dest": "instrument_mode",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "equity",
+          "choices": [
+            "equity",
+            "leaps"
+          ],
+          "help": "Execution style: equity shares or LEAPs-style simulation"
+        },
+        {
+          "flags": [
+            "--option-strike-offset-pct"
+          ],
+          "dest": "option_strike_offset_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Option strike offset percent vs underlying (for LEAPs simulation)"
+        },
+        {
+          "flags": [
+            "--option-min-dte"
+          ],
+          "dest": "option_min_dte",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum days-to-expiration"
+        },
+        {
+          "flags": [
+            "--option-max-dte"
+          ],
+          "dest": "option_max_dte",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum days-to-expiration"
+        },
+        {
+          "flags": [
+            "--option-type"
+          ],
+          "dest": "option_type",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": [
+            "call",
+            "put",
+            "both"
+          ],
+          "help": "Preferred option type for options-style trading"
+        },
+        {
+          "flags": [
+            "--target-delta-min"
+          ],
+          "dest": "target_delta_min",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum target option delta (0-1)"
+        },
+        {
+          "flags": [
+            "--target-delta-max"
+          ],
+          "dest": "target_delta_max",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum target option delta (0-1)"
+        },
+        {
+          "flags": [
+            "--max-premium-per-trade"
+          ],
+          "dest": "max_premium_per_trade",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Max option premium budget per trade"
+        },
+        {
+          "flags": [
+            "--max-contracts-per-trade"
+          ],
+          "dest": "max_contracts_per_trade",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum option contracts per trade"
+        },
+        {
+          "flags": [
+            "--iv-rank-min"
+          ],
+          "dest": "iv_rank_min",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum IV rank threshold (0-100)"
+        },
+        {
+          "flags": [
+            "--iv-rank-max"
+          ],
+          "dest": "iv_rank_max",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum IV rank threshold (0-100)"
+        },
+        {
+          "flags": [
+            "--roll-dte-threshold"
+          ],
+          "dest": "roll_dte_threshold",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Roll position when DTE <= threshold"
+        },
+        {
+          "flags": [
+            "--option-profit-take-pct"
+          ],
+          "dest": "option_profit_take_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "LEAPs/options profit-take percent"
+        },
+        {
+          "flags": [
+            "--option-max-loss-pct"
+          ],
+          "dest": "option_max_loss_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "LEAPs/options maximum tolerated loss percent"
+        },
+        {
+          "flags": [
+            "--benchmark"
+          ],
+          "dest": "benchmark",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "SPY",
+          "choices": null,
+          "help": "Benchmark ticker for this strategy account (default: SPY)"
+        }
+      ]
+    },
+    {
+      "name": "set-benchmark",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Set benchmark ticker for an account.",
+      "example": "python -m trading.interfaces.cli.main set-benchmark --account <ACCOUNT> --benchmark <BENCHMARK>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--benchmark"
+          ],
+          "dest": "benchmark",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Benchmark ticker, e.g. SPY"
+        }
+      ]
+    },
+    {
+      "name": "assign-strategy",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Assign an existing, enabled catalog strategy to a book (unknown keys are rejected).",
+      "example": "python -m trading.interfaces.cli.main assign-strategy --account <ACCOUNT> --strategy <STRATEGY>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--book"
+          ],
+          "dest": "book",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Book name (default: the account's default book)"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Catalog strategy key to assign"
+        }
+      ]
+    },
+    {
+      "name": "configure-account",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Update per-account metadata and goals.",
+      "example": "python -m trading.interfaces.cli.main configure-account --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--display-name"
+          ],
+          "dest": "display_name",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Display name shown in operator summaries and reports"
+        },
+        {
+          "flags": [
+            "--goal-min-return-pct"
+          ],
+          "dest": "goal_min_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Goal minimum return percent"
+        },
+        {
+          "flags": [
+            "--goal-max-return-pct"
+          ],
+          "dest": "goal_max_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Goal maximum return percent"
+        },
+        {
+          "flags": [
+            "--goal-period"
+          ],
+          "dest": "goal_period",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Goal time period label, e.g. weekly, monthly, quarterly"
+        },
+        {
+          "flags": [
+            "--learning-enabled"
+          ],
+          "dest": "learning_enabled",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Turn on heuristic exploration mode for this account"
+        },
+        {
+          "flags": [
+            "--learning-disabled"
+          ],
+          "dest": "learning_disabled",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Turn off heuristic exploration mode for this account"
+        },
+        {
+          "flags": [
+            "--risk-policy"
+          ],
+          "dest": "risk_policy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": [
+            "none",
+            "fixed_stop",
+            "take_profit",
+            "stop_and_target"
+          ],
+          "help": "Risk management policy"
+        },
+        {
+          "flags": [
+            "--stop-loss-pct"
+          ],
+          "dest": "stop_loss_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Stop-loss percent"
+        },
+        {
+          "flags": [
+            "--take-profit-pct"
+          ],
+          "dest": "take_profit_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Take-profit percent"
+        },
+        {
+          "flags": [
+            "--trade-size-pct"
+          ],
+          "dest": "trade_size_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Target portfolio allocation percent for each new buy"
+        },
+        {
+          "flags": [
+            "--max-position-pct"
+          ],
+          "dest": "max_position_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum portfolio allocation percent allowed for a single position"
+        },
+        {
+          "flags": [
+            "--instrument-mode"
+          ],
+          "dest": "instrument_mode",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": [
+            "equity",
+            "leaps"
+          ],
+          "help": "Execution style: equity shares or LEAPs-style simulation"
+        },
+        {
+          "flags": [
+            "--option-strike-offset-pct"
+          ],
+          "dest": "option_strike_offset_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Option strike offset percent vs underlying (for LEAPs simulation)"
+        },
+        {
+          "flags": [
+            "--option-min-dte"
+          ],
+          "dest": "option_min_dte",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum days-to-expiration"
+        },
+        {
+          "flags": [
+            "--option-max-dte"
+          ],
+          "dest": "option_max_dte",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum days-to-expiration"
+        },
+        {
+          "flags": [
+            "--option-type"
+          ],
+          "dest": "option_type",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": [
+            "call",
+            "put",
+            "both"
+          ],
+          "help": "Preferred option type for options-style trading"
+        },
+        {
+          "flags": [
+            "--target-delta-min"
+          ],
+          "dest": "target_delta_min",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum target option delta (0-1)"
+        },
+        {
+          "flags": [
+            "--target-delta-max"
+          ],
+          "dest": "target_delta_max",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum target option delta (0-1)"
+        },
+        {
+          "flags": [
+            "--max-premium-per-trade"
+          ],
+          "dest": "max_premium_per_trade",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Max option premium budget per trade"
+        },
+        {
+          "flags": [
+            "--max-contracts-per-trade"
+          ],
+          "dest": "max_contracts_per_trade",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum option contracts per trade"
+        },
+        {
+          "flags": [
+            "--iv-rank-min"
+          ],
+          "dest": "iv_rank_min",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Minimum IV rank threshold (0-100)"
+        },
+        {
+          "flags": [
+            "--iv-rank-max"
+          ],
+          "dest": "iv_rank_max",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Maximum IV rank threshold (0-100)"
+        },
+        {
+          "flags": [
+            "--roll-dte-threshold"
+          ],
+          "dest": "roll_dte_threshold",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Roll position when DTE <= threshold"
+        },
+        {
+          "flags": [
+            "--option-profit-take-pct"
+          ],
+          "dest": "option_profit_take_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "LEAPs/options profit-take percent"
+        },
+        {
+          "flags": [
+            "--option-max-loss-pct"
+          ],
+          "dest": "option_max_loss_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "LEAPs/options maximum tolerated loss percent"
+        }
+      ]
+    },
+    {
+      "name": "trade",
+      "group": "Accounts",
+      "risk": "writes-local",
+      "help": "Record a mock buy or sell.",
+      "example": "python -m trading.interfaces.cli.main trade --account <ACCOUNT> --side buy --ticker <TICKER> --qty <QTY> --price <PRICE>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--side"
+          ],
+          "dest": "side",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": [
+            "buy",
+            "sell"
+          ],
+          "help": "Order side"
+        },
+        {
+          "flags": [
+            "--ticker"
+          ],
+          "dest": "ticker",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Ticker symbol"
+        },
+        {
+          "flags": [
+            "--qty"
+          ],
+          "dest": "qty",
+          "kind": "value",
+          "type": "float",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Trade quantity"
+        },
+        {
+          "flags": [
+            "--price"
+          ],
+          "dest": "price",
+          "kind": "value",
+          "type": "float",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Execution price"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Optional trading fee"
+        },
+        {
+          "flags": [
+            "--time"
+          ],
+          "dest": "time",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional trade time (ISO string)"
+        },
+        {
+          "flags": [
+            "--note"
+          ],
+          "dest": "note",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional trade note"
+        }
+      ]
+    },
+    {
+      "name": "report",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show account status and open positions.",
+      "example": "python -m trading.interfaces.cli.main report --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        }
+      ]
+    },
+    {
+      "name": "promotion-status",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show read-only promotion readiness based on the canonical evaluation artifact.",
+      "example": "python -m trading.interfaces.cli.main promotion-status --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional strategy override"
+        }
+      ]
+    },
+    {
+      "name": "promotion-request-review",
+      "group": "Reporting",
+      "risk": "writes-local",
+      "help": "Persist the current promotion assessment as a manual review request.",
+      "example": "python -m trading.interfaces.cli.main promotion-request-review --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional strategy override"
+        },
+        {
+          "flags": [
+            "--requested-by"
+          ],
+          "dest": "requested_by",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional operator name"
+        },
+        {
+          "flags": [
+            "--note"
+          ],
+          "dest": "note",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional request note"
+        }
+      ]
+    },
+    {
+      "name": "promotion-review-history",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show persisted promotion review requests and audit events.",
+      "example": "python -m trading.interfaces.cli.main promotion-review-history --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional strategy filter"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "dest": "limit",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 10,
+          "choices": null,
+          "help": "Number of reviews to show"
+        }
+      ]
+    },
+    {
+      "name": "promotion-review-action",
+      "group": "Reporting",
+      "risk": "writes-local",
+      "help": "Approve, reject, or annotate an open promotion review request.",
+      "example": "python -m trading.interfaces.cli.main promotion-review-action --review-id <REVIEW_ID> --action approve",
+      "arguments": [
+        {
+          "flags": [
+            "--review-id"
+          ],
+          "dest": "review_id",
+          "kind": "value",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Promotion review id"
+        },
+        {
+          "flags": [
+            "--action"
+          ],
+          "dest": "action",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": [
+            "approve",
+            "reject",
+            "note"
+          ],
+          "help": "Review action to record"
+        },
+        {
+          "flags": [
+            "--actor"
+          ],
+          "dest": "actor",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional operator name"
+        },
+        {
+          "flags": [
+            "--note"
+          ],
+          "dest": "note",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional action note"
+        }
+      ]
+    },
+    {
+      "name": "snapshot",
+      "group": "Reporting",
+      "risk": "writes-local",
+      "help": "Save equity snapshot for an account.",
+      "example": "python -m trading.interfaces.cli.main snapshot --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--time"
+          ],
+          "dest": "time",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional snapshot time (ISO string)"
+        }
+      ]
+    },
+    {
+      "name": "snapshot-history",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show account snapshot history.",
+      "example": "python -m trading.interfaces.cli.main snapshot-history --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "dest": "limit",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 20,
+          "choices": null,
+          "help": "Number of rows to show"
+        }
+      ]
+    },
+    {
+      "name": "portfolio-exposure",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show the cross-account exposure rollup (equity, cash, market value) from each account's latest snapshot.",
+      "example": "python -m trading.interfaces.cli.main portfolio-exposure",
+      "arguments": []
+    },
+    {
+      "name": "parameters",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show the unified parameter source: global settings, per-book settings, and strategy knobs with their effective values and sources.",
+      "example": "python -m trading.interfaces.cli.main parameters",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional account filter for book settings"
+        }
+      ]
+    },
+    {
+      "name": "portfolio-concentration",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Show cross-account concentration by symbol (share of total market value, overlap across accounts) with a sector rollup.",
+      "example": "python -m trading.interfaces.cli.main portfolio-concentration",
+      "arguments": []
+    },
+    {
+      "name": "compare-strategies",
+      "group": "Reporting",
+      "risk": "read-only",
+      "help": "Compare current paper accounts by account policy state, holdings, benchmark, and trend (not canonical research scores).",
+      "example": "python -m trading.interfaces.cli.main compare-strategies",
+      "arguments": [
+        {
+          "flags": [
+            "--lookback"
+          ],
+          "dest": "lookback",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 10,
+          "choices": null,
+          "help": "Snapshot lookback count for trend classification (default: 10)"
+        }
+      ]
+    },
+    {
+      "name": "configure-throttle",
+      "group": "Settings",
+      "risk": "writes-local",
+      "help": "Edit the global trade throttle (omitted flags keep their current values; pass 'none' to clear).",
+      "example": "python -m trading.interfaces.cli.main configure-throttle",
+      "arguments": [
+        {
+          "flags": [
+            "--max-trades-per-day"
+          ],
+          "dest": "max_trades_per_day",
+          "kind": "value",
+          "type": "int_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Max trades per day, or 'none' for unlimited"
+        },
+        {
+          "flags": [
+            "--max-trades-per-minute"
+          ],
+          "dest": "max_trades_per_minute",
+          "kind": "value",
+          "type": "int_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Max trades per minute, or 'none' for unlimited"
+        }
+      ]
+    },
+    {
+      "name": "configure-evaluation",
+      "group": "Settings",
+      "risk": "writes-local",
+      "help": "Edit global evaluation confidence settings (omitted flags keep their current values).",
+      "example": "python -m trading.interfaces.cli.main configure-evaluation",
+      "arguments": [
+        {
+          "flags": [
+            "--backtest-trade-count-for-full-confidence"
+          ],
+          "dest": "backtest_trade_count_for_full_confidence",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--backtest-snapshot-count-for-full-confidence"
+          ],
+          "dest": "backtest_snapshot_count_for_full_confidence",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--paper-live-snapshot-count-for-full-confidence"
+          ],
+          "dest": "paper_live_snapshot_count_for_full_confidence",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--backtest-trade-confidence-weight"
+          ],
+          "dest": "backtest_trade_confidence_weight",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--backtest-snapshot-confidence-weight"
+          ],
+          "dest": "backtest_snapshot_confidence_weight",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--backtest-evidence-weight"
+          ],
+          "dest": "backtest_evidence_weight",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--paper-live-evidence-weight"
+          ],
+          "dest": "paper_live_evidence_weight",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "name": "configure-book-rotation-policy",
+      "group": "Settings",
+      "risk": "writes-local",
+      "help": "Edit a book's rotation policy (weights, threshold, cooldown, min-trades). Omitted flags keep their current values; pass 'none' to fall back to the code default.",
+      "example": "python -m trading.interfaces.cli.main configure-book-rotation-policy --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--book"
+          ],
+          "dest": "book",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Book name (default: the account's default book)"
+        },
+        {
+          "flags": [
+            "--min-trades-in-window"
+          ],
+          "dest": "min_trades_in_window",
+          "kind": "value",
+          "type": "int_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--outperformance-threshold-bps"
+          ],
+          "dest": "outperformance_threshold_bps",
+          "kind": "value",
+          "type": "float_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--cooldown-days"
+          ],
+          "dest": "cooldown_days",
+          "kind": "value",
+          "type": "int_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--risk-adjusted-return-weight"
+          ],
+          "dest": "risk_adjusted_return_weight",
+          "kind": "value",
+          "type": "float_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--stability-weight"
+          ],
+          "dest": "stability_weight",
+          "kind": "value",
+          "type": "float_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--drawdown-penalty-weight"
+          ],
+          "dest": "drawdown_penalty_weight",
+          "kind": "value",
+          "type": "float_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--regime-fit-weight"
+          ],
+          "dest": "regime_fit_weight",
+          "kind": "value",
+          "type": "float_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "name": "configure-book-rotation",
+      "group": "Settings",
+      "risk": "writes-local",
+      "help": "Edit a book's rotation scheduling (enabled gate, challenger schedule, lookback). Omitted flags keep their current values; pass 'none' to clear schedule/lookback.",
+      "example": "python -m trading.interfaces.cli.main configure-book-rotation --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--book"
+          ],
+          "dest": "book",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Book name (default: the account's default book)"
+        },
+        {
+          "flags": [
+            "--enabled"
+          ],
+          "dest": "enabled",
+          "kind": "value",
+          "type": "bool_flag",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Whether the book rotates (true/false)"
+        },
+        {
+          "flags": [
+            "--schedule"
+          ],
+          "dest": "schedule",
+          "kind": "value",
+          "type": "schedule_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Comma-separated challenger strategy names, or 'none' for incumbent-only"
+        },
+        {
+          "flags": [
+            "--lookback-days"
+          ],
+          "dest": "lookback_days",
+          "kind": "value",
+          "type": "int_or_none",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Evidence lookback window in days, or 'none' for the code default"
+        }
+      ]
+    },
+    {
+      "name": "configure-promotion",
+      "group": "Settings",
+      "risk": "writes-local",
+      "help": "Edit global promotion policy settings (omitted flags keep their current values).",
+      "example": "python -m trading.interfaces.cli.main configure-promotion",
+      "arguments": [
+        {
+          "flags": [
+            "--min-research-backtest-trade-count"
+          ],
+          "dest": "min_research_backtest_trade_count",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-research-backtest-snapshot-count"
+          ],
+          "dest": "min_research_backtest_snapshot_count",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-research-backtest-return-pct"
+          ],
+          "dest": "min_research_backtest_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-research-max-drawdown-pct"
+          ],
+          "dest": "min_research_max_drawdown_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-research-walk-forward-average-return-pct"
+          ],
+          "dest": "min_research_walk_forward_average_return_pct",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-live-paper-snapshot-count"
+          ],
+          "dest": "min_live_paper_snapshot_count",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        },
+        {
+          "flags": [
+            "--min-live-overall-confidence"
+          ],
+          "dest": "min_live_overall_confidence",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "name": "settings-history",
+      "group": "Settings",
+      "risk": "read-only",
+      "help": "Show the global settings change-audit history (throttle, evaluation, promotion edits).",
+      "example": "python -m trading.interfaces.cli.main settings-history",
+      "arguments": [
+        {
+          "flags": [
+            "--limit"
+          ],
+          "dest": "limit",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 20,
+          "choices": null,
+          "help": "Number of change events to show"
+        }
+      ]
+    },
+    {
+      "name": "book-rotation-history",
+      "group": "Settings",
+      "risk": "read-only",
+      "help": "Show a book's rotation settings change-audit history (scheduling and policy edits).",
+      "example": "python -m trading.interfaces.cli.main book-rotation-history --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--book"
+          ],
+          "dest": "book",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Book name (default: the account's default book)"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "dest": "limit",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 20,
+          "choices": null,
+          "help": "Number of change events to show"
+        }
+      ]
+    },
+    {
+      "name": "create-strategy-variant",
+      "group": "Strategy Catalog",
+      "risk": "writes-local",
+      "help": "Create a new draft strategy variant of a code primitive with tuned knobs.",
+      "example": "python -m trading.interfaces.cli.main create-strategy-variant --strategy <STRATEGY> --primitive <PRIMITIVE>",
+      "arguments": [
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "New strategy key"
+        },
+        {
+          "flags": [
+            "--primitive"
+          ],
+          "dest": "primitive",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Code primitive the variant runs"
+        },
+        {
+          "flags": [
+            "--set"
+          ],
+          "dest": "set_knobs",
+          "kind": "repeatable",
+          "type": "knob_assignment",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Set a knob override (repeatable)"
+        },
+        {
+          "flags": [
+            "--description"
+          ],
+          "dest": "description",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Optional description"
+        }
+      ]
+    },
+    {
+      "name": "configure-strategy",
+      "group": "Strategy Catalog",
+      "risk": "writes-local",
+      "help": "Edit a draft strategy's knobs and/or enabled flag (untouched knobs are kept).",
+      "example": "python -m trading.interfaces.cli.main configure-strategy --strategy <STRATEGY>",
+      "arguments": [
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Strategy key"
+        },
+        {
+          "flags": [
+            "--set"
+          ],
+          "dest": "set_knobs",
+          "kind": "repeatable",
+          "type": "knob_assignment",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Set a knob override (repeatable)"
+        },
+        {
+          "flags": [
+            "--enabled"
+          ],
+          "dest": "enabled",
+          "kind": "value",
+          "type": "bool_flag",
+          "required": false,
+          "default": "==SUPPRESS==",
+          "choices": null,
+          "help": "Whether the strategy is enabled (true/false)"
+        }
+      ]
+    },
+    {
+      "name": "freeze-strategy",
+      "group": "Strategy Catalog",
+      "risk": "writes-local",
+      "help": "Freeze a draft strategy (one-way; tuning it afterward requires a new variant).",
+      "example": "python -m trading.interfaces.cli.main freeze-strategy --strategy <STRATEGY>",
+      "arguments": [
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Strategy key"
+        }
+      ]
+    },
+    {
+      "name": "backtest",
+      "group": "Backtesting",
+      "risk": "writes-local",
+      "help": "Run a historical backtest for an existing account configuration.",
+      "example": "python -m trading.interfaces.cli.main backtest --account <ACCOUNT>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--tickers-file"
+          ],
+          "dest": "tickers_file",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "choices": null,
+          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+        },
+        {
+          "flags": [
+            "--universe-history-dir"
+          ],
+          "dest": "universe_history_dir",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
+        },
+        {
+          "flags": [
+            "--start"
+          ],
+          "dest": "start",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Start date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--end"
+          ],
+          "dest": "end",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "End date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--lookback-months"
+          ],
+          "dest": "lookback_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Alternative to --start: look back N months from end date"
+        },
+        {
+          "flags": [
+            "--slippage-bps"
+          ],
+          "dest": "slippage_bps",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": "Slippage in basis points per trade"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Fixed fee per trade"
+        },
+        {
+          "flags": [
+            "--allow-approximate-leaps"
+          ],
+          "dest": "allow_approximate_leaps",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional strategy override (default: the account's active strategy)"
+        },
+        {
+          "flags": [
+            "--run-name"
+          ],
+          "dest": "run_name",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional run label"
+        }
+      ]
+    },
+    {
+      "name": "backtest-report",
+      "group": "Backtesting",
+      "risk": "read-only",
+      "help": "Show summary metrics for a previous backtest run tied to an account configuration.",
+      "example": "python -m trading.interfaces.cli.main backtest-report --run-id <RUN_ID>",
+      "arguments": [
+        {
+          "flags": [
+            "--run-id"
+          ],
+          "dest": "run_id",
+          "kind": "value",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Backtest run id"
+        }
+      ]
+    },
+    {
+      "name": "backtest-leaderboard",
+      "group": "Backtesting",
+      "risk": "read-only",
+      "help": "Rank historical account backtest runs by total return.",
+      "example": "python -m trading.interfaces.cli.main backtest-leaderboard",
+      "arguments": [
+        {
+          "flags": [
+            "--limit"
+          ],
+          "dest": "limit",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 10,
+          "choices": null,
+          "help": "Maximum number of runs to return (default: 10)"
+        },
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional account name filter"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional case-insensitive account strategy label filter"
+        }
+      ]
+    },
+    {
+      "name": "backtest-batch",
+      "group": "Backtesting",
+      "risk": "writes-local",
+      "help": "Run backtests for multiple accounts with shared date and universe settings.",
+      "example": "python -m trading.interfaces.cli.main backtest-batch --accounts <ACCOUNTS>",
+      "arguments": [
+        {
+          "flags": [
+            "--accounts"
+          ],
+          "dest": "accounts",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Comma-separated account names, e.g. trend_v1,mean_rev_v1"
+        },
+        {
+          "flags": [
+            "--tickers-file"
+          ],
+          "dest": "tickers_file",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "choices": null,
+          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+        },
+        {
+          "flags": [
+            "--universe-history-dir"
+          ],
+          "dest": "universe_history_dir",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
+        },
+        {
+          "flags": [
+            "--start"
+          ],
+          "dest": "start",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Start date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--end"
+          ],
+          "dest": "end",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "End date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--lookback-months"
+          ],
+          "dest": "lookback_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Alternative to --start: look back N months from end date"
+        },
+        {
+          "flags": [
+            "--slippage-bps"
+          ],
+          "dest": "slippage_bps",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": "Slippage in basis points per trade"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Fixed fee per trade"
+        },
+        {
+          "flags": [
+            "--allow-approximate-leaps"
+          ],
+          "dest": "allow_approximate_leaps",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
+        },
+        {
+          "flags": [
+            "--run-name-prefix"
+          ],
+          "dest": "run_name_prefix",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional prefix for generated run names"
+        }
+      ]
+    },
+    {
+      "name": "backtest-optimize",
+      "group": "Backtesting",
+      "risk": "writes-local",
+      "help": "Walk-forward parameter optimization for one strategy: grid-search on each training window, freeze the winner, then report out-of-sample and holdout evidence against the strategy's current catalog parameters.",
+      "example": "python -m trading.interfaces.cli.main backtest-optimize --account <ACCOUNT> --strategy <STRATEGY> --search-space <SEARCH_SPACE>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Strategy to optimize (catalog key or alias)"
+        },
+        {
+          "flags": [
+            "--search-space"
+          ],
+          "dest": "search_space",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "JSON object of parameter -> candidate values, e.g. '{\"fast_window\": [5, 10, 15], \"slow_window\": [20, 30]}'. Keys must be parameters of the strategy."
+        },
+        {
+          "flags": [
+            "--tickers-file"
+          ],
+          "dest": "tickers_file",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt",
+          "choices": null,
+          "help": "Path to ticker universe file (default: C:\\Users\\camer\\Documents\\Workspaces\\trading_strategies\\src\\infrastructure\\config\\trade_universes\\default.txt)"
+        },
+        {
+          "flags": [
+            "--universe-history-dir"
+          ],
+          "dest": "universe_history_dir",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
+        },
+        {
+          "flags": [
+            "--start"
+          ],
+          "dest": "start",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Start date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--end"
+          ],
+          "dest": "end",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "End date YYYY-MM-DD"
+        },
+        {
+          "flags": [
+            "--lookback-months"
+          ],
+          "dest": "lookback_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Alternative to --start: look back N months from end date"
+        },
+        {
+          "flags": [
+            "--slippage-bps"
+          ],
+          "dest": "slippage_bps",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": "Slippage in basis points per trade"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Fixed fee per trade"
+        },
+        {
+          "flags": [
+            "--allow-approximate-leaps"
+          ],
+          "dest": "allow_approximate_leaps",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
+        },
+        {
+          "flags": [
+            "--train-months"
+          ],
+          "dest": "train_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 12,
+          "choices": null,
+          "help": "Training window length in months"
+        },
+        {
+          "flags": [
+            "--test-months"
+          ],
+          "dest": "test_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 1,
+          "choices": null,
+          "help": "Out-of-sample test window length in months"
+        },
+        {
+          "flags": [
+            "--step-months"
+          ],
+          "dest": "step_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 1,
+          "choices": null,
+          "help": "Months to roll forward between windows"
+        },
+        {
+          "flags": [
+            "--holdout-months"
+          ],
+          "dest": "holdout_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 6,
+          "choices": null,
+          "help": "Untouched final holdout length in months (0 to disable)"
+        },
+        {
+          "flags": [
+            "--candidate-budget"
+          ],
+          "dest": "candidate_budget",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 256,
+          "choices": null,
+          "help": "Maximum grid size; a larger Cartesian product is rejected, not truncated"
+        },
+        {
+          "flags": [
+            "--warmup-months"
+          ],
+          "dest": "warmup_months",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 6,
+          "choices": null,
+          "help": "Indicator warm-up history loaded before each window (default: 6); raise for large window params"
+        }
+      ]
+    },
+    {
+      "name": "backtest-optimize-show",
+      "group": "Backtesting",
+      "risk": "read-only",
+      "help": "Show a persisted optimization experiment: config, winner params, OOS/holdout evidence, promotion status.",
+      "example": "python -m trading.interfaces.cli.main backtest-optimize-show experiment_id <EXPERIMENT_ID>",
+      "arguments": [
+        {
+          "flags": [
+            "experiment_id"
+          ],
+          "dest": "experiment_id",
+          "kind": "value",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "optimization_experiments row id"
+        }
+      ]
+    },
+    {
+      "name": "backtest-optimize-promote",
+      "group": "Backtesting",
+      "risk": "writes-local",
+      "help": "Promote an optimization experiment's winner into a new tradeable strategy variant (frozen by default) and link it back to the experiment.",
+      "example": "python -m trading.interfaces.cli.main backtest-optimize-promote experiment_id <EXPERIMENT_ID> --key <KEY>",
+      "arguments": [
+        {
+          "flags": [
+            "experiment_id"
+          ],
+          "dest": "experiment_id",
+          "kind": "value",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "optimization_experiments row id"
+        },
+        {
+          "flags": [
+            "--key"
+          ],
+          "dest": "key",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Strategy key for the new variant"
+        },
+        {
+          "flags": [
+            "--no-freeze"
+          ],
+          "dest": "no_freeze",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Leave the new variant as an editable draft instead of freezing it (default: freeze)"
+        },
+        {
+          "flags": [
+            "--allow-no-edge"
+          ],
+          "dest": "allow_no_edge",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Bypass the promotion quality bar (winner must beat its baseline on OOS and holdout evidence) and promote anyway"
+        }
+      ]
+    },
+    {
+      "name": "backtest-bench",
+      "group": "Backtesting",
+      "risk": "read-only",
+      "help": "Run strategies through synthetic and real-history scenarios and compare their outcome distributions. Behavioral only \u2014 bench runs are not persisted and are not promotion evidence.",
+      "example": "python -m trading.interfaces.cli.main backtest-bench",
+      "arguments": [
+        {
+          "flags": [
+            "--strategies"
+          ],
+          "dest": "strategies",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Comma-separated strategies to run (default: all registered strategies)"
+        },
+        {
+          "flags": [
+            "--scenarios"
+          ],
+          "dest": "scenarios",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Comma-separated scenario ids or aliases (default: all synthetic scenarios; real-history scenarios need a captured fixture and run only by name)"
+        },
+        {
+          "flags": [
+            "--paths"
+          ],
+          "dest": "paths",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Paths per Monte Carlo scenario (default: each scenario's own count, 200); single-path replay scenarios always run once"
+        },
+        {
+          "flags": [
+            "--metric"
+          ],
+          "dest": "metric",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "total_return_pct",
+          "choices": [
+            "total_return_pct",
+            "max_drawdown_pct",
+            "sharpe_ratio",
+            "alpha_pct"
+          ],
+          "help": "Metric rendered in the matrix (default: total_return_pct)"
+        },
+        {
+          "flags": [
+            "--slippage-bps"
+          ],
+          "dest": "slippage_bps",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "choices": null,
+          "help": "Slippage in basis points per trade"
+        },
+        {
+          "flags": [
+            "--fee"
+          ],
+          "dest": "fee",
+          "kind": "value",
+          "type": "float",
+          "required": false,
+          "default": 0.0,
+          "choices": null,
+          "help": "Fixed fee per trade"
+        },
+        {
+          "flags": [
+            "--list-scenarios"
+          ],
+          "dest": "list_scenarios",
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "List the available scenarios and exit"
+        }
+      ]
+    },
+    {
+      "name": "advisor-record",
+      "group": "Advisor",
+      "risk": "writes-local",
+      "help": "Record an advisor decision (including hold) with its rationale and frozen evidence.",
+      "example": "python -m trading.interfaces.cli.main advisor-record --account <ACCOUNT> --type hold --rationale <RATIONALE>",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Account name"
+        },
+        {
+          "flags": [
+            "--book"
+          ],
+          "dest": "book",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Book name (default: the account's default book)"
+        },
+        {
+          "flags": [
+            "--type"
+          ],
+          "dest": "type",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": [
+            "hold",
+            "adjust_params",
+            "propose_variant",
+            "request_promotion",
+            "disable_strategy",
+            "run_experiment"
+          ],
+          "help": "Decision type"
+        },
+        {
+          "flags": [
+            "--rationale"
+          ],
+          "dest": "rationale",
+          "kind": "value",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "choices": null,
+          "help": "Why this decision was made"
+        },
+        {
+          "flags": [
+            "--decided-by"
+          ],
+          "dest": "decided_by",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "operator",
+          "choices": null,
+          "help": "Who made the decision (default: operator; the advisor agent passes 'agent')"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "dest": "strategy",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Catalog strategy the decision puts or keeps in place (default: the book's assigned strategy)"
+        },
+        {
+          "flags": [
+            "--alternative"
+          ],
+          "dest": "alternative",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Catalog strategy the decision rejected; scoring backtests both over the following window. Omit for disable_strategy and run_experiment."
+        },
+        {
+          "flags": [
+            "--note"
+          ],
+          "dest": "note",
+          "kind": "repeatable",
+          "type": "str",
+          "required": false,
+          "default": [],
+          "choices": null,
+          "help": "Extra evidence to freeze with the decision; repeatable"
+        },
+        {
+          "flags": [
+            "--experiment-id"
+          ],
+          "dest": "experiment_id",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Walk-forward experiment the decision cites"
+        },
+        {
+          "flags": [
+            "--promotion-review-id"
+          ],
+          "dest": "promotion_review_id",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Promotion review the decision cites"
+        },
+        {
+          "flags": [
+            "--window-days"
+          ],
+          "dest": "window_days",
+          "kind": "value",
+          "type": "int",
+          "required": false,
+          "default": 21,
+          "choices": null,
+          "help": "Trading days before the outcome is scored (default: 21)"
+        }
+      ]
+    },
+    {
+      "name": "advisor-digest",
+      "group": "Advisor",
+      "risk": "read-only",
+      "help": "Show each account's evaluation, recent decisions, and review flags. Read-only.",
+      "example": "python -m trading.interfaces.cli.main advisor-digest",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Limit to one account (default: all accounts)"
+        },
+        {
+          "flags": [
+            "--as-of"
+          ],
+          "dest": "as_of",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Trading date YYYY-MM-DD that decides which decisions are due (default: today, UTC)"
+        }
+      ]
+    },
+    {
+      "name": "advisor-score",
+      "group": "Advisor",
+      "risk": "writes-local",
+      "help": "Score decisions whose outcome window has closed: backtest the chosen and rejected strategies over the window that followed and record the verdict.",
+      "example": "python -m trading.interfaces.cli.main advisor-score",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Limit to one account (default: all accounts)"
+        },
+        {
+          "flags": [
+            "--as-of"
+          ],
+          "dest": "as_of",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Trading date YYYY-MM-DD that decides which decisions are due (default: today, UTC)"
+        }
+      ]
+    },
+    {
+      "name": "advisor-scorecard",
+      "group": "Advisor",
+      "risk": "read-only",
+      "help": "Show the track record of scored decisions: points, mean edge with an interval, and points by market regime. Read-only.",
+      "example": "python -m trading.interfaces.cli.main advisor-scorecard",
+      "arguments": [
+        {
+          "flags": [
+            "--account"
+          ],
+          "dest": "account",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": null,
+          "choices": null,
+          "help": "Limit to one account (default: all accounts)"
+        },
+        {
+          "flags": [
+            "--by"
+          ],
+          "dest": "by",
+          "kind": "value",
+          "type": "str",
+          "required": false,
+          "default": "agent",
+          "choices": [
+            "agent",
+            "decision_type",
+            "regime"
+          ],
+          "help": "Group decisions by (default: agent)"
+        }
+      ]
+    }
+  ]
+}

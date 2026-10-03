@@ -61,10 +61,15 @@ API Reference (`scripts/documentation_ui/api/`):
 
 - `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
 
+Commands (`scripts/documentation_ui/commands/`):
+
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json` from the live CLI `argparse` parser. Every command must be listed as read-only or writes-local in `registry.py`.
+- `check.py`: standalone sync check that validates the command asset matches the CLI parser.
+
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Finance, Software, and API reference checks together.
-- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, and assets/software.json from requirements.
+- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, assets/commands.json from the CLI parser, and assets/software.json from requirements.
 
 Docs drift fixers (`scripts/fixes/`):
 
