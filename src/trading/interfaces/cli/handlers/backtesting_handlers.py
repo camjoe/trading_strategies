@@ -97,9 +97,8 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
     strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
     scenario_labels = _split_csv(args.scenarios) or default_scenario_ids()
     try:
-        strategy_names = list(
-            dict.fromkeys(resolve_run_strategy(conn, label).strategy_key for label in strategy_labels)
-        )
+        resolved = [resolve_run_strategy(conn, label) for label in strategy_labels]
+        strategy_names = list(dict.fromkeys(strategy.strategy_key for strategy in resolved))
         scenario_specs = [resolve_scenario(label) for label in scenario_labels]
         matrix = run_bench(
             conn,
@@ -113,6 +112,8 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
         parser.error(str(error))
         return
 
+    for warning in dict.fromkeys(warning for strategy in resolved for warning in strategy.warnings):
+        print(f"Note: {warning}")
     print(render_bench_matrix(matrix, metric=args.metric))
 
 

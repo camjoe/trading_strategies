@@ -54,13 +54,41 @@ def test_record_defaults_to_the_default_book_and_its_assigned_strategy(conn, acc
     assert record.outcome.outcome_status == "pending"
 
 
-def test_record_freezes_the_evaluation_alongside_the_notes(conn, account) -> None:
+def test_record_freezes_book_state_strategy_evidence_and_notes(conn, account) -> None:
     decision_id = _record_hold(conn, notes={"source": "digest"})
 
     record = StrategyDecisionRepository(conn).fetch(strategy_decision_id=decision_id)
     evidence = json.loads(record.evidence_json)
     assert evidence["notes"] == {"source": "digest"}
-    assert evidence["evaluation"]["basic"]["account_name"] == _ACCOUNT
+    assert (evidence["book"]["book_name"], evidence["book"]["strategy_key"]) == ("default", "trend")
+    assert evidence["strategy"]["key"] == "trend"
+    assert "walk_forward" in evidence["strategy"]
+    # Account-level paper and confidence figures are not frozen: for a sleeve they describe the roll-up.
+    assert "paper_live" not in json.dumps(evidence)
+    assert "missing_paper_live_evidence" not in evidence["strategy"]["data_gaps"]
+
+
+def test_a_sleeve_decision_freezes_the_sleeves_own_paper_return(conn, account) -> None:
+    sleeve_id = insert_test_book(conn, account_id=account.id, name="sleeve")
+    assign_test_book_strategy(conn, book_id=sleeve_id, strategy_name="rsi", now_iso="2026-09-01T00:00:00Z")
+    snapshots = EquitySnapshotRepository(conn)
+    for when, equity in (("2026-09-02T00:00:00Z", 10_000), ("2026-09-30T00:00:00Z", 9_500)):
+        snapshots.insert_for_book(
+            book_id=sleeve_id,
+            snapshot_time=when,
+            cash=Decimal(equity),
+            market_value=Decimal(0),
+            equity=Decimal(equity),
+            realized_pnl=Decimal(0),
+            unrealized_pnl=Decimal(0),
+        )
+
+    decision_id = _record_hold(conn, book_name="sleeve", strategy_key="rsi")
+
+    record = StrategyDecisionRepository(conn).fetch(strategy_decision_id=decision_id)
+    book = json.loads(record.evidence_json)["book"]
+    assert (book["book_name"], book["strategy_key"], book["paper_snapshot_count"]) == ("sleeve", "rsi", 2)
+    assert book["paper_return_pct"] == pytest.approx(-5.0)
 
 
 @pytest.mark.parametrize(

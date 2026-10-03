@@ -198,4 +198,8 @@ def test_handle_backtest_bench_keeps_catalog_variant_keys(conn, capsys, monkeypa
 
     # The variant keeps its own key (so it runs its own knobs); the alias still collapses to its primitive.
     assert calls["strategy_names"] == ["trend_fast", "trend"]
-    assert "matrix" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "matrix" in output
+    # A label with no catalog row says what it actually ran; a catalog key and a primitive id do not.
+    assert "Note: Strategy 'momentum' has no catalog row; ran primitive 'trend'" in output
+    assert output.count("Note:") == 1

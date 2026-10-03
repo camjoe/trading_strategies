@@ -137,7 +137,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
-| `advisor/decisions.py` | Record an advisor decision in the `strategy_decisions` ledger, resolving its book and strategy and freezing the current evaluation as its evidence |
+| `advisor/book_state.py` | A book's assigned strategy and its own paper return since assignment (from the book's snapshots, not the account roll-up) — shared by the digest and recorded evidence |
+| `advisor/decisions.py` | Record an advisor decision in the `strategy_decisions` ledger, resolving its book and strategy and freezing the book's own state plus the chosen strategy's backtest and walk-forward evidence |
 | `advisor/digest.py` | Read-only advisor digest, one block per book: its strategy's walk-forward and backtest evidence, its paper return since that strategy was assigned (from the book's own snapshots, not the account roll-up), recent and due ledger decisions, and review flags |
 | `advisor/presentation.py` | Pure string builders for the advisor digest, decision, and scoring lines |
 | `advisor/scorecard.py` | Read-only track record of scored decisions, grouped by agent, decision type, or regime |

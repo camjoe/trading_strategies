@@ -144,6 +144,18 @@ class AdvisorFlag:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BookState:
+    """A book's current strategy and its own paper return since that strategy was assigned."""
+
+    book_name: str
+    is_default: bool
+    strategy_key: str | None
+    assigned_since: str | None
+    paper_return_pct: float | None
+    paper_snapshot_count: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BookEvidence:
     """What the digest knows about one book's current strategy.
 

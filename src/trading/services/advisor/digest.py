@@ -7,7 +7,6 @@ from datetime import date, datetime, timezone
 
 from common.time import utc_now_iso
 from trading.domain.advisor import build_review_flags, due_for_scoring
-from trading.domain.metrics.returns import total_return_pct
 from trading.models import AccountRecord
 from trading.models.advisor import (
     AdvisorAccountDigest,
@@ -17,13 +16,11 @@ from trading.models.advisor import (
     StrategyDecisionRecord,
 )
 from trading.models.books import BookRecord
-from trading.repositories.book_strategy_history import BookStrategyHistoryRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.strategies import StrategyRepository
 from trading.repositories.strategy_decisions import StrategyDecisionRepository
 from trading.services.accounts.mutations import get_account
 from trading.services.accounts.queries import list_account_records
+from trading.services.advisor.book_state import fetch_book_state
 from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
 
 # How many of a book's most recent decisions the digest shows.
@@ -73,43 +70,23 @@ def _book_digest(
     recent: list[StrategyDecisionRecord],
     due: list[StrategyDecisionRecord],
 ) -> AdvisorBookDigest:
-    assignment = BookStrategyHistoryRepository(conn).fetch_open(book_id=book.id)
-    strategy = (
-        StrategyRepository(conn).fetch_by_id(strategy_id=assignment.strategy_id) if assignment is not None else None
-    )
-    strategy_key = strategy.strategy_key if strategy is not None else None
-    assigned_since = assignment.effective_from if assignment is not None else None
-
-    evaluation = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_key)
-    paper_return, paper_count = _paper_since(conn, book_id=book.id, since=assigned_since)
+    state = fetch_book_state(conn, book)
+    evaluation = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=state.strategy_key)
     evidence = BookEvidence(
         walk_forward=evaluation.walk_forward,
         backtest_freshness=evaluation.diagnostics.backtest_freshness,
-        paper_return_pct=paper_return,
-        paper_snapshot_count=paper_count,
+        paper_return_pct=state.paper_return_pct,
+        paper_snapshot_count=state.paper_snapshot_count,
         data_gaps=list(evaluation.diagnostics.data_gaps),
     )
     book_due = [record for record in due if record.book_id == book.id]
     return AdvisorBookDigest(
-        book_name=book.name,
-        is_default=bool(book.is_default),
-        strategy_key=strategy_key,
-        assigned_since=assigned_since,
+        book_name=state.book_name,
+        is_default=state.is_default,
+        strategy_key=state.strategy_key,
+        assigned_since=state.assigned_since,
         evidence=evidence,
         recent_decisions=[record for record in recent if record.book_id == book.id][:RECENT_DECISION_LIMIT],
         due_decisions=book_due,
-        flags=build_review_flags(evidence, strategy_key=strategy_key, due_count=len(book_due)),
+        flags=build_review_flags(evidence, strategy_key=state.strategy_key, due_count=len(book_due)),
     )
-
-
-def _paper_since(conn: sqlite3.Connection, *, book_id: int, since: str | None) -> tuple[float | None, int]:
-    """The book's paper return and snapshot count since its strategy was assigned."""
-    if since is None:
-        return None, 0
-    snapshots = EquitySnapshotRepository(conn)
-    first = snapshots.fetch_first_for_book_at_or_after(book_id=book_id, iso=since)
-    last = snapshots.fetch_latest_for_book(book_id=book_id)
-    count = snapshots.fetch_count_for_book_since(book_id=book_id, iso=since)
-    if first is None or last is None or first.equity <= 0:
-        return None, count
-    return total_return_pct(first_equity=float(first.equity), last_equity=float(last.equity)), count

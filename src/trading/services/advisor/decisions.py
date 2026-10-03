@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Mapping
+from dataclasses import asdict
 
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError, ValidationError
@@ -16,9 +17,12 @@ from trading.models.advisor import (
     DEFAULT_OUTCOME_WINDOW_DAYS,
     StrategyDecisionInsert,
 )
+from trading.models.books import BookRecord
+from trading.models.evaluation import PAPER_LIVE_EVIDENCE_GAP
 from trading.repositories.strategies import StrategyRepository
 from trading.repositories.strategy_decisions import StrategyDecisionRepository
 from trading.services.accounts.mutations import get_account
+from trading.services.advisor.book_state import fetch_book_state
 from trading.services.books.book_assignments import open_assignment_for_book
 from trading.services.books.default_book import fetch_account_book
 from trading.services.evaluation.queries import fetch_strategy_evaluation_for_account_row
@@ -48,8 +52,9 @@ def record_decision(
     scored inconclusive. A disabled strategy's alternative is the strategy itself, and
     ``run_experiment`` compares nothing, so neither takes one.
 
-    The evidence is frozen as the strategy's evaluation at this moment plus the caller's
-    ``notes``, so the record shows what the system reported when the decision was made.
+    The evidence frozen with it is the book's own state, the chosen strategy's backtest and
+    walk-forward evidence at this moment, and the caller's ``notes``, so the record shows what
+    the system reported when the decision was made.
     """
     _validate_decision_input(
         decision_type=decision_type,
@@ -64,7 +69,7 @@ def record_decision(
     strategy_id, resolved_key = _resolve_strategy(conn, book_id=book.id, strategy_key=strategy_key)
     alternative_strategy_id = _resolve_alternative(conn, alternative_strategy_key, chosen_strategy_id=strategy_id)
 
-    evidence_json = _freeze_evidence(conn, account, strategy_key=resolved_key, notes=notes)
+    evidence_json = _freeze_evidence(conn, account, book, strategy_key=resolved_key, notes=notes)
 
     return StrategyDecisionRepository(conn).insert(
         StrategyDecisionInsert(
@@ -87,13 +92,29 @@ def record_decision(
 def _freeze_evidence(
     conn: sqlite3.Connection,
     account: AccountRecord,
+    book: BookRecord,
     *,
     strategy_key: str | None,
     notes: Mapping[str, object] | None,
 ) -> str:
-    """The strategy's evaluation right now plus the caller's notes, as canonical JSON."""
+    """The book's own state, the chosen strategy's research evidence, and the notes, as canonical JSON.
+
+    The account-level paper and confidence figures are left out: for a non-default book they
+    describe the account roll-up, not this book.
+    """
     evaluation = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_key)
-    evidence = {"evaluation": evaluation.to_payload(), "notes": dict(notes or {})}
+    freshness = evaluation.diagnostics.backtest_freshness
+    evidence = {
+        "book": asdict(fetch_book_state(conn, book)),
+        "strategy": {
+            "key": strategy_key,
+            "backtest": asdict(evaluation.backtest),
+            "walk_forward": asdict(evaluation.walk_forward),
+            "backtest_freshness": asdict(freshness) if freshness is not None else None,
+            "data_gaps": [gap for gap in evaluation.diagnostics.data_gaps if gap != PAPER_LIVE_EVIDENCE_GAP],
+        },
+        "notes": dict(notes or {}),
+    }
     try:
         return json.dumps(evidence, sort_keys=True)
     except TypeError as error:
