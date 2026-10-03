@@ -20,6 +20,7 @@ export interface CatalogEntry {
   risk: CatalogRisk;
   module: string | null;
   schedule: string | null;
+  runnable: boolean;
   help: string;
   example: string;
   arguments: CatalogArgument[];
@@ -35,6 +36,16 @@ export interface CatalogData {
   cli_invocation: string;
   groups: CatalogGroup[];
   commands: CatalogEntry[];
+}
+
+export interface CatalogRunResult {
+  name: string;
+  command: string;
+  exitCode: number | null;
+  timedOut: boolean;
+  truncated: boolean;
+  durationSeconds: number;
+  output: string;
 }
 
 export interface CatalogFilter {

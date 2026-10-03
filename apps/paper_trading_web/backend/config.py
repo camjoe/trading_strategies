@@ -34,3 +34,6 @@ LOGS_DIR = (
 )
 EXPORTS_DIR = DEFAULT_EXPORTS_DIR
 CORS_ORIGINS = _parse_cors_origins(os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGIN))
+
+# Generated catalog of runnable commands; the catalog runner executes only entries it marks runnable.
+COMMANDS_REGISTRY_PATH = ROOT_DIR / "apps" / "paper_trading_web" / "frontend" / "src" / "assets" / "commands.json"

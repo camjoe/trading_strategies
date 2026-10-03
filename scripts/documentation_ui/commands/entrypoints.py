@@ -175,6 +175,33 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
     _tool("scripts.database_diagrams.render_html", "render-diagram-html", GROUP_DATA, RISK_WRITES_LOCAL),
 )
 
+# Tool rows the web UI may run. Each is read-only and finishes in seconds. Checks that install
+# packages, run the test suite, or run the type checker are left out on purpose.
+RUNNABLE_TOOLS = frozenset(
+    {
+        "describe-db-schema",
+        "check-cash-invariant",
+        "check-reference-docs",
+        "db-admin list-accounts",
+        "db-migrations status",
+        "db-migrations history",
+        "layer-check",
+        "live-safety-check",
+        "secret-hygiene-check",
+        "path-safety-check",
+        "migration-check",
+        "sector-map-check",
+        "skills-check",
+        "doc-header-check",
+        "doc-naming-check",
+        "link-check",
+        "maps-check",
+        "module-ref-check",
+        "readme-check",
+        "db-schema-check",
+    }
+)
+
 # Modules under these roots that define `main` are listed without a spec entry.
 FAMILY_ROOT = "scripts/checks"
 FAMILY_GROUP = GROUP_QUALITY
@@ -293,9 +320,11 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
                 risk=spec.sub_risks.get(sub_name, spec.risk),
                 help_text=helps.get(sub_name) or description or spec.help,
                 invocation=f"{invocation} {sub_name}",
+                argv=["-m", spec.module, sub_name],
                 arguments=shared + describe_arguments(sub_parser),
                 module=spec.module,
                 schedule=schedule,
+                runnable=f"{spec.name} {sub_name}" in RUNNABLE_TOOLS,
             )
             for sub_name, sub_parser in sub.choices.items()
         ]
@@ -309,9 +338,11 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
             risk=spec.risk,
             help_text=description or spec.help,
             invocation=invocation,
+            argv=["-m", spec.module],
             arguments=arguments,
             module=spec.module,
             schedule=schedule,
+            runnable=spec.name in RUNNABLE_TOOLS,
         )
     ]
 
@@ -326,4 +357,7 @@ def build_entrypoint_rows(repo_root: Path | None = None) -> list[dict[str, Any]]
     rows: list[dict[str, Any]] = []
     for spec in specs:
         rows.extend(_rows_for_spec(spec))
+    stale = RUNNABLE_TOOLS - {row["name"] for row in rows}
+    if stale:
+        raise ValueError(f"RUNNABLE_TOOLS lists entries that do not exist: {sorted(stale)}")
     return rows

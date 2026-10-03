@@ -14,6 +14,7 @@ from .routes import (
     analysis_router,
     autonomy_monitor_router,
     backtests_router,
+    catalog_router,
     features_router,
     health_router,
     logs_router,
@@ -59,5 +60,6 @@ app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(actions_router)
 app.include_router(backtests_router)
+app.include_router(catalog_router)
 app.include_router(features_router)
 app.include_router(strategy_lab_router)

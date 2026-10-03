@@ -22,6 +22,7 @@ function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     risk: "writes-local",
     module: null,
     schedule: null,
+    runnable: false,
     help: "Save equity snapshot for an account.",
     example: "python -m app snapshot --account <ACCOUNT>",
     arguments: [

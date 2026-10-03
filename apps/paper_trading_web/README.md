@@ -12,7 +12,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
 - **About tab** — a landing page with the platform summary, repository facts (command, job, endpoint, table, strategy, and test counts), the workflow from research to monitored execution, an architecture diagram, and the safety rules. The demo (`launch_demo`) opens on this tab. The facts come from the generated `assets/overview.json`, `assets/commands.json`, and `assets/api.json`.
-- **Catalog tab** — one page that lists every CLI command, runtime job, script, and check with its arguments, a copyable example, and a risk label (read-only, writes local data, or broker). Search and filters narrow the list. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
+- **Catalog tab** — one page that lists every CLI command, runtime job, script, and check with its arguments, a copyable example, and a risk label (read-only, writes local data, or broker). Search and filters narrow the list. A **Run** button on each read-only entry runs it on the backend and shows the output; entries that write data or reach a broker show the command only. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
 - **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
   for every configured account.
@@ -129,6 +129,10 @@ npm run dev
 - `GET /api/admin/exports/csv/preview?exportName=...&fileName=...&limit=200` — preview one exported CSV file.
 - `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
 - `GET /api/admin/promotion/overview?accountName=...&strategyName=&limit=5` — show the current computed promotion assessment plus recent persisted review history for one managed account.
+
+### Command Catalog
+
+- `POST /api/catalog/run` — run one read-only catalog entry. Body: `CatalogRunRequest` (`name`, `values`). Returns `exitCode`, `output`, `command`, `durationSeconds`, `timedOut`, and `truncated`. Only entries that `assets/commands.json` marks `runnable` run; any other name returns 400, and an unknown name returns 404. The server builds the argument list from the entry's own argument definitions, writes options as `--flag=value`, and starts the process without a shell. A run stops after 60 seconds, output is cut at 200,000 characters, and one run at a time is allowed (a second request returns 409). The command runs in a child process, so it finds the database through `TRADING_DB_PATH`, as the launchers set it.
 
 ### Alt-Strategy Feature Providers
 

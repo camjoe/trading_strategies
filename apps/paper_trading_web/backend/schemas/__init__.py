@@ -9,6 +9,7 @@ from .backtests import (
     BacktestPreflightRequest,
     BacktestRunRequest,
 )
+from .catalog import CatalogRunRequest
 from .features import FeatureSignalsRequest
 from .strategy_lab import (
     ConfigureStrategyRequest,
@@ -25,6 +26,7 @@ __all__ = [
     "BacktestBaseRequest",
     "BacktestPreflightRequest",
     "BacktestRunRequest",
+    "CatalogRunRequest",
     "FeatureSignalsRequest",
     "ConfigureStrategyRequest",
     "CreateStrategyVariantRequest",

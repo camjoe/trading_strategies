@@ -151,14 +151,18 @@ def make_row(
     risk: str,
     help_text: str,
     invocation: str,
+    argv: list[str],
     arguments: list[dict[str, Any]],
     module: str | None = None,
     schedule: str | None = None,
+    runnable: bool = False,
 ) -> dict[str, Any]:
     if risk not in RISKS:
         raise ValueError(f"{name!r} has unknown risk {risk!r}")
     if not help_text:
         raise ValueError(f"{name!r} has no help text")
+    if runnable and risk != RISK_READ_ONLY:
+        raise ValueError(f"{name!r} is runnable but its risk is {risk!r}; only read-only entries may run")
     return {
         "name": name,
         "kind": kind,
@@ -166,6 +170,8 @@ def make_row(
         "risk": risk,
         "module": module,
         "schedule": schedule,
+        "runnable": runnable,
+        "argv": argv,
         "help": help_text,
         "example": build_example(invocation, arguments),
         "arguments": arguments,

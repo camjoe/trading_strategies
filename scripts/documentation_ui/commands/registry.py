@@ -23,7 +23,8 @@ from trading.interfaces.cli.commands.settings import add_settings_commands
 from trading.interfaces.cli.commands.strategy_catalog import add_strategy_catalog_commands
 
 COMMANDS_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/commands.json"
-CLI_INVOCATION = "python -m trading.interfaces.cli.main"
+CLI_MODULE = "trading.interfaces.cli.main"
+CLI_INVOCATION = f"python -m {CLI_MODULE}"
 
 GROUP_ACCOUNTS = "Accounts"
 GROUP_REPORTING = "Reporting"
@@ -64,6 +65,8 @@ READ_ONLY_COMMANDS = frozenset(
         "advisor-scorecard",
     }
 )
+# Read-only commands the web UI must not run: a bench run takes minutes and fetches market data.
+NOT_RUNNABLE_FROM_UI = frozenset({"backtest-bench"})
 WRITES_LOCAL_COMMANDS = frozenset(
     {
         "init",
@@ -117,7 +120,9 @@ def _group_commands(group: str, adder: Callable[[Any], None]) -> list[dict[str, 
             risk=_risk_for(name),
             help_text=helps.get(name, ""),
             invocation=f"{CLI_INVOCATION} {name}",
+            argv=["-m", CLI_MODULE, name],
             arguments=describe_arguments(command_parser),
+            runnable=name in READ_ONLY_COMMANDS and name not in NOT_RUNNABLE_FROM_UI,
         )
         for name, command_parser in action.choices.items()
     ]
@@ -129,9 +134,12 @@ def build_cli_rows() -> list[dict[str, Any]]:
     for group, adder in GROUP_ADDERS.items():
         rows.extend(_group_commands(group, adder))
     names = {row["name"] for row in rows}
-    stale = (READ_ONLY_COMMANDS | WRITES_LOCAL_COMMANDS) - names
+    stale = (READ_ONLY_COMMANDS | WRITES_LOCAL_COMMANDS | NOT_RUNNABLE_FROM_UI) - names
     if stale:
         raise ValueError(f"risk tables list commands that do not exist: {sorted(stale)}")
+    unclassified = NOT_RUNNABLE_FROM_UI - READ_ONLY_COMMANDS
+    if unclassified:
+        raise ValueError(f"NOT_RUNNABLE_FROM_UI lists commands that are not read-only: {sorted(unclassified)}")
     return rows
 
 

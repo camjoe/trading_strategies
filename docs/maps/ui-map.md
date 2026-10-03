@@ -32,6 +32,7 @@ FastAPI routers. One file per logical domain. Routes call backend services; they
 | `admin.py` | Admin operations (deletions, job trigger, artifact listing) |
 | `analysis.py` | Portfolio analysis data |
 | `backtests.py` | Backtest run submission and result retrieval |
+| `catalog.py` | Command catalog run endpoint (`POST /api/catalog/run`) |
 | `features.py` | Feature/signal data for alternative strategies |
 | `health.py` | Health check (`GET /health`) |
 | `autonomy_monitor.py` | Autonomy monitor status and artifacts |
@@ -48,6 +49,7 @@ Pydantic request/response models. These define the API contract with the fronten
 | `accounts.py` | Account listing, detail, snapshot responses |
 | `admin.py` | Admin request/response shapes |
 | `backtests.py` | Backtest run request and result shapes |
+| `catalog.py` | Catalog run request shape |
 | `features.py` | Feature/signal response shapes |
 | `strategy_lab.py` | Strategy variant creation/configuration, optimization run, and winner-promotion request shapes |
 
@@ -63,6 +65,7 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `analysis.py` | Account performance-analysis endpoint response shaping (snake_case to camelCase mapping) |
 | `backtests.py` | Backtesting service (delegates to `src/backtesting/`) |
 | `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
+| `catalog_runner.py` | Runs one read-only catalog entry as a subprocess: validates values, builds arguments, applies the time and output limits |
 | `features/` | Feature/signal data service |
 | `autonomy_monitor.py` | Autonomy monitor artifact assembly |
 | `operations/` | Runtime operation services (job triggers, etc.) |

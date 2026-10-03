@@ -1,6 +1,7 @@
 import commandsData from "../assets/commands.json";
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
+import { errorMessage, postJson } from "../lib/http";
 import type {
   CatalogArgument,
   CatalogData,
@@ -8,6 +9,7 @@ import type {
   CatalogFilter,
   CatalogKind,
   CatalogRisk,
+  CatalogRunResult,
 } from "../types/catalog";
 
 export interface CatalogFeature {
@@ -104,6 +106,80 @@ function renderArguments(entry: CatalogEntry): string {
   `;
 }
 
+const NOT_RUNNABLE_NOTES: Record<CatalogRisk, string> = {
+  "read-only": "This one takes too long for the page. Run it from a terminal with the example above.",
+  "writes-local": "This command changes data, so run it from a terminal with the example above.",
+  broker: "This command can reach a broker, so run it from a terminal with the example above.",
+};
+
+function renderField(argument: CatalogArgument): string {
+  const requiredTag = argument.required ? ` <span class="catalog-required">required</span>` : "";
+  const label = `<span class="catalog-field-label">${esc(argument.flags.join(" "))}${requiredTag}</span>`;
+  const common = `name="${esc(argument.dest)}" title="${esc(argument.help)}"${argument.required ? " required" : ""}`;
+  if (argument.kind === "flag") {
+    return `<label class="catalog-field catalog-field--flag"><input type="checkbox" ${common} /> ${label}</label>`;
+  }
+  if (argument.choices) {
+    const options = argument.choices.map((choice) => `<option value="${esc(choice)}">${esc(choice)}</option>`).join("");
+    return `<label class="catalog-field">${label}<select ${common}><option value=""></option>${options}</select></label>`;
+  }
+  const inputType = argument.type === "int" || argument.type === "float" ? "number" : "text";
+  const step = argument.type === "float" ? ' step="any"' : "";
+  const placeholder = formatDefault(argument.default);
+  return `<label class="catalog-field">${label}<input type="${inputType}"${step} ${common} placeholder="${esc(placeholder)}" /></label>`;
+}
+
+export function renderRunPanel(entry: CatalogEntry): string {
+  if (!entry.runnable) {
+    return `<p class="catalog-run-note">${esc(NOT_RUNNABLE_NOTES[entry.risk])}</p>`;
+  }
+  const required = entry.arguments.filter((argument) => argument.required);
+  const optional = entry.arguments.filter((argument) => !argument.required);
+  const optionalFields = optional.map(renderField).join("");
+  const optionalBlock = optional.length
+    ? `<details class="catalog-run-optional"><summary>Optional arguments (${optional.length})</summary><div class="catalog-run-fields">${optionalFields}</div></details>`
+    : "";
+  return `
+    <form class="catalog-run" data-catalog-run="${esc(entry.name)}">
+      <p class="catalog-run-note">Read-only. This changes no trading data.</p>
+      <div class="catalog-run-fields">${required.map(renderField).join("")}</div>
+      ${optionalBlock}
+      <button type="submit" class="catalog-filter active catalog-run-btn">Run</button>
+      <p class="catalog-run-status" role="status" hidden></p>
+      <pre class="catalog-run-output" hidden></pre>
+    </form>
+  `;
+}
+
+/** Read a run form into the values the API expects: checked flags as true, filled fields as text. */
+export function collectRunValues(form: HTMLFormElement): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const element of Array.from(form.elements)) {
+    if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement) || !element.name) {
+      continue;
+    }
+    if (element instanceof HTMLInputElement && element.type === "checkbox") {
+      if (element.checked) {
+        values[element.name] = true;
+      }
+    } else if (element.value.trim() !== "") {
+      values[element.name] = element.value.trim();
+    }
+  }
+  return values;
+}
+
+export function describeRunResult(result: CatalogRunResult): { text: string; ok: boolean } {
+  if (result.timedOut) {
+    return { text: `Stopped: it ran longer than the time limit (${result.durationSeconds}s).`, ok: false };
+  }
+  const note = result.truncated ? " Output was cut to fit." : "";
+  return {
+    text: `Exit code ${result.exitCode} in ${result.durationSeconds}s.${note}`,
+    ok: result.exitCode === 0,
+  };
+}
+
 export function renderEntry(entry: CatalogEntry): string {
   const schedule = entry.schedule ? `<span class="chip">${esc(entry.schedule)}</span>` : "";
   return `
@@ -121,6 +197,7 @@ export function renderEntry(entry: CatalogEntry): string {
           <code>${esc(entry.example)}</code>
           <button type="button" class="catalog-filter catalog-copy-btn" data-catalog-copy="${esc(entry.example)}">Copy</button>
         </div>
+        ${renderRunPanel(entry)}
         ${renderArguments(entry)}
       </div>
     </details>
@@ -209,6 +286,36 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
     }, 1500);
   }
 
+  async function runForm(form: HTMLFormElement): Promise<void> {
+    const status = form.querySelector<HTMLElement>(".catalog-run-status");
+    const output = form.querySelector<HTMLElement>(".catalog-run-output");
+    const button = form.querySelector<HTMLButtonElement>(".catalog-run-btn");
+    if (!status || !output || !button) {
+      return;
+    }
+    button.disabled = true;
+    status.hidden = false;
+    status.className = "catalog-run-status";
+    status.textContent = "Running...";
+    output.hidden = true;
+    try {
+      const result = await postJson<CatalogRunResult>("/api/catalog/run", {
+        name: form.dataset.catalogRun,
+        values: collectRunValues(form),
+      });
+      const summary = describeRunResult(result);
+      status.textContent = summary.text;
+      status.classList.add(summary.ok ? "catalog-run-status--ok" : "catalog-run-status--error");
+      output.textContent = result.output || "(no output)";
+      output.hidden = false;
+    } catch (error) {
+      status.textContent = errorMessage(error, "The command could not be run.");
+      status.classList.add("catalog-run-status--error");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function wireActions(): void {
     find<HTMLInputElement>("#catalogSearch")?.addEventListener("input", (event) => {
       filter.query = (event.target as HTMLInputElement).value;
@@ -231,6 +338,13 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
         setAllOpen(true);
       } else if (target.closest("#catalogCollapseAll")) {
         setAllOpen(false);
+      }
+    });
+    find<HTMLElement>("#tab-catalog")?.addEventListener("submit", (event) => {
+      const form = (event.target as HTMLElement).closest<HTMLFormElement>("[data-catalog-run]");
+      if (form) {
+        event.preventDefault();
+        void runForm(form);
       }
     });
     render();

@@ -63,7 +63,7 @@ API Reference (`scripts/documentation_ui/api/`):
 
 Commands (`scripts/documentation_ui/commands/`):
 
-- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json`, the catalog of every CLI command, runtime job, script, and check. It reads each `argparse` parser without running the entrypoint. Each CLI command is listed as read-only or writes-local in `registry.py`; jobs and tools are listed with a risk (read-only, writes-local, broker) in `entrypoints.py`.
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json`, the catalog of every CLI command, runtime job, script, and check. It reads each `argparse` parser without running the entrypoint. Each CLI command is listed as read-only or writes-local in `registry.py`; jobs and tools are listed with a risk (read-only, writes-local, broker) in `entrypoints.py`. An entry is `runnable` (the web UI may run it) only if it is read-only and finishes in seconds; `NOT_RUNNABLE_FROM_UI` and `RUNNABLE_TOOLS` hold those choices.
 - `check.py`: standalone sync check that validates the command asset matches the code. It also fails when a module that defines `main` has no catalog entry.
 
 Overview (`scripts/documentation_ui/overview/`):

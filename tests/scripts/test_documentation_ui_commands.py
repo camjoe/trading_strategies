@@ -14,10 +14,12 @@ from scripts.documentation_ui.commands.entrypoints import check_coverage, discov
 from scripts.documentation_ui.commands.introspect import (
     KIND_CLI,
     KIND_JOB,
+    RISK_WRITES_LOCAL,
     RISKS,
     build_example,
     capture_parser,
     describe_arguments,
+    make_row,
     subparsers_action,
 )
 from trading.interfaces.cli.commands.builder import build_parser
@@ -143,6 +145,58 @@ def test_check_passes_after_build_and_fails_on_drift(tmp_path: Path) -> None:
     registry_path = tmp_path / registry.COMMANDS_REGISTRY_REL
     registry_path.write_text(registry_path.read_text(encoding="utf-8").replace('"snapshot"', '"snapshot-gone"', 1))
     assert run_commands_reference_check(tmp_path) == 1
+
+
+def test_only_read_only_entries_are_runnable(payload: dict) -> None:
+    runnable = [row for row in payload["commands"] if row["runnable"]]
+
+    assert len(runnable) > 20
+    for row in runnable:
+        assert row["risk"] == "read-only", row["name"]
+        assert row["argv"][0] == "-m", row["name"]
+
+
+def test_every_entry_carries_the_module_and_subcommand_the_runner_starts(payload: dict) -> None:
+    rows = _rows_by_name(payload)
+
+    assert rows["report"]["argv"] == ["-m", "trading.interfaces.cli.main", "report"]
+    assert rows["db-migrations status"]["argv"] == ["-m", "scripts.data_ops.manage_db_migrations", "status"]
+    assert rows["layer-check"]["argv"] == ["-m", "scripts.checks.repo.layer_check"]
+
+
+def test_slow_or_writing_entries_stay_off_the_ui(payload: dict) -> None:
+    rows = _rows_by_name(payload)
+
+    assert rows["backtest-bench"]["risk"] == "read-only"
+    assert rows["backtest-bench"]["runnable"] is False
+    for name in ("run-suite", "pytest-check", "mypy-check", "ci", "quick", "run-checks quick"):
+        assert rows[name]["runnable"] is False, name
+    for name in ("create-account", "trade", "daily-paper-trading", "ibkr-web-api-smoke-test"):
+        assert rows[name]["runnable"] is False, name
+
+
+def test_make_row_refuses_a_runnable_entry_that_is_not_read_only() -> None:
+    with pytest.raises(ValueError, match="only read-only entries may run"):
+        make_row(
+            name="x",
+            kind=KIND_CLI,
+            group="g",
+            risk=RISK_WRITES_LOCAL,
+            help_text="h",
+            invocation="python -m x",
+            argv=["-m", "x"],
+            arguments=[],
+            runnable=True,
+        )
+
+
+def test_a_runnable_tool_name_that_does_not_exist_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.documentation_ui.commands import entrypoints
+
+    monkeypatch.setattr(entrypoints, "RUNNABLE_TOOLS", entrypoints.RUNNABLE_TOOLS | {"no-such-tool"})
+
+    with pytest.raises(ValueError, match="no-such-tool"):
+        entrypoints.build_entrypoint_rows()
 
 
 def test_check_reports_missing_registry(tmp_path: Path) -> None:

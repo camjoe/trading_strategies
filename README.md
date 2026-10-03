@@ -37,8 +37,8 @@ The optional local dashboard shows the whole system. These screenshots use the o
 ![About page: platform summary, repository facts, workflow, architecture, and safety](docs/images/ui-about.png)
 
 The **Catalog** tab lists every CLI command, runtime job, script, and check. Each entry shows its
-arguments, a copyable example, and a risk label. The page is generated from the code, so it cannot
-drift.
+arguments, a copyable example, and a risk label. Read-only entries have a **Run** button that shows
+the real output. The page is generated from the code, so it cannot drift.
 
 ![Catalog page: searchable list of commands with risk labels](docs/images/ui-catalog.png)
 
