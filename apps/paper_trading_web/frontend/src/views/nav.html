@@ -1,32 +1,45 @@
 <nav class="tab-nav" aria-label="Primary sections">
-  <!-- Operate: live state — what is happening now with real positions. -->
-  <button class="tab-btn active" data-tab="accounts">Accounts</button>
-  <button class="tab-btn" data-tab="compare">Overview</button>
-  <button class="tab-btn" data-tab="portfolio">Portfolio</button>
-  <button class="tab-btn" data-tab="autonomy-monitor">🤖 Autonomy Monitor</button>
-  <!-- Research: produces evidence, touches no live state. -->
-  <button class="tab-btn" data-tab="backtesting">Backtesting</button>
-  <button class="tab-btn" data-tab="strategy-lab">Strategy Lab</button>
-  <button class="tab-btn" data-tab="alt-strategies">Sentiment</button>
-  <!-- Catalog: everything the repository can run, read from the code. -->
-  <button class="tab-btn" data-tab="catalog">Catalog</button>
-  <span class="tab-nav-spacer"></span>
-  <!-- System: about the app itself, not about trading. Right-aligned. -->
-  <div class="tab-dropdown" id="docsNavItem">
-    <button
-      class="tab-btn"
-      id="docsTabBtn"
-      data-tab="docs"
-      aria-expanded="false"
-      aria-controls="docsSectionMenu"
-    >
-      Documentation
-    </button>
-    <div class="docs-nav-menu" id="docsSectionMenu" hidden>
-      <div class="docs-nav-surface">
-        <div class="docs-nav-list" id="docsSectionList"></div>
+  <div class="tab-nav-primary">
+    <!-- Groups. A tab belongs to a group through its data-nav-group attribute in the sub-rows below. -->
+    <button class="nav-group-btn active" type="button" data-nav-group-target="operate">Operate</button>
+    <button class="nav-group-btn" type="button" data-nav-group-target="research">Research</button>
+    <button class="nav-group-btn" type="button" data-nav-group-target="catalog">Catalog</button>
+    <span class="tab-nav-spacer"></span>
+    <!-- System: about the app itself, not about trading. Direct tabs, right-aligned. -->
+    <div class="tab-dropdown" id="docsNavItem">
+      <button
+        class="tab-btn"
+        id="docsTabBtn"
+        data-tab="docs"
+        aria-expanded="false"
+        aria-controls="docsSectionMenu"
+      >
+        Documentation
+      </button>
+      <div class="docs-nav-menu" id="docsSectionMenu" hidden>
+        <div class="docs-nav-surface">
+          <div class="docs-nav-list" id="docsSectionList"></div>
+        </div>
       </div>
     </div>
+    <button class="tab-btn tab-btn--admin" data-tab="admin">Admin</button>
   </div>
-  <button class="tab-btn tab-btn--admin" data-tab="admin">Admin</button>
+
+  <!-- Operate: live state — what is happening now with real positions. -->
+  <div class="tab-subnav" data-nav-subnav="operate" aria-label="Operate">
+    <button class="tab-btn tab-btn--sub active" data-tab="accounts" data-nav-group="operate">Accounts</button>
+    <button class="tab-btn tab-btn--sub" data-tab="compare" data-nav-group="operate">Overview</button>
+    <button class="tab-btn tab-btn--sub" data-tab="portfolio" data-nav-group="operate">Portfolio</button>
+    <button class="tab-btn tab-btn--sub" data-tab="autonomy-monitor" data-nav-group="operate">🤖 Autonomy Monitor</button>
+  </div>
+  <!-- Research: produces evidence, touches no live state. -->
+  <div class="tab-subnav" data-nav-subnav="research" aria-label="Research" hidden>
+    <button class="tab-btn tab-btn--sub" data-tab="backtesting" data-nav-group="research">Backtesting</button>
+    <button class="tab-btn tab-btn--sub" data-tab="strategy-lab" data-nav-group="research">Strategy Lab</button>
+    <button class="tab-btn tab-btn--sub" data-tab="alt-strategies" data-nav-group="research">Sentiment</button>
+  </div>
+  <!-- Catalog: everything the repository can run, read from the code. -->
+  <div class="tab-subnav" data-nav-subnav="catalog" aria-label="Catalog" hidden>
+    <button class="tab-btn tab-btn--sub" data-tab="catalog" data-nav-group="catalog">Commands</button>
+  </div>
 </nav>

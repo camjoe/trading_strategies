@@ -131,6 +131,7 @@ Shared utilities. No feature logic.
 | `format.ts` | Number/date/currency formatters |
 | `parse.ts` | Response parsing helpers |
 | `dom.ts` | DOM manipulation utilities |
+| `nav.ts` | Navigation group state: active group, sub-row visibility, last tab per group |
 | `timing.ts` | Debounce, polling, timing helpers |
 | `logs.ts` | Log parsing and display utilities |
 | `form-parse.ts` | Form input parsing helpers |
@@ -173,7 +174,7 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `autonomy-monitor.html` | Autonomy monitor page |
 | `trades.html` | Trades view |
 | `app-layout.html` | Shared app layout shell |
-| `nav.html` | Navigation component |
+| `nav.html` | Navigation component: group buttons, direct system tabs, and one sub-row of tabs per group |
 
 ### Styles (`styles/`)
 

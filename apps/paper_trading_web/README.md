@@ -18,6 +18,21 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Snapshots and operational logs** — snapshot actions stay in the account workspace, while operational logs now live under **Admin > Artifacts & Logs**.
 - **Admin operations visibility** — runtime job health plus recent scheduled refresh, daily snapshot, database-backup, promotion-review visibility, CSV database exports, and operational log browsing all live inside the Admin tab, grouped into focused Admin sub-sections instead of extra top-level tabs.
 
+## Navigation
+
+Primary navigation has three groups, with Documentation and Admin as direct tabs on the right.
+Selecting a group shows its tabs in a second row and reopens the tab last used in that group.
+
+| Group | Tabs |
+|---|---|
+| Operate | Accounts, Overview, Portfolio, Autonomy Monitor |
+| Research | Backtesting, Strategy Lab, Sentiment |
+| Catalog | Commands (a group with one tab shows no second row) |
+
+A tab belongs to a group through `data-nav-group` on its button in `frontend/src/views/nav.html`.
+The tab ids (`data-tab`) are unchanged. `frontend/src/lib/nav.ts` keeps the group state in step
+with the open tab.
+
 ## Environment Setup
 
 Python 3.14 and Node.js 24 are currently supported. Complete the root

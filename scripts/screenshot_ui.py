@@ -15,6 +15,7 @@ python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab autonomy-monitor
 python -m scripts.screenshot_ui --tab strategy-lab
+python -m scripts.screenshot_ui --tab catalog
 python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
@@ -32,7 +33,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 Available tabs
 --------------
   accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
-  alt-strategies, docs, admin
+  alt-strategies, catalog, docs, admin
 """
 
 from __future__ import annotations
@@ -101,9 +102,9 @@ def capture(
         page.goto(url, wait_until="domcontentloaded")
         page.locator(".tab-nav").wait_for()
 
-        # Click the target tab
+        # Sub-tabs are hidden until their group is open, so open the group first.
         tab_btn = page.locator(f'[data-tab="{tab}"]')
-        if not tab_btn.is_visible():
+        if tab_btn.count() == 0:
             print(f"✗  Tab '{tab}' not found. Available tabs:", file=sys.stderr)
             btns = page.locator(".tab-btn").all()
             for b in btns:
@@ -111,8 +112,15 @@ def capture(
             browser.close()
             raise ValueError(f"Tab '{tab}' not found")
 
-        print(f"→ Clicking tab: {tab}")
-        tab_btn.click()
+        group = tab_btn.get_attribute("data-nav-group")
+        if group:
+            print(f"→ Opening group: {group}")
+            page.locator(f'[data-nav-group-target="{group}"]').click()
+
+        # A one-tab group has no sub-row; opening the group already opened its tab.
+        if tab_btn.is_visible():
+            print(f"→ Clicking tab: {tab}")
+            tab_btn.click()
         page.wait_for_timeout(TAB_SETTLE_MS)
 
         # Optional: open a specific account detail (accounts tab)

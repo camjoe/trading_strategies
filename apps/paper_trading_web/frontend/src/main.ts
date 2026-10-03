@@ -1,5 +1,6 @@
 import "./styles.css";
 import { find, findAll } from "./lib/dom";
+import { initNavGroups, syncNav } from "./lib/nav";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
 import { init as initAutonomyMonitor } from "./features/autonomy-monitor";
@@ -48,6 +49,7 @@ function openTab(target: string): void {
   tabPanels.forEach((panel) => {
     panel.hidden = panel.id !== `tab-${target}`;
   });
+  syncNav(target);
 }
 
 function renderShell(): void {
@@ -105,6 +107,7 @@ const catalogFeature = createCatalogFeature();
 async function bootstrap(): Promise<void> {
   renderShell();
   initTabs();
+  initNavGroups(openTab);
   openTab("accounts");  // Set initial active tab
   initDocsFeature(openTab);
   accountsFeature.wireActions();
