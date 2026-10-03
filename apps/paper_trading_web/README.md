@@ -11,6 +11,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
+- **Catalog tab** — one page that lists every CLI command, runtime job, script, and check with its arguments, a copyable example, and a risk label (read-only, writes local data, or broker). Search and filters narrow the list. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
 - **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
   for every configured account.

@@ -1,0 +1,40 @@
+<div id="tab-catalog" class="tab-panel layout" hidden>
+  <section class="card catalog-card">
+    <div class="catalog-head section-heading">
+      <div>
+        <p class="section-kicker">Catalog</p>
+        <h2>Everything This Repository Can Run</h2>
+        <p class="section-copy">
+          Every CLI command, runtime job, script, and check, read from the code. Each entry shows its
+          arguments, a ready-to-copy example, and what it can change.
+        </p>
+      </div>
+    </div>
+    <div class="catalog-controls">
+      <input
+        id="catalogSearch"
+        type="search"
+        placeholder="Search commands, arguments, or descriptions"
+        aria-label="Search the catalog"
+      />
+      <div class="catalog-filter-row" role="group" aria-label="Filter by kind">
+        <button type="button" class="catalog-filter active" data-catalog-kind="all">All</button>
+        <button type="button" class="catalog-filter" data-catalog-kind="cli">CLI</button>
+        <button type="button" class="catalog-filter" data-catalog-kind="job">Jobs</button>
+        <button type="button" class="catalog-filter" data-catalog-kind="tool">Tools</button>
+      </div>
+      <div class="catalog-filter-row" role="group" aria-label="Filter by risk">
+        <button type="button" class="catalog-filter active" data-catalog-risk="all">Any risk</button>
+        <button type="button" class="catalog-filter" data-catalog-risk="read-only">Read-only</button>
+        <button type="button" class="catalog-filter" data-catalog-risk="writes-local">Writes local data</button>
+        <button type="button" class="catalog-filter" data-catalog-risk="broker">Broker</button>
+      </div>
+      <div class="catalog-filter-row">
+        <button id="catalogExpandAll" type="button" class="catalog-filter">Expand all</button>
+        <button id="catalogCollapseAll" type="button" class="catalog-filter">Collapse all</button>
+      </div>
+    </div>
+    <p id="catalogSummary" class="catalog-summary" role="status"></p>
+    <div id="catalogList"></div>
+  </section>
+</div>

@@ -6,6 +6,7 @@ import { init as initAutonomyMonitor } from "./features/autonomy-monitor";
 import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
+import { createCatalogFeature } from "./features/catalog";
 import { createCompareFeature } from "./features/compare";
 import { createPortfolioFeature } from "./features/portfolio";
 import { createLogsFeature } from "./features/logs";
@@ -22,6 +23,7 @@ import adminParametersTemplate from "./views/admin/parameters.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
+import catalogTemplate from "./views/catalog.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
@@ -62,6 +64,7 @@ function renderShell(): void {
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
+    .replace("<!-- CATALOG_TAB_PARTIAL -->", catalogTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
@@ -97,6 +100,7 @@ const portfolioFeature = createPortfolioFeature();
 const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
 const strategyLabFeature = createStrategyLabFeature();
+const catalogFeature = createCatalogFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
@@ -111,6 +115,7 @@ async function bootstrap(): Promise<void> {
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
   strategyLabFeature.wireActions();
+  catalogFeature.wireActions();
   initAutonomyMonitor({
     onOpenAccount: async (accountName, bookName) => {
       openTab("accounts");
