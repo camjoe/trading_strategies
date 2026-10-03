@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
 class BacktestBaseRequest(BaseModel):
@@ -19,14 +19,6 @@ class BacktestRunRequest(BacktestBaseRequest):
     slippageBps: float = 5.0
     fee: float = 0.0
     runName: str | None = None
-
-
-class WalkForwardRunRequest(BacktestBaseRequest):
-    testMonths: int = Field(default=1, gt=0)
-    stepMonths: int = Field(default=1, gt=0)
-    slippageBps: float = 5.0
-    fee: float = 0.0
-    runNamePrefix: str | None = None
 
 
 class BacktestPreflightRequest(BacktestBaseRequest):

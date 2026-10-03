@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.backtest_freshness import (
+from trading.domain.evaluation.backtest_freshness import (
     DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
     assess_backtest_freshness,
 )
@@ -28,12 +28,12 @@ def test_fresh_within_threshold() -> None:
 
 def test_stale_beyond_threshold() -> None:
     result = assess_backtest_freshness(
-        backtest_created_at="2026-03-10T00:00:00Z",
+        backtest_created_at="2026-02-01T00:00:00Z",
         reference_iso="2026-03-16T00:00:00Z",
     )
 
     assert result.available is True
-    assert result.age_days == 6.0
+    assert result.age_days == 43.0
     assert result.is_stale is True
 
 

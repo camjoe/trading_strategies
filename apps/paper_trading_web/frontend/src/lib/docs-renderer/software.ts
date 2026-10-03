@@ -58,7 +58,7 @@ export function buildSoftwareCard(): string {
   return `  <section class="card ref-card">
     <div class="ref-card-head">
       <h2>Software</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">+</button>
     </div>
 
     <div class="ref-section">

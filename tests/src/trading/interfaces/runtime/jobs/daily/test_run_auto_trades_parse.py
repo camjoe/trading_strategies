@@ -16,9 +16,7 @@ def test_parse_args_reads_cli_values(monkeypatch) -> None:
             "--accounts",
             "acct1,acct2",
             "--tickers-file",
-            str(module.DEFAULT_TICKERS_FILE),
-            "--min-trades",
-            "2",
+            "custom_universe.txt",
             "--max-trades",
             "7",
             "--fee",
@@ -30,8 +28,14 @@ def test_parse_args_reads_cli_values(monkeypatch) -> None:
 
     args = module.parse_args()
     assert args.accounts == "acct1,acct2"
-    assert args.tickers_file == module.DEFAULT_TICKERS_FILE
-    assert args.min_trades == 2
+    assert args.tickers_file == "custom_universe.txt"
     assert args.max_trades == 7
     assert args.fee == pytest.approx(1.25)
     assert args.seed == 99
+
+
+def test_parse_args_defaults_tickers_file_to_empty(monkeypatch) -> None:
+    """An unset --tickers-file means "derive the universe from the books"."""
+    monkeypatch.setattr(sys, "argv", ["auto_trader.py", "--accounts", "acct1"])
+
+    assert module.parse_args().tickers_file == ""

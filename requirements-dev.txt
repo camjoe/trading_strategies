@@ -18,7 +18,7 @@ alembic==1.18.5
 sqlalchemy==2.0.51
 
 # Quality tools invoked by scripts/run_checks and the CI quality gates.
-# Pinned so local runs and .github/workflows/quality-gates.yml use the same versions.
+# Pinned so local runs and .github/workflows/ci.yml use the same versions.
 ruff==0.15.21
 mypy==2.3.0
 

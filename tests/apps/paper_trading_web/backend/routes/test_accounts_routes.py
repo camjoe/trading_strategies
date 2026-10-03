@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Callable
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
+from paper_trading_web.backend.routes.accounts import ROTATION_POLICY_REQUEST_NAMES
+from paper_trading_web.backend.schemas.accounts import RotationPolicyRequest
+
+from trading.services.parameters.mutations import ROTATION_POLICY_FIELDS
+from trading.services.universe import resolve_named_universes
 
 
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:
@@ -47,6 +53,80 @@ def test_account_detail_known_account(api_client: TestClient, seed_account: Call
     assert payload["account"]["name"] == "acct_detail"
     assert isinstance(payload["trades"], list)
     assert isinstance(payload["snapshots"], list)
+    assert len(payload["books"]) == 1
+    assert payload["books"][0]["isDefault"] is True
+    assert payload["books"][0]["strategy"] == "trend_v1"
+
+
+def test_book_params_endpoint_updates_named_book(
+    api_client: TestClient,
+    api_conn: sqlite3.Connection,
+    seed_account: Callable[..., None],
+) -> None:
+    seed_account("acct_book_params")
+    book_name = api_conn.execute(
+        """
+        SELECT b.name
+        FROM books b
+        JOIN accounts a ON a.id = b.account_id
+        WHERE a.name = ? AND b.is_default = 1
+        """,
+        ("acct_book_params",),
+    ).fetchone()["name"]
+
+    response = api_client.patch(
+        f"/api/accounts/acct_book_params/books/{book_name}/params",
+        json={
+            "strategy": "mean_reversion",
+            "riskPolicy": "fixed_stop",
+            "tradeUniverses": ["default", "growth"],
+            "rotation": {
+                "enabled": True,
+                "schedule": ["trend", "mean_reversion"],
+                "lookbackDays": 30,
+            },
+            "rotationPolicy": {
+                "minTradesInWindow": 8,
+                "cooldownDays": 14,
+            },
+        },
+    )
+    assert response.status_code == 200
+
+    detail = api_client.get("/api/accounts/acct_book_params").json()
+    book = detail["books"][0]
+    assert book["strategy"] == "mean_reversion"
+    assert book["riskPolicy"] == "fixed_stop"
+    assert book["tradeSymbols"] == resolve_named_universes(["default", "growth"])
+    assert book["rotation"]["lookbackDays"] == 30
+    assert book["rotationPolicy"]["minTradesInWindow"] == 8
+    assert book["rotationPolicy"]["cooldownDays"] == 14
+
+
+def test_book_params_endpoint_rejects_unknown_trade_universe(
+    api_client: TestClient,
+    api_conn: sqlite3.Connection,
+    seed_account: Callable[..., None],
+) -> None:
+    """An unresolvable universe name must fail the PATCH, not persist and break the next run."""
+    seed_account("acct_bad_universe")
+    book_name = api_conn.execute(
+        """
+        SELECT b.name
+        FROM books b
+        JOIN accounts a ON a.id = b.account_id
+        WHERE a.name = ? AND b.is_default = 1
+        """,
+        ("acct_bad_universe",),
+    ).fetchone()["name"]
+
+    response = api_client.patch(
+        f"/api/accounts/acct_bad_universe/books/{book_name}/params",
+        json={"tradeUniverses": ["default", "no_such_universe"]},
+    )
+
+    assert response.status_code == 422
+    assert "no_such_universe" in response.json()["detail"]
 
 
 def test_account_detail_exposes_latest_backtest_summary(
@@ -61,7 +141,6 @@ def test_account_detail_exposes_latest_backtest_summary(
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["account"]["accountKind"] == "managed"
     assert payload["account"]["brokerType"] == "paper"
     latest = payload["latestBacktest"]
     assert latest is not None
@@ -219,3 +298,42 @@ class TestAccountParamsEndpoint:
             "schedule": ["trend", "ma_crossover", "mean_reversion"],
             "lookbackDays": 30,
         }
+
+
+def _camel_to_snake(name: str) -> str:
+    return "".join(f"_{char.lower()}" if char.isupper() else char for char in name)
+
+
+class TestRotationPolicyContract:
+    """The API's rotation-policy surface must expose exactly the domain's knobs.
+
+    Four parallel lists describe the same policy: ``ROTATION_POLICY_FIELDS``
+    (the owning edit surface), the GET payload, the request schema, and the
+    write mapping. They have drifted in both directions before — a knob dropped
+    from the domain was left behind in the read path and raised AttributeError,
+    and a knob added to the domain was never exposed, leaving a live scoring
+    weight silently un-editable. These assertions fail on either kind of drift.
+    """
+
+    def test_get_payload_exposes_every_policy_field(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_policy_contract")
+
+        detail = api_client.get("/api/accounts/acct_policy_contract").json()
+        payload_fields = {_camel_to_snake(name) for name in detail["books"][0]["rotationPolicy"]}
+
+        assert payload_fields == set(ROTATION_POLICY_FIELDS)
+
+    def test_request_schema_accepts_every_policy_field(self) -> None:
+        schema_fields = {_camel_to_snake(name) for name in RotationPolicyRequest.model_fields}
+
+        assert schema_fields == set(ROTATION_POLICY_FIELDS)
+
+    def test_write_mapping_covers_every_policy_field(self) -> None:
+        assert set(ROTATION_POLICY_REQUEST_NAMES.values()) == set(ROTATION_POLICY_FIELDS)
+        # Every request name must also convert cleanly, so the schema and the
+        # mapping cannot disagree about casing.
+        assert all(_camel_to_snake(name) == field for name, field in ROTATION_POLICY_REQUEST_NAMES.items())

@@ -1,0 +1,83 @@
+"""Pricing helpers for caller-facing price and benchmark lookups."""
+
+from __future__ import annotations
+
+import logging
+from datetime import date
+
+import pandas as pd
+
+from common.constants import PERCENT_SCALE
+from common.time import utc_today
+from trading.services.market_data.protocols import MarketDataProvider, require_provider
+
+logger = logging.getLogger(__name__)
+
+
+def fetch_latest_prices(
+    tickers: list[str],
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, float]:
+    provider = require_provider(provider)
+    prices: dict[str, float] = {}
+    for ticker in tickers:
+        close = provider.fetch_close_series(ticker, "5d")
+        if close is not None and not close.empty:
+            prices[ticker] = float(close.iloc[-1])
+    return prices
+
+
+def extract_close_series(close_history: pd.DataFrame | None, ticker: str) -> pd.Series | None:
+    """Pull *ticker*'s close series out of a ``fetch_close_history`` frame.
+
+    Handles the MultiIndex case where the ticker selects a sub-frame rather than
+    a series, and returns ``None`` when the frame is missing or the ticker column
+    is absent.
+    """
+    if close_history is None:
+        return None
+    try:
+        close_col = close_history[ticker]
+    except Exception:
+        return None
+    if isinstance(close_col, pd.DataFrame):
+        if close_col.shape[1] == 0:
+            return None
+        return close_col.iloc[:, 0].dropna()
+    return close_col.dropna()
+
+
+def benchmark_stats(
+    benchmark_ticker: str,
+    initial_cash: float,
+    created_at: str,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> tuple[float | None, float | None]:
+    ticker = benchmark_ticker.upper().strip()
+    start = date.fromisoformat(created_at[:10])
+    try:
+        active_provider = require_provider(provider)
+        # ``start`` comes from a UTC-stamped created_at, so the end bound must be
+        # UTC too — a local "today" is a day behind west of UTC each evening and
+        # would invert the range for an account created that day.
+        close_history = active_provider.fetch_close_history([ticker], start, utc_today())
+        close = extract_close_series(close_history, ticker)
+    except Exception as exc:
+        logger.warning("Failed to fetch benchmark data for %s: %s", benchmark_ticker, exc, exc_info=True)
+        return None, None
+
+    if close is None or close.empty:
+        return None, None
+
+    if not initial_cash:
+        return None, None
+
+    start_price = float(close.iloc[0])
+    if start_price <= 0:
+        return None, None
+    end_price = float(close.iloc[-1])
+    bench_equity = initial_cash * (end_price / start_price)
+    bench_return_pct = ((bench_equity / initial_cash) - 1.0) * PERCENT_SCALE
+    return bench_equity, bench_return_pct

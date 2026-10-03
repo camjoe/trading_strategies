@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import signal
@@ -21,7 +22,39 @@ def npm_command() -> str:
     return "npm.cmd" if sys.platform.startswith("win") else "npm"
 
 
-def build_commands() -> tuple[list[str], list[str]]:
+# Python packages the backend cannot start without. Checked by name so a missing
+# install is reported once, up front, instead of as an import traceback from a
+# subprocess whose output is interleaved with the frontend's.
+REQUIRED_PYTHON_PACKAGES = ("alembic", "pandas", "sqlalchemy", "uvicorn")
+
+
+def preflight(repo_root: Path) -> str | None:
+    """Return an actionable message when the UI stack cannot start, else None.
+
+    Shared by the launchers that prepare a database before starting the stack
+    (`launch_demo`, `launch_sandbox`) so a missing toolchain fails with one clear
+    instruction rather than an opaque subprocess error after the build work.
+    """
+    npm = npm_command()
+    if shutil.which(npm) is None:
+        return (
+            "npm was not found in PATH. Install Node.js 24, then run: npm ci --prefix apps/paper_trading_web/frontend"
+        )
+    frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
+    if not (frontend_dir / "node_modules").is_dir():
+        return "Frontend dependencies are missing. Run: npm ci --prefix apps/paper_trading_web/frontend"
+    missing = [name for name in REQUIRED_PYTHON_PACKAGES if importlib.util.find_spec(name) is None]
+    if missing:
+        return (
+            f"Python dependencies are missing ({', '.join(missing)}). "
+            f"Run: {sys.executable} -m pip install -r requirements-dev.txt"
+        )
+    return None
+
+
+def build_commands(
+    backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT
+) -> tuple[list[str], list[str]]:
     backend_command = [
         sys.executable,
         "-m",
@@ -31,7 +64,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         "--host",
         UI_HOST,
         "--port",
-        BACKEND_PORT,
+        backend_port,
     ]
     frontend_command = [
         npm_command(),
@@ -41,7 +74,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         "--host",
         UI_HOST,
         "--port",
-        FRONTEND_PORT,
+        frontend_port,
         "--strictPort",
     ]
     return backend_command, frontend_command
@@ -74,14 +107,14 @@ def _exit_code_or_zero(*exit_codes: int | None) -> int:
     return 0
 
 
-def main() -> int:
+def main(backend_port: str = BACKEND_PORT, frontend_port: str = FRONTEND_PORT) -> int:
     scripts_dir = Path(__file__).resolve().parent
     repo_root = scripts_dir.parent
     ui_dir = repo_root / "apps" / "paper_trading_web"
-    backend_command, frontend_command = build_commands()
+    backend_command, frontend_command = build_commands(backend_port, frontend_port)
     env = {
         **os.environ,
-        "VITE_API_BASE": _service_url(BACKEND_PORT),
+        "VITE_API_BASE": _service_url(backend_port),
     }
 
     if shutil.which(frontend_command[0]) is None:
@@ -100,8 +133,8 @@ def main() -> int:
     )
 
     print("Launched backend and frontend.")
-    print(f"Backend:  {_service_url(BACKEND_PORT)}")
-    print(f"Frontend: {_service_url(FRONTEND_PORT)}")
+    print(f"Backend:  {_service_url(backend_port)}")
+    print(f"Frontend: {_service_url(frontend_port)}")
     print("Press Ctrl+C to stop both services.")
 
     stop_requested = False

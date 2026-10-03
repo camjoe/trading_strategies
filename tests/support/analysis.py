@@ -4,8 +4,30 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.services.accounts import create_account
-from trading.services.analysis import queries as analysis_queries
+from trading.models import AccountRecord
+from trading.models.portfolio import EquitySnapshotRecord
+from trading.services.accounts.mutations import create_account
+from trading.services.analysis import portfolio as analysis_portfolio
+
+
+def snapshot_record(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
+    """Build a snapshot record carrying only the fields the benchmark overlay reads.
+
+    The remaining columns are zeroed rather than realistic: the overlay aligns on
+    ``snapshot_time`` and ``equity`` alone, and tests that need real balances
+    build snapshots through the repository instead.
+    """
+    return EquitySnapshotRecord(
+        id=0,
+        account_id=0,
+        book_id=None,
+        snapshot_time=snapshot_time,
+        cash=0.0,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
 
 
 def make_analysis_account(
@@ -13,20 +35,22 @@ def make_analysis_account(
     name: str,
     *,
     initial_cash: float = 1000.0,
-) -> sqlite3.Row:
+) -> AccountRecord:
     if initial_cash > 0:
         create_account(conn, name, "trend", initial_cash, "SPY")
     else:
         from common.time import utc_now_iso
 
+        now = utc_now_iso()
         conn.execute(
-            "INSERT INTO accounts (name, initial_cash, created_at, benchmark_ticker) VALUES (?,?,?,?)",
-            (name, 0.0, utc_now_iso(), "SPY"),
+            "INSERT INTO accounts (name, initial_cash, created_at, updated_at, benchmark_ticker) VALUES (?,?,?,?,?)",
+            (name, 0.0, now, now, "SPY"),
         )
         conn.commit()
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
     assert row is not None
-    return row
+    # Match production: analysis consumers take a decoded AccountRecord, not a raw row.
+    return AccountRecord.from_mapping(dict(row))
 
 
 def record_analysis_buy(
@@ -38,7 +62,6 @@ def record_analysis_buy(
     price: float,
 ) -> None:
     from common.time import utc_now_iso
-
     from tests.support.fills import seed_fill_event
 
     seed_fill_event(
@@ -59,12 +82,12 @@ def patch_analysis_market_data(
     benchmark: tuple[float | None, float | None] = (None, None),
 ) -> None:
     monkeypatch.setattr(
-        analysis_queries,
+        analysis_portfolio,
         "fetch_latest_prices",
         lambda _tickers, **_kwargs: prices or {},
     )
     monkeypatch.setattr(
-        analysis_queries,
+        analysis_portfolio,
         "benchmark_stats",
         lambda _ticker, _effective_initial, _created_at, **_kwargs: benchmark,
     )
@@ -74,4 +97,5 @@ __all__ = [
     "make_analysis_account",
     "patch_analysis_market_data",
     "record_analysis_buy",
+    "snapshot_record",
 ]

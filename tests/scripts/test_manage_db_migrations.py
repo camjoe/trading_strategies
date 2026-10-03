@@ -11,7 +11,7 @@ import pytest
 
 import trading.interfaces.runtime.data_ops.admin as admin
 from infrastructure.database import migration_runner
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
 from scripts.data_ops.manage_db_migrations import (
     _cmd_downgrade,
@@ -27,12 +27,8 @@ def injected_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Pat
     db_path = tmp_path / "paper_trading.db"
     # Keep test backups out of the real local/db_backups directory.
     monkeypatch.setattr(admin, "DB_BACKUPS_DIR", tmp_path / "backups")
-    original = get_backend()
-    set_backend(SQLiteBackend(db_path))
-    try:
+    with use_backend(SQLiteBackend(db_path)):
         yield db_path
-    finally:
-        set_backend(original)
 
 
 def _args(**kwargs: object) -> argparse.Namespace:

@@ -10,7 +10,6 @@ from scripts.checks.docs.db_schema_check import (
     run_db_schema_check,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # A Quick Reference (3-column rows) plus a 2-column semantic-note row that must be ignored.

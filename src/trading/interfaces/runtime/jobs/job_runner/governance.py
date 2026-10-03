@@ -28,7 +28,7 @@ def governance_job(
     opens a DB session, and has no enable-gate. Exposes only the parameters a
     governance job needs.
     """
-    return account_job(  # type: ignore[return-value]
+    return account_job(
         job_name=job_name,
         sentinel=sentinel,
         period=period,

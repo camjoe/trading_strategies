@@ -6,11 +6,7 @@ import pytest
 
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.strategies import StrategyImmutableError
-from trading.services.strategy_catalog import (
-    configure_strategy,
-    create_strategy_variant,
-    freeze_strategy,
-)
+from trading.services.strategy_catalog.mutations import configure_strategy, create_strategy_variant, freeze_strategy
 
 NOW = "2026-07-12T00:00:00Z"
 
@@ -26,7 +22,6 @@ def test_create_variant_normalizes_key_and_stores_validated_overrides(conn) -> N
 
     assert record.strategy_key == "trend_fast"
     assert record.primitive == "trend"
-    assert record.style == "trend"
     assert record.status == "draft"
     assert json.loads(record.params_json) == {"fast_window": 5}
 

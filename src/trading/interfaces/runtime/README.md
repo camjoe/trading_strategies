@@ -13,7 +13,7 @@ Operator-facing runtime surface for the trading system: the scheduled/runnable
 |---|---|
 | `jobs/` | The runtime jobs (`daily/`, `governance/`, `maintenance/`) plus the jobs framework (`job_helpers.py`, `job_runner/`) |
 | `scheduling/` | Install/remove OS schedules that invoke the jobs (`manage_job_schedules.py` + `scheduler_installer.py`) |
-| `data_ops/` | One-off database admin/export operations (`admin.py` + `csv_export.py`) |
+| `data_ops/` | One-off database admin operations (`admin.py`) |
 | `job_status.py`, `notifications.py` | Runtime-wide shared libraries (sentinels, webhook alerts) |
 
 ## Runnable vs. imported
@@ -26,8 +26,7 @@ imported. There are four categories:
 **Scheduled entrypoints** — installed by `scheduling/manage_job_schedules.py`,
 run unattended on the host:
 
-- `jobs/daily/paper_trading` (package), `jobs/daily/snapshot`,
-  `jobs/daily/backtest_refresh`, `jobs/daily/challenger_shadow_eval`,
+- `jobs/daily/paper_trading` (package), `jobs/daily/challenger_shadow_eval`,
   `jobs/daily/trader_health`, `jobs/maintenance/weekly_db_backup`
 
 **Operator entrypoints** — run by hand or on a manual cadence:
@@ -41,12 +40,14 @@ run unattended on the host:
 
 - `jobs/daily/paper_trading/run_auto_trades` (the daily DAG shells out to it; also
   runnable standalone)
+- `jobs/daily/paper_trading/reconcile_orders` (the daily DAG runs it before each
+  snapshot pass; also runnable standalone when an async broker fills late)
 
 **Libraries** — never run directly:
 
 - `jobs/job_helpers.py`, `jobs/job_runner/`, `scheduling/scheduler_installer.py`,
   `jobs/daily/paper_trading/{caps,dag,reporting}.py`,
-  `jobs/governance/payload_models.py`, `data_ops/csv_export.py`, `job_status.py`,
+  `jobs/governance/payload_models.py`, `job_status.py`,
   `notifications.py`
 
 ## Usage

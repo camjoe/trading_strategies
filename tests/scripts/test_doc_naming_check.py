@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks.docs.doc_naming_check import check_file, run_doc_naming_check
+from tests.scripts.helpers import write_file
 
 
 def _write(path: Path, content: str = "# Title\n\nBody.\n") -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+    """Shared writer, plus the placeholder body most naming cases do not care about."""
+    return write_file(path, content)
 
 
 def test_kebab_case_doc_name_passes(tmp_path: Path) -> None:

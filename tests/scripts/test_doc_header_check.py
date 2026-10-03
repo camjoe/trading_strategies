@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks.docs.doc_header_check import check_file, discover_docs, parse_header, run_doc_header_check
+from tests.scripts.helpers import write_file
 
 VALID_HEADER = (
     "# Some Doc\n"
@@ -21,19 +22,13 @@ VALID_HEADER = (
 )
 
 
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
-
-
 def test_valid_header_has_no_problems(tmp_path: Path) -> None:
-    doc = _write(tmp_path / "docs/good.md", VALID_HEADER)
+    doc = write_file(tmp_path / "docs/good.md", VALID_HEADER)
     assert check_file(doc).problems == []
 
 
 def test_missing_and_empty_fields_are_reported(tmp_path: Path) -> None:
-    doc = _write(
+    doc = write_file(
         tmp_path / "docs/bad.md",
         "# Bad Doc\n\nType: notes\nStatus: Active\nPurpose: \n\nBody.\n",
     )
@@ -44,7 +39,7 @@ def test_missing_and_empty_fields_are_reported(tmp_path: Path) -> None:
 
 
 def test_unknown_type_and_status_are_reported(tmp_path: Path) -> None:
-    doc = _write(
+    doc = write_file(
         tmp_path / "docs/vocab.md",
         "# Vocab Doc\n\nType: essay\nStatus: WIP\nCreated: 2026-01-01\n"
         "Last Reviewed: 2026-07-02\nPurpose: X.\n\nBody.\n",
@@ -55,7 +50,7 @@ def test_unknown_type_and_status_are_reported(tmp_path: Path) -> None:
 
 
 def test_status_suffix_after_valid_token_is_allowed(tmp_path: Path) -> None:
-    doc = _write(
+    doc = write_file(
         tmp_path / "docs/suffix.md",
         "# Suffix Doc\n\nType: implementation\nStatus: Ready (large; multi-commit)\n"
         "Created: 2026-01-01\nLast Reviewed: 2026-07-02\nPurpose: X.\n\nBody.\n",
@@ -64,7 +59,7 @@ def test_status_suffix_after_valid_token_is_allowed(tmp_path: Path) -> None:
 
 
 def test_wrapped_field_values_are_tolerated(tmp_path: Path) -> None:
-    doc = _write(
+    doc = write_file(
         tmp_path / "docs/wrapped.md",
         "# Wrapped Doc\n\nType: notes\nStatus: Active\nCreated: 2026-01-01\n"
         "Last Reviewed: 2026-07-02\nPurpose: A long purpose that wraps to\n"
@@ -74,7 +69,7 @@ def test_wrapped_field_values_are_tolerated(tmp_path: Path) -> None:
 
 
 def test_non_iso_dates_are_reported(tmp_path: Path) -> None:
-    doc = _write(
+    doc = write_file(
         tmp_path / "docs/dates.md",
         "# Dates Doc\n\nType: notes\nStatus: Active\nCreated: Jan 1 2026\n"
         "Last Reviewed: 2026-07-02\nPurpose: X.\n\nBody.\n",
@@ -83,7 +78,7 @@ def test_non_iso_dates_are_reported(tmp_path: Path) -> None:
 
 
 def test_missing_header_block_is_reported(tmp_path: Path) -> None:
-    doc = _write(tmp_path / "docs/none.md", "# Title Only\n\nJust body text, no header block.\n")
+    doc = write_file(tmp_path / "docs/none.md", "# Title Only\n\nJust body text, no header block.\n")
     problems = check_file(doc).problems
     assert any("missing field" in p for p in problems)
 
@@ -93,21 +88,21 @@ def test_parse_header_returns_none_without_h1(tmp_path: Path) -> None:
 
 
 def test_discover_docs_scopes_to_docs_and_skips_templates(tmp_path: Path) -> None:
-    _write(tmp_path / "docs/keep.md", VALID_HEADER)
-    _write(tmp_path / "docs/adr/TEMPLATE.adr.md", "# [Title]\n\nType: adr\n")
-    _write(tmp_path / "README.md", "# Root readme (out of scope)\n")
+    write_file(tmp_path / "docs/keep.md", VALID_HEADER)
+    write_file(tmp_path / "docs/adr/TEMPLATE.adr.md", "# [Title]\n\nType: adr\n")
+    write_file(tmp_path / "README.md", "# Root readme (out of scope)\n")
     names = {path.name for path in discover_docs(tmp_path)}
     assert names == {"keep.md"}
 
 
 def test_run_advisory_exit_zero_with_findings(tmp_path: Path, capsys) -> None:
-    _write(tmp_path / "docs/bad.md", "# Bad\n\nBody only.\n")
+    write_file(tmp_path / "docs/bad.md", "# Bad\n\nBody only.\n")
     assert run_doc_header_check(tmp_path) == 0
     assert "WARN" in capsys.readouterr().out
 
 
 def test_run_enforce_exit_one_with_findings(tmp_path: Path) -> None:
-    _write(tmp_path / "docs/bad.md", "# Bad\n\nBody only.\n")
+    write_file(tmp_path / "docs/bad.md", "# Bad\n\nBody only.\n")
     assert run_doc_header_check(tmp_path, enforce=True) == 1
 
 

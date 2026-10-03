@@ -12,6 +12,10 @@ Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](
 Operational procedures for the paper-trading runtime. Use these runbooks to monitor daily and
 weekly runtime jobs, manage the burn-in period, and conduct weekly/monthly governance reviews.
 
+Interactive commands assume the repository virtual environment is active and use `python -m ...`.
+Explicit interpreter paths remain only inside scheduler or service-wrapper commands that cannot
+assume an activated shell.
+
 ## Contents
 
 | Runbook | When to use |
@@ -20,12 +24,13 @@ weekly runtime jobs, manage the burn-in period, and conduct weekly/monthly gover
 | [runtime-operations.md](runtime-operations.md) | Daily + weekly-backup monitoring, failure recovery, log inspection |
 | [burn-in-protocol.md](burn-in-protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
+| [ibkr-paper-trading.md](ibkr-paper-trading.md) | Moving a book off the internal simulator onto real IBKR paper-account order mechanics |
 
 ## Quick Start
 
 ### Check job status
 ```bash
-./.venv/bin/python -m scripts.check_jobs
+python -m scripts.check_jobs
 ```
 
 ### Inspect today's daily run
@@ -36,11 +41,11 @@ grep "COMPLETE" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 
 ### Replay a missed date
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
     --from-date YYYY-MM-DD --to-date YYYY-MM-DD
 ```
 
 ### Check burn-in status
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
+python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```

@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-24
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -22,20 +22,21 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
 - `src/trading/domain/`: side-effect-free policy/math/state-transition logic and DI contracts (`BrokerConnection`, `FeatureFetcherSet`, `StrategySpec`)
-- `src/trading/models/`: all passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models, and domain value objects), organized into feature subfolders. The **lowest layer** — imports nothing from other trading layers or infrastructure.
+- `src/trading/models/`: all passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models, and domain value objects), organized into feature modules. The **lowest layer** — imports nothing from other trading layers or infrastructure.
 
 Concrete infrastructure (database, brokers, feature providers, the market-data adapter, and static config assets) lives in the sibling `src/infrastructure/` package — see the [Infrastructure Map](infrastructure-map.md). Persistence flows through `src/trading/repositories/` into `src/infrastructure/database/`; the other adapters are injected at the interface layer.
 
 ### Bounded Contexts
 
-- `src/trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
+`src/backtesting/` is a peer package, not part of this tree — it owns its own tables and its own
+`domain/services/repositories` stack. It has its own map: [Backtesting Map](backtesting-map.md).
 
 ## Placement Rules
 
 - Use the layered backbone by default.
 - Use top-level bounded contexts only when isolation materially improves clarity and safety.
 - Keep `src/trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
-- Avoid adding facades that only forward imports unless they are deliberate public entrypoints.
+- Do not add facades that only forward imports; import from the module that owns the symbol.
 
 ## Module Directory
 
@@ -50,6 +51,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | Module | Responsibility |
 |---|---|
 | `commands/accounts.py` | argparse subcommands for account actions |
+| `commands/advisor.py` | argparse subcommands for the advisor ledger (`advisor-record`, `advisor-digest`, `advisor-score`, `advisor-scorecard`) |
 | `commands/backtesting.py` | argparse subcommands for backtesting |
 | `commands/reporting.py` | argparse subcommands for reporting |
 | `commands/settings.py` | argparse subcommands for operational-settings and rotation-policy edits |
@@ -57,7 +59,9 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `commands/builder.py` | Assembles the argparse parser + subcommand groups |
 | `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
+| `handlers/advisor_handlers.py` | Business dispatch for advisor CLI commands (parses `--note KEY=VALUE` evidence) |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
+| `handlers/context.py` | Shared request-scoped context resolver for CLI handlers |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
 | `handlers/settings_handlers.py` | Business dispatch for settings edit commands — merges partial flags over current effective values |
 | `handlers/strategy_catalog_handlers.py` | Business dispatch for strategy-catalog CLI commands |
@@ -71,12 +75,15 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 |---|---|
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
+| `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
+| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass (no-op for `paper` accounts; also runnable standalone) |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
-| `daily/snapshot.py` | Daily equity snapshot job |
-| `daily/backtest_refresh.py` | Daily job that re-runs only stale/missing backtests across each account's rotation candidates (incumbent + challengers) |
+| `daily/paper_trading/run_context.py` | Resolves accounts, trade caps, artifact paths, and run metadata into the daily workflow context |
+| `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
+| `daily/paper_trading/workflow.py` | Daily DAG orchestration, artifact writing, notifications, and success/failure handling |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
 | `governance/weekly/w1_leaderboard.py` | Weekly leaderboard governance job |
@@ -99,22 +106,21 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `manage_job_schedules.py` | Operator entrypoint: install/remove OS-level schedules that invoke the runtime jobs |
-| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) |
+| `job_catalog.py` | Catalog of schedulable jobs (`JOB_CATALOG`) and the declarative `job_schedule.json` loader (`resolve_schedule_config`) that turns it into register/unregister task lists |
+| `manage_job_schedules.py` | Operator entrypoint: apply the schedule config (install/remove OS-level schedules), report drift (`--status`), and write the drift artifact the web panel reads |
+| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) plus the registered-task query |
 
 **Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 
 | Module | Responsibility |
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
-| `csv_export.py` | One-off CSV export operation |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
 | Module | Responsibility |
 |---|---|
-| `job_status.py` | Job status tracking models |
 | `notifications.py` | Notification/alerting dispatch from runtime jobs |
 
 ---
@@ -125,74 +131,97 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 | Module | Responsibility |
 |---|---|
-| `accounting/mutations.py` | Cash/equity accounting write operations |
-| `accounting/queries.py` | Cash/equity accounting read operations |
-| `accounts/listing.py` | Account listing and filtering |
+| `accounts/listing.py` | Account listing read orchestration (fetch accounts + books, then build display lines) |
+| `accounts/presentation.py` | Pure string builders for account listing output (goal/policy/summary lines); no I/O |
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
-| `accounts/config.py` | Account configuration helpers |
 | `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
-| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
+| `accounts/runtime_loader.py` | Load every account name on a self-opened connection; has documented layer-boundary exception to import from `src/infrastructure/database/` |
+| `advisor/book_state.py` | A book's assigned strategy and its own paper return since assignment (from the book's snapshots, not the account roll-up) — shared by the digest and recorded evidence |
+| `advisor/decisions.py` | Record an advisor decision in the `strategy_decisions` ledger, resolving its book and strategy and freezing the book's own state plus the chosen strategy's backtest and walk-forward evidence |
+| `advisor/digest.py` | Read-only advisor digest, one block per book: its strategy's walk-forward and backtest evidence, its paper return since that strategy was assigned (from the book's own snapshots, not the account roll-up), recent and due ledger decisions, and review flags |
+| `advisor/presentation.py` | Pure string builders for the advisor digest, decision, and scoring lines |
+| `advisor/scorecard.py` | Read-only track record of scored decisions, grouped by agent, decision type, or regime |
+| `advisor/scoring.py` | Score due decisions counterfactually: backtest the chosen and rejected arms (with their catalog knobs) over the window that followed and record the verdict |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
+| `analysis/daily_metrics.py` | Transactional per-book daily-metrics writer over stored equity snapshots and filled orders |
 | `analysis/performance.py` | Book performance window queries (reads daily metrics) |
 | `analysis/risk_snapshots.py` | Latest account risk snapshot access (clean risk_snapshots) |
 | `analysis/exposure.py` | Cross-account exposure rollup over latest equity snapshots + open positions |
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions |
-| `auto_trading/execution.py` | Trade execution orchestration |
+| `analysis/portfolio.py` | Account portfolio stats, settlement-corrected equity, and trend inference |
+| `analysis/benchmark.py` | Benchmark close-history fetch + live benchmark return overlay payloads |
+| `analysis/daily_report.py` | Multi-book daily operator report assembly (structured dataclasses + JSON dict; no printing) |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
-| `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
-| `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
-| `backtesting/stale_backtests.py` | Enumerate (account, strategy) pairs whose backtest is stale or missing across each account's rotation candidates (backtest-freshness remediation) |
 | `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
+| `evaluation/presentation.py` | Shared evaluation display helpers; `backtest_freshness_display_parts` reduces freshness to `(age, stale/fresh)` for reporting and promotion |
 | `evaluation/queries.py` | Evaluation data queries |
+| `fixtures/profiles.py` | Named fixture profiles (`demo`, `sandbox`) describing the synthetic story each generated database tells |
+| `fixtures/seeding.py` | Builds a generated database from a profile, routing every derived record through its production writer |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission |
+| `execution/ledger/mutations.py` | Cash/equity accounting write operations (record trades to the book/account ledger) |
+| `execution/ledger/queries.py` | Cash/equity accounting read operations (account-state replay, trade listing) |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` |
+| `execution/open_order_reconciliation.py` | Runtime open-order/fill reconciliation against the broker (apply fills, record trades, resolve exec ids) |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches |
-| `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
+| `execution/equity_reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) |
+| `execution/risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
+| `execution/selection/selection.py` | Signal-driven trade selection/sizing (`prepare_trade_selection`, buy/sell sizing, feature-history fn) |
+| `execution/selection/book_intents.py` | Book-keyed trade-intent generation (`generate_book_trade_intents`) over per-book state |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger |
-| `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
-| `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |
+| `autonomy_monitor/artifacts.py` | Autonomy-monitor artifact assembly |
+| `autonomy_monitor/queries.py` | Autonomy-monitor data queries |
 | `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
 | `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
-| `pricing/lookups.py` | Price lookup queries |
-| `profiles/application.py` | Account profile application logic |
-| `profiles/rotation_config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
-| `profiles/source.py` | Profile source loading |
+| `market_data/lookups.py` | Caller-facing latest-price + benchmark lookup queries over the injected provider |
 | `promotion/actions.py` | Promotion action execution |
 | `promotion/assessment.py` | Promotion eligibility assessment |
 | `promotion/helpers.py` | Promotion workflow helpers |
 | `promotion/history.py` | Promotion history queries |
 | `promotion/presentation.py` | Promotion result formatting |
-| `reporting/benchmark.py` | Benchmark comparison reporting |
-| `reporting/math.py` | Reporting math utilities |
-| `reporting/portfolio.py` | Portfolio reporting |
-| `reporting/presentation.py` | Report presentation formatting |
+| `promotion/eligibility.py` | Read-only live-approval check (`is_strategy_approved_for_live`) for other services, e.g. rotation's promotion gate |
+| `reporting/_formatting.py` | Shared pure formatting helpers for reporting output (evaluation summary line, position summary) |
+| `reporting/_context.py` | Shared read helper for printed report renderers (resolves account context) |
+| `reporting/account.py` | Printed single-account report (state, evaluation evidence, benchmark) |
+| `reporting/comparison.py` | Printed cross-account policy/holdings comparison |
+| `reporting/snapshots.py` | Equity snapshot capture command + printed snapshot history (sole write in the package) |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
 | `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
-| `operational_settings/queries.py` | Operational setting read operations |
+| `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
+| `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
+| `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
+| `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
-| `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
-| `books/daily_report.py` | Multi-book daily operator report assembly |
-| `books/execution.py` | Multi-book trade-candidate generation (`generate_book_trade_intents`) |
 | `books/helpers.py` | Shared book service helpers (window math) |
-| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/account_rotation.py` | Account-level coordinator for enumerating and applying each book's rotation decision |
+| `books/rotation/engine.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `books/rotation/metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
+| `books/rotation/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
+| `books/rotation/config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows |
 | `parameters/presentation.py` | Printed view of the unified parameter source |
 | `parameters/mutations.py` | Targeted book rotation-policy edit workflow |
-| `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
+| `parameters/history.py` | Read orchestration for the book rotation settings change-audit trail |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
+| `books/configuration.py` | Read/edit surface for book-owned operator configuration (`BookConfigurationView`, `fetch_account_book_configurations`, `configure_book`, `assign_catalog_strategy`) — merges persisted rotation settings over code defaults; `assign_catalog_strategy` assigns only existing, enabled catalog keys |
+| `books/settings_validation.py` | Book execution/goal/option settings validation and normalization (enum/range/sizing/option checks) + `book_settings_update_from_config` builder |
+| `books/default_book.py` | Resolve an account to its default book (`default_book_id`) |
+| `books/provisioning.py` | Create-time default-book provisioning (`bootstrap_default_book`): validate create settings, insert the default book, open its assignment, write execution/goal/option columns |
+| `books/operations.py` | Book-attributed operational reads for interface consumers (`fetch_book_operational_data`) |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
+| `strategy_catalog/queries.py` | Read-side contracts for the catalog operator surfaces (catalog + primitive listings, optimization history, strategy payload shaping) |
 | `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path) |
 | `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze |
-| `universe/resolver.py` | Trade-universe name resolution |
+| `strategy_catalog/optimizer_promotion.py` | Promote a walk-forward optimization winner into a frozen tradeable `strategies` variant |
+| `universe.py` | Trade-universe name resolution |
 
 ---
 
@@ -200,11 +229,13 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 SQL persistence adapters only. Each file owns one logical data area. Builds SQL internally; callers pass plain data, not SQL fragments.
 
+For these modules grouped by ownership, the transaction rules, and the usage pattern, see
+[`src/trading/repositories/README.md`](../../src/trading/repositories/README.md).
+
 | Module | Responsibility |
 |---|---|
 | `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
-| `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
 | `orders.py` | Clean-schema orders table (unifies broker + book orders) |
@@ -214,10 +245,27 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `rotation_decisions.py` | Rotation decision records |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs) |
+| `strategy_decisions.py` | Advisor decision ledger; only `insert` and `update_outcome` write (decision columns are write-once) |
 | `books.py` | Clean-schema strategy books — execution primitives |
-| `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
-| `book_assignments.py` | Book-strategy assignment and lifecycle records |
-| `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
+| `book_rotation_settings.py` | The `book_rotation_settings` row: per-book rotation gate, schedule, lookback, and policy weights |
+| `book_strategy_history.py` | The `book_strategy_history` table: a book's strategy assignments, the open row being its incumbent |
+
+---
+
+### `src/trading/persistence/`
+
+Mechanics shared by all database access — no SQL, no tables, no domain concepts. Sits *below* the
+repository layer so both repository packages and the services above them can use it, and so
+services need not reach into `infrastructure/database/` (which `layer_check` forbids).
+
+Owns *using* a connection; `infrastructure/database/` owns *getting* one. See
+[`src/trading/persistence/README.md`](../../src/trading/persistence/README.md).
+
+| Module | Responsibility |
+|---|---|
+| `unit_of_work.py` | Re-entrant transaction scope and commit helper for grouping repository writes atomically |
+| `change_events.py` | The old/new field diff behind the settings change-event trail |
+| `money_columns.py` | Encodes/decodes money and quantity columns between `Decimal` and integer minor units at the repository boundary (`encode/decode_money`, `encode/decode_quantity`, `row_*` readers, `encode_columns`) |
 
 ---
 
@@ -227,23 +275,42 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 | Module | Responsibility |
 |---|---|
-| `accounting.py` | Cash and equity accounting rules |
-| `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
-| `backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
+| `auto_trading/sizing.py` | Buy/sell share sizing (`choose_buy_qty`, `allocate_buy_quantities`, `closing_sell_qty`) |
+| `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
+| `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
+| `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
+| `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, which digest review flags to raise, which arms a decision is scored on, and the neutral-band verdict rule |
+| `advisor_scorecard.py` | Scorecard statistics: +1/0/-1 verdict points, mean edge with a seeded bootstrap interval, benchmark-regime tags, the minimum count before ranking, and the non-overlapping-interval leader rule |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
-| `evaluation_confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
-| `evaluation_decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
-| `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
-| `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
-| `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
-| `returns.py` | Return calculation math |
-| `rotation.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
-| `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
-| `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
-| `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
+| `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
+| `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
+| `accounting/ledger.py` | Pure per-fill buy/sell deltas (`buy_position_delta`, `sell_position_delta`) shared by the account replay (`apply_buy`/`apply_sell`) and book fills |
+| `accounting/validation.py` | Shared order-input validation (`normalize_order_input`, `validate_order_values`, `ensure_sufficient_cash_for_buy`) for both trade replay and book fills |
+| `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
+| `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
+| `evaluation/decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
+| `evaluation/risk_limits.py` | Risk limit policy rules and validation for evaluation workflows |
+| `market/hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes, N-trading-day offsets) |
+| `market/bars.py` | `normalize_bar_frame` — the per-ticker daily-bar gap-filling contract shared by the backtest and live paths |
+| `metrics/returns.py` | Percent return between two equity marks — the strict `total_return_pct` and the coercing `safe_return_pct`; every percent return in the repo resolves here |
+| `metrics/risk_ratios.py` | Risk-adjusted ratios over a series of periodic returns (Sharpe), in pure Python so the live runtime and the backtester share one implementation |
+| `metrics/portfolio_math.py` | Pure portfolio valuation and return math shared by analysis, reporting, and the backtester (market value/unrealized, return %, alpha); holds both the lenient operator-facing pass and the strict pair, deliberately unmerged |
+| `metrics/daily_metrics.py` | Pure per-book daily return, turnover, fee, trade-count, and execution-slippage derivation |
+| `promotion/gate.py` | The quality bar an optimizer experiment must clear to be promotable (OOS + holdout vs its own baseline) |
+| `promotion/policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
+| `rotation/schedule.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
+| `rotation/policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
+| `rotation/score_components.py` | Pure stability and drawdown-penalty derivations for rotation scoring |
+| `strategies/indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
+| `strategies/contracts.py` | Strategy and primitive specifications plus shared signal callable/parameter contracts |
+| `strategies/indicator_view.py` | Precompute a strategy's declared indicators over one ticker's bars (`build_signal_inputs`) and read them one bar at a time (`IndicatorView`) |
+| `strategies/parameter_validation.py` | Primitive lookup and typed knob validation/coercion against each primitive schema |
+| `strategies/registry.py` | Canonical strategy registry and primitive catalog, including aliases, defaults, styles, and required features |
+| `strategies/resolution.py` | Strategy label/alias resolution and shared signal evaluation entrypoints |
+| `strategies/signals/technical.py` | Price-history technical signal models for trend, mean-reversion, RSI, MACD, breakout, pullback, Bollinger, MA-crossover, and volatility-filtered strategies |
 
 ---
 
@@ -251,36 +318,28 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 Passive data contracts — the **lowest layer**. No business logic, no I/O, and no
 imports from `domain`/`services`/`repositories`/`interfaces`/`infrastructure`
-(enforced by `scripts/checks/repo/layer_check.py`). Organized into feature subfolders;
-each holds one contract per file. The package root and each subpackage re-export
-their public types.
+(enforced by `scripts/checks/repo/layer_check.py`). Organized into feature modules;
+each holds every contract for its feature, plus that feature's vocabulary
+constants. The package root re-exports the stable public types; consumers
+otherwise import from the feature module (`from trading.models.books import BookRecord`).
 
-| Subfolder | Contracts |
+| Module | Contracts |
 |---|---|
-| `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
-| `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
-| `parameters/` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants |
-| `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioConcentration`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord`, `SectorConcentration`, `SymbolConcentration` + rollup vocabulary constants |
-| `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
-| `strategy/` | `StrategyRecord` |
-| `settings/` | `GlobalSettingsRecord` |
-| `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
-| `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |
+| `accounts.py` | `AccountRecord` (implements `Mapping`), `AccountInsert`, `AccountConfig`, `AccountState`, `AccountDeletionPreview` + config field-name vocabulary |
+| `advisor.py` | `StrategyDecisionInsert`, `StrategyDecisionOutcome`, `StrategyDecisionRecord`, `AdvisorFlag`, `AdvisorAccountDigest`, `AdvisorDigest`, `CounterfactualPlan`, `DecisionScoreResult`, `BookEvidence`, `AdvisorBookDigest`, `ScorecardGroup`, `Scorecard` + decision-type, outcome, flag, regime, and scorecard-grouping vocabulary |
+| `books.py` | `BookRecord` (implements `Mapping`), `BookAssignmentView`, `BookStrategyAssignmentRecord`, `TradingBook`, `BookRotationSettingsRecord`, `BookRotationSettingsChangeEvent`, `RotationDecisionRecord`, `PositionRecord`, `LedgerEntryRecord`, `BookFillTransition`, `RiskDecisionRecord`, `RiskSnapshotRecord` + settings-group vocabulary |
+| `execution.py` | `BookTradeCandidate`, `BookTradeIntent`, `BookTradeState`, `RiskGateConfig`, `RiskGatePosition`, `RiskGateDecision`, `RiskGateResult`, `GateResult`, `SubmissionResult`, `BookNavMarkResult`, `BookRunAudit` + risk-gate defaults |
+| `orders.py` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `OrderRecord` |
+| `parameters.py` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants |
+| `portfolio.py` | `EquitySnapshotRecord`, `DailyMetricRecord`, `AccountExposure`, `PortfolioExposureRollup`, `SymbolConcentration`, `SectorConcentration`, `PortfolioConcentration` + rollup vocabulary constants |
+| `rotation.py` | `BookRotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationScoreWeights`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationDecision` |
+| `strategy.py` | `StrategyRecord`, `FeatureProviderRecord` |
+| `settings.py` | `GlobalSettingsRecord`, `GlobalSettingsChangeEvent` + settings-group vocabulary |
+| `evaluation.py` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `BacktestFreshness`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDecisionScore`, `EvaluationDiagnostics`) + version and data-gap vocabulary constants |
+| `promotion.py` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + `PromotionStage`/`PromotionStatus`/`PromotionReviewState`/`PromotionReviewEventType` enums and review vocabulary |
+| `market_data.py` | Bar-column vocabulary (`BAR_OPEN`/`BAR_HIGH`/`BAR_LOW`/`BAR_CLOSE`/`BAR_VOLUME`, `BAR_COLUMNS`, `BAR_PRICE_COLUMNS`, `BAR_VOLUME_FILL`) |
 
 ---
-
-### `src/trading/backtesting/` (bounded context)
-
-Self-contained backtest subsystem with its own layered sub-packages.
-
-| Module | Responsibility |
-|---|---|
-| `backtest.py` | Backtest execution engine |
-| `models.py` | Backtest input/output models |
-| `report_models.py` | Backtest report models |
-| `domain/` | Backtesting-specific domain logic |
-| `repositories/` | Backtest result persistence |
-| `services/` | Backtest orchestration services |
 
 ---
 
@@ -290,4 +349,4 @@ Self-contained backtest subsystem with its own layered sub-packages.
 - [nav-guide.md](../architecture/nav-guide.md) — "I want to X → look/edit Y" lookup table
 - `docs/architecture/architecture-conventions.md` — authoritative import boundary and layering rules
 - `docs/reference/backtesting.md`
-- `src/trading/backtesting/README.md`
+- `src/backtesting/README.md`

@@ -2,13 +2,10 @@ from dataclasses import replace
 
 import pytest
 
-from trading.services.promotion import (
-    execute_promotion_review_action,
-    execute_promotion_review_request,
-    fetch_promotion_review_history,
-)
-from trading.services.promotion import actions as promotion_actions
 from tests.support.promotion import make_ready_evaluation
+from trading.services.promotion import actions as promotion_actions
+from trading.services.promotion.actions import execute_promotion_review_action, execute_promotion_review_request
+from trading.services.promotion.history import fetch_promotion_review_history
 
 
 def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str = "trend_v1"):
@@ -28,7 +25,7 @@ def test_execute_promotion_review_request_persists_frozen_snapshot(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -67,7 +64,7 @@ def test_execute_promotion_review_action_closes_open_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -101,7 +98,7 @@ def test_execute_promotion_review_request_canonicalizes_strategy_for_open_review
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(
                 account_name=account_name,
@@ -172,7 +169,7 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -185,10 +182,28 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
     mock_repo.insert_review.return_value = promotion_actions.PromotionReviewRecord(id=77)
     mock_repo.fetch_by_id.return_value = None
     monkeypatch.setattr(promotion_actions, "PromotionReviewRepository", lambda conn: mock_repo)
-    monkeypatch.setattr(promotion_actions, "_record_review_event", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(promotion_actions, "_require_strategy_id", lambda _conn, *, strategy_name: 1)
 
     with pytest.raises(ValueError, match="Promotion review 77 not found after request creation"):
         execute_promotion_review_request(conn, account_name="acct_service", strategy_name="trend_v1")
+
+
+def test_execute_promotion_review_request_requires_strategy_id(
+    conn,
+    promotion_account: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        promotion_actions,
+        "fetch_promotion_snapshot",
+        lambda _conn, *, account_name, strategy_name=None: (
+            make_ready_evaluation(account_name=account_name, strategy_name="rsi"),
+            _ready_assessment(account_name=account_name, strategy_name="rsi"),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="requires a strategy_id for 'rsi'"):
+        execute_promotion_review_request(conn, account_name="acct_service", strategy_name="rsi")
 
 
 def test_execute_promotion_review_action_adds_note_without_closing_review(
@@ -198,7 +213,7 @@ def test_execute_promotion_review_action_adds_note_without_closing_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -230,7 +245,7 @@ def test_execute_promotion_review_action_rejects_non_ready_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             replace(
@@ -255,7 +270,7 @@ def test_execute_promotion_review_action_blocks_approval_when_not_ready_for_live
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             replace(
@@ -277,7 +292,7 @@ def test_execute_promotion_review_action_raises_for_closed_review(
 ) -> None:
     monkeypatch.setattr(
         promotion_actions,
-        "_fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda _conn, *, account_name, strategy_name=None: (
             make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
@@ -288,6 +303,33 @@ def test_execute_promotion_review_action_raises_for_closed_review(
 
     with pytest.raises(ValueError, match="already closed with state 'approved'"):
         execute_promotion_review_action(conn, review_id=int(review.id), action="note", note="late note")
+
+
+def test_execute_promotion_review_action_rolls_back_event_for_stale_open_review(
+    conn,
+    promotion_account: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        promotion_actions,
+        "fetch_promotion_snapshot",
+        lambda _conn, *, account_name, strategy_name=None: (
+            make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
+            _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
+        ),
+    )
+    review = execute_promotion_review_request(conn, account_name="acct_service", requested_by="cam")
+    stale_review = promotion_actions._require_open_review(conn, review_id=int(review.id))
+    execute_promotion_review_action(conn, review_id=int(review.id), action="approve", actor_name="reviewer")
+    event_count = len(fetch_promotion_review_history(conn, account_name="acct_service")[0].events)
+    monkeypatch.setattr(promotion_actions, "_require_open_review", lambda _conn, *, review_id: stale_review)
+
+    with pytest.raises(ValueError, match=f"Promotion review {review.id} was already closed"):
+        execute_promotion_review_action(conn, review_id=int(review.id), action="reject", actor_name="stale-reviewer")
+
+    history = fetch_promotion_review_history(conn, account_name="acct_service")
+    assert history[0].review.review_state == "approved"
+    assert len(history[0].events) == event_count
 
 
 def test_resolve_review_closure_rejects_unsupported_action() -> None:

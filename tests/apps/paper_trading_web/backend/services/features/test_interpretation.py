@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from paper_trading_web.backend.services.features.interpretation import interpret_signal
 
 

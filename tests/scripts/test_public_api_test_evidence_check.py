@@ -6,16 +6,11 @@ from scripts.checks.python.public_api_test_evidence_check import (
     changed_public_functions,
     has_nearby_test_change,
 )
-
-
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+from tests.scripts.helpers import write_file
 
 
 def test_changed_public_function_is_detected_from_changed_lines(tmp_path: Path) -> None:
-    _write(
+    write_file(
         tmp_path / "scripts/example.py",
         "from __future__ import annotations\n\n\n"
         "def public() -> int:\n"
@@ -32,7 +27,7 @@ def test_changed_public_function_is_detected_from_changed_lines(tmp_path: Path) 
 
 
 def test_changed_public_method_is_detected_from_changed_lines(tmp_path: Path) -> None:
-    _write(
+    write_file(
         tmp_path / "scripts/example.py",
         "from __future__ import annotations\n\n\n"
         "class Service:\n"

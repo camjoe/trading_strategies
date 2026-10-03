@@ -3,10 +3,9 @@
 Every book is created with ``current_cash = start_equity``, and every later
 cash change writes matching ledger rows (a fill's ``trade`` + ``fee`` entries
 sum to its cash delta; deposits/withdrawals are signed amounts). So for each
-book, ``current_cash - start_equity`` must equal ``SUM(ledger.amount)`` within
-a float tolerance — money is stored as REAL (see docs/reference/db-schema.md,
-"Money as REAL"). Divergence beyond the tolerance surfaces as a report row and
-a non-zero exit instead of a silent drift.
+book, ``current_cash - start_equity`` must equal ``SUM(ledger.amount)``
+**exactly** — money is stored as integer minor units, so there is no float drift
+to tolerate. Any divergence surfaces as a report row and a non-zero exit.
 """
 
 from __future__ import annotations
@@ -18,19 +17,23 @@ from pathlib import Path
 from typing import Any
 
 from infrastructure.database.config import get_db_path
-
-DEFAULT_TOLERANCE = 0.01
+from trading.persistence.money_columns import decode_money
 
 _BOOK_CASH_QUERY = """
 SELECT b.id AS book_id, b.name AS book_name, a.name AS account_name,
        b.start_equity, b.current_cash,
-       COALESCE(SUM(l.amount), 0.0) AS ledger_sum
+       COALESCE(SUM(l.amount), 0) AS ledger_sum
 FROM books b
 JOIN accounts a ON a.id = b.account_id
 LEFT JOIN ledger l ON l.book_id = b.id
 GROUP BY b.id
 ORDER BY a.name, b.name
 """
+
+
+def _dollars(minor_units: int) -> float:
+    """Integer minor units rendered as a dollar float for display."""
+    return float(decode_money(minor_units) or 0)
 
 
 def _connect_live() -> sqlite3.Connection:
@@ -43,28 +46,29 @@ def _connect_live() -> sqlite3.Connection:
 def invariant_payload(
     conn: sqlite3.Connection,
     *,
-    tolerance: float = DEFAULT_TOLERANCE,
     db_path: Path | None = None,
 ) -> dict[str, Any]:
     books: list[dict[str, Any]] = []
     for row in conn.execute(_BOOK_CASH_QUERY):
-        expected = float(row["start_equity"]) + float(row["ledger_sum"])
-        divergence = float(row["current_cash"]) - expected
+        # Columns are integer minor units; the invariant is exact integer equality.
+        start_equity_units = int(row["start_equity"])
+        current_cash_units = int(row["current_cash"])
+        ledger_sum_units = int(row["ledger_sum"])
+        divergence_units = current_cash_units - (start_equity_units + ledger_sum_units)
         books.append(
             {
                 "book_id": int(row["book_id"]),
                 "book_name": str(row["book_name"]),
                 "account_name": str(row["account_name"]),
-                "start_equity": float(row["start_equity"]),
-                "current_cash": float(row["current_cash"]),
-                "ledger_sum": float(row["ledger_sum"]),
-                "divergence": divergence,
-                "ok": abs(divergence) <= tolerance,
+                "start_equity": _dollars(start_equity_units),
+                "current_cash": _dollars(current_cash_units),
+                "ledger_sum": _dollars(ledger_sum_units),
+                "divergence": _dollars(divergence_units),
+                "ok": divergence_units == 0,
             }
         )
     return {
         "db_path": str(db_path) if db_path is not None else None,
-        "tolerance": tolerance,
         "books": books,
         "divergent": [book for book in books if not book["ok"]],
     }
@@ -74,7 +78,6 @@ def _print_text(payload: dict[str, Any]) -> None:
     print("Cash Invariant Check")
     if payload["db_path"]:
         print(f"Database path: {payload['db_path']}")
-    print(f"Tolerance: {payload['tolerance']}")
     print(f"Books checked: {len(payload['books'])}")
     divergent = payload["divergent"]
     print(f"Divergent books: {len(divergent)}")
@@ -98,12 +101,6 @@ def parse_args() -> argparse.Namespace:
         description="Check that each book's current_cash reconciles with start_equity plus its ledger sum.",
     )
     parser.add_argument(
-        "--tolerance",
-        type=float,
-        default=DEFAULT_TOLERANCE,
-        help=f"Maximum absolute divergence to accept (default {DEFAULT_TOLERANCE}).",
-    )
-    parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -116,7 +113,7 @@ def main() -> int:
     args = parse_args()
     conn = _connect_live()
     try:
-        payload = invariant_payload(conn, tolerance=args.tolerance, db_path=get_db_path())
+        payload = invariant_payload(conn, db_path=get_db_path())
     finally:
         conn.close()
 

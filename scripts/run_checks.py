@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from common.paths.repo_paths import get_repo_root
-
+from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe
 from scripts.checks.ci import run_ci
 from scripts.checks.docs.docs_check import run_docs_check
@@ -19,12 +18,6 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command")
 
     docs = subparsers.add_parser("docs", help="Run documentation drift and reference-doc checks.")
-    docs.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for consistency checks.",
-    )
     docs.add_argument(
         "--advisory",
         action="store_true",
@@ -51,12 +44,6 @@ def parse_args() -> argparse.Namespace:
     _add_python_targeting_args(quick)
 
     ci = subparsers.add_parser("ci", help="Run CI-shaped checks: docs, repo, Python, and frontend.")
-    ci.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for consistency checks.",
-    )
     ci.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
 
     parser.set_defaults(command="quick")
@@ -102,7 +89,6 @@ def main() -> int:
             repo_root=repo_root,
             enforce=not args.advisory,
             quiet=True,
-            readme_max_age_days=args.readme_max_age_days,
             include_reference_docs=not args.skip_reference_docs,
         )
     if args.command == "repo":
@@ -121,7 +107,6 @@ def main() -> int:
             repo_root=repo_root,
             python_exe=python_exe,
             skip_frontend=args.skip_frontend,
-            readme_max_age_days=args.readme_max_age_days,
         )
 
     return run_quick(

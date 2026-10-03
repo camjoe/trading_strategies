@@ -3,8 +3,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
+from hypothesis import given, settings, strategies as st
 
 from apps.trends.indicators import (
     add_trend_features,
@@ -12,7 +11,6 @@ from apps.trends.indicators import (
     calculate_macd,
     calculate_rs_rsi,
 )
-
 
 # ---------------------------------------------------------------------------
 # Existing tests (preserved)

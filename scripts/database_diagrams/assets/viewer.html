@@ -14,18 +14,15 @@ __VIEWER_CSS__  </style>
       <div class="meta">Source: __SOURCE_TEXT__. Generated: __GENERATED_AT__. Tables: __TABLE_COUNT__.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
-      <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
-      <button id="zoomOut" type="button">-</button>
-      <button id="zoomReset" type="button">Reset</button>
-      <button id="zoomIn" type="button">+</button>
       <button id="toggleIndexes" type="button" aria-pressed="false">Indexes</button>
       <button id="toggleLabels" type="button" aria-pressed="false">Labels</button>
       <button id="toggleConstraints" type="button" aria-pressed="false">Constraints</button>
       <button id="toggleDeleteActions" type="button" aria-pressed="false">Delete actions</button>
-      <button id="resetLayout" type="button">Reset layout</button>
     </div>
   </header>
   <nav id="tabs" class="tabs" aria-label="Diagram views"></nav>
+  <nav id="categoryTabs" class="tabs category-tabs" aria-label="Category views" hidden></nav>
+  <nav id="roleTabs" class="tabs role-tabs" aria-label="Data-role views" hidden></nav>
   <main>
     <details class="info-panel" open>
       <summary>Diagram info</summary>
@@ -53,8 +50,8 @@ __VIEWER_CSS__  </style>
           <span class="legend-row">
             <i class="swatch restrict"></i>RESTRICT intentionally blocks deletion, even mid-cascade.
           </span>
-          <span class="legend-row">Drag table cards or section headers to rearrange a view. Drag either end of a
-            line vertically to re-order where it meets the card.</span>
+          <span class="legend-row">Drag table cards or category titles independently to rearrange a view. Drag
+            either end of a line vertically to re-order where it meets the card.</span>
         </section>
         <section class="panel-section">
           <h3>Color key</h3>

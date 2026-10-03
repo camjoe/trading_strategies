@@ -13,19 +13,22 @@ from dataclasses import fields
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
-from trading.models.books.book_record import BookRecord
-from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
-from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
-from trading.models.parameters.parameter_entry import ParameterEntry
-from trading.models.parameters.parameter_group import ParameterGroup
-from trading.models.parameters.parameter_source_view import ParameterSourceView
+from trading.domain.strategies.parameter_validation import resolve_primitive
+from trading.models.books import BookRecord, BookRotationSettingsRecord
+from trading.models.parameters import (
+    PARAMETER_SOURCE_DB,
+    PARAMETER_SOURCE_DEFAULT,
+    ParameterEntry,
+    ParameterGroup,
+    ParameterSourceView,
+)
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.book_rotation_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.books.rotation import BookRotationScheduleConfig, RotationPolicyConfig
-from trading.services.operational_settings import (
+from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
+from trading.services.operational_settings.queries import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,
@@ -64,26 +67,36 @@ def _effective_entry(name: str, *, raw: object, default: object) -> ParameterEnt
 
 
 def _global_groups(conn: sqlite3.Connection) -> list[ParameterGroup]:
-    has_row = GlobalSettingsRepository(conn).fetch() is not None
-    source = PARAMETER_SOURCE_DB if has_row else PARAMETER_SOURCE_DEFAULT
-    note = None if has_row else NO_SETTINGS_ROW_NOTE
+    record = GlobalSettingsRepository(conn).fetch()
     throttle = fetch_runtime_throttle_settings(conn)
     evaluation = fetch_evaluation_confidence_settings(conn)
     promotion = fetch_promotion_policy_settings(conn)
+
+    def entries(instance: object, prefix: str) -> tuple[ParameterEntry, ...]:
+        return tuple(
+            _effective_entry(
+                field.name,
+                raw=getattr(record, f"{prefix}{field.name}") if record is not None else None,
+                default=getattr(instance, field.name),
+            )
+            for field in fields(instance)  # type: ignore[arg-type]
+        )
+
+    note = NO_SETTINGS_ROW_NOTE if record is None else None
     return [
         ParameterGroup(
             scope="global / trade throttle",
-            entries=_entries_from_dataclass(throttle, source=source),
+            entries=entries(throttle, "runtime_"),
             note=note,
         ),
         ParameterGroup(
             scope="global / evaluation confidence",
-            entries=_entries_from_dataclass(evaluation, source=source),
+            entries=entries(evaluation, "evaluation_"),
             note=note,
         ),
         ParameterGroup(
             scope="global / promotion policy",
-            entries=_entries_from_dataclass(promotion, source=source),
+            entries=entries(promotion, "promotion_"),
             note=note,
         ),
     ]
@@ -98,7 +111,7 @@ def _mandate_group(scope_prefix: str, book: BookRecord) -> ParameterGroup:
             name="goal_max_return_pct", value=_render(book.goal_max_return_pct), source=PARAMETER_SOURCE_DB
         ),
         ParameterEntry(name="goal_period", value=_render(book.goal_period), source=PARAMETER_SOURCE_DB),
-        ParameterEntry(name="trade_universes", value=_render(book.trade_universes), source=PARAMETER_SOURCE_DB),
+        ParameterEntry(name="trade_symbols", value=_render(book.trade_symbols), source=PARAMETER_SOURCE_DB),
     )
     return ParameterGroup(scope=f"{scope_prefix} / mandate", entries=entries)
 
@@ -110,8 +123,8 @@ _EXECUTION_FIELDS = (
     "risk_policy",
     "stop_loss_pct",
     "take_profit_pct",
-    "profit_take_pct",
-    "max_loss_pct",
+    "option_profit_take_pct",
+    "option_max_loss_pct",
     "trade_size_pct",
     "max_position_pct",
     "max_trades_per_run",
@@ -133,9 +146,10 @@ _OPTION_FIELDS = (
 )
 
 
-def _book_columns_group(scope: str, book: BookRecord, fields: tuple[str, ...]) -> ParameterGroup:
+def _book_columns_group(scope: str, book: BookRecord, field_names: tuple[str, ...]) -> ParameterGroup:
     entries = tuple(
-        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB) for name in fields
+        ParameterEntry(name=name, value=_render(getattr(book, name)), source=PARAMETER_SOURCE_DB)
+        for name in field_names
     )
     return ParameterGroup(scope=scope, entries=entries)
 
@@ -196,12 +210,21 @@ def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) 
     ]
 
 
+def _primitive_style(primitive: str) -> str:
+    """The code primitive's style; ``strategies`` no longer stores a copy (revision 0017)."""
+    try:
+        return resolve_primitive(primitive).style
+    except ValueError:
+        return "unresolved"
+
+
 def _strategy_groups(conn: sqlite3.Connection) -> list[ParameterGroup]:
     groups: list[ParameterGroup] = []
     for strategy in StrategyRepository(conn).fetch_all():
         entries = (
             ParameterEntry(name="primitive", value=strategy.primitive, source=PARAMETER_SOURCE_DB),
-            ParameterEntry(name="style", value=strategy.style, source=PARAMETER_SOURCE_DB),
+            # style is code-owned (PrimitiveSpec), derived from the primitive.
+            ParameterEntry(name="style", value=_primitive_style(strategy.primitive), source=PARAMETER_SOURCE_DEFAULT),
             ParameterEntry(name="status", value=strategy.status, source=PARAMETER_SOURCE_DB),
             ParameterEntry(name="enabled", value=_render(bool(strategy.enabled)), source=PARAMETER_SOURCE_DB),
             ParameterEntry(name="params", value=strategy.params_json, source=PARAMETER_SOURCE_DB),
@@ -223,11 +246,14 @@ def fetch_parameter_source_view(
     """
     groups = _global_groups(conn)
 
-    accounts = AccountRepository(conn).fetch_all()
+    account_repo = AccountRepository(conn)
     if account_name is not None:
-        accounts = [account for account in accounts if account.name == account_name]
-        if not accounts:
+        account = account_repo.fetch_by_name(account_name=account_name)
+        if account is None:
             raise NotFoundError(f"Account not found: {account_name}")
+        accounts = [account]
+    else:
+        accounts = account_repo.fetch_all()
     books = BookRepository(conn)
     for account in accounts:
         for book in books.fetch_for_account(account_id=account.id):

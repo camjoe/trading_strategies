@@ -1,4 +1,4 @@
-import { currency } from "../../lib/format";
+import { currency, esc } from "../../lib/format";
 import type { AccountDetail } from "../../types/accounts";
 import type { DetailSectionName } from "./types";
 
@@ -15,6 +15,21 @@ export function renderSummarySection(
   const changeText = snapshotChange == null
     ? "—"
     : `${snapshotChange >= 0 ? "+" : ""}${currency.format(snapshotChange)}`;
+  const latestMetric = detail.bookMetrics?.[0] ?? null;
+  const riskDecisions = detail.riskDecisions ?? [];
+  const operationalSummary = latestMetric || riskDecisions.length
+    ? `<section class="summary-overview-card">
+        <h4>Book Operations</h4>
+        <div class="analysis-summary">
+          <div class="analysis-stat"><span class="label">Metric Date</span><span>${esc(latestMetric?.metricDate ?? "—")}</span></div>
+          <div class="analysis-stat"><span class="label">Return</span><span>${latestMetric?.returnPct == null ? "—" : `${latestMetric.returnPct.toFixed(2)}%`}</span></div>
+          <div class="analysis-stat"><span class="label">Drawdown</span><span>${latestMetric?.drawdownPct == null ? "—" : `${latestMetric.drawdownPct.toFixed(2)}%`}</span></div>
+          <div class="analysis-stat"><span class="label">Risk-adjusted Score</span><span>${latestMetric?.riskAdjustedScore?.toFixed(2) ?? "—"}</span></div>
+          <div class="analysis-stat"><span class="label">Recent Risk Decisions</span><span>${riskDecisions.length}</span></div>
+          <div class="analysis-stat"><span class="label">Latest Decision</span><span>${riskDecisions[0] ? `${esc(riskDecisions[0].action)} — ${esc(riskDecisions[0].reason)}` : "—"}</span></div>
+        </div>
+      </section>`
+    : "";
 
   return `
     <article class="detail-section-panel" data-detail-panel="summary" ${activeSection === "summary" ? "" : "hidden"}>
@@ -65,6 +80,7 @@ export function renderSummarySection(
             </div>
           </div>
         </section>
+        ${operationalSummary}
       </div>
       ${options.showBacktest ? `<div class="latest-backtest-section">
         <h4>Latest Backtest</h4>

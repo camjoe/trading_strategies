@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.portfolio_concentration import PortfolioConcentration
+from trading.models.portfolio import PortfolioConcentration
 from trading.services.analysis.concentration import fetch_portfolio_concentration
 
 

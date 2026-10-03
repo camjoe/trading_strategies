@@ -129,7 +129,7 @@ Findings from the `m1` proof (2026-06-27):
 - **The real per-job cost is moving the test seam, not the code.** Our runtime-job
   tests monkeypatch dependencies as attributes *on the job module*
   (`module.ensure_db`, `module.resolve_accounts`,
-  `module.load_runtime_eligible_account_names`). Once those calls move into the
+  `module.load_account_names`). Once those calls move into the
   shared `job_runner`, every patch that targeted them must move to `job_runner`.
   For `m1` this meant: making the shared `stub_runtime_job_basics` helper patch
   `job_runner` too (additive + `hasattr`-guarded, so un-migrated jobs are

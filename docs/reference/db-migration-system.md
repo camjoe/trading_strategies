@@ -110,7 +110,7 @@ For task-oriented guidance (risk estimation, validation, rollback planning) use 
 ## Tests
 
 - Runtime states (missing/empty, unversioned, behind, at-head, ahead, branched):
-  `tests/src/infrastructure/database/test_db.py`
+  `tests/src/infrastructure/database/test_connection.py`
 - Runner + revision integrity (round-trips, FK actions, no-op at head):
   `tests/src/infrastructure/database/test_migration_runner.py`
 - Operator commands: `tests/scripts/test_manage_db_migrations.py`
@@ -128,11 +128,15 @@ schemas by hand in fixtures.
 `src/infrastructure/database/config.get_db_path()` resolves in this order:
 
 1. `TRADING_DB_PATH` environment variable
-2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
-3. Default: `local/paper_trading.db`
+2. Default: `local/paper_trading.db`
 
-If `db_path` in the config file is relative, it is resolved from the repository root. All paths
-use `pathlib` — never hardcode slash direction.
+To run against a disposable database, use `scripts/launch_sandbox.py` or `scripts/launch_demo.py`
+— both set `TRADING_DB_PATH` for you — or export it yourself for the shell session.
+
+A third source, `db_path` in `local/db_config.json`, was removed: the env var already covers the
+temp-database case, and a config file persists across terminals, so a stale entry silently
+redirects every later command (including `upgrade` and `delete-account`) with nothing on screen to
+say so. All paths use `pathlib` — never hardcode slash direction.
 
 ---
 
@@ -145,6 +149,57 @@ call it automatically before changing a database. Backups remain the recovery me
 discarded by lossy downgrades.
 
 ---
+
+## Squash rollout for deployed databases
+
+The migration chain `0001`–`0031` was squashed to a single `0001` baseline on 2026-09-12. The squash
+changed the code, not any running database. An existing database is still stamped `0031` and fails
+`ensure_db()` until it joins the new chain. The data path is **drop and reseed**; no
+reconcile-and-stamp helper exists. Dev `local/paper_trading.db` is one such database. Confirm the
+staging and prod row counts first.
+
+**Before you drop, confirm the row counts.** `ledger`, `orders`, and `order_fills` are the
+account-accounting source of truth; `AccountState` (cash, positions, realized P&L, `total_deposited`)
+is derived by replaying them. Dev holds zero rows in all three, so the loss is free there. Staging and
+prod may hold real rows. Every history, audit, research, and operational table is dropped and not
+recreated. The pre-drop backup is the only recovery path.
+
+Procedure per database:
+
+1. Confirm the revision and row counts: `python -m scripts.data_ops.manage_db_migrations status`.
+2. Back up the database file. The backup is the only recovery path for the dropped rows.
+3. Drop the file, then `python -m scripts.data_ops.manage_db_migrations upgrade` to build a fresh
+   database at the new `0001`.
+4. Recreate the strategy catalog and default books:
+   `python -m trading.interfaces.runtime.data_ops.seed_clean_schema`.
+5. Recreate accounts and their books through the account-create path (account profiles / CLI). No
+   seeder reproduces the real accounts — the `sandbox`/`demo` fixture profiles build synthetic
+   accounts for a test bed, not the live configuration.
+6. Set `live_trading_enabled = 1` by hand only where an account is meant to trade live. The Live
+   Trading Safety Guard forbids any seed or script from setting it.
+
+### Catalog recreation
+
+| Table | Recreation path |
+|---|---|
+| `accounts` | Manual re-entry through the account-create path (profiles / CLI). No seeder creates real accounts. |
+| `books` | Created with each account; `ensure_default_books` repairs a missing default book for an existing account only. |
+| `book_rotation_settings` | Created with each book; `seed_clean_schema` writes the disabled-rotation defaults. |
+| `strategies` | `seed_strategy_catalog` rebuilds one row per code primitive. Nothing is tuned, so no export is needed. Recreate the alias rows by hand only if you still want the aliases. |
+| `global_settings` | Optional operator overrides; when the row is absent the system uses code defaults. Set values through the settings CLI if wanted. |
+
+### Reseed caveats
+
+- **Do not add a synthetic opening deposit.** `create_account` seeds `initial_cash` and bootstraps
+  the default book's `current_cash` from it; it writes no opening `deposit` ledger row.
+  `load_account_state` computes `total_deposited` only from ledger `deposit`/`withdrawal` entries, so
+  it reports `0.0` for an account that was never manually funded. Cash is still correct, because the
+  replay starts from `initial_cash`. A synthetic opening deposit at reseed double-counts the opening
+  balance.
+- **Seed through the real writers.** A table the seeder cannot populate through application code is a
+  finding about the data model, not a reason to hand-write the `INSERT`. The `sandbox` fixture profile
+  is the checked-in seed definition; a coverage check fails when a new table is neither seeded nor
+  listed in `KNOWN_EMPTY_SANDBOX_TABLES`.
 
 ## Relevant Architecture Conventions
 

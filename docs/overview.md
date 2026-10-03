@@ -1,79 +1,73 @@
-# Trading Strategies - App Overview
+# Project Overview
 
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-13
-Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
-do today (honestly, including known gaps), how it works, and where it is going. The entry point and
-the itemized tracker for what remains.
+Last Reviewed: 2026-08-17
+Purpose: Explain the project's current capabilities, concepts, architecture, limitations, and scope.
 Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
-
-> This document is the definitive guideline for **why/what** and the tracker for what's left. When
-> priorities or capabilities change, update this file first.
 
 ## What this app is
 
-A system for developing, evaluating, and progressively automating quantitative trading strategies.
-It takes a strategy from **backtest → walk-forward → paper → human-gated live**, continuously
-compares strategies against one another, and rotates toward the best performer — with the goal of a
-**data-driven automated trader that switches strategy based on what it evaluates to be most
-effective**, deployable from paper to a live IBKR account in a near-identical way.
-
-Design intent:
-
-- **Try strategies and parameters quickly** — ideally adding strategy variants and accounts as
-  *data*, not code.
-- **One evidence-driven evaluation** feeding comparison, rotation, and promotion decisions.
-- **Human-gated live execution** — automation proposes; a human enables real money.
-- **Scheduler and CLI are the product**; the web UI is an optional view/config convenience.
+A research framework for developing, backtesting, and paper-trading quantitative strategies. It
+supports historical backtesting and walk-forward optimization, simulated execution, strategy
+comparison, and human-reviewed promotion workflows. Broker-connected and live-trading paths are advanced,
+experimental surfaces protected by explicit safety gates.
 
 ## Core concepts (glossary)
 
 - **Account** — the broker/custody entity. Owns the broker connection, the `live_trading_enabled`
-  safety gate, and cash/positions truth. A "test" account is just an account with `broker_type="paper"`.
+  safety gate, and account-wide identity/metadata. Books own execution cash, positions, and settings;
+  account views roll those book records up. A "test" account is just an account with `broker_type="paper"`.
 - **Book** — the execution primitive: a bounded pool of capital inside an account run to one
-  strategy; one broker account can host several independent books. (The earlier "sleeve"
-  virtualization concept was retired 2026-07-09 in favor of books.)
+  strategy; one broker account can host several independent books.
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
-  parameters. 14 are registered today across trend, mean-reversion, oscillator, breakout, and
-  external-data ("alternative") families.
+  parameters across trend, mean-reversion, breakout, and external-data
+  ("alternative") families.
 - **Strategy knobs** — tunable parameters for a strategy primitive. Resolved at runtime from the
   `strategies` catalog row: the primitive's code defaults with the row's `params_json` layered
   on top.
 - **Evaluation** — the canonical `StrategyEvaluationArtifact`: backtest + walk-forward + paper/live
   evidence fused into confidence and a blended decision score.
-- **Rotation** — automated switching of the active strategy, book-keyed, via champion/challenger on
-  the decision-score contract (the account-episode paradigm was retired).
+- **Rotation** — book-keyed switching of the active strategy through a champion/challenger policy
+  using the decision-score contract. For a live-trading account, a challenger must have an approved
+  promotion review before it is eligible to be rotated in; paper accounts rotate unrestricted, since
+  that is how promotion evidence gets gathered.
 - **Promotion** — the human-gated lifecycle (research → paper → live-review) with audit history.
 - **Feature provider** — an external-data source (news, social, policy/ETF-proxy) that influences
   *trade signals* for "alternative" strategies. Feature providers are signal inputs, not evaluation
-  evidence.
-- **Broker / environment** — paper simulator, IBKR Web API, or legacy socket, all behind one
+  evidence: their effect reaches evaluation only through realized paper/live P&L.
+- **Broker / environment** — paper simulator, IBKR Web API, or IBKR socket API, all behind one
   `BrokerConnection` port and factory. Paper vs. IBKR-paper vs. live differ by adapter + the
   `live_trading_enabled` guard, not by separate code paths.
 
 ## What it can do today
 
-- **Multi-strategy backtesting and walk-forward analysis** that run the real strategy signal
-  functions and persist reports.
+- **Multi-strategy backtesting and walk-forward optimization** (`backtest-optimize`) that run the
+  real strategy signal functions, persist completed result trees atomically, distinguish run
+  purpose, and derive experiment/window summaries from member runs. See
+  [ADR 016](adr/016-optimizer-experiments-as-research-evidence.md) for how optimizer experiments
+  count as research evidence.
 - **Canonical evaluation** (`src/trading/services/evaluation/`) fusing backtest, walk-forward, and
   paper/live evidence into confidence + a blended score, exposed through one decision-score contract
   (`EvaluationDecisionScore`).
-- **Promotion workflow** with research/paper/live-review stages, human gate, and append-only audit.
-- **Signal-driven live/paper execution** — selection evaluates the active strategy's signal function
+- **Promotion workflow** with research/paper/live-review stages, a human gate, stable strategy identity,
+  conditional single-close behavior, and chronological event history.
+- **Signal-driven paper and broker-connected execution** — selection evaluates the active strategy's signal function
   per candidate ticker through the same `evaluate_signal(...)` entry the backtester uses: trade only
   on real signals, no forced minimum, a per-run max cap. Rotation changes what the trader actually
-  does (no random/style-biased placeholder).
+  does.
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
 - **Multi-book accounts** — one broker account hosting multiple strategy books, with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
-- **Unified rotation/submission/accounting** — accounts and sleeves converged onto one book-keyed
-  path; rotation is one champion/challenger model on the decision-score contract.
-- **Broker abstraction** — paper adapter, IBKR Web API adapter, legacy socket adapter, behind one
+- **Broker abstraction** — paper, IBKR Web API, and IBKR socket adapters behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
-- **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
-- **Runtime scheduler jobs** (daily backtest refresh, challenger shadow evaluation, governance,
+- **Feature providers** — news, social, and policy (ETF-proxy) sources. Only the policy provider
+  reaches a decision today, as the regime input to rotation's regime-fit component
+  (`services/books/rotation/metrics.py`). News and social are probed by the UI features tab but feed
+  no strategy: feature-driven signals are deferred, not broken. See
+  [Built but not wired up](#built-but-not-wired-up).
+- **Runtime scheduler jobs** (challenger shadow evaluation, governance,
   health checks, reporting) plus a **CLI** and an optional **web UI** (`apps/paper_trading_web`).
 - **Operational settings** (evaluation confidence, promotion policy, trade throttles) and
   **account profiles** for configuration, plus a **unified parameter source**: one `parameters`
@@ -82,19 +76,60 @@ Design intent:
 - **Data-defined strategy variants**: the `strategies` catalog is the canonical runtime source
   for strategy definitions and knobs; operators add and tune variants via `create-strategy-variant`,
   `configure-strategy`, and `freeze-strategy` without a deploy.
+- **Strategy advisor**: a write-once decision ledger (`strategy_decisions`) recording every advisor
+  decision, including holds, with the alternative it rejected; `advisor-digest` for review;
+  `advisor-score` to grade each decision counterfactually once its window closes; `advisor-scorecard`
+  for each agent version's track record (points, mean edge with an interval, regime breakdown); and the
+  `strategy-advisor` skill that runs a session as the judgment layer.
 - **Cross-account portfolio risk rollup**: exposure, symbol concentration/overlap, and sector
   rollup via CLI, API, and a read-only Portfolio UI tab.
 
-## Known gaps / honest current state
+## Built but not wired up
 
-These are real and shape the plan. None are hidden by the UI — they are core-logic gaps.
+Code that exists, passes tests, and is *not* reached by any CLI command, runtime job, or API route.
+Listed because it reads as working capability from the inside and as dead code from the outside, and
+is neither. Established by tracing every entrypoint (2026-08-09); re-derive rather than trust this
+list if it has aged.
 
-- **New signal *logic* is still a code change.** The `strategies` catalog is canonical for
-  strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
-  runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
-  + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
-- **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per settings
-  row; a change-audit log stays deferred until edit volume justifies it.
+- **Feature-driven strategies are deferred by decision.** Signals reading external features were
+  scoped and put on hold; the provider implementations stay in `infrastructure/feature_providers/`
+  for when it resumes, and `FeatureFetcherSet` keeps its shape. Nothing consumes news or social
+  today: `build_feature_history_fn` yields features only for `strategy_style == "alternative"`,
+  `_ALTERNATIVE_FEATURE_FETCHER_ATTRS` is empty, and all eight registered strategies are `trend` or
+  `mean_reversion`. The daily run no longer wires those two fetchers. The **policy** provider is not
+  in this bucket: it is genuinely live, supplying `fetch_regime` to rotation's regime-fit component
+  from both the trading run and the shadow-eval job.
+- **Feature-provider enablement is not data.** Providers are constructed unconditionally at the
+  composition root, so nothing ever read the `feature_providers` table. Its repository, record, and
+  fixture seeding were deleted on 2026-08-10; the table itself was dropped in the migration squash.
+  Re-enabling the deferred work above needs no catalog — only the provider implementations, which
+  are untouched.
+
+## Known limitations
+
+- **New signal *logic* is a code change.** The `strategies` catalog is canonical for strategy
+  definitions and knobs — variants and tuning are data, editable via CLI and resolved at runtime from
+  catalog rows. A genuinely new *signal primitive* needs a new signal function + `PRIMITIVE_CATALOG`
+  entry: the catalog composes primitives, and there is no scripting layer for new logic.
+- **No single-day risk figures.** `daily_metrics.drawdown_pct` and `risk_snapshots.daily_loss_pct`
+  are always `NULL`: both need intraday equity this codebase does not persist, and a trailing-history
+  figure cannot stand in for one day's. Other columns are populated, several of them conditionally —
+  [Performance and Risk Tables](reference/performance-and-risk-tables.md) owns the full contract.
+- **Unpriced held positions halt a book, and the two equity paths disagree on how to value them
+  (mitigated, deeper dive pending).** Book NAV marks an unpriced position to cost
+  (`services/execution/nav.py`), while the equity snapshot skips it entirely
+  (`domain/metrics/portfolio_math.py::compute_market_value_and_unrealized`). Those are the two
+  aggregates `services/execution/equity_reconciliation.py::reconcile_book_equity` compares, so any held symbol
+  with no live price makes them diverge by the position's cost basis — enough to trip the `$0.01`
+  reconciliation tolerance. The runtime now detects unpriced symbols at the NAV pre-flight and holds
+  the book on an explicit `unpriced_position` kill switch, skipping the reconciliation whose result
+  would otherwise report a misleading `reconciliation_mismatch`
+  (`services/auto_trading/runtime.py::_run_books_for_account`). That makes the halt honest but does
+  not resolve the root inconsistency: the two equity paths still use opposite unpriced fallbacks
+  (skip vs. cost). A deeper dive should settle the intended contract — whether an unpriced held
+  position should halt trading at all, and if so which fallback both paths should share — and revisit
+  whether the reconciliation tolerance can distinguish a genuine fill-vs-rollup drift from a pricing
+  gap. Surfaced by the 2026-08-17 books/execution review.
 
 ## How it works (architecture)
 
@@ -102,53 +137,35 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   lowest passive-data layer. Enforced by `scripts/checks/repo/layer_check.py`. See
   [architecture conventions](architecture/architecture-conventions.md).
 - **Interface primacy:** the scheduler (runtime jobs) and CLI are the primary drivers; the web UI is
-  an optional consumer over the same `src/trading/` services. Every capability must be reachable from
-  the scheduler/CLI without the UI; contracts are never shaped around the UI.
+  an optional consumer over the same `src/trading/` services. What that requires of new work is in
+  [architecture conventions](architecture/architecture-conventions.md).
 - **Broker seam:** service/domain code depends only on the `BrokerConnection` port; the factory is
   the sole place broker routing and the `live_trading_enabled` guard live. A new environment is one
-  adapter + one factory branch.
+  adapter + one factory branch. No automated process sets `live_trading_enabled` — automation
+  evaluates and proposes, a human decides whether real money can move.
 - **Feature-provider isolation:** external API libraries are imported only inside
   `src/infrastructure/feature_providers/`; the interface layer wires them in.
-- **Persistence:** SQLite with a hand-rolled migration system
+- **Persistence:** SQLite with a linear, numbered Alembic migration system
   ([reference](reference/db-migration-system.md)).
 - **Directory maps:** [trading package map](maps/trading-package-map.md),
   [UI map](maps/ui-map.md), [scripts map](maps/scripts-map.md).
 
 ## How you operate it
 
-- **Primary:** runtime scheduler jobs and CLI commands, run from the repo root with the venv
-  interpreter (see [runbooks](runbooks/README.md) and `AGENTS.md`). Configuration is via account
-  profiles, operational settings, and DB entries.
+- **Primary:** runtime scheduler jobs and CLI commands, run from the repository root with the virtual
+  environment active. Configuration is via account profiles, operational settings, and database
+  entries. See the [runtime jobs reference](reference/runtime-jobs.md) and
+  [operator runbooks](runbooks/README.md).
 - **Optional:** the `apps/paper_trading_web` UI for viewing results and account configuration.
-- **Adding data:** new accounts and new strategy variants are data changes today (variants via the
-  `strategies` catalog); new signal *logic* and new feature providers remain contained code
-  additions.
+- **Adding an account or a strategy variant:** a data change — accounts via profiles, variants via
+  the `strategies` catalog. No deploy.
 
-## Direction and plan
+## Scope boundaries
 
-The strategic order here is the north star (the "why/what") and the authoritative, itemized tracker
-for what is left. Today's delivered capabilities are in "What it can do today" above; durable
-decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
-
-The completed sleeve-retirement, book-rotation, and Alembic baseline-transition cutovers have all
-been retired. Schema changes now ship as numbered Alembic revisions — see
-[db-migration-system.md](reference/db-migration-system.md). No one-time deployment steps are
-currently pending.
-
-## Guiding constraints
-
-- **Live execution stays explicitly human-gated** — no automated process sets `live_trading_enabled`.
-- **Interface primacy** — scheduler/CLI first, UI optional; logic lives in `src/trading/`.
-- **UI follows the contract, per feature** — never designed on unsettled contracts.
-- **Signal primitives are code; strategy definitions/params are data** — no arbitrary-logic scripting
-  DSL.
-- **Feature providers are signal inputs, not evaluation evidence** — their effect reaches evaluation
-  only through realized paper/live P&L.
-- **One evidence-driven evaluation** backs comparison, rotation, and promotion.
-
-## Out of scope (do not silently re-add)
-
-- **Trends workflow integration into API/UI** — `apps/trends/` stays a standalone CLI.
-- **Non-proxy alternative-data expansion** — ETF-proxy feature providers are sufficient for now.
-- **Native `IbApiClient` socket path** — the Client Portal / Web API client is the active IBKR
-  integration; the legacy socket path stays documented stubs only.
+- **Trends workflow** — `apps/trends/` is a standalone CLI, reachable only from the command line.
+- **Alternative data** — policy signals are derived from ETF proxies, not from policy datasets
+  directly.
+- **IBKR connectivity** — the Client Portal / Web API is the primary integration; a TWS/IB Gateway
+  socket integration exists alongside it, over `ib_async` or a native `ibapi` client. See
+  [broker integration](reference/broker-integration.md) for what each transport supports and
+  [ADR 018](adr/018-broker-transport-venue-matrix.md) for how transport and venue are modelled.

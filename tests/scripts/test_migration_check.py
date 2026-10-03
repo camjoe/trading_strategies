@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.checks.repo import migration_check
 
 REPO_ROOT = get_repo_root(__file__)

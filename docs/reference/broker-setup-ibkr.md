@@ -53,8 +53,7 @@ Or set individual environment variables — see [Broker Integration Reference �
 4. **Verify connectivity** with the smoke test:
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test   # Windows
-.venv/bin/python -m scripts.ibkr_web_api_smoke_test        # macOS/Linux
+python -m scripts.ibkr_web_api_smoke_test
 ```
 
 5. **Run the module or script** as needed.
@@ -77,13 +76,13 @@ file under `local/` or another ignored private path.
 Read-only test — validates session, auth, account visibility, ledger, and positions:
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test
+python -m scripts.ibkr_web_api_smoke_test
 ```
 
 Optional paper-order lifecycle check (paper account only):
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test \
+python -m scripts.ibkr_web_api_smoke_test \
   --paper-order-check \
   --paper-order-symbol AAPL \
   --paper-order-limit-price 1.00

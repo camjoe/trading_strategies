@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 import paper_trading_web.backend.services.promotion as promotion_module
+import pytest
 from paper_trading_web.backend.services.promotion import (
     _normalize_optional_text,
     build_promotion_overview,
 )
+
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
@@ -64,7 +64,7 @@ class TestBuildPromotionOverview:
             ),
             walk_forward=EvaluationWalkForwardEvidence(
                 available=True,
-                grouped=True,
+                window_returns=[1.0, 2.0],
                 average_return_pct=3.4,
                 best_return_pct=5.6,
                 worst_return_pct=-1.2,
@@ -91,7 +91,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             lambda *_a, **_kw: (self._make_evaluation(), assessment),
         )
         monkeypatch.setattr(
@@ -106,7 +106,7 @@ class TestBuildPromotionOverview:
         assert result["history"] == [{"review": {"score": 0.8}, "events": [{"kind": "snapshot"}]}]
         assert result["evaluation"]["backtest"]["returnPct"] == pytest.approx(12.5)
         assert result["evaluation"]["backtest"]["tradeCount"] == 42
-        assert result["evaluation"]["walkForward"]["grouped"] is True
+        assert result["evaluation"]["walkForward"]["windowCount"] == 2
         assert result["evaluation"]["paperLive"]["strategyIsolated"] is True
         assert result["evaluation"]["confidence"]["blendedScore"] == pytest.approx(8.9)
         assert result["evaluation"]["dataGaps"] == ["missing_walk_forward_evidence"]
@@ -120,7 +120,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             _capture_snapshot,
         )
         monkeypatch.setattr(
@@ -145,7 +145,7 @@ class TestBuildPromotionOverview:
             history_calls.append(strategy_name)
             return []
 
-        monkeypatch.setattr(promotion_module, "fetch_current_promotion_snapshot", _capture_snapshot)
+        monkeypatch.setattr(promotion_module, "fetch_promotion_snapshot", _capture_snapshot)
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)
 
         build_promotion_overview(conn, account_name="acct_test", strategy_name="  trend_v1  ")
@@ -162,7 +162,7 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_snapshot",
+            "fetch_promotion_snapshot",
             lambda *_a, **_kw: (self._make_evaluation(), self._make_assessment()),
         )
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)

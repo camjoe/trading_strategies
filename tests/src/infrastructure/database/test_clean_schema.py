@@ -5,21 +5,15 @@ Covers the additive clean-schema tables. Colliding legacy tables
 to their clean shapes separately.
 """
 
-from pathlib import Path
-
-import pytest
 import sqlite3
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
-from infrastructure.database.connection import ensure_db
-from tests.support.db_schema import build_db_at_head
+import pytest
 
 NEW_TABLES = {
     "books",
     "strategies",
-    "feature_providers",
     "book_rotation_settings",
-    "book_strategy_assignments",
+    "book_strategy_history",
     "orders",
     "positions",
     "ledger",
@@ -28,21 +22,10 @@ NEW_TABLES = {
 }
 
 
-@pytest.fixture
-def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(build_db_at_head(tmp_path / "paper_trading.db")))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
-
-
 def _insert_account(conn, name: str = "acct_books") -> int:
     cursor = conn.execute(
-        "INSERT INTO accounts (name, initial_cash, created_at) VALUES (?, 5000, '2026-07-03T00:00:00Z')",
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) "
+        "VALUES (?, 5000, '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')",
         (name,),
     )
     return int(cursor.lastrowid)
@@ -53,8 +36,8 @@ def _insert_book(conn, account_id: int, name: str = "default", is_default: int =
         """
         INSERT INTO books (
             account_id, name, status, is_default, start_equity, current_cash,
-            current_equity, trade_universes, created_at, updated_at
-        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["default"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
+            current_equity, trade_symbols, created_at, updated_at
+        ) VALUES (?, ?, 'active', ?, 5000, 5000, 5000, '["AAPL","MSFT"]', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (account_id, name, is_default),
     )
@@ -65,8 +48,8 @@ def _insert_strategy(conn, key: str = "trend") -> int:
     cursor = conn.execute(
         """
         INSERT INTO strategies (
-            strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-        ) VALUES (?, 'trend', '{"fast_window": 10}', 'trend', 'draft', 1,
+            strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+        ) VALUES (?, 'trend', '{"fast_window": 10}', 'draft', 1,
                   '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
         """,
         (key,),
@@ -104,10 +87,10 @@ def test_one_open_assignment_per_book_enforced(conn) -> None:
     def _insert_assignment(effective_to: str | None) -> None:
         conn.execute(
             """
-            INSERT INTO book_strategy_assignments (
-                book_id, strategy_id, effective_from, effective_to, is_incumbent,
+            INSERT INTO book_strategy_history (
+                book_id, strategy_id, effective_from, effective_to,
                 created_at, updated_at
-            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?, 1,
+            ) VALUES (?, ?, '2026-07-03T00:00:00Z', ?,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """,
             (book_id, strategy_id, effective_to),
@@ -150,8 +133,8 @@ def test_strategies_status_vocabulary_enforced(conn) -> None:
         conn.execute(
             """
             INSERT INTO strategies (
-                strategy_key, primitive, params_json, style, status, enabled, created_at, updated_at
-            ) VALUES ('bad_status', 'trend', '{}', 'trend', 'archived', 1,
+                strategy_key, primitive, params_json, status, enabled, created_at, updated_at
+            ) VALUES ('bad_status', 'trend', '{}', 'archived', 1,
                       '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')
             """
         )

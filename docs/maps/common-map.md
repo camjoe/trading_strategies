@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-25
 Purpose: Inventory the `src/common/` shared kernel — small, dependency-light utilities imported across `src/trading`, `src/infrastructure`, `apps/`, and `scripts/`.
 Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](infrastructure-map.md)
 
@@ -16,22 +16,17 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | Module | Responsibility |
 |---|---|
 | `coercion.py` | Defensive value/row coercion helpers (`coerce_float`, `row_expect_float/int/str`, `row_float`) |
-| `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, …) |
+| `json_columns.py` | The one wire format for JSON stored in a database column — `dumps_json_column` writes it, `row_json_object` reads it back |
+| `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, money/quantity minor-unit scales, …) |
+| `money.py` | Pure scale conversion between a `Decimal` and integer minor units (`to_minor_units`, `from_minor_units`, `truncate_to_scale`) with one swappable rounding policy |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
+| `git.py` | Best-effort git interrogation of the checkout — arbitrary commands (`run_git`), repo-root discovery (`get_repo_root`), and HEAD revision for provenance (`git_head_revision`) |
+| `logging_setup.py` | Central stdlib-logging config for runtime jobs (`configure_logging`), a per-run correlation id (`bind_run_id`/`resolve_run_id`/`current_run_id`), and a WARNING+ tally (`log_counts`) |
+| `paths.py` | Repo-relative path constants (`REPO_ROOT`, `LOCAL_DIR`, `LOGS_DIR`, …) and path display formatting (`relative_posix`) |
+| `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
 | `tickers.py` | Ticker-file parsing (`parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |
 | `time.py` | Timezone-aware time helpers (`utc_now_iso`, `parse_utc_iso`) |
-| `runtime_job_status.py` | Shared runtime job-status types used by jobs and reporting |
-
-### `src/common/paths/`
-
-Path resolution helpers.
-
-| Module | Responsibility |
-|---|---|
-| `executables.py` | Repo-local executable resolution helpers (`resolve_repo_python_exe`) |
-| `formatting.py` | Cross-platform path display formatting helpers (`relative_posix`) |
-| `repo_paths.py` | Repo-root discovery (`get_repo_root`) for path-relative resolution |
-| `project_paths.py` | Project data paths (incl. frozen back-compat data locations) |
+| `runtime_job_status.py` | Runtime job completion sentinels and run/step status vocabulary, imported directly by runtime jobs and the web backend |
 
 ## Related References
 

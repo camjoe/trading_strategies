@@ -22,7 +22,7 @@ Run these from the repository root:
 ```sh
 python -m scripts.run_checks quick
 python -m scripts.fix_checks
-python -m scripts.checks.docs.readme_check --max-age-days 90
+python -m scripts.checks.docs.readme_check
 python -m scripts.documentation_ui.check
 ```
 
@@ -39,7 +39,11 @@ Repository workflow scripts (`scripts/`):
 - `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync, and the docs drift fixers under `scripts/fixes/`).
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
+- `launch_demo.py`: rebuilds the isolated synthetic offline demo database (`demo` fixture profile) and launches the UI stack.
+- `launch_sandbox.py`: restores the disposable sandbox database (`sandbox` fixture profile) from its cached golden build and launches the UI stack. Nothing written to the sandbox survives the next run; `--rebuild` regenerates the golden, `--no-ui` restores it without starting the UI.
+- `fixture_db.py`: shared build/publish helpers behind both launchers (migrate-and-seed, golden fingerprinting, throwaway checkout).
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
+- `ibkr_socket_smoke_test.py`: manual IBKR socket/TWS connectivity check against a local TWS or IB Gateway. Takes host/port/client-id as flags and never touches the database. Read-only by default; `--paper-order-check` additionally exercises the submit/read-back/cancel round trip against a paper account only. Usage notes live in `docs/runbooks/ibkr-paper-trading.md`.
 
 Documentation page workflows:
 
@@ -87,8 +91,6 @@ Data operation scripts (`scripts/data_ops/`):
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
 - `build_database_diagram_viewer.py`: Trading Strategies adapter that builds the checked-in interactive HTML database diagram viewer in `docs/reference/database-diagram-viewer.html` for table and FK relationship review.
 - `describe_db_schema.py`: prints the current database schema from either an in-memory database built from the Alembic migration chain or the configured live SQLite database.
-- `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
-- `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 
 Reusable database diagram scripts (`scripts/database_diagrams/`):
 
@@ -102,7 +104,6 @@ Reusable database diagram scripts (`scripts/database_diagrams/`):
 ```sh
 # Canonical operator-facing entrypoints
 python -m trading.interfaces.runtime.data_ops.admin backup-db
-python -m trading.interfaces.runtime.data_ops.csv_export
 
 # Convenience wrappers
 python -m scripts.data_ops.backup_db
@@ -111,12 +112,10 @@ python -m scripts.database_diagrams.sqlite --database local/example.db --output-
 python -m scripts.database_diagrams.render_html --schema-json local/schema.json --output local/database-diagram.html
 python -m scripts.data_ops.describe_db_schema
 python -m scripts.data_ops.describe_db_schema --source live
-python -m scripts.data_ops.export_db_csv --tables accounts,trades
-python -m scripts.data_ops.export_db_csv_zip
 ```
 
-Treat `src/trading/interfaces/runtime/data_ops/` as the canonical home for backup,
-export, and delete flows. The `scripts.data_ops.*` modules exist as convenience
+Treat `src/trading/interfaces/runtime/data_ops/` as the canonical home for backup
+and delete flows. The `scripts.data_ops.*` modules exist as convenience
 entrypoints, not as the primary ownership location.
 
 What should not go here:
@@ -176,6 +175,6 @@ python -m scripts.checks.quick
 python -m scripts.checks.ci
 
 # Focused docs checker
-python -m scripts.checks.docs.readme_check --max-age-days 90
-python -m scripts.checks.docs.readme_check --enforce-style --enforce-staleness
+python -m scripts.checks.docs.readme_check
+python -m scripts.checks.docs.readme_check --enforce-style
 ```

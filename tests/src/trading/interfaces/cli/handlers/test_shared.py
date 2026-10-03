@@ -37,8 +37,8 @@ def _args(**kwargs) -> types.SimpleNamespace:
         iv_rank_min=None,
         iv_rank_max=None,
         roll_dte_threshold=None,
-        profit_take_pct=None,
-        max_loss_pct=None,
+        option_profit_take_pct=None,
+        option_max_loss_pct=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)
@@ -71,7 +71,6 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
 
     assert isinstance(result, AccountConfig)
     assert set(f.name for f in dataclasses.fields(result)) == {
-        "account_kind",
         "descriptive_name",
         "goal_min_return_pct",
         "goal_max_return_pct",
@@ -82,6 +81,7 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
         "take_profit_pct",
         "trade_size_pct",
         "max_position_pct",
+        "max_trades_per_run",
         "instrument_mode",
         "option_strike_offset_pct",
         "option_min_dte",
@@ -94,8 +94,8 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
         "iv_rank_min",
         "iv_rank_max",
         "roll_dte_threshold",
-        "profit_take_pct",
-        "max_loss_pct",
+        "option_profit_take_pct",
+        "option_max_loss_pct",
         "trade_universes",
     }
 
