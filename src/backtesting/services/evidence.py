@@ -58,7 +58,7 @@ def _backtest_evidence(
 
     An upper bound rather than a like-for-like reading when the experiment
     *targeted* this strategy instead of producing it — the holdout ran the tuned
-    winner's parameters, not the strategy's defaults. Evidence attributed via
+    winner's parameters, not the strategy's own. Evidence attributed via
     ``promoted_strategy_id`` has no such gap.
     """
     if experiment is None or experiment.holdout_run_id is None:

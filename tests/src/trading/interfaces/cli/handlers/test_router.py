@@ -10,6 +10,7 @@ from trading.interfaces.cli.handlers.router import COMMAND_HANDLERS, dispatch_co
 _EXPECTED_COMMANDS = {
     "init",
     "create-account",
+    "assign-strategy",
     "configure-account",
     "set-benchmark",
     "list-accounts",
@@ -43,6 +44,10 @@ _EXPECTED_COMMANDS = {
     "backtest-optimize",
     "backtest-optimize-show",
     "backtest-optimize-promote",
+    "advisor-record",
+    "advisor-digest",
+    "advisor-score",
+    "advisor-scorecard",
 }
 
 

@@ -30,6 +30,22 @@ def is_regular_us_equity_market_open(at: datetime | None = None) -> bool:
     return US_EQUITY_MARKET_OPEN_TIME <= current_time < _market_close_time_for_date(current_date)
 
 
+def add_us_equity_trading_days(start: date, days: int) -> date:
+    """The date ``days`` NYSE trading days after ``start``, skipping weekends and full holidays.
+
+    ``start`` itself is not counted, so one trading day after a Friday is the following Monday.
+    """
+    if days < 0:
+        raise ValueError("days must be non-negative.")
+    current = start
+    remaining = days
+    while remaining > 0:
+        current += timedelta(days=1)
+        if _is_us_equity_trading_day(current):
+            remaining -= 1
+    return current
+
+
 def _is_us_equity_trading_day(current_date: date) -> bool:
     if current_date.weekday() < US_EQUITY_FIRST_TRADING_WEEKDAY:
         return False

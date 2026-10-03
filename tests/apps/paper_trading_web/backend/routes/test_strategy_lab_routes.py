@@ -132,7 +132,7 @@ def test_run_optimization_delegates_to_honest_walk_forward_service(api_client: T
         strategy="trend",
         account_name="acct",
         objective_name="calmar_v1",
-        default_params={},
+        baseline_params={},
         experiment_id=42,
     )
     with patch(

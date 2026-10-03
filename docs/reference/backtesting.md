@@ -68,6 +68,10 @@ to tighten into confidence decay or a hard gate.
 - By default a backtest runs the account's active strategy — the default book's open assignment
   (ADR 014). Pass `--strategy` to backtest a specific strategy instead (e.g. a rotation challenger);
   rotation scores challengers through the same evidence path.
+- A strategy key resolves through its `strategies` catalog row, the same way live trading resolves it:
+  a variant runs its primitive with its own `params_json` knobs over the code defaults, and the run is
+  filed under the variant's key. A label with no catalog row falls back to the code registry (aliases
+  and keyword matching) with the primitive's defaults, and the run carries a warning saying so.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
 
@@ -116,7 +120,13 @@ engine versions should be recorded well enough to audit how a winner was selecte
 compare window stability and chronologically compounded OOS returns rather than summing independently
 reset account equity values. Model fees and slippage on every candidate and disclose turnover so a
 high-churn parameter set is not selected on gross returns, and compare a tuned winner against the
-strategy's existing default parameters, not only the benchmark.
+strategy's existing parameters, not only the benchmark.
+
+The optimizer's baseline is the target strategy's catalog parameters — what it trades with today —
+and every candidate is layered over them. For a base primitive those are the code defaults; for a
+variant they include its `params_json`, so re-tuning a variant asks whether the search beats the
+variant as it trades. The persisted winner params carry the target's own overrides under the
+searched knobs, so a promoted variant trades exactly what the holdout ran.
 
 ## Optimize → Promote Loop
 
@@ -165,7 +175,7 @@ Two follow-on commands operate on a stored experiment:
 Promotion is **quality-gated by default** (`evaluate_promotion_gate` in
 src/trading/domain/promotion — promotion policy, so it sits with the other gates rather
 than in the research package it reads evidence from): beyond the existence/not-failed/not-already-promoted
-checks, the winner must beat its own default on **all three** of — mean OOS return, a strict majority
+checks, the winner must beat its baseline on **all three** of — mean OOS return, a strict majority
 of OOS windows (`oos_windows_beat_baseline > window_count / 2`; a good mean can mask a coin-flip
 per-window record), and the untouched holdout return. Missing evidence on either side of any comparison
 fails that condition — no evidence is not a pass. A failing gate raises with the specific reasons it
@@ -288,6 +298,9 @@ python -m trading.interfaces.cli.main backtest-bench
 python -m trading.interfaces.cli.main backtest-bench --strategies trend,mean_reversion \
     --scenarios sharp_crash,strong_uptrend --paths 50
 ```
+
+`--strategies` takes catalog keys as well as primitive names: a variant runs with its own
+`params_json` knobs under its own key, so a candidate can be screened against its incumbent.
 
 Two honesty properties, by design:
 

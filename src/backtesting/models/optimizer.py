@@ -103,7 +103,7 @@ class RunOutcome:
 @dataclass(frozen=True)
 class WindowSelection:
     """The winner chosen on a window's training interval, plus its OOS evidence and
-    the default-parameter baseline over the same OOS interval.
+    the catalog-parameter baseline over the same OOS interval.
 
     ``candidates`` holds every evaluated candidate for the window (the winner among
     them), so the full attempted search — not just the winner — can be persisted as
@@ -121,7 +121,7 @@ class WindowSelection:
 @dataclass(frozen=True)
 class HoldoutOutcome:
     """The forward-carried winner's parameters run once over the untouched holdout,
-    beside the default-parameter baseline over the same interval."""
+    beside the catalog-parameter baseline over the same interval."""
 
     holdout_start: date
     holdout_end: date
@@ -133,8 +133,13 @@ class HoldoutOutcome:
 @dataclass(frozen=True)
 class OptimizationSummary:
     """Full result of one optimization experiment: per-window selections, holdout
-    evidence, and the strategy's default params for side-by-side comparison. Training,
+    evidence, and the baseline params for side-by-side comparison. Training,
     OOS, and holdout evidence are kept distinct and never blended.
+
+    ``baseline_params`` are the target's catalog params — code defaults with its
+    ``params_json`` layered on, as it trades. ``promotion_params`` are the knobs a
+    promoted variant needs to trade what the holdout ran: the target's own
+    overrides under the forward-carried winner's searched knobs.
 
     ``experiment_id`` is the persisted ``optimization_experiments`` row id — the handle
     a later promotion (``backtest-optimize-promote``) resolves the winner from."""
@@ -142,7 +147,8 @@ class OptimizationSummary:
     strategy: str
     account_name: str
     objective_name: str
-    default_params: dict[str, Any]
+    baseline_params: dict[str, Any]
+    promotion_params: dict[str, Any] = field(default_factory=dict)
     windows: list[WindowSelection] = field(default_factory=list)
     holdout: HoldoutOutcome | None = None
     experiment_id: int | None = None
@@ -172,8 +178,9 @@ class OptimizationExperimentInsert:
 
     Carries the run config, the forward-carried winner (the promotion candidate),
     a small OOS aggregate, and the untouched-holdout summary. Baseline numbers are
-    summarized here because the optimizer runs the default-parameter baseline
+    summarized here because the optimizer runs the catalog-parameter baseline
     metrics-only (it is never persisted as a ``backtest_runs`` row).
+    ``winner_params_json`` holds ``OptimizationSummary.promotion_params``.
 
     ``status``/``failure_stage``/``failure_message`` record a failed run (see
     ``ExperimentStatus``/``FailureStage``); for a failed row, ``winner_params_json``

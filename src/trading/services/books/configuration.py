@@ -13,6 +13,7 @@ from trading.models.books import BookRecord
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.books.book_assignments import (
     assign_book_strategy,
     open_assignment_for_book,
@@ -134,3 +135,32 @@ def configure_book(
             write_book_rotation_scheduling(conn, book_id=book.id, updates=rotation_scheduling)
         if rotation_policy:
             write_book_rotation_policy(conn, book_id=book.id, updates=rotation_policy)
+
+
+def assign_catalog_strategy(
+    conn: sqlite3.Connection,
+    *,
+    account_name: str,
+    book_name: str | None,
+    strategy_key: str,
+) -> tuple[str | None, str]:
+    """Assign an existing, enabled catalog strategy to a book; return (previous, new) strategy keys.
+
+    ``book_name`` None means the account's default book. Unlike the label path behind
+    ``configure_book``, an unknown key raises instead of minting a draft strategy row, so a
+    mistyped name cannot assign a strategy that does not exist.
+    """
+    record = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_key.strip().lower())
+    if record is None:
+        raise NotFoundError(f"No strategy catalog row for '{strategy_key}'.")
+    if not record.enabled:
+        raise ValidationError(f"Strategy '{record.strategy_key}' is disabled.")
+    book = fetch_account_book(conn, account_name=account_name, book_name=book_name)
+    current = open_assignment_for_book(conn, book_id=book.id)
+    if current is not None and current.strategy_id == record.id:
+        raise ValidationError(f"Book '{book.name}' already runs '{record.strategy_key}'.")
+    with unit_of_work(conn):
+        assigned = assign_book_strategy(
+            conn, book_id=book.id, strategy_name=record.strategy_key, now_iso=utc_now_iso()
+        )
+    return (current.strategy_name if current is not None else None), assigned.strategy_name

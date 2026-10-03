@@ -165,3 +165,37 @@ def test_live_trading_enabled_defaults_to_disabled(migrated_conn: Any) -> None:
     # trading by default.
     columns = {row[1]: row for row in migrated_conn.execute("PRAGMA table_info(accounts)")}
     assert str(columns["live_trading_enabled"][4]) == "0"
+
+
+def test_0004_downgrade_keeps_decision_rows_and_the_write_once_trigger(migrated_conn: Any) -> None:
+    ts = "2026-10-01T00:00:00Z"
+    account_id = migrated_conn.execute(
+        "INSERT INTO accounts (name, initial_cash, created_at, updated_at) VALUES ('acct', 1000, ?, ?)", (ts, ts)
+    ).lastrowid
+    strategy_ids = [
+        migrated_conn.execute(
+            "INSERT INTO strategies (strategy_key, primitive, params_json, created_at, updated_at)"
+            " VALUES (?, 'trend', '{}', ?, ?)",
+            (key, ts, ts),
+        ).lastrowid
+        for key in ("chosen", "rejected")
+    ]
+    migrated_conn.execute(
+        "INSERT INTO strategy_decisions (account_id, strategy_id, alternative_strategy_id, decision_type,"
+        " rationale, evidence_json, decided_by, created_at) VALUES (?, ?, ?, 'hold', 'kept', '{}', 'agent', ?)",
+        (account_id, *strategy_ids, ts),
+    )
+    migrated_conn.commit()
+    expected = _structure(migrated_conn)
+
+    migration_runner.downgrade("0003", connection=migrated_conn)
+
+    columns = {row[1] for row in migrated_conn.execute("PRAGMA table_info(strategy_decisions)")}
+    assert "alternative_strategy_id" not in columns
+    assert migrated_conn.execute("SELECT rationale FROM strategy_decisions").fetchall()[0][0] == "kept"
+    assert migrated_conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    with pytest.raises(sqlite3.IntegrityError, match="write-once"):
+        migrated_conn.execute("UPDATE strategy_decisions SET rationale = 'edited'")
+
+    migration_runner.upgrade("head", connection=migrated_conn)
+    assert _structure(migrated_conn) == expected

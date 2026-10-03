@@ -4,6 +4,7 @@ from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
 from trading.services.accounts.listing import fetch_account_listing_lines
 from trading.services.accounts.mutations import configure_account, create_account, set_benchmark
+from trading.services.books.configuration import assign_catalog_strategy
 from trading.services.execution.ledger.mutations import record_trade
 
 
@@ -40,6 +41,21 @@ def handle_configure_account(conn, args, parser, *, ctx: CliContext) -> None:
         config=config,
     )
     print(f"Updated account configuration for '{args.account}'.")
+
+
+def handle_assign_strategy(conn, args, parser, *, ctx: CliContext) -> None:
+    try:
+        previous, assigned = assign_catalog_strategy(
+            conn,
+            account_name=args.account,
+            book_name=args.book,
+            strategy_key=args.strategy,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+    book_label = args.book or "default book"
+    print(f"Assigned '{assigned}' to {args.account} ({book_label}); previously '{previous or 'none'}'.")
 
 
 def handle_set_benchmark(conn, args, parser, *, ctx: CliContext) -> None:

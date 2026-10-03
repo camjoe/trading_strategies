@@ -61,6 +61,7 @@ JOIN books b ON b.id = s.book_id
 _ACCOUNT_NEWEST_FIRST = "s.snapshot_time DESC, id DESC"
 _ACCOUNT_OLDEST_FIRST = "s.snapshot_time ASC, id ASC"
 _BOOK_NEWEST_FIRST = "s.snapshot_time DESC, s.id DESC"
+_BOOK_OLDEST_FIRST = "s.snapshot_time ASC, s.id ASC"
 
 
 class EquitySnapshotRepository:
@@ -165,6 +166,20 @@ class EquitySnapshotRepository:
 
     def fetch_first_at_or_after(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
         return self._fetch_one(_ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND, _ACCOUNT_OLDEST_FIRST, (account_id, iso))
+
+    def fetch_first_for_book_at_or_after(self, *, book_id: int, iso: str) -> EquitySnapshotRecord | None:
+        """Earliest raw snapshot for one book at or after ``iso``."""
+        return self._fetch_one(
+            f"{_BOOK_ROW_SELECT} WHERE s.book_id = ? AND s.snapshot_time >= ?",
+            _BOOK_OLDEST_FIRST,
+            (book_id, iso),
+        )
+
+    def fetch_latest_for_book(self, *, book_id: int) -> EquitySnapshotRecord | None:
+        return self._fetch_one(f"{_BOOK_ROW_SELECT} WHERE s.book_id = ?", _BOOK_NEWEST_FIRST, (book_id,))
+
+    def fetch_count_for_book_since(self, *, book_id: int, iso: str) -> int:
+        return self._count_snapshot_times("WHERE s.book_id = ? AND s.snapshot_time >= ?", (book_id, iso))
 
     def fetch_last_for_book_on_or_before_date(self, *, book_id: int, date_str: str) -> EquitySnapshotRecord | None:
         """Latest raw snapshot for one book whose calendar date is <= ``date_str``.

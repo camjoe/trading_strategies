@@ -31,6 +31,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
+| `strategy-advisor/` | Advisor session over the strategy decision ledger: score, review, decide (including hold), act only on approval |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
 | `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 

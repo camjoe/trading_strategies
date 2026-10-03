@@ -10,7 +10,9 @@ import pytest
 
 import backtesting.services.simulation as simulation
 from backtesting.models import BacktestConfig, RunUniverse
+from backtesting.services.run_inputs import RunStrategy
 from tests.support.backtesting import bars_from_closes, make_backtest_config
+from trading.domain.strategies.resolution import resolve_strategy
 
 # The service resolves its account through ``get_account``, which returns a typed
 # ``AccountRecord``; a namespace stands in for one.
@@ -44,8 +46,9 @@ def _patched_service(
     through module-level imports rather than injected callables, so a unit test
     substitutes them here instead of threading them through the call.
 
-    ``patch_strategy=False`` leaves ``resolve_strategy`` and the metrics real, for
-    tests whose subject is what a genuine strategy spec does with the bars.
+    The strategy resolves as an ad-hoc label with no catalog row. ``patch_strategy=False``
+    leaves the registry spec and the metrics real, for tests whose subject is what a
+    genuine strategy spec does with the bars.
     """
     replacements: dict[str, object] = {
         "get_account": lambda _conn, _name: _ACCOUNT,
@@ -62,8 +65,9 @@ def _patched_service(
         "insert_snapshot": lambda *_args, **_kwargs: None,
         "insert_trade": insert_trade_fn or (lambda *_args, **_kwargs: None),
     }
+    spec_fn = (strategy_spec_fn or (lambda _name: _SPEC)) if patch_strategy else resolve_strategy
+    replacements["resolve_run_strategy"] = lambda _conn, label: _registry_run_strategy(spec_fn(label))
     if patch_strategy:
-        replacements["resolve_strategy"] = strategy_spec_fn or (lambda _name: _SPEC)
         replacements["benchmark_return_pct"] = lambda _series, _cash: 1.0
         replacements["max_drawdown_pct"] = lambda _curve: -2.0
     if resolve_signal_fn is not None:
@@ -75,6 +79,10 @@ def _patched_service(
         for target, replacement in replacements.items():
             stack.enter_context(patch.object(simulation, target, replacement))
         yield
+
+
+def _registry_run_strategy(spec) -> RunStrategy:
+    return RunStrategy(strategy_key=spec.strategy_id, spec=spec, params=dict(spec.default_params), overrides={})
 
 
 def test_simulation_service_rejects_short_history() -> None:

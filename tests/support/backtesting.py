@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import pandas as pd
 
@@ -210,6 +211,8 @@ def make_backtest_config(
     fee_per_trade: float = 0.0,
     run_name: str | None = None,
     allow_approximate_leaps: bool = False,
+    strategy: str | None = None,
+    param_override: dict[str, Any] | None = None,
 ) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
@@ -222,6 +225,8 @@ def make_backtest_config(
         fee_per_trade=fee_per_trade,
         run_name=run_name,
         allow_approximate_leaps=allow_approximate_leaps,
+        strategy=strategy,
+        param_override=param_override,
     )
 
 

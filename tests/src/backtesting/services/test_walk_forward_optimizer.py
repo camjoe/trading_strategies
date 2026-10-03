@@ -1,11 +1,14 @@
 """Deterministic end-to-end orchestration of a walk-forward run.
 
 Injects fake run functions so the winner is fixed by construction (no market data,
-no DB), which lets the tests assert the honesty properties directly: selection uses
-training data only, and OOS/holdout evidence is kept separate from it.
+and an unseeded catalog, so the target runs its code defaults), which lets the
+tests assert the honesty properties directly: selection uses training data only,
+and OOS/holdout evidence is kept separate from it.
 """
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import pytest
 
@@ -22,6 +25,7 @@ from backtesting.services.walk_forward_optimizer import (
     run_walk_forward_optimization,
 )
 from trading.domain.exceptions import ValidationError
+from trading.repositories.strategies import StrategyRepository
 
 # The parameter set the fake engine makes clearly best on every training window. It
 # differs from the "trend" default (fast_window=10) so the winner is provably a tuned
@@ -78,7 +82,7 @@ def _orchestration_cfg() -> OptimizerConfig:
 
 
 class TestOptimizerOrchestration:
-    def _run(self):
+    def _run(self, conn):
         cfg = _orchestration_cfg()
         persisted: list[BacktestConfig] = []
         metrics_only: list[BacktestConfig] = []
@@ -94,42 +98,42 @@ class TestOptimizerOrchestration:
             return _fake_result(run_cfg, annualized=ann, drawdown=dd, trades=trades)
 
         summary = run_walk_forward_optimization(
-            None,
+            conn,
             cfg,
             run_metrics_only_fn=fake_metrics,
             run_persisted_fn=fake_persisted,
         )
         return cfg, summary, persisted, metrics_only
 
-    def test_selects_winner_on_every_window(self) -> None:
-        _cfg, summary, _persisted, _metrics = self._run()
+    def test_selects_winner_on_every_window(self, conn) -> None:
+        _cfg, summary, _persisted, _metrics = self._run(conn)
         assert summary.windows
         assert all(w.winner.params == GOOD_PARAMS for w in summary.windows)
         # The tuned winner differs from the strategy default and beats the baseline OOS.
-        assert summary.default_params == {"fast_window": 10, "slow_window": 20}
+        assert summary.baseline_params == {"fast_window": 10, "slow_window": 20}
         assert all(w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct for w in summary.windows)
 
-    def test_windows_carry_every_evaluated_candidate(self) -> None:
+    def test_windows_carry_every_evaluated_candidate(self, conn) -> None:
         # The full attempted search is carried on each window (not just the winner) so
         # it can be persisted as the per-window multiple-testing audit record.
-        _cfg, summary, _persisted, _metrics = self._run()
+        _cfg, summary, _persisted, _metrics = self._run(conn)
         candidate_count = 4  # 2 x 2 grid
         for window in summary.windows:
             assert len(window.candidates) == candidate_count
             assert sum(1 for c in window.candidates if c.params == GOOD_PARAMS) == 1
             assert window.winner in window.candidates
 
-    def test_risk_metrics_propagate_into_outcomes(self) -> None:
+    def test_risk_metrics_propagate_into_outcomes(self, conn) -> None:
         # Drawdown and calmar reach the reported OOS outcomes so the summary can judge
         # risk-adjusted performance, not just total return.
-        _cfg, summary, _persisted, _metrics = self._run()
+        _cfg, summary, _persisted, _metrics = self._run(conn)
         winner_oos = summary.windows[0].winner_oos
         assert winner_oos.max_drawdown_pct == -5.0  # GOOD_PARAMS drawdown
         assert winner_oos.calmar_ratio == 30.0 / 5.0
         assert summary.windows[0].baseline_oos.max_drawdown_pct == -10.0  # default baseline
 
-    def test_selection_uses_training_data_only(self) -> None:
-        _cfg, summary, persisted, metrics_only = self._run()
+    def test_selection_uses_training_data_only(self, conn) -> None:
+        _cfg, summary, persisted, metrics_only = self._run(conn)
         candidate_count = 4  # 2 x 2 grid
         # Every persisted run is OOS or holdout evidence carrying the winner's params;
         # training trials never persist (they only ever hit the metrics-only path).
@@ -146,8 +150,8 @@ class TestOptimizerOrchestration:
         oos = [c for c in persisted if c.purpose == BACKTEST_PURPOSE_WALK_FORWARD_OOS]
         assert len(oos) == len(summary.windows)
 
-    def test_holdout_carries_last_winner_and_is_persisted(self) -> None:
-        _cfg, summary, persisted, _metrics = self._run()
+    def test_holdout_carries_last_winner_and_is_persisted(self, conn) -> None:
+        _cfg, summary, persisted, _metrics = self._run(conn)
         assert summary.holdout is not None
         assert summary.holdout.winner_params == GOOD_PARAMS
         assert summary.holdout.winner.total_return_pct > summary.holdout.baseline.total_return_pct
@@ -155,7 +159,7 @@ class TestOptimizerOrchestration:
         assert len(holdout_runs) == 1
         assert holdout_runs[0].start == summary.holdout.holdout_start.isoformat()
 
-    def test_rejects_search_space_with_unknown_parameter(self) -> None:
+    def test_rejects_search_space_with_unknown_parameter(self, conn) -> None:
         cfg = OptimizerConfig(
             account_name="acct_opt",
             tickers_file="tickers.txt",
@@ -171,10 +175,10 @@ class TestOptimizerOrchestration:
         )
         with pytest.raises(ValidationError, match="not parameters of strategy"):
             run_walk_forward_optimization(
-                None, cfg, run_metrics_only_fn=lambda *_: None, run_persisted_fn=lambda *_: None
+                conn, cfg, run_metrics_only_fn=lambda *_: None, run_persisted_fn=lambda *_: None
             )
 
-    def test_window_search_failure_raises_optimization_run_error_with_context(self) -> None:
+    def test_window_search_failure_raises_optimization_run_error_with_context(self, conn) -> None:
         # The second window's persisted OOS run blows up; the first window already
         # completed. The error should say so, so a failed-experiment row can record it.
         cfg = _orchestration_cfg()
@@ -194,14 +198,14 @@ class TestOptimizerOrchestration:
 
         with pytest.raises(OptimizationRunError) as exc_info:
             run_walk_forward_optimization(
-                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
+                conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_persisted
             )
         error = exc_info.value
         assert error.stage == FailureStage.WINDOW_SEARCH
         assert error.windows_completed == 1
         assert "simulated market-data outage" in error.cause_message
 
-    def test_holdout_failure_raises_optimization_run_error_with_full_window_count(self) -> None:
+    def test_holdout_failure_raises_optimization_run_error_with_full_window_count(self, conn) -> None:
         cfg = _orchestration_cfg()
 
         def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
@@ -217,14 +221,34 @@ class TestOptimizerOrchestration:
         # Every window must complete before the holdout stage runs at all.
         expected_window_count = len(
             run_walk_forward_optimization(
-                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=fake_metrics
+                conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=fake_metrics
             ).windows
         )
 
         with pytest.raises(OptimizationRunError) as exc_info:
             run_walk_forward_optimization(
-                None, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
+                conn, cfg, run_metrics_only_fn=fake_metrics, run_persisted_fn=failing_on_holdout_persisted
             )
         error = exc_info.value
         assert error.stage == FailureStage.HOLDOUT
         assert error.windows_completed == expected_window_count
+
+
+def test_variant_target_baseline_and_promotion_params_are_its_catalog_knobs(conn) -> None:
+    StrategyRepository(conn).insert(
+        strategy_key="trend_tuned",
+        primitive="trend",
+        params_json='{"fast_window": 7}',
+        created_at="2026-07-12T12:00:00Z",
+        updated_at="2026-07-12T12:00:00Z",
+    )
+    cfg = replace(_orchestration_cfg(), strategy="trend_tuned", search_space={"slow_window": [20, 30]})
+
+    def fake_run(_conn, run_cfg: BacktestConfig) -> BacktestResult:
+        winner = run_cfg.param_override == {"slow_window": 30}
+        return _fake_result(run_cfg, annualized=30.0 if winner else 5.0, drawdown=-5.0, trades=12)
+
+    summary = run_walk_forward_optimization(conn, cfg, run_metrics_only_fn=fake_run, run_persisted_fn=fake_run)
+
+    assert summary.baseline_params == {"fast_window": 7, "slow_window": 20}
+    assert summary.promotion_params == {"fast_window": 7, "slow_window": 30}

@@ -33,7 +33,9 @@ from backtesting.repositories.runs import insert_run
 from backtesting.services.optimization_experiment import run_and_persist_optimization
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError, ValidationError
+from trading.repositories.strategies import StrategyRepository
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
+from trading.services.strategy_catalog.resolution import resolve_catalog_strategy
 from trading.services.universe import DEFAULT_TICKERS_FILE
 
 # The winning candidate (differs from trend's default fast/slow, so the promoted
@@ -71,14 +73,14 @@ def _metrics_for(cfg: BacktestConfig) -> tuple[float, float, int]:
     return (8.0, -12.0, 8)  # the other grid candidate
 
 
-def _optimizer_cfg(account_name: str) -> OptimizerConfig:
+def _optimizer_cfg(account_name: str, *, strategy: str = "trend") -> OptimizerConfig:
     return OptimizerConfig(
         account_name=account_name,
         # A real universe file so the run manifest's universe resolution succeeds
         # (the fake run functions never read it, but manifest capture does).
         tickers_file=DEFAULT_TICKERS_FILE,
         universe_history_dir=None,
-        strategy="trend",
+        strategy=strategy,
         search_space={"slow_window": [20, 40]},
         start="2022-01-01",
         end="2023-12-31",
@@ -93,8 +95,8 @@ def _optimizer_cfg(account_name: str) -> OptimizerConfig:
     )
 
 
-def _run_and_persist(conn, account_id: int, *, account_name: str) -> int:
-    cfg = _optimizer_cfg(account_name)
+def _run_and_persist(conn, account_id: int, *, account_name: str, strategy: str = "trend") -> int:
+    cfg = _optimizer_cfg(account_name, strategy=strategy)
 
     def fake_metrics(_conn, run_cfg: BacktestConfig) -> BacktestResult:
         ann, dd, trades = _metrics_for(run_cfg)
@@ -401,3 +403,27 @@ class TestPromotion:
 
         with pytest.raises(ValidationError, match="failed"):
             promote_optimization_experiment(conn, experiment_id=experiment_id, new_strategy_key="trend_failed")
+
+
+class TestVariantTarget:
+    def test_promoting_a_variant_target_keeps_its_unsearched_knobs(self, conn) -> None:
+        StrategyRepository(conn).insert(
+            strategy_key="trend_tuned",
+            primitive="trend",
+            params_json=json.dumps({"fast_window": 7}),
+            created_at="2026-07-12T12:00:00Z",
+            updated_at="2026-07-12T12:00:00Z",
+        )
+        account_id = insert_repository_account(conn, name="opt_variant")
+        experiment_id = _run_and_persist(conn, account_id, account_name="opt_variant", strategy="trend_tuned")
+
+        record = fetch_experiment_by_id(conn, experiment_id=experiment_id)
+        assert record is not None
+        # The search only covered slow_window; the target's fast_window rides along
+        # because every candidate and the holdout ran over the target's catalog knobs.
+        assert json.loads(record.winner_params_json) == {"fast_window": 7, **WINNER}
+
+        promote_optimization_experiment(
+            conn, experiment_id=experiment_id, new_strategy_key="trend_tuned_wfo", now_iso="2026-07-13T12:00:00Z"
+        )
+        assert resolve_catalog_strategy(conn, "trend_tuned_wfo").params == {"fast_window": 7, "slow_window": 40}

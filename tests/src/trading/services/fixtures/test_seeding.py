@@ -28,6 +28,9 @@ KNOWN_EMPTY_SANDBOX_TABLES = {
     "risk_snapshots": "requires driving the risk pass",
     "risk_decisions": "requires driving the risk pass",
     "rotation_decisions": "requires driving the rotation engine",
+    # Written only by advisor decisions and their later outcome scoring, which
+    # a generated database has no history for.
+    "strategy_decisions": "written by the advisor, which the seeder does not drive",
 }
 
 

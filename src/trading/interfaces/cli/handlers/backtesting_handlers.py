@@ -17,10 +17,10 @@ from backtesting.models.optimizer import OptimizerConfig
 from backtesting.services.audit import fetch_experiment_audit
 from backtesting.services.optimization_experiment import run_and_persist_optimization
 from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from backtesting.services.run_inputs import resolve_run_strategy
 from backtesting.services.scenario_bench import render_bench_matrix
 from trading.domain.promotion.gate import evaluate_promotion_gate
 from trading.domain.strategies.registry import available_strategy_ids
-from trading.domain.strategies.resolution import validate_strategy_name
 from trading.interfaces.cli.handlers.context import CliContext
 from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
 
@@ -97,7 +97,8 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
     strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
     scenario_labels = _split_csv(args.scenarios) or default_scenario_ids()
     try:
-        strategy_names = list(dict.fromkeys(validate_strategy_name(label) for label in strategy_labels))
+        resolved = [resolve_run_strategy(conn, label) for label in strategy_labels]
+        strategy_names = list(dict.fromkeys(strategy.strategy_key for strategy in resolved))
         scenario_specs = [resolve_scenario(label) for label in scenario_labels]
         matrix = run_bench(
             conn,
@@ -111,6 +112,8 @@ def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
         parser.error(str(error))
         return
 
+    for warning in dict.fromkeys(warning for strategy in resolved for warning in strategy.warnings):
+        print(f"Note: {warning}")
     print(render_bench_matrix(matrix, metric=args.metric))
 
 
@@ -324,7 +327,7 @@ def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
     if experiment.oos_mean_winner_return_pct is not None:
         print(
             f"OOS means: return {_pair(experiment.oos_mean_winner_return_pct, experiment.oos_mean_baseline_return_pct)} "
-            f"| winner beat default in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
+            f"| winner beat baseline in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
         )
     if experiment.holdout_run_id is None:
         print("Holdout: none")
@@ -424,7 +427,7 @@ def _rejection_tally(window_trials: list[Any]) -> list[tuple[str, int]]:
 
 
 def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:
-    """Format a winner/default metric pair for the optimizer summary."""
+    """Format a winner/baseline metric pair for the optimizer summary."""
     return f"{_format_metric(winner, suffix=suffix)}/{_format_metric(default, suffix=suffix)}"
 
 
@@ -433,8 +436,8 @@ def _print_optimization_summary(summary: Any) -> None:
         f"Walk-forward optimization: account={summary.account_name} strategy={summary.strategy} "
         f"objective={summary.objective_name}"
     )
-    print(f"Default params: {summary.default_params}")
-    print(f"Windows: {len(summary.windows)} (metrics shown as winner/default)")
+    print(f"Baseline params: {summary.baseline_params}")
+    print(f"Windows: {len(summary.windows)} (metrics shown as winner/baseline)")
     for window in summary.windows:
         winner, default = window.winner_oos, window.baseline_oos
         print(
@@ -452,7 +455,7 @@ def _print_optimization_summary(summary: Any) -> None:
         beats = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
         print(
             f"OOS means: return {_pair(avg_win_return, avg_def_return)} | maxDD {_pair(avg_win_dd, avg_def_dd)} "
-            f"| winner beat default on return in {beats}/{count} windows"
+            f"| winner beat baseline on return in {beats}/{count} windows"
         )
     if summary.holdout is None:
         print("Holdout: disabled")

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
+    handle_assign_strategy,
     handle_configure_account,
     handle_create_account,
     handle_init,
     handle_list_accounts,
     handle_set_benchmark,
     handle_trade,
+)
+from trading.interfaces.cli.handlers.advisor_handlers import (
+    handle_advisor_digest,
+    handle_advisor_record,
+    handle_advisor_score,
+    handle_advisor_scorecard,
 )
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
@@ -50,6 +57,7 @@ from trading.interfaces.cli.handlers.strategy_catalog_handlers import (
 COMMAND_HANDLERS = {
     "init": handle_init,
     "create-account": handle_create_account,
+    "assign-strategy": handle_assign_strategy,
     "configure-account": handle_configure_account,
     "set-benchmark": handle_set_benchmark,
     "list-accounts": handle_list_accounts,
@@ -83,6 +91,10 @@ COMMAND_HANDLERS = {
     "backtest-optimize": handle_backtest_optimize,
     "backtest-optimize-show": handle_backtest_optimize_show,
     "backtest-optimize-promote": handle_backtest_optimize_promote,
+    "advisor-record": handle_advisor_record,
+    "advisor-digest": handle_advisor_digest,
+    "advisor-score": handle_advisor_score,
+    "advisor-scorecard": handle_advisor_scorecard,
 }
 
 

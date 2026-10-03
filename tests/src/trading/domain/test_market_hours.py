@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 
-from trading.domain.market.hours import is_regular_us_equity_market_open
+from trading.domain.market.hours import add_us_equity_trading_days, is_regular_us_equity_market_open
 
 
 def test_market_open_during_regular_weekday_session() -> None:
@@ -46,3 +46,22 @@ def test_market_closed_after_independence_day_eve_early_close() -> None:
 
 def test_market_closed_after_christmas_eve_early_close() -> None:
     assert not is_regular_us_equity_market_open(datetime(2026, 12, 24, 18, 30, tzinfo=timezone.utc))
+
+
+def test_add_trading_days_skips_the_weekend() -> None:
+    # Friday 2026-10-02 + 1 trading day is Monday 2026-10-05.
+    assert add_us_equity_trading_days(date(2026, 10, 2), 1) == date(2026, 10, 5)
+
+
+def test_add_trading_days_skips_a_full_holiday() -> None:
+    # Wednesday 2026-11-25 + 1 trading day skips Thanksgiving (2026-11-26) to Friday.
+    assert add_us_equity_trading_days(date(2026, 11, 25), 1) == date(2026, 11, 27)
+
+
+def test_add_zero_trading_days_is_the_start() -> None:
+    assert add_us_equity_trading_days(date(2026, 10, 3), 0) == date(2026, 10, 3)
+
+
+def test_add_trading_days_rejects_negative() -> None:
+    with pytest.raises(ValueError):
+        add_us_equity_trading_days(date(2026, 10, 2), -1)

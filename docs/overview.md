@@ -76,6 +76,11 @@ experimental surfaces protected by explicit safety gates.
 - **Data-defined strategy variants**: the `strategies` catalog is the canonical runtime source
   for strategy definitions and knobs; operators add and tune variants via `create-strategy-variant`,
   `configure-strategy`, and `freeze-strategy` without a deploy.
+- **Strategy advisor**: a write-once decision ledger (`strategy_decisions`) recording every advisor
+  decision, including holds, with the alternative it rejected; `advisor-digest` for review;
+  `advisor-score` to grade each decision counterfactually once its window closes; `advisor-scorecard`
+  for each agent version's track record (points, mean edge with an interval, regime breakdown); and the
+  `strategy-advisor` skill that runs a session as the judgment layer.
 - **Cross-account portfolio risk rollup**: exposure, symbol concentration/overlap, and sector
   rollup via CLI, API, and a read-only Portfolio UI tab.
 

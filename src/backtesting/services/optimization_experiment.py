@@ -189,7 +189,7 @@ def _persist_experiment(
     if not summary.windows:
         raise ValidationError("Optimization produced no windows; nothing to persist or promote.")
 
-    winner_params = summary.windows[-1].winner.params
+    winner_params = summary.promotion_params
     winner_returns = [w.winner_oos.total_return_pct for w in summary.windows]
     baseline_returns = [w.baseline_oos.total_return_pct for w in summary.windows]
     beat_baseline = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)

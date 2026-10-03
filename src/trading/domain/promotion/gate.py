@@ -35,12 +35,13 @@ def evaluate_promotion_gate(
     holdout_winner_return_pct: float | None,
     holdout_baseline_return_pct: float | None,
 ) -> PromotionGateResult:
-    """Compare the winner against its own default on OOS and holdout evidence.
+    """Compare the winner against its baseline on OOS and holdout evidence.
 
+    The baseline is the optimized strategy's catalog parameters, as it trades.
     Three independent conditions, all required: the winner's mean OOS return beats
-    the default's; the winner beats the default in a strict majority of OOS windows
+    the baseline's; the winner beats the baseline in a strict majority of OOS windows
     (a good mean can mask a coin-flip per-window record); and the winner's holdout
-    return beats the default's. Missing evidence on either side of a comparison
+    return beats the baseline's. Missing evidence on either side of a comparison
     fails that condition rather than being skipped — no evidence is not a pass.
     """
     reasons: list[str] = []

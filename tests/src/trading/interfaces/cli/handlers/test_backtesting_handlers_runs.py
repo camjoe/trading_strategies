@@ -14,6 +14,7 @@ from tests.src.trading.interfaces.cli.handlers.helpers import fake_parser, make_
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
+    handle_backtest_bench,
 )
 
 
@@ -167,3 +168,38 @@ def test_handle_backtest_batch_records_parser_error_without_printing_success(cap
 
     assert parser.message == "bad batch"
     assert "Backtest batch complete" not in capsys.readouterr().out
+
+
+def test_handle_backtest_bench_keeps_catalog_variant_keys(conn, capsys, monkeypatch) -> None:
+    from trading.services.strategy_catalog.mutations import create_strategy_variant
+
+    create_strategy_variant(conn, strategy_key="trend_fast", primitive="trend", params={"fast_window": 5})
+    calls: dict = {}
+
+    def _run_bench(_conn, **kwargs):
+        calls.update(kwargs)
+        return object()
+
+    patch_services(monkeypatch, module, run_bench=_run_bench, render_bench_matrix=lambda _matrix, **_kwargs: "matrix")
+    handle_backtest_bench(
+        conn,
+        types.SimpleNamespace(
+            list_scenarios=False,
+            strategies="trend_fast,trend,momentum",
+            scenarios="sharp_crash",
+            paths=2,
+            slippage_bps=5.0,
+            fee=0.0,
+            metric="total_return_pct",
+        ),
+        fake_parser(),
+        ctx=make_ctx(),
+    )
+
+    # The variant keeps its own key (so it runs its own knobs); the alias still collapses to its primitive.
+    assert calls["strategy_names"] == ["trend_fast", "trend"]
+    output = capsys.readouterr().out
+    assert "matrix" in output
+    # A label with no catalog row says what it actually ran; a catalog key and a primitive id do not.
+    assert "Note: Strategy 'momentum' has no catalog row; ran primitive 'trend'" in output
+    assert output.count("Note:") == 1

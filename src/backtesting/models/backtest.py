@@ -32,8 +32,10 @@ class BacktestConfig:
     purpose: str = BACKTEST_PURPOSE_STANDALONE
     # Optional per-run parameter override for the resolved strategy. Used by the
     # walk-forward optimizer to evaluate grid candidates without mutating the
-    # strategy catalog's params_json. Merged over the strategy's default params;
-    # None runs the strategy's default (catalog) parameters.
+    # strategy catalog's params_json. Merged over the strategy's catalog params
+    # (code defaults with the row's params_json layered on, as live trading runs
+    # it); None runs those catalog params. A label with no catalog row runs its
+    # primitive's code defaults.
     param_override: dict[str, Any] | None = None
     # Indicator warm-up lead-in: load this many months of price history *before*
     # the scoring window so signals are warm at the window start. These bars only
