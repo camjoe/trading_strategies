@@ -9,39 +9,26 @@ test-infrastructure fixture, not any production behaviour.
 
 from __future__ import annotations
 
-from trading.repositories.daily_metrics import DailyMetricsRepository
-
 from tests.support.seed.db import (
-    ACCT_LOCAL,
     ACCT_MOMENTUM,
+    ACCT_THIRD,
     ACCT_TREND,
     BACKTEST_RUN_NAME,
-    PROMOTION_STRATEGY,
     BOOK_METRIC_DATE,
     BOOK_STRATEGY,
     BOOK_TREND,
+    PROMOTION_STRATEGY,
     SNAPSHOT_T1,
     SNAPSHOT_T2,
     SNAPSHOT_T3,
 )
+from trading.repositories.daily_metrics import DailyMetricsRepository
 
 
 class TestSeededAccounts:
     def test_all_named_accounts_are_present(self, seeded_conn) -> None:
         names = {row["name"] for row in seeded_conn.execute("SELECT name FROM accounts").fetchall()}
-        assert {ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL}.issubset(names)
-
-    def test_account_kinds_are_correct(self, seeded_conn) -> None:
-        rows = {
-            row["name"]: row["account_kind"]
-            for row in seeded_conn.execute(
-                "SELECT name, account_kind FROM accounts WHERE name IN (?, ?, ?)",
-                (ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL),
-            ).fetchall()
-        }
-        assert rows[ACCT_TREND] == "managed"
-        assert rows[ACCT_MOMENTUM] == "managed"
-        assert rows[ACCT_LOCAL] == "local"
+        assert {ACCT_TREND, ACCT_MOMENTUM, ACCT_THIRD}.issubset(names)
 
 
 class TestSeededTrades:
@@ -112,7 +99,7 @@ class TestSeededBooks:
         book_id = seeded_conn.execute("SELECT id FROM books WHERE name = ?", (BOOK_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
             """
-            SELECT s.strategy_key FROM book_strategy_assignments a
+            SELECT s.strategy_key FROM book_strategy_history a
             JOIN strategies s ON s.id = a.strategy_id
             WHERE a.book_id = ? AND a.effective_to IS NULL
             """,

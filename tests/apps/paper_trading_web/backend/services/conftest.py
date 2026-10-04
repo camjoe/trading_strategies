@@ -4,8 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
-from trading.models import AccountConfig
-from trading.services.accounts import create_account
+from trading.services.accounts.mutations import create_account
 
 
 @pytest.fixture
@@ -16,10 +15,8 @@ def create_account_row(conn) -> Callable[..., int]:
         name: str,
         strategy: str = "trend",
         initial_cash: float = 1000.0,
-        *,
-        account_kind: str = "managed",
     ) -> int:
-        create_account(conn, name, strategy, initial_cash, "SPY", config=AccountConfig(account_kind=account_kind))
+        create_account(conn, name, strategy, initial_cash, "SPY")
         row = conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
         assert row is not None
         return int(row["id"])

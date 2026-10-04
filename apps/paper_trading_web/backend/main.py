@@ -8,16 +8,17 @@ from trading.domain.exceptions import NotFoundError, ValidationError
 
 from .config import CORS_ORIGINS
 from .routes import (
-    actions_router,
     accounts_router,
+    actions_router,
     admin_router,
     analysis_router,
+    autonomy_monitor_router,
     backtests_router,
     features_router,
     health_router,
-    ibkr_paper_monitor_router,
     logs_router,
     portfolio_router,
+    strategy_lab_router,
 )
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -51,7 +52,7 @@ async def _validation_handler(_request: Request, exc: ValidationError) -> JSONRe
 
 app.include_router(health_router)
 app.include_router(accounts_router)
-app.include_router(ibkr_paper_monitor_router)
+app.include_router(autonomy_monitor_router)
 app.include_router(analysis_router)
 app.include_router(portfolio_router)
 app.include_router(admin_router)
@@ -59,3 +60,4 @@ app.include_router(logs_router)
 app.include_router(actions_router)
 app.include_router(backtests_router)
 app.include_router(features_router)
+app.include_router(strategy_lab_router)

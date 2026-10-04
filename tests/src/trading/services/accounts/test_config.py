@@ -1,7 +1,8 @@
 import pytest
 
 from trading.models import AccountConfig
-from trading.services.accounts import configure_account, create_account, get_account, set_account_strategy
+from trading.repositories.accounts import AccountRepository
+from trading.services.accounts.mutations import configure_account, create_account, get_account, set_account_strategy
 from trading.services.books.book_assignments import get_default_book
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
@@ -86,6 +87,21 @@ class TestCreateAccountIntegration:
         assert book.goal_period == "weekly"
         assert book.option_type == "call"
 
+    def test_uppercase_option_type_is_accepted_and_normalized(self, conn) -> None:
+        create_account(
+            conn,
+            name="acct_opt_case",
+            strategy="Trend",
+            initial_cash=1000.0,
+            benchmark_ticker="SPY",
+            config=AccountConfig(option_type="CALL"),
+        )
+
+        account = get_account(conn, "acct_opt_case")
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.option_type == "call"
+
     def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
         create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
 
@@ -168,6 +184,27 @@ class TestConfigureAccountIntegration:
         assert book.goal_period == "weekly"
         assert book.learning_enabled == 1
 
+    def test_rolls_back_book_settings_when_account_update_fails(self, conn, base_account, monkeypatch) -> None:
+        account = get_account(conn, base_account)
+        before = get_default_book(conn, account_id=account.id)
+        assert before is not None
+
+        def fail_account_update(*args, **kwargs) -> None:
+            raise RuntimeError("account update failed")
+
+        monkeypatch.setattr(AccountRepository, "update", fail_account_update)
+
+        with pytest.raises(RuntimeError, match="account update failed"):
+            configure_account(
+                conn,
+                base_account,
+                config=AccountConfig(descriptive_name="Changed", risk_policy="fixed_stop"),
+            )
+
+        after = get_default_book(conn, account_id=account.id)
+        assert after is not None
+        assert after.risk_policy == before.risk_policy
+
     def test_validates_position_sizing_against_existing_values(self, conn) -> None:
         create_account(
             conn,
@@ -240,6 +277,14 @@ class TestConfigureAccountOptionFields:
         assert book is not None
         assert book.trade_size_pct == pytest.approx(12.0)
         assert book.max_position_pct == pytest.approx(24.0)
+
+    def test_configure_account_updates_max_trades_per_run(self, conn, base_account) -> None:
+        configure_account(conn, account_name=base_account, config=AccountConfig(max_trades_per_run=3))
+
+        account = get_account(conn, base_account)
+        book = get_default_book(conn, account_id=account.id)
+        assert book is not None
+        assert book.max_trades_per_run == 3
 
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):

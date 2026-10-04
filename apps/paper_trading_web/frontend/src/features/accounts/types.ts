@@ -5,10 +5,11 @@ export interface AccountsFeatureOptions {
   onOpenRunReport?: (runId: number) => Promise<void> | void;
 }
 
-export type DetailSection = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
+export type DetailSection = "summary" | "books" | "analysis" | "positions" | "trades" | "snapshots" | "config";
 
 export interface LoadAccountDetailOptions {
   section?: DetailSection;
+  bookName?: string | null;
 }
 
 export interface AccountsFeature {
@@ -26,6 +27,7 @@ export interface AccountsState {
   currentTradePage: number;
   currentAnalysis: AccountAnalysis | null;
   currentDetailSection: DetailSection;
+  currentBookFilter: string | null;
   accountBrowserOpen: boolean;
   tradePageSize: number;
 }

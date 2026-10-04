@@ -44,10 +44,13 @@ AI review should cover what scripts cannot prove:
 - Wrong ownership despite legal imports.
 - Missing test evidence for important behavior paths.
 - Unjustified abstractions, excessive coupling, or unnecessary complexity.
+- Source narration: comments or docstrings that record the author's reasoning, the change's
+  history, or restated commit-message prose instead of facts about the system. A diff adding more
+  prose lines than code lines is the usual tell.
 - Stale paths or cleanup candidates with reference-search evidence and compatibility risk.
 - High-risk safety gaps not covered by mechanical checks.
 
-Do not flag TODO/comment style by itself. Do not report style-only nits unless they materially harm readability or maintenance.
+Do not flag TODO/comment *style* by itself — formatting, punctuation, or one-line phrasing. Narration is a separate, in-scope finding: report it when commentary explains the author's reasoning or the change's history rather than the system's behavior. Do not report style-only nits unless they materially harm readability or maintenance.
 
 ## PR Mode
 

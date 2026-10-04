@@ -1,0 +1,24 @@
+"""Interactive Brokers Web API client package.
+
+Settings/config loading (`settings`), process-local pacing (`pacing`), and the HTTP
+client (`client`) are separate modules; the public surface is re-exported here.
+"""
+
+from __future__ import annotations
+
+from infrastructure.brokers.ibkr_web.client import (
+    IbWebApiContract,
+    IbWebOrderStatusUnavailableError,
+    InteractiveBrokersWebClient,
+)
+from infrastructure.brokers.ibkr_web.pacing import IbWebApiPacingLimiter
+from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings, load_ib_web_api_settings
+
+__all__ = [
+    "IbWebApiContract",
+    "IbWebApiPacingLimiter",
+    "IbWebApiSettings",
+    "IbWebOrderStatusUnavailableError",
+    "InteractiveBrokersWebClient",
+    "load_ib_web_api_settings",
+]

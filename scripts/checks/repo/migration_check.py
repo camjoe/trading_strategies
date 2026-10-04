@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from infrastructure.database import migration_runner
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION
 

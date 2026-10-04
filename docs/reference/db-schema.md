@@ -3,12 +3,12 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-08-02
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read the Alembic revisions or run scripts.data_ops.describe_db_schema.
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
-- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the base DDL; later revisions amend it)
+- `src/infrastructure/database/alembic/versions/` — the numbered Alembic revision chain (revision `0001` holds the complete current schema)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
@@ -20,39 +20,45 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-24 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+28 tables — the clean strategy-book tables plus the remaining account-level history, research, and
 configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
-`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`) and the retired
-`strategy_param_sets` store were dropped as the submission/accounting spine and strategy catalog
-moved onto the book/strategy tables. One row per table — use this for orientation and context. For
+`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`, `rotation_episodes`), the retired
+`strategy_param_sets` store, the rolling-window `walk_forward_experiments`/`walk_forward_windows`
+pair, and the unused `feature_providers` table were dropped as the submission/accounting spine and
+strategy catalog moved onto the book/strategy tables and the migration chain was squashed to a single
+`0001` baseline. One row per table — use this for orientation and context. For
 column details, run `python -m scripts.data_ops.describe_db_schema`.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
-| `accounts` | Account identity, custody, and broker connection — final shape since `0008` (legacy strategy/goal/universe columns are book-owned) | — |
+| `accounts` | Account identity, custody, and broker connection — final shape since `0028` (legacy strategy/goal/universe columns are book-owned; the unused `account_kind` managed/local distinction was dropped in `0028`) | — |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
-| `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
+| `global_settings` | Singleton row of optional system-wide runtime, evaluation, and promotion overrides | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
-| `backtest_runs` | Metadata for a single backtest execution (dates, fees, slippage, notes) | → `accounts` |
-| `backtest_trades` | Simulated trades within a backtest run | → `backtest_runs` |
-| `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
-| `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
-| `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
+| `backtest_runs` | Metadata for a single backtest run (dates, fees, slippage, notes) plus a `purpose` discriminator (`standalone`/`walk_forward_oos`/`final_holdout`) and the benchmark frozen at run time (`benchmark_ticker`, `benchmark_return_pct`) | → `accounts` |
+| `backtest_equity_snapshots` | Point-in-time equity snapshots (`snapshot_date`) within a backtest run | → `backtest_runs` |
 | `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
-| `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
+| `promotion_reviews` | Strategy promotion review cases; new rows require stable strategy identity and closure uses an expected-open-state guard | → `accounts`, `strategies` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_universes` (revisions `0004`–`0008`); one default book per account (partial-unique) | → `accounts` |
+| `books` | Strategy-execution primitive: execution/risk/option settings columns and required `trade_symbols`; one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
-| `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
-| `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
+| `book_rotation_settings` | Sparse per-book rotation scheduling and champion/challenger policy overrides | → `books` |
+| `book_strategy_history` | Effective-dated strategy assignment history; one open assignment per book (partial-unique) | → `books`, `strategies` |
 | `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
 | `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
 | `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
-| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
-| `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`; revision `0008`) | → `books` |
+| `risk_decisions` | Allow/rescale/block risk decisions; composite FK enforces that a non-null book belongs to the recorded account | → `accounts`, `books` |
+| `strategy_decisions` | Advisor decision ledger (including `hold`): write-once decision, the alternative it rejected, rationale, and frozen evidence, plus outcome columns scored counterfactually after the decision's window | → `accounts`, `books`, `strategies`, `promotion_reviews` |
+| `book_universe_history` | Append-only record of which universes a book traded, when (`effective_from`/`effective_to`) | → `books` |
+| `backtest_executions` | One simulated buy/sell execution on a daily bar within a backtest run | → `backtest_runs` |
+| `optimization_experiments` | One walk-forward optimizer (`backtest-optimize`) run: config, the forward-carried winner parameters, an OOS aggregate, the untouched-holdout summary, and the promoted-variant link; `status`/`failure_stage`/`failure_message` record a failed run when the optimization or holdout stage throws | → `accounts`, `strategies`, `backtest_runs` |
+| `optimization_windows` | One walk-forward window of an optimizer run: train/test boundaries and a link to the window's persisted winner OOS run (OOS metrics are read from that run, not copied) | → `optimization_experiments`, `backtest_runs` |
+| `optimization_trials` | One evaluated grid candidate per window — the multiple-testing audit record: canonical params + hash, objective value/components, eligibility + rejection reason, and the `selected` winner flag | → `optimization_windows` |
+| `optimization_run_manifests` | Frozen provenance snapshot per optimizer run (1:1): effective economics, the book's risk/sizing knobs, exact universe membership + lineage, provider + as-of, and engine revision — audit record, not a replay guarantee | → `optimization_experiments`, `books` |
+| `book_rotation_settings_change_events` | Change-audit event log for `book_rotation_settings` edits: which fields changed, their old/new values (JSON), when | → `books` |
+| `global_settings_change_events` | Change-audit event log for `global_settings` edits: which fields changed, their old/new values (JSON), when | — |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
@@ -67,6 +73,7 @@ Domain-specific meaning that the schema alone does not convey.
 | Column | Note |
 |--------|------|
 | `initial_cash` | Starting cash balance seeded by the operator. Set to `0.0` for **deposit-model accounts**, where capital is injected as `ledger` deposit entries (a manual `CASH`-ticker buy via `record_trade` becomes one). Services use `total_deposited` (from `AccountState`) as the P&L-percentage base when `initial_cash = 0`. |
+| `base_ccy` | Declarative account currency metadata. It currently defaults to `USD` and has no operational consumer; calculations therefore remain effectively single-currency. Keep it as an explicit boundary unless the workspace is intentionally declared USD-only. |
 | `broker_*`, `live_trading_enabled` | Broker connection stays on `accounts` by explicit decision (2026-07-16): it is core custody metadata, not a settings group — no 1:1 split table. The live-trading safety guard reads these columns. |
 
 ### `positions`
@@ -75,38 +82,104 @@ Domain-specific meaning that the schema alone does not convey.
 `qty`/`avg_cost` — they are only as fresh as the last mark-to-market. Do not treat them as truth;
 recompute from current prices when accuracy matters.
 
+The current accounting model is long-only: reducing a position to `qty <= 0` removes its row.
+Representing short positions would require an explicit accounting and risk-model change, not just
+allowing negative quantities in this table.
+
 ### `global_settings`
 
 The singleton row (`id = 1` CHECK) intentionally mixes three domains: runtime throttles,
 evaluation weights, and promotion gates. This is a deliberate simplicity trade-off — revisit a
 split only if a fourth domain lands here.
 
-When the row is absent, services resolve code defaults; the first global-setting edit upserts it.
-Seeded environments may already contain the row populated by schema defaults. Once present, its
-`NOT NULL` values become authoritative and no longer track later code-default changes. This is
-intentional because the columns carry schema defaults and `CHECK` constraints.
+Its columns are nullable overrides over code-owned defaults. A non-NULL value is an intentional
+database override; NULL means the operational-settings service resolves the corresponding domain or
+service default. Each field is resolved independently, so editing a throttle does not pin untouched
+evaluation or promotion policy to database values. The parameter view reports each effective value
+as database- or default-sourced. Revision `0018` introduced this behavior while preserving existing
+stored values.
+
+### `promotion_reviews`
+
+`strategy_id` is nullable in the physical schema, but every newly requested review must resolve a
+real strategy row.
+`strategy_name` is the frozen display snapshot, not the identity key. Review closure and note writes
+update only a row whose current state is still `requested`; if another action closed it first, the
+transaction rolls back the attempted event and state change together.
+
+### `risk_decisions`
+
+Rows with a `book_id` are constrained by `(book_id, account_id) -> books(id, account_id)` so a risk
+decision cannot pair a valid book with the wrong account. `book_id` remains nullable for genuinely
+account-level decisions. The original single-column book FK still owns `ON DELETE SET NULL`, keeping
+the account-level decision history when a standalone book is deleted.
+
+### `strategy_decisions`
+
+Decision columns are **write-once**: trigger `trg_strategy_decisions_write_once` aborts any update
+that changes them, so a decision's rationale and evidence cannot be revised after the outcome is
+known. Only the `outcome_*` and realized-return columns are updated, by the scoring path. `book_id`
+and `promotion_review_id` may change only to NULL, which is how their `ON DELETE SET NULL` actions
+run; deleting a book or review keeps the decision history.
+
+`optimization_experiment_id` is a plain id with no foreign key, because `optimization_experiments`
+belongs to the backtesting context. The frozen `evidence_json` is the durable record of what the
+decision rested on, and stays valid if the experiment is deleted.
+
+Outcomes are scored **counterfactually** (revision `0004`). `strategy_id` is the arm the decision
+put or kept in place and `alternative_strategy_id` the arm it rejected; both are backtested over
+the window that followed, into `chosen_return_pct` and `alternative_return_pct`, and the verdict
+comes from their difference. A `disable_strategy` decision's chosen arm is cash. `realized_return_pct` (the
+book's paper equity) and `realized_benchmark_return_pct` are context only: they score the market,
+not the decision. A decision with no rejected alternative, or a `run_experiment`, scores
+`inconclusive`.
 
 ### `book_rotation_settings`
 
 Rotation scheduling and policy columns are nullable so each field can independently fall back to
 its code default. Passing `none` through the rotation-policy editing surface clears a stored policy
 value and resumes default tracking for that field. This differs intentionally from persisted global
-settings.
+settings. Revision `0014` removed eleven unused cadence, hard-regime-mapping, and overlay columns;
+the table now exposes only settings consumed by the active rotation path.
 
-### Money as REAL
+### Money and quantity as integer minor units
 
-Cash, quantities, and prices are stored as SQLite `REAL` (floats) throughout. This is a **known,
-accepted limitation** for paper trading — do not churn the schema toward integer cents or TEXT
-decimals. Float drift is expected to surface via reconciliation checks rather than be prevented by
-the storage type: `python -m scripts.data_ops.check_cash_invariant` reports any book whose
-`current_cash` diverges from `start_equity` plus its `ledger` sum beyond a tolerance.
+Live money and quantity columns are stored as **integer minor units**, not floats. The scale is set
+by two constants in `src/common/constants.py`: `MONEY_MINOR_UNITS_PER_DOLLAR` and
+`QUANTITY_MINOR_UNITS_PER_SHARE` (both provisionally `1_000_000` — micro-dollars and micro-shares —
+until a real IBKR paper fill fixes the broker-reported precision). This lets the system trade
+fractional shares without float dust reading as a phantom open position.
+
+- **What is integer.** The live money and quantity columns on `accounts`, `books`, `orders`,
+  `order_fills`, `positions`, `ledger`, `equity_snapshots`, `daily_metrics`, `risk_snapshots`, and
+  `risk_decisions` (revision `0002`).
+- **What stays `REAL`.** Rate, ratio, percent, basis-point, and weight columns (they encode rates,
+  not money), and the `backtest_*` / `optimization_*` tables (the backtest computes in `float` and
+  its stored metrics are approximate).
+- **The conversion lives in one place.** `src/trading/persistence/money_columns.py` encodes a
+  `Decimal` to the integer minor unit on write and decodes it back on read, at the repository
+  boundary. The domain computes money and quantity in `decimal.Decimal`; nothing else hand-converts.
+  See [ADR 020](../adr/020-shared-financial-math-ownership.md).
+- **SQL money math stays exact.** Because the columns are integers, `SUM`/`MAX` aggregations (the
+  equity-snapshot account roll-up, drawdown peak) stay exact and order correctly.
+- **Reconciliation is exact.** `python -m scripts.data_ops.check_cash_invariant` reports any book
+  whose `current_cash` does not equal `start_equity` plus its `ledger` sum — an exact integer check,
+  no float tolerance.
+
+Do not add a new money or quantity column as `REAL`; add it as `INTEGER` and route it through the
+encoder.
+
+The two scale constants are **provisional** until a real IBKR paper fill fixes the broker-reported
+precision (a fill's price, commission, and quantity decimals). Finalizing them is a one-line edit per
+constant in `src/common/constants.py` followed by the standard checks; every site derives its scale
+from those two constants.
 
 ### Account trade history
 
-The account-level `trades` table was dropped in revision `0006`. Execution history is
+The account-level `trades` table was dropped. Execution history is
 `orders`/`order_fills` (book-keyed); deposits/withdrawals are `ledger` entries. Account state
 (`AccountState`: cash, positions, realized P&L, `total_deposited`) is **derived** by replaying an
-account's fills plus its ledger cash events (`trading.services.accounting`). Free-text trade notes
+account's fills plus its ledger cash events (`trading.services.execution.ledger`). Free-text trade notes
 were not carried over — pre-`0006` notes live only in database backups.
 
 ### Universe history
@@ -123,10 +196,6 @@ product decision.
 - Account deletion is a single `DELETE FROM accounts`; `ON DELETE CASCADE` removes every
   account-owned row (books, orders and fills, research, governance, and risk history). The
   pre-deletion database backup is the only retention path — there is no archive model.
-- `walk_forward_group_runs.run_id -> backtest_runs` is deliberately `NO ACTION`: a grouped run
-  must not silently vanish from its group's composition. Account deletion still succeeds because
-  SQLite settles immediate FK checks at statement end, inside the single cascading delete. Do not
-  "fix" this FK to `CASCADE` in a future rebuild without an explicit decision.
 
 ### History retention
 

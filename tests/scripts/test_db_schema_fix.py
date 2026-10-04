@@ -6,7 +6,6 @@ import pytest
 
 from scripts.fixes.db_schema_fix import PLACEHOLDER_PURPOSE, fix_quick_reference, run_db_schema_fix
 
-
 # Quick Reference (3-column rows), a table-count prose line, and a 2-column semantic-note
 # row that must never be touched by the fixer.
 QR_DOC = (

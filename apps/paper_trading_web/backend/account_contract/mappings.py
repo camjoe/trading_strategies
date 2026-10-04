@@ -3,7 +3,6 @@ from __future__ import annotations
 from .models import ApiFieldMapping
 
 ACCOUNT_CONFIG_API_FIELDS = (
-    ApiFieldMapping("accountKind", "account_kind"),
     ApiFieldMapping("descriptiveName", "descriptive_name"),
     ApiFieldMapping("goalMinReturnPct", "goal_min_return_pct"),
     ApiFieldMapping("goalMaxReturnPct", "goal_max_return_pct"),
@@ -26,8 +25,10 @@ ACCOUNT_CONFIG_API_FIELDS = (
     ApiFieldMapping("ivRankMin", "iv_rank_min"),
     ApiFieldMapping("ivRankMax", "iv_rank_max"),
     ApiFieldMapping("rollDteThreshold", "roll_dte_threshold"),
-    ApiFieldMapping("profitTakePct", "profit_take_pct"),
-    ApiFieldMapping("maxLossPct", "max_loss_pct"),
+    ApiFieldMapping("optionProfitTakePct", "option_profit_take_pct"),
+    ApiFieldMapping("optionMaxLossPct", "option_max_loss_pct"),
+    ApiFieldMapping("tradeUniverses", "trade_universes"),
+    ApiFieldMapping("maxTradesPerRun", "max_trades_per_run"),
 )
 
 # The nested `rotation` object (book-owned scheduling, ADR 014); storage names

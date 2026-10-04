@@ -1,8 +1,10 @@
 """Domain-level exceptions for the trading package.
 
-These are raised by the service layer so that callers (UI routes, CLI
-interfaces, tests) never need to import from lower-level packages such as
-``trading.database`` or ``trading.repositories``.
+Placed in the domain layer so every layer at or above it can raise or catch
+them without importing upward or reaching into ``trading.repositories`` /
+``infrastructure``. Domain policy raises ``ValidationError`` (see
+``strategies.resolution``); services raise the rest. The UI maps these types to
+HTTP status codes — see ``docs/adr/007-ui-error-mapping.md``.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ class NotFoundError(ValueError):
 
 
 class ValidationError(ValueError):
-    """Raised by the service layer when caller-supplied input fails validation.
+    """Raised by domain policy or the service layer when input fails validation.
 
     Subclasses ``ValueError`` deliberately, for the same reason as
     ``NotFoundError``: existing ``except ValueError`` handlers (CLI dispatch, UI

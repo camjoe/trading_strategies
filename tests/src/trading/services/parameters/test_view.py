@@ -10,11 +10,12 @@ from common.time import utc_now_iso
 from tests.support.books import insert_test_book, set_test_book_rotation_scheduling
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
-from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
-from trading.repositories.book_bridge import strategy_id_for_label
-from trading.services.books.rotation import BookRotationScheduleConfig, RotationPolicyConfig
-from trading.services.operational_settings import set_runtime_throttle_settings
-from trading.services.parameters import fetch_parameter_source_view, update_book_rotation_policy
+from trading.models.parameters import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
+from trading.repositories.strategies import StrategyRepository
+from trading.services.books.rotation.engine import BookRotationScheduleConfig, RotationPolicyConfig
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
+from trading.services.parameters.mutations import update_book_rotation_policy
+from trading.services.parameters.view import fetch_parameter_source_view
 
 
 def _group(view, scope: str):
@@ -55,6 +56,20 @@ class TestGlobalGroups:
         entry = _entry(throttle, "max_trades_per_day")
         assert entry.value == "15"
         assert entry.source == PARAMETER_SOURCE_DB
+
+        unlimited = _entry(throttle, "max_trades_per_minute")
+        assert unlimited.value == "none"
+        assert unlimited.source == PARAMETER_SOURCE_DEFAULT
+
+        evaluation = _group(view, "global / evaluation confidence")
+        evidence_weight = _entry(evaluation, "backtest_evidence_weight")
+        assert evidence_weight.value == "0.6"
+        assert evidence_weight.source == PARAMETER_SOURCE_DEFAULT
+
+        promotion = _group(view, "global / promotion policy")
+        confidence = _entry(promotion, "min_live_overall_confidence")
+        assert confidence.value == "0.6"
+        assert confidence.source == PARAMETER_SOURCE_DEFAULT
 
 
 class TestBookGroups:
@@ -158,7 +173,7 @@ class TestBookRotationSchedulingDisplay:
 
 class TestStrategyGroups:
     def test_strategy_rows_appear(self, conn: sqlite3.Connection) -> None:
-        strategy_id_for_label(conn, "trend", now_iso=utc_now_iso())
+        StrategyRepository(conn).ensure_id_for_label(label="trend", now_iso=utc_now_iso())
         conn.commit()
 
         view = fetch_parameter_source_view(conn)

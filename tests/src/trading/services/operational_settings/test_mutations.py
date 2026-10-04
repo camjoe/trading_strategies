@@ -11,7 +11,6 @@ from trading.services.operational_settings.mutations import (
     set_runtime_throttle_settings,
 )
 
-
 # ---------------------------------------------------------------------------
 # _validate_weight_sum
 # ---------------------------------------------------------------------------

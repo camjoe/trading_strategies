@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 
 import trading.interfaces.runtime.jobs.job_helpers as job_helpers
-from trading.interfaces.runtime.jobs.job_helpers import week_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     run_runtime_job_main,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import week_tag
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 

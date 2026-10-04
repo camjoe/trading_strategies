@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from trading.models.accounts.account_state import AccountState
-from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 import pytest
-
 from paper_trading_web.backend.services.accounts import summaries as account_summaries
+
 from tests.support.account_records import make_account_record
+from trading.models.accounts import AccountState
+from trading.models.portfolio import EquitySnapshotRecord
 
 
 def _account_record(**overrides: object):
@@ -34,6 +34,11 @@ def _make_state(
     )
 
 
+def _stats_stub(equity: float):
+    """Stand in for ``build_account_stats``: an all-cash account at ``equity``."""
+    return lambda _conn, _row, **_kwargs: (_make_state({}, {}, cash=equity), {}, 0.0, 0.0, equity)
+
+
 def _patch_book_reads(
     monkeypatch,
     *,
@@ -41,7 +46,7 @@ def _patch_book_reads(
     active_strategy: str = "trend",
 ) -> None:
     """Stub the book-owned rotation/assignment reads (ADR 014) for conn=None tests."""
-    from trading.services.books.rotation import BookRotationScheduleConfig
+    from trading.services.books.rotation.engine import BookRotationScheduleConfig
 
     monkeypatch.setattr(
         account_summaries,
@@ -67,7 +72,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
-        lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+        _stats_stub(1200.0),
     )
     monkeypatch.setattr(
         account_summaries,
@@ -94,19 +99,17 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     )
 
     assert summary["equity"] == 1200.0
-    assert summary["accountKind"] == "managed"
     assert summary["brokerType"] == "paper"
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
 
 
-def test_build_account_list_payload_includes_account_kind() -> None:
+def test_build_account_list_payload_maps_summary_fields() -> None:
     payload = account_summaries.build_account_list_payload(
         {
             "name": "acct_one",
             "displayName": "Account One",
-            "accountKind": "local",
             "strategy": "trend",
             "instrumentMode": "equity",
             "benchmark": "SPY",
@@ -117,7 +120,8 @@ def test_build_account_list_payload_includes_account_kind() -> None:
             "latestSnapshotTime": None,
         }
     )
-    assert payload["accountKind"] == "local"
+    assert payload["name"] == "acct_one"
+    assert payload["strategy"] == "trend"
 
 
 def test_build_comparison_account_payload_includes_live_overlay_summary() -> None:
@@ -207,7 +211,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -231,12 +235,12 @@ class TestBuildAccountSummaryShape:
             assert key in summary, f"Missing key: {key}"
 
     def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
-        from trading.services.books.rotation import BookRotationScheduleConfig
+        from trading.services.books.rotation.engine import BookRotationScheduleConfig
 
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
+            _stats_stub(1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -270,7 +274,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row, **_kwargs: (None, None, None, None, 1100.0),
+            _stats_stub(1100.0),
         )
         monkeypatch.setattr(
             account_summaries,

@@ -32,6 +32,7 @@ export function renderSectionTabs(
   const { showActions, accountName } = options;
   const sectionTabs: Array<{ id: DetailSectionName; label: string }> = [
     { id: "summary", label: "Summary" },
+    { id: "books", label: "Books" },
     { id: "analysis", label: "Analysis" },
     { id: "positions", label: "Positions" },
     { id: "trades", label: "Trades" },

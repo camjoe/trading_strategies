@@ -1,15 +1,6 @@
 from __future__ import annotations
 
-from trading.services.books.helpers import mean, resolve_window_bounds
-
-
-def test_mean_returns_zero_for_empty_list() -> None:
-    assert mean([]) == 0.0
-
-
-def test_mean_computes_average() -> None:
-    assert mean([1.0, 2.0, 3.0]) == 2.0
-    assert mean([10.0]) == 10.0
+from trading.services.books.helpers import resolve_window_bounds
 
 
 def test_resolve_window_bounds_basic() -> None:

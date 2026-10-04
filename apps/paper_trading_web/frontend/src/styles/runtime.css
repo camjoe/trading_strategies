@@ -21,6 +21,10 @@
   margin-top: 0.95rem;
 }
 
+#tab-strategy-lab > .card {
+  grid-column: span 12;
+}
+
 .bt-stack {
   display: grid;
   gap: 1.1rem;
@@ -143,14 +147,6 @@
 
   .bt-row {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .docs-nav-menu {
-    left: auto;
-    right: 0;
-    width: min(82vw, 320px);
   }
 }
 

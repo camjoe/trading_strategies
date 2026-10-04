@@ -5,7 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from common.paths.project_paths import (
+from common.paths import (
     EXPORTS_DIR as DEFAULT_EXPORTS_DIR,
     LOGS_DIR as PROJECT_LOGS_DIR,
     REPO_ROOT,

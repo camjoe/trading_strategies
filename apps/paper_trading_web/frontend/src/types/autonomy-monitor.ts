@@ -1,0 +1,148 @@
+/**
+ * Type definitions for the autonomy monitor API responses.
+ */
+
+export interface AutonomyAccountOverview {
+  account: {
+    account_id: number;
+    name: string;
+    initial_cash: number;
+    total_equity: number;
+    total_cash: number;
+    positions_market_value: number;
+    return_pct: number;
+    book_count: number;
+  };
+  books: AutonomyBook[];
+  daily_workflow: AutonomyDailyWorkflow | null;
+  governance_checks: Record<string, GovernanceCheckStatus>;
+  burn_in_status: BurnInStatus;
+  recent_rotations: RotationDecision[];
+  risk_summary: RiskSummary;
+}
+
+export interface AutonomyBook {
+  book_id: number;
+  name: string;
+  status: "active" | "paused" | "closed";
+  strategy: string;
+  start_equity: number;
+  current_equity: number;
+  current_cash: number;
+  positions_market_value: number;
+  return_pct: number;
+  latest_metrics: {
+    return_pct: number | null;
+    drawdown_pct: number | null;
+    hit_rate: number | null;
+    trade_count: number | null;
+    metric_date: string | null;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutonomyRunSummary {
+  accounts?: number;
+  orders_submitted?: number;
+  orders_accepted?: number;
+  orders_turned_away?: number;
+  decisions_total?: number;
+  decisions_blocked?: number;
+  decisions_rescaled?: number;
+  kill_switch_count?: number;
+  log_warnings?: number;
+  log_errors?: number;
+  log_critical?: number;
+}
+
+export interface AutonomyDailyWorkflow {
+  latest_run_date: string;
+  latest_run_time: string;
+  status: "success" | "failed" | "running" | "pending";
+  completed_steps: number;
+  failed_step: string | null;
+  duration_seconds: number;
+  step_results: DagStepResult[];
+  // Roll-up written by the daily run; absent/empty for artifacts predating it.
+  summary?: AutonomyRunSummary;
+}
+
+export interface DagStepResult {
+  step: string;
+  name: string;
+  status: "ok" | "failed" | "skipped" | "running";
+  started_at: string | null;
+  finished_at: string | null;
+  duration_seconds: number | null;
+  details: Record<string, string | number | boolean | null>;
+  error: string | null;
+}
+
+export interface GovernanceCheckStatus {
+  last_run: string | null;
+  status: "success" | "failed" | "not_run" | "unknown";
+  has_results: boolean;
+  result?: GovernanceArtifact | null;
+}
+
+export interface GovernanceArtifact {
+  generated_at?: string;
+  run_timestamp?: string;
+  week?: string;
+  month?: string;
+  window_days?: number;
+  audit_window_days?: number;
+  drift_threshold_pct?: number;
+  accounts?: Array<Record<string, unknown> & {
+    account_name?: string;
+    books?: Array<Record<string, unknown> & {
+      book_name?: string;
+      strategy_name?: string | null;
+    }>;
+  }>;
+}
+
+export interface BurnInStatus {
+  ready_for_live: boolean;
+  consecutive_successes: number;
+  min_required_successes: number;
+  failure_count: number;
+  window_days: number;
+  status_as_of: string | null;
+}
+
+export interface RotationDecision {
+  rotation_id: number;
+  book_id: number;
+  book_name: string;
+  decision_time: string;
+  incumbent: string;
+  challenger: string;
+  reason: string;
+}
+
+export interface RiskSummary {
+  kill_switch_triggered: boolean;
+  recent_violations: RiskViolation[];
+  violation_count: number;
+}
+
+export interface RiskViolation {
+  decision_time: string;
+  book_id: number;
+  book_name: string;
+  reason: string;
+  action: "block" | "rescale" | "allow";
+}
+
+export interface AutonomyAccountListItem {
+  account_id: number;
+  name: string;
+  initial_cash: number;
+  total_equity: number;
+  total_cash: number;
+  positions_market_value: number;
+  return_pct: number;
+  book_count: number;
+}

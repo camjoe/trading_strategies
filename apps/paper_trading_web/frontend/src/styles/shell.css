@@ -146,6 +146,15 @@
   padding: 0 0 2.5rem;
 }
 
+.demo-mode-banner {
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid var(--border-nav);
+  background: #fff4cc;
+  color: #5d4800;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
 .layout {
   display: grid;
   gap: 0;

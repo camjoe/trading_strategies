@@ -4,10 +4,9 @@ import {
   renderBacktestReport,
   renderBacktestRunCard,
   renderBacktestRunResult,
-  renderWalkForwardResult,
   warningListHtml,
 } from "../../components/backtesting";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types/backtesting";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary } from "../../types/backtesting";
 
 describe("warningListHtml", () => {
   it("renders an empty-state message when no warnings exist", () => {
@@ -87,38 +86,6 @@ describe("renderBacktestRunResult", () => {
   });
 });
 
-describe("renderWalkForwardResult", () => {
-  const base: WalkForwardResult = {
-    accountName: "trend_v1",
-    startDate: "2026-01-01",
-    endDate: "2026-03-31",
-    windowCount: 3,
-    runIds: [101, 102, 103],
-    averageReturnPct: 1.2,
-    medianReturnPct: 1.0,
-    bestReturnPct: 2.3,
-    worstReturnPct: 0.1,
-  };
-
-  it("renders account name, date range, and window count", () => {
-    const html = renderWalkForwardResult(base);
-    expect(html).toContain("trend_v1");
-    expect(html).toContain("2026-01-01");
-    expect(html).toContain("2026-03-31");
-    expect(html).toContain("Windows: 3");
-  });
-
-  it("renders run IDs joined by comma", () => {
-    const html = renderWalkForwardResult(base);
-    expect(html).toContain("101, 102, 103");
-  });
-
-  it("shows 'none' when there are no run IDs", () => {
-    const html = renderWalkForwardResult({ ...base, runIds: [] });
-    expect(html).toContain("Run IDs: none");
-  });
-});
-
 describe("renderBacktestRunCard", () => {
   const base: BacktestRunSummary = {
     runId: 7,
@@ -130,7 +97,7 @@ describe("renderBacktestRunCard", () => {
     createdAt: "2026-02-01T00:00:00Z",
     slippageBps: 5.0,
     feePerTrade: 0.0,
-    tickersFile: "trading/config/trade_universe.txt",
+    tickersFile: undefined,
   };
 
   it("renders run id and run name", () => {
@@ -168,7 +135,7 @@ describe("renderBacktestReport", () => {
     created_at: "2026-02-01T00:00:00Z",
     slippage_bps: 5.0,
     fee_per_trade: 0.25,
-    tickers_file: "trading/config/trade_universe.txt",
+    tickers_file: "src/infrastructure/config/trade_universes/default.txt",
     notes: null,
     warnings: ["daily bars only", "approximate pricing"],
     trade_count: 4,

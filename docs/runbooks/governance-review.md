@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-21
 Purpose: Procedures for running and interpreting the read-only weekly and monthly governance jobs that produce review artifacts.
 Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Runtime Operations](runtime-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Strategy Catalog](../reference/strategies.md)
 
@@ -27,7 +27,7 @@ Run each of the three weekly jobs after Friday's close or over the weekend.
 Ranks books by 30-day risk-adjusted performance score.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard
+python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard
 ```
 
 **Key fields in artifact:**
@@ -47,7 +47,7 @@ Ranks books by 30-day risk-adjusted performance score.
 Reports promotion readiness and any blocking violations for each account.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review
+python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review
 ```
 
 **Key fields in artifact:**
@@ -59,6 +59,13 @@ Reports promotion readiness and any blocking violations for each account.
 - `ready_for_live: true` with no blockers → persist a review with `promotion-request-review`, inspect history with `promotion-review-history`, then approve/reject/comment with `promotion-review-action`
 - Any book with `book_status` other than `active` for an extended period → investigate
 
+Promotion and rotation are separate controls. A promotion review is an operator-governance case:
+its event history records the request, notes, and terminal approval or rejection. Approval does not
+enable live trading, assign the strategy to a book, or cause a rotation. Conversely, rotation selects
+a strategy under a book's configured champion/challenger policy and does not constitute promotion
+approval. The current system does not require promotion approval before a strategy is eligible for
+rotation.
+
 ---
 
 ### W3 — Allocation reweight review
@@ -66,7 +73,7 @@ Reports promotion readiness and any blocking violations for each account.
 Compares actual book NAV allocation against original `start_equity` ratios.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review
+python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review
 ```
 
 **Key fields in artifact:**
@@ -80,7 +87,7 @@ Compares actual book NAV allocation against original `start_equity` ratios.
 
 **Changing the drift threshold:**
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review \
+python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review \
     --drift-threshold-pct 10.0
 ```
 
@@ -95,7 +102,7 @@ Run monthly jobs at the end of each calendar month.
 Snapshots the current portfolio risk state per account for operator review.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline
+python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline
 ```
 
 **Key fields in artifact:**
@@ -115,7 +122,7 @@ Snapshots the current portfolio risk state per account for operator review.
 Inventories all active strategy parameter sets for operator review.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance
+python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance
 ```
 
 **Key fields in artifact:**
@@ -135,7 +142,7 @@ Inventories all active strategy parameter sets for operator review.
 90-day compound return, max drawdown, and average hit rate per book.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit
+python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit
 ```
 
 **Key fields in artifact:**
@@ -146,7 +153,7 @@ Inventories all active strategy parameter sets for operator review.
 
 **Changing the audit window:**
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit \
+python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit \
     --audit-window-days 60
 ```
 
@@ -160,14 +167,14 @@ Inventories all active strategy parameter sets for operator review.
 
 All governance jobs support `--force-run` to bypass the weekly/monthly dedup guard:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard --force-run
+python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard --force-run
 ```
 
 ## Scoping to specific accounts
 
 Pass `--accounts` to limit to specific accounts:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard \
+python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard \
     --accounts momentum_5k,meanrev_5k
 ```
 

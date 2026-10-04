@@ -7,14 +7,15 @@ export function renderPositionsSection(detail: AccountDetail, activeSection: Det
     <article class="detail-section-panel" data-detail-panel="positions" ${activeSection === "positions" ? "" : "hidden"}>
       <h4>Current Positions</h4>
       <table>
-        <thead><tr><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
+        <thead><tr><th>Book</th><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
         <tbody>${
           detail.positions.length === 0
-            ? `<tr><td colspan="6">No open positions.</td></tr>`
+            ? `<tr><td colspan="7">No open positions.</td></tr>`
             : detail.positions
                 .map(
                   (position) => `
           <tr>
+            <td>${esc(position.bookName ?? "Account")}</td>
             <td><strong>${esc(position.ticker)}</strong></td>
             <td>${position.qty.toFixed(2)}</td>
             <td>${currency.format(position.avgCost)}</td>
@@ -52,8 +53,8 @@ export function renderTradesSection(
         <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
       </div>
       <table class="recent-trades-table">
-        <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-        <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
+        <thead><tr><th>Time</th><th>Book</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+        <tbody>${tradeRows || `<tr><td colspan="8">No trades yet.</td></tr>`}</tbody>
       </table>
     </article>
   `;

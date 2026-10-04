@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 
 from infrastructure.database.connection import db_session
-from trading.services.strategy_catalog import ensure_default_books, seed_strategy_catalog
+from trading.services.strategy_catalog.seeding import ensure_default_books, seed_strategy_catalog
 
 
 def parse_args() -> argparse.Namespace:

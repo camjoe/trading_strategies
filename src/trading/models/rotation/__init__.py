@@ -1,1 +1,0 @@
-"""rotation data contracts."""

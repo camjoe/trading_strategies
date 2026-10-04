@@ -4,7 +4,10 @@ import datetime as dt
 from pathlib import Path
 
 import pytest
+
+import trading.interfaces.runtime.jobs.daily.paper_trading.caps as caps_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
+import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
 
@@ -35,25 +38,25 @@ def test_already_completed_today_uses_todays_date_tag_by_default(tmp_path: Path)
 
 def test_group_accounts_by_caps_single_group() -> None:
     caps = {"a": (1, 5), "b": (1, 5)}
-    result = module.group_accounts_by_caps(["a", "b"], caps)
+    result = caps_module.group_accounts_by_caps(["a", "b"], caps)
     assert result == {(1, 5): ["a", "b"]}
 
 
 def test_group_accounts_by_caps_multiple_groups() -> None:
     caps = {"a": (1, 5), "b": (1, 11), "c": (1, 5)}
-    result = module.group_accounts_by_caps(["a", "b", "c"], caps)
+    result = caps_module.group_accounts_by_caps(["a", "b", "c"], caps)
     assert result[(1, 5)] == ["a", "c"]
     assert result[(1, 11)] == ["b"]
 
 
 def test_group_accounts_by_caps_preserves_insertion_order_within_group() -> None:
     caps = {"z": (1, 5), "a": (1, 5), "m": (1, 5)}
-    result = module.group_accounts_by_caps(["z", "a", "m"], caps)
+    result = caps_module.group_accounts_by_caps(["z", "a", "m"], caps)
     assert result[(1, 5)] == ["z", "a", "m"]
 
 
 def test_group_accounts_by_caps_empty_accounts_returns_empty() -> None:
-    assert module.group_accounts_by_caps([], {}) == {}
+    assert caps_module.group_accounts_by_caps([], {}) == {}
 
 
 def test_step_result_raises_for_unknown_step_id() -> None:
@@ -63,3 +66,27 @@ def test_step_result_raises_for_unknown_step_id() -> None:
 
 def test_failed_step_id_returns_none_when_all_steps_pending() -> None:
     assert dag_module.failed_step_id(dag_module.new_step_results()) is None
+
+
+class TestKillSwitchAccountsFromDag:
+    """Step 06's summary is the single source for which accounts tripped a kill switch."""
+
+    def _steps(self, details: dict[str, object]) -> list[workflow.DagStepResult]:
+        steps = workflow.new_step_results()
+        workflow.step_result(steps, "06_pretrade_risk_gate").details = details
+        return steps
+
+    def test_reads_accounts_from_the_risk_gate_step(self) -> None:
+        steps = self._steps({"kill_switch_accounts": ["acct1", "acct2"]})
+        assert workflow.kill_switch_accounts_from_dag(steps) == ["acct1", "acct2"]
+
+    def test_returns_empty_when_no_kill_switch_fired(self) -> None:
+        steps = self._steps({"kill_switch_accounts": []})
+        assert workflow.kill_switch_accounts_from_dag(steps) == []
+
+    def test_returns_empty_when_the_step_never_ran(self) -> None:
+        assert workflow.kill_switch_accounts_from_dag(workflow.new_step_results()) == []
+
+    def test_tolerates_a_malformed_summary(self) -> None:
+        steps = self._steps({"kill_switch_accounts": "acct1"})
+        assert workflow.kill_switch_accounts_from_dag(steps) == []

@@ -84,5 +84,5 @@ Before finalizing a README:
 1. Confirm at least one context section (`Purpose` or `Overview`).
 2. Confirm at least one operational section (`Quick Start`, `Commands`, `Usage`, or `Workflows`).
 3. Run:
-   - `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`
+   - `python -m scripts.checks.docs.readme_check --repo-root .`
 4. If behavior changed, update linked docs in the same change set.

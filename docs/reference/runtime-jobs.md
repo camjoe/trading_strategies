@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-25
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-08-02
 Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Governance Review Guide](../runbooks/governance-review.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -11,31 +11,33 @@ How to run and schedule the runtime job entrypoints. For the full structural mod
 [trading-package-map.md](../maps/trading-package-map.md) (Runtime jobs section); for monitoring and
 recovery procedures see the [Runtime Operations Runbook](../runbooks/runtime-operations.md).
 
-All commands run as Python modules from the repository root with the active venv interpreter
-(`.venv\Scripts\python.exe` on Windows, `./.venv/bin/python` on POSIX).
+All interactive commands run as Python modules from the repository root and assume the virtual
+environment described in the root README is active. Generated scheduler definitions use an explicit
+interpreter path because they do not run inside an activated shell.
 
 ## Scheduled jobs
 
 Jobs the scheduler installer (`manage_job_schedules.py`) can register. Optional
 entries are installed only when their time flag is provided.
 
-| Job | Entrypoint | Task name | Frequency | Why it exists / how it is used |
-|---|---|---|---|---|
-| Daily paper trading | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Daily at `--daily-paper-trading-time` | Main daily runtime workflow. Loads runtime-eligible accounts, optionally runs challenger shadow evaluation, executes auto trades, snapshots accounts, compares strategies, and emits logs, artifacts, and notifications. |
-| Daily paper trading fallback | `python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source scheduled-daily-fallback` | `Trading\DailyPaperTradingFallback` | Daily at `--daily-paper-trading-fallback-time` | Second duplicate-guarded attempt in case the primary daily run missed or failed before completion. |
-| Challenger shadow evaluation | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily at `--daily-challenger-shadow-eval-time`, or auto-derived before paper trading with `--auto-shadow-eval-from-daily-paper` | Scores challenger strategies against incumbents for runtime-eligible accounts and writes account-level shadow-evaluation artifacts. Disabled unless `--enable-run` or the matching environment enable is set. |
-| Daily snapshot | `python -m trading.interfaces.runtime.jobs.daily.snapshot` | `Trading\DailySnapshot` | Daily at `--daily-snapshot-time` | Runs account snapshots with duplicate-run guard and retry handling. Disabled unless `--enable-run` or the matching environment enable is set. |
-| Daily backtest refresh | `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh` | `Trading\DailyBacktestRefresh` | Daily at `--daily-backtest-refresh-time` | Refreshes only the backtests that have drifted: for each account it re-runs the strategies rotation could promote (each active book's incumbent plus its challenger schedule) whose newest backtest is stale or missing, per the backtest freshness threshold (`--stale-threshold-days`, default 3). Captures run IDs, retries transient failures, writes JSON artifacts under `local/exports/daily_backtest_refresh/`. Disabled unless `--enable-run` or the matching environment enable is set. |
-| Daily trader health check | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Daily at `--health-check-time` | Checks that the latest daily paper-trading log is recent and contains the success sentinel; can notify on failure. |
-| Weekly DB backup | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly at `--weekly-db-backup-time` on `--weekly-db-backup-day-of-week` | Runs the database backup command with a same-week duplicate guard. |
+Times, days, and args come from the schedule config (the `Config id` column maps a row to its entry
+in `job_schedule.json`).
+
+| Job | Config id | Entrypoint | Task name | Frequency | What it does |
+|---|---|---|---|---|---|
+| Daily paper trading | `daily_paper_trading` | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Weekdays | Main daily workflow: shadow eval, auto trades, snapshots, report, notifications. Runs Monday–Friday; the market-closed path still completes and writes the success sentinel. |
+| Challenger shadow evaluation | `daily_challenger_shadow_eval` | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily | Scores challengers against incumbents per account. No-op without `--enable-run` (set it in the entry's `args`) or `DAILY_CHALLENGER_SHADOW_EVAL_ENABLED=1`. |
+| Daily trader health check | `daily_trader_health` | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Weekdays | Checks the latest daily log is recent and carries the success sentinel. Runs Monday–Friday to match the trading job, so a weekend does not read as a stale run. |
+| Weekly DB backup | `weekly_db_backup` | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly | Database backup with a same-week duplicate guard. |
 
 ## Manual or indirect jobs
 
-| Job | Entrypoint | Frequency | Why it exists / how it is used |
+| Job | Entrypoint | Frequency | What it does |
 |---|---|---|---|
-| Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Executes per-account signal-driven trades (only when the active strategy signals, up to `--max-trades`). The daily paper-trading job shells out to this module; operators can also run it manually. |
-| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness (counts consecutive artifacts with top-level `status == "success"`). |
-| Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date --force-run`. |
+| Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Per-account signal-driven trades, up to `--max-trades`. The daily job shells out to it. |
+| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc | Counts consecutive successful daily artifacts to report go-live readiness. |
+| Reconcile broker fills | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders` | Indirect/manual | Applies outstanding broker fills to the books. No-op for `paper` accounts. |
+| Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Replays dates in a range that have no successful daily log. |
 
 ## Governance jobs
 
@@ -43,14 +45,14 @@ Runnable entrypoints with weekly or monthly duplicate guards; **not** registered
 `manage_job_schedules.py`. Procedures and artifact interpretation live in the
 [Governance Review Guide](../runbooks/governance-review.md).
 
-| Job | Entrypoint | Frequency | Why it exists / how it is used |
+| Job | Entrypoint | Frequency | What it does |
 |---|---|---|---|
-| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account books by recent performance, default 30-day window, for governance review. |
-| W2 weekly promotion review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review` | Weekly dedup guard | Produces promotion/retirement readiness review for runtime-eligible accounts. |
-| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Compares actual book NAV allocation against target/start-equity ratios and flags drift. |
-| M1 monthly risk rebaseline | `python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline` | Monthly dedup guard | Captures latest risk snapshots per account for operator risk budget review. |
-| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories each book's active strategy assignment and effective parameters. |
-| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon book performance audit, default 90 days. |
+| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account books by recent performance (default 30 days). |
+| W2 weekly promotion review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review` | Weekly dedup guard | Promotion/retirement readiness per runtime-eligible account. |
+| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Flags book NAV drift against target/start-equity ratios. |
+| M1 monthly risk rebaseline | `python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline` | Monthly dedup guard | Captures latest risk snapshots per account for budget review. |
+| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories each book's active strategy and effective parameters. |
+| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Longer-horizon book performance audit (default 90 days). |
 
 ## Running jobs directly
 
@@ -59,35 +61,89 @@ The direct job scripts are the source of truth — run the job you want directly
 
 ```sh
 # Daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual
-
-# Daily snapshot
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.snapshot --run-source manual --enable-run
-
-# Daily backtest refresh
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run
+python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual
 
 # Weekly DB backup
-./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
+python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
 
 # Health check
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
+python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
 ```
+
+The daily run is self-contained and can be started by hand at any time. It submits orders only during
+US regular equity hours and otherwise completes every other step; it snapshots accounts itself rather
+than depending on a separate job; and it skips a date that already succeeded. Pass `--force-run` for a
+deliberate re-run — that is a second full trading pass, not a retry. The reasoning behind the guard
+and the snapshot placement is in the `paper_trading` package docstring and `workflow.py`.
+
+## When a reinstall is needed
+
+The scheduler runs `python -m <module>`. It loads the current code on every run. So a change to a
+job's Python code takes effect on the next scheduled run with **no reinstall**.
+
+Re-register only when the *registration* itself changes:
+
+- a schedule time or day
+- a job's command arguments
+- the set of jobs (add or remove one)
+- the task name or the Python interpreter path
+
+Two related changes are not a schedule reinstall: a new dependency needs `pip install`, and a new
+migration needs to be applied. See the [Production Runtime Host runbook](../runbooks/production-runtime-host.md#24-pull-onto-the-production-host).
 
 ## Registering schedules
 
-`manage_job_schedules` writes Windows Task Scheduler entries on Windows. On Linux it auto-detects
-systemd and creates systemd timer units; falls back to cron if systemd is unavailable. Pass
-`--scheduler cron` or `--scheduler systemd` to override. **Always preview with `--dry-run` first.**
+### The schedule config
+
+The schedule is defined in one JSON file, so a change is one file edit plus one apply command. You
+do not uninstall first. The tracked template is
+[`src/infrastructure/config/job_schedule.example.json`](../../src/infrastructure/config/job_schedule.example.json).
+Copy it to `job_schedule.json` in the same folder (gitignored, so real times stay private — the
+`.env` / `.env.example` pattern) and set real times.
+
+Each entry names a job by its `id` (from the catalog in
+`src/trading/interfaces/runtime/scheduling/job_catalog.py`) and supplies the `time`, an optional
+`day_of_week` for a weekly job, optional `args`, and `enabled`. The module path and log file come
+from the catalog, so they cannot be mistyped in the config. The config file is the **only** way to
+register jobs; there are no per-job command flags.
+
+The file is the source of truth. An apply registers every enabled job and removes every job that is
+disabled or absent, so the host matches the file. `--config` defaults to that `job_schedule.json`
+under `src/infrastructure/config/`, so it can be omitted when you use that path:
 
 ```sh
-# Register the core runtime jobs (Linux — generates local/install_trading_timers.sh)
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
-  --daily-paper-trading-fallback-time 13:20 \
-  --health-check-time 13:35 \
-  --weekly-db-backup-day-of-week Sunday \
-  --weekly-db-backup-time 12:58
+# Preview first (prints the actions, changes nothing).
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --dry-run
+
+# Apply.
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules
+```
+
+Check the host against the file at any time. The status report exits `0` in sync, `1` on drift, and
+`2` when installed state cannot be read (a systemd target queried off the host):
+
+```sh
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --status
+```
+
+### Backend selection
+
+By default `manage_job_schedules` follows the host: Windows Task Scheduler entries on Windows, and
+on Linux systemd timer units, falling back to cron if systemd is unavailable. **Always preview with
+`--dry-run` first.**
+
+`--scheduler systemd` is honoured on any host, so the timer and service units can be reviewed from a
+Windows dev machine with `--scheduler systemd --dry-run` — the systemd path writes a script and
+installs nothing. Note that paths, `User=`, and the interpreter come from the *invoking* host, so
+what you get on Windows is a structural preview — the right units with the right `OnCalendar`
+expressions, not a file to copy across. Register on the production host itself.
+
+`--scheduler cron` still needs a host with `crontab`, because it merges into that machine's existing
+table rather than emitting a file.
+
+```sh
+# Register from the config (Linux — generates local/install_trading_timers.sh)
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules
 
 # Then install with sudo (systemd timers require root to write to /etc/systemd/system/)
 sudo bash local/install_trading_timers.sh
@@ -95,19 +151,22 @@ sudo bash local/install_trading_timers.sh
 # Set AC inactivity timeout to 60 min so the machine stays up through the job window
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
 
-# Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
-  --daily-paper-trading-time 13:00 \
-  --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
-
-# Remove previously registered entries (preview with --dry-run first)
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
-./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
+# Remove every catalog entry (preview with --dry-run first)
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
+python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 sudo bash local/uninstall_trading_timers.sh
 ```
 
-On Windows, the same registration commands apply with the PowerShell path form
+Set the run times in the gitignored `job_schedule.json` under `src/infrastructure/config/`, not in
+tracked documentation. To change a job's time, day, or args, edit that file and re-apply.
+
+On Windows, the same commands apply with the PowerShell path form
 (`.\.venv\Scripts\python.exe -m ...`) plus an explicit `--python .\.venv\Scripts\python.exe`.
+
+`--unregister` removes every task in the catalog. It does not know the retired
+`Trading\DailySnapshot` and `Trading\DailyPaperTradingFallback` names; a host that still has them
+registered needs them deleted by hand. Neither was registered anywhere when this was checked on
+2026-08-01.
 
 ### Behavior notes
 
@@ -115,10 +174,19 @@ On Windows, the same registration commands apply with the PowerShell path form
 - On Linux with systemd, the installer generates `local/install_trading_timers.sh` (requires `sudo bash` to apply). Each timer includes `WakeSystem=yes` so the machine wakes from sleep before the job fires. Pass `--no-wake-system` to disable this.
 - Pass `--env-file /path/to/.env` to inject secrets via `EnvironmentFile=` in each service unit (systemd only). The file is treated as optional — a missing file does not fail the job. For cron setups, the production runbook documents an equivalent `run-job.sh` wrapper you create on the host.
 - `--python` defaults to the venv's python when running inside a venv; override explicitly if needed.
-- Snapshot, daily backtest refresh, and challenger shadow-evaluation entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh` / `--enable-daily-challenger-shadow-eval`) or the matching environment variable is set. The `--auto-shadow-eval-from-daily-paper` form enables the shadow-eval run automatically.
-- Windows Task Scheduler task names default to the `Trading\*` names in the scheduled-jobs table above.
+- The challenger shadow-evaluation entry stays a no-op until it is operator-enabled. Enable it by
+  adding `"--enable-run"` to that entry's `args` in the config, or by setting
+  `DAILY_CHALLENGER_SHADOW_EVAL_ENABLED=1` in the job environment.
+- Windows Task Scheduler task names are the `Trading\*` names in the scheduled-jobs table above.
+- Windows tasks are registered with `-StartWhenAvailable`, `-AllowStartIfOnBatteries`,
+  `-DontStopIfGoingOnBatteries`, and (unless `--no-wake-system`) `-WakeToRun`. These match the
+  systemd `Persistent=true` and `WakeSystem=yes` behavior: a missed start runs once the machine is
+  back, the task runs off AC, and the machine wakes from sleep before the run. Software cannot start
+  a machine that is fully powered off.
 
 ## Configuration
 
-- `src/infrastructure/config/account_trade_caps.json` — per-account trade caps used by the runtime scheduler; supports per-account `min`/`max` trade counts with a `default` fallback.
-- Trade universe files live under `src/infrastructure/config/` (default `trade_universe.txt`); pass `--tickers-file` to select a preset. See [src/trading/README.md](../../src/trading/README.md) for universe presets and auto-trading behavior.
+- Account trade caps come from the daily paper-trading job's own flags: `--primary-accounts` with `--primary-max-trades` / `--other-max-trades`, and `--account-trade-caps` for per-account overrides. See [backtest-live-divergence.md](backtest-live-divergence.md) for why these do not currently bind.
+- The daily auto-trading run derives its fetch universe from `books.trade_symbols` across the books it trades; `--tickers-file` overrides that with an explicit ticker file. Universe names under `src/infrastructure/config/trade_universes/` are a write-time shorthand only. See [src/trading/README.md](../../src/trading/README.md) for auto-trading behavior.
+</content>
+</invoke>

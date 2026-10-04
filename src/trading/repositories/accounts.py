@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import astuple
+from collections.abc import Mapping
 
 from trading.models import AccountInsert, AccountRecord
+from trading.persistence.money_columns import encode_columns, encode_money
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 _ACCOUNT_INSERT_COLUMNS = (
     "name",
-    "account_kind",
     "initial_cash",
     "created_at",
+    "updated_at",
     "benchmark_ticker",
     "descriptive_name",
 )
+
+# Money columns stored as integer minor units; encoded on write, decoded on read.
+_ACCOUNT_MONEY_COLUMNS = frozenset({"initial_cash"})
+_NO_QUANTITY_COLUMNS: frozenset[str] = frozenset()
 _ACCOUNT_INSERT_SQL = (
     f"INSERT INTO accounts ({', '.join(_ACCOUNT_INSERT_COLUMNS)}) "
     f"VALUES ({', '.join('?' for _ in _ACCOUNT_INSERT_COLUMNS)})"
@@ -23,49 +29,49 @@ class AccountRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> AccountRecord:
-        return AccountRecord.from_mapping(dict(row))
-
     def fetch_all(self) -> list[AccountRecord]:
-        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
-        return [self._row_to_record(row) for row in rows]
-
-    def fetch_by_name(self, name: str) -> AccountRecord | None:
-        row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
-        return self._row_to_record(row) if row is not None else None
-
-    def fetch_listing(self) -> list[AccountRecord]:
         rows = self._conn.execute("SELECT * FROM accounts ORDER BY name ASC").fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [AccountRecord.from_mapping(dict(row)) for row in rows]
 
-    def fetch_names(self) -> list[str]:
-        rows = self._conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-        return [str(row["name"]) for row in rows]
+    def fetch_by_id(self, *, account_id: int) -> AccountRecord | None:
+        row = self._conn.execute("SELECT * FROM accounts WHERE id = ?", (account_id,)).fetchone()
+        return AccountRecord.from_mapping(dict(row)) if row is not None else None
+
+    def fetch_by_name(self, *, account_name: str) -> AccountRecord | None:
+        row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (account_name,)).fetchone()
+        return AccountRecord.from_mapping(dict(row)) if row is not None else None
 
     def insert(self, account: AccountInsert) -> None:
-        self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
-        self._conn.commit()
-
-    def update(self, *, account_id: int, updates: list[str], params: list[object]) -> None:
-        query_params = [*params, account_id]
         self._conn.execute(
-            f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?",
-            tuple(query_params),
+            _ACCOUNT_INSERT_SQL,
+            (
+                account.name,
+                encode_money(account.initial_cash),
+                account.created_at,
+                account.updated_at,
+                account.benchmark_ticker,
+                account.descriptive_name,
+            ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
-    def update_benchmark(self, *, account_id: int, benchmark_ticker: str) -> None:
+    def update(self, *, account_id: int, values: Mapping[str, object], updated_at: str) -> None:
+        """Write ``values`` as a partial column update to one account; no-op when empty."""
+        if not values:
+            return
+        encoded = encode_columns(values, money_columns=_ACCOUNT_MONEY_COLUMNS, quantity_columns=_NO_QUANTITY_COLUMNS)
+        assignments = ", ".join(f"{column} = ?" for column in encoded)
         self._conn.execute(
-            "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
-            (benchmark_ticker, account_id),
+            f"UPDATE accounts SET {assignments}, updated_at = ? WHERE id = ?",
+            (*encoded.values(), updated_at, account_id),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
-    def delete_by_name(self, account_name: str) -> AccountRecord | None:
+    def delete_by_name(self, *, account_name: str) -> AccountRecord | None:
         """Delete one account and return it; database cascades remove owned rows."""
         row = self._conn.execute(
             "DELETE FROM accounts WHERE name = ? RETURNING *",
             (account_name,),
         ).fetchone()
-        self._conn.commit()
-        return self._row_to_record(row) if row is not None else None
+        commit_unit_of_work(self._conn)
+        return AccountRecord.from_mapping(dict(row)) if row is not None else None

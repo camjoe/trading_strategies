@@ -9,8 +9,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     RUNTIME_ALERT_SMTP_PASSWORD_ENV,
     RUNTIME_ALERT_SMTP_PORT_ENV,
     RUNTIME_ALERT_SMTP_TO_ENV,
-    RUNTIME_ALERT_SMTP_USERNAME_ENV,
     RUNTIME_ALERT_SMTP_USE_TLS_ENV,
+    RUNTIME_ALERT_SMTP_USERNAME_ENV,
     already_completed_for_period,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
@@ -139,6 +139,32 @@ def test_already_completed_for_period_checks_older_completed_logs(tmp_path: Path
             sentinel="COMPLETE",
         )
         is True
+    )
+
+
+def test_already_completed_for_period_is_false_without_a_matching_log(tmp_path: Path):
+    assert (
+        already_completed_for_period(
+            log_dir=tmp_path,
+            job_name="job",
+            period_tag="2026_06",
+            sentinel="COMPLETE",
+        )
+        is False
+    )
+
+
+def test_already_completed_for_period_is_false_when_the_log_lacks_the_sentinel(tmp_path: Path):
+    (tmp_path / "job_2026_06_20260601_000000.log").write_text("incomplete run\n", encoding="utf-8")
+
+    assert (
+        already_completed_for_period(
+            log_dir=tmp_path,
+            job_name="job",
+            period_tag="2026_06",
+            sentinel="COMPLETE",
+        )
+        is False
     )
 
 

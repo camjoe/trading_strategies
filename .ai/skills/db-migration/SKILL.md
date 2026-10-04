@@ -8,9 +8,6 @@ description: Manages numbered Alembic schema migrations for the trading database
 Handles the full lifecycle of a schema change: design → validate → risk check → rollback plan.
 For a complete schema change, run all four tasks in order unless asked for a specific one.
 
-Run Python commands with the repository-local interpreter: `.venv/Scripts/python.exe` on Windows
-or `./.venv/bin/python` on POSIX. Never use the system interpreter.
-
 The schema is owned by a **linear, numbered Alembic revision chain** in
 `src/infrastructure/database/alembic/versions/` (see
 `docs/reference/db-migration-system.md`). Runtime never migrates — operators apply revisions
@@ -33,7 +30,7 @@ with `scripts.data_ops.manage_db_migrations`.
 - Every revision implements both `upgrade()` and `downgrade()`, nonempty.
 - Revision ids are 4-digit numeric, strictly increasing, single linear head.
 - Update `schema_version.EXPECTED_HEAD_REVISION` in the same commit as a new revision — this is
-  the one rule CI enforces (`.venv/Scripts/python.exe -m scripts.checks.repo.migration_check`);
+  the one rule CI enforces (`python -m scripts.checks.repo.migration_check`);
   the rest are
   review discipline.
 - Every `NOT NULL` column added to a populated table **must** have a `DEFAULT`.

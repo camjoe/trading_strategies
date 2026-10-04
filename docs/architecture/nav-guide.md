@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-07-23
 Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
 
@@ -42,31 +42,32 @@ The maps and this guide serve different questions:
 | Change account snapshot logic | `src/trading/services/accounts/queries.py` + `src/trading/repositories/accounts.py` |
 | Change auto-trading execution flow | `src/trading/services/auto_trading/` |
 | Change shared book order submission, fill handling, reconciliation, or pre-submit gates | `src/trading/services/execution/` |
-| Change rotation logic | `src/trading/services/books/rotation.py` + `src/trading/domain/rotation.py` |
+| Change rotation logic | `src/trading/services/books/rotation/engine.py` + `src/trading/domain/rotation/` |
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |
-| Change reporting math or presentation | `src/trading/services/reporting/` |
+| Change report presentation (printed operator output) | `src/trading/services/reporting/` |
+| Change portfolio/benchmark computation (account stats, settlement equity, benchmark overlay) | `src/trading/services/analysis/` (`portfolio.py`, `benchmark.py`) |
+| Change pure portfolio return math (equity/return/alpha) | `src/trading/domain/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
-| Change per-book rotation policy resolution | `src/trading/services/books/rotation.py` (`resolve_rotation_policy_config`) |
+| Change per-book rotation policy resolution | `src/trading/services/books/rotation/engine.py` (`resolve_rotation_policy_config`) |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change book logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change book performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
-| Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
-| Change stale-backtest target discovery/remediation support | `src/trading/services/backtesting/` |
-| Change IBKR paper monitor operator/dashboard queries or artifacts | `src/trading/services/ibkr_paper_monitor/` |
+| Change trade-universe resolution | `src/trading/services/universe.py` |
+| Change Autonomy monitor operator/dashboard queries or artifacts | `src/trading/services/autonomy_monitor/` |
 
 ### Configuration
 
 | Task | Where |
 |---|---|
-| Change an account profile (strategy params, caps) | `src/infrastructure/config/account_profiles/<profile>.json` |
-| Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
-| Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
+| Change which tickers a book trades | Name a universe on `configure-book` / the book-params API; it stores the expansion in `books.trade_symbols` |
+| Change a named universe's roster | `src/infrastructure/config/trade_universes/` — affects future writes only; re-apply the name to existing books |
+| Change account-level trade caps | `--primary-max-trades` / `--other-max-trades` on the daily paper-trading job |
 
 ### Models / Data Contracts
 
@@ -103,10 +104,11 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change backtesting engine | `src/trading/backtesting/backtest.py` |
-| Change backtest result models | `src/trading/backtesting/models.py` and `src/trading/backtesting/report_models.py` |
-| Change backtest persistence | `src/trading/backtesting/repositories/` |
-| Change backtesting services | `src/trading/backtesting/services/` |
+| Change backtesting engine | `src/backtesting/services/simulation.py` |
+| Wire a provider into a backtest | `src/backtesting/composition.py` |
+| Change backtest result models | `src/backtesting/models/` — `backtest.py`, `optimizer.py`, or `report.py` |
+| Change backtest persistence | `src/backtesting/repositories/` |
+| Change backtesting services | `src/backtesting/services/` |
 
 ---
 
@@ -157,7 +159,7 @@ The maps and this guide serve different questions:
 | Run tests for a specific area | `python -m scripts.checks.run_suite <path-prefix> --no-cov` |
 | Add a new check to CI | `scripts/checks/<new_check>.py` + register in `scripts/checks/ci.py` |
 | Change layer/import boundary rules | `scripts/checks/repo/layer_check.py` |
-| Check README freshness only | `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90` |
+| Check README structure only | `python -m scripts.checks.docs.readme_check --repo-root .` |
 
 ---
 
@@ -179,7 +181,6 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Task | Where |
 |---|---|
 | Back up the DB | `python -m scripts.data_ops.backup_db` |
-| Export DB to CSV | `python -m scripts.data_ops.export_db_csv` |
 | Inspect schema | `python -m scripts.data_ops.describe_db_schema` |
 | Launch the UI | `python -m scripts.launch_ui` |
 
@@ -194,4 +195,4 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 | Add a new reference note or ADR | `docs/reference/` — use the inline reference-note template in `docs/conventions/docs-authoring.md` or `docs/adr/TEMPLATE.adr.md` |
 | Update a runbook | `docs/runbooks/<runbook>.md` |
-| Check README freshness | `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90` |
+| Check README structure | `python -m scripts.checks.docs.readme_check --repo-root .` |

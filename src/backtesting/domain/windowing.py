@@ -1,0 +1,137 @@
+"""Date-range and walk-forward window geometry.
+
+A month here is always a calendar month, never an approximate day count: a run
+window, a training interval, and a holdout are all measured with ``shift_months``
+so a boundary means the same thing wherever it is computed.
+"""
+
+from __future__ import annotations
+
+from calendar import monthrange
+from datetime import UTC, date, datetime, timedelta
+
+from backtesting.models.optimizer import WalkForwardSplit
+from trading.domain.exceptions import ValidationError
+
+_DATE_FMT = "%Y-%m-%d"
+
+# Run window used when a caller gives neither an explicit start nor a lookback.
+DEFAULT_RUN_WINDOW_MONTHS = 1
+
+
+def _parse_date(value: str, label: str) -> date:
+    try:
+        return datetime.strptime(value, _DATE_FMT).date()
+    except ValueError as exc:
+        raise ValidationError(f"Invalid {label} date: {value}. Expected format is {_DATE_FMT}.") from exc
+
+
+def shift_months(base: date, months: int) -> date:
+    """Shift a date by a signed number of months, clamping the day to the target month."""
+    month_index = (base.year * 12 + (base.month - 1)) + months
+    target_year = month_index // 12
+    target_month = (month_index % 12) + 1
+    target_day = min(base.day, monthrange(target_year, target_month)[1])
+    return date(target_year, target_month, target_day)
+
+
+def add_months(base: date, months: int) -> date:
+    if months < 0:
+        raise ValidationError("months must be >= 0")
+    return shift_months(base, months)
+
+
+def resolve_run_window(
+    start: str | None,
+    end: str | None,
+    lookback_months: int | None,
+    as_of: date | None = None,
+) -> tuple[date, date]:
+    """The (start, end) dates a run covers, from an explicit range or a lookback."""
+    if start and lookback_months is not None:
+        raise ValidationError("Use either --start or --lookback-months, not both.")
+
+    now = as_of or datetime.now(UTC).date()
+    end_date = _parse_date(end, "end") if end else now
+
+    if lookback_months is not None:
+        if lookback_months <= 0:
+            raise ValidationError("lookback_months must be > 0")
+        start_date = shift_months(end_date, -lookback_months)
+    elif start:
+        start_date = _parse_date(start, "start")
+    else:
+        start_date = shift_months(end_date, -DEFAULT_RUN_WINDOW_MONTHS)
+
+    if start_date >= end_date:
+        raise ValidationError("start date must be before end date")
+
+    return start_date, end_date
+
+
+def build_walk_forward_optimization_splits(
+    start_date: date,
+    end_date: date,
+    *,
+    train_months: int,
+    test_months: int,
+    step_months: int,
+    holdout_months: int,
+) -> tuple[list[WalkForwardSplit], tuple[date, date] | None]:
+    """Build train/test splits for walk-forward optimization plus an untouched holdout.
+
+    A final ``holdout_months`` interval is carved off the end and excluded from every
+    training and test window. Each test window is preceded by a ``train_months`` training
+    interval ending the day before the test starts. ``step_months`` must be at least
+    ``test_months`` so out-of-sample windows never overlap.
+    """
+    if train_months <= 0:
+        raise ValidationError("train_months must be > 0")
+    if test_months <= 0:
+        raise ValidationError("test_months must be > 0")
+    if step_months <= 0:
+        raise ValidationError("step_months must be > 0")
+    if holdout_months < 0:
+        raise ValidationError("holdout_months must be >= 0")
+    if step_months < test_months:
+        raise ValidationError("step_months must be >= test_months to avoid overlapping OOS windows")
+    if start_date >= end_date:
+        raise ValidationError("start_date must be before end_date")
+
+    holdout: tuple[date, date] | None = None
+    optimization_end = end_date
+    if holdout_months > 0:
+        end_month_first = date(end_date.year, end_date.month, 1)
+        holdout_start = shift_months(end_month_first, 1 - holdout_months)
+        if holdout_start <= start_date:
+            raise ValidationError("holdout_months leaves no room for any training/test window")
+        holdout = (holdout_start, end_date)
+        optimization_end = holdout_start - timedelta(days=1)
+
+    splits: list[WalkForwardSplit] = []
+    opt_start = date(start_date.year, start_date.month, 1)
+    test_cursor = add_months(opt_start, train_months)
+    while True:
+        test_end = add_months(test_cursor, test_months) - timedelta(days=1)
+        if test_end > optimization_end:
+            break
+        train_start = max(shift_months(test_cursor, -train_months), start_date)
+        train_end = test_cursor - timedelta(days=1)
+        test_start = max(test_cursor, start_date)
+        if train_start < train_end and test_start < test_end:
+            splits.append(
+                WalkForwardSplit(
+                    train_start=train_start,
+                    train_end=train_end,
+                    test_start=test_start,
+                    test_end=min(test_end, optimization_end),
+                )
+            )
+        test_cursor = add_months(test_cursor, step_months)
+
+    if not splits:
+        raise ValidationError(
+            "Date range too short for the requested train/test/holdout geometry; no windows generated."
+        )
+
+    return splits, holdout

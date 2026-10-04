@@ -3,11 +3,10 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-
-from common.paths.executables import resolve_repo_python_exe
 
 
 @dataclass(frozen=True)
@@ -34,7 +33,19 @@ def run_step(name: str, command: list[str], cwd: Path) -> None:
 
 
 def resolve_python_exe(repo_root: Path) -> str:
-    return resolve_repo_python_exe(repo_root)
+    """Return the repo-local virtualenv Python executable when present.
+
+    Checks run against the repo's own `.venv` rather than whatever interpreter
+    launched them; `sys.executable` is the fallback when there is no venv.
+    """
+    candidates = (
+        repo_root / ".venv" / "Scripts" / "python.exe",
+        repo_root / ".venv" / "bin" / "python",
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return sys.executable
 
 
 def resolve_npm_exe() -> str:

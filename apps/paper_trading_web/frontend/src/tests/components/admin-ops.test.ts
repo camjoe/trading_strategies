@@ -20,18 +20,40 @@ describe("renderOperationsOverview", () => {
           runHint: "python3 -m trading.interfaces.runtime.jobs.daily.paper_trading",
         },
       ],
-      dailyBacktestRefreshArtifacts: [
-        { name: "daily_backtest_refresh_20260417_131001.json", modifiedAt: "2026-04-17T13:12:00Z", sizeBytes: 2048 },
-      ],
-      dailySnapshotArtifacts: [],
       databaseBackups: [],
+      scheduleStatus: null,
     };
 
     const html = renderOperationsOverview(payload);
     expect(html).toContain("Daily Paper Trading");
     expect(html).toContain("Healthy");
-    expect(html).toContain("daily_backtest_refresh_20260417_131001.json");
-    expect(html).toContain("No daily snapshot artifacts found");
+    // Drift artifact not written yet -> the panel prompts to populate it.
+    expect(html).toContain("Schedule Registration");
+    expect(html).toContain("Not available yet");
+  });
+
+  it("renders schedule drift rows when the drift artifact is present", () => {
+    const payload: OperationsOverviewResponse = {
+      jobs: [],
+      databaseBackups: [],
+      scheduleStatus: {
+        generatedAt: "2026-09-12T13:00:00Z",
+        host: "trading-host",
+        scheduler: "windows",
+        inSync: false,
+        installedReadable: true,
+        jobs: [
+          { taskName: "Trading\\DailyPaperTrading", desired: true, registered: true, state: "ok" },
+          { taskName: "Trading\\WeeklyDbBackup", desired: true, registered: false, state: "missing" },
+        ],
+      },
+    };
+
+    const html = renderOperationsOverview(payload);
+    expect(html).toContain("Drift");
+    expect(html).toContain("Trading\\DailyPaperTrading");
+    expect(html).toContain("Registered");
+    expect(html).toContain("Not registered");
   });
 });
 
@@ -62,7 +84,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: true,
-          grouped: true,
+          windowCount: 3,
           averageReturnPct: 3.1,
           bestReturnPct: 6.4,
           worstReturnPct: -1.5,
@@ -160,7 +182,7 @@ describe("renderPromotionOverview", () => {
         },
         walkForward: {
           available: false,
-          grouped: false,
+          windowCount: 0,
           averageReturnPct: null,
           bestReturnPct: null,
           worstReturnPct: null,

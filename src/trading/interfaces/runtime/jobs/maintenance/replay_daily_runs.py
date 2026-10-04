@@ -2,9 +2,14 @@
 """Replay missed daily paper-trading runs over a date range.
 
 For each calendar date in [from_date, to_date], checks whether a successful
-daily paper-trading run already exists (via the same log-sentinel guard used
-by the daily job itself). Dates that have no successful run are replayed by
-invoking daily_paper_trading with --as-of-date and --force-run.
+daily paper-trading run already exists (via the daily job's log-sentinel
+helper). Dates that have no successful run are replayed by invoking
+daily_paper_trading with --as-of-date.
+
+No --force-run: this filters to dates with no successful run, and the daily job's
+duplicate-run guard keys on that same date and sentinel. A date that reaches the
+replay invocation is one the guard would pass anyway, so overriding it would only
+suppress a disagreement worth seeing.
 
 Usage examples::
 
@@ -29,12 +34,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from trading.interfaces.runtime.jobs.daily.paper_trading import already_completed_today
-from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo, ts
+from trading.interfaces.runtime.jobs.job_helpers import DAILY_PAPER_TRADING_MODULE, logs_dir_for_repo, ts
 
 REPO_ROOT = get_repo_root(__file__)
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 
 
 def parse_args() -> argparse.Namespace:
@@ -96,7 +100,6 @@ def _replay_date(
         DAILY_PAPER_TRADING_MODULE,
         "--as-of-date",
         date.isoformat(),
-        "--force-run",
         "--accounts",
         accounts,
         "--run-source",

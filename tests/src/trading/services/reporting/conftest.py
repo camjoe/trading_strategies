@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from trading.services.accounts import create_account, get_account
+from trading.services.accounts.mutations import create_account, get_account
 
 
 @pytest.fixture
