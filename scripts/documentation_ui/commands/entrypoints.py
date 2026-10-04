@@ -13,6 +13,7 @@ from scripts.documentation_ui.commands.introspect import (
     RISK_BROKER,
     RISK_READ_ONLY,
     RISK_WRITES_LOCAL,
+    SCOPE_GLOBAL,
     capture_parser,
     describe_arguments,
     make_row,
@@ -175,8 +176,8 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
     _tool("scripts.database_diagrams.render_html", "render-diagram-html", GROUP_DATA, RISK_WRITES_LOCAL),
 )
 
-# Tool rows the web UI may run. Each is read-only and finishes in seconds. Checks that install
-# packages, run the test suite, or run the type checker are left out on purpose.
+# Tool rows the web UI may run: read-only, and done in seconds. Entries that install packages,
+# run the test suite, or run the type checker are not listed.
 RUNNABLE_TOOLS = frozenset(
     {
         "describe-db-schema",
@@ -310,7 +311,7 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
     sub = subparsers_action(parser) if parser is not None else None
 
     if parser is not None and sub is not None:
-        shared = describe_arguments(parser)
+        shared = describe_arguments(parser, SCOPE_GLOBAL)
         helps = subcommand_helps(sub)
         return [
             make_row(
@@ -319,8 +320,9 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
                 group=spec.group,
                 risk=spec.sub_risks.get(sub_name, spec.risk),
                 help_text=helps.get(sub_name) or description or spec.help,
-                invocation=f"{invocation} {sub_name}",
-                argv=["-m", spec.module, sub_name],
+                invocation=invocation,
+                argv=["-m", spec.module],
+                subcommand=sub_name,
                 arguments=shared + describe_arguments(sub_parser),
                 module=spec.module,
                 schedule=schedule,
@@ -339,6 +341,7 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
             help_text=description or spec.help,
             invocation=invocation,
             argv=["-m", spec.module],
+            subcommand=None,
             arguments=arguments,
             module=spec.module,
             schedule=schedule,

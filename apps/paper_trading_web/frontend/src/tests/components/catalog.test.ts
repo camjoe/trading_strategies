@@ -29,6 +29,7 @@ function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
       {
         flags: ["--account"],
         dest: "account",
+        scope: "command",
         positional: false,
         kind: "value",
         type: "str",
@@ -40,6 +41,7 @@ function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
       {
         flags: ["--time"],
         dest: "time",
+        scope: "command",
         positional: false,
         kind: "value",
         type: "str",

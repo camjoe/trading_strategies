@@ -82,9 +82,9 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "init"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "init",
       "help": "Initialize paper trading database.",
       "example": "python -m trading.interfaces.cli.main init",
       "arguments": []
@@ -99,9 +99,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "list-accounts"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "list-accounts",
       "help": "List all paper trading accounts.",
       "example": "python -m trading.interfaces.cli.main list-accounts",
       "arguments": []
@@ -116,13 +116,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "create-account"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "create-account",
       "help": "Create a new paper account.",
       "example": "python -m trading.interfaces.cli.main create-account --name <NAME> --strategy <STRATEGY> --initial-cash <INITIAL_CASH>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--name"
           ],
@@ -136,6 +137,7 @@
           "help": "Account name, e.g. trend_v1"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -149,6 +151,7 @@
           "help": "Base strategy label"
         },
         {
+          "scope": "command",
           "flags": [
             "--initial-cash"
           ],
@@ -162,6 +165,7 @@
           "help": "Starting cash"
         },
         {
+          "scope": "command",
           "flags": [
             "--display-name"
           ],
@@ -175,6 +179,7 @@
           "help": "Display name shown in operator summaries and reports"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-min-return-pct"
           ],
@@ -188,6 +193,7 @@
           "help": "Goal minimum return percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-max-return-pct"
           ],
@@ -201,6 +207,7 @@
           "help": "Goal maximum return percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-period"
           ],
@@ -214,6 +221,7 @@
           "help": "Goal time period label, e.g. weekly, monthly, quarterly"
         },
         {
+          "scope": "command",
           "flags": [
             "--learning-enabled"
           ],
@@ -227,6 +235,7 @@
           "help": "Enable heuristic exploration mode for this account"
         },
         {
+          "scope": "command",
           "flags": [
             "--risk-policy"
           ],
@@ -245,6 +254,7 @@
           "help": "Risk management policy"
         },
         {
+          "scope": "command",
           "flags": [
             "--stop-loss-pct"
           ],
@@ -258,6 +268,7 @@
           "help": "Stop-loss percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--take-profit-pct"
           ],
@@ -271,6 +282,7 @@
           "help": "Take-profit percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--trade-size-pct"
           ],
@@ -284,6 +296,7 @@
           "help": "Target portfolio allocation percent for each new buy"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-position-pct"
           ],
@@ -297,6 +310,7 @@
           "help": "Maximum portfolio allocation percent allowed for a single position"
         },
         {
+          "scope": "command",
           "flags": [
             "--instrument-mode"
           ],
@@ -313,6 +327,7 @@
           "help": "Execution style: equity shares or LEAPs-style simulation"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-strike-offset-pct"
           ],
@@ -326,6 +341,7 @@
           "help": "Option strike offset percent vs underlying (for LEAPs simulation)"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-min-dte"
           ],
@@ -339,6 +355,7 @@
           "help": "Minimum days-to-expiration"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-max-dte"
           ],
@@ -352,6 +369,7 @@
           "help": "Maximum days-to-expiration"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-type"
           ],
@@ -369,6 +387,7 @@
           "help": "Preferred option type for options-style trading"
         },
         {
+          "scope": "command",
           "flags": [
             "--target-delta-min"
           ],
@@ -382,6 +401,7 @@
           "help": "Minimum target option delta (0-1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--target-delta-max"
           ],
@@ -395,6 +415,7 @@
           "help": "Maximum target option delta (0-1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-premium-per-trade"
           ],
@@ -408,6 +429,7 @@
           "help": "Max option premium budget per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-contracts-per-trade"
           ],
@@ -421,6 +443,7 @@
           "help": "Maximum option contracts per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--iv-rank-min"
           ],
@@ -434,6 +457,7 @@
           "help": "Minimum IV rank threshold (0-100)"
         },
         {
+          "scope": "command",
           "flags": [
             "--iv-rank-max"
           ],
@@ -447,6 +471,7 @@
           "help": "Maximum IV rank threshold (0-100)"
         },
         {
+          "scope": "command",
           "flags": [
             "--roll-dte-threshold"
           ],
@@ -460,6 +485,7 @@
           "help": "Roll position when DTE <= threshold"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-profit-take-pct"
           ],
@@ -473,6 +499,7 @@
           "help": "LEAPs/options profit-take percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-max-loss-pct"
           ],
@@ -486,6 +513,7 @@
           "help": "LEAPs/options maximum tolerated loss percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--benchmark"
           ],
@@ -510,13 +538,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "set-benchmark"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "set-benchmark",
       "help": "Set benchmark ticker for an account.",
       "example": "python -m trading.interfaces.cli.main set-benchmark --account <ACCOUNT> --benchmark <BENCHMARK>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -530,6 +559,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--benchmark"
           ],
@@ -554,13 +584,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "assign-strategy"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "assign-strategy",
       "help": "Assign an existing, enabled catalog strategy to a book (unknown keys are rejected).",
       "example": "python -m trading.interfaces.cli.main assign-strategy --account <ACCOUNT> --strategy <STRATEGY>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -574,6 +605,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--book"
           ],
@@ -587,6 +619,7 @@
           "help": "Book name (default: the account's default book)"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -611,13 +644,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-account"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-account",
       "help": "Update per-account metadata and goals.",
       "example": "python -m trading.interfaces.cli.main configure-account --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -631,6 +665,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--display-name"
           ],
@@ -644,6 +679,7 @@
           "help": "Display name shown in operator summaries and reports"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-min-return-pct"
           ],
@@ -657,6 +693,7 @@
           "help": "Goal minimum return percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-max-return-pct"
           ],
@@ -670,6 +707,7 @@
           "help": "Goal maximum return percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--goal-period"
           ],
@@ -683,6 +721,7 @@
           "help": "Goal time period label, e.g. weekly, monthly, quarterly"
         },
         {
+          "scope": "command",
           "flags": [
             "--learning-enabled"
           ],
@@ -696,6 +735,7 @@
           "help": "Turn on heuristic exploration mode for this account"
         },
         {
+          "scope": "command",
           "flags": [
             "--learning-disabled"
           ],
@@ -709,6 +749,7 @@
           "help": "Turn off heuristic exploration mode for this account"
         },
         {
+          "scope": "command",
           "flags": [
             "--risk-policy"
           ],
@@ -727,6 +768,7 @@
           "help": "Risk management policy"
         },
         {
+          "scope": "command",
           "flags": [
             "--stop-loss-pct"
           ],
@@ -740,6 +782,7 @@
           "help": "Stop-loss percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--take-profit-pct"
           ],
@@ -753,6 +796,7 @@
           "help": "Take-profit percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--trade-size-pct"
           ],
@@ -766,6 +810,7 @@
           "help": "Target portfolio allocation percent for each new buy"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-position-pct"
           ],
@@ -779,6 +824,7 @@
           "help": "Maximum portfolio allocation percent allowed for a single position"
         },
         {
+          "scope": "command",
           "flags": [
             "--instrument-mode"
           ],
@@ -795,6 +841,7 @@
           "help": "Execution style: equity shares or LEAPs-style simulation"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-strike-offset-pct"
           ],
@@ -808,6 +855,7 @@
           "help": "Option strike offset percent vs underlying (for LEAPs simulation)"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-min-dte"
           ],
@@ -821,6 +869,7 @@
           "help": "Minimum days-to-expiration"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-max-dte"
           ],
@@ -834,6 +883,7 @@
           "help": "Maximum days-to-expiration"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-type"
           ],
@@ -851,6 +901,7 @@
           "help": "Preferred option type for options-style trading"
         },
         {
+          "scope": "command",
           "flags": [
             "--target-delta-min"
           ],
@@ -864,6 +915,7 @@
           "help": "Minimum target option delta (0-1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--target-delta-max"
           ],
@@ -877,6 +929,7 @@
           "help": "Maximum target option delta (0-1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-premium-per-trade"
           ],
@@ -890,6 +943,7 @@
           "help": "Max option premium budget per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-contracts-per-trade"
           ],
@@ -903,6 +957,7 @@
           "help": "Maximum option contracts per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--iv-rank-min"
           ],
@@ -916,6 +971,7 @@
           "help": "Minimum IV rank threshold (0-100)"
         },
         {
+          "scope": "command",
           "flags": [
             "--iv-rank-max"
           ],
@@ -929,6 +985,7 @@
           "help": "Maximum IV rank threshold (0-100)"
         },
         {
+          "scope": "command",
           "flags": [
             "--roll-dte-threshold"
           ],
@@ -942,6 +999,7 @@
           "help": "Roll position when DTE <= threshold"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-profit-take-pct"
           ],
@@ -955,6 +1013,7 @@
           "help": "LEAPs/options profit-take percent"
         },
         {
+          "scope": "command",
           "flags": [
             "--option-max-loss-pct"
           ],
@@ -979,13 +1038,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "trade"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "trade",
       "help": "Record a mock buy or sell.",
       "example": "python -m trading.interfaces.cli.main trade --account <ACCOUNT> --side buy --ticker <TICKER> --qty <QTY> --price <PRICE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -999,6 +1059,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--side"
           ],
@@ -1015,6 +1076,7 @@
           "help": "Order side"
         },
         {
+          "scope": "command",
           "flags": [
             "--ticker"
           ],
@@ -1028,6 +1090,7 @@
           "help": "Ticker symbol"
         },
         {
+          "scope": "command",
           "flags": [
             "--qty"
           ],
@@ -1041,6 +1104,7 @@
           "help": "Trade quantity"
         },
         {
+          "scope": "command",
           "flags": [
             "--price"
           ],
@@ -1054,6 +1118,7 @@
           "help": "Execution price"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -1067,6 +1132,7 @@
           "help": "Optional trading fee"
         },
         {
+          "scope": "command",
           "flags": [
             "--time"
           ],
@@ -1080,6 +1146,7 @@
           "help": "Optional trade time (ISO string)"
         },
         {
+          "scope": "command",
           "flags": [
             "--note"
           ],
@@ -1104,13 +1171,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "report"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "report",
       "help": "Show account status and open positions.",
       "example": "python -m trading.interfaces.cli.main report --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1135,13 +1203,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "promotion-status"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "promotion-status",
       "help": "Show read-only promotion readiness based on the canonical evaluation artifact.",
       "example": "python -m trading.interfaces.cli.main promotion-status --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1155,6 +1224,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -1179,13 +1249,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "promotion-request-review"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "promotion-request-review",
       "help": "Persist the current promotion assessment as a manual review request.",
       "example": "python -m trading.interfaces.cli.main promotion-request-review --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1199,6 +1270,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -1212,6 +1284,7 @@
           "help": "Optional strategy override"
         },
         {
+          "scope": "command",
           "flags": [
             "--requested-by"
           ],
@@ -1225,6 +1298,7 @@
           "help": "Optional operator name"
         },
         {
+          "scope": "command",
           "flags": [
             "--note"
           ],
@@ -1249,13 +1323,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "promotion-review-history"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "promotion-review-history",
       "help": "Show persisted promotion review requests and audit events.",
       "example": "python -m trading.interfaces.cli.main promotion-review-history --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1269,6 +1344,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -1282,6 +1358,7 @@
           "help": "Optional strategy filter"
         },
         {
+          "scope": "command",
           "flags": [
             "--limit"
           ],
@@ -1306,13 +1383,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "promotion-review-action"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "promotion-review-action",
       "help": "Approve, reject, or annotate an open promotion review request.",
       "example": "python -m trading.interfaces.cli.main promotion-review-action --review-id <REVIEW_ID> --action approve",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--review-id"
           ],
@@ -1326,6 +1404,7 @@
           "help": "Promotion review id"
         },
         {
+          "scope": "command",
           "flags": [
             "--action"
           ],
@@ -1343,6 +1422,7 @@
           "help": "Review action to record"
         },
         {
+          "scope": "command",
           "flags": [
             "--actor"
           ],
@@ -1356,6 +1436,7 @@
           "help": "Optional operator name"
         },
         {
+          "scope": "command",
           "flags": [
             "--note"
           ],
@@ -1380,13 +1461,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "snapshot"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "snapshot",
       "help": "Save equity snapshot for an account.",
       "example": "python -m trading.interfaces.cli.main snapshot --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1400,6 +1482,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--time"
           ],
@@ -1424,13 +1507,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "snapshot-history"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "snapshot-history",
       "help": "Show account snapshot history.",
       "example": "python -m trading.interfaces.cli.main snapshot-history --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1444,6 +1528,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--limit"
           ],
@@ -1468,9 +1553,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "portfolio-exposure"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "portfolio-exposure",
       "help": "Show the cross-account exposure rollup (equity, cash, market value) from each account's latest snapshot.",
       "example": "python -m trading.interfaces.cli.main portfolio-exposure",
       "arguments": []
@@ -1485,13 +1570,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "parameters"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "parameters",
       "help": "Show the unified parameter source: global settings, per-book settings, and strategy knobs with their effective values and sources.",
       "example": "python -m trading.interfaces.cli.main parameters",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1516,9 +1602,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "portfolio-concentration"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "portfolio-concentration",
       "help": "Show cross-account concentration by symbol (share of total market value, overlap across accounts) with a sector rollup.",
       "example": "python -m trading.interfaces.cli.main portfolio-concentration",
       "arguments": []
@@ -1533,13 +1619,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "compare-strategies"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "compare-strategies",
       "help": "Compare current paper accounts by account policy state, holdings, benchmark, and trend (not canonical research scores).",
       "example": "python -m trading.interfaces.cli.main compare-strategies",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--lookback"
           ],
@@ -1564,13 +1651,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-throttle"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-throttle",
       "help": "Edit the global trade throttle (omitted flags keep their current values; pass 'none' to clear).",
       "example": "python -m trading.interfaces.cli.main configure-throttle",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--max-trades-per-day"
           ],
@@ -1584,6 +1672,7 @@
           "help": "Max trades per day, or 'none' for unlimited"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-trades-per-minute"
           ],
@@ -1608,13 +1697,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-evaluation"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-evaluation",
       "help": "Edit global evaluation confidence settings (omitted flags keep their current values).",
       "example": "python -m trading.interfaces.cli.main configure-evaluation",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--backtest-trade-count-for-full-confidence"
           ],
@@ -1628,6 +1718,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--backtest-snapshot-count-for-full-confidence"
           ],
@@ -1641,6 +1732,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-live-snapshot-count-for-full-confidence"
           ],
@@ -1654,6 +1746,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--backtest-trade-confidence-weight"
           ],
@@ -1667,6 +1760,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--backtest-snapshot-confidence-weight"
           ],
@@ -1680,6 +1774,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--backtest-evidence-weight"
           ],
@@ -1693,6 +1788,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-live-evidence-weight"
           ],
@@ -1717,13 +1813,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-book-rotation-policy"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-book-rotation-policy",
       "help": "Edit a book's rotation policy (weights, threshold, cooldown, min-trades). Omitted flags keep their current values; pass 'none' to fall back to the code default.",
       "example": "python -m trading.interfaces.cli.main configure-book-rotation-policy --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1737,6 +1834,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--book"
           ],
@@ -1750,6 +1848,7 @@
           "help": "Book name (default: the account's default book)"
         },
         {
+          "scope": "command",
           "flags": [
             "--min-trades-in-window"
           ],
@@ -1763,6 +1862,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--outperformance-threshold-bps"
           ],
@@ -1776,6 +1876,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--cooldown-days"
           ],
@@ -1789,6 +1890,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--risk-adjusted-return-weight"
           ],
@@ -1802,6 +1904,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--stability-weight"
           ],
@@ -1815,6 +1918,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--drawdown-penalty-weight"
           ],
@@ -1828,6 +1932,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--regime-fit-weight"
           ],
@@ -1852,13 +1957,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-book-rotation"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-book-rotation",
       "help": "Edit a book's rotation scheduling (enabled gate, challenger schedule, lookback). Omitted flags keep their current values; pass 'none' to clear schedule/lookback.",
       "example": "python -m trading.interfaces.cli.main configure-book-rotation --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -1872,6 +1978,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--book"
           ],
@@ -1885,6 +1992,7 @@
           "help": "Book name (default: the account's default book)"
         },
         {
+          "scope": "command",
           "flags": [
             "--enabled"
           ],
@@ -1898,6 +2006,7 @@
           "help": "Whether the book rotates (true/false)"
         },
         {
+          "scope": "command",
           "flags": [
             "--schedule"
           ],
@@ -1911,6 +2020,7 @@
           "help": "Comma-separated challenger strategy names, or 'none' for incumbent-only"
         },
         {
+          "scope": "command",
           "flags": [
             "--lookback-days"
           ],
@@ -1935,13 +2045,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-promotion"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-promotion",
       "help": "Edit global promotion policy settings (omitted flags keep their current values).",
       "example": "python -m trading.interfaces.cli.main configure-promotion",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--min-research-backtest-trade-count"
           ],
@@ -1955,6 +2066,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-research-backtest-snapshot-count"
           ],
@@ -1968,6 +2080,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-research-backtest-return-pct"
           ],
@@ -1981,6 +2094,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-research-max-drawdown-pct"
           ],
@@ -1994,6 +2108,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-research-walk-forward-average-return-pct"
           ],
@@ -2007,6 +2122,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-live-paper-snapshot-count"
           ],
@@ -2020,6 +2136,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--min-live-overall-confidence"
           ],
@@ -2044,13 +2161,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "settings-history"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "settings-history",
       "help": "Show the global settings change-audit history (throttle, evaluation, promotion edits).",
       "example": "python -m trading.interfaces.cli.main settings-history",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--limit"
           ],
@@ -2075,13 +2193,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "book-rotation-history"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "book-rotation-history",
       "help": "Show a book's rotation settings change-audit history (scheduling and policy edits).",
       "example": "python -m trading.interfaces.cli.main book-rotation-history --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -2095,6 +2214,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--book"
           ],
@@ -2108,6 +2228,7 @@
           "help": "Book name (default: the account's default book)"
         },
         {
+          "scope": "command",
           "flags": [
             "--limit"
           ],
@@ -2132,13 +2253,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "create-strategy-variant"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "create-strategy-variant",
       "help": "Create a new draft strategy variant of a code primitive with tuned knobs.",
       "example": "python -m trading.interfaces.cli.main create-strategy-variant --strategy <STRATEGY> --primitive <PRIMITIVE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2152,6 +2274,7 @@
           "help": "New strategy key"
         },
         {
+          "scope": "command",
           "flags": [
             "--primitive"
           ],
@@ -2165,6 +2288,7 @@
           "help": "Code primitive the variant runs"
         },
         {
+          "scope": "command",
           "flags": [
             "--set"
           ],
@@ -2178,6 +2302,7 @@
           "help": "Set a knob override (repeatable)"
         },
         {
+          "scope": "command",
           "flags": [
             "--description"
           ],
@@ -2202,13 +2327,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "configure-strategy"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "configure-strategy",
       "help": "Edit a draft strategy's knobs and/or enabled flag (untouched knobs are kept).",
       "example": "python -m trading.interfaces.cli.main configure-strategy --strategy <STRATEGY>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2222,6 +2348,7 @@
           "help": "Strategy key"
         },
         {
+          "scope": "command",
           "flags": [
             "--set"
           ],
@@ -2235,6 +2362,7 @@
           "help": "Set a knob override (repeatable)"
         },
         {
+          "scope": "command",
           "flags": [
             "--enabled"
           ],
@@ -2259,13 +2387,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "freeze-strategy"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "freeze-strategy",
       "help": "Freeze a draft strategy (one-way; tuning it afterward requires a new variant).",
       "example": "python -m trading.interfaces.cli.main freeze-strategy --strategy <STRATEGY>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2290,13 +2419,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest",
       "help": "Run a historical backtest for an existing account configuration.",
       "example": "python -m trading.interfaces.cli.main backtest --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -2310,6 +2440,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--tickers-file"
           ],
@@ -2323,6 +2454,7 @@
           "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
+          "scope": "command",
           "flags": [
             "--universe-history-dir"
           ],
@@ -2336,6 +2468,7 @@
           "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
         },
         {
+          "scope": "command",
           "flags": [
             "--start"
           ],
@@ -2349,6 +2482,7 @@
           "help": "Start date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--end"
           ],
@@ -2362,6 +2496,7 @@
           "help": "End date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--lookback-months"
           ],
@@ -2375,6 +2510,7 @@
           "help": "Alternative to --start: look back N months from end date"
         },
         {
+          "scope": "command",
           "flags": [
             "--slippage-bps"
           ],
@@ -2388,6 +2524,7 @@
           "help": "Slippage in basis points per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -2401,6 +2538,7 @@
           "help": "Fixed fee per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--allow-approximate-leaps"
           ],
@@ -2414,6 +2552,7 @@
           "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2427,6 +2566,7 @@
           "help": "Optional strategy override (default: the account's active strategy)"
         },
         {
+          "scope": "command",
           "flags": [
             "--run-name"
           ],
@@ -2451,13 +2591,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-report"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-report",
       "help": "Show summary metrics for a previous backtest run tied to an account configuration.",
       "example": "python -m trading.interfaces.cli.main backtest-report --run-id <RUN_ID>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--run-id"
           ],
@@ -2482,13 +2623,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-leaderboard"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-leaderboard",
       "help": "Rank historical account backtest runs by total return.",
       "example": "python -m trading.interfaces.cli.main backtest-leaderboard",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--limit"
           ],
@@ -2502,6 +2644,7 @@
           "help": "Maximum number of runs to return (default: 10)"
         },
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -2515,6 +2658,7 @@
           "help": "Optional account name filter"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2539,13 +2683,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-batch"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-batch",
       "help": "Run backtests for multiple accounts with shared date and universe settings.",
       "example": "python -m trading.interfaces.cli.main backtest-batch --accounts <ACCOUNTS>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -2559,6 +2704,7 @@
           "help": "Comma-separated account names, e.g. trend_v1,mean_rev_v1"
         },
         {
+          "scope": "command",
           "flags": [
             "--tickers-file"
           ],
@@ -2572,6 +2718,7 @@
           "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
+          "scope": "command",
           "flags": [
             "--universe-history-dir"
           ],
@@ -2585,6 +2732,7 @@
           "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
         },
         {
+          "scope": "command",
           "flags": [
             "--start"
           ],
@@ -2598,6 +2746,7 @@
           "help": "Start date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--end"
           ],
@@ -2611,6 +2760,7 @@
           "help": "End date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--lookback-months"
           ],
@@ -2624,6 +2774,7 @@
           "help": "Alternative to --start: look back N months from end date"
         },
         {
+          "scope": "command",
           "flags": [
             "--slippage-bps"
           ],
@@ -2637,6 +2788,7 @@
           "help": "Slippage in basis points per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -2650,6 +2802,7 @@
           "help": "Fixed fee per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--allow-approximate-leaps"
           ],
@@ -2663,6 +2816,7 @@
           "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
         },
         {
+          "scope": "command",
           "flags": [
             "--run-name-prefix"
           ],
@@ -2687,13 +2841,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-optimize"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-optimize",
       "help": "Walk-forward parameter optimization for one strategy: grid-search on each training window, freeze the winner, then report out-of-sample and holdout evidence against the strategy's current catalog parameters.",
       "example": "python -m trading.interfaces.cli.main backtest-optimize --account <ACCOUNT> --strategy <STRATEGY> --search-space <SEARCH_SPACE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -2707,6 +2862,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -2720,6 +2876,7 @@
           "help": "Strategy to optimize (catalog key or alias)"
         },
         {
+          "scope": "command",
           "flags": [
             "--search-space"
           ],
@@ -2733,6 +2890,7 @@
           "help": "JSON object of parameter -> candidate values, e.g. '{\"fast_window\": [5, 10, 15], \"slow_window\": [20, 30]}'. Keys must be parameters of the strategy."
         },
         {
+          "scope": "command",
           "flags": [
             "--tickers-file"
           ],
@@ -2746,6 +2904,7 @@
           "help": "Path to ticker universe file (default: <repo-root>/src/infrastructure/config/trade_universes/default.txt)"
         },
         {
+          "scope": "command",
           "flags": [
             "--universe-history-dir"
           ],
@@ -2759,6 +2918,7 @@
           "help": "Optional folder of monthly universe snapshots named YYYY-MM.txt"
         },
         {
+          "scope": "command",
           "flags": [
             "--start"
           ],
@@ -2772,6 +2932,7 @@
           "help": "Start date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--end"
           ],
@@ -2785,6 +2946,7 @@
           "help": "End date YYYY-MM-DD"
         },
         {
+          "scope": "command",
           "flags": [
             "--lookback-months"
           ],
@@ -2798,6 +2960,7 @@
           "help": "Alternative to --start: look back N months from end date"
         },
         {
+          "scope": "command",
           "flags": [
             "--slippage-bps"
           ],
@@ -2811,6 +2974,7 @@
           "help": "Slippage in basis points per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -2824,6 +2988,7 @@
           "help": "Fixed fee per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--allow-approximate-leaps"
           ],
@@ -2837,6 +3002,7 @@
           "help": "Allow approximate LEAPs backtest mode using underlying price proxies"
         },
         {
+          "scope": "command",
           "flags": [
             "--train-months"
           ],
@@ -2850,6 +3016,7 @@
           "help": "Training window length in months"
         },
         {
+          "scope": "command",
           "flags": [
             "--test-months"
           ],
@@ -2863,6 +3030,7 @@
           "help": "Out-of-sample test window length in months"
         },
         {
+          "scope": "command",
           "flags": [
             "--step-months"
           ],
@@ -2876,6 +3044,7 @@
           "help": "Months to roll forward between windows"
         },
         {
+          "scope": "command",
           "flags": [
             "--holdout-months"
           ],
@@ -2889,6 +3058,7 @@
           "help": "Untouched final holdout length in months (0 to disable)"
         },
         {
+          "scope": "command",
           "flags": [
             "--candidate-budget"
           ],
@@ -2902,6 +3072,7 @@
           "help": "Maximum grid size; a larger Cartesian product is rejected, not truncated"
         },
         {
+          "scope": "command",
           "flags": [
             "--warmup-months"
           ],
@@ -2926,13 +3097,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-optimize-show"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-optimize-show",
       "help": "Show a persisted optimization experiment: config, winner params, OOS/holdout evidence, promotion status.",
       "example": "python -m trading.interfaces.cli.main backtest-optimize-show <EXPERIMENT_ID>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "experiment_id"
           ],
@@ -2957,13 +3129,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-optimize-promote"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-optimize-promote",
       "help": "Promote an optimization experiment's winner into a new tradeable strategy variant (frozen by default) and link it back to the experiment.",
       "example": "python -m trading.interfaces.cli.main backtest-optimize-promote <EXPERIMENT_ID> --key <KEY>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "experiment_id"
           ],
@@ -2977,6 +3150,7 @@
           "help": "optimization_experiments row id"
         },
         {
+          "scope": "command",
           "flags": [
             "--key"
           ],
@@ -2990,6 +3164,7 @@
           "help": "Strategy key for the new variant"
         },
         {
+          "scope": "command",
           "flags": [
             "--no-freeze"
           ],
@@ -3003,6 +3178,7 @@
           "help": "Leave the new variant as an editable draft instead of freezing it (default: freeze)"
         },
         {
+          "scope": "command",
           "flags": [
             "--allow-no-edge"
           ],
@@ -3027,13 +3203,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "backtest-bench"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "backtest-bench",
       "help": "Run strategies through synthetic and real-history scenarios and compare their outcome distributions. Behavioral only \u2014 bench runs are not persisted and are not promotion evidence.",
       "example": "python -m trading.interfaces.cli.main backtest-bench",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--strategies"
           ],
@@ -3047,6 +3224,7 @@
           "help": "Comma-separated strategies to run (default: all registered strategies)"
         },
         {
+          "scope": "command",
           "flags": [
             "--scenarios"
           ],
@@ -3060,6 +3238,7 @@
           "help": "Comma-separated scenario ids or aliases (default: all synthetic scenarios; real-history scenarios need a captured fixture and run only by name)"
         },
         {
+          "scope": "command",
           "flags": [
             "--paths"
           ],
@@ -3073,6 +3252,7 @@
           "help": "Paths per Monte Carlo scenario (default: each scenario's own count, 200); single-path replay scenarios always run once"
         },
         {
+          "scope": "command",
           "flags": [
             "--metric"
           ],
@@ -3091,6 +3271,7 @@
           "help": "Metric rendered in the matrix (default: total_return_pct)"
         },
         {
+          "scope": "command",
           "flags": [
             "--slippage-bps"
           ],
@@ -3104,6 +3285,7 @@
           "help": "Slippage in basis points per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -3117,6 +3299,7 @@
           "help": "Fixed fee per trade"
         },
         {
+          "scope": "command",
           "flags": [
             "--list-scenarios"
           ],
@@ -3141,13 +3324,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "advisor-record"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "advisor-record",
       "help": "Record an advisor decision (including hold) with its rationale and frozen evidence.",
       "example": "python -m trading.interfaces.cli.main advisor-record --account <ACCOUNT> --type hold --rationale <RATIONALE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -3161,6 +3345,7 @@
           "help": "Account name"
         },
         {
+          "scope": "command",
           "flags": [
             "--book"
           ],
@@ -3174,6 +3359,7 @@
           "help": "Book name (default: the account's default book)"
         },
         {
+          "scope": "command",
           "flags": [
             "--type"
           ],
@@ -3194,6 +3380,7 @@
           "help": "Decision type"
         },
         {
+          "scope": "command",
           "flags": [
             "--rationale"
           ],
@@ -3207,6 +3394,7 @@
           "help": "Why this decision was made"
         },
         {
+          "scope": "command",
           "flags": [
             "--decided-by"
           ],
@@ -3220,6 +3408,7 @@
           "help": "Who made the decision (default: operator; the advisor agent passes 'agent')"
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -3233,6 +3422,7 @@
           "help": "Catalog strategy the decision puts or keeps in place (default: the book's assigned strategy)"
         },
         {
+          "scope": "command",
           "flags": [
             "--alternative"
           ],
@@ -3246,6 +3436,7 @@
           "help": "Catalog strategy the decision rejected; scoring backtests both over the following window. Omit for disable_strategy and run_experiment."
         },
         {
+          "scope": "command",
           "flags": [
             "--note"
           ],
@@ -3259,6 +3450,7 @@
           "help": "Extra evidence to freeze with the decision; repeatable"
         },
         {
+          "scope": "command",
           "flags": [
             "--experiment-id"
           ],
@@ -3272,6 +3464,7 @@
           "help": "Walk-forward experiment the decision cites"
         },
         {
+          "scope": "command",
           "flags": [
             "--promotion-review-id"
           ],
@@ -3285,6 +3478,7 @@
           "help": "Promotion review the decision cites"
         },
         {
+          "scope": "command",
           "flags": [
             "--window-days"
           ],
@@ -3309,13 +3503,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "advisor-digest"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "advisor-digest",
       "help": "Show each account's evaluation, recent decisions, and review flags. Read-only.",
       "example": "python -m trading.interfaces.cli.main advisor-digest",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -3329,6 +3524,7 @@
           "help": "Limit to one account (default: all accounts)"
         },
         {
+          "scope": "command",
           "flags": [
             "--as-of"
           ],
@@ -3353,13 +3549,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "advisor-score"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "advisor-score",
       "help": "Score decisions whose outcome window has closed: backtest the chosen and rejected strategies over the window that followed and record the verdict.",
       "example": "python -m trading.interfaces.cli.main advisor-score",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -3373,6 +3570,7 @@
           "help": "Limit to one account (default: all accounts)"
         },
         {
+          "scope": "command",
           "flags": [
             "--as-of"
           ],
@@ -3397,13 +3595,14 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.cli.main",
-        "advisor-scorecard"
+        "trading.interfaces.cli.main"
       ],
+      "subcommand": "advisor-scorecard",
       "help": "Show the track record of scored decisions: points, mean edge with an interval, and points by market regime. Read-only.",
       "example": "python -m trading.interfaces.cli.main advisor-scorecard",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -3417,6 +3616,7 @@
           "help": "Limit to one account (default: all accounts)"
         },
         {
+          "scope": "command",
           "flags": [
             "--by"
           ],
@@ -3447,10 +3647,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.daily.paper_trading"
       ],
+      "subcommand": null,
       "help": "Run the daily paper-trading workflow.",
       "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -3464,6 +3666,7 @@
           "help": "Comma-separated account names, or 'all' for every account in DB (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--primary-accounts"
           ],
@@ -3477,6 +3680,7 @@
           "help": "Accounts that use the stricter primary trade caps (default: momentum_5k,meanrev_5k)"
         },
         {
+          "scope": "command",
           "flags": [
             "--primary-max-trades"
           ],
@@ -3490,6 +3694,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--other-max-trades"
           ],
@@ -3503,6 +3708,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--account-trade-caps"
           ],
@@ -3516,6 +3722,7 @@
           "help": "Optional per-account maximum overrides in the form account:max,account:max (example: momentum_5k:5,core_growth_20k:8)"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -3529,6 +3736,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--seed"
           ],
@@ -3542,6 +3750,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--run-challenger-shadow-eval"
           ],
@@ -3555,6 +3764,7 @@
           "help": "Run challenger shadow evaluation before auto-trading."
         },
         {
+          "scope": "command",
           "flags": [
             "--shadow-eval-rolling-window-days"
           ],
@@ -3568,6 +3778,7 @@
           "help": "Override the challenger shadow-eval lookback window in days (default: each book's own configured lookback)."
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -3581,6 +3792,7 @@
           "help": "Run even if this date already completed successfully"
         },
         {
+          "scope": "command",
           "flags": [
             "--as-of-date"
           ],
@@ -3594,6 +3806,7 @@
           "help": "Override the trading date for this run (YYYY-MM-DD). Used by replay/backfill tooling to re-run a missed date. Affects the duplicate-run guard key and the log/artifact file name prefix."
         },
         {
+          "scope": "command",
           "flags": [
             "--run-source"
           ],
@@ -3607,6 +3820,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--notify-webhook-url"
           ],
@@ -3620,6 +3834,7 @@
           "help": "Optional webhook URL for runtime notifications (default: $TRADING_RUNTIME_ALERT_WEBHOOK_URL if set)"
         },
         {
+          "scope": "command",
           "flags": [
             "--notify-on-success"
           ],
@@ -3633,6 +3848,7 @@
           "help": "Also send a webhook notification when the run completes successfully"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -3659,10 +3875,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
       ],
+      "subcommand": null,
       "help": "Run daily challenger shadow evaluation for runtime-eligible accounts.",
       "example": "python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -3676,6 +3894,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -3689,6 +3908,7 @@
           "help": "Allow duplicate same-day run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -3702,6 +3922,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--run-source"
           ],
@@ -3715,6 +3936,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--enable-run"
           ],
@@ -3728,6 +3950,7 @@
           "help": "Explicitly enable execution for this invocation"
         },
         {
+          "scope": "command",
           "flags": [
             "--rolling-window-days"
           ],
@@ -3754,10 +3977,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.daily.trader_health"
       ],
+      "subcommand": null,
       "help": "Validate the latest daily paper trading log is recent and contains a success sentinel.",
       "example": "python -m trading.interfaces.runtime.jobs.daily.trader_health",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -3771,6 +3996,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-age-hours"
           ],
@@ -3784,6 +4010,7 @@
           "help": "Maximum allowed age of the latest run log in hours (default: 24)"
         },
         {
+          "scope": "command",
           "flags": [
             "--json"
           ],
@@ -3797,6 +4024,7 @@
           "help": "Print machine-readable JSON output"
         },
         {
+          "scope": "command",
           "flags": [
             "--notify-webhook-url"
           ],
@@ -3810,6 +4038,7 @@
           "help": "Optional webhook URL for runtime notifications (default: $TRADING_RUNTIME_ALERT_WEBHOOK_URL if set)"
         },
         {
+          "scope": "command",
           "flags": [
             "--notify-on-ok"
           ],
@@ -3836,10 +4065,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
       ],
+      "subcommand": null,
       "help": "Execute signal-driven daily paper trades per account (up to --max-trades).",
       "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts <ACCOUNTS>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -3853,6 +4084,7 @@
           "help": "Comma-separated account names, e.g. momentum_5k,meanrev_5k"
         },
         {
+          "scope": "command",
           "flags": [
             "--tickers-file"
           ],
@@ -3866,6 +4098,7 @@
           "help": "Override the fetch universe with a ticker file. Default: the union of the books' own trade universes."
         },
         {
+          "scope": "command",
           "flags": [
             "--max-trades"
           ],
@@ -3879,6 +4112,7 @@
           "help": "Maximum trades per account"
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -3892,6 +4126,7 @@
           "help": "Per-trade fee"
         },
         {
+          "scope": "command",
           "flags": [
             "--seed"
           ],
@@ -3918,10 +4153,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
       ],
+      "subcommand": null,
       "help": "Apply outstanding broker fills to the books.",
       "example": "python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts <ACCOUNTS>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -3948,10 +4185,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
       ],
+      "subcommand": null,
       "help": "Run weekly database backup.",
       "example": "python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -3965,6 +4204,7 @@
           "help": "Allow duplicate same-week run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -3978,6 +4218,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--backup-dir"
           ],
@@ -4004,10 +4245,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
       ],
+      "subcommand": null,
       "help": "Check burn-in stability of daily paper-trading runs.",
       "example": "python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4021,6 +4264,7 @@
           "help": "Allow duplicate same-day run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4034,6 +4278,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--min-consecutive-days"
           ],
@@ -4047,6 +4292,7 @@
           "help": "Minimum consecutive successful daily runs required (default: 10)"
         },
         {
+          "scope": "command",
           "flags": [
             "--max-failure-rate-pct"
           ],
@@ -4060,6 +4306,7 @@
           "help": "Maximum acceptable failed-step rate over the window in %%%% (default: 0.0)"
         },
         {
+          "scope": "command",
           "flags": [
             "--window-days"
           ],
@@ -4086,10 +4333,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.maintenance.replay_daily_runs"
       ],
+      "subcommand": null,
       "help": "Replay missed daily paper-trading runs over a date range.",
       "example": "python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs --from-date <FROM_DATE> --to-date <TO_DATE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--from-date"
           ],
@@ -4103,6 +4352,7 @@
           "help": "Start of the replay window (YYYY-MM-DD, inclusive)"
         },
         {
+          "scope": "command",
           "flags": [
             "--to-date"
           ],
@@ -4116,6 +4366,7 @@
           "help": "End of the replay window (YYYY-MM-DD, inclusive)"
         },
         {
+          "scope": "command",
           "flags": [
             "--dry-run"
           ],
@@ -4129,6 +4380,7 @@
           "help": "List missing dates without executing any runs"
         },
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4142,6 +4394,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--run-source"
           ],
@@ -4155,6 +4408,7 @@
           "help": "run_source tag written into the artifact (default: replay)"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4181,10 +4435,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard"
       ],
+      "subcommand": null,
       "help": "W1 weekly governance: rank strategy books by 30-day performance.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4198,6 +4454,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4211,6 +4468,7 @@
           "help": "Allow duplicate same-week run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4224,6 +4482,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--window-days"
           ],
@@ -4250,10 +4509,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review"
       ],
+      "subcommand": null,
       "help": "W2 weekly governance: promotion/retirement review for runtime-eligible accounts.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4267,6 +4528,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4280,6 +4542,7 @@
           "help": "Allow duplicate same-week run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4306,10 +4569,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review"
       ],
+      "subcommand": null,
       "help": "W3 weekly governance: compare actual book NAV allocation vs original start_equity ratios.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4323,6 +4588,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4336,6 +4602,7 @@
           "help": "Allow duplicate same-week run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4349,6 +4616,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--drift-threshold-pct"
           ],
@@ -4375,10 +4643,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline"
       ],
+      "subcommand": null,
       "help": "M1 monthly governance: risk budget rebaseline report per account.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4392,6 +4662,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4405,6 +4676,7 @@
           "help": "Allow duplicate same-month run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4431,10 +4703,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance"
       ],
+      "subcommand": null,
       "help": "M2 monthly governance: inventory active strategy parameters per book.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4448,6 +4722,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4461,6 +4736,7 @@
           "help": "Allow duplicate same-month run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4487,10 +4763,12 @@
         "-m",
         "trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit"
       ],
+      "subcommand": null,
       "help": "M3 monthly governance: 90-day long-horizon performance audit across all books.",
       "example": "python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--accounts"
           ],
@@ -4504,6 +4782,7 @@
           "help": "Comma-separated account names, or 'all' (default: all)"
         },
         {
+          "scope": "command",
           "flags": [
             "--force-run"
           ],
@@ -4517,6 +4796,7 @@
           "help": "Allow duplicate same-month run"
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4530,6 +4810,7 @@
           "help": "Repository root path (default: inferred from script location)"
         },
         {
+          "scope": "command",
           "flags": [
             "--audit-window-days"
           ],
@@ -4554,13 +4835,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.run_checks",
-        "docs"
+        "scripts.run_checks"
       ],
+      "subcommand": "docs",
       "help": "Run documentation drift and reference-doc checks.",
       "example": "python -m scripts.run_checks docs",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--advisory"
           ],
@@ -4574,6 +4856,7 @@
           "help": "Report enforce-capable documentation findings without failing."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-reference-docs"
           ],
@@ -4598,13 +4881,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.run_checks",
-        "repo"
+        "scripts.run_checks"
       ],
+      "subcommand": "repo",
       "help": "Run repository safety and structure checks.",
       "example": "python -m scripts.run_checks repo",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--advisory"
           ],
@@ -4629,13 +4913,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.run_checks",
-        "python"
+        "scripts.run_checks"
       ],
+      "subcommand": "python",
       "help": "Run Python style, type, and test checks.",
       "example": "python -m scripts.run_checks python",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--suite"
           ],
@@ -4649,6 +4934,7 @@
           "help": "Run only the specified test suite(s) instead of the full suite."
         },
         {
+          "scope": "command",
           "flags": [
             "--changed"
           ],
@@ -4662,6 +4948,7 @@
           "help": "Run only suites with uncommitted changed files (staged + unstaged)."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -4675,6 +4962,7 @@
           "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-cov"
           ],
@@ -4699,13 +4987,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.run_checks",
-        "quick"
+        "scripts.run_checks"
       ],
+      "subcommand": "quick",
       "help": "Run normal local checks: repo plus Python.",
       "example": "python -m scripts.run_checks quick",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--with-frontend"
           ],
@@ -4719,6 +5008,7 @@
           "help": "Also run frontend lint/typecheck/tests."
         },
         {
+          "scope": "command",
           "flags": [
             "--suite"
           ],
@@ -4732,6 +5022,7 @@
           "help": "Run only the specified test suite(s) instead of the full suite."
         },
         {
+          "scope": "command",
           "flags": [
             "--changed"
           ],
@@ -4745,6 +5036,7 @@
           "help": "Run only suites with uncommitted changed files (staged + unstaged)."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -4758,6 +5050,7 @@
           "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-cov"
           ],
@@ -4782,13 +5075,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.run_checks",
-        "ci"
+        "scripts.run_checks"
       ],
+      "subcommand": "ci",
       "help": "Run CI-shaped checks: docs, repo, Python, and frontend.",
       "example": "python -m scripts.run_checks ci",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--skip-frontend"
           ],
@@ -4815,10 +5109,12 @@
         "-m",
         "scripts.fix_checks"
       ],
+      "subcommand": null,
       "help": "Apply deterministic, behavior-preserving fixes for local check drift.",
       "example": "python -m scripts.fix_checks",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "targets"
           ],
@@ -4832,6 +5128,7 @@
           "help": "Optional Python target paths. Defaults to the same targets as the Ruff check gate."
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -4858,6 +5155,7 @@
         "-m",
         "scripts.launch_ui"
       ],
+      "subcommand": null,
       "help": "Start the paper-trading backend and frontend together.",
       "example": "python -m scripts.launch_ui",
       "arguments": []
@@ -4874,6 +5172,7 @@
         "-m",
         "scripts.launch_demo"
       ],
+      "subcommand": null,
       "help": "Rebuild the synthetic offline demo database, then start the UI on separate ports.",
       "example": "python -m scripts.launch_demo",
       "arguments": []
@@ -4890,10 +5189,12 @@
         "-m",
         "scripts.launch_sandbox"
       ],
+      "subcommand": null,
       "help": "Restore the disposable sandbox database and launch the UI.",
       "example": "python -m scripts.launch_sandbox",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--rebuild"
           ],
@@ -4907,6 +5208,7 @@
           "help": "Regenerate the golden build before restoring the working copy."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-ui"
           ],
@@ -4933,10 +5235,12 @@
         "-m",
         "scripts.screenshot_ui"
       ],
+      "subcommand": null,
       "help": "Capture a screenshot of the paper trading UI.",
       "example": "python -m scripts.screenshot_ui",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--tab"
           ],
@@ -4950,6 +5254,7 @@
           "help": "Tab to open (default: accounts). Options: about, accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor, alt-strategies, catalog, docs, admin"
         },
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -4963,6 +5268,7 @@
           "help": "Account name to open detail for (only used with --tab accounts)"
         },
         {
+          "scope": "command",
           "flags": [
             "--wait-analysis"
           ],
@@ -4976,6 +5282,7 @@
           "help": "Wait for the Performance Analysis panel to finish loading before screenshotting"
         },
         {
+          "scope": "command",
           "flags": [
             "--output"
           ],
@@ -4989,6 +5296,7 @@
           "help": "Output file path (default: local/screenshots/<tab>_<timestamp>.png)"
         },
         {
+          "scope": "command",
           "flags": [
             "--url"
           ],
@@ -5002,6 +5310,7 @@
           "help": "Base URL of the frontend (default: http://127.0.0.1:5173)"
         },
         {
+          "scope": "command",
           "flags": [
             "--width"
           ],
@@ -5015,6 +5324,7 @@
           "help": "Viewport width (default: 1440)"
         },
         {
+          "scope": "command",
           "flags": [
             "--height"
           ],
@@ -5028,6 +5338,7 @@
           "help": "Viewport height (default: 900)"
         },
         {
+          "scope": "command",
           "flags": [
             "--no-full-page"
           ],
@@ -5041,6 +5352,7 @@
           "help": "Capture only the visible viewport instead of the full page"
         },
         {
+          "scope": "command",
           "flags": [
             "--headed"
           ],
@@ -5067,10 +5379,12 @@
         "-m",
         "scripts.check_jobs"
       ],
+      "subcommand": null,
       "help": "Check the status of monitored runtime jobs.",
       "example": "python -m scripts.check_jobs",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--run-missing"
           ],
@@ -5097,10 +5411,12 @@
         "-m",
         "scripts.ibkr_web_api_smoke_test"
       ],
+      "subcommand": null,
       "help": "Run a read-only IBKR Web API smoke test against the local Client Portal Gateway.",
       "example": "python -m scripts.ibkr_web_api_smoke_test",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--paper-order-check"
           ],
@@ -5114,6 +5430,7 @@
           "help": "Also run a paper-order lifecycle check with an explicit test limit order."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-symbol"
           ],
@@ -5127,6 +5444,7 @@
           "help": "Ticker symbol for the optional paper-order check."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-qty"
           ],
@@ -5140,6 +5458,7 @@
           "help": "Quantity for the optional paper-order check (default: 1)."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-limit-price"
           ],
@@ -5153,6 +5472,7 @@
           "help": "Limit price for the optional paper-order check. Use a clearly non-marketable value."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-side"
           ],
@@ -5169,6 +5489,7 @@
           "help": "Side for the optional paper-order check (default: buy)."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-paper-order-cancel"
           ],
@@ -5195,10 +5516,12 @@
         "-m",
         "scripts.ibkr_socket_smoke_test"
       ],
+      "subcommand": null,
       "help": "Run a read-only IBKR socket/TWS smoke test against a local TWS or IB Gateway.",
       "example": "python -m scripts.ibkr_socket_smoke_test",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--host"
           ],
@@ -5212,6 +5535,7 @@
           "help": "TWS/Gateway host (default: 127.0.0.1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--port"
           ],
@@ -5225,6 +5549,7 @@
           "help": "TWS/Gateway port (default: 7497 = TWS paper; IB Gateway paper is 4002)"
         },
         {
+          "scope": "command",
           "flags": [
             "--client-id"
           ],
@@ -5238,6 +5563,7 @@
           "help": "API client id (default: 99)"
         },
         {
+          "scope": "command",
           "flags": [
             "--quote-tickers"
           ],
@@ -5251,6 +5577,7 @@
           "help": "Optional comma-separated tickers to request snapshot quotes for (example: AAPL,MSFT)"
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-check"
           ],
@@ -5264,6 +5591,7 @@
           "help": "Submit one non-marketable limit order, confirm it comes back through get_open_trades(), then cancel it. Paper accounts only \u2014 refuses to run otherwise."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-symbol"
           ],
@@ -5277,6 +5605,7 @@
           "help": "Ticker for --paper-order-check"
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-limit-price"
           ],
@@ -5290,6 +5619,7 @@
           "help": "Limit price for --paper-order-check. Use a clearly non-marketable price."
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-qty"
           ],
@@ -5303,6 +5633,7 @@
           "help": "Quantity for --paper-order-check (default: 1)"
         },
         {
+          "scope": "command",
           "flags": [
             "--paper-order-side"
           ],
@@ -5319,6 +5650,7 @@
           "help": "Side for --paper-order-check (default: buy)"
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-paper-order-cancel"
           ],
@@ -5345,10 +5677,12 @@
         "-m",
         "scripts.benchmark_sweep"
       ],
+      "subcommand": null,
       "help": "Time the walk-forward optimizer so sweep sizing can be chosen from data. A sweep is ``candidates x windows`` training backtests plus a persisted OOS run and a metrics-only baseline per window, plus two holdout runs. The route's candidate-budget ceiling is derived from what one simulation costs, so re-run this whenever the inner loop changes and re-derive the cap from the result. Runs against a *copy* of the database (SQLite backup API, so WAL content comes along), because a sweep persists its OOS and holdout runs and a benchmark should not leave evidence rows behind. python -m scripts.benchmark_sweep --account momentum_5k --label baseline Add ``--json-out local/sweep_benchmarks.jsonl`` to append a machine-readable row per run for before/after comparison. **Read the output with suspicion.** One run is one sample, and repeated runs of an identical configuration have come in 23% apart on the same machine. A single before/after pair therefore cannot resolve anything below roughly 25%. For a smaller effect, profile where the time goes rather than A/B timing the whole sweep \u2014 or teach this script to interleave repeated trials and report the minimum, since noise only ever adds time.",
       "example": "python -m scripts.benchmark_sweep --account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--account"
           ],
@@ -5362,6 +5696,7 @@
           "help": "Account name to benchmark against."
         },
         {
+          "scope": "command",
           "flags": [
             "--strategy"
           ],
@@ -5375,6 +5710,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--search-space"
           ],
@@ -5388,6 +5724,7 @@
           "help": "JSON parameter grid."
         },
         {
+          "scope": "command",
           "flags": [
             "--tickers-file"
           ],
@@ -5401,6 +5738,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--universe-history-dir"
           ],
@@ -5414,6 +5752,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--lookback-months"
           ],
@@ -5427,6 +5766,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--train-months"
           ],
@@ -5440,6 +5780,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--test-months"
           ],
@@ -5453,6 +5794,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--step-months"
           ],
@@ -5466,6 +5808,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--holdout-months"
           ],
@@ -5479,6 +5822,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--warmup-months"
           ],
@@ -5492,6 +5836,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--slippage-bps"
           ],
@@ -5505,6 +5850,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--fee"
           ],
@@ -5518,6 +5864,7 @@
           "help": ""
         },
         {
+          "scope": "command",
           "flags": [
             "--db"
           ],
@@ -5531,6 +5878,7 @@
           "help": "Source database to copy (default: the configured path)."
         },
         {
+          "scope": "command",
           "flags": [
             "--label"
           ],
@@ -5544,6 +5892,7 @@
           "help": "Tag recorded with the result row."
         },
         {
+          "scope": "command",
           "flags": [
             "--json-out"
           ],
@@ -5557,6 +5906,7 @@
           "help": "Append one JSON result line to this file."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-single"
           ],
@@ -5570,6 +5920,7 @@
           "help": "Skip the single-backtest measurement."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-sweep"
           ],
@@ -5596,10 +5947,12 @@
         "-m",
         "scripts.data_ops.describe_db_schema"
       ],
+      "subcommand": null,
       "help": "Describe the trading database schema from the canonical code-defined schema or from the configured live SQLite database.",
       "example": "python -m scripts.data_ops.describe_db_schema",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--source"
           ],
@@ -5616,6 +5969,7 @@
           "help": "Read schema from an in-memory database initialized from code, or from the live configured DB."
         },
         {
+          "scope": "command",
           "flags": [
             "--format"
           ],
@@ -5645,10 +5999,12 @@
         "-m",
         "scripts.data_ops.check_cash_invariant"
       ],
+      "subcommand": null,
       "help": "Check that each book's current_cash reconciles with start_equity plus its ledger sum.",
       "example": "python -m scripts.data_ops.check_cash_invariant",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--format"
           ],
@@ -5678,10 +6034,12 @@
         "-m",
         "scripts.data_ops.build_database_diagram_viewer"
       ],
+      "subcommand": null,
       "help": "Build a self-contained HTML database diagram viewer from the fresh code-defined schema.",
       "example": "python -m scripts.data_ops.build_database_diagram_viewer",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--output"
           ],
@@ -5708,10 +6066,12 @@
         "-m",
         "scripts.data_ops.capture_scenario_fixture"
       ],
+      "subcommand": null,
       "help": "Capture a real-history fixture for the scenario bench.",
       "example": "python -m scripts.data_ops.capture_scenario_fixture",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--id"
           ],
@@ -5736,9 +6096,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "scripts.data_ops.manage_db_migrations",
-        "status"
+        "scripts.data_ops.manage_db_migrations"
       ],
+      "subcommand": "status",
       "help": "Show database revision, repository head, and pending revisions.",
       "example": "python -m scripts.data_ops.manage_db_migrations status",
       "arguments": []
@@ -5753,13 +6113,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.data_ops.manage_db_migrations",
-        "upgrade"
+        "scripts.data_ops.manage_db_migrations"
       ],
+      "subcommand": "upgrade",
       "help": "Apply revisions up to the target (default: head). Backs up first.",
       "example": "python -m scripts.data_ops.manage_db_migrations upgrade",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "revision"
           ],
@@ -5784,13 +6145,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "scripts.data_ops.manage_db_migrations",
-        "downgrade"
+        "scripts.data_ops.manage_db_migrations"
       ],
+      "subcommand": "downgrade",
       "help": "Revert to an explicit target revision. Backs up first.",
       "example": "python -m scripts.data_ops.manage_db_migrations downgrade <REVISION>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "revision"
           ],
@@ -5815,9 +6177,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "scripts.data_ops.manage_db_migrations",
-        "history"
+        "scripts.data_ops.manage_db_migrations"
       ],
+      "subcommand": "history",
       "help": "Display the ordered revision chain.",
       "example": "python -m scripts.data_ops.manage_db_migrations history",
       "arguments": []
@@ -5832,9 +6194,9 @@
       "runnable": true,
       "argv": [
         "-m",
-        "trading.interfaces.runtime.data_ops.admin",
-        "list-accounts"
+        "trading.interfaces.runtime.data_ops.admin"
       ],
+      "subcommand": "list-accounts",
       "help": "List current accounts in the DB.",
       "example": "python -m trading.interfaces.runtime.data_ops.admin list-accounts",
       "arguments": []
@@ -5849,13 +6211,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.runtime.data_ops.admin",
-        "backup-db"
+        "trading.interfaces.runtime.data_ops.admin"
       ],
+      "subcommand": "backup-db",
       "help": "Create a timestamped backup of the database.",
       "example": "python -m trading.interfaces.runtime.data_ops.admin backup-db",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "destination"
           ],
@@ -5880,13 +6243,14 @@
       "runnable": false,
       "argv": [
         "-m",
-        "trading.interfaces.runtime.data_ops.admin",
-        "delete-account"
+        "trading.interfaces.runtime.data_ops.admin"
       ],
+      "subcommand": "delete-account",
       "help": "Delete one account and its related records.",
       "example": "python -m trading.interfaces.runtime.data_ops.admin delete-account <ACCOUNT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "account"
           ],
@@ -5900,6 +6264,7 @@
           "help": "Account name."
         },
         {
+          "scope": "command",
           "flags": [
             "--dry-run"
           ],
@@ -5913,6 +6278,7 @@
           "help": "Show what would be deleted without changes."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-backup"
           ],
@@ -5926,6 +6292,7 @@
           "help": "Skip the automatic pre-delete database backup (deletion is unrecoverable without it)."
         },
         {
+          "scope": "command",
           "flags": [
             "--backup-destination"
           ],
@@ -5952,10 +6319,12 @@
         "-m",
         "trading.interfaces.runtime.data_ops.seed_clean_schema"
       ],
+      "subcommand": null,
       "help": "Seed the clean-schema strategy catalog and per-account default books.",
       "example": "python -m trading.interfaces.runtime.data_ops.seed_clean_schema",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--strategies-only"
           ],
@@ -5982,10 +6351,12 @@
         "-m",
         "trading.interfaces.runtime.scheduling.manage_job_schedules"
       ],
+      "subcommand": null,
       "help": "Manage runtime job schedules from the schedule config file.",
       "example": "python -m trading.interfaces.runtime.scheduling.manage_job_schedules",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--config"
           ],
@@ -5999,6 +6370,7 @@
           "help": "Path to the declarative job schedule JSON file (see src/infrastructure/config/job_schedule.example.json). Defaults to <repo-root>/src/infrastructure/config/job_schedule.json. The file is the source of truth: enabled jobs are registered and the rest removed."
         },
         {
+          "scope": "command",
           "flags": [
             "--status"
           ],
@@ -6012,6 +6384,7 @@
           "help": "Report drift between the config file and the schedules registered on this host, then exit."
         },
         {
+          "scope": "command",
           "flags": [
             "--unregister"
           ],
@@ -6025,6 +6398,7 @@
           "help": "Remove every catalog schedule entry"
         },
         {
+          "scope": "command",
           "flags": [
             "--dry-run"
           ],
@@ -6038,6 +6412,7 @@
           "help": "Print actions without applying"
         },
         {
+          "scope": "command",
           "flags": [
             "--python"
           ],
@@ -6046,11 +6421,12 @@
           "kind": "value",
           "type": "str",
           "required": false,
-          "default": "<repo-root>/.venv/Scripts/python.exe",
+          "default": "<python>",
           "choices": null,
           "help": "Python executable used by scheduler (default: auto-detected venv python)"
         },
         {
+          "scope": "command",
           "flags": [
             "--scheduler"
           ],
@@ -6068,6 +6444,7 @@
           "help": "Scheduler backend: 'auto' picks systemd on Linux if available, else cron (default: auto)"
         },
         {
+          "scope": "command",
           "flags": [
             "--wake-system"
           ],
@@ -6081,6 +6458,7 @@
           "help": "Wake the system from sleep before each run (systemd WakeSystem / Windows WakeToRun; default: true)"
         },
         {
+          "scope": "command",
           "flags": [
             "--no-wake-system"
           ],
@@ -6094,6 +6472,7 @@
           "help": "Disable the wake-from-sleep setting on the registered tasks"
         },
         {
+          "scope": "command",
           "flags": [
             "--env-file"
           ],
@@ -6120,10 +6499,12 @@
         "-m",
         "scripts.documentation_ui.sync"
       ],
+      "subcommand": null,
       "help": "Sync frontend/src/assets reference JSON files from live code and requirements.",
       "example": "python -m scripts.documentation_ui.sync",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6150,10 +6531,12 @@
         "-m",
         "scripts.documentation_ui.check"
       ],
+      "subcommand": null,
       "help": "Check documentation UI assets are in sync with their canonical sources.",
       "example": "python -m scripts.documentation_ui.check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6167,6 +6550,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-finance"
           ],
@@ -6180,6 +6564,7 @@
           "help": "Skip the Finance reference check."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-software"
           ],
@@ -6193,6 +6578,7 @@
           "help": "Skip the Software reference check."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-api"
           ],
@@ -6206,6 +6592,7 @@
           "help": "Skip the API reference check."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-commands"
           ],
@@ -6219,6 +6606,7 @@
           "help": "Skip the Command reference check."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-overview"
           ],
@@ -6245,10 +6633,12 @@
         "-m",
         "scripts.fixes.db_schema_fix"
       ],
+      "subcommand": null,
       "help": "Sync the Quick Reference table in docs/reference/db-schema.md with the current schema: remove stale rows and append TODO scaffold rows for undocumented tables.",
       "example": "python -m scripts.fixes.db_schema_fix",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6275,10 +6665,12 @@
         "-m",
         "scripts.fixes.maps_fix"
       ],
+      "subcommand": null,
       "help": "Remove structural-map table rows whose files no longer exist on disk.",
       "example": "python -m scripts.fixes.maps_fix",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6305,10 +6697,12 @@
         "-m",
         "scripts.database_diagrams.sqlite"
       ],
+      "subcommand": null,
       "help": "Inspect a SQLite database and build a neutral schema payload or HTML diagram viewer.",
       "example": "python -m scripts.database_diagrams.sqlite --database <DATABASE>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--database"
           ],
@@ -6322,6 +6716,7 @@
           "help": "SQLite database file to inspect."
         },
         {
+          "scope": "command",
           "flags": [
             "--output-json"
           ],
@@ -6335,6 +6730,7 @@
           "help": "Optional neutral schema JSON output path."
         },
         {
+          "scope": "command",
           "flags": [
             "--output-html"
           ],
@@ -6348,6 +6744,7 @@
           "help": "Optional self-contained HTML viewer output path."
         },
         {
+          "scope": "command",
           "flags": [
             "--title"
           ],
@@ -6374,10 +6771,12 @@
         "-m",
         "scripts.database_diagrams.render_html"
       ],
+      "subcommand": null,
       "help": "Render a self-contained database diagram viewer from a neutral schema JSON payload.",
       "example": "python -m scripts.database_diagrams.render_html --schema-json <SCHEMA_JSON> --output <OUTPUT>",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--schema-json"
           ],
@@ -6391,6 +6790,7 @@
           "help": "Input neutral schema JSON payload."
         },
         {
+          "scope": "command",
           "flags": [
             "--output"
           ],
@@ -6417,10 +6817,12 @@
         "-m",
         "scripts.checks.ci"
       ],
+      "subcommand": null,
       "help": "Run local smoke checks that mirror core GitHub Actions workflows.",
       "example": "python -m scripts.checks.ci",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--skip-frontend"
           ],
@@ -6447,10 +6849,12 @@
         "-m",
         "scripts.checks.docs.db_schema_check"
       ],
+      "subcommand": null,
       "help": "Check that the Quick Reference table in docs/reference/db-schema.md covers every table in the current schema. Advisory by default; use --enforce to fail non-zero on drift.",
       "example": "python -m scripts.checks.docs.db_schema_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6464,6 +6868,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6490,10 +6895,12 @@
         "-m",
         "scripts.checks.docs.doc_header_check"
       ],
+      "subcommand": null,
       "help": "Verify every docs/ file carries the required header fields with valid vocabulary.",
       "example": "python -m scripts.checks.docs.doc_header_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6507,6 +6914,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6533,10 +6941,12 @@
         "-m",
         "scripts.checks.docs.doc_naming_check"
       ],
+      "subcommand": null,
       "help": "Verify docs/ filenames follow kebab-case and ADRs use unique NNN prefixes.",
       "example": "python -m scripts.checks.docs.doc_naming_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6550,6 +6960,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6576,10 +6987,12 @@
         "-m",
         "scripts.checks.docs.docs_check"
       ],
+      "subcommand": null,
       "help": "Run documentation and documentation-drift checks together.",
       "example": "python -m scripts.checks.docs.docs_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6593,6 +7006,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6606,6 +7020,7 @@
           "help": "Exit non-zero when enforce-capable checks find problems."
         },
         {
+          "scope": "command",
           "flags": [
             "--quiet"
           ],
@@ -6619,6 +7034,7 @@
           "help": "Collapse clean checks to one-line PASS output."
         },
         {
+          "scope": "command",
           "flags": [
             "--skip-reference-docs"
           ],
@@ -6645,10 +7061,12 @@
         "-m",
         "scripts.checks.docs.link_check"
       ],
+      "subcommand": null,
       "help": "Report markdown links and backtick repo-root paths in docs that do not resolve.",
       "example": "python -m scripts.checks.docs.link_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6662,6 +7080,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6688,10 +7107,12 @@
         "-m",
         "scripts.checks.docs.maps_check"
       ],
+      "subcommand": null,
       "help": "Report drift between structural maps and the modules on disk (read-only).",
       "example": "python -m scripts.checks.docs.maps_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6705,6 +7126,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6731,10 +7153,12 @@
         "-m",
         "scripts.checks.docs.module_ref_check"
       ],
+      "subcommand": null,
       "help": "Report `python -m <module>` invocations in docs whose first-party module does not resolve.",
       "example": "python -m scripts.checks.docs.module_ref_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6748,6 +7172,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -6774,10 +7199,12 @@
         "-m",
         "scripts.checks.docs.readme_check"
       ],
+      "subcommand": null,
       "help": "Run README consistency audit as a standalone check.",
       "example": "python -m scripts.checks.docs.readme_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6791,6 +7218,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce-style"
           ],
@@ -6817,10 +7245,12 @@
         "-m",
         "scripts.checks.python.function_complexity_check"
       ],
+      "subcommand": null,
       "help": "Advisory check for changed Python functions with high size or complexity signals.",
       "example": "python -m scripts.checks.python.function_complexity_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6834,6 +7264,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -6847,6 +7278,7 @@
           "help": "Inspect changes vs a git ref."
         },
         {
+          "scope": "command",
           "flags": [
             "--quiet"
           ],
@@ -6873,10 +7305,12 @@
         "-m",
         "scripts.checks.python.mypy_check"
       ],
+      "subcommand": null,
       "help": "Run mypy check for default or custom Python target paths.",
       "example": "python -m scripts.checks.python.mypy_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "targets"
           ],
@@ -6890,6 +7324,7 @@
           "help": "Optional mypy target paths. Defaults to backend and trading modules."
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6903,6 +7338,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--python-version"
           ],
@@ -6916,6 +7352,7 @@
           "help": "Python version passed to mypy."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-ignore-missing-imports"
           ],
@@ -6929,6 +7366,7 @@
           "help": "Disable --ignore-missing-imports."
         },
         {
+          "scope": "command",
           "flags": [
             "--follow-imports-skip"
           ],
@@ -6955,10 +7393,12 @@
         "-m",
         "scripts.checks.python.public_api_test_evidence_check"
       ],
+      "subcommand": null,
       "help": "Advisory check for changed public Python APIs without nearby test changes.",
       "example": "python -m scripts.checks.python.public_api_test_evidence_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -6972,6 +7412,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -6985,6 +7426,7 @@
           "help": "Inspect changes vs a git ref."
         },
         {
+          "scope": "command",
           "flags": [
             "--quiet"
           ],
@@ -7011,10 +7453,12 @@
         "-m",
         "scripts.checks.python.pytest_check"
       ],
+      "subcommand": null,
       "help": "Run pytest check as a standalone command.",
       "example": "python -m scripts.checks.python.pytest_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7028,6 +7472,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "pytest_args"
           ],
@@ -7054,10 +7499,12 @@
         "-m",
         "scripts.checks.python.python_check"
       ],
+      "subcommand": null,
       "help": "Run Python style, type, and test checks.",
       "example": "python -m scripts.checks.python.python_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7071,6 +7518,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--suite"
           ],
@@ -7084,6 +7532,7 @@
           "help": "Run only the specified test suite(s) instead of the full suite."
         },
         {
+          "scope": "command",
           "flags": [
             "--changed"
           ],
@@ -7097,6 +7546,7 @@
           "help": "Run only suites with uncommitted changed files (staged + unstaged)."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -7110,6 +7560,7 @@
           "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-cov"
           ],
@@ -7123,6 +7574,7 @@
           "help": "Disable coverage for faster targeted test runs."
         },
         {
+          "scope": "command",
           "flags": [
             "--verbose"
           ],
@@ -7149,10 +7601,12 @@
         "-m",
         "scripts.checks.python.python_conventions_check"
       ],
+      "subcommand": null,
       "help": "Check production/tooling Python modules for public return types.",
       "example": "python -m scripts.checks.python.python_conventions_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7166,6 +7620,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -7192,10 +7647,12 @@
         "-m",
         "scripts.checks.python.ruff_check"
       ],
+      "subcommand": null,
       "help": "Run ruff lint and format checks.",
       "example": "python -m scripts.checks.python.ruff_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "targets"
           ],
@@ -7209,6 +7666,7 @@
           "help": "Optional target paths. Defaults to all source directories."
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7235,10 +7693,12 @@
         "-m",
         "scripts.checks.quick"
       ],
+      "subcommand": null,
       "help": "Run fast day-to-day checks: repository checks plus Python checks.",
       "example": "python -m scripts.checks.quick",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--with-frontend"
           ],
@@ -7252,6 +7712,7 @@
           "help": "Also run frontend lint/typecheck/tests."
         },
         {
+          "scope": "command",
           "flags": [
             "--suite"
           ],
@@ -7265,6 +7726,7 @@
           "help": "Run only the specified test suite(s) instead of the full suite."
         },
         {
+          "scope": "command",
           "flags": [
             "--changed"
           ],
@@ -7278,6 +7740,7 @@
           "help": "Run only suites with uncommitted changed files (staged + unstaged)."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -7291,6 +7754,7 @@
           "help": "Run only suites with changes vs a git ref (e.g. 'main', 'origin/main')."
         },
         {
+          "scope": "command",
           "flags": [
             "--no-cov"
           ],
@@ -7317,10 +7781,12 @@
         "-m",
         "scripts.checks.repo.layer_check"
       ],
+      "subcommand": null,
       "help": "Check that layer boundaries defined in docs/architecture/architecture-conventions.md are respected.",
       "example": "python -m scripts.checks.repo.layer_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7347,10 +7813,12 @@
         "-m",
         "scripts.checks.repo.live_safety_check"
       ],
+      "subcommand": null,
       "help": "Check code does not set live_trading_enabled to true/1.",
       "example": "python -m scripts.checks.repo.live_safety_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7364,6 +7832,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -7390,10 +7859,12 @@
         "-m",
         "scripts.checks.repo.migration_check"
       ],
+      "subcommand": null,
       "help": "Check EXPECTED_HEAD_REVISION against the migration directory head.",
       "example": "python -m scripts.checks.repo.migration_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7407,6 +7878,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--advisory"
           ],
@@ -7433,10 +7905,12 @@
         "-m",
         "scripts.checks.repo.path_safety_check"
       ],
+      "subcommand": null,
       "help": "Check for clear cross-platform path hazards in production/tooling Python modules.",
       "example": "python -m scripts.checks.repo.path_safety_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7450,6 +7924,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -7476,10 +7951,12 @@
         "-m",
         "scripts.checks.repo.repo_check"
       ],
+      "subcommand": null,
       "help": "Run repository-level safety and structure checks.",
       "example": "python -m scripts.checks.repo.repo_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7493,6 +7970,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--advisory"
           ],
@@ -7506,6 +7984,7 @@
           "help": "Report findings without failing enforce-capable checks."
         },
         {
+          "scope": "command",
           "flags": [
             "--verbose"
           ],
@@ -7532,10 +8011,12 @@
         "-m",
         "scripts.checks.repo.review_scope_check"
       ],
+      "subcommand": null,
       "help": "Classify changed files into suggested code-review modes and high-risk triggers.",
       "example": "python -m scripts.checks.repo.review_scope_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7549,6 +8030,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -7562,6 +8044,7 @@
           "help": "Classify changes vs a git ref."
         },
         {
+          "scope": "command",
           "flags": [
             "--quiet"
           ],
@@ -7588,10 +8071,12 @@
         "-m",
         "scripts.checks.repo.secret_hygiene_check"
       ],
+      "subcommand": null,
       "help": "Check source/config files for committed literal secrets.",
       "example": "python -m scripts.checks.repo.secret_hygiene_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7605,6 +8090,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -7631,10 +8117,12 @@
         "-m",
         "scripts.checks.repo.sector_map_check"
       ],
+      "subcommand": null,
       "help": "Check that every trade-universe symbol has a sector mapping.",
       "example": "python -m scripts.checks.repo.sector_map_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7648,6 +8136,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--verbose"
           ],
@@ -7674,10 +8163,12 @@
         "-m",
         "scripts.checks.repo.skills_check"
       ],
+      "subcommand": null,
       "help": "Verify the AGENTS.md skill inventory matches .ai/skills/ and frontmatter is complete.",
       "example": "python -m scripts.checks.repo.skills_check",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7691,6 +8182,7 @@
           "help": "Repository root. Defaults to detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "--enforce"
           ],
@@ -7717,10 +8209,12 @@
         "-m",
         "scripts.checks.run_suite"
       ],
+      "subcommand": null,
       "help": "Run a focused subset of the test suite by suite name or file path. Suite names mirror the tests/ directory tree (e.g. 'trading/services', 'trading/services/market_data'). Use 'all' to run the full suite. Individual .py file paths are also accepted. Use --changed or --base to auto-detect suites from git-changed files.",
       "example": "python -m scripts.checks.run_suite",
       "arguments": [
         {
+          "scope": "command",
           "flags": [
             "--list"
           ],
@@ -7734,6 +8228,7 @@
           "help": "List all available suite names and exit."
         },
         {
+          "scope": "command",
           "flags": [
             "--dry-run"
           ],
@@ -7747,6 +8242,7 @@
           "help": "Print which suites would run without actually running them. Works with explicit suite names, --changed, and --base."
         },
         {
+          "scope": "command",
           "flags": [
             "--changed"
           ],
@@ -7760,6 +8256,7 @@
           "help": "Auto-detect suites from uncommitted changes (staged + unstaged). Mutually exclusive with explicit suite names."
         },
         {
+          "scope": "command",
           "flags": [
             "--base"
           ],
@@ -7773,6 +8270,7 @@
           "help": "Auto-detect suites from changes vs a git ref (e.g. 'main', 'origin/main'). Uses a three-dot diff: all commits on HEAD not on REF. Mutually exclusive with explicit suite names."
         },
         {
+          "scope": "command",
           "flags": [
             "--repo-root"
           ],
@@ -7786,6 +8284,7 @@
           "help": "Repository root. Defaults to auto-detected workspace root."
         },
         {
+          "scope": "command",
           "flags": [
             "suites"
           ],

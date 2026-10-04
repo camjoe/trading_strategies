@@ -104,10 +104,7 @@ def load_existing_state(registry_path: Path) -> dict[str, dict[str, str]]:
         path = item.get("path")
         if not isinstance(method, str) or not isinstance(path, str):
             continue
-        rows[endpoint_key(method, path)] = {
-            "group": str(item.get("group") or ""),
-            "description": str(item.get("description") or ""),
-        }
+        rows[endpoint_key(method, path)] = {"description": str(item.get("description") or "")}
     return rows
 
 
@@ -119,7 +116,7 @@ def build_registry(
     for key in sorted(parsed_routes, key=str.lower):
         route = parsed_routes[key]
         existing = existing_state.get(key, {})
-        group = existing.get("group") or route["group"]
+        group = route["group"]
         description = existing.get("description") or route.get("description", "")
         group_rank = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
         rows.append(

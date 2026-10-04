@@ -4,6 +4,7 @@ export type CatalogRisk = "read-only" | "writes-local" | "broker";
 export interface CatalogArgument {
   flags: string[];
   dest: string;
+  scope: "global" | "command";
   positional: boolean;
   kind: "flag" | "value" | "repeatable";
   type: string;

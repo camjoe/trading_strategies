@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from common.git import get_repo_root
@@ -17,6 +18,10 @@ KIND_JOB = "job"
 KIND_TOOL = "tool"
 
 REPO_ROOT_PLACEHOLDER = "<repo-root>"
+PYTHON_PLACEHOLDER = "<python>"
+
+SCOPE_GLOBAL = "global"
+SCOPE_COMMAND = "command"
 
 
 class _ParserCaptured(Exception):
@@ -60,12 +65,24 @@ def subparsers_action(parser: argparse.ArgumentParser) -> argparse._SubParsersAc
     return None
 
 
+def _spellings(*paths: str | Path) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(form for path in paths for form in (str(path), Path(path).as_posix())))
+
+
 def _portable(text: str) -> str:
-    """Replace the machine-specific repo root so the registry is identical on every host."""
+    """Replace the repo root and the interpreter path, which differ on every host.
+
+    The interpreter goes first: it usually sits under the repo root.
+    """
+    prefix = Path(sys.prefix)
+    for spelling in _spellings(sys.executable, prefix / "bin" / "python", prefix / "Scripts" / "python.exe"):
+        text = text.replace(spelling, PYTHON_PLACEHOLDER)
     root = get_repo_root(__file__)
-    for spelling in (str(root), root.as_posix()):
+    for spelling in _spellings(root):
         text = text.replace(spelling, REPO_ROOT_PLACEHOLDER)
-    return text.replace("\\", "/") if REPO_ROOT_PLACEHOLDER in text else text
+    if REPO_ROOT_PLACEHOLDER in text or PYTHON_PLACEHOLDER in text:
+        return text.replace("\\", "/")
+    return text
 
 
 def _clean_text(text: str | None) -> str:
@@ -96,9 +113,10 @@ def _type_name(action: argparse.Action) -> str:
     return getattr(action.type, "__name__", "str") if action.type is not None else "str"
 
 
-def describe_argument(action: argparse.Action) -> dict[str, Any]:
+def describe_argument(action: argparse.Action, scope: str = SCOPE_COMMAND) -> dict[str, Any]:
     positional = not action.option_strings
     return {
+        "scope": scope,
         "flags": list(action.option_strings) or [action.dest],
         "dest": action.dest,
         "positional": positional,
@@ -111,9 +129,9 @@ def describe_argument(action: argparse.Action) -> dict[str, Any]:
     }
 
 
-def describe_arguments(parser: argparse.ArgumentParser) -> list[dict[str, Any]]:
+def describe_arguments(parser: argparse.ArgumentParser, scope: str = SCOPE_COMMAND) -> list[dict[str, Any]]:
     return [
-        describe_argument(action)
+        describe_argument(action, scope)
         for action in parser._actions
         if not isinstance(action, (argparse._HelpAction, argparse._SubParsersAction))
     ]
@@ -125,18 +143,26 @@ def _example_value(argument: dict[str, Any]) -> str:
     return f"<{argument['dest'].upper()}>"
 
 
-def build_example(invocation: str, arguments: list[dict[str, Any]]) -> str:
-    parts = [invocation]
+def _example_tokens(arguments: list[dict[str, Any]]) -> list[str]:
+    tokens: list[str] = []
     for argument in arguments:
         if not argument["required"]:
             continue
         if argument["positional"]:
-            parts.append(_example_value(argument))
+            tokens.append(_example_value(argument))
         elif argument["kind"] == "flag":
-            parts.append(argument["flags"][0])
+            tokens.append(argument["flags"][0])
         else:
-            parts.append(f"{argument['flags'][0]} {_example_value(argument)}")
-    return " ".join(parts)
+            tokens.append(f"{argument['flags'][0]} {_example_value(argument)}")
+    return tokens
+
+
+def build_example(invocation: str, subcommand: str | None, arguments: list[dict[str, Any]]) -> str:
+    """Write one example line: global options, then the subcommand, then its options."""
+    global_arguments = [argument for argument in arguments if argument["scope"] == SCOPE_GLOBAL]
+    command_arguments = [argument for argument in arguments if argument["scope"] != SCOPE_GLOBAL]
+    parts = [invocation, *_example_tokens(global_arguments), *([subcommand] if subcommand else [])]
+    return " ".join([*parts, *_example_tokens(command_arguments)])
 
 
 def subcommand_helps(action: argparse._SubParsersAction[argparse.ArgumentParser]) -> dict[str, str]:
@@ -152,6 +178,7 @@ def make_row(
     help_text: str,
     invocation: str,
     argv: list[str],
+    subcommand: str | None,
     arguments: list[dict[str, Any]],
     module: str | None = None,
     schedule: str | None = None,
@@ -172,7 +199,8 @@ def make_row(
         "schedule": schedule,
         "runnable": runnable,
         "argv": argv,
+        "subcommand": subcommand,
         "help": help_text,
-        "example": build_example(invocation, arguments),
+        "example": build_example(invocation, subcommand, arguments),
         "arguments": arguments,
     }

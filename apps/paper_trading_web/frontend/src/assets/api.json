@@ -108,14 +108,6 @@
       "description": "Return comprehensive autonomy dashboard data for a managed account. Includes: - Account overview (total equity, cash, positions) - Book status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
     },
     {
-      "method": "POST",
-      "path": "/api/catalog/run",
-      "handler": "api_catalog_run",
-      "module": "catalog",
-      "group": "Catalog Endpoints",
-      "description": "Run one read-only entry from the command catalog and return its exit code and output."
-    },
-    {
       "method": "GET",
       "path": "/health",
       "handler": "health",
@@ -322,6 +314,14 @@
       "module": "strategy_lab",
       "group": "Strategy Lab Endpoints",
       "description": "Promote an optimization run's winner into a new strategy variant, optionally frozen."
+    },
+    {
+      "method": "POST",
+      "path": "/api/catalog/run",
+      "handler": "api_catalog_run",
+      "module": "catalog",
+      "group": "Catalog Endpoints",
+      "description": "Run one read-only entry from the command catalog and return its exit code and output."
     }
   ]
 }

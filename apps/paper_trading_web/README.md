@@ -132,7 +132,7 @@ npm run dev
 
 ### Command Catalog
 
-- `POST /api/catalog/run` — run one read-only catalog entry. Body: `CatalogRunRequest` (`name`, `values`). Returns `exitCode`, `output`, `command`, `durationSeconds`, `timedOut`, and `truncated`. Only entries that `assets/commands.json` marks `runnable` run; any other name returns 400, and an unknown name returns 404. The server builds the argument list from the entry's own argument definitions, writes options as `--flag=value`, and starts the process without a shell. A run stops after 60 seconds, output is cut at 200,000 characters, and one run at a time is allowed (a second request returns 409). The command runs in a child process, so it finds the database through `TRADING_DB_PATH`, as the launchers set it.
+- `POST /api/catalog/run` — run one read-only catalog entry. Body: `CatalogRunRequest` (`name`, `values`). Returns `exitCode`, `output`, `command`, `durationSeconds`, `timedOut`, and `truncated`. Only entries that `assets/commands.json` marks `runnable` run; any other name returns 400, and an unknown name returns 404. The server builds the argument list from the entry's own argument definitions, writes options as `--flag=value`, and starts the process without a shell. A run stops after 60 seconds, output is cut at 200,000 characters, and one run at a time is allowed (a second request returns 409). A browser request from a page served on another host is refused with 403. A missing `commands.json` returns 503 with the command that rebuilds it. The command runs in a child process, so it finds the database through `TRADING_DB_PATH`, as the launchers set it.
 
 ### Alt-Strategy Feature Providers
 

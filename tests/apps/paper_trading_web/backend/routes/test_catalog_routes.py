@@ -30,6 +30,26 @@ class TestCatalogRunEndpoint:
     def test_rejects_a_missing_name(self, api_client: TestClient) -> None:
         assert api_client.post("/api/catalog/run", json={"values": {}}).status_code == 422
 
+    @pytest.mark.parametrize("origin", ["http://127.0.0.1:5174", "http://localhost:5173", "http://[::1]:5173"])
+    def test_accepts_a_page_served_on_this_machine(self, api_client: TestClient, origin: str) -> None:
+        with patch(_RUN_ENTRY, return_value={}) as mocked:
+            resp = api_client.post("/api/catalog/run", json={"name": "report"}, headers={"Origin": origin})
+
+        assert resp.status_code == 200
+        mocked.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "origin", ["https://evil.example", "http://192.168.1.20:5173", "http://localhost.evil.example", "null"]
+    )
+    def test_refuses_a_page_served_somewhere_else_without_running_anything(
+        self, api_client: TestClient, origin: str
+    ) -> None:
+        with patch(_RUN_ENTRY, return_value={}) as mocked:
+            resp = api_client.post("/api/catalog/run", json={"name": "report"}, headers={"Origin": origin})
+
+        assert resp.status_code == 403
+        mocked.assert_not_called()
+
     def test_maps_an_unknown_entry_to_404(self, api_client: TestClient) -> None:
         resp = api_client.post("/api/catalog/run", json={"name": "does-not-exist"})
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -108,7 +110,7 @@ def test_capture_parser_returns_the_parser_without_running_the_body() -> None:
     assert argument["flags"] == ["--count"]
     assert argument["type"] == "int"
     assert argument["default"] == 3
-    assert build_example("run", [argument]) == "run"
+    assert build_example("run", None, [argument]) == "run"
 
 
 def test_capture_parser_restores_argparse_and_rejects_entrypoints_that_never_parse() -> None:
@@ -159,8 +161,9 @@ def test_only_read_only_entries_are_runnable(payload: dict) -> None:
 def test_every_entry_carries_the_module_and_subcommand_the_runner_starts(payload: dict) -> None:
     rows = _rows_by_name(payload)
 
-    assert rows["report"]["argv"] == ["-m", "trading.interfaces.cli.main", "report"]
-    assert rows["db-migrations status"]["argv"] == ["-m", "scripts.data_ops.manage_db_migrations", "status"]
+    assert rows["report"]["argv"] == ["-m", "trading.interfaces.cli.main"]
+    assert rows["db-migrations status"]["argv"] == ["-m", "scripts.data_ops.manage_db_migrations"]
+    assert rows["db-migrations status"]["subcommand"] == "status"
     assert rows["layer-check"]["argv"] == ["-m", "scripts.checks.repo.layer_check"]
 
 
@@ -185,6 +188,7 @@ def test_make_row_refuses_a_runnable_entry_that_is_not_read_only() -> None:
             help_text="h",
             invocation="python -m x",
             argv=["-m", "x"],
+            subcommand=None,
             arguments=[],
             runnable=True,
         )
@@ -197,6 +201,82 @@ def test_a_runnable_tool_name_that_does_not_exist_fails_the_build(monkeypatch: p
 
     with pytest.raises(ValueError, match="no-such-tool"):
         entrypoints.build_entrypoint_rows()
+
+
+def test_registry_is_identical_when_the_interpreter_lives_elsewhere(
+    payload: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "executable", "/opt/hostedtoolcache/Python/3.14.0/x64/bin/python")
+    monkeypatch.setattr(sys, "prefix", "/opt/hostedtoolcache/Python/3.14.0/x64")
+
+    assert registry.build_payload() == payload
+
+
+def test_the_interpreter_default_is_recorded_as_a_placeholder(payload: dict) -> None:
+    schedules = _rows_by_name(payload)["manage-job-schedules"]
+    (python_argument,) = [argument for argument in schedules["arguments"] if argument["dest"] == "python"]
+
+    assert python_argument["default"] == "<python>"
+
+
+ABSOLUTE_PATH = re.compile(r"(^|[\s=(])([A-Za-z]:[\\/]|/(usr|home|opt|tmp|var|Users|mnt)/)")
+
+
+def test_no_default_or_help_holds_a_machine_specific_path(payload: dict) -> None:
+    for row in payload["commands"]:
+        for argument in row["arguments"]:
+            for field in ("default", "help"):
+                assert not ABSOLUTE_PATH.search(str(argument[field])), (row["name"], argument["dest"], field)
+        assert not ABSOLUTE_PATH.search(row["help"]), row["name"]
+
+
+def test_every_argument_has_a_scope(payload: dict) -> None:
+    for row in payload["commands"]:
+        for argument in row["arguments"]:
+            assert argument["scope"] in {"global", "command"}, row["name"]
+
+
+def test_example_puts_global_options_before_the_subcommand() -> None:
+    arguments = [
+        {
+            "scope": "global",
+            "required": True,
+            "positional": False,
+            "kind": "value",
+            "flags": ["--db"],
+            "dest": "db",
+            "choices": None,
+        },
+        {
+            "scope": "command",
+            "required": True,
+            "positional": True,
+            "kind": "value",
+            "flags": ["rev"],
+            "dest": "rev",
+            "choices": None,
+        },
+        {
+            "scope": "command",
+            "required": False,
+            "positional": False,
+            "kind": "value",
+            "flags": ["--x"],
+            "dest": "x",
+            "choices": None,
+        },
+    ]
+
+    assert build_example("python -m tool", "status", arguments) == "python -m tool --db <DB> status <REV>"
+    assert build_example("python -m tool", None, arguments[2:]) == "python -m tool"
+
+
+def test_the_subcommand_is_stored_apart_from_the_module(payload: dict) -> None:
+    rows = _rows_by_name(payload)
+
+    assert rows["report"]["subcommand"] == "report"
+    assert rows["report"]["argv"] == ["-m", "trading.interfaces.cli.main"]
+    assert rows["layer-check"]["subcommand"] is None
 
 
 def test_check_reports_missing_registry(tmp_path: Path) -> None:

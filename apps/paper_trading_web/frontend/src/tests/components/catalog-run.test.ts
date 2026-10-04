@@ -14,6 +14,7 @@ function argument(overrides: Partial<CatalogArgument>): CatalogArgument {
   return {
     flags: ["--x"],
     dest: "x",
+    scope: "command",
     positional: false,
     kind: "value",
     type: "str",

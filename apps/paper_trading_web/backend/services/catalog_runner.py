@@ -30,7 +30,13 @@ _run_lock = threading.Lock()
 
 
 def load_catalog(path: Path = COMMANDS_REGISTRY_PATH) -> dict[str, dict[str, Any]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The command catalog file is missing. Run python -m scripts.documentation_ui.sync.",
+        ) from exc
     return {str(entry["name"]): entry for entry in payload["commands"]}
 
 
@@ -58,42 +64,62 @@ def _coerce_text(argument: dict[str, Any], value: object) -> str:
     return text
 
 
-def build_arguments(entry: dict[str, Any], values: dict[str, Any]) -> list[str]:
-    """Return the command-line arguments for ``entry``, or raise ValidationError.
+def _argument_tokens(argument: dict[str, Any], value: object) -> list[str]:
+    """Return the command-line tokens for one filled argument.
 
     Options are written as ``--flag=value`` so a value can never be read as another
-    option. Positional values that start with ``-`` are rejected for the same reason.
+    option. A positional value that starts with ``-`` is rejected for the same reason.
+    """
+    dest = argument["dest"]
+    flag = argument["flags"][0]
+    if argument["kind"] == "flag":
+        if value is not True:
+            raise ValidationError(f"{dest} must be true or false")
+        return [flag]
+    if argument["kind"] == "repeatable":
+        items = value if isinstance(value, list) else [value]
+        return [f"{flag}={_coerce_text(argument, item)}" for item in items]
+    text = _coerce_text(argument, value)
+    if not argument["positional"]:
+        return [f"{flag}={text}"]
+    if text.startswith("-"):
+        raise ValidationError(f"{dest} must not start with '-'")
+    return [text]
+
+
+def _in_scope(entry: dict[str, Any], values: dict[str, Any], scope: str) -> list[str]:
+    """Return the tokens for the arguments of one scope: options first, then positionals."""
+    options: list[str] = []
+    positionals: list[str] = []
+    for argument in entry["arguments"]:
+        if argument["scope"] != scope:
+            continue
+        value = values.get(argument["dest"])
+        if _is_missing(value):
+            if argument["required"]:
+                raise ValidationError(f"{argument['dest']} is required")
+            continue
+        (positionals if argument["positional"] else options).extend(_argument_tokens(argument, value))
+    return [*options, *positionals]
+
+
+def build_command(entry: dict[str, Any], values: dict[str, Any]) -> list[str]:
+    """Return the full argument list for ``entry`` (after the interpreter), or raise ValidationError.
+
+    Global options go before the subcommand and the subcommand's own arguments after it,
+    which is the order argparse accepts.
     """
     known = {argument["dest"] for argument in entry["arguments"]}
     unknown = sorted(set(values) - known)
     if unknown:
         raise ValidationError(f"Unknown arguments for {entry['name']}: {', '.join(unknown)}")
-
-    options: list[str] = []
-    positionals: list[str] = []
-    for argument in entry["arguments"]:
-        dest = argument["dest"]
-        value = values.get(dest)
-        if _is_missing(value):
-            if argument["required"]:
-                raise ValidationError(f"{dest} is required")
-            continue
-        flag = argument["flags"][0]
-        if argument["kind"] == "flag":
-            if value is not True:
-                raise ValidationError(f"{dest} must be true or false")
-            options.append(flag)
-        elif argument["kind"] == "repeatable":
-            items = value if isinstance(value, list) else [value]
-            options.extend(f"{flag}={_coerce_text(argument, item)}" for item in items)
-        elif argument["positional"]:
-            text = _coerce_text(argument, value)
-            if text.startswith("-"):
-                raise ValidationError(f"{dest} must not start with '-'")
-            positionals.append(text)
-        else:
-            options.append(f"{flag}={_coerce_text(argument, value)}")
-    return [*options, *positionals]
+    subcommand = [entry["subcommand"]] if entry["subcommand"] else []
+    return [
+        *entry["argv"],
+        *_in_scope(entry, values, "global"),
+        *subcommand,
+        *_in_scope(entry, values, "command"),
+    ]
 
 
 def _display_command(argv: list[str]) -> str:
@@ -124,7 +150,7 @@ def run_entry(
     if not entry.get("runnable"):
         raise ValidationError(f"{name} cannot be run from the UI; run it from a terminal")
 
-    argv = [*entry["argv"], *build_arguments(entry, values)]
+    argv = build_command(entry, values)
     if not _run_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="Another command is already running")
     try:

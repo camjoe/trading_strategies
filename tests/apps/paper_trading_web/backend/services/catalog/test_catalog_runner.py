@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import sys
 import threading
+import time
 from typing import Any
 
 import pytest
 from fastapi import HTTPException
 from paper_trading_web.backend.services import catalog_runner
-from paper_trading_web.backend.services.catalog_runner import build_arguments, load_catalog, run_entry
+from paper_trading_web.backend.services.catalog_runner import build_command, load_catalog, run_entry
 
 from trading.domain.exceptions import NotFoundError, ValidationError
 
@@ -16,6 +16,7 @@ def _argument(dest: str, **overrides: Any) -> dict[str, Any]:
     argument: dict[str, Any] = {
         "flags": [f"--{dest.replace('_', '-')}"],
         "dest": dest,
+        "scope": "command",
         "positional": False,
         "kind": "value",
         "type": "str",
@@ -34,60 +35,86 @@ def _entry(arguments: list[dict[str, Any]], argv: list[str] | None = None, **ove
         "risk": "read-only",
         "runnable": True,
         "argv": argv or ["-c", "print('ok')"],
+        "subcommand": None,
         "arguments": arguments,
     }
     entry.update(overrides)
     return entry
 
 
+def _args(entry: dict[str, Any], values: dict[str, Any]) -> list[str]:
+    """The arguments after the entry's own ``argv``."""
+    return build_command(entry, values)[len(entry["argv"]) :]
+
+
 class TestBuildArguments:
     def test_options_use_the_equals_form_so_a_value_cannot_become_another_option(self) -> None:
         entry = _entry([_argument("account", required=True)])
 
-        assert build_arguments(entry, {"account": "--force"}) == ["--account=--force"]
+        assert _args(entry, {"account": "--force"}) == ["--account=--force"]
 
     def test_omits_optional_arguments_left_empty(self) -> None:
         entry = _entry([_argument("account", required=True), _argument("book"), _argument("limit", type="int")])
 
-        assert build_arguments(entry, {"account": "alpha", "book": "", "limit": None}) == ["--account=alpha"]
+        assert _args(entry, {"account": "alpha", "book": "", "limit": None}) == ["--account=alpha"]
 
     def test_requires_required_arguments(self) -> None:
         with pytest.raises(ValidationError, match="account is required"):
-            build_arguments(_entry([_argument("account", required=True)]), {})
+            _args(_entry([_argument("account", required=True)]), {})
 
     def test_rejects_unknown_arguments(self) -> None:
         with pytest.raises(ValidationError, match="Unknown arguments for demo: shell"):
-            build_arguments(_entry([_argument("account")]), {"shell": "rm -rf /"})
+            _args(_entry([_argument("account")]), {"shell": "rm -rf /"})
 
     @pytest.mark.parametrize(("type_name", "bad"), [("int", "3.5"), ("int", "abc"), ("float", "x")])
     def test_checks_numeric_types(self, type_name: str, bad: str) -> None:
         with pytest.raises(ValidationError, match=f"must be a {type_name}"):
-            build_arguments(_entry([_argument("n", type=type_name)]), {"n": bad})
+            _args(_entry([_argument("n", type=type_name)]), {"n": bad})
 
     def test_accepts_numbers(self) -> None:
         entry = _entry([_argument("n", type="int"), _argument("x", type="float")])
 
-        assert build_arguments(entry, {"n": 20, "x": "0.5"}) == ["--n=20", "--x=0.5"]
+        assert _args(entry, {"n": 20, "x": "0.5"}) == ["--n=20", "--x=0.5"]
 
     def test_enforces_choices(self) -> None:
         entry = _entry([_argument("format", choices=["text", "json"])])
 
-        assert build_arguments(entry, {"format": "json"}) == ["--format=json"]
+        assert _args(entry, {"format": "json"}) == ["--format=json"]
         with pytest.raises(ValidationError, match="must be one of: text, json"):
-            build_arguments(entry, {"format": "xml"})
+            _args(entry, {"format": "xml"})
 
     def test_flags_need_a_true_value(self) -> None:
         entry = _entry([_argument("dry_run", kind="flag", type="flag")])
 
-        assert build_arguments(entry, {"dry_run": True}) == ["--dry-run"]
-        assert build_arguments(entry, {"dry_run": False}) == []
+        assert _args(entry, {"dry_run": True}) == ["--dry-run"]
+        assert _args(entry, {"dry_run": False}) == []
         with pytest.raises(ValidationError, match="true or false"):
-            build_arguments(entry, {"dry_run": "yes"})
+            _args(entry, {"dry_run": "yes"})
 
     def test_repeatable_arguments_repeat_the_flag(self) -> None:
         entry = _entry([_argument("note", kind="repeatable")])
 
-        assert build_arguments(entry, {"note": ["a=1", "b=2"]}) == ["--note=a=1", "--note=b=2"]
+        assert _args(entry, {"note": ["a=1", "b=2"]}) == ["--note=a=1", "--note=b=2"]
+
+    def test_global_options_go_before_the_subcommand_and_command_options_after_it(self) -> None:
+        entry = _entry(
+            [
+                _argument("database", scope="global", required=True),
+                _argument("revision", scope="command", positional=True, flags=["revision"]),
+                _argument("limit", scope="command", type="int"),
+            ],
+            argv=["-m", "tool"],
+            subcommand="status",
+        )
+
+        command = build_command(entry, {"database": "x.db", "revision": "head", "limit": 3})
+
+        assert command == ["-m", "tool", "--database=x.db", "status", "--limit=3", "head"]
+
+    def test_a_subcommand_without_global_options_still_follows_the_module(self) -> None:
+        entry = _entry([], argv=["-m", "tool"], subcommand="history")
+
+        assert build_command(entry, {}) == ["-m", "tool", "history"]
 
     def test_positionals_follow_the_options_and_cannot_start_with_a_dash(self) -> None:
         entry = _entry(
@@ -97,14 +124,14 @@ class TestBuildArguments:
             ]
         )
 
-        assert build_arguments(entry, {"target": "head", "account": "a"}) == ["--account=a", "head"]
+        assert _args(entry, {"target": "head", "account": "a"}) == ["--account=a", "head"]
         with pytest.raises(ValidationError, match="must not start with '-'"):
-            build_arguments(entry, {"target": "-x"})
+            _args(entry, {"target": "-x"})
 
     @pytest.mark.parametrize("bad", ["a\nb", "a\x00b", ["list"], {"k": "v"}])
     def test_rejects_multiline_or_structured_values(self, bad: object) -> None:
         with pytest.raises(ValidationError):
-            build_arguments(_entry([_argument("account")]), {"account": bad})
+            _args(_entry([_argument("account")]), {"account": bad})
 
 
 class TestRunEntry:
@@ -158,6 +185,13 @@ class TestRunEntry:
 
         assert result["output"].strip() == "--word=a; echo injected && echo more"
 
+    def test_a_missing_catalog_file_reports_how_to_regenerate_it(self, tmp_path) -> None:
+        with pytest.raises(HTTPException) as caught:
+            load_catalog(tmp_path / "missing.json")
+
+        assert caught.value.status_code == 503
+        assert "documentation_ui.sync" in caught.value.detail
+
     def test_unknown_entry_is_not_found(self) -> None:
         with pytest.raises(NotFoundError):
             run_entry("missing", {}, catalog={})
@@ -170,7 +204,6 @@ class TestRunEntry:
 
     def test_second_run_while_one_is_active_gets_a_conflict(self) -> None:
         started = threading.Event()
-        release = threading.Event()
         slow = _entry([], argv=["-c", "import time; time.sleep(3)"])
         results: list[dict[str, Any]] = []
 
@@ -184,7 +217,7 @@ class TestRunEntry:
         for _ in range(100):
             if catalog_runner._run_lock.locked():
                 break
-            release.wait(0.05)
+            time.sleep(0.05)
 
         with pytest.raises(HTTPException) as caught:
             run_entry("demo", {}, catalog={"demo": _entry([])})
@@ -216,7 +249,7 @@ class TestRealCatalog:
             for argument in entry["arguments"]:
                 if argument["type"] in {"int", "float"} and argument["required"]:
                     values[argument["dest"]] = "1"
-            build_arguments(entry, values)
+            build_command(entry, values)
 
     def test_no_writing_or_broker_entry_is_runnable(self) -> None:
         for entry in load_catalog().values():
@@ -229,4 +262,3 @@ class TestRealCatalog:
         assert result["exitCode"] == 0, result["output"]
         assert "accounts" in result["output"]
         assert result["command"].startswith("python -m scripts.data_ops.describe_db_schema")
-        assert sys.executable
