@@ -65,8 +65,9 @@ def subparsers_action(parser: argparse.ArgumentParser) -> argparse._SubParsersAc
     return None
 
 
-def _spellings(*paths: str | Path) -> tuple[str, ...]:
-    return tuple(dict.fromkeys(form for path in paths for form in (str(path), Path(path).as_posix())))
+def _spellings(*paths: str | Path | None) -> tuple[str, ...]:
+    """Return each non-empty path in native and POSIX form; an empty one would match every string."""
+    return tuple(dict.fromkeys(form for path in paths if path for form in (str(path), Path(path).as_posix())))
 
 
 def _portable(text: str) -> str:

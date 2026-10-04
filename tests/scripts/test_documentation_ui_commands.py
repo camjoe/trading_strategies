@@ -212,6 +212,17 @@ def test_registry_is_identical_when_the_interpreter_lives_elsewhere(
     assert registry.build_payload() == payload
 
 
+def test_an_empty_interpreter_path_does_not_corrupt_the_registry(
+    payload: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "executable", "")
+
+    rebuilt = registry.build_payload()
+
+    assert [row["name"] for row in rebuilt["commands"]] == [row["name"] for row in payload["commands"]]
+    assert all(row["help"] for row in rebuilt["commands"])
+
+
 def test_the_interpreter_default_is_recorded_as_a_placeholder(payload: dict) -> None:
     schedules = _rows_by_name(payload)["manage-job-schedules"]
     (python_argument,) = [argument for argument in schedules["arguments"] if argument["dest"] == "python"]
