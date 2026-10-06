@@ -297,7 +297,7 @@ function renderGroup(
   return `
     <section class="catalog-group">
       <h4 class="catalog-group-title">${esc(groupName)} <span class="catalog-count">${entries.length}</span></h4>
-      ${openFamilies ? "" : renderShowcase(groupName)}
+      ${openFamilies ? "" : renderShowcase(groupName, entries)}
       ${renderGroupRows(entries, families, openFamilies)}
     </section>
   `;

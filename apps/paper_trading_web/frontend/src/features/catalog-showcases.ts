@@ -1,4 +1,6 @@
 /** Visual cards shown at the top of a catalog group, before its rows, while the search is empty. */
+import type { CatalogEntry } from "../types/catalog";
+import { CHECKS_GROUP, handleCheckRunnerClick, renderCheckRunner } from "./catalog-check-runner";
 
 const DIAGRAM_GROUP = "Data and Database";
 
@@ -33,12 +35,13 @@ const DIAGRAM_SHOWCASE = `
     <div class="catalog-showcase-frame" data-showcase-frame hidden></div>
   </div>`;
 
-const SHOWCASES: Record<string, string> = {
-  [DIAGRAM_GROUP]: DIAGRAM_SHOWCASE,
+const SHOWCASES: Record<string, (entries: CatalogEntry[]) => string> = {
+  [CHECKS_GROUP]: renderCheckRunner,
+  [DIAGRAM_GROUP]: () => DIAGRAM_SHOWCASE,
 };
 
-export function renderShowcase(groupName: string): string {
-  return SHOWCASES[groupName] ?? "";
+export function renderShowcase(groupName: string, entries: CatalogEntry[]): string {
+  return SHOWCASES[groupName]?.(entries) ?? "";
 }
 
 /** The viewer's own "Generated: ... Tables: N." line, as shown text. */
@@ -92,6 +95,9 @@ async function toggleDiagram(card: HTMLElement, button: HTMLButtonElement): Prom
 
 /** Handle a click inside a catalog panel; returns true when a showcase control took it. */
 export function handleShowcaseClick(target: HTMLElement): boolean {
+  if (handleCheckRunnerClick(target)) {
+    return true;
+  }
   const toggle = target.closest<HTMLButtonElement>("[data-showcase-toggle]");
   const card = toggle?.closest<HTMLElement>('[data-showcase="db-diagram"]');
   if (!toggle || !card) {

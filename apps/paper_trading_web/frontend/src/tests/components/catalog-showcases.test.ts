@@ -33,8 +33,8 @@ const data: CatalogData = {
 
 describe("catalog showcases", () => {
   it("renders the diagram card only for its group", () => {
-    expect(renderShowcase("Data and Database")).toContain('data-showcase="db-diagram"');
-    expect(renderShowcase("Quality Checks")).toBe("");
+    expect(renderShowcase("Data and Database", [])).toContain('data-showcase="db-diagram"');
+    expect(renderShowcase("Scheduling", [])).toBe("");
   });
 
   it("puts the card before the group's rows and hides it during a search", () => {
