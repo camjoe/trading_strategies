@@ -34,6 +34,7 @@ import autonomyMonitorTemplate from "./views/autonomy-monitor.html?raw";
 import strategyLabTemplate from "./views/strategy-lab.html?raw";
 import { createStrategyLabFeature } from "./features/strategy-lab";
 import { errorMessage } from "./lib/http";
+import { currentTheme, initTheme, toggleTheme, type Theme } from "./lib/theme";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -108,8 +109,25 @@ const strategyLabFeature = createStrategyLabFeature();
 const catalogFeature = createCatalogFeature();
 const aboutFeature = createAboutFeature({ onOpenTab: (target) => openTab(target) });
 
+function syncThemeToggle(theme: Theme): void {
+  const button = find<HTMLButtonElement>("#themeToggle");
+  if (!button) return;
+  const next = theme === "dark" ? "light" : "dark";
+  button.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  button.setAttribute("aria-label", `Switch to ${next} theme`);
+}
+
+function initThemeToggle(): void {
+  initTheme();
+  syncThemeToggle(currentTheme());
+  find<HTMLButtonElement>("#themeToggle")?.addEventListener("click", () => {
+    syncThemeToggle(toggleTheme());
+  });
+}
+
 async function bootstrap(): Promise<void> {
   renderShell();
+  initThemeToggle();
   initTabs();
   initNavGroups(openTab);
   // The demo opens on the About page; the operator UI opens on Accounts.

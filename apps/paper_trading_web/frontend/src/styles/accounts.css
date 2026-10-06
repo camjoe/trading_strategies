@@ -91,7 +91,7 @@
   border-radius: 18px;
   background: var(--panel-2);
   padding: 1rem;
-  box-shadow: inset 0 1px 0 #ffffff80;
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 #tab-accounts .account-browser-grid {
@@ -108,7 +108,7 @@
   color: var(--ink);
   background: var(--panel-2);
   border: 1px solid var(--panel-border);
-  box-shadow: inset 0 1px 0 #ffffff80;
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 .account-card.active {
@@ -136,9 +136,9 @@
   font-weight: 600;
 }
 
-.chip--option  { background: #fff0d4; border-color: #e8b84b; }
-.chip--auto    { background: #e4f0ff; border-color: #7ab3e8; }
-.chip--manual  { background: #e8fbe8; border-color: #72c472; }
+.chip--option  { background: var(--chip-option-bg); border-color: var(--chip-option-border); }
+.chip--auto    { background: var(--chip-auto-bg); border-color: var(--chip-auto-border); }
+.chip--manual  { background: var(--chip-manual-bg); border-color: var(--chip-manual-border); }
 .chip--equity  { background: var(--chip-bg); border-color: var(--chip-border); }
 
 .row.slim {
@@ -159,7 +159,7 @@
   padding: 0.95rem 1rem;
   border: 1px dashed var(--border-action-hover);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  background: linear-gradient(180deg, var(--empty-state-start), var(--empty-state-end));
 }
 
 .detail-head {

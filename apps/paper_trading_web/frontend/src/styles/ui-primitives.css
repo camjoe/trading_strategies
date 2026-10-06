@@ -16,7 +16,7 @@
   padding: 0;
   border-radius: 999px;
   background: var(--accent);
-  color: var(--surface-white);
+  color: var(--on-accent);
   border: 1px solid var(--accent);
   font-size: 1rem;
   font-weight: 700;
@@ -28,9 +28,9 @@
 .icon-button:focus-visible,
 .ref-card-toggle-all:hover,
 .ref-card-toggle-all:focus-visible {
-  background: #1f56cf;
-  color: var(--surface-white);
-  border-color: #1f56cf;
+  background: var(--accent-strong);
+  color: var(--on-accent);
+  border-color: var(--accent-strong);
 }
 
 .icon-button[data-tooltip]::after,
@@ -68,16 +68,16 @@
   align-items: center;
   gap: 0.45rem;
   background: var(--accent);
-  color: var(--surface-white);
+  color: var(--on-accent);
   border: 1px solid var(--accent);
   box-shadow: none;
 }
 
 .icon-label-button:hover,
 .icon-label-button:focus-visible {
-  background: #1f56cf;
-  color: var(--surface-white);
-  border-color: #1f56cf;
+  background: var(--accent-strong);
+  color: var(--on-accent);
+  border-color: var(--accent-strong);
 }
 
 .button-icon {
@@ -124,7 +124,7 @@
 
 .danger-btn {
   background: var(--danger);
-  color: var(--surface-white);
+  color: var(--on-accent);
 }
 
 .danger-btn:hover,

@@ -97,4 +97,154 @@
   --log-border: #1e2d48;
   --log-group-line: #ffffff1c;
   --log-empty-ink: #aebdd8;
+
+  /* Shell and controls */
+  --on-accent: #ffffff;
+  --accent-strong: #1f56cf;
+  --btn-grad-start: #2563eb;
+  --btn-grad-end: #4f9cf6;
+  --focus-border: #8cb0f8;
+  --focus-ring: #2563eb18;
+  --inset-highlight: #ffffff80;
+  --topbar-border: #dbe4ee;
+  --nav-bg: #e7eefb;
+  --nav-border-top: #d6e0eb;
+  --nav-border-bottom: #c8d4e2;
+  --nav-active-bg: #cfdcf3;
+  --nav-hover-overlay: #00000008;
+  --subnav-bg: #f1f5fc;
+  --banner-bg: #fff4cc;
+  --banner-ink: #5d4800;
+  --chip-option-bg: #fff0d4;
+  --chip-option-border: #e8b84b;
+  --chip-auto-bg: #e4f0ff;
+  --chip-auto-border: #7ab3e8;
+  --chip-manual-bg: #e8fbe8;
+  --chip-manual-border: #72c472;
+  --empty-state-start: #ffffff;
+  --empty-state-end: #f7fbff;
+  --status-info-bg: #dbeafe;
+  --status-info-ink: #0c4a6e;
+  --status-warn-bg: #fef3c7;
+  --status-warn-ink: #78350f;
+  --status-neutral-bg: #f3f4f6;
+  --status-neutral-ink: #374151;
+  --status-ok-bg: #dcfce7;
+  --status-ok-ink: #14532d;
+  --status-bad-bg: #fee2e2;
+  --status-bad-ink: #7f1d1d;
+  --status-bad-border: #fca5a5;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-1: #0d1320;
+  --bg-2: #111a2b;
+  --bg-glow-warm: #3a2a1c;
+  --bg-glow-warm-0: #3a2a1c00;
+  --bg-glow-cool: #1c2e4a;
+  --bg-glow-cool-0: #1c2e4a00;
+  --topbar-bg: #111a2b;
+  --panel: #131d30;
+  --panel-2: #16213a;
+  --panel-border: #263550;
+  --surface-white: #0f1828;
+  --surface-menu: #131d30fa;
+  --surface-subtle: #14203a;
+  --surface-action: #18253d;
+  --surface-action-hover: #1f2f4d;
+
+  --ink: #e4ebf7;
+  --ink-soft: #a5b3c9;
+  --ink-muted: #7f8ea6;
+
+  --accent: #6ea0f7;
+  --accent-2: #f2b34a;
+  --accent-gradient-end: #6ea0f7;
+  --btn-neutral-start: #4a5a73;
+  --btn-neutral-end: #5d6f8a;
+
+  --up: #4cc38a;
+  --down: #f07a99;
+  --chip-bg: #182848;
+  --chip-border: #2d4570;
+  --trade-alt-bg: #15233f;
+  --trade-alt-start: #172643;
+  --trade-alt-end: #1a2b4b;
+  --trade-buy-start: #12281f;
+  --trade-buy-end: #153326;
+  --trade-buy-ink: #6fdca5;
+  --trade-buy-border: #25513c;
+  --trade-sell-start: #2c141d;
+  --trade-sell-end: #371824;
+  --trade-sell-ink: #f59ab3;
+  --trade-sell-border: #5b2a3c;
+
+  --line: #263550;
+  --line-subtle: #1c2a42;
+  --line-table: #22314b;
+  --border-menu: #2a3a57;
+  --border-nav: #263550;
+  --border-subtle: #263550;
+  --border-input: #35476a;
+  --border-action: #2c3d5c;
+  --border-action-hover: #43598a;
+  --card-border: #131d30;
+  --nav-hover-bg: #1a2a47;
+  --nav-hover-border: #35517f;
+
+  --table-head-bg: #16233b;
+  --table-head-bg-compare: #172540;
+
+  --shadow: 0 18px 50px #00000066;
+  --shadow-menu: 0 24px 50px #00000080;
+  --shadow-trade: 0 8px 24px #00000055;
+
+  --danger: #d9486d;
+  --danger-hover: #e25f82;
+  --success-border: #25513c;
+  --success-bg: #12281f;
+  --success-ink: #6fdca5;
+  --error-border: #5b2a3c;
+  --error-bg: #2c141d;
+  --error-ink: #f59ab3;
+  --warning-border: #8a6d1c;
+  --warning-bg: #2e2510;
+  --warning-ink: #f0cd72;
+
+  --accent-strong: #2b62d6;
+  --btn-grad-start: #2f6fe0;
+  --btn-grad-end: #3f86ea;
+  --focus-border: #5b8fe8;
+  --focus-ring: #6ea0f733;
+  --inset-highlight: #ffffff0d;
+  --topbar-border: #263550;
+  --nav-bg: #0f1828;
+  --nav-border-top: #22314b;
+  --nav-border-bottom: #2b3c5a;
+  --nav-active-bg: #1d3157;
+  --nav-hover-overlay: #ffffff0d;
+  --subnav-bg: #121c30;
+  --banner-bg: #3a2f0d;
+  --banner-ink: #f0d98a;
+  --chip-option-bg: #3a2c12;
+  --chip-option-border: #8a6a22;
+  --chip-auto-bg: #17284a;
+  --chip-auto-border: #3a639d;
+  --chip-manual-bg: #12301f;
+  --chip-manual-border: #2f7a4c;
+  --empty-state-start: #131d30;
+  --empty-state-end: #111a2b;
+  --status-info-bg: #17304f;
+  --status-info-ink: #9ccbf5;
+  --status-warn-bg: #3a2f10;
+  --status-warn-ink: #f2d27c;
+  --status-neutral-bg: #1f2b40;
+  --status-neutral-ink: #b6c2d6;
+  --status-ok-bg: #12301f;
+  --status-ok-ink: #8fe0b2;
+  --status-bad-bg: #3a1620;
+  --status-bad-ink: #f4a3b5;
+  --status-bad-border: #6b2c3d;
 }

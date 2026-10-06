@@ -13,7 +13,7 @@
   align-items: start;
   gap: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--line);
 }
 
 .autonomy-account-selector {
@@ -36,7 +36,7 @@
 .autonomy-dashboard.empty {
   padding: 2rem;
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 /* Account Overview Card */
@@ -55,14 +55,14 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .overview-item .label {
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -111,7 +111,7 @@
 .books-table thead,
 .rotations-table thead,
 .violations-table thead {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
 }
 
 .books-table th,
@@ -120,15 +120,15 @@
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--line);
 }
 
 .books-table td,
 .rotations-table td,
 .violations-table td {
   padding: 0.75rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--line);
 }
 
 .book-row.status-active {
@@ -163,33 +163,33 @@
 }
 
 .status-active {
-  background-color: #dbeafe;
-  color: #0c4a6e;
+  background-color: var(--status-info-bg);
+  color: var(--status-info-ink);
 }
 
 .status-paused {
-  background-color: #fef3c7;
-  color: #78350f;
+  background-color: var(--status-warn-bg);
+  color: var(--status-warn-ink);
 }
 
 .status-closed {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-ink);
 }
 
 .status-success {
-  background-color: #dcfce7;
-  color: #14532d;
+  background-color: var(--status-ok-bg);
+  color: var(--status-ok-ink);
 }
 
 .status-failed {
-  background-color: #fee2e2;
-  color: #7f1d1d;
+  background-color: var(--status-bad-bg);
+  color: var(--status-bad-ink);
 }
 
 .status-not_run {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-ink);
 }
 
 /* Workflow Status */
@@ -198,9 +198,9 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .workflow-summary.status-success {
@@ -222,7 +222,7 @@
 
 .workflow-summary .label {
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -241,17 +241,17 @@
 .error-box {
   padding: 1rem;
   margin-top: 1rem;
-  background-color: #fee2e2;
-  border: 1px solid #fca5a5;
+  background-color: var(--status-bad-bg);
+  border: 1px solid var(--status-bad-border);
   border-radius: 6px;
-  color: #7f1d1d;
+  color: var(--status-bad-ink);
   font-size: 0.875rem;
 }
 
 .error-message {
   padding: 2rem;
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 .error-message .btn {
@@ -270,8 +270,8 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
-  border: 2px solid var(--color-border-subtle);
+  background-color: var(--panel-2);
+  border: 2px solid var(--line);
   border-radius: 6px;
   text-align: center;
 }
@@ -287,8 +287,8 @@
 }
 
 .governance-card.status-not_run {
-  border-color: var(--color-border-subtle);
-  background-color: var(--color-bg-secondary);
+  border-color: var(--line);
+  background-color: var(--panel-2);
 }
 
 .gov-title {
@@ -298,7 +298,7 @@
 
 .gov-freq {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 .gov-status {
@@ -312,7 +312,7 @@
 
 .gov-lastrun {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 /* Burn-In Progress */
@@ -321,9 +321,9 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 1.5rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .burn-in-summary.ready {
@@ -345,8 +345,8 @@
 .progress-bar-container {
   position: relative;
   height: 32px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border-subtle);
+  background-color: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -382,7 +382,7 @@
 
 .stat .label {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -404,7 +404,7 @@
   align-items: center;
   padding: 1rem;
   border-radius: 6px;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
 }
 
 .kill-switch.triggered {
@@ -436,18 +436,18 @@
 }
 
 .action-block {
-  background-color: #fee2e2;
-  color: #7f1d1d;
+  background-color: var(--status-bad-bg);
+  color: var(--status-bad-ink);
 }
 
 .action-rescale {
-  background-color: #fef3c7;
-  color: #78350f;
+  background-color: var(--status-warn-bg);
+  color: var(--status-warn-ink);
 }
 
 .action-allow {
-  background-color: #dcfce7;
-  color: #14532d;
+  background-color: var(--status-ok-bg);
+  color: var(--status-ok-ink);
 }
 
 /* Responsive Design */

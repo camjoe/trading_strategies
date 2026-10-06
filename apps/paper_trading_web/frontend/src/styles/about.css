@@ -120,7 +120,7 @@
   height: 1.7rem;
   border-radius: 50%;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-size: 0.85rem;
   font-weight: 700;
 }
