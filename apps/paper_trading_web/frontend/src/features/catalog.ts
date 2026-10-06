@@ -1,5 +1,6 @@
 import commandsData from "../assets/commands.json";
 import { findAll } from "../lib/dom";
+import { handleShowcaseClick, renderShowcase } from "./catalog-showcases";
 import { esc } from "../lib/format";
 import { errorMessage, postJson } from "../lib/http";
 import type {
@@ -296,6 +297,7 @@ function renderGroup(
   return `
     <section class="catalog-group">
       <h4 class="catalog-group-title">${esc(groupName)} <span class="catalog-count">${entries.length}</span></h4>
+      ${openFamilies ? "" : renderShowcase(groupName)}
       ${renderGroupRows(entries, families, openFamilies)}
     </section>
   `;
@@ -390,6 +392,9 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
     });
     panel.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
+      if (handleShowcaseClick(target)) {
+        return;
+      }
       const copyButton = target.closest<HTMLButtonElement>("[data-catalog-copy]");
       if (copyButton) {
         void copyExample(copyButton);
