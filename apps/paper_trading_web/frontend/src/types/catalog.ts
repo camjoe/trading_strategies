@@ -59,5 +59,4 @@ export interface CatalogRunResult {
 export interface CatalogFilter {
   query: string;
   kind: CatalogKind | "all";
-  risk: CatalogRisk | "all";
 }

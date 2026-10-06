@@ -101,14 +101,13 @@ describe("filterEntries", () => {
     expect(filterEntries(entries, { ...DEFAULT_FILTER, query: "snapshot nonsense" })).toEqual([]);
   });
 
-  it("combines kind and risk filters with the search", () => {
+  it("combines the kind filter with the search", () => {
     const entries = makeData().commands;
 
     expect(filterEntries(entries, { ...DEFAULT_FILTER, kind: "job" }).map((e) => e.name)).toEqual([
       "daily-paper-trading",
     ]);
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, risk: "read-only" }).map((e) => e.name)).toEqual(["report"]);
-    expect(filterEntries(entries, { query: "report", kind: "job", risk: "all" })).toEqual([]);
+    expect(filterEntries(entries, { query: "report", kind: "job" })).toEqual([]);
   });
 });
 
@@ -255,15 +254,13 @@ describe("createCatalogFeature", () => {
     expect(document.getElementById("catalogSummary")?.textContent).toBe("Showing 1 of 3 entries");
   });
 
-  it("filters by kind and risk and marks the active chip", () => {
+  it("filters by kind and marks the active chip", () => {
     (document.querySelector('[data-catalog-kind="job"]') as HTMLButtonElement).click();
     expect(document.querySelectorAll(".catalog-entry")).toHaveLength(1);
     expect(document.querySelector('[data-catalog-kind="job"]')?.classList.contains("active")).toBe(true);
     expect(document.querySelector('[data-catalog-kind="all"]')?.classList.contains("active")).toBe(false);
 
-    (document.querySelector('[data-catalog-kind="all"]') as HTMLButtonElement).click();
-    (document.querySelector('[data-catalog-risk="read-only"]') as HTMLButtonElement).click();
-    expect(document.querySelectorAll(".catalog-entry")).toHaveLength(1);
+    expect(document.querySelector('[data-catalog-risk]')).toBeNull();
   });
 
   it("expands and collapses every entry", () => {

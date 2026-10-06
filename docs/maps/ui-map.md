@@ -106,7 +106,7 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `alt-strategies.ts` | Alternative strategies feature |
 | `compare.ts` | Account comparison feature |
 | `about.ts` | About page: builds the stat tiles from the generated assets and opens linked tabs |
-| `catalog.ts` | Command catalog view: search, kind and risk filters, and expandable entries read from `assets/commands.json`; a family of related tools shows as one row that opens to its members |
+| `catalog.ts` | Command catalog view: search, a kind filter, and expandable entries read from `assets/commands.json`; a family of related tools shows as one row that opens to its members |
 | `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
 | `docs/` | In-app documentation viewer: accordion, menu, helpers, constants |
 | `logs.ts` | Log viewer feature |

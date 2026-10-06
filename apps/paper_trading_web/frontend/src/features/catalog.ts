@@ -52,7 +52,7 @@ const RISK_HINTS: Record<CatalogRisk, string> = {
   broker: "Can submit or reconcile broker orders.",
 };
 
-export const DEFAULT_FILTER: CatalogFilter = { query: "", kind: "all", risk: "all" };
+export const DEFAULT_FILTER: CatalogFilter = { query: "", kind: "all" };
 
 function searchText(entry: CatalogEntry): string {
   const argumentText = entry.arguments.flatMap((argument) => [...argument.flags, argument.help]);
@@ -63,9 +63,6 @@ export function filterEntries(entries: CatalogEntry[], filter: CatalogFilter): C
   const terms = filter.query.toLowerCase().split(/\s+/).filter(Boolean);
   return entries.filter((entry) => {
     if (filter.kind !== "all" && entry.kind !== filter.kind) {
-      return false;
-    }
-    if (filter.risk !== "all" && entry.risk !== filter.risk) {
       return false;
     }
     const haystack = searchText(entry);
@@ -330,9 +327,6 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
     for (const button of findAll<HTMLButtonElement>("[data-catalog-kind]")) {
       button.classList.toggle("active", button.dataset.catalogKind === filter.kind);
     }
-    for (const button of findAll<HTMLButtonElement>("[data-catalog-risk]")) {
-      button.classList.toggle("active", button.dataset.catalogRisk === filter.risk);
-    }
   }
 
   function setAllOpen(open: boolean): void {
@@ -392,13 +386,9 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
     find<HTMLElement>("#tab-catalog")?.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
       const kindButton = target.closest<HTMLButtonElement>("[data-catalog-kind]");
-      const riskButton = target.closest<HTMLButtonElement>("[data-catalog-risk]");
       const copyButton = target.closest<HTMLButtonElement>("[data-catalog-copy]");
       if (kindButton) {
         filter.kind = kindButton.dataset.catalogKind as CatalogFilter["kind"];
-        render();
-      } else if (riskButton) {
-        filter.risk = riskButton.dataset.catalogRisk as CatalogFilter["risk"];
         render();
       } else if (copyButton) {
         void copyExample(copyButton);
