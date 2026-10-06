@@ -221,6 +221,8 @@ function memberLabel(familyName: string, entry: CatalogEntry): string {
 
 export function renderFamily(family: CatalogFamily, entries: CatalogEntry[], open = false): string {
   const risks = RISK_ORDER.filter((risk) => entries.some((entry) => entry.risk === risk));
+  const leadSchedule = entries[0]?.schedule;
+  const schedule = leadSchedule ? `<span class="chip">${esc(leadSchedule)}</span>` : "";
   const members =
     entries.length <= FAMILY_INLINE_MEMBER_LIMIT
       ? `<span class="catalog-family-members">${entries
@@ -232,7 +234,7 @@ export function renderFamily(family: CatalogFamily, entries: CatalogEntry[], ope
       <summary>
         <span class="catalog-entry-name catalog-family-name">${esc(family.name)}<span class="catalog-count">${entries.length}</span></span>
         <span class="catalog-entry-help">${esc(family.help)}${members}</span>
-        <span class="catalog-entry-tags">${risks.map(renderRiskPill).join("")}</span>
+        <span class="catalog-entry-tags">${schedule}${risks.map(renderRiskPill).join("")}</span>
       </summary>
       <div class="catalog-family-body">${entries.map(renderEntry).join("")}</div>
     </details>

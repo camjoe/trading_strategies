@@ -4,7 +4,7 @@ import argparse
 from collections.abc import Callable
 from typing import Any
 
-from scripts.documentation_ui.commands.entrypoints import TOOL_FAMILIES, build_entrypoint_rows
+from scripts.documentation_ui.commands.entrypoints import ENTRYPOINT_FAMILIES, build_entrypoint_rows
 from scripts.documentation_ui.commands.introspect import (
     KIND_CLI,
     RISK_READ_ONLY,
@@ -95,7 +95,7 @@ WRITES_LOCAL_COMMANDS = frozenset(
     }
 )
 
-# Family name -> (summary, member commands). See TOOL_FAMILIES for how the UI shows a family.
+# Family name -> (summary, member commands). See ENTRYPOINT_FAMILIES for how the UI shows a family.
 CLI_FAMILIES: dict[str, tuple[str, tuple[str, ...]]] = {
     "Account setup": (
         "Create or configure an account: metadata, goals, benchmark, and book strategy.",
@@ -203,7 +203,7 @@ def build_payload() -> dict[str, Any]:
         entry = {"name": row["group"], "kind": row["kind"]}
         if entry not in groups:
             groups.append(entry)
-    summaries = {**TOOL_FAMILIES, **{name: summary for name, (summary, _members) in CLI_FAMILIES.items()}}
+    summaries = {**ENTRYPOINT_FAMILIES, **{name: summary for name, (summary, _members) in CLI_FAMILIES.items()}}
     family_names = list(dict.fromkeys(row["family"] for row in rows if row["family"] is not None))
     if set(family_names) != summaries.keys():
         missing = sorted(set(family_names) - summaries.keys())

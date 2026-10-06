@@ -198,6 +198,17 @@ describe("families", () => {
     expect(html).not.toContain(" open");
   });
 
+  it("shows the schedule of its first member", () => {
+    const html = renderFamily({ name: "Daily", help: "Pipeline." }, [
+      makeEntry({ name: "daily", schedule: "weekdays" }),
+      makeEntry({ name: "step", schedule: "indirect" }),
+    ]);
+    const summary = html.split("</summary>")[0];
+
+    expect(summary).toContain('<span class="chip">weekdays</span>');
+    expect(summary).not.toContain("indirect");
+  });
+
   it("opens families while a search is active", () => {
     const html = renderCatalog(familyData(), { ...DEFAULT_FILTER, query: "run-checks" });
 

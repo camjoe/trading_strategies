@@ -209,7 +209,10 @@ def test_tools_with_subcommands_and_curated_bundles_form_families(payload: dict)
     assert rows["fix-checks"]["family"] is None
     assert rows["backtest-optimize-show"]["family"] == rows["backtest-optimize"]["family"]
     assert rows["report"]["family"] is None
-    assert all(row["family"] is None for row in payload["commands"] if row["kind"] == "job")
+    assert rows["run-auto-trades"]["family"] == rows["daily-paper-trading"]["family"]
+    assert rows["w1-leaderboard"]["family"] == rows["w3-allocation-review"]["family"]
+    assert rows["w1-leaderboard"]["family"] != rows["m1-risk-rebaseline"]["family"]
+    assert rows["weekly-db-backup"]["family"] is None
 
 
 def test_a_multi_paragraph_parser_description_shows_only_its_first_paragraph(payload: dict) -> None:
@@ -221,8 +224,8 @@ def test_a_multi_paragraph_parser_description_shows_only_its_first_paragraph(pay
 
 
 def test_a_family_without_a_summary_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
-    trimmed = {name: summary for name, summary in registry.TOOL_FAMILIES.items() if name != "db-admin"}
-    monkeypatch.setattr(registry, "TOOL_FAMILIES", trimmed)
+    trimmed = {name: summary for name, summary in registry.ENTRYPOINT_FAMILIES.items() if name != "db-admin"}
+    monkeypatch.setattr(registry, "ENTRYPOINT_FAMILIES", trimmed)
 
     with pytest.raises(ValueError, match="db-admin"):
         registry.build_payload()

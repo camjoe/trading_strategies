@@ -42,10 +42,16 @@ FAMILY_DIAGRAMS = "Database diagrams"
 FAMILY_CHECKS = "Individual checks"
 FAMILY_DOCS_SYNC = "Reference doc sync"
 FAMILY_IBKR_SMOKE = "IBKR smoke tests"
+FAMILY_DAILY_PIPELINE = "Daily paper trading"
+FAMILY_WEEKLY_GOVERNANCE = "Weekly governance"
+FAMILY_MONTHLY_GOVERNANCE = "Monthly governance"
 
 # Family name -> summary. The UI shows each family as one row; its members open from that row.
 # A tool with subcommands is a family named after the tool, so it needs an entry here too.
-TOOL_FAMILIES: dict[str, str] = {
+ENTRYPOINT_FAMILIES: dict[str, str] = {
+    FAMILY_DAILY_PIPELINE: "The weekday trading pipeline, plus the trade and fill-reconcile steps it runs, which also run alone.",
+    FAMILY_WEEKLY_GOVERNANCE: "W1-W3: rank books, review promotions and retirements, and check allocation drift.",
+    FAMILY_MONTHLY_GOVERNANCE: "M1-M3: rebaseline risk budgets, inventory parameters, and audit 90-day performance.",
     "run-checks": "Run a bundle of checks: docs, repo, python, quick (repo + python), or ci (everything).",
     FAMILY_CHECKS: "Each check as its own command. run-checks runs them in bundles.",
     FAMILY_LAUNCH: "Start the backend and frontend against the real, demo, or sandbox database.",
@@ -73,8 +79,10 @@ class EntrypointSpec:
     family: str | None = None
 
 
-def _job(module: str, name: str, group: str, risk: str, cadence: str) -> EntrypointSpec:
-    return EntrypointSpec(module=module, name=name, kind=KIND_JOB, group=group, risk=risk, cadence=cadence)
+def _job(module: str, name: str, group: str, risk: str, cadence: str, family: str | None = None) -> EntrypointSpec:
+    return EntrypointSpec(
+        module=module, name=name, kind=KIND_JOB, group=group, risk=risk, cadence=cadence, family=family
+    )
 
 
 def _tool(module: str, name: str, group: str, risk: str, **extra: Any) -> EntrypointSpec:
@@ -82,14 +90,33 @@ def _tool(module: str, name: str, group: str, risk: str, **extra: Any) -> Entryp
 
 
 JOB_SPECS: tuple[EntrypointSpec, ...] = (
-    _job(f"{JOBS}.daily.paper_trading", "daily-paper-trading", GROUP_DAILY_JOBS, RISK_BROKER, "manual"),
+    _job(
+        f"{JOBS}.daily.paper_trading",
+        "daily-paper-trading",
+        GROUP_DAILY_JOBS,
+        RISK_BROKER,
+        "manual",
+        FAMILY_DAILY_PIPELINE,
+    ),
     _job(
         f"{JOBS}.daily.challenger_shadow_eval", "challenger-shadow-eval", GROUP_DAILY_JOBS, RISK_WRITES_LOCAL, "manual"
     ),
     _job(f"{JOBS}.daily.trader_health", "trader-health", GROUP_DAILY_JOBS, RISK_WRITES_LOCAL, "manual"),
-    _job(f"{JOBS}.daily.paper_trading.run_auto_trades", "run-auto-trades", GROUP_DAILY_JOBS, RISK_BROKER, "indirect"),
     _job(
-        f"{JOBS}.daily.paper_trading.reconcile_orders", "reconcile-orders", GROUP_DAILY_JOBS, RISK_BROKER, "indirect"
+        f"{JOBS}.daily.paper_trading.run_auto_trades",
+        "run-auto-trades",
+        GROUP_DAILY_JOBS,
+        RISK_BROKER,
+        "indirect",
+        FAMILY_DAILY_PIPELINE,
+    ),
+    _job(
+        f"{JOBS}.daily.paper_trading.reconcile_orders",
+        "reconcile-orders",
+        GROUP_DAILY_JOBS,
+        RISK_BROKER,
+        "indirect",
+        FAMILY_DAILY_PIPELINE,
     ),
     _job(
         f"{JOBS}.maintenance.weekly_db_backup", "weekly-db-backup", GROUP_MAINTENANCE_JOBS, RISK_WRITES_LOCAL, "manual"
@@ -102,6 +129,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "weekly guard",
+        FAMILY_WEEKLY_GOVERNANCE,
     ),
     _job(
         f"{JOBS}.governance.weekly.w2_promotion_review",
@@ -109,6 +137,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "weekly guard",
+        FAMILY_WEEKLY_GOVERNANCE,
     ),
     _job(
         f"{JOBS}.governance.weekly.w3_allocation_review",
@@ -116,6 +145,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "weekly guard",
+        FAMILY_WEEKLY_GOVERNANCE,
     ),
     _job(
         f"{JOBS}.governance.monthly.m1_risk_rebaseline",
@@ -123,6 +153,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "monthly guard",
+        FAMILY_MONTHLY_GOVERNANCE,
     ),
     _job(
         f"{JOBS}.governance.monthly.m2_parameter_governance",
@@ -130,6 +161,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "monthly guard",
+        FAMILY_MONTHLY_GOVERNANCE,
     ),
     _job(
         f"{JOBS}.governance.monthly.m3_performance_audit",
@@ -137,6 +169,7 @@ JOB_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_GOVERNANCE_JOBS,
         RISK_WRITES_LOCAL,
         "monthly guard",
+        FAMILY_MONTHLY_GOVERNANCE,
     ),
 )
 
