@@ -184,6 +184,7 @@ def make_row(
     module: str | None = None,
     schedule: str | None = None,
     runnable: bool = False,
+    family: str | None = None,
 ) -> dict[str, Any]:
     if risk not in RISKS:
         raise ValueError(f"{name!r} has unknown risk {risk!r}")
@@ -195,6 +196,7 @@ def make_row(
         "name": name,
         "kind": kind,
         "group": group,
+        "family": family,
         "risk": risk,
         "module": module,
         "schedule": schedule,

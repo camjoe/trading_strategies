@@ -4,7 +4,7 @@ import argparse
 from collections.abc import Callable
 from typing import Any
 
-from scripts.documentation_ui.commands.entrypoints import build_entrypoint_rows
+from scripts.documentation_ui.commands.entrypoints import FAMILIES, build_entrypoint_rows
 from scripts.documentation_ui.commands.introspect import (
     KIND_CLI,
     RISK_READ_ONLY,
@@ -155,9 +155,11 @@ def build_payload() -> dict[str, Any]:
         entry = {"name": row["group"], "kind": row["kind"]}
         if entry not in groups:
             groups.append(entry)
+    family_names = list(dict.fromkeys(row["family"] for row in rows if row["family"] is not None))
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "cli_invocation": CLI_INVOCATION,
         "groups": groups,
+        "families": [{"name": name, "help": FAMILIES[name]} for name in family_names],
         "commands": rows,
     }

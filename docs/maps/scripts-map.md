@@ -133,7 +133,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `api/` | API documentation source content |
 | `software/` | Software/architecture documentation source content |
 | `overview/` | Repository facts for the About page (database tables, strategy count, ADR count, floored test count) written to `assets/overview.json`; the check fails on drift |
-| `commands/` | Command catalog registry: `registry.py` reads the CLI `argparse` parser, `entrypoints.py` reads runtime jobs, scripts, and checks, and `introspect.py` holds the shared parser reader. Output is `assets/commands.json` (kind, group, risk, schedule, example, arguments). The check fails on drift, an unclassified command, or a runnable module with no entry |
+| `commands/` | Command catalog registry: `registry.py` reads the CLI `argparse` parser, `entrypoints.py` reads runtime jobs, scripts, and checks, and `introspect.py` holds the shared parser reader. Output is `assets/commands.json` (kind, group, family, risk, schedule, example, arguments). The check fails on drift, an unclassified command, a family with no summary, or a runnable module with no entry |
 
 ---
 

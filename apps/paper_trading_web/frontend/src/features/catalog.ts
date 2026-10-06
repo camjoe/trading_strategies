@@ -6,6 +6,7 @@ import type {
   CatalogArgument,
   CatalogData,
   CatalogEntry,
+  CatalogFamily,
   CatalogFilter,
   CatalogKind,
   CatalogRisk,
@@ -33,6 +34,11 @@ export const RISK_LABELS: Record<CatalogRisk, string> = {
   "writes-local": "Writes local data",
   broker: "Broker",
 };
+
+const RISK_ORDER: CatalogRisk[] = ["read-only", "writes-local", "broker"];
+
+/** A family row lists its member names inline only up to this size. */
+const FAMILY_INLINE_MEMBER_LIMIT = 6;
 
 const RISK_PILL_CLASS: Record<CatalogRisk, string> = {
   "read-only": "ok",
@@ -189,7 +195,7 @@ export function renderEntry(entry: CatalogEntry): string {
         <span class="catalog-entry-help">${esc(entry.help)}</span>
         <span class="catalog-entry-tags">
           ${schedule}
-          <span class="status-pill ${RISK_PILL_CLASS[entry.risk]}" title="${esc(RISK_HINTS[entry.risk])}">${esc(RISK_LABELS[entry.risk])}</span>
+          ${renderRiskPill(entry.risk)}
         </span>
       </summary>
       <div class="catalog-entry-body">
@@ -204,11 +210,69 @@ export function renderEntry(entry: CatalogEntry): string {
   `;
 }
 
-function renderGroup(groupName: string, entries: CatalogEntry[]): string {
+function renderRiskPill(risk: CatalogRisk): string {
+  return `<span class="status-pill ${RISK_PILL_CLASS[risk]}" title="${esc(RISK_HINTS[risk])}">${esc(RISK_LABELS[risk])}</span>`;
+}
+
+/** The member's name without the family prefix, so `run-checks docs` shows as `docs`. */
+function memberLabel(familyName: string, entry: CatalogEntry): string {
+  return entry.name.startsWith(`${familyName} `) ? entry.name.slice(familyName.length + 1) : entry.name;
+}
+
+export function renderFamily(family: CatalogFamily, entries: CatalogEntry[], open = false): string {
+  const risks = RISK_ORDER.filter((risk) => entries.some((entry) => entry.risk === risk));
+  const members =
+    entries.length <= FAMILY_INLINE_MEMBER_LIMIT
+      ? `<span class="catalog-family-members">${entries
+          .map((entry) => `<code>${esc(memberLabel(family.name, entry))}</code>`)
+          .join("")}</span>`
+      : "";
+  return `
+    <details class="catalog-entry catalog-family" data-catalog-family="${esc(family.name)}"${open ? " open" : ""}>
+      <summary>
+        <span class="catalog-entry-name catalog-family-name">${esc(family.name)}<span class="catalog-count">${entries.length}</span></span>
+        <span class="catalog-entry-help">${esc(family.help)}${members}</span>
+        <span class="catalog-entry-tags">${risks.map(renderRiskPill).join("")}</span>
+      </summary>
+      <div class="catalog-family-body">${entries.map(renderEntry).join("")}</div>
+    </details>
+  `;
+}
+
+/** Render entries in order; the members of a family render together, as one row at the first member. */
+function renderGroupRows(entries: CatalogEntry[], families: Map<string, CatalogFamily>, openFamilies: boolean): string {
+  const members = new Map<string, CatalogEntry[]>();
+  for (const entry of entries) {
+    if (entry.family) {
+      members.set(entry.family, [...(members.get(entry.family) ?? []), entry]);
+    }
+  }
+  const rendered = new Set<string>();
+  return entries
+    .map((entry) => {
+      if (!entry.family) {
+        return renderEntry(entry);
+      }
+      if (rendered.has(entry.family)) {
+        return "";
+      }
+      rendered.add(entry.family);
+      const family = families.get(entry.family) ?? { name: entry.family, help: "" };
+      return renderFamily(family, members.get(entry.family) ?? [], openFamilies);
+    })
+    .join("");
+}
+
+function renderGroup(
+  groupName: string,
+  entries: CatalogEntry[],
+  families: Map<string, CatalogFamily>,
+  openFamilies: boolean,
+): string {
   return `
     <section class="catalog-group">
       <h4 class="catalog-group-title">${esc(groupName)} <span class="catalog-count">${entries.length}</span></h4>
-      ${entries.map(renderEntry).join("")}
+      ${renderGroupRows(entries, families, openFamilies)}
     </section>
   `;
 }
@@ -218,6 +282,8 @@ export function renderCatalog(data: CatalogData, filter: CatalogFilter): string 
   if (!matches.length) {
     return `<div class="empty">No commands match the current filters.</div>`;
   }
+  const families = new Map(data.families.map((family) => [family.name, family]));
+  const openFamilies = filter.query.trim() !== "";
 
   const sections = (Object.keys(KIND_LABELS) as CatalogKind[])
     .map((kind) => {
@@ -232,7 +298,7 @@ export function renderCatalog(data: CatalogData, filter: CatalogFilter): string 
       return `
         <div class="catalog-kind">
           <h3 class="catalog-kind-title">${esc(KIND_LABELS[kind])}</h3>
-          ${groups.map((group) => renderGroup(group.name, group.entries)).join("")}
+          ${groups.map((group) => renderGroup(group.name, group.entries, families, openFamilies)).join("")}
         </div>
       `;
     })

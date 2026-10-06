@@ -31,6 +31,7 @@ function runnableEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     name: "report",
     kind: "cli",
     group: "Reporting",
+    family: null,
     risk: "read-only",
     module: null,
     schedule: null,
@@ -149,6 +150,7 @@ describe("running a command from the page", () => {
       schema_version: 2,
       cli_invocation: "python -m app",
       groups: [{ name: "Reporting", kind: "cli" }],
+      families: [],
       commands: [runnableEntry()],
     };
     createCatalogFeature(data).wireActions();

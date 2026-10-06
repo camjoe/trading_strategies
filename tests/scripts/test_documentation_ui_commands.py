@@ -194,6 +194,29 @@ def test_make_row_refuses_a_runnable_entry_that_is_not_read_only() -> None:
         )
 
 
+def test_tools_with_subcommands_and_curated_bundles_form_families(payload: dict) -> None:
+    rows = _rows_by_name(payload)
+    families = {family["name"] for family in payload["families"]}
+
+    assert {row["family"] for row in payload["commands"]} - {None} == families
+    assert rows["run-checks docs"]["family"] == "run-checks"
+    assert rows["db-migrations status"]["family"] == "db-migrations"
+    assert rows["launch-demo"]["family"] == rows["launch-ui"]["family"]
+    assert rows["layer-check"]["family"] == rows["mypy-check"]["family"]
+    assert rows["run-suite"]["family"] is None
+    assert rows["fix-checks"]["family"] is None
+    assert all(row["family"] is None for row in payload["commands"] if row["kind"] != "tool")
+
+
+def test_a_family_without_a_summary_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.documentation_ui.commands import entrypoints
+
+    monkeypatch.setattr(entrypoints, "FAMILIES", {k: v for k, v in entrypoints.FAMILIES.items() if k != "db-admin"})
+
+    with pytest.raises(ValueError, match="db-admin"):
+        entrypoints.build_entrypoint_rows()
+
+
 def test_a_runnable_tool_name_that_does_not_exist_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts.documentation_ui.commands import entrypoints
 

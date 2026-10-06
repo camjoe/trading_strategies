@@ -37,6 +37,21 @@ GROUP_OPERATIONS = "Operations"
 JOBS = "trading.interfaces.runtime.jobs"
 RUNTIME = "trading.interfaces.runtime"
 
+FAMILY_LAUNCH = "Launch the UI"
+FAMILY_DIAGRAMS = "Database diagrams"
+FAMILY_CHECKS = "Individual checks"
+
+# The UI shows each family as one row; its members open from that row. A tool with
+# subcommands is a family named after the tool, so it needs an entry here too.
+FAMILIES: dict[str, str] = {
+    "run-checks": "Run a bundle of checks: docs, repo, python, quick (repo + python), or ci (everything).",
+    FAMILY_CHECKS: "Each check as its own command. run-checks runs them in bundles.",
+    FAMILY_LAUNCH: "Start the backend and frontend against the real, demo, or sandbox database.",
+    "db-migrations": "Show, apply, or revert database schema revisions.",
+    "db-admin": "List accounts, back up the database, or delete an account.",
+    FAMILY_DIAGRAMS: "Build HTML database diagrams from the code-defined schema or a SQLite file.",
+}
+
 
 @dataclass(frozen=True)
 class EntrypointSpec:
@@ -51,6 +66,7 @@ class EntrypointSpec:
     cadence: str | None = None
     sub_risks: dict[str, str] = field(default_factory=dict)
     capture: bool = True
+    family: str | None = None
 
 
 def _job(module: str, name: str, group: str, risk: str, cadence: str) -> EntrypointSpec:
@@ -128,7 +144,8 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
         "launch-ui",
         GROUP_LAUNCHERS,
         RISK_WRITES_LOCAL,
-        help="Start the paper-trading backend and frontend together.",
+        help="Start the backend and frontend together.",
+        family=FAMILY_LAUNCH,
     ),
     _tool(
         "scripts.launch_demo",
@@ -136,8 +153,9 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
         GROUP_LAUNCHERS,
         RISK_WRITES_LOCAL,
         help="Rebuild the synthetic offline demo database, then start the UI on separate ports.",
+        family=FAMILY_LAUNCH,
     ),
-    _tool("scripts.launch_sandbox", "launch-sandbox", GROUP_LAUNCHERS, RISK_WRITES_LOCAL),
+    _tool("scripts.launch_sandbox", "launch-sandbox", GROUP_LAUNCHERS, RISK_WRITES_LOCAL, family=FAMILY_LAUNCH),
     _tool("scripts.screenshot_ui", "screenshot-ui", GROUP_LAUNCHERS, RISK_READ_ONLY),
     _tool("scripts.check_jobs", "check-jobs", GROUP_OPERATIONS, RISK_WRITES_LOCAL),
     _tool("scripts.ibkr_web_api_smoke_test", "ibkr-web-api-smoke-test", GROUP_BROKER_SMOKE, RISK_BROKER),
@@ -150,6 +168,7 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
         "build-database-diagram-viewer",
         GROUP_DATA,
         RISK_WRITES_LOCAL,
+        family=FAMILY_DIAGRAMS,
     ),
     _tool("scripts.data_ops.capture_scenario_fixture", "capture-scenario-fixture", GROUP_DATA, RISK_WRITES_LOCAL),
     _tool(
@@ -172,8 +191,14 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
     _tool("scripts.documentation_ui.check", "check-reference-docs", GROUP_DOCS_SYNC, RISK_READ_ONLY),
     _tool("scripts.fixes.db_schema_fix", "fix-db-schema-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL),
     _tool("scripts.fixes.maps_fix", "fix-maps-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL),
-    _tool("scripts.database_diagrams.sqlite", "sqlite-diagram", GROUP_DATA, RISK_WRITES_LOCAL),
-    _tool("scripts.database_diagrams.render_html", "render-diagram-html", GROUP_DATA, RISK_WRITES_LOCAL),
+    _tool("scripts.database_diagrams.sqlite", "sqlite-diagram", GROUP_DATA, RISK_WRITES_LOCAL, family=FAMILY_DIAGRAMS),
+    _tool(
+        "scripts.database_diagrams.render_html",
+        "render-diagram-html",
+        GROUP_DATA,
+        RISK_WRITES_LOCAL,
+        family=FAMILY_DIAGRAMS,
+    ),
 )
 
 # Tool rows the web UI may run: read-only, and done in seconds. Entries that install packages,
@@ -206,6 +231,8 @@ RUNNABLE_TOOLS = frozenset(
 # Modules under these roots that define `main` are listed without a spec entry.
 FAMILY_ROOT = "scripts/checks"
 FAMILY_GROUP = GROUP_QUALITY
+# Modules under FAMILY_ROOT that keep their own catalog row instead of joining FAMILY_CHECKS.
+STANDALONE_CHECK_MODULES = frozenset({"scripts.checks.run_suite"})
 
 # Modules that define `main` but are wrapped by a listed entry, so they stay off the page.
 EXCLUDED_MODULE_PREFIXES: tuple[str, ...] = (
@@ -278,6 +305,7 @@ def _family_specs(discovered: dict[str, Path], repo_root: Path) -> list[Entrypoi
                 risk=RISK_READ_ONLY,
                 help=_first_docstring_line(path),
                 capture=_calls_parse_args(path),
+                family=None if module in STANDALONE_CHECK_MODULES else FAMILY_CHECKS,
             )
         )
     return specs
@@ -327,6 +355,7 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
                 module=spec.module,
                 schedule=schedule,
                 runnable=f"{spec.name} {sub_name}" in RUNNABLE_TOOLS,
+                family=spec.family or spec.name,
             )
             for sub_name, sub_parser in sub.choices.items()
         ]
@@ -346,6 +375,7 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
             module=spec.module,
             schedule=schedule,
             runnable=spec.name in RUNNABLE_TOOLS,
+            family=spec.family,
         )
     ]
 
@@ -363,4 +393,10 @@ def build_entrypoint_rows(repo_root: Path | None = None) -> list[dict[str, Any]]
     stale = RUNNABLE_TOOLS - {row["name"] for row in rows}
     if stale:
         raise ValueError(f"RUNNABLE_TOOLS lists entries that do not exist: {sorted(stale)}")
+    used = {row["family"] for row in rows if row["family"] is not None}
+    if used != FAMILIES.keys():
+        raise ValueError(
+            f"FAMILIES does not match the families in use: missing {sorted(used - FAMILIES.keys())}, "
+            f"unused {sorted(FAMILIES.keys() - used)}"
+        )
     return rows

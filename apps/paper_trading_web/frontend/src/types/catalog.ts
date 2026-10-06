@@ -18,6 +18,7 @@ export interface CatalogEntry {
   name: string;
   kind: CatalogKind;
   group: string;
+  family: string | null;
   risk: CatalogRisk;
   module: string | null;
   schedule: string | null;
@@ -32,10 +33,16 @@ export interface CatalogGroup {
   kind: CatalogKind;
 }
 
+export interface CatalogFamily {
+  name: string;
+  help: string;
+}
+
 export interface CatalogData {
   schema_version: number;
   cli_invocation: string;
   groups: CatalogGroup[];
+  families: CatalogFamily[];
   commands: CatalogEntry[];
 }
 

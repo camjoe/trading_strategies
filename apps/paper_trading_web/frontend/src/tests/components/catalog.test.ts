@@ -9,6 +9,7 @@ import {
   formatDefault,
   renderCatalog,
   renderEntry,
+  renderFamily,
   renderSummary,
 } from "../../features/catalog";
 import catalogTemplate from "../../views/catalog.html?raw";
@@ -19,6 +20,7 @@ function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     name: "snapshot",
     kind: "cli",
     group: "Reporting",
+    family: null,
     risk: "writes-local",
     module: null,
     schedule: null,
@@ -63,6 +65,7 @@ function makeData(): CatalogData {
       { name: "Reporting", kind: "cli" },
       { name: "Daily Jobs", kind: "job" },
     ],
+    families: [],
     commands: [
       makeEntry(),
       makeEntry({ name: "report", risk: "read-only", help: "Show account status.", arguments: [] }),
@@ -156,6 +159,49 @@ describe("renderCatalog", () => {
 
   it("shows an empty state when nothing matches", () => {
     expect(renderCatalog(makeData(), { ...DEFAULT_FILTER, query: "zzz" })).toContain("No commands match");
+  });
+});
+
+describe("families", () => {
+  function familyData(): CatalogData {
+    const data = makeData();
+    return {
+      ...data,
+      groups: [...data.groups, { name: "Quality Checks", kind: "tool" }],
+      families: [{ name: "run-checks", help: "Run a bundle of checks." }],
+      commands: [
+        ...data.commands,
+        makeEntry({ name: "run-checks docs", kind: "tool", group: "Quality Checks", family: "run-checks" }),
+        makeEntry({ name: "fix-checks", kind: "tool", group: "Quality Checks", help: "Apply fixes." }),
+        makeEntry({ name: "run-checks repo", kind: "tool", group: "Quality Checks", family: "run-checks" }),
+      ],
+    };
+  }
+
+  it("renders a family as one row at its first member, before the entries that follow it", () => {
+    const html = renderCatalog(familyData(), { ...DEFAULT_FILTER, kind: "tool" });
+
+    expect(html.match(/data-catalog-family=/g)).toHaveLength(1);
+    expect(html.indexOf('data-catalog-family="run-checks"')).toBeLessThan(html.indexOf('data-catalog-entry="fix-checks"'));
+    expect(html).toContain('data-catalog-entry="run-checks repo"');
+  });
+
+  it("lists members without the family prefix and shows each risk once", () => {
+    const html = renderFamily({ name: "run-checks", help: "Run a bundle." }, [
+      makeEntry({ name: "run-checks docs", risk: "read-only" }),
+      makeEntry({ name: "run-checks repo", risk: "read-only" }),
+    ]);
+
+    const summary = html.split("</summary>")[0];
+    expect(summary).toContain("<code>docs</code><code>repo</code>");
+    expect(summary.match(/Read-only<\/span>/g)).toHaveLength(1);
+    expect(html).not.toContain(" open");
+  });
+
+  it("opens families while a search is active", () => {
+    const html = renderCatalog(familyData(), { ...DEFAULT_FILTER, query: "run-checks" });
+
+    expect(html).toContain('data-catalog-family="run-checks" open');
   });
 });
 

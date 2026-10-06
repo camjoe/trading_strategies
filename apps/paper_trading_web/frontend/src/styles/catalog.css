@@ -102,6 +102,34 @@
   padding: 0 0.9rem 0.9rem;
 }
 
+.catalog-family-name {
+  font-weight: 700;
+}
+
+.catalog-family-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.catalog-family-members code {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+
+.catalog-family-body {
+  padding: 0 0.9rem 0.6rem;
+}
+
+.catalog-family-body > .catalog-entry {
+  background: var(--surface-white);
+}
+
 .catalog-example {
   display: flex;
   gap: 0.75rem;
