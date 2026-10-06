@@ -1,7 +1,7 @@
 .docs-nav-menu {
   position: absolute;
   top: calc(100% + 0.15rem);
-  left: 0;
+  right: 0;
   min-width: 280px;
   padding-top: 0;
 }

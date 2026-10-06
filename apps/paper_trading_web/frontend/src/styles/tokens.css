@@ -64,7 +64,6 @@
   --surface-white: var(--n-0);
   --surface-subtle: var(--n-100);
   --surface-hover: var(--n-150);
-  --nav-bg: var(--n-150);
 
   --line-subtle: var(--n-150);
   --line: var(--n-300);
@@ -102,7 +101,6 @@
   --surface-white: var(--d-900);
   --surface-subtle: var(--d-700);
   --surface-hover: var(--d-600);
-  --nav-bg: var(--d-850);
 
   --line-subtle: var(--d-650);
   --line: var(--d-550);
@@ -173,7 +171,7 @@
 
 /* Layout */
 :root {
-  --topbar-height: 102px;
+  --topbar-height: 92px;
   --sticky-stack-offset: calc(var(--topbar-height) + 24px);
 }
 

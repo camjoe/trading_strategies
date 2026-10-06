@@ -52,7 +52,6 @@
     grid-template-columns: 1fr;
   }
 
-  .topbar-inner,
   .section-heading,
   .compare-head,
   .bt-head,
@@ -76,37 +75,12 @@
     flex-direction: column;
     align-items: stretch;
   }
-
-  .topbar-heading {
-    align-items: flex-start;
-    gap: 0.45rem;
-  }
 }
 
 @media (max-width: 600px) {
-  .topbar-inner,
-  .tab-nav {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
   .app-shell {
     padding-left: 0;
     padding-right: 0;
-  }
-
-  .topbar {
-    border-bottom-color: var(--line);
-  }
-
-  .tab-nav {
-    row-gap: 0;
-  }
-
-  .tab-btn,
-  .tab-btn--admin {
-    flex: 1 1 auto;
-    text-align: center;
   }
 
   .card {
