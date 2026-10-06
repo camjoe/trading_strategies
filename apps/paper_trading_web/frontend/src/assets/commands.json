@@ -5780,7 +5780,7 @@
         "scripts.benchmark_sweep"
       ],
       "subcommand": null,
-      "help": "Time the walk-forward optimizer so sweep sizing can be chosen from data. A sweep is ``candidates x windows`` training backtests plus a persisted OOS run and a metrics-only baseline per window, plus two holdout runs. The route's candidate-budget ceiling is derived from what one simulation costs, so re-run this whenever the inner loop changes and re-derive the cap from the result. Runs against a *copy* of the database (SQLite backup API, so WAL content comes along), because a sweep persists its OOS and holdout runs and a benchmark should not leave evidence rows behind. python -m scripts.benchmark_sweep --account momentum_5k --label baseline Add ``--json-out local/sweep_benchmarks.jsonl`` to append a machine-readable row per run for before/after comparison. **Read the output with suspicion.** One run is one sample, and repeated runs of an identical configuration have come in 23% apart on the same machine. A single before/after pair therefore cannot resolve anything below roughly 25%. For a smaller effect, profile where the time goes rather than A/B timing the whole sweep \u2014 or teach this script to interleave repeated trials and report the minimum, since noise only ever adds time.",
+      "help": "Time the walk-forward optimizer so sweep sizing can be chosen from data.",
       "example": "python -m scripts.benchmark_sweep --account <ACCOUNT>",
       "arguments": [
         {
@@ -8358,7 +8358,7 @@
         "scripts.checks.run_suite"
       ],
       "subcommand": null,
-      "help": "Run a focused subset of the test suite by suite name or file path. Suite names mirror the tests/ directory tree (e.g. 'trading/services', 'trading/services/market_data'). Use 'all' to run the full suite. Individual .py file paths are also accepted. Use --changed or --base to auto-detect suites from git-changed files.",
+      "help": "Run a focused subset of the test suite by suite name or file path.",
       "example": "python -m scripts.checks.run_suite",
       "arguments": [
         {

@@ -317,9 +317,13 @@ def _calls_parse_args(path: Path) -> bool:
     )
 
 
+def _first_paragraph(text: str) -> str:
+    return " ".join(text.strip().split("\n\n", 1)[0].split())
+
+
 def _first_docstring_line(path: Path) -> str:
     docstring = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8-sig")))
-    return " ".join(docstring.split("\n\n", 1)[0].split()) if docstring else ""
+    return _first_paragraph(docstring) if docstring else ""
 
 
 def _family_specs(discovered: dict[str, Path], repo_root: Path) -> list[EntrypointSpec]:
@@ -365,7 +369,7 @@ def _rows_for_spec(spec: EntrypointSpec) -> list[dict[str, Any]]:
         schedule = definition.schedule_kind if definition is not None else spec.cadence
 
     parser = capture_parser(module.main) if spec.capture and spec.module not in PARSERLESS_MODULES else None
-    description = " ".join((parser.description or "").split()) if parser is not None else ""
+    description = _first_paragraph(parser.description or "") if parser is not None else ""
     sub = subparsers_action(parser) if parser is not None else None
 
     if parser is not None and sub is not None:

@@ -210,6 +210,14 @@ def test_tools_with_subcommands_and_curated_bundles_form_families(payload: dict)
     assert all(row["family"] is None for row in payload["commands"] if row["kind"] != "tool")
 
 
+def test_a_multi_paragraph_parser_description_shows_only_its_first_paragraph(payload: dict) -> None:
+    rows = _rows_by_name(payload)
+
+    assert (
+        rows["benchmark-sweep"]["help"] == "Time the walk-forward optimizer so sweep sizing can be chosen from data."
+    )
+
+
 def test_a_family_without_a_summary_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts.documentation_ui.commands import entrypoints
 
