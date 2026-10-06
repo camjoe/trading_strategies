@@ -4,7 +4,7 @@ import argparse
 from collections.abc import Callable
 from typing import Any
 
-from scripts.documentation_ui.commands.entrypoints import FAMILIES, build_entrypoint_rows
+from scripts.documentation_ui.commands.entrypoints import TOOL_FAMILIES, build_entrypoint_rows
 from scripts.documentation_ui.commands.introspect import (
     KIND_CLI,
     RISK_READ_ONLY,
@@ -95,6 +95,52 @@ WRITES_LOCAL_COMMANDS = frozenset(
     }
 )
 
+# Family name -> (summary, member commands). See TOOL_FAMILIES for how the UI shows a family.
+CLI_FAMILIES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "Account setup": (
+        "Create or configure an account: metadata, goals, benchmark, and book strategy.",
+        ("create-account", "configure-account", "set-benchmark", "assign-strategy"),
+    ),
+    "Promotion review": (
+        "Check promotion readiness, request a review, act on it, and show the audit trail.",
+        ("promotion-status", "promotion-request-review", "promotion-review-history", "promotion-review-action"),
+    ),
+    "Snapshots": (
+        "Save an account's equity snapshot or show its history.",
+        ("snapshot", "snapshot-history"),
+    ),
+    "Portfolio rollups": (
+        "Cross-account exposure and concentration.",
+        ("portfolio-exposure", "portfolio-concentration"),
+    ),
+    "Global settings": (
+        "Edit the global throttle, evaluation, and promotion settings, and show their change history.",
+        ("configure-throttle", "configure-evaluation", "configure-promotion", "settings-history"),
+    ),
+    "Book rotation": (
+        "Edit a book's rotation policy and schedule, and show their change history.",
+        ("configure-book-rotation-policy", "configure-book-rotation", "book-rotation-history"),
+    ),
+    "Backtest runs": (
+        "Run one or many backtests, then report on or rank the runs.",
+        ("backtest", "backtest-batch", "backtest-report", "backtest-leaderboard"),
+    ),
+    "Walk-forward optimizer": (
+        "Optimize a strategy's parameters walk-forward, inspect the experiment, and promote the winner.",
+        ("backtest-optimize", "backtest-optimize-show", "backtest-optimize-promote"),
+    ),
+}
+
+
+def _cli_family_of() -> dict[str, str]:
+    family_of: dict[str, str] = {}
+    for family, (_summary, members) in CLI_FAMILIES.items():
+        for member in members:
+            if member in family_of:
+                raise ValueError(f"CLI command {member!r} is in two families: {family_of[member]!r}, {family!r}")
+            family_of[member] = family
+    return family_of
+
 
 def _risk_for(name: str) -> str:
     in_read_only = name in READ_ONLY_COMMANDS
@@ -104,7 +150,7 @@ def _risk_for(name: str) -> str:
     return RISK_READ_ONLY if in_read_only else RISK_WRITES_LOCAL
 
 
-def _group_commands(group: str, adder: Callable[[Any], None]) -> list[dict[str, Any]]:
+def _group_commands(group: str, adder: Callable[[Any], None], family_of: dict[str, str]) -> list[dict[str, Any]]:
     parser = argparse.ArgumentParser()
     parser.add_subparsers(dest="command")
     action = subparsers_action(parser)
@@ -124,6 +170,7 @@ def _group_commands(group: str, adder: Callable[[Any], None]) -> list[dict[str, 
             subcommand=name,
             arguments=describe_arguments(command_parser),
             runnable=name in READ_ONLY_COMMANDS and name not in NOT_RUNNABLE_FROM_UI,
+            family=family_of.get(name),
         )
         for name, command_parser in action.choices.items()
     ]
@@ -131,11 +178,12 @@ def _group_commands(group: str, adder: Callable[[Any], None]) -> list[dict[str, 
 
 def build_cli_rows() -> list[dict[str, Any]]:
     """Return one row per CLI subcommand, grouped in registration order."""
+    family_of = _cli_family_of()
     rows: list[dict[str, Any]] = []
     for group, adder in GROUP_ADDERS.items():
-        rows.extend(_group_commands(group, adder))
+        rows.extend(_group_commands(group, adder, family_of))
     names = {row["name"] for row in rows}
-    stale = (READ_ONLY_COMMANDS | WRITES_LOCAL_COMMANDS | NOT_RUNNABLE_FROM_UI) - names
+    stale = (READ_ONLY_COMMANDS | WRITES_LOCAL_COMMANDS | NOT_RUNNABLE_FROM_UI | family_of.keys()) - names
     if stale:
         raise ValueError(f"risk tables list commands that do not exist: {sorted(stale)}")
     unclassified = NOT_RUNNABLE_FROM_UI - READ_ONLY_COMMANDS
@@ -155,11 +203,16 @@ def build_payload() -> dict[str, Any]:
         entry = {"name": row["group"], "kind": row["kind"]}
         if entry not in groups:
             groups.append(entry)
+    summaries = {**TOOL_FAMILIES, **{name: summary for name, (summary, _members) in CLI_FAMILIES.items()}}
     family_names = list(dict.fromkeys(row["family"] for row in rows if row["family"] is not None))
+    if set(family_names) != summaries.keys():
+        missing = sorted(set(family_names) - summaries.keys())
+        unused = sorted(summaries.keys() - set(family_names))
+        raise ValueError(f"family summaries do not match the families in use: missing {missing}, unused {unused}")
     return {
         "schema_version": 3,
         "cli_invocation": CLI_INVOCATION,
         "groups": groups,
-        "families": [{"name": name, "help": FAMILIES[name]} for name in family_names],
+        "families": [{"name": name, "help": summaries[name]} for name in family_names],
         "commands": rows,
     }

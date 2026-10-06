@@ -207,7 +207,9 @@ def test_tools_with_subcommands_and_curated_bundles_form_families(payload: dict)
     assert rows["ibkr-web-api-smoke-test"]["family"] == rows["ibkr-socket-smoke-test"]["family"]
     assert rows["run-suite"]["family"] is None
     assert rows["fix-checks"]["family"] is None
-    assert all(row["family"] is None for row in payload["commands"] if row["kind"] != "tool")
+    assert rows["backtest-optimize-show"]["family"] == rows["backtest-optimize"]["family"]
+    assert rows["report"]["family"] is None
+    assert all(row["family"] is None for row in payload["commands"] if row["kind"] == "job")
 
 
 def test_a_multi_paragraph_parser_description_shows_only_its_first_paragraph(payload: dict) -> None:
@@ -219,12 +221,23 @@ def test_a_multi_paragraph_parser_description_shows_only_its_first_paragraph(pay
 
 
 def test_a_family_without_a_summary_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
-    from scripts.documentation_ui.commands import entrypoints
-
-    monkeypatch.setattr(entrypoints, "FAMILIES", {k: v for k, v in entrypoints.FAMILIES.items() if k != "db-admin"})
+    trimmed = {name: summary for name, summary in registry.TOOL_FAMILIES.items() if name != "db-admin"}
+    monkeypatch.setattr(registry, "TOOL_FAMILIES", trimmed)
 
     with pytest.raises(ValueError, match="db-admin"):
-        entrypoints.build_entrypoint_rows()
+        registry.build_payload()
+
+
+def test_cli_families_reject_unknown_and_doubly_listed_commands(monkeypatch: pytest.MonkeyPatch) -> None:
+    ghost = {**registry.CLI_FAMILIES, "Ghost": ("Summary.", ("no-such-command",))}
+    monkeypatch.setattr(registry, "CLI_FAMILIES", ghost)
+    with pytest.raises(ValueError, match="no-such-command"):
+        registry.build_cli_rows()
+
+    twice = {**registry.CLI_FAMILIES, "Twice": ("Summary.", ("report", "report"))}
+    monkeypatch.setattr(registry, "CLI_FAMILIES", twice)
+    with pytest.raises(ValueError, match="two families"):
+        registry.build_cli_rows()
 
 
 def test_a_runnable_tool_name_that_does_not_exist_fails_the_build(monkeypatch: pytest.MonkeyPatch) -> None:

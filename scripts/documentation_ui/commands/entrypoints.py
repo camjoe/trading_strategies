@@ -43,9 +43,9 @@ FAMILY_CHECKS = "Individual checks"
 FAMILY_DOCS_SYNC = "Reference doc sync"
 FAMILY_IBKR_SMOKE = "IBKR smoke tests"
 
-# The UI shows each family as one row; its members open from that row. A tool with
-# subcommands is a family named after the tool, so it needs an entry here too.
-FAMILIES: dict[str, str] = {
+# Family name -> summary. The UI shows each family as one row; its members open from that row.
+# A tool with subcommands is a family named after the tool, so it needs an entry here too.
+TOOL_FAMILIES: dict[str, str] = {
     "run-checks": "Run a bundle of checks: docs, repo, python, quick (repo + python), or ci (everything).",
     FAMILY_CHECKS: "Each check as its own command. run-checks runs them in bundles.",
     FAMILY_LAUNCH: "Start the backend and frontend against the real, demo, or sandbox database.",
@@ -427,10 +427,4 @@ def build_entrypoint_rows(repo_root: Path | None = None) -> list[dict[str, Any]]
     stale = RUNNABLE_TOOLS - {row["name"] for row in rows}
     if stale:
         raise ValueError(f"RUNNABLE_TOOLS lists entries that do not exist: {sorted(stale)}")
-    used = {row["family"] for row in rows if row["family"] is not None}
-    if used != FAMILIES.keys():
-        raise ValueError(
-            f"FAMILIES does not match the families in use: missing {sorted(used - FAMILIES.keys())}, "
-            f"unused {sorted(FAMILIES.keys() - used)}"
-        )
     return rows
