@@ -203,6 +203,8 @@ def test_tools_with_subcommands_and_curated_bundles_form_families(payload: dict)
     assert rows["db-migrations status"]["family"] == "db-migrations"
     assert rows["launch-demo"]["family"] == rows["launch-ui"]["family"]
     assert rows["layer-check"]["family"] == rows["mypy-check"]["family"]
+    assert rows["sync-reference-docs"]["family"] == rows["fix-maps-doc"]["family"]
+    assert rows["ibkr-web-api-smoke-test"]["family"] == rows["ibkr-socket-smoke-test"]["family"]
     assert rows["run-suite"]["family"] is None
     assert rows["fix-checks"]["family"] is None
     assert all(row["family"] is None for row in payload["commands"] if row["kind"] != "tool")

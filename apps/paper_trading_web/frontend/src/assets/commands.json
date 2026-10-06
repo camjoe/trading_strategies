@@ -81,6 +81,10 @@
       "help": "Start the backend and frontend against the real, demo, or sandbox database."
     },
     {
+      "name": "IBKR smoke tests",
+      "help": "Read-only IBKR connection checks: Client Portal Web API or TWS / IB Gateway socket."
+    },
+    {
       "name": "Database diagrams",
       "help": "Build HTML database diagrams from the code-defined schema or a SQLite file."
     },
@@ -91,6 +95,10 @@
     {
       "name": "db-admin",
       "help": "List accounts, back up the database, or delete an account."
+    },
+    {
+      "name": "Reference doc sync",
+      "help": "Sync or check generated reference docs and assets. fix-checks runs the sync and both fixers."
     },
     {
       "name": "Individual checks",
@@ -5494,7 +5502,7 @@
       "name": "ibkr-web-api-smoke-test",
       "kind": "tool",
       "group": "Broker Smoke Tests",
-      "family": null,
+      "family": "IBKR smoke tests",
       "risk": "broker",
       "module": "scripts.ibkr_web_api_smoke_test",
       "schedule": null,
@@ -5600,7 +5608,7 @@
       "name": "ibkr-socket-smoke-test",
       "kind": "tool",
       "group": "Broker Smoke Tests",
-      "family": null,
+      "family": "IBKR smoke tests",
       "risk": "broker",
       "module": "scripts.ibkr_socket_smoke_test",
       "schedule": null,
@@ -6598,7 +6606,7 @@
       "name": "sync-reference-docs",
       "kind": "tool",
       "group": "Documentation Sync",
-      "family": null,
+      "family": "Reference doc sync",
       "risk": "writes-local",
       "module": "scripts.documentation_ui.sync",
       "schedule": null,
@@ -6631,7 +6639,7 @@
       "name": "check-reference-docs",
       "kind": "tool",
       "group": "Documentation Sync",
-      "family": null,
+      "family": "Reference doc sync",
       "risk": "read-only",
       "module": "scripts.documentation_ui.check",
       "schedule": null,
@@ -6734,7 +6742,7 @@
       "name": "fix-db-schema-doc",
       "kind": "tool",
       "group": "Documentation Sync",
-      "family": null,
+      "family": "Reference doc sync",
       "risk": "writes-local",
       "module": "scripts.fixes.db_schema_fix",
       "schedule": null,
@@ -6767,7 +6775,7 @@
       "name": "fix-maps-doc",
       "kind": "tool",
       "group": "Documentation Sync",
-      "family": null,
+      "family": "Reference doc sync",
       "risk": "writes-local",
       "module": "scripts.fixes.maps_fix",
       "schedule": null,

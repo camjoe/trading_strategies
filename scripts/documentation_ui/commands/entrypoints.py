@@ -40,6 +40,8 @@ RUNTIME = "trading.interfaces.runtime"
 FAMILY_LAUNCH = "Launch the UI"
 FAMILY_DIAGRAMS = "Database diagrams"
 FAMILY_CHECKS = "Individual checks"
+FAMILY_DOCS_SYNC = "Reference doc sync"
+FAMILY_IBKR_SMOKE = "IBKR smoke tests"
 
 # The UI shows each family as one row; its members open from that row. A tool with
 # subcommands is a family named after the tool, so it needs an entry here too.
@@ -50,6 +52,8 @@ FAMILIES: dict[str, str] = {
     "db-migrations": "Show, apply, or revert database schema revisions.",
     "db-admin": "List accounts, back up the database, or delete an account.",
     FAMILY_DIAGRAMS: "Build HTML database diagrams from the code-defined schema or a SQLite file.",
+    FAMILY_DOCS_SYNC: "Sync or check generated reference docs and assets. fix-checks runs the sync and both fixers.",
+    FAMILY_IBKR_SMOKE: "Read-only IBKR connection checks: Client Portal Web API or TWS / IB Gateway socket.",
 }
 
 
@@ -158,8 +162,20 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
     _tool("scripts.launch_sandbox", "launch-sandbox", GROUP_LAUNCHERS, RISK_WRITES_LOCAL, family=FAMILY_LAUNCH),
     _tool("scripts.screenshot_ui", "screenshot-ui", GROUP_LAUNCHERS, RISK_READ_ONLY),
     _tool("scripts.check_jobs", "check-jobs", GROUP_OPERATIONS, RISK_WRITES_LOCAL),
-    _tool("scripts.ibkr_web_api_smoke_test", "ibkr-web-api-smoke-test", GROUP_BROKER_SMOKE, RISK_BROKER),
-    _tool("scripts.ibkr_socket_smoke_test", "ibkr-socket-smoke-test", GROUP_BROKER_SMOKE, RISK_BROKER),
+    _tool(
+        "scripts.ibkr_web_api_smoke_test",
+        "ibkr-web-api-smoke-test",
+        GROUP_BROKER_SMOKE,
+        RISK_BROKER,
+        family=FAMILY_IBKR_SMOKE,
+    ),
+    _tool(
+        "scripts.ibkr_socket_smoke_test",
+        "ibkr-socket-smoke-test",
+        GROUP_BROKER_SMOKE,
+        RISK_BROKER,
+        family=FAMILY_IBKR_SMOKE,
+    ),
     _tool("scripts.benchmark_sweep", "benchmark-sweep", GROUP_RESEARCH, RISK_WRITES_LOCAL),
     _tool("scripts.data_ops.describe_db_schema", "describe-db-schema", GROUP_DATA, RISK_READ_ONLY),
     _tool("scripts.data_ops.check_cash_invariant", "check-cash-invariant", GROUP_DATA, RISK_READ_ONLY),
@@ -187,10 +203,24 @@ TOOL_SPECS: tuple[EntrypointSpec, ...] = (
     ),
     _tool(f"{RUNTIME}.data_ops.seed_clean_schema", "seed-clean-schema", GROUP_DATA, RISK_WRITES_LOCAL),
     _tool(f"{RUNTIME}.scheduling.manage_job_schedules", "manage-job-schedules", GROUP_SCHEDULING, RISK_WRITES_LOCAL),
-    _tool("scripts.documentation_ui.sync", "sync-reference-docs", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL),
-    _tool("scripts.documentation_ui.check", "check-reference-docs", GROUP_DOCS_SYNC, RISK_READ_ONLY),
-    _tool("scripts.fixes.db_schema_fix", "fix-db-schema-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL),
-    _tool("scripts.fixes.maps_fix", "fix-maps-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL),
+    _tool(
+        "scripts.documentation_ui.sync",
+        "sync-reference-docs",
+        GROUP_DOCS_SYNC,
+        RISK_WRITES_LOCAL,
+        family=FAMILY_DOCS_SYNC,
+    ),
+    _tool(
+        "scripts.documentation_ui.check",
+        "check-reference-docs",
+        GROUP_DOCS_SYNC,
+        RISK_READ_ONLY,
+        family=FAMILY_DOCS_SYNC,
+    ),
+    _tool(
+        "scripts.fixes.db_schema_fix", "fix-db-schema-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL, family=FAMILY_DOCS_SYNC
+    ),
+    _tool("scripts.fixes.maps_fix", "fix-maps-doc", GROUP_DOCS_SYNC, RISK_WRITES_LOCAL, family=FAMILY_DOCS_SYNC),
     _tool("scripts.database_diagrams.sqlite", "sqlite-diagram", GROUP_DATA, RISK_WRITES_LOCAL, family=FAMILY_DIAGRAMS),
     _tool(
         "scripts.database_diagrams.render_html",
