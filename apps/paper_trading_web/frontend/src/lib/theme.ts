@@ -11,9 +11,7 @@ function storedTheme(): Theme | null {
   }
 }
 
-function preferredTheme(): Theme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+const DEFAULT_THEME: Theme = "dark";
 
 export function currentTheme(): Theme {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -24,7 +22,7 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function initTheme(): void {
-  applyTheme(storedTheme() ?? preferredTheme());
+  applyTheme(storedTheme() ?? DEFAULT_THEME);
 }
 
 export function toggleTheme(): Theme {
