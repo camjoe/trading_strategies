@@ -76,9 +76,10 @@ function renderShell(): void {
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- STRATEGY_LAB_TAB_PARTIAL -->", strategyLabTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
-  const demoBanner = find<HTMLElement>("#demoModeBanner");
-  if (demoBanner && import.meta.env.VITE_DEMO_MODE === "1") {
-    demoBanner.hidden = false;
+  if (import.meta.env.VITE_DEMO_MODE === "1") {
+    for (const element of findAll<HTMLElement>("#demoModeBanner, #topbarModeBadge")) {
+      element.hidden = false;
+    }
   }
 }
 
@@ -113,8 +114,8 @@ function syncThemeToggle(theme: Theme): void {
   const button = find<HTMLButtonElement>("#themeToggle");
   if (!button) return;
   const next = theme === "dark" ? "light" : "dark";
-  button.textContent = theme === "dark" ? "Light mode" : "Dark mode";
   button.setAttribute("aria-label", `Switch to ${next} theme`);
+  button.title = `Switch to ${next} theme`;
 }
 
 function initThemeToggle(): void {

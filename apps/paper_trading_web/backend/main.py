@@ -22,7 +22,7 @@ from .routes import (
     strategy_lab_router,
 )
 
-app = FastAPI(title="Paper Trading UI API", version="0.1.0")
+app = FastAPI(title="Trading Workbench API", version="0.1.0")
 ALLOW_ALL_CORS = ["*"]
 
 app.add_middleware(

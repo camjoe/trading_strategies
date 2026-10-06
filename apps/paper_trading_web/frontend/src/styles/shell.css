@@ -1,42 +1,81 @@
-/* Header: one surface, two rows. Row 1 is the title, the section tabs, and the theme toggle;
+/* Header: one surface, two rows. Row 1 is the brand, the section tabs, and the theme toggle;
    row 2 is the sub-tabs of the open section. Color marks only the active tab. */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 12px color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 .topbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 1.5rem;
+  column-gap: 1.25rem;
   padding: 0 1.25rem;
 }
 
-.topbar-title {
+.topbar-brand {
   order: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1.25rem 0.55rem 0;
+  border-right: 1px solid var(--line-subtle);
+}
+
+.topbar-logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-strong));
+  color: var(--on-accent);
+  box-shadow: 0 4px 10px var(--accent-shadow);
+}
+
+.topbar-title {
   margin: 0;
-  padding: 0.6rem 0;
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+}
+
+.topbar-badge {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--warn-border);
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topbar-badge[hidden] {
+  display: none;
 }
 
 .tab-nav {
   order: 1;
   flex: 1 1 auto;
   min-width: 0;
+  align-self: stretch;
 }
 
 .tab-nav-primary {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.15rem;
+  height: 100%;
 }
 
 .tab-nav-spacer {
@@ -50,21 +89,33 @@
 
 .theme-toggle {
   order: 2;
-  padding: 0.3rem 0.75rem;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 600;
   box-shadow: none;
 }
 
 .theme-toggle:hover {
+  border-color: var(--line-hover);
   background: var(--surface-subtle);
   color: var(--ink);
   transform: none;
   filter: none;
+}
+
+.theme-icon--sun,
+:root[data-theme="dark"] .theme-icon--moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-icon--sun {
+  display: block;
 }
 
 .nav-group-btn,
@@ -72,15 +123,28 @@
   position: relative;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
   border-radius: 0;
   color: var(--ink-soft);
-  padding: 0.8rem 0.7rem 0.75rem;
+  padding: 0.95rem 0.75rem;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: none;
   transition: color 140ms ease;
+}
+
+.nav-group-btn::after,
+.tab-btn:not(.tab-btn--sub)::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 160ms ease;
 }
 
 .nav-group-btn:hover,
@@ -93,9 +157,13 @@
 
 .nav-group-btn.active,
 .tab-btn.active {
-  color: var(--accent);
+  color: var(--ink);
   background: transparent;
-  border-bottom-color: var(--accent);
+}
+
+.nav-group-btn.active::after,
+.tab-btn:not(.tab-btn--sub).active::after {
+  transform: scaleX(1);
 }
 
 .tab-subnav {
@@ -104,7 +172,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  padding: 0 0 0.55rem;
+  margin: 0 -1.25rem;
+  padding: 0.4rem 1.25rem;
+  border-top: 1px solid var(--line-subtle);
+  background: var(--panel-2);
 }
 
 .tab-subnav[hidden] {
@@ -112,10 +183,10 @@
 }
 
 .tab-btn--sub {
-  border-bottom: none;
   border-radius: 999px;
-  padding: 0.28rem 0.8rem;
+  padding: 0.28rem 0.85rem;
   font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .tab-btn--sub:hover {
@@ -124,12 +195,13 @@
 
 .tab-btn--sub.active {
   background: var(--nav-active-bg);
-  box-shadow: none;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .tab-health-dot {
   position: absolute;
-  top: 8px;
+  top: 6px;
   right: 2px;
   width: 8px;
   height: 8px;
@@ -208,13 +280,33 @@
     padding: 0 1rem;
   }
 
+  .topbar-brand {
+    border-right: none;
+    padding-right: 0;
+  }
+
   .tab-nav {
     flex: 1 1 100%;
     order: 4;
+    margin: 0 -0.55rem;
+  }
+
+  .nav-group-btn,
+  .tab-btn:not(.tab-btn--sub) {
+    padding: 0.6rem 0.55rem;
+    font-size: 0.86rem;
+  }
+
+  .nav-group-btn::after,
+  .tab-btn:not(.tab-btn--sub)::after {
+    left: 0.55rem;
+    right: 0.55rem;
   }
 
   .tab-subnav {
     order: 5;
+    margin: 0 -1rem;
+    padding: 0.4rem 1rem;
   }
 
   .theme-toggle {

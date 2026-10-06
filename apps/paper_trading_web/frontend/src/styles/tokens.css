@@ -171,7 +171,7 @@
 
 /* Layout */
 :root {
-  --topbar-height: 92px;
+  --topbar-height: 96px;
   --sticky-stack-offset: calc(var(--topbar-height) + 24px);
 }
 
