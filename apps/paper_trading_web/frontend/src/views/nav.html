@@ -4,25 +4,9 @@
     <button class="nav-group-btn" type="button" data-nav-group-target="about">About</button>
     <button class="nav-group-btn active" type="button" data-nav-group-target="operate">Operate</button>
     <button class="nav-group-btn" type="button" data-nav-group-target="research">Research</button>
-    <button class="nav-group-btn" type="button" data-nav-group-target="catalog">Catalog</button>
+    <button class="nav-group-btn" type="button" data-nav-group-target="reference">Reference</button>
     <span class="tab-nav-spacer"></span>
-    <!-- System: about the app itself, not about trading. Direct tabs, right-aligned. -->
-    <div class="tab-dropdown" id="docsNavItem">
-      <button
-        class="tab-btn"
-        id="docsTabBtn"
-        data-tab="docs"
-        aria-expanded="false"
-        aria-controls="docsSectionMenu"
-      >
-        Documentation
-      </button>
-      <div class="docs-nav-menu" id="docsSectionMenu" hidden>
-        <div class="docs-nav-surface">
-          <div class="docs-nav-list" id="docsSectionList"></div>
-        </div>
-      </div>
-    </div>
+    <!-- System: about the app itself, not about trading. A direct tab, right-aligned. -->
     <button class="tab-btn tab-btn--admin" data-tab="admin">Admin</button>
   </div>
 </nav>
@@ -44,7 +28,13 @@
   <button class="tab-btn tab-btn--sub" data-tab="strategy-lab" data-nav-group="research">Strategy Lab</button>
   <button class="tab-btn tab-btn--sub" data-tab="alt-strategies" data-nav-group="research">Sentiment</button>
 </nav>
-<!-- Catalog: everything the repository can run, read from the code. -->
-<nav class="tab-subnav" data-nav-subnav="catalog" aria-label="Catalog" hidden>
-  <button class="tab-btn tab-btn--sub" data-tab="catalog" data-nav-group="catalog">Commands</button>
+<!-- Reference: written docs, then everything the repository can run, read from the code. -->
+<nav class="tab-subnav" data-nav-subnav="reference" aria-label="Reference" hidden>
+  <button class="tab-btn tab-btn--sub" data-tab="docs-markets" data-nav-group="reference">Markets</button>
+  <button class="tab-btn tab-btn--sub" data-tab="docs-software" data-nav-group="reference">Software</button>
+  <button class="tab-btn tab-btn--sub" data-tab="docs-api" data-nav-group="reference">API</button>
+  <span class="tab-subnav-divider" aria-hidden="true"></span>
+  <button class="tab-btn tab-btn--sub" data-tab="catalog-cli" data-nav-group="reference">CLI</button>
+  <button class="tab-btn tab-btn--sub" data-tab="catalog-job" data-nav-group="reference">Jobs</button>
+  <button class="tab-btn tab-btn--sub" data-tab="catalog-tool" data-nav-group="reference">Tools</button>
 </nav>

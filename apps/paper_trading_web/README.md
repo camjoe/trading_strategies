@@ -12,7 +12,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
 - **About tab** — a landing page with the platform summary, repository facts (command, job, endpoint, table, strategy, and test counts), the workflow from research to monitored execution, an architecture diagram, and the safety rules. The demo (`launch_demo`) opens on this tab. The facts come from the generated `assets/overview.json`, `assets/commands.json`, and `assets/api.json`.
-- **Catalog tab** — one page that lists every CLI command, runtime job, script, and check with its arguments, a copyable example, and a risk label (read-only, writes local data, or broker). Search and filters narrow the list. A **Run** button on each read-only entry runs it on the backend and shows the output; entries that write data or reach a broker show the command only. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
+- **Reference group** — the written docs (Markets, Software, API), each page with a row of section links, and the command catalog split into CLI, Jobs, and Tools pages. Each catalog page lists its entries with their arguments, a copyable example, and a risk label (read-only, writes local data, or broker); related entries share one family row. A search on each page narrows that page only. A **Run** button on each read-only entry runs it on the backend and shows the output; entries that write data or reach a broker show the command only. The data comes from the generated `assets/commands.json` (`python -m scripts.documentation_ui.sync`), so the page needs no backend.
 - **Portfolio view** — cross-account exposure, symbol overlap/concentration, and sector rollups.
 - **Autonomy Monitor** — account, book, workflow, governance, burn-in, rotation, and risk status
   for every configured account.
@@ -21,7 +21,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 
 ## Navigation
 
-Primary navigation has four groups, with Documentation and Admin as direct tabs on the right.
+Primary navigation has four groups, with Admin as a direct tab on the right.
 Selecting a group shows its tabs in a second row and reopens the tab last used in that group. The offline demo opens on About; the operator UI opens on Accounts.
 
 | Group | Tabs |
@@ -29,7 +29,7 @@ Selecting a group shows its tabs in a second row and reopens the tab last used i
 | About | About (a group with one tab shows no second row) |
 | Operate | Accounts, Overview, Portfolio, Autonomy Monitor |
 | Research | Backtesting, Strategy Lab, Sentiment |
-| Catalog | Commands |
+| Reference | Markets, Software, API, CLI, Jobs, Tools |
 
 A tab belongs to a group through `data-nav-group` on its button in `frontend/src/views/nav.html`.
 The tab ids (`data-tab`) are unchanged. `frontend/src/lib/nav.ts` keeps the group state in step
@@ -205,7 +205,8 @@ Autonomy Monitor all take an account), so grouping by it would file Backtesting 
 |---|---|---|
 | Operate | Accounts, Overview, Portfolio, Autonomy Monitor | Live state — what is happening now with real positions. Autonomy Monitor belongs here because it answers "is the automation behaving," not "should I trade this." |
 | Research | Backtesting, Strategy Lab, Sentiment | Produce evidence, touch no live state. Mirrors the `purpose` discriminator that walls research runs off from live evaluation. |
-| System | Documentation, Admin | About the app itself, not about trading. Right-aligned after `tab-nav-spacer`. |
+| Reference | Markets, Software, API, CLI, Jobs, Tools | Read-only reference: the written docs, then everything the repository can run, read from the code. |
+| System | Admin | About the app itself, not about trading. Right-aligned after `tab-nav-spacer`. |
 
 Backtesting and Strategy Lab stay separate deliberately: Backtesting is the fast debug loop, Strategy
 Lab the slow validation loop (see the capability table in

@@ -26,7 +26,7 @@ describe("nav groups", () => {
       .filter((button) => !button.dataset.navGroup)
       .map((button) => button.dataset.tab);
 
-    expect(ungrouped).toEqual(["docs", "admin"]);
+    expect(ungrouped).toEqual(["admin"]);
   });
 
   it("every group button has a sub-row and every sub-tab names an existing group", () => {
@@ -54,10 +54,17 @@ describe("nav groups", () => {
   });
 
   it("hides the sub-row for a group with one tab", () => {
-    syncNav("catalog");
+    syncNav("about");
 
-    expect(activeGroups()).toEqual(["catalog"]);
+    expect(activeGroups()).toEqual(["about"]);
     expect(visibleSubnavs()).toEqual([]);
+  });
+
+  it("puts the docs pages and the command pages under Reference", () => {
+    syncNav("catalog-job");
+
+    expect(activeGroups()).toEqual(["reference"]);
+    expect(visibleSubnavs()).toEqual(["reference"]);
   });
 
   it("clears the active group and sub-row for the direct system tabs", () => {

@@ -2,12 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildCatalogTemplate,
   collectRunValues,
   createCatalogFeature,
   describeRunResult,
   renderRunPanel,
 } from "../../features/catalog";
-import catalogTemplate from "../../views/catalog.html?raw";
 import type { CatalogArgument, CatalogData, CatalogEntry, CatalogRunResult } from "../../types/catalog";
 
 function argument(overrides: Partial<CatalogArgument>): CatalogArgument {
@@ -145,7 +145,7 @@ describe("describeRunResult", () => {
 
 describe("running a command from the page", () => {
   function renderRunnable(): HTMLFormElement {
-    document.body.innerHTML = catalogTemplate;
+    document.body.innerHTML = buildCatalogTemplate();
     const data: CatalogData = {
       schema_version: 2,
       cli_invocation: "python -m app",

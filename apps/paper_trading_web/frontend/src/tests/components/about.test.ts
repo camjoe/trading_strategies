@@ -80,11 +80,11 @@ describe("createAboutFeature", () => {
   });
 
   it("opens the tab named by a stat, a step, or an action button", () => {
-    document.querySelector<HTMLElement>('#aboutStats [data-about-open="catalog"]')?.click();
+    document.querySelector<HTMLElement>('#aboutStats [data-about-open="catalog-cli"]')?.click();
     document.querySelector<HTMLElement>('.about-step[data-about-open="backtesting"]')?.click();
     document.querySelector<HTMLElement>('.about-actions [data-about-open="accounts"]')?.click();
 
-    expect(onOpenTab.mock.calls.map((call) => call[0])).toEqual(["catalog", "backtesting", "accounts"]);
+    expect(onOpenTab.mock.calls.map((call) => call[0])).toEqual(["catalog-cli", "backtesting", "accounts"]);
   });
 
   it("links only to tabs that exist in the navigation", () => {

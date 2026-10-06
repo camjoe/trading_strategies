@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import commandsData from "../../assets/commands.json";
 import {
-  DEFAULT_FILTER,
+  buildCatalogTemplate,
   createCatalogFeature,
   filterEntries,
   formatDefault,
@@ -12,8 +12,9 @@ import {
   renderFamily,
   renderSummary,
 } from "../../features/catalog";
-import catalogTemplate from "../../views/catalog.html?raw";
-import type { CatalogData, CatalogEntry } from "../../types/catalog";
+import type { CatalogData, CatalogEntry, CatalogFilter } from "../../types/catalog";
+
+const CLI: CatalogFilter = { query: "", kind: "cli" };
 
 function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
   return {
@@ -84,30 +85,23 @@ function makeData(): CatalogData {
 }
 
 describe("filterEntries", () => {
-  it("returns everything for the default filter", () => {
-    expect(filterEntries(makeData().commands, DEFAULT_FILTER)).toHaveLength(3);
+  it("returns every entry of the kind when the search is empty", () => {
+    expect(filterEntries(makeData().commands, CLI).map((e) => e.name)).toEqual(["snapshot", "report"]);
   });
 
   it("matches every search term against name, help, module, and argument text", () => {
     const entries = makeData().commands;
 
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, query: "equity snapshot" }).map((e) => e.name)).toEqual([
-      "snapshot",
-    ]);
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, query: "--time" }).map((e) => e.name)).toEqual(["snapshot"]);
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, query: "jobs.daily" }).map((e) => e.name)).toEqual([
+    expect(filterEntries(entries, { ...CLI, query: "equity snapshot" }).map((e) => e.name)).toEqual(["snapshot"]);
+    expect(filterEntries(entries, { ...CLI, query: "--time" }).map((e) => e.name)).toEqual(["snapshot"]);
+    expect(filterEntries(entries, { kind: "job", query: "jobs.daily" }).map((e) => e.name)).toEqual([
       "daily-paper-trading",
     ]);
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, query: "snapshot nonsense" })).toEqual([]);
+    expect(filterEntries(entries, { ...CLI, query: "snapshot nonsense" })).toEqual([]);
   });
 
-  it("combines the kind filter with the search", () => {
-    const entries = makeData().commands;
-
-    expect(filterEntries(entries, { ...DEFAULT_FILTER, kind: "job" }).map((e) => e.name)).toEqual([
-      "daily-paper-trading",
-    ]);
-    expect(filterEntries(entries, { query: "report", kind: "job" })).toEqual([]);
+  it("searches only the entries of its own kind", () => {
+    expect(filterEntries(makeData().commands, { query: "report", kind: "job" })).toEqual([]);
   });
 });
 
@@ -146,18 +140,15 @@ describe("renderEntry", () => {
 });
 
 describe("renderCatalog", () => {
-  it("groups entries by kind and group with counts", () => {
-    const html = renderCatalog(makeData(), DEFAULT_FILTER);
+  it("renders only the groups of its kind", () => {
+    const html = renderCatalog(makeData(), CLI);
 
-    expect(html).toContain("CLI commands");
-    expect(html).toContain("Runtime jobs");
-    expect(html).not.toContain("Scripts and tools");
     expect(html).toContain("Reporting");
-    expect(html).toContain("Daily Jobs");
+    expect(html).not.toContain("Daily Jobs");
   });
 
   it("shows an empty state when nothing matches", () => {
-    expect(renderCatalog(makeData(), { ...DEFAULT_FILTER, query: "zzz" })).toContain("No commands match");
+    expect(renderCatalog(makeData(), { ...CLI, query: "zzz" })).toContain("No commands match");
   });
 });
 
@@ -178,7 +169,7 @@ describe("families", () => {
   }
 
   it("renders a family as one row at its first member, before the entries that follow it", () => {
-    const html = renderCatalog(familyData(), { ...DEFAULT_FILTER, kind: "tool" });
+    const html = renderCatalog(familyData(), { query: "", kind: "tool" });
 
     expect(html.match(/data-catalog-family=/g)).toHaveLength(1);
     expect(html.indexOf('data-catalog-family="run-checks"')).toBeLessThan(html.indexOf('data-catalog-entry="fix-checks"'));
@@ -209,18 +200,18 @@ describe("families", () => {
   });
 
   it("opens families while a search is active", () => {
-    const html = renderCatalog(familyData(), { ...DEFAULT_FILTER, query: "run-checks" });
+    const html = renderCatalog(familyData(), { kind: "tool", query: "run-checks" });
 
     expect(html).toContain('data-catalog-family="run-checks" open');
   });
 });
 
 describe("renderSummary", () => {
-  it("reports totals, then filtered counts", () => {
+  it("reports the kind's total, then the filtered count", () => {
     const data = makeData();
 
-    expect(renderSummary(data, 3)).toBe("3 entries: 2 CLI commands · 1 runtime jobs · 0 scripts and tools");
-    expect(renderSummary(data, 1)).toBe("Showing 1 of 3 entries");
+    expect(renderSummary(data, "cli", 2)).toBe("2 CLI commands");
+    expect(renderSummary(data, "cli", 1)).toBe("Showing 1 of 2 CLI commands");
   });
 });
 
@@ -229,46 +220,48 @@ describe("generated commands asset", () => {
     const data = commandsData as CatalogData;
     const names = data.commands.map((entry) => entry.name);
 
+    const rendered = (["cli", "job", "tool"] as const)
+      .map((kind) => renderCatalog(data, { query: "", kind }).match(/class="catalog-entry"/g)?.length ?? 0)
+      .reduce((sum, count) => sum + count, 0);
+
     expect(new Set(names).size).toBe(names.length);
-    expect(renderCatalog(data, DEFAULT_FILTER).match(/class="catalog-entry"/g)).toHaveLength(names.length);
+    expect(rendered).toBe(names.length);
   });
 });
 
 describe("createCatalogFeature", () => {
+  const panel = (kind: string) => document.getElementById(`tab-catalog-${kind}`) as HTMLElement;
+  const entriesIn = (kind: string) => panel(kind).querySelectorAll(".catalog-entry");
+
   beforeEach(() => {
-    document.body.innerHTML = catalogTemplate;
+    document.body.innerHTML = buildCatalogTemplate();
     createCatalogFeature(makeData()).wireActions();
   });
 
-  it("renders the catalog and summary on wire-up", () => {
-    expect(document.querySelectorAll(".catalog-entry")).toHaveLength(3);
-    expect(document.getElementById("catalogSummary")?.textContent).toContain("3 entries");
+  it("renders one panel per kind, each with its own entries and summary", () => {
+    expect(entriesIn("cli")).toHaveLength(2);
+    expect(entriesIn("job")).toHaveLength(1);
+    expect(entriesIn("tool")).toHaveLength(0);
+    expect(panel("job").querySelector("[data-catalog-summary]")?.textContent).toBe("1 runtime jobs");
   });
 
-  it("filters while the user types", () => {
-    const input = document.getElementById("catalogSearch") as HTMLInputElement;
-    input.value = "daily";
+  it("filters only the panel being searched", () => {
+    const input = panel("cli").querySelector("[data-catalog-search]") as HTMLInputElement;
+    input.value = "equity";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(document.querySelectorAll(".catalog-entry")).toHaveLength(1);
-    expect(document.getElementById("catalogSummary")?.textContent).toBe("Showing 1 of 3 entries");
+    expect(entriesIn("cli")).toHaveLength(1);
+    expect(entriesIn("job")).toHaveLength(1);
+    expect(panel("cli").querySelector("[data-catalog-summary]")?.textContent).toBe("Showing 1 of 2 CLI commands");
   });
 
-  it("filters by kind and marks the active chip", () => {
-    (document.querySelector('[data-catalog-kind="job"]') as HTMLButtonElement).click();
-    expect(document.querySelectorAll(".catalog-entry")).toHaveLength(1);
-    expect(document.querySelector('[data-catalog-kind="job"]')?.classList.contains("active")).toBe(true);
-    expect(document.querySelector('[data-catalog-kind="all"]')?.classList.contains("active")).toBe(false);
+  it("expands and collapses every entry in its own panel", () => {
+    (panel("cli").querySelector("[data-catalog-expand-all]") as HTMLButtonElement).click();
+    expect(panel("cli").querySelectorAll(".catalog-entry[open]")).toHaveLength(2);
+    expect(panel("job").querySelectorAll(".catalog-entry[open]")).toHaveLength(0);
 
-    expect(document.querySelector('[data-catalog-risk]')).toBeNull();
-  });
-
-  it("expands and collapses every entry", () => {
-    (document.getElementById("catalogExpandAll") as HTMLButtonElement).click();
-    expect(document.querySelectorAll<HTMLDetailsElement>(".catalog-entry[open]")).toHaveLength(3);
-
-    (document.getElementById("catalogCollapseAll") as HTMLButtonElement).click();
-    expect(document.querySelectorAll<HTMLDetailsElement>(".catalog-entry[open]")).toHaveLength(0);
+    (panel("cli").querySelector("[data-catalog-collapse-all]") as HTMLButtonElement).click();
+    expect(panel("cli").querySelectorAll(".catalog-entry[open]")).toHaveLength(0);
   });
 
   it("copies the example to the clipboard", async () => {

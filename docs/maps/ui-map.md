@@ -106,9 +106,9 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `alt-strategies.ts` | Alternative strategies feature |
 | `compare.ts` | Account comparison feature |
 | `about.ts` | About page: builds the stat tiles from the generated assets and opens linked tabs |
-| `catalog.ts` | Command catalog view: search, a kind filter, and expandable entries read from `assets/commands.json`; a family of related tools shows as one row that opens to its members |
+| `catalog.ts` | Command catalog: one Reference page per kind (CLI, Jobs, Tools), each with its own search and expandable entries read from `assets/commands.json`; a family of related entries shows as one row that opens to its members |
 | `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
-| `docs/` | In-app documentation viewer: accordion, menu, helpers, constants |
+| `docs/` | In-app documentation viewer: accordion, per-page section links, helpers, constants; `menu.ts` holds an unwired hover flyout |
 | `logs.ts` | Log viewer feature |
 
 ### Components (`components/`)
@@ -175,7 +175,7 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `backtesting.html` | Backtesting page |
 | `compare.html` | Account comparison page |
 | `about.html` | About page: summary, workflow, architecture diagram, and safety rules |
-| `catalog.html` | Command catalog page |
+| `catalog.html` | Command catalog page template, filled once per kind |
 | `portfolio.html` | Cross-account portfolio rollup page |
 | `autonomy-monitor.html` | Autonomy monitor page |
 | `trades.html` | Trades view |

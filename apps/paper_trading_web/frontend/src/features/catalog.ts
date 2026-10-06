@@ -1,5 +1,5 @@
 import commandsData from "../assets/commands.json";
-import { find, findAll } from "../lib/dom";
+import { findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { errorMessage, postJson } from "../lib/http";
 import type {
@@ -12,22 +12,48 @@ import type {
   CatalogRisk,
   CatalogRunResult,
 } from "../types/catalog";
+import catalogPanelTemplate from "../views/catalog.html?raw";
 
 export interface CatalogFeature {
   wireActions: () => void;
 }
 
-export const KIND_LABELS: Record<CatalogKind, string> = {
-  cli: "CLI commands",
-  job: "Runtime jobs",
-  tool: "Scripts and tools",
-};
+export const CATALOG_KINDS: CatalogKind[] = ["cli", "job", "tool"];
 
 const COUNT_LABELS: Record<CatalogKind, string> = {
   cli: "CLI commands",
   job: "runtime jobs",
   tool: "scripts and tools",
 };
+
+const KIND_PAGES: Record<CatalogKind, { title: string; copy: string; noun: string }> = {
+  cli: {
+    title: "CLI Commands",
+    copy: "Every subcommand of the trading CLI, read from its parser. Each entry shows its arguments, a ready-to-copy example, and what it can change.",
+    noun: "commands",
+  },
+  job: {
+    title: "Runtime Jobs",
+    copy: "Every scheduled and manual runtime job, read from the code, with its schedule, arguments, and what it can change.",
+    noun: "jobs",
+  },
+  tool: {
+    title: "Scripts and Tools",
+    copy: "Every script and check in the repository, read from the code. Related tools open from one row.",
+    noun: "tools",
+  },
+};
+
+/** One tab panel per kind; each panel is opened by the nav tab `catalog-<kind>`. */
+export function buildCatalogTemplate(): string {
+  return CATALOG_KINDS.map((kind) =>
+    catalogPanelTemplate
+      .replaceAll("__KIND__", kind)
+      .replaceAll("__TITLE__", KIND_PAGES[kind].title)
+      .replaceAll("__COPY__", KIND_PAGES[kind].copy)
+      .replaceAll("__NOUN__", KIND_PAGES[kind].noun),
+  ).join("\n");
+}
 
 export const RISK_LABELS: Record<CatalogRisk, string> = {
   "read-only": "Read-only",
@@ -52,7 +78,6 @@ const RISK_HINTS: Record<CatalogRisk, string> = {
   broker: "Can submit or reconcile broker orders.",
 };
 
-export const DEFAULT_FILTER: CatalogFilter = { query: "", kind: "all" };
 
 function searchText(entry: CatalogEntry): string {
   const argumentText = entry.arguments.flatMap((argument) => [...argument.flags, argument.help]);
@@ -62,7 +87,7 @@ function searchText(entry: CatalogEntry): string {
 export function filterEntries(entries: CatalogEntry[], filter: CatalogFilter): CatalogEntry[] {
   const terms = filter.query.toLowerCase().split(/\s+/).filter(Boolean);
   return entries.filter((entry) => {
-    if (filter.kind !== "all" && entry.kind !== filter.kind) {
+    if (entry.kind !== filter.kind) {
       return false;
     }
     const haystack = searchText(entry);
@@ -284,53 +309,32 @@ export function renderCatalog(data: CatalogData, filter: CatalogFilter): string 
   const families = new Map(data.families.map((family) => [family.name, family]));
   const openFamilies = filter.query.trim() !== "";
 
-  const sections = (Object.keys(KIND_LABELS) as CatalogKind[])
-    .map((kind) => {
-      const kindEntries = matches.filter((entry) => entry.kind === kind);
-      if (!kindEntries.length) {
-        return "";
-      }
-      const groups = data.groups
-        .filter((group) => group.kind === kind)
-        .map((group) => ({ name: group.name, entries: kindEntries.filter((entry) => entry.group === group.name) }))
-        .filter((group) => group.entries.length);
-      return `
-        <div class="catalog-kind">
-          <h3 class="catalog-kind-title">${esc(KIND_LABELS[kind])}</h3>
-          ${groups.map((group) => renderGroup(group.name, group.entries, families, openFamilies)).join("")}
-        </div>
-      `;
-    })
+  return data.groups
+    .filter((group) => group.kind === filter.kind)
+    .map((group) => ({ name: group.name, entries: matches.filter((entry) => entry.group === group.name) }))
+    .filter((group) => group.entries.length)
+    .map((group) => renderGroup(group.name, group.entries, families, openFamilies))
     .join("");
-  return sections;
 }
 
-export function renderSummary(data: CatalogData, shown: number): string {
-  const total = data.commands.length;
-  const counts = (Object.keys(KIND_LABELS) as CatalogKind[])
-    .map((kind) => `${data.commands.filter((entry) => entry.kind === kind).length} ${COUNT_LABELS[kind]}`)
-    .join(" · ");
-  return shown === total ? `${total} entries: ${counts}` : `Showing ${shown} of ${total} entries`;
+export function renderSummary(data: CatalogData, kind: CatalogKind, shown: number): string {
+  const total = data.commands.filter((entry) => entry.kind === kind).length;
+  return shown === total ? `${total} ${COUNT_LABELS[kind]}` : `Showing ${shown} of ${total} ${COUNT_LABELS[kind]}`;
 }
 
 export function createCatalogFeature(data: CatalogData = commandsData as CatalogData): CatalogFeature {
-  const filter: CatalogFilter = { ...DEFAULT_FILTER };
-
-  function render(): void {
-    const list = find<HTMLElement>("#catalogList");
-    const summary = find<HTMLElement>("#catalogSummary");
+  function render(panel: HTMLElement, filter: CatalogFilter): void {
+    const list = panel.querySelector<HTMLElement>("[data-catalog-list]");
+    const summary = panel.querySelector<HTMLElement>("[data-catalog-summary]");
     if (!list || !summary) {
       return;
     }
     list.innerHTML = renderCatalog(data, filter);
-    summary.textContent = renderSummary(data, filterEntries(data.commands, filter).length);
-    for (const button of findAll<HTMLButtonElement>("[data-catalog-kind]")) {
-      button.classList.toggle("active", button.dataset.catalogKind === filter.kind);
-    }
+    summary.textContent = renderSummary(data, filter.kind, filterEntries(data.commands, filter).length);
   }
 
-  function setAllOpen(open: boolean): void {
-    for (const entry of findAll<HTMLDetailsElement>("#catalogList .catalog-entry")) {
+  function setAllOpen(panel: HTMLElement, open: boolean): void {
+    for (const entry of panel.querySelectorAll<HTMLDetailsElement>(".catalog-entry")) {
       entry.open = open;
     }
   }
@@ -378,34 +382,35 @@ export function createCatalogFeature(data: CatalogData = commandsData as Catalog
     }
   }
 
-  function wireActions(): void {
-    find<HTMLInputElement>("#catalogSearch")?.addEventListener("input", (event) => {
+  function wirePanel(panel: HTMLElement): void {
+    const filter: CatalogFilter = { query: "", kind: panel.dataset.catalogPanel as CatalogKind };
+    panel.querySelector<HTMLInputElement>("[data-catalog-search]")?.addEventListener("input", (event) => {
       filter.query = (event.target as HTMLInputElement).value;
-      render();
+      render(panel, filter);
     });
-    find<HTMLElement>("#tab-catalog")?.addEventListener("click", (event) => {
+    panel.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
-      const kindButton = target.closest<HTMLButtonElement>("[data-catalog-kind]");
       const copyButton = target.closest<HTMLButtonElement>("[data-catalog-copy]");
-      if (kindButton) {
-        filter.kind = kindButton.dataset.catalogKind as CatalogFilter["kind"];
-        render();
-      } else if (copyButton) {
+      if (copyButton) {
         void copyExample(copyButton);
-      } else if (target.closest("#catalogExpandAll")) {
-        setAllOpen(true);
-      } else if (target.closest("#catalogCollapseAll")) {
-        setAllOpen(false);
+      } else if (target.closest("[data-catalog-expand-all]")) {
+        setAllOpen(panel, true);
+      } else if (target.closest("[data-catalog-collapse-all]")) {
+        setAllOpen(panel, false);
       }
     });
-    find<HTMLElement>("#tab-catalog")?.addEventListener("submit", (event) => {
+    panel.addEventListener("submit", (event) => {
       const form = (event.target as HTMLElement).closest<HTMLFormElement>("[data-catalog-run]");
       if (form) {
         event.preventDefault();
         void runForm(form);
       }
     });
-    render();
+    render(panel, filter);
+  }
+
+  function wireActions(): void {
+    findAll<HTMLElement>("[data-catalog-panel]").forEach(wirePanel);
   }
 
   return { wireActions };

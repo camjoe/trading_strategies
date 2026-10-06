@@ -8,7 +8,7 @@ import { init as initAutonomyMonitor } from "./features/autonomy-monitor";
 import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
-import { createCatalogFeature } from "./features/catalog";
+import { buildCatalogTemplate, createCatalogFeature } from "./features/catalog";
 import { createCompareFeature } from "./features/compare";
 import { createPortfolioFeature } from "./features/portfolio";
 import { createLogsFeature } from "./features/logs";
@@ -26,7 +26,6 @@ import backtestingTemplate from "./views/backtesting.html?raw";
 import aboutTemplate from "./views/about.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
-import catalogTemplate from "./views/catalog.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
@@ -70,7 +69,7 @@ function renderShell(): void {
     .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
     .replace("<!-- ABOUT_TAB_PARTIAL -->", aboutTemplate)
-    .replace("<!-- CATALOG_TAB_PARTIAL -->", catalogTemplate)
+    .replace("<!-- CATALOG_TAB_PARTIAL -->", buildCatalogTemplate())
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)

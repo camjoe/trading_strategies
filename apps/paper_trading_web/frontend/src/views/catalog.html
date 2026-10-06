@@ -1,34 +1,25 @@
-<div id="tab-catalog" class="tab-panel layout" hidden>
+<div id="tab-catalog-__KIND__" class="tab-panel layout" data-catalog-panel="__KIND__" hidden>
   <section class="card catalog-card">
     <div class="catalog-head section-heading">
       <div>
-        <p class="section-kicker">Catalog</p>
-        <h2>Everything This Repository Can Run</h2>
-        <p class="section-copy">
-          Every CLI command, runtime job, script, and check, read from the code. Each entry shows its
-          arguments, a ready-to-copy example, and what it can change.
-        </p>
+        <p class="section-kicker">Reference</p>
+        <h2>__TITLE__</h2>
+        <p class="section-copy">__COPY__</p>
       </div>
     </div>
     <div class="catalog-controls">
       <input
-        id="catalogSearch"
         type="search"
-        placeholder="Search commands, arguments, or descriptions"
-        aria-label="Search the catalog"
+        data-catalog-search
+        placeholder="Search __NOUN__, arguments, or descriptions"
+        aria-label="Search __NOUN__"
       />
-      <div class="catalog-filter-row" role="group" aria-label="Filter by kind">
-        <button type="button" class="catalog-filter active" data-catalog-kind="all">All</button>
-        <button type="button" class="catalog-filter" data-catalog-kind="cli">CLI</button>
-        <button type="button" class="catalog-filter" data-catalog-kind="job">Jobs</button>
-        <button type="button" class="catalog-filter" data-catalog-kind="tool">Tools</button>
-      </div>
       <div class="catalog-filter-row">
-        <button id="catalogExpandAll" type="button" class="catalog-filter">Expand all</button>
-        <button id="catalogCollapseAll" type="button" class="catalog-filter">Collapse all</button>
+        <button type="button" class="catalog-filter" data-catalog-expand-all>Expand all</button>
+        <button type="button" class="catalog-filter" data-catalog-collapse-all>Collapse all</button>
       </div>
     </div>
-    <p id="catalogSummary" class="catalog-summary" role="status"></p>
-    <div id="catalogList"></div>
+    <p class="catalog-summary" data-catalog-summary role="status"></p>
+    <div data-catalog-list></div>
   </section>
 </div>

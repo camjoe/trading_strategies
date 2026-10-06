@@ -33,7 +33,10 @@ function expandDocsSection(sectionId: string): void {
 }
 
 export function scrollToDocsSection(sectionId: string, openTab: (target: string) => void): void {
-  openTab("docs");
+  const panelId = document.getElementById(sectionId)?.closest<HTMLElement>(".docs-panel")?.id;
+  if (panelId) {
+    openTab(panelId.replace(/^tab-/, ""));
+  }
   expandDocsSection(sectionId);
   requestAnimationFrame(() => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -41,7 +44,7 @@ export function scrollToDocsSection(sectionId: string, openTab: (target: string)
 }
 
 export function initDocsAccordion(): void {
-  const cards = Array.from(document.querySelectorAll<HTMLElement>("#tab-docs .ref-card"));
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(".docs-panel .ref-card"));
 
   cards.forEach((card) => {
     const cardToggleAllBtn = card.querySelector<HTMLButtonElement>("[data-ref-card-toggle-all]");

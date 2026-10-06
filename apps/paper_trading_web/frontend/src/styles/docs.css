@@ -182,6 +182,33 @@
   filter: none;
 }
 
+.docs-section-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+}
+
+.docs-section-link {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.docs-section-link:hover,
+.docs-section-link:focus-visible {
+  border-color: var(--chip-border);
+  background: var(--nav-hover-bg);
+  color: var(--ink);
+  transform: none;
+  filter: none;
+}
+
 .ref-section {
   margin-top: 1.6rem;
   padding-top: 1.35rem;

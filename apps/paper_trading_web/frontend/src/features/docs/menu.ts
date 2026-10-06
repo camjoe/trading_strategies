@@ -1,3 +1,5 @@
+// Hover flyout for a nav dropdown (#docsNavItem). The nav does not render that dropdown, so
+// nothing calls initDocsMenu; the docs pages use section links (section-links.ts) instead.
 import { find, findAll } from "../../lib/dom";
 import { getDocsGroupDisplayLabel } from "./constants";
 import { scrollToDocsSection } from "./accordion";
@@ -6,7 +8,7 @@ import type { DocsSectionButtonIndex, DocsSectionElementLink, DocsSectionLink } 
 
 function collectDocsSections(): DocsSectionLink[] {
   const sectionHeadings = Array.from(
-    document.querySelectorAll<HTMLHeadingElement>("#tab-docs .ref-card .ref-section > h3"),
+    document.querySelectorAll<HTMLHeadingElement>(".docs-panel .ref-card .ref-section > h3"),
   );
 
   return sectionHeadings
@@ -222,7 +224,7 @@ export function initDocsMenu(openTab: (target: string) => void): void {
   const allButtons = renderDocsSectionFlyout(docsSectionList, sections, openTab);
 
   const updateActiveSection = () => {
-    if (!find<HTMLElement>("#tab-docs:not([hidden])") || sectionElements.length === 0) {
+    if (!find<HTMLElement>(".docs-panel:not([hidden])") || sectionElements.length === 0) {
       return;
     }
 

@@ -10,10 +10,11 @@ describe("buildDocsTemplate", () => {
   // Build once and share across all assertions — the function is pure.
   const html = buildDocsTemplate();
 
-  it("returns a non-empty string wrapped in the docs tab panel", () => {
-    expect(typeof html).toBe("string");
-    expect(html.length).toBeGreaterThan(0);
-    expect(html).toContain('id="tab-docs"');
+  it("returns one docs tab panel per card", () => {
+    expect(html.match(/class="tab-panel layout docs-panel"/g)).toHaveLength(3);
+    for (const tab of ["docs-markets", "docs-software", "docs-api"]) {
+      expect(html).toContain(`id="tab-${tab}"`);
+    }
   });
 
   // ---------------------------------------------------------------------------

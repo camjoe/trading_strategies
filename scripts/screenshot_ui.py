@@ -16,7 +16,7 @@ python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab autonomy-monitor
 python -m scripts.screenshot_ui --tab strategy-lab
 python -m scripts.screenshot_ui --tab about
-python -m scripts.screenshot_ui --tab catalog
+python -m scripts.screenshot_ui --tab catalog-cli
 python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
@@ -34,7 +34,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 Available tabs
 --------------
   about, accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
-  alt-strategies, catalog, docs, admin
+  alt-strategies, docs-markets, docs-software, docs-api, catalog-cli, catalog-job, catalog-tool, admin
 """
 
 from __future__ import annotations
