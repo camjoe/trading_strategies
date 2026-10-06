@@ -8,7 +8,7 @@
 
 .docs-nav-surface {
   padding: 0.35rem;
-  border: 1px solid var(--border-menu);
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface-menu);
   box-shadow: none;
@@ -39,7 +39,7 @@
 }
 
 .docs-nav-two-pane.has-secondary .docs-nav-primary-list {
-  border-right: 1px solid var(--border-nav);
+  border-right: 1px solid var(--line);
 }
 
 .docs-nav-secondary {
@@ -74,7 +74,7 @@
 .docs-nav-group-item.active,
 .docs-nav-group-item:focus-visible {
   background: var(--nav-hover-bg);
-  border-color: var(--nav-hover-border);
+  border-color: var(--line-hover);
   color: var(--accent);
   transform: none;
   filter: none;
@@ -117,7 +117,7 @@
 .docs-nav-item.active,
 .docs-nav-item:focus-visible {
   background: var(--nav-hover-bg);
-  border-color: var(--nav-hover-border);
+  border-color: var(--line-hover);
   color: var(--accent);
   transform: none;
   filter: none;
@@ -137,7 +137,7 @@
   display: flex;
   flex-direction: column;
   background: var(--panel-2);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 1.15rem;
   box-shadow: inset 0 1px 0 var(--inset-highlight);
@@ -258,7 +258,7 @@
 }
 
 .ref-table th {
-  background: var(--table-head-bg);
+  background: var(--surface-subtle);
   font-size: 0.76rem;
   font-weight: 700;
   text-transform: uppercase;

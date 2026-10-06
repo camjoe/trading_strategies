@@ -1,95 +1,186 @@
+/*
+ * Color system, in four layers.
+ *   1. Palette       raw swatches; the only place a hex value for a theme color lives.
+ *   2. Light inputs  one value per role.
+ *   3. Dark inputs   the same roles, the same names.
+ *   4. Derived       tints and borders mixed from the inputs; shared by both themes.
+ * To retheme, edit layer 2 or 3. Keep both lists in step; tests/lib/theme-tokens.test.ts checks it.
+ */
+
+/* 1. Palette */
 :root {
-  /* Layout */
-  --topbar-height: 102px;
-  --tab-nav-height: 56px;
-  --sticky-stack-offset: calc(var(--topbar-height) + 24px);
+  --n-0: #ffffff;
+  --n-50: #f6faff;
+  --n-100: #f3f7fc;
+  --n-150: #e8eff9;
+  --n-300: #d7e1ed;
+  --n-400: #c0cfde;
+  --n-450: #b4cae7;
+  --n-500: #7b8796;
+  --n-600: #55657d;
+  --n-900: #152238;
 
-  /* Surfaces */
-  --bg-1: #ffffff;
-  --bg-2: #eef4fb;
-  --bg-glow-warm: #ffd7ba;
-  --bg-glow-warm-0: #f8d9bc00;
-  --bg-glow-cool: #b7d6ff;
-  --bg-glow-cool-0: #9dd7d700;
-  --topbar-bg: #ffffff;
-  --panel: #ffffff;
-  --panel-2: #f6faff;
-  --panel-border: #d8e3ef;
-  --surface-white: #ffffff;
-  --surface-menu: #fffffffa;
-  --surface-subtle: #f4f8fd;
-  --surface-action: #f5f7fb;
-  --surface-action-hover: #e8effa;
+  --d-100: #e4ebf7;
+  --d-300: #a5b3c9;
+  --d-400: #7f8ea6;
+  --d-450: #43598a;
+  --d-500: #35476a;
+  --d-550: #263550;
+  --d-600: #1f2f4d;
+  --d-650: #1c2a42;
+  --d-700: #18253d;
+  --d-750: #16213a;
+  --d-800: #131d30;
+  --d-850: #111a2b;
+  --d-900: #0f1828;
+  --d-950: #0d1320;
 
-  /* Typography */
-  --ink: #152238;
-  --ink-soft: #55657d;
-  --ink-muted: #7b8796;
+  --blue-300: #6ea0f7;
+  --blue-500: #2563eb;
+  --blue-600: #2f6fe0;
+  --green-400: #4cc38a;
+  --green-700: #18794e;
+  --rose-400: #f07a99;
+  --rose-600: #d9486d;
+  --rose-700: #b33f62;
+  --rose-800: #aa2a4a;
+  --amber-300: #f0cd72;
+  --amber-700: #8a6200;
+  --sky-300: #8ec1f2;
+  --sky-700: #1d5fa8;
+  --slate-400: #8ea0b6;
+  --slate-500: #6c7f96;
+  --slate-600: #5d6f8a;
+  --slate-700: #4a5a73;
+}
 
-  /* Accent colors */
-  --accent: #2563eb;
-  --accent-2: #f59e0b;
-  --accent-gradient-end: #4f9cf6;
-  --btn-neutral-start: #6c7f96;
-  --btn-neutral-end: #8ea0b6;
+/* 2. Light inputs */
+:root {
+  color-scheme: light;
 
-  /* Chart / trading colors */
-  --up: #18794e;
-  --down: #b33f62;
-  --chip-bg: #edf3ff;
-  --chip-border: #bfd1f7;
-  --trade-alt-bg: #edf5ff;
-  --trade-alt-start: #f3f8ff;
-  --trade-alt-end: #e8f0ff;
-  --trade-buy-start: #edf9f2;
-  --trade-buy-end: #def4e8;
-  --trade-buy-ink: #0b6b43;
-  --trade-buy-border: #bde1cb;
-  --trade-sell-start: #fff0f4;
-  --trade-sell-end: #ffe2e9;
-  --trade-sell-ink: #a52d4b;
-  --trade-sell-border: #efc1cf;
+  --bg-1: var(--n-0);
+  --panel: var(--n-0);
+  --panel-2: var(--n-50);
+  --surface-white: var(--n-0);
+  --surface-subtle: var(--n-100);
+  --surface-hover: var(--n-150);
+  --nav-bg: var(--n-150);
 
-  /* Borders and dividers */
-  --line: #d7e1ed;
-  --line-subtle: #e9eff6;
-  --line-table: #dde6f0;
-  --border-menu: #d4dfeb;
-  --border-nav: #d8e4f0;
-  --border-subtle: #d7e1ec;
-  --border-input: #c0cfde;
-  --border-action: #d2deeb;
-  --border-action-hover: #b4cae7;
-  --card-border: #ffffff;
-  --nav-hover-bg: #ecf3ff;
-  --nav-hover-border: #c9daf5;
+  --line-subtle: var(--n-150);
+  --line: var(--n-300);
+  --line-strong: var(--n-400);
+  --line-hover: var(--n-450);
 
-  /* Table surfaces */
-  --table-head-bg: #f1f6fc;
-  --table-head-bg-compare: #f4f7fc;
+  --ink: var(--n-900);
+  --ink-soft: var(--n-600);
+  --ink-muted: var(--n-500);
 
-  /* Shadows */
-  --shadow: 0 18px 50px #16325214;
-  --shadow-menu: 0 24px 50px #16325218;
+  --accent: var(--blue-500);
+  --accent-fill: var(--blue-500);
+
+  --ok: var(--green-700);
+  --bad: var(--rose-700);
+  --warn: var(--amber-700);
+  --info: var(--sky-700);
+  --neutral: var(--n-600);
+
+  --danger: var(--rose-800);
+  --btn-neutral-start: var(--slate-500);
+  --btn-neutral-end: var(--slate-400);
+
+  --inset-highlight: #ffffff80;
   --shadow-trade: 0 8px 24px #2d577f14;
+}
 
-  /* Interactive states — danger / status / warning */
-  --danger: #aa2a4a;
-  --danger-hover: #8f1d3b;
-  --success-border: #bce3c7;
-  --success-bg: #ecfbf0;
-  --success-ink: #156c3f;
-  --error-border: #efbfd0;
-  --error-bg: #fff1f6;
-  --error-ink: #912549;
-  --warning-border: #e0c15f;
-  --warning-bg: #fff4c7;
-  --warning-ink: #7a5900;
+/* 3. Dark inputs */
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
-  /* Log panel */
+  --bg-1: var(--d-950);
+  --panel: var(--d-800);
+  --panel-2: var(--d-750);
+  --surface-white: var(--d-900);
+  --surface-subtle: var(--d-700);
+  --surface-hover: var(--d-600);
+  --nav-bg: var(--d-850);
+
+  --line-subtle: var(--d-650);
+  --line: var(--d-550);
+  --line-strong: var(--d-500);
+  --line-hover: var(--d-450);
+
+  --ink: var(--d-100);
+  --ink-soft: var(--d-300);
+  --ink-muted: var(--d-400);
+
+  --accent: var(--blue-300);
+  --accent-fill: var(--blue-600);
+
+  --ok: var(--green-400);
+  --bad: var(--rose-400);
+  --warn: var(--amber-300);
+  --info: var(--sky-300);
+  --neutral: var(--d-300);
+
+  --danger: var(--rose-600);
+  --btn-neutral-start: var(--slate-700);
+  --btn-neutral-end: var(--slate-600);
+
+  --inset-highlight: #ffffff0d;
+  --shadow-trade: 0 8px 24px #00000055;
+}
+
+/* 4. Derived: shared by both themes */
+:root {
+  --on-accent: #ffffff;
+  --accent-fill-end: color-mix(in srgb, var(--accent-fill) 78%, white);
+  --accent-strong: color-mix(in srgb, var(--accent-fill) 86%, black);
+  --focus-border: color-mix(in srgb, var(--accent) 60%, var(--surface-white));
+  --focus-ring: color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent-shadow: color-mix(in srgb, var(--accent-fill) 13%, transparent);
+  --danger-hover: color-mix(in srgb, var(--danger) 85%, black);
+
+  --surface-menu: color-mix(in srgb, var(--surface-white) 98%, transparent);
+  --nav-hover-bg: color-mix(in srgb, var(--accent) 7%, var(--surface-white));
+  --nav-active-bg: color-mix(in srgb, var(--accent) 18%, var(--surface-white));
+  --nav-hover-overlay: color-mix(in srgb, var(--ink) 5%, transparent);
+  --chip-bg: color-mix(in srgb, var(--accent) 8%, var(--surface-white));
+  --chip-border: color-mix(in srgb, var(--accent) 30%, var(--surface-white));
+  --trade-alt-bg: color-mix(in srgb, var(--accent) 7%, var(--surface-white));
+  --trade-alt-start: color-mix(in srgb, var(--accent) 5%, var(--surface-white));
+  --trade-alt-end: color-mix(in srgb, var(--accent) 10%, var(--surface-white));
+
+  --ok-bg: color-mix(in srgb, var(--ok) 10%, var(--surface-white));
+  --ok-border: color-mix(in srgb, var(--ok) 35%, var(--surface-white));
+  --ok-tint: color-mix(in srgb, var(--ok) 6%, transparent);
+  --bad-bg: color-mix(in srgb, var(--bad) 10%, var(--surface-white));
+  --bad-border: color-mix(in srgb, var(--bad) 35%, var(--surface-white));
+  --bad-tint: color-mix(in srgb, var(--bad) 6%, transparent);
+  --bad-tint-strong: color-mix(in srgb, var(--bad) 12%, transparent);
+  --warn-bg: color-mix(in srgb, var(--warn) 12%, var(--surface-white));
+  --warn-border: color-mix(in srgb, var(--warn) 40%, var(--surface-white));
+  --warn-tint: color-mix(in srgb, var(--warn) 6%, transparent);
+  --info-bg: color-mix(in srgb, var(--info) 10%, var(--surface-white));
+  --info-border: color-mix(in srgb, var(--info) 35%, var(--surface-white));
+  --neutral-bg: color-mix(in srgb, var(--neutral) 10%, var(--surface-white));
+  --neutral-tint: color-mix(in srgb, var(--neutral) 6%, transparent);
+
+  --trade-buy-start: var(--ok-bg);
+  --trade-buy-end: color-mix(in srgb, var(--ok) 16%, var(--surface-white));
+  --trade-sell-start: var(--bad-bg);
+  --trade-sell-end: color-mix(in srgb, var(--bad) 16%, var(--surface-white));
+}
+
+/* Layout */
+:root {
+  --topbar-height: 102px;
+  --sticky-stack-offset: calc(var(--topbar-height) + 24px);
+}
+
+/* Log panel: dark in both themes */
+:root {
   --log-bg: #0b1220;
   --log-ink: #d7e4ff;
-  --log-num: #7b8aa5;
   --log-error: #ff8da1;
   --log-warn: #ffd58f;
   --log-ok: #95e4bc;
@@ -97,154 +188,4 @@
   --log-border: #1e2d48;
   --log-group-line: #ffffff1c;
   --log-empty-ink: #aebdd8;
-
-  /* Shell and controls */
-  --on-accent: #ffffff;
-  --accent-strong: #1f56cf;
-  --btn-grad-start: #2563eb;
-  --btn-grad-end: #4f9cf6;
-  --focus-border: #8cb0f8;
-  --focus-ring: #2563eb18;
-  --inset-highlight: #ffffff80;
-  --topbar-border: #dbe4ee;
-  --nav-bg: #e7eefb;
-  --nav-border-top: #d6e0eb;
-  --nav-border-bottom: #c8d4e2;
-  --nav-active-bg: #cfdcf3;
-  --nav-hover-overlay: #00000008;
-  --subnav-bg: #f1f5fc;
-  --banner-bg: #fff4cc;
-  --banner-ink: #5d4800;
-  --chip-option-bg: #fff0d4;
-  --chip-option-border: #e8b84b;
-  --chip-auto-bg: #e4f0ff;
-  --chip-auto-border: #7ab3e8;
-  --chip-manual-bg: #e8fbe8;
-  --chip-manual-border: #72c472;
-  --empty-state-start: #ffffff;
-  --empty-state-end: #f7fbff;
-  --status-info-bg: #dbeafe;
-  --status-info-ink: #0c4a6e;
-  --status-warn-bg: #fef3c7;
-  --status-warn-ink: #78350f;
-  --status-neutral-bg: #f3f4f6;
-  --status-neutral-ink: #374151;
-  --status-ok-bg: #dcfce7;
-  --status-ok-ink: #14532d;
-  --status-bad-bg: #fee2e2;
-  --status-bad-ink: #7f1d1d;
-  --status-bad-border: #fca5a5;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-
-  --bg-1: #0d1320;
-  --bg-2: #111a2b;
-  --bg-glow-warm: #3a2a1c;
-  --bg-glow-warm-0: #3a2a1c00;
-  --bg-glow-cool: #1c2e4a;
-  --bg-glow-cool-0: #1c2e4a00;
-  --topbar-bg: #111a2b;
-  --panel: #131d30;
-  --panel-2: #16213a;
-  --panel-border: #263550;
-  --surface-white: #0f1828;
-  --surface-menu: #131d30fa;
-  --surface-subtle: #14203a;
-  --surface-action: #18253d;
-  --surface-action-hover: #1f2f4d;
-
-  --ink: #e4ebf7;
-  --ink-soft: #a5b3c9;
-  --ink-muted: #7f8ea6;
-
-  --accent: #6ea0f7;
-  --accent-2: #f2b34a;
-  --accent-gradient-end: #6ea0f7;
-  --btn-neutral-start: #4a5a73;
-  --btn-neutral-end: #5d6f8a;
-
-  --up: #4cc38a;
-  --down: #f07a99;
-  --chip-bg: #182848;
-  --chip-border: #2d4570;
-  --trade-alt-bg: #15233f;
-  --trade-alt-start: #172643;
-  --trade-alt-end: #1a2b4b;
-  --trade-buy-start: #12281f;
-  --trade-buy-end: #153326;
-  --trade-buy-ink: #6fdca5;
-  --trade-buy-border: #25513c;
-  --trade-sell-start: #2c141d;
-  --trade-sell-end: #371824;
-  --trade-sell-ink: #f59ab3;
-  --trade-sell-border: #5b2a3c;
-
-  --line: #263550;
-  --line-subtle: #1c2a42;
-  --line-table: #22314b;
-  --border-menu: #2a3a57;
-  --border-nav: #263550;
-  --border-subtle: #263550;
-  --border-input: #35476a;
-  --border-action: #2c3d5c;
-  --border-action-hover: #43598a;
-  --card-border: #131d30;
-  --nav-hover-bg: #1a2a47;
-  --nav-hover-border: #35517f;
-
-  --table-head-bg: #16233b;
-  --table-head-bg-compare: #172540;
-
-  --shadow: 0 18px 50px #00000066;
-  --shadow-menu: 0 24px 50px #00000080;
-  --shadow-trade: 0 8px 24px #00000055;
-
-  --danger: #d9486d;
-  --danger-hover: #e25f82;
-  --success-border: #25513c;
-  --success-bg: #12281f;
-  --success-ink: #6fdca5;
-  --error-border: #5b2a3c;
-  --error-bg: #2c141d;
-  --error-ink: #f59ab3;
-  --warning-border: #8a6d1c;
-  --warning-bg: #2e2510;
-  --warning-ink: #f0cd72;
-
-  --accent-strong: #2b62d6;
-  --btn-grad-start: #2f6fe0;
-  --btn-grad-end: #3f86ea;
-  --focus-border: #5b8fe8;
-  --focus-ring: #6ea0f733;
-  --inset-highlight: #ffffff0d;
-  --topbar-border: #263550;
-  --nav-bg: #0f1828;
-  --nav-border-top: #22314b;
-  --nav-border-bottom: #2b3c5a;
-  --nav-active-bg: #1d3157;
-  --nav-hover-overlay: #ffffff0d;
-  --subnav-bg: #121c30;
-  --banner-bg: #3a2f0d;
-  --banner-ink: #f0d98a;
-  --chip-option-bg: #3a2c12;
-  --chip-option-border: #8a6a22;
-  --chip-auto-bg: #17284a;
-  --chip-auto-border: #3a639d;
-  --chip-manual-bg: #12301f;
-  --chip-manual-border: #2f7a4c;
-  --empty-state-start: #131d30;
-  --empty-state-end: #111a2b;
-  --status-info-bg: #17304f;
-  --status-info-ink: #9ccbf5;
-  --status-warn-bg: #3a2f10;
-  --status-warn-ink: #f2d27c;
-  --status-neutral-bg: #1f2b40;
-  --status-neutral-ink: #b6c2d6;
-  --status-ok-bg: #12301f;
-  --status-ok-ink: #8fe0b2;
-  --status-bad-bg: #3a1620;
-  --status-bad-ink: #f4a3b5;
-  --status-bad-border: #6b2c3d;
 }

@@ -148,7 +148,7 @@
 }
 
 .catalog-required {
-  color: var(--down);
+  color: var(--bad);
   font-weight: 700;
 }
 
@@ -220,11 +220,11 @@
 }
 
 .catalog-run-status--ok {
-  color: var(--up);
+  color: var(--ok);
 }
 
 .catalog-run-status--error {
-  color: var(--down);
+  color: var(--bad);
 }
 
 .catalog-run-output {

@@ -72,11 +72,11 @@
 }
 
 .overview-item.up .value {
-  color: #10b981;
+  color: var(--ok);
 }
 
 .overview-item.down .value {
-  color: #ef4444;
+  color: var(--bad);
 }
 
 /* Books Table */
@@ -132,24 +132,24 @@
 }
 
 .book-row.status-active {
-  background-color: rgba(16, 185, 129, 0.05);
+  background-color: var(--ok-tint);
 }
 
 .book-row.status-paused {
-  background-color: rgba(234, 179, 8, 0.05);
+  background-color: var(--warn-tint);
 }
 
 .book-row.status-closed {
-  background-color: rgba(107, 114, 128, 0.05);
+  background-color: var(--neutral-tint);
 }
 
 .book-row .return.up {
-  color: #10b981;
+  color: var(--ok);
   font-weight: 600;
 }
 
 .book-row .return.down {
-  color: #ef4444;
+  color: var(--bad);
   font-weight: 600;
 }
 
@@ -163,33 +163,33 @@
 }
 
 .status-active {
-  background-color: var(--status-info-bg);
-  color: var(--status-info-ink);
+  background-color: var(--info-bg);
+  color: var(--info);
 }
 
 .status-paused {
-  background-color: var(--status-warn-bg);
-  color: var(--status-warn-ink);
+  background-color: var(--warn-bg);
+  color: var(--warn);
 }
 
 .status-closed {
-  background-color: var(--status-neutral-bg);
-  color: var(--status-neutral-ink);
+  background-color: var(--neutral-bg);
+  color: var(--neutral);
 }
 
 .status-success {
-  background-color: var(--status-ok-bg);
-  color: var(--status-ok-ink);
+  background-color: var(--ok-bg);
+  color: var(--ok);
 }
 
 .status-failed {
-  background-color: var(--status-bad-bg);
-  color: var(--status-bad-ink);
+  background-color: var(--bad-bg);
+  color: var(--bad);
 }
 
 .status-not_run {
-  background-color: var(--status-neutral-bg);
-  color: var(--status-neutral-ink);
+  background-color: var(--neutral-bg);
+  color: var(--neutral);
 }
 
 /* Workflow Status */
@@ -204,13 +204,13 @@
 }
 
 .workflow-summary.status-success {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .workflow-summary.status-failed {
-  border-color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--bad);
+  background-color: var(--bad-tint);
 }
 
 .workflow-summary .item {
@@ -241,10 +241,10 @@
 .error-box {
   padding: 1rem;
   margin-top: 1rem;
-  background-color: var(--status-bad-bg);
-  border: 1px solid var(--status-bad-border);
+  background-color: var(--bad-bg);
+  border: 1px solid var(--bad-border);
   border-radius: 6px;
-  color: var(--status-bad-ink);
+  color: var(--bad);
   font-size: 0.875rem;
 }
 
@@ -277,13 +277,13 @@
 }
 
 .governance-card.status-success {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .governance-card.status-failed {
-  border-color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--bad);
+  background-color: var(--bad-tint);
 }
 
 .governance-card.status-not_run {
@@ -327,8 +327,8 @@
 }
 
 .burn-in-summary.ready {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .progress-section {
@@ -353,7 +353,7 @@
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+  background: linear-gradient(90deg, var(--accent-fill) 0%, var(--ok) 100%);
   transition: width 0.3s ease;
 }
 
@@ -364,7 +364,7 @@
   transform: translate(-50%, -50%);
   font-weight: 600;
   font-size: 0.875rem;
-  color: white;
+  color: var(--on-accent);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -408,8 +408,8 @@
 }
 
 .kill-switch.triggered {
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 2px solid #ef4444;
+  background-color: var(--bad-tint-strong);
+  border: 2px solid var(--bad);
 }
 
 .kill-switch .status {
@@ -424,30 +424,30 @@
 }
 
 .violation-row.action-block {
-  background-color: rgba(239, 68, 68, 0.05);
+  background-color: var(--bad-tint);
 }
 
 .violation-row.action-rescale {
-  background-color: rgba(234, 179, 8, 0.05);
+  background-color: var(--warn-tint);
 }
 
 .violation-row.action-allow {
-  background-color: rgba(16, 185, 129, 0.05);
+  background-color: var(--ok-tint);
 }
 
 .action-block {
-  background-color: var(--status-bad-bg);
-  color: var(--status-bad-ink);
+  background-color: var(--bad-bg);
+  color: var(--bad);
 }
 
 .action-rescale {
-  background-color: var(--status-warn-bg);
-  color: var(--status-warn-ink);
+  background-color: var(--warn-bg);
+  color: var(--warn);
 }
 
 .action-allow {
-  background-color: var(--status-ok-bg);
-  color: var(--status-ok-ink);
+  background-color: var(--ok-bg);
+  color: var(--ok);
 }
 
 /* Responsive Design */

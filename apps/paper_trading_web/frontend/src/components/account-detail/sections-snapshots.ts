@@ -68,11 +68,11 @@ function renderBenchmarkOverlaySparkline(overlay: NonNullable<AccountDetail["liv
       </div>
       <div class="row slim">
         <span>Account line</span>
-        <span style="color:#6b7280">Benchmark line</span>
+        <span style="color:var(--ink-muted)">Benchmark line</span>
       </div>
       <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Live vs ${esc(overlay.benchmark)}">
         <polyline fill="none" stroke="currentColor" stroke-width="2" points="${accountPoints}" />
-        <polyline fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="4 3" points="${benchmarkPoints}" />
+        <polyline fill="none" style="stroke:var(--ink-muted)" stroke-width="2" stroke-dasharray="4 3" points="${benchmarkPoints}" />
       </svg>
     </div>
   `;

@@ -96,7 +96,7 @@
   }
 
   .topbar {
-    border-bottom-color: #ffffff80;
+    border-bottom-color: var(--line);
   }
 
   .tab-nav {

@@ -41,7 +41,7 @@
 }
 
 .portfolio-table th {
-  background: var(--table-head-bg-compare);
+  background: var(--surface-subtle);
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.76rem;

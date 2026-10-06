@@ -34,7 +34,7 @@
 
 .alt-provider-card {
   background: var(--panel-2);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 1rem 1.05rem;
   display: grid;
