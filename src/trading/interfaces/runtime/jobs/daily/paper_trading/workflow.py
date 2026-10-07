@@ -20,6 +20,7 @@ from common.runtime_job_status import (
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import check_broker_sessions
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
     DagStepResult,
@@ -280,15 +281,19 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     report_date = context.report_date
     step_results = new_step_results()
 
+    def _ingest_market_and_account() -> dict[str, object]:
+        check_broker_sessions(accounts)
+        return {
+            "accounts": accounts,
+            "account_count": len(accounts),
+            "caps_summary": caps_summary,
+        }
+
     try:
         run_dag_step(
             step_results,
             step_id="00_ingest_market_and_account",
-            run_fn=lambda: {
-                "accounts": accounts,
-                "account_count": len(accounts),
-                "caps_summary": caps_summary,
-            },
+            run_fn=_ingest_market_and_account,
             now_iso=ts,
         )
         # The pre-submit gate reconciles book equity against the latest equity
