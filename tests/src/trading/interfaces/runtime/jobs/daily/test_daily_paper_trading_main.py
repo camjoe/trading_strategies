@@ -20,7 +20,6 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import BrokerSessionUnavailableError
 
 WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
 
@@ -45,7 +44,7 @@ def _stub_build_daily_operator_report(monkeypatch):
 @pytest.fixture(autouse=True)
 def _stub_check_broker_sessions(monkeypatch):
     """Step 00 connects every run account's broker; these tests name accounts no database holds."""
-    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", lambda _accounts: None)
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", lambda _accounts: {})
 
 
 @pytest.fixture
@@ -483,13 +482,13 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _
     assert payload["error"] == "step failed"
 
 
-def test_unavailable_broker_session_fails_the_run_before_any_step_runs(
+def test_every_account_unavailable_fails_the_run_before_any_step_runs(
     monkeypatch, tmp_path: Path, _runtime_harness
 ) -> None:
-    def _unavailable(_accounts):
-        raise BrokerSessionUnavailableError("Broker session unavailable, no step ran. acct_a: gateway down")
-
-    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _unavailable)
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_a": "interactive_brokers_web_paper: gateway down"},
+    )
 
     code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ["--accounts", "acct_a"])
 
@@ -502,6 +501,44 @@ def test_unavailable_broker_session_fails_the_run_before_any_step_runs(
     assert payload["status"] == "failed"
     assert payload["failed_step"] == "00_ingest_market_and_account"
     assert "gateway down" in payload["error"]
+
+
+def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_b": "interactive_brokers_web_paper: gateway down"},
+    )
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a,acct_b", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    # Every worker the run starts is given only the account that can trade.
+    account_args = [
+        args[args.index("--accounts") + 1] for _label, args in _runtime_harness.stream_calls if "--accounts" in args
+    ]
+    assert account_args
+    assert all(value == "acct_a" for value in account_args)
+
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["status"] == "success"
+    assert payload["accounts"] == ["acct_a"]
+    assert payload["account_count"] == 1
+    assert payload["skipped_accounts"] == {"acct_b": "interactive_brokers_web_paper: gateway down"}
+
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    assert "acct_b" in notification["message"]
+    assert "--accounts acct_b --run-source manual --force-run" in notification["message"]
+    assert notification["details"]["skipped_accounts"] == {"acct_b": "interactive_brokers_web_paper: gateway down"}
 
 
 def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

@@ -54,38 +54,32 @@ def install(monkeypatch, outcomes: dict[str, object]) -> dict[str, FakeBroker]:
 def test_connects_and_disconnects_every_account(monkeypatch) -> None:
     brokers = install(monkeypatch, {"acct_a": None, "acct_b": None})
 
-    module.check_broker_sessions(["acct_a", "acct_b"])
+    assert module.check_broker_sessions(["acct_a", "acct_b"]) == {}
 
     assert set(brokers) == {"acct_a", "acct_b"}
     assert all(broker.disconnected for broker in brokers.values())
 
 
-def test_unauthenticated_session_names_the_account_and_the_runbook(monkeypatch) -> None:
-    install(
+def test_an_unauthenticated_session_is_reported_and_the_rest_still_connect(monkeypatch) -> None:
+    brokers = install(
         monkeypatch,
         {"acct_a": None, "acct_b": RuntimeError("IBKR Web API session is not authenticated.")},
     )
 
-    with pytest.raises(module.BrokerSessionUnavailableError) as raised:
-        module.check_broker_sessions(["acct_a", "acct_b"])
+    unavailable = module.check_broker_sessions(["acct_a", "acct_b"])
 
-    message = str(raised.value)
-    assert "acct_b (interactive_brokers_web_paper): IBKR Web API session is not authenticated." in message
-    assert "acct_a" not in message
-    assert "docs/runbooks/ibkr-paper-trading.md" in message
+    assert unavailable == {"acct_b": "interactive_brokers_web_paper: IBKR Web API session is not authenticated."}
+    assert brokers["acct_a"].disconnected
 
 
-def test_unreachable_gateway_reports_every_failing_account(monkeypatch) -> None:
+def test_an_unreachable_gateway_reports_every_failing_account(monkeypatch) -> None:
     refused = httpx.ConnectError("[Errno 111] Connection refused")
     install(monkeypatch, {"acct_a": refused, "acct_b": refused})
 
-    with pytest.raises(module.BrokerSessionUnavailableError) as raised:
-        module.check_broker_sessions(["acct_a", "acct_b"])
+    unavailable = module.check_broker_sessions(["acct_a", "acct_b"])
 
-    message = str(raised.value)
-    assert "acct_a" in message
-    assert "acct_b" in message
-    assert "Connection refused" in message
+    assert set(unavailable) == {"acct_a", "acct_b"}
+    assert "Connection refused" in unavailable["acct_a"]
 
 
 @pytest.mark.parametrize(
@@ -103,3 +97,10 @@ def test_broker_guard_errors_propagate_unchanged(monkeypatch, guard_error: Runti
         module.check_broker_sessions(["acct_a"])
 
     assert raised.value is guard_error
+
+
+def test_the_failure_text_names_each_account_and_the_runbook() -> None:
+    message = module.unavailable_message({"acct_a": "interactive_brokers_web_paper: gateway down"})
+
+    assert "acct_a (interactive_brokers_web_paper: gateway down)" in message
+    assert "docs/runbooks/ibkr-paper-trading.md" in message
