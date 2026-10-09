@@ -18,7 +18,7 @@ One set of words, used in the skills, the prompts, the PR comment and this plan.
 | **Reviewer** | One read-only agent run with a fresh context. It never sees the author's reasoning. |
 | **Lens** | The narrow mindset a reviewer applies. There are four: Break it, Operator, Test skeptic, Simplifier. "Mindset" means lens. |
 | **Architecture and conventions** | The fifth reviewer. It applies the repo's layering and style rules rather than a mindset. |
-| **Gate** | The deterministic checks (`run_checks`: repo checks, ruff, mypy, layer check, tests). Always first. |
+| **Gate** | `python -m scripts.run_checks pr --base <base>`: the enforced docs checks, repo checks, branch-targeted Python (ruff, mypy, layer check, tests), and frontend when the diff touches it. The same three jobs CI enforces. Always first. |
 | **Finding** | One defect or gap, after verification and merging duplicates by root cause. Reviewers report `SEVERITY \| path:line \| issue \| scenario`. |
 | **Severity** | The only rating scale, used by every reviewer and in the comment: BLOCKER, CONCERN, NOTE. |
 | **Pass** | One `pr ready` invocation. The comment says "pass 1", "pass 2". |
@@ -104,7 +104,7 @@ You can override it: `pr ready: lenses=<names>`.
 
 | Diff touches | Reviewers |
 |---|---|
-| Docs, skills, maps only | none (the docs check is enough) |
+| Docs, skills, maps only | none (the gate's enforced docs checks are enough) |
 | Ordinary `src/`, API or frontend | Architecture and conventions; Break it; Test skeptic |
 | Broker, fill, sizing, order, guard, runtime job, scheduler, database ("aggressive") | the above, plus a second Break it on Opus, plus Operator |
 | Large diff or a new module or abstraction | add Simplifier |
@@ -114,8 +114,18 @@ to a lens. A human reads every PR that touches the broker, sizing, or fill paths
 that reading. For a risky PR the owner can also run `/code-review ultra` (cloud, billed).
 
 ## How to run
-1. **Order.** Gate first; a red gate stops everything. Then Architecture and conventions; a BLOCKER
-   there stops the lens spend. Then the lenses selected above, in parallel. Then the docs check.
+1. **Order.**
+   1. **Gate.** `run_checks pr --base <base>`. If red, run `fix checks` (the safe deterministic
+      fixer), then re-run; whatever remains goes back to the author and nothing else runs. Reviewers
+      only ever see a commit that passed the gate, so a lint fix cannot invalidate a review.
+   2. **CI.** If a PR exists and its CI at HEAD has already failed, stop and show the failing job
+      (the local gate missed something). A pending CI does not block; the next pass picks up its result.
+   3. Architecture and conventions; a BLOCKER there stops the lens spend.
+   4. The lenses selected above, in parallel.
+   5. **Docs drift review.** The AI judgment of whether prose is still accurate
+      (`update-documentation`); the mechanical docs checks are already in the gate.
+   6. The comment. If the gate is red and a PR exists, the comment is still updated: gate row red, the
+      rest "not run: stopped at gate", no findings.
 2. **Spawning.** One read-only Sonnet agent per reviewer (the `Plan` agent type has no edit tools),
    given a one-line prompt: read the reviewer's section of `lenses.md` and follow it, with the base
    and head refs. A branch read by ref (a PR on another branch) is never checked out.
@@ -155,7 +165,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | s
 <one line: n blockers, n concerns, n notes open; n resolved>
 
 ### Status
-| Step | Result |      Gate, Architecture and conventions, each lens (with its model), docs check.
+| Step | Result |      Gate, CI, Architecture and conventions, each lens (with its model), docs drift review.
                         A step that did not run says "not run: stopped at <step>".
 ### Findings
 #### 🔴 Blockers  /  🟠 Concerns  /  🟡 Notes
@@ -191,7 +201,7 @@ Rules:
 | Branch, base, date | Header, plus the reviewed SHA and the current/stale flag |
 | Step 1 deterministic table | Status rows (gate); CI linked |
 | Steps 2-4 findings (architecture, style, quality) | Status row for Architecture and conventions; findings by severity. Quality is replaced by the lenses |
-| Step 5 docs check | Status row; findings by severity |
+| Step 5 docs check (advisory) | Docs drift review: status row; findings by severity. The enforced docs checks move into the gate |
 | Developer Verification Guide | How to verify |
 | Cleanup and Obsolescence Review | Cleanup and obsolescence |
 | Overall READY / NOT READY | The title line |
@@ -201,26 +211,34 @@ create and edit this one marker-tagged comment on the branch's own PR without as
 nothing else: no other comment or review, no labels, no merge.
 
 ## What changes in the repo
-Built on a branch off `develop`, separate from PRs #294 and #296.
-1. **`lenses.md`** (new, in the `code-review` skill folder): the reviewers' sections above, the severity
+Built on a branch off `develop`, separate from PRs #294 and #296. Build order is the numbering.
+1. **The `pr` profile of `run_checks`** (`scripts/checks/pr.py`, `scripts/run_checks.py`, tests in
+   `tests/scripts/`): enforced docs checks, then the quick profile (repo checks, branch-targeted
+   Python) with the frontend steps added when the diff touches `apps/paper_trading_web/frontend/` or
+   `.github/workflows/ci.yml`. Today's `pr ready` gate is repo plus Python with the docs check
+   advisory and last, so a broken doc link that CI rejects passed it (PR #295). `run_checks ci` is
+   not reused: it runs the full suite and takes no `--base`. Update `scripts/README.md`,
+   `docs/maps/scripts-map.md` and `validate-code/SKILL.md`.
+2. **`lenses.md`** (new, in the `code-review` skill folder): the reviewers' sections above, the severity
    definitions, the prompt, and a short "why these choices" section distilled from Appendix C.
-2. **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
+3. **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
    (replacing Architecture, Style, Quality), with BLOCKER / CONCERN / NOTE (lines 59-61 use
    VIOLATION, ADVISORY today); a pointer to `lenses.md`.
-3. **`.ai/skills/check-pr-readiness/SKILL.md`**: new step list (1 gate, 2 Architecture and
-   conventions, 3 lenses, 4 docs check, 5 comment); stop conditions use BLOCKER; the report template is
-   replaced by the comment layout; remove "save to `local/pr_readiness_report.md`" (line 72).
-4. **`scripts/checks/repo/review_scope_check.py`** and `tests/scripts/test_review_scope_check.py`:
+4. **`.ai/skills/check-pr-readiness/SKILL.md`**: new step list (1 gate, with the `fix checks` retry;
+   2 CI check; 3 Architecture and conventions; 4 lenses; 5 docs drift review; 6 comment); stop
+   conditions use BLOCKER; the report template is replaced by the comment layout; remove "save to
+   `local/pr_readiness_report.md`" (line 72).
+5. **`scripts/checks/repo/review_scope_check.py`** and `tests/scripts/test_review_scope_check.py`:
    print the reviewer list; add the money paths it misses today (`src/trading/services/execution/`,
    `src/trading/domain/auto_trading/`, the order and fill repositories; #294 only classified as
    aggressive because it touched `brokers/`); add a diff-size trigger. Update `scripts/README.md` and
    `docs/maps/scripts-map.md`.
-5. **`AGENTS.md`**: the `pr code review` and `pr arch review` shortcuts (lines 213-216 describe
+6. **`AGENTS.md`**: the `pr code review` and `pr arch review` shortcuts (lines 213-216 describe
    "style + quality" and "architecture"): `pr arch review` runs Architecture and conventions;
    `pr code review` runs the lenses. Add the by-number shortcut for reviewing a PR without checking it
    out. Routing table and skill inventory if wording changes. `.ai/skills/README.md` likewise.
-6. **Verify:** `python -m scripts.run_checks repo` (the skills drift check covers the inventory).
-7. **Delete this file**; the evidence that must outlive it is in `lenses.md`. The local
+7. **Verify:** `python -m scripts.run_checks pr --base develop` (the skills drift check covers the inventory).
+8. **Delete this file**; the evidence that must outlive it is in `lenses.md`. The local
    `local/pr_readiness_report.md` (the author-review baseline the pilot compared against) was
    deleted on 2026-10-09; Appendix A keeps its one-line conclusion.
 

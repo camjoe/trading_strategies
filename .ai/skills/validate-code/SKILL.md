@@ -11,18 +11,20 @@ All checks are deterministic — no AI, no reasoning.
 
 | Step | Command | What it covers |
 |---|---|---|
-| 1 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
-| 2 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
+| 1 | `python -m scripts.run_checks docs` | Enforced docs checks: README consistency, maps drift, doc links, API registry |
+| 2 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
+| 3 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
+
+These are the checks CI enforces on a pull request. A docs failure that CI would reject must stop here, not surface after the PR is open.
 
 ## Run all checks at once
 
 ```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base develop
-python -m scripts.run_checks python --base main --no-cov
+python -m scripts.run_checks pr --base develop
+python -m scripts.run_checks pr --base main --no-cov
 ```
 
-Run `repo` first, then `python`. Stop at the first failure.
+`pr` runs steps 1 to 3 in order and stops at the first failure. Commit first: suite targeting and frontend detection read the committed diff `<base_ref>...HEAD`, not uncommitted edits. It adds the frontend lint, typecheck, and tests when the diff touches `apps/paper_trading_web/frontend/` or `.github/workflows/ci.yml`.
 
 ## Day-to-day profiles
 

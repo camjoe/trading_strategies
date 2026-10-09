@@ -84,6 +84,7 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/python/pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
 - `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
+- `pr.py`: the pre-PR gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks when the diff touches the frontend.
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
 
 Data operation scripts (`scripts/data_ops/`):
@@ -140,6 +141,7 @@ python -m scripts.run_checks repo
 python -m scripts.run_checks python
 python -m scripts.run_checks quick
 python -m scripts.run_checks ci
+python -m scripts.run_checks pr --base develop
 python -m scripts.fix_checks
 
 # Standalone docs drift fixers (also run as part of fix_checks)
