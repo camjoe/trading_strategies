@@ -409,8 +409,9 @@ every run. Two user services keep it up. Nothing here logs in for you — see
 [ibkr-paper-trading.md](ibkr-paper-trading.md#gateway-session) for the login step.
 
 Replace `<gateway-dir>` (the unzipped `clientportal.gw`) and `<repo>` (the production checkout).
-If the settings come from `.env` rather than `local/ibkr_web_api_config.json`, add
-`EnvironmentFile=-<repo>/.env` to the keepalive unit; the path must be absolute.
+The keepalive unit loads `.env` so the worker sees the runtime alert settings; the path must be
+absolute. When the session is lost, or the gateway goes down, the worker sends one alert through the
+webhook and SMTP settings in section 1.3, and one more when the session returns.
 
 `~/.config/systemd/user/ibkr-gateway.service`:
 
@@ -438,6 +439,7 @@ Wants=ibkr-gateway.service
 
 [Service]
 WorkingDirectory=<repo>
+EnvironmentFile=-<repo>/.env
 ExecStart=<repo>/.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.ibkr_session_keepalive
 Restart=on-failure
 RestartSec=30
