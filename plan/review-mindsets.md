@@ -102,6 +102,7 @@ and list what you checked.
 ## Pilot
 Run lenses 1, 2 and 3 on the open work, as independent read-only agents:
 - PR #294 (`fix/ibkr-reconcile-order-status`): lookup of orders the open-order list omits.
+- PR #296 (`fix/skip-unavailable-ibkr-accounts`): skip accounts whose IBKR session is unavailable and trade the rest.
 - PR #293 (sizing step and SMART routing) merged before the pilot could run; review it
   retrospectively against its merge commit `2708d32f` if a second data point is wanted.
 
