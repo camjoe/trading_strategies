@@ -1,35 +1,53 @@
-# Plan: review every PR through several mindsets
+# Plan: independent reviews with narrow lenses
 
-Status: drafted 2026-10-09. Nothing is built. Pilot (lenses 1-3 on PR #294 and #296) run 2026-10-09;
-second round (lenses 4-5 and a model comparison) the same day. Results and decisions under "Pilot
-results". Lens text and prompt updated from the pilot; the adjusted lenses are untested until they
-run on another PR.
+Status: designed and piloted 2026-10-09; nothing is built. The design is decided except the items in
+"Open decisions". Evidence from the pilot is in the appendices, not in the design.
 
-## Goal
-Catch what one reviewer with one mindset misses, without making every PR slow or noisy. The repo
-already has `check-pr-readiness` and `code-review` (Architecture, Style, Quality, plus Standard,
-Aggressive, Contract, Cleanup modes). This adds independent, narrow lenses on top, chosen by risk.
+## Goal and why
+Catch what one reviewer with one mindset misses, without making every PR slow or noisy. Same-author
+review has limited value: on 2026-10-09 the author found two real bugs in their own reconcile change
+only while writing tests. A reviewer that has not seen the author's reasoning, and looks for one kind
+of problem, is more likely to find that kind of problem. The pilot (Appendix B) found 12 distinct
+defects across two PRs that the author's own review missed.
 
-## Why
-Same-author review has limited value. On 2026-10-09 the author reviewed their own reconcile change and
-found two real bugs only while writing tests: a failing lookup would have failed the whole daily run,
-and a priceless fill would have closed an order with no fill posted. A reviewer that has not seen the
-author's reasoning, and looks for one kind of problem, is more likely to find that kind of problem.
+## Vocabulary
+One set of words, used in the skills, the prompts, the PR comment and this plan.
 
-## The four lenses
-Decided 2026-10-09: the former lens 2 (Money and safety) is merged into lens 1. The pilot results
-below use the original numbering (1 Break it, 2 Money and safety, 3 Operator, 4 Test skeptic,
-5 Simplifier); everywhere else the numbering is 1 Break it, 2 Operator, 3 Test skeptic, 4 Simplifier.
+| Term | Meaning |
+|---|---|
+| **Reviewer** | One read-only agent run with a fresh context. It never sees the author's reasoning. |
+| **Lens** | The narrow mindset a reviewer applies. There are four: Break it, Operator, Test skeptic, Simplifier. "Mindset" means lens. |
+| **Architecture and conventions** | The fifth reviewer. It applies the repo's layering and style rules rather than a mindset. |
+| **Gate** | The deterministic checks (`run_checks`: repo checks, ruff, mypy, layer check, tests). Always first. |
+| **Finding** | One defect or gap, after verification and merging duplicates by root cause. Reviewers report `SEVERITY \| path:line \| issue \| scenario`. |
+| **Severity** | The only rating scale, used by every reviewer and in the comment: BLOCKER, CONCERN, NOTE. |
+| **Pass** | One `pr ready` invocation. The comment says "pass 1", "pass 2". |
+| **Verdict** | Scoring a finding after checking it against the code: REAL or NOT REAL. Pilot only: KNOWN (the author had listed it) and MINOR (true but trivial). |
 
-Each lens gets only: the diff, the changed files, `AGENTS.md`, and the conventions docs. No author
-reasoning, no chat history. Read-only. Report findings only; never implement fixes.
+Severity, defined once:
+- **BLOCKER**: fix before merge. Books can diverge from the broker, an account can trade twice, money
+  moves differently than intended, a guard error is swallowed, or a documented recovery path does harm.
+- **CONCERN**: wrong or unsafe in a way that does not move money (an operator misled, a documented
+  step that fails, a missing test that hides a bug). Fix in this PR, or decide and say why.
+- **NOTE**: optional or follow-up (simplification, placement, a missing safeguard with no bug today).
 
-Severity rubric, shared by every lens: BLOCKER when books can diverge from the broker, an account
-can trade twice, money moves differently than intended, or a guard error is swallowed; CONCERN when
-the change is wrong or unsafe in a way that does not move money (an operator misled, a documented
-step that fails); NOTE otherwise.
+The old words go away: VIOLATION becomes BLOCKER, and ADVISORY becomes NOTE (or CONCERN if it should be
+fixed). Places to rename are in "What changes in the repo". The comment uses the same three words, with
+a colour marker: 🔴 Blockers, 🟠 Concerns, 🟡 Notes. Where the owner must choose, the finding carries a
+*Decision* line instead of a separate category.
 
-### 1. Break it (adversarial correctness, including money and safety)
+## The reviewers
+Each gets only: the diff, the changed files, `AGENTS.md`, and the conventions docs. No author
+reasoning, no chat history, no PR description. Read-only; report findings, never fixes. The gate has
+already run: reviewers skip anything ruff, mypy, or the layer check reports.
+
+### Architecture and conventions
+Applies `docs/architecture/architecture-conventions.md` and the style guides
+(`general-style.md`, `python-style.md`, `frontend-style.md`): layering, ownership, placement of
+decision logic (side-effect-free logic belongs in `domain/`), timestamp and comment rules, narration.
+Runs on every diff except docs-only. No lens covers layering or placement.
+
+### Lens: Break it (adversarial correctness, including money and safety)
 Find inputs and sequences that make the change misbehave.
 - Failure paths: what if the call raises, times out, returns empty, returns the wrong shape?
 - Partial states: crash between two writes, a retry, the same event twice, an event out of order.
@@ -52,7 +70,7 @@ Money and safety probes, applied to any broker, fill, sizing, order, guard, or s
   figures. Name the invariant ("books equal broker") and the code that holds it.
 - Can an account be traded twice in one day, by a retry, a catch-up, or a re-run?
 
-### 2. Operator at 3 a.m.
+### Lens: Operator at 3 a.m.
 Judge the change by the person who has to find out it broke.
 - When this fails, what is the first thing the operator sees? Does the log name the cause?
 - Does an alert fire? Which one, to whom? What fails silently (host off, no transport configured)?
@@ -62,7 +80,7 @@ Judge the change by the person who has to find out it broke.
   including files the PR did not touch. Check that a documented command or grep still finds what the
   runbook says it finds.
 
-### 3. Test skeptic
+### Lens: Test skeptic
 Judge whether the tests would catch a regression. The reviewer cannot check the branch out or run
 tests; it reasons from the test and the code.
 - Would each new test fail if the change were reverted? Walk through it.
@@ -72,7 +90,7 @@ tests; it reasons from the test and the code.
 - For each behavior gap, say whether it hides a bug (a wrong result today) or only a missing
   safeguard, and name the missing test.
 
-### 4. Simplifier
+### Lens: Simplifier
 Find what can be deleted or made plainer. This repo prefers minimal tooling.
 - Code, parameters, flags, or helpers added that nothing needs yet.
 - Two ways to do one thing; a new abstraction with one user.
@@ -80,465 +98,233 @@ Find what can be deleted or made plainer. This repo prefers minimal tooling.
 - Comments or docstrings that narrate reasoning or history instead of stating facts
   (`docs/conventions/python-style.md`, Comments and docstrings).
 
-## Keeping the existing reviews
-The deterministic gate (`run_checks`: repo checks, ruff, mypy, layer check, tests) always runs first,
-unchanged; it gates all AI spend, and the lenses are told to skip anything it reports. The docs
-check (Step 5) stays. For the AI steps (Architecture, Style, Quality in
-`.ai/skills/code-review/SKILL.md`), the third-round comparison (see "Pilot results, third round")
-supports this structure:
-- **Decided:** the separate Quality step goes; the lenses cover it and found far more.
-- Architecture stays, because no lens covers layering or placement and it found items nothing else
-  did. **Proposed, not yet confirmed:** merge it with Style into one fresh-context agent
-  ("Architecture and conventions"), so the conventions check still runs on ordinary diffs.
-- The architecture agent runs as a read-only fresh-context agent, not in the author's session.
+## Which reviewers run
+`python -m scripts.checks.repo.review_scope_check --base <base_ref>` decides and prints the list.
+You can override it: `pr ready: lenses=<names>`.
 
-## Which lenses run on which PR
-Use the repo's own classifier, `python -m scripts.checks.repo.review_scope_check --base <base_ref>`.
-
-| Diff touches | Lenses |
+| Diff touches | Reviewers |
 |---|---|
-| Docs, skills, maps only | none (Step 5 docs check is enough) |
-| Ordinary `src/` change | 1 Break it, 3 Test skeptic |
-| Broker adapters, runtime jobs, scheduler, database, sizing, order or fill paths ("aggressive" mode) | 1 on Sonnet, 1 again on Opus (money probes on), 2 Operator, 3 Test skeptic |
-| Any large diff or a new abstraction | add 4 Simplifier |
+| Docs, skills, maps only | none (the docs check is enough) |
+| Ordinary `src/`, API or frontend | Architecture and conventions; Break it; Test skeptic |
+| Broker, fill, sizing, order, guard, runtime job, scheduler, database ("aggressive") | the above, plus a second Break it on Opus, plus Operator |
+| Large diff or a new module or abstraction | add Simplifier |
 
-A human reads every PR that touches the broker, sizing, or fill paths. The lenses inform that reading.
+Security-class concerns (credentials, authorization, network exposure) go to `/security-review`, not
+to a lens. A human reads every PR that touches the broker, sizing, or fill paths; the reviewers inform
+that reading. For a risky PR the owner can also run `/code-review ultra` (cloud, billed).
 
 ## How to run
-1. Read-only reviewer agents, one per lens, in parallel, each with a fresh context.
-2. Each lens prompt lives as its own reference file in the code-review skill folder, one per lens,
-   loaded on demand (the skills README describes this layout).
-3. `pr ready` gains a step after Step 4: run the lenses the table selects, print their findings, and
-   include them in `local/pr_readiness_report.md`. Lens findings use the same severities; a BLOCKER
-   from any lens stops readiness.
-4. For a risky PR, the user can also trigger `/code-review ultra` (cloud, multi-agent, billed).
-5. Models and tokens (decided after the second round, see "Model decisions"):
-   - Every lens runs on Sonnet-class. No Haiku, no pre-read bundle.
-   - Aggressive-tier diffs (broker, fill, guard, scheduler) also get a second, independent lens-1
-     sample on Opus; every single run missed something, and the Opus sample caught what the Sonnet
-     one did not.
-   - Gate by the table below; re-review after fixes runs only the lenses that had findings on the
-     touched files.
-6. Findings are posted as one consolidated PR comment per PR; see "Posting findings".
-
-## Prompt template (per lens)
+1. **Order.** Gate first; a red gate stops everything. Then Architecture and conventions; a BLOCKER
+   there stops the lens spend. Then the lenses selected above, in parallel. Then the docs check.
+2. **Spawning.** One read-only Sonnet agent per reviewer (the `Plan` agent type has no edit tools),
+   given a one-line prompt: read the reviewer's section of `lenses.md` and follow it, with the base
+   and head refs. A branch read by ref (a PR on another branch) is never checked out.
+3. **Models.** Sonnet for every reviewer. The second Break it on Opus is the only exception. No Haiku
+   (Appendix C).
+4. **Verification.** The orchestrator opens each reported finding's file and line and runs or reasons
+   through its scenario, drops NOT REAL findings, merges duplicates by root cause, and assigns the final
+   severity: the highest any reviewer gave, unless verification lowers it with a stated reason.
+5. **Tokens.** Each reviewer costs about 60-85k tokens whatever the model, so savings come from
+   running fewer: use the table, and on a re-pass run only the reviewers that had findings on the
+   touched files. A pre-read bundle of the diff and files costs more and misses cross-file defects.
+6. **Prompt** (the reviewer's section follows the line `Lens:`):
 ```
 You are reviewing a pull request through ONE lens: <lens name>. Read-only. Do not edit files.
-Inputs: the diff `git diff origin/<base>...HEAD`, the changed files, AGENTS.md, and the conventions in docs/.
+Inputs: the diff `git diff origin/<base>...<head>`, the changed files, AGENTS.md, and the conventions in docs/.
 You have not seen the author's reasoning. Do not assume the change is correct.
-<paste the lens section above>
+Do not read plan/, local/, commit messages, or any PR description.
+Lens: <the lens section>
 Report each finding exactly as:  SEVERITY | path:line | the issue | the concrete scenario that breaks it
-SEVERITY is BLOCKER (must fix before merge), CONCERN (should fix or decide), or NOTE.
+SEVERITY is BLOCKER, CONCERN, or NOTE, as defined in lenses.md.
 Rules: no finding without a file and line and a concrete failing scenario. Report a defect once, per
 root cause. At most 8 findings, most severe first. Skip anything ruff, mypy, or the layer check
 already reports. If you find nothing, say so and list what you checked.
+End with: "Files read: <n>" and "Self-assessed confidence: <low|medium|high>".
 ```
 
-## Posting findings
-One consolidated comment per PR, edited in place as findings are fixed. Items are tiered by
-priority, one checkbox each:
-- 🔴 Blocker: fix before merge. 🟠 Fix in this PR. 🟡 Decide or follow-up.
-- Each item states the problem first. Two italic lines follow, kept visually apart from the problem
-  text: *Caught by:* the mindsets that raised it (with their own severity where it differed), and
-  *Tests:* whether the current tests catch it and the test to add. The *Tests* line appears on every
-  defect; the orchestrator fills it from the Test skeptic's output and its own reading, so the other
-  lenses need not.
-- A *Pointer* line (italic) gives a one-line direction, not a patch.
-- KNOWN items are listed once under "Already known to the author", so the overlap is visible but not
-  repeated as an action.
+## The PR comment
+One comment per PR, created by the first pass and edited in place by every later pass. Replaces the
+saved report file. `pr ready` no longer writes `local/pr_readiness_report.md`. The comment needs a PR,
+so open it as a draft early; before a PR exists, `pr ready` prints the same content to the terminal.
 
-## Keeping noise down
-- Evidence required: file, line, and a scenario. No guesses.
-- Cap at 8 findings per lens. Merge duplicates across lenses before showing them.
-- Track outcomes in the PR readiness report: for each finding, real / not real / already known.
-  Drop or rewrite a lens whose findings are mostly not real after about five PRs.
-
-## Pilot
-Run lenses 1, 2 and 3 on the open work, as independent read-only agents:
-- PR #294 (`fix/ibkr-reconcile-order-status`): lookup of orders the open-order list omits.
-- PR #296 (`fix/skip-unavailable-ibkr-accounts`): skip accounts whose IBKR session is unavailable and trade the rest.
-- PR #293 (sizing step and SMART routing) merged before the pilot could run; review it
-  retrospectively against its merge commit `2708d32f` if a second data point is wanted.
-
-Compare with the author's self-review in `local/pr_readiness_report.md`:
-- Findings the lenses made that the author missed (the value).
-- Findings the author made that no lens made (the gap).
-- Proportion of lens findings that were real.
-- Cost: time and tokens per lens.
-
-Success: at least one real finding the self-review missed, and a real-finding rate high enough that
-reading the output is worth the time. Failure is also a result; record it and adjust the lenses.
-
-## Pilot kickoff (how to run it)
-Run from the working copy on branch docs/plan-folder: this file exists only there until PR #295
-merges, and the results are recorded in it. The PR branches are read by git ref and are not checked out.
-
-1. `git fetch origin`. Confirm each PR's state with `gh pr view <number> --json state,headRefName`.
-   If one has merged, review its merge commit against its first parent instead.
-2. Per PR, build the review input: `git diff origin/develop...origin/<branch>` (stat, then full) and the
-   changed-file list. The tests are part of the diff.
-3. Launch one reviewer per lens (1 Break it, 2 Money and safety, 3 Operator at 3 a.m.) for each PR: six
-   reviewers, in parallel. Each is a read-only agent (no Edit or Write tools, for example the Plan agent
-   type) with a fresh context. Give each: its lens text from this file, the prompt template, the branch
-   ref and the diff command, and an instruction to read `AGENTS.md` and the conventions it names.
-   Do NOT give any reviewer: the PR description, the commit messages, the "Known to the author" list
-   below, or the author's readiness report.
-4. Run lens 2 (Money and safety) on a different model than the orchestrator's, if the agent tool's
-   `model` option allows it.
-5. Verify every finding before scoring it: open the file and line, then run or reason through the
-   scenario. Mark each REAL (a true defect or gap), KNOWN (listed below), NOT REAL (wrong or misread),
-   or NOTE.
-6. Record the results under "Pilot results": one row per finding (PR, lens, severity, verdict, one
-   line), then the real-finding rate, how many REAL findings were new vs KNOWN, and the cost (rough
-   time, and tokens if visible).
-7. Report to the owner: the value, the gaps (what the author's review found that no lens did), the
-   noise, the cost, and a recommendation (adopt, adjust a named lens, or drop). Do not fix findings
-   during the pilot; the owner decides which go into #294 and #296.
-8. Commit the results to branch docs/plan-folder and push (this updates PR #295).
-
-### Known to the author (score against this; never show it to a reviewer)
-PR #294 (reconcile lookup):
-- Fills posted from a status reply carry commission 0.0 and the order's own timestamp.
-- Every open row the order list omits is looked up on every run; stale rows add one request each.
-- A looked-up order is matched by broker order id alone; symbol and side are not compared.
-- The lookup's `except Exception` logs and leaves the order unreported.
-- The order-list path was changed to report cumulative state (it used to double-post a partial fill).
-- IBKR order warnings are still confirmed automatically; they are now only logged.
-- The `0.0001` order step is a one-contract assumption (see `contract-trading-rules.md`).
-
-PR #296 (skip unavailable accounts):
-- A session that dies during a run still fails the run at the step that notices.
-- A run that skips accounts ends with `COMPLETE`, so the duplicate-run guard blocks a plain re-run
-  that day; the `warn` alert carries the `--accounts <names> --force-run` command.
-- A persistent outage is now a daily `warn` with no escalation (`account-failure-visibility.md`, item B).
-- A trading-step anomaly in one account still stops the later cap groups (same plan, item A).
-
-The author's own readiness report for #294 is `local/pr_readiness_report.md` (gitignored). It found no
-blocker; its advisories were fixed or are listed above. There is no formal report for #296.
-
-### Kickoff prompt (paste into a fresh session)
+Layout:
 ```
-We are running the multi-lens review pilot. Work in
-C:\Users\camer\Documents\Workspaces\repo_copies\trading_strategies on branch docs/plan-folder
-(run git checkout docs/plan-folder if you are on another branch). Read AGENTS.md, then
-plan/review-mindsets.md in full, especially "The five lenses", "Prompt template", "Pilot",
-"Pilot kickoff" and "Known to the author". Review PR #294 (fix/ibkr-reconcile-order-status) and PR #296
-(fix/skip-unavailable-ibkr-accounts) against origin/develop with lenses 1, 2 and 3, as independent
-read-only reviewer agents that never see the author's reasoning. Read the PR branches by git ref; do
-not check them out. Verify and score every finding yourself, record the results under "Pilot results"
-in plan/review-mindsets.md, commit and push to docs/plan-folder, then report value, gaps, noise and
-cost with a recommendation. Do not fix any finding.
+<!-- pr-readiness -->
+## PR readiness: NOT READY | READY
+Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | stale (branch has moved)
+<one line: n blockers, n concerns, n notes open; n resolved>
+
+### Status
+| Step | Result |      Gate, Architecture and conventions, each lens (with its model), docs check.
+                        A step that did not run says "not run: stopped at <step>".
+### Findings
+#### 🔴 Blockers  /  🟠 Concerns  /  🟡 Notes
+- [ ] **<n>. <Title>.**
+  <the problem: file, line, scenario>
+  *Caught by: <reviewers, with their own severity where it differed>*
+  *Tests: <do the current tests catch it; the test to add>*      (every defect; not docs or simplification)
+  *Pointer: <one-line direction>*  or  *Decision: <owner's recorded choice>*
+### How to verify              (open) UI route, command, endpoint, expected behavior, and what is not yet true
+<details> Cleanup and obsolescence     classes: safe to remove now, needs targeted verification,
+                                       intentional compatibility path, defer/backlog
+<details> Resolved                     one line each, with the fixing SHA; oldest dropped first
+<details> Pass history and scorecard   passes, commits, reviewers; findings verified REAL / NOT REAL
 ```
 
-## `pr ready` output: the PR comment (design)
-Decided: one comment per PR, edited in place, replaces the findings part of the saved report.
-Confirmed: security-class findings are never posted (the repo is public; route them to
-`/security-review` and tell the owner privately); open the PR as a draft early so the comment has a
-home. **Not yet decided:** dropping `local/pr_readiness_report.md`; it stays until a dry run shows the
-comment covers every section of it.
+Rules:
+- **Status is derived, not ticked.** Each pass re-reads the previous comment, re-verifies every open
+  finding against the new HEAD, and moves fixed ones to Resolved. A checkbox you tick is ignored; the
+  comment says so.
+- **Marker.** The hidden `<!-- pr-readiness -->` line lets a pass find its own comment (`gh api` list,
+  then PATCH). Not `--edit-last`, which can hit a different comment.
+- **Deterministic rows.** On a checked-out branch the local gate fills them and CI is linked beside
+  it. A branch read by ref shows CI only, labelled as such.
+- **Public.** The repo is public. Before posting: no local paths, broker account ids, credentials, or
+  private strategy parameters. Security-class findings are never posted; they go to `/security-review`
+  and the owner is told privately.
+- **Length.** About 10-12k characters for the pilot PRs against GitHub's 65,536 limit. Resolved stays
+  one line per finding.
 
-Coverage, section by section (the check that "the same steps are covered"):
-
-| Saved report section | Where it goes in the comment |
+### Coverage of the old saved report
+| Old report section | In the comment |
 |---|---|
-| Branch, base, date | Header line, plus the reviewed commit SHA and a "stale" flag when HEAD has moved |
-| Step 1 deterministic table (repo, ruff, mypy, tests) | Status table rows. On a PR, link the CI checks too; the local run stays the pre-push gate |
-| Step 2 Architecture findings | Status row; findings under the priority tiers |
-| Step 3 Style findings | Same, if Style is kept as the "Architecture and conventions" agent |
-| Step 4 Quality findings | Dropped as a step; the lens findings replace them |
-| Step 5 docs check (advisory) | Status row; findings in the 🟡 tier |
-| Developer Verification Guide | Its own section, open by default |
-| Cleanup and Obsolescence Review | Its own section, collapsed |
-| Overall READY / NOT READY and one sentence | The top line |
-| New: lens findings with *Caught by* and *Tests*, resolved items with the fixing SHA, run history, calibration scorecard | Sections of the comment |
+| Branch, base, date | Header, plus the reviewed SHA and the current/stale flag |
+| Step 1 deterministic table | Status rows (gate); CI linked |
+| Steps 2-4 findings (architecture, style, quality) | Status row for Architecture and conventions; findings by severity. Quality is replaced by the lenses |
+| Step 5 docs check | Status row; findings by severity |
+| Developer Verification Guide | How to verify |
+| Cleanup and Obsolescence Review | Cleanup and obsolescence |
+| Overall READY / NOT READY | The title line |
 
-Mechanics: a hidden marker (`<!-- pr-readiness -->`) lets each run find and edit its own comment
-(`gh api` list, then PATCH; no `--edit-last`, which can hit a different comment). Each run re-reads
-the previous comment, re-verifies carried-over findings against the new HEAD, and moves fixed ones
-to "Resolved". Before a PR exists, `pr ready` prints the report and writes the file as it does now.
+Standing authorization (added to `AGENTS.md`, "Standing authorizations", 2026-10-09): `pr ready` may
+create and edit this one marker-tagged comment on the branch's own PR without asking. It covers
+nothing else: no other comment or review, no labels, no merge.
 
-Standing authorization: added to `AGENTS.md` ("Standing authorizations") on the owner's instruction,
-2026-10-09. It covers only the single marker-tagged readiness comment on the branch's own PR; no
-other comment, review, label, or merge; no security-class findings; nothing public that carries
-credentials, broker account ids, local paths, or private strategy parameters.
+## What changes in the repo
+Built on a branch off `develop`, separate from PRs #294 and #296.
+1. **`.ai/skills/code-review/lenses.md`** (new): the reviewers' sections above, the severity
+   definitions, the prompt, and a short "why these choices" section distilled from Appendix C.
+2. **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
+   (replacing Architecture, Style, Quality), with BLOCKER / CONCERN / NOTE (lines 59-61 use
+   VIOLATION, ADVISORY today); a pointer to `lenses.md`.
+3. **`.ai/skills/check-pr-readiness/SKILL.md`**: new step list (1 gate, 2 Architecture and
+   conventions, 3 lenses, 4 docs check, 5 comment); stop conditions use BLOCKER; the report template is
+   replaced by the comment layout; remove "save to `local/pr_readiness_report.md`" (line 72).
+4. **`scripts/checks/repo/review_scope_check.py`** and `tests/scripts/test_review_scope_check.py`:
+   print the reviewer list; add the money paths it misses today (`src/trading/services/execution/`,
+   `src/trading/domain/auto_trading/`, the order and fill repositories; #294 only classified as
+   aggressive because it touched `brokers/`); add a diff-size trigger. Update `scripts/README.md` and
+   `docs/maps/scripts-map.md`.
+5. **`AGENTS.md`**: the `pr code review` and `pr arch review` shortcuts (lines 213-216 describe
+   "style + quality" and "architecture"): `pr arch review` runs Architecture and conventions;
+   `pr code review` runs the lenses. Add the by-number shortcut for reviewing a PR without checking it
+   out. Routing table and skill inventory if wording changes. `.ai/skills/README.md` likewise.
+6. **Verify:** `python -m scripts.run_checks repo` (the skills drift check covers the inventory).
+7. **Delete this file**; the evidence that must outlive it is in `lenses.md`. Delete the local
+   `local/pr_readiness_report.md` then too; it is the author-review baseline the pilot compared against.
 
-### Dry run, 2026-10-09
-Both comments were rendered for #294 and #296 without posting (`local/dry_run/`, gitignored): about
-10k and 12k characters, against GitHub's 65,536 limit. Every section of the saved report has a home;
-the comparison found these gaps, each now a rule for the implementation:
-1. **Severity vocabulary.** The report uses VIOLATION/CONCERN (architecture), BLOCKER/ADVISORY (style,
-   quality); the lenses use BLOCKER/CONCERN/NOTE; the comment uses three tiers. Mapping: VIOLATION
-   and any BLOCKER to 🔴; a CONCERN to 🟠 or 🟡 by the severity rubric; ADVISORY and NOTE to 🟡. The
-   orchestrator assigns the final tier, and it is the highest severity any lens gave unless
-   verification lowers it with a stated reason. Needed because one defect got different severities
-   (the socket double-post was a blocker for two runs and a concern for a third).
-2. **Steps that did not run.** The old workflow stops at the first blocking step. The status table
-   must show "not run: stopped at <step>", never an absent row, so a missing result is not read as clean.
-3. **What READY means.** READY when the deterministic gate is green and no 🔴 is open. 🟠 items do
-   not block but are listed in the top line ("ready, 2 to fix"). Owner call to confirm.
-4. **Checkbox ticks.** A re-render would overwrite a tick. Rule: item status is re-derived from the
-   code at the new HEAD, not from ticks; the comment says so. Fixed items move to Resolved with the
-   fixing SHA.
-5. **Deterministic rows.** On a checked-out branch the local gate fills the rows; CI statuses are
-   linked beside them. A branch read by ref (as in this dry run) shows CI only, labelled as such.
-6. **Length.** Keep Resolved to one line per item and drop the oldest first; the comment stays well
-   under the limit.
-7. **Cleanup labels.** Use the code-review skill's exact classes: safe to remove now, needs targeted
-   verification, intentional compatibility path, defer/backlog.
-8. **Public sanitizing.** Before posting: no local paths, broker account ids, credentials, or private
-   strategy parameters; security-class findings are routed elsewhere. The dry-run files passed a
-   scan for these.
-9. **Heading levels.** The findings tiers sit one level under a "Findings (open)" heading.
+Promote a recurring finding class to a deterministic check when a lens finds it twice. Candidates so
+far: a docs-map row that names a changed file; a diff adding more comment and docstring lines than code.
+Not built.
 
-## Rollout
-1. Review and edit this file (the lens text is the part that matters most).
-2. Run the pilot. Record results at the bottom of this file.
-3. If it earned its cost: write one `lenses.md` reference file (four lenses), add the step to `check-pr-readiness`,
-   update `.ai/skills/README.md` and `AGENTS.md` (skill inventory and the `pr ready` description),
-   and run `python -m scripts.run_checks repo` (the skills drift check covers the inventory).
-4. Delete this file; the skill files are the record.
+## Open decisions
+- **READY.** Today: NOT READY while the gate is red or any BLOCKER is open. Whether READY may carry
+  open CONCERNs ("ready, 2 to fix") is undecided. Decide later.
+- Does a second Sonnet Break it match the Opus one at lower cost? Try on the next aggressive-mode PR.
+- Fable: untested (needs usage credits).
+- Calibration: after about five PRs, drop or rewrite a lens whose findings are mostly NOT REAL.
 
-## Open questions
-- Which lenses matter most to the owner? Order the table accordingly.
-- Run lenses in `pr ready` always, or only when asked (`pr ready: deep`)?
-- Models: settled by the second round ("Model decisions"). Open: does a second Sonnet lens-1 sample
-  match the Opus one; does Fable do better once usage credits allow a test.
-- Where do lens findings live between PR updates: the saved report only, or PR comments?
+---
 
-## Pilot results
-Run 2026-10-09 from `docs/plan-folder`. PR #294 and #296 both still open. Six read-only `Plan`-type
-agents, one per lens per PR, fresh context, launched in parallel; lens 2 ran on Opus, lenses 1 and 3
-on the orchestrator's model (Sonnet 5.5). No reviewer was given the PR text, commit messages, the
-"Known to the author" list, or the readiness report. Every finding below was checked by reading the
-code at the PR head; none was reproduced by running a test. IDs are `<PR>-L<lens>-<n>`; lines are
-at the PR head.
+# Appendix A: how the pilot was run
+Two open PRs, both read by git ref and never checked out: #294 (`fix/ibkr-reconcile-order-status`,
+orders the open-order list omits) and #296 (`fix/skip-unavailable-ibkr-accounts`, skip accounts whose
+IBKR session is down). Round 1: three lenses (Break it, Money and safety, Operator) per PR, six
+reviewers. Round 2: Test skeptic and Simplifier, and a model comparison (20 reviewers). Round 3: the
+existing Architecture, Style and Quality review. Reviewers were read-only `Plan`-type agents with a
+fresh context and were given none of: PR text, commit messages, the author's report, or the list
+below. The orchestrator verified every finding by reading the code at the PR head; nothing was run.
+The Money and safety lens was later merged into Break it.
 
-Verdicts: REAL (true defect or gap, not disclosed), KNOWN (on the author's list), NOTE (true but
-minor, pre-existing, or speculative), NOT REAL (wrong). A dup is the same defect another lens
-already reported.
+Known to the author (scoring baseline, never shown to a reviewer):
+- #294: status-path fills carry commission 0.0 and the order's own timestamp; every omitted open row is
+  looked up on every run; the looked-up order is matched by id alone; the lookup's `except Exception`
+  logs and leaves the order unreported; the list path now reports cumulative state (it used to
+  double-post a partial fill); order warnings are still auto-confirmed, now logged; the `0.0001` step
+  assumes one contract.
+- #296: a session that dies mid-run still fails the run; a run that skips accounts ends `COMPLETE`, so
+  the duplicate-run guard blocks a plain re-run (the alert carries `--accounts … --force-run`); a
+  persistent outage is a daily `warn` with no escalation (`account-failure-visibility.md` item B); a
+  trading-step anomaly in one account still stops the later cap groups (same plan, item A).
+The author's readiness report for #294 found no blocker.
 
-### PR #294 (reconcile lookup)
+# Appendix B: results
+**Findings.** Round 1 reported 41 findings: 22 REAL, 10 KNOWN, 9 MINOR, 0 NOT REAL; 25 distinct after
+merging duplicates, 12 of them REAL and none on the author's list. Real-finding rate 54% raw, 69%
+excluding MINOR. The reviewers raised 5 of the author's 11 listed items, and went past a sixth (the
+guard) to the sequence that defeats it.
 
-| ID | Sev | Verdict | Finding |
-|---|---|---|---|
-| 294-L1-1 | BLOCKER | REAL | `_postable_order` (open_order_reconciliation.py:243-273) synthesizes a `:cum:` fill for any adapter that returns `fills == []` with `filled_qty > 0`, not only IBKR Web. The socket client sets `filled` (orderStatus) and `fills` (execDetails) in separate callbacks (ibapi_client.py:245-290). A poll between them posts the shares as a synthetic fill; the next poll carries the real exec id, which is not in `seen_exec_ids`, and posts them again. Position and cash double. |
-| 294-L1-2 | BLOCKER | REAL | The delta fill is priced at the cumulative `avg_fill_price` (:261-271). 5 @ 100 then 5 @ 110 books 5 @ 105 for the second part: cost 1025 against 1050. Permanent drift for any order that fills over more than one poll. |
-| 294-L1-3 | BLOCKER | REAL | `_broker_order_from_status` (ibkr_web/adapter.py:282-299) defaults `cum_fill` to 0.0, so a `Filled` reply without it gives FILLED with `filled_qty` 0. `_postable_order` returns it unchanged (`new_qty == 0`) and the row is closed `filled` with no fill posted and never polled again. |
-| 294-L1-4 | CONCERN | KNOWN | Looked-up order matched by broker id only; ticker and side not compared. |
-| 294-L1-5 | CONCERN | KNOWN | Status-path fill is dated at the order's placement time. |
-| 294-L1-6 | CONCERN | REAL | A report below what is recorded, or above it with no price, makes `_postable_order` return None with no log line (:249-259); the order falls into "unreported" indistinguishable from "broker does not know it". |
-| 294-L1-7 | CONCERN | KNOWN | One unpaced lookup request per omitted open row on every run. |
-| 294-L1-8 | NOTE | NOTE | `sizing.py:44` docstring cut to one line; out of scope for a reconcile fix. |
-| 294-L2-1 | BLOCKER | REAL (dup of L1-1) | Same socket double-post, with a worked 10-share example. |
-| 294-L2-2 | CONCERN | REAL (dup of L1-2) | Same delta-price defect; notes the tests hold `avg_fill_price` constant across partial fills, which hides it. |
-| 294-L2-3 | CONCERN | REAL (dup of L1-3) | Same FILLED-without-quantity defect. The `average_price` "0" posts-at-$0 variant was not verified. |
-| 294-L2-4 | CONCERN | KNOWN | Status-path fills carry commission 0 and the order closes, so the fee is never posted. |
-| 294-L2-5 | NOTE | KNOWN | Fill dated at placement time; replay order uses `fill_time`. |
-| 294-L2-6 | NOTE | KNOWN | Ticker and side not checked (adds the socket-to-web id-reuse scenario). |
-| 294-L2-7 | NOTE | NOTE | `submit_order` (ibkr_web/client.py:291-293) sends a sixth confirm POST and then raises even if that reply was the acknowledgement. The loop predates the PR. |
-| 294-L3-1 | CONCERN | REAL | A lookup that returns None because of a 503 (`IbWebOrderStatusUnavailableError`) or an unusable reply (no `order_status`/`symbol`) logs nothing (adapter.py:127-133, :236); every such order lands in the generic "not reported by the broker" warning, which now misleads because the broker was asked. |
-| 294-L3-2 | CONCERN | REAL | `docs/runbooks/ibkr-paper-trading.md:258-286` still says reconciliation "never sees it again" and that unreported orders are only reported; it does not mention the per-order status lookup, auto-resolution, or the new log line. Only `broker-integration.md` was updated. |
-| 294-L3-3 | CONCERN | KNOWN | Commission 0 and placement-time `fill_time` on status-path fills; no marker of which fills were synthesized. |
-| 294-L3-4 | CONCERN | KNOWN | Order warnings still auto-confirmed (up to five); now only logged. |
-| 294-L3-5 | NOTE | REAL | `order_fills.fill_time` gets two spellings: the list path stores the raw `lastExecutionTime` (`_normalize_fill_time`, adapter.py:~215), the status path stores ISO. Stored timestamps are string-compared (python-style.md, Timestamps). The raw form predates the PR; the PR puts a second form beside it. |
-| 294-L3-6 | NOTE | KNOWN | Unbounded sequential lookups, no "looked up N, resolved M, failed K" summary. |
-| 294-L3-7 | NOTE | NOTE | Status-reply mapping validated only against a captured payload and a fake gateway; the live-gateway section of the runbook is not updated. |
-| 294-L3-8 | NOTE | NOTE (dup of L1-8) | `sizing.py` docstring. |
+**Key defects and which runs found them** (✔ found, – missed, · outside the lens):
 
-### PR #296 (skip unavailable accounts)
+| Defect | Break it Sonnet | Break it Sonnet, bundle | Break it Opus | Break it Haiku | Money Opus | Money Sonnet | Money Haiku | Operator Sonnet | Operator Haiku |
+|---|---|---|---|---|---|---|---|---|---|
+| #294 socket double-post | ✔ | – | ✔ | – | ✔ | – | – | · | · |
+| #294 delta fill at cumulative price | ✔ | ✔ | ✔ | – | ✔ | ✔ | ✔ | · | · |
+| #294 `Filled` with no quantity | ✔ | ✔ | ✔ | – | ✔ | ✔ | – | · | · |
+| #296 guard unlock by a failed catch-up | ✔ | – | ✔ | off task | ✔ | ✔ | – | ✔ | – |
+| #296 burn-in counts skipped days | ✔ | ✔ | ✔ | off task | – | – | – | · | · |
+| #296 broad `RuntimeError` catch | ✔ | ✔ | – | off task | ✔ | ✔ | – | ✔ | – |
+| #296 duplicate account names | ✔ | ✔ | ✔ | off task | ✔ | ✔ | – | · | · |
+| #296 repair command drops options | ✔ | ✔ | ✔ | off task | – | ✔ | – | ✔ | – |
+| #294 unreported order, no cause logged | ✔ | – | – | – | · | · | · | ✔ | ✔ |
+| #294 runbook stale | · | · | · | · | · | · | · | ✔ | – |
+| #294 two `fill_time` spellings | – | ✔ | ✔ | – | · | · | · | ✔ | – |
+| #296 runbook grep misses the WARN line | · | · | · | · | · | · | · | ✔ | ✔ |
 
-| ID | Sev | Verdict | Finding |
-|---|---|---|---|
-| 296-L1-1 | CONCERN | REAL | "Every account unavailable" test is `len(skipped) == len(accounts)` (workflow.py:307); `skipped` is a dict, `resolve_accounts` (job_helpers.py:149-161) does not dedupe. `--accounts a,a` with `a` down: 1 != 2, run proceeds with zero accounts, writes `COMPLETE`, status success. |
-| 296-L1-2 | CONCERN | REAL | Partial run writes `COMPLETE`; the guard (`latest_log_contains_sentinel`, job_helpers.py:176-185) reads only the newest log. Operator force-runs the skipped account while the gateway is still down; that run is all-unavailable, fails, writes no `COMPLETE`, becomes the newest log; a later plain run passes the guard and trades the first account a second time. |
-| 296-L1-3 | CONCERN | REAL | A skipped-account run is `status: success`. `burn_in_status` counts consecutive success artifacts (latest file per date), so ten days with the IBKR account skipped read `ready_for_live`; before the PR those days were failures. Also, a later failed catch-up run's artifact replaces that day's success. |
-| 296-L1-4 | CONCERN | REAL | `except (httpx.TransportError, RuntimeError)` (broker_preflight.py:39) also catches `validate_session`'s account-not-visible and not-enabled-for-trading errors (ibkr_web/client.py:99-111). A wrong or mismatched `account_id` becomes a daily `warn` skip instead of a failed run. Fails closed; the WARN log line does carry the real reason, the alert text does not. |
-| 296-L1-5 | NOTE | NOTE | Socket-transport connect failures are likely not caught, so a down TWS still aborts the run. The exception type was not confirmed. |
-| 296-L1-6 | NOTE | REAL | The alert's repair command carries only `--accounts`, `--run-source`, `--force-run` (workflow.py:263-264). `--account-trade-caps`, `--primary-accounts`, `--fee`, `--seed`, `--as-of-date` are dropped, so the catch-up uses default caps. |
-| 296-L2-1 | BLOCKER | REAL (dup of L1-2) | Same guard unlock; adds that the failure text and runbook tell the operator to "re-run" and that `replay_daily_runs` would also treat the date as missing. |
-| 296-L2-2 | CONCERN | REAL (dup of L1-4) | Same broad `RuntimeError` catch. |
-| 296-L2-3 | CONCERN | REAL (dup of L1-1) | Same duplicate-name count mismatch. |
-| 296-L2-4 | NOTE | NOTE | The test asserting every worker gets only the run account filters on `--accounts` (test_daily_paper_trading_main.py:522-526), so per-account `--account` calls and steps 06/07 are not covered. The code is correct today. |
-| 296-L3-1 | BLOCKER | REAL (dup of L1-2) | Same guard unlock; points at ibkr-operations.md:205 ("so a plain re-run works"), which is the sentence that makes it the documented path. |
-| 296-L3-2 | CONCERN | KNOWN | `COMPLETE` run reads healthy to `daily_trader_health` and `check_jobs`; only the one-shot `warn` signals it (account-failure-visibility item B). |
-| 296-L3-3 | CONCERN | REAL (dup of L1-4) | Same broad `RuntimeError` catch. |
-| 296-L3-4 | CONCERN | REAL (dup of L1-6) | Same repair-command defect; adds that `python -m` is not the `.venv` interpreter and `--repo-root` is omitted. |
-| 296-L3-5 | CONCERN | REAL | The runbook's log grep (`executed\|Market closed\|COMPLETE\|ERROR`, ibkr-operations.md:159) does not match the new `WARN: skipping ...` line that the table below it lists as the key signal. |
-| 296-L3-6 | CONCERN | NOTE | Catch-up step has no deadline or check that it worked, and no market-hours warning. The market-closed case is real but the runbook's log table already gives the `executed N trades` check. |
-| 296-L3-7 | NOTE | NOTE | Step 00 details and the `RUN META` line carry the pre-exclusion `caps_summary` and account list. |
-| 296-L3-8 | NOTE | NOTE | `skipped_accounts` is absent from the artifact on the all-unavailable failure path; the reasons are only in `error`. |
+Extras verified in round 2: Break it on Opus found orders partly filled before deploy can stick open
+(develop's list path wrote cumulative `web-…` fill rows; mechanism verified, occurrence unchecked) and
+that a down socket gateway raises `TimeoutError`, which is not skipped. Recall of the first eight
+rows: Break it Sonnet 8/8, Opus 7/8, Money Opus 6/8, Money Sonnet 6/8, bundle 6/8, Money
+Haiku 1/8, Break it Haiku 0/8.
 
-### Tally
-- Raw findings: 41 (PR #294: 23, PR #296: 18). REAL 22, KNOWN 10, NOTE 9, NOT REAL 0.
-- Real-finding rate: 22/41 = 54% raw, 22/32 = 69% when NOTEs are excluded. Counting KNOWN as true
-  findings (the reviewers could not have known), 32/41 = 78%.
-- Distinct findings after merging duplicates: 25. Of those, 12 are REAL and not on the author's
-  list: PR #294 six (socket double-post, delta pricing, FILLED with no quantity, unreported with no
-  cause logged, stale runbook, mixed `fill_time` spellings); PR #296 six (guard unlock by a failed
-  catch-up, burn-in counts skipped days as success, broad `RuntimeError` catch, duplicate
-  `--accounts` names, repair command drops run options, runbook grep misses the WARN line).
-- New vs KNOWN among REAL: 12 new, 0 already known. Of the 11 items on the author's list, 5 were
-  reported by some lens (#294: commission/timestamp, symbol/side, lookup volume, auto-confirm;
-  #296: no escalation of a persistent outage). A sixth, the duplicate-run guard blocking a plain
-  re-run, was gone past: the lenses found the sequence that defeats the guard.
-- By lens: L1 on #294 4 REAL of 8; L2 on #294 3 of 7; L3 on #294 3 of 8; L1 on #296 5 of 6; L2 on
-  #296 3 of 4; L3 on #296 4 of 8.
-- Overlap: every REAL finding from lens 2 duplicated lens 1 (both PRs). Lens 3's unique REAL
-  findings were all documentation or log-visibility (294-L3-1, -2, -5; 296-L3-5). The guard unlock
-  was found by all three lenses on #296; the socket double-post by lenses 1 and 2 on #294.
-- Gap (5 known items no lens raised): #294 the order-list path reporting cumulative state, the
-  `0.0001` one-contract step, the `except Exception` in the lookup (lens 3 checked it and passed
-  it); #296 a session that dies mid-run, and a trading-step anomaly stopping later cap groups.
-  These are disclosed limitations rather than defects, and the `sizing.py` step is outside the
-  diff. The author's readiness report for #294 found no blocker; the lenses found three.
+**Test skeptic and Simplifier.** Test skeptic (Sonnet) found no defect the others missed and
+independently flagged the delta price from the test side. Its value is the *Tests* line: it showed
+why the current tests pass (a constant test price, hand-built fakes, no sentinel assertion). Simplifier
+(Sonnet) found no defects, about eight cleanups, and was the cheapest run.
 
-### Cost
-- Wall time about 4 minutes for all six in parallel (launched 21:13Z, last finished about 21:17Z).
-- Per reviewer: 70-80 s on the orchestrator's model, 157 s and 217 s on Opus (lens 2).
-- Tokens (as reported by the harness): about 482k across the six (62k, 76k, 77k, 80k, 89k, 97k),
-  90 tool calls. Verification and scoring by the orchestrator (reading code at the PR heads for
-  every finding) was not timed; it is the larger cost and does not parallelize.
-- Opus on lens 2 cost about 1.2x the tokens and 2-3x the time of the other lenses and found nothing
-  the Sonnet lens 1 had not, so the "different model" check bought no extra findings here.
+**Existing review vs the lenses.** The old Architecture, Style and Quality review (one Sonnet agent
+per PR) found two of the three key defects on #294 and none of the eight on #296. Its real findings
+were all also found by lenses, except two small placement points (Architecture) and a stale docs-map
+row (which belongs to the docs check). Hence: drop the Quality step, keep Architecture, merge Style
+into it.
 
-### Limits of this pilot
-Two PRs, one scorer who is also the orchestrator, verification by code reading only, and a known
-list written after the author's own review. The result is directional.
+**The dry run** rendered both comments (about 10k and 12k characters) and produced the rules in
+"The PR comment".
 
-### Recommendation
-Adopt, with adjustments. The success test is met: three BLOCKER-grade defects in #294 and one in
-#296, none on the author's list and none in the author's readiness report, at a real-finding rate
-above two thirds with no wrong findings.
-- Lens 1 (Break it): keep as written. Add one line: "when the change adds behavior to a base
-  class or shared helper, read every other implementer and caller" (the socket double-post came
-  from that).
-- Lens 2 (Money and safety): adjust, do not drop. It duplicated lens 1. Add concrete probes that
-  lens 1 does not run: "for any fill path, check that posted quantity and posted notional sum to
-  the broker's cumulative figures, across two polls with different prices", and "state each
-  invariant (books equal broker) and name the code that holds it". Keep the different-model run
-  only for broker, sizing, and fill diffs; it was not worth it elsewhere.
-- Lens 3 (Operator): keep. Add "diff the changed behavior against every runbook and reference doc
-  that describes it, including files the PR did not touch" (found the stale runbook).
-- Prompt: add "report a defect once per root cause" to cut duplicates (41 raw to 25 distinct).
-- Run lenses 4 and 5 before rolling out; this pilot did not cover them.
-- Owner decisions still open: which of the 12 REAL findings go into #294 and #296. Not fixed here.
-
-## Pilot results, second round (lenses 4 and 5, and a model comparison)
-Same two PRs, same method (read-only `Plan`-type agents, no PR text, no known list; instructions
-passed as a file). Run after the lens text was updated, so the first-round Sonnet/Opus runs used the
-older lens wording (one bullet shorter). 20 reviewers completed. Two Fable runs failed (Fable 5.1
-needs usage credits), so Fable is untested.
-
-Runs: lens 4 and 5 on Sonnet and Haiku; lens 1 on Haiku and Opus; lens 2 on Sonnet and Haiku; lens 3
-on Haiku; lens 1 on Sonnet with a pre-read bundle (diff plus the full text of every changed `src`
-file, to test a token saving). Baselines are the first-round runs (lens 1 and 3 Sonnet, lens 2 Opus).
-Scoring is against the verified findings from round one plus what round two added.
-
-### Recall of the key defects, by lens and model
-Key defects: #294 socket double-post (A), delta price (B), FILLED with no quantity (C); #296 guard
-unlock (G1), burn-in (G2), broad `RuntimeError` (G3), duplicate names (G4), repair command (G5).
-
-| Lens | Model | #294 | #296 | Hits | Tokens (both PRs) | Wall (both) |
-|---|---|---|---|---|---|---|
-| 1 Break it | Sonnet (round 1) | A B C | G1 G2 G3 G4 G5 | 8/8 | 142k | 72 + 80 s |
-| 1 Break it | Sonnet, bundle | B C | G2 G3 G4 G5 | 6/8 | 172k | 130 + 89 s |
-| 1 Break it | Opus | A B C | G1 G2 G4 G5 | 7/8 + 2 extra | 225k | 283 + 196 s |
-| 1 Break it | Haiku | none; 1 false BLOCKER | off task (wrote a rollout plan) | 0/8 | 151k | 346 + 162 s |
-| 2 Money | Opus (round 1) | A B C | G1 G3 G4 | 6/8 | 186k | 217 + 157 s |
-| 2 Money | Sonnet | B C (called A "behavior widening") | G1 G3 G4 G5 | 6/8 | 143k | 68 + 94 s |
-| 2 Money | Haiku | B only | "No findings", confidence high | 1/8 | 163k | 432 + 258 s |
-| 3 Operator | Sonnet (round 1) | D E F | G1 G3 G5 G6 | 7 | 155k | 81 + 69 s |
-| 3 Operator | Haiku | D only | G6 only; calls the `COMPLETE` sentinel a strength | 2 | 152k | 187 + 255 s |
-
-Extras found and verified in round two: Opus lens 1 on #294, orders partly filled before deploy can
-stick open, because develop's list path wrote cumulative `web-…` fill rows (mechanism verified in
-code; whether such rows exist is unchecked; query is in the PR comment); Opus lens 1 on #296, socket
-connect failures (`TimeoutError`) are not skipped (verified for `ibapi`).
-
-False or wrong output: Haiku lens 1 on #294 raised a BLOCKER (`commission=None` crash) that is not
-real (`BrokerOrder.commission` defaults to 0.0); Haiku lens 4 on #296 claimed a test would fail for
-multiple skipped accounts (it only covers one) and on #294 cited "241 test cases" (the file has 20;
-241 is the diff size); Sonnet bundle on #294 cited line numbers past the end of the file it read.
-No NOT REAL finding in the Sonnet and Opus findings I checked.
-
-### Lens 4 (Test skeptic) and lens 5 (Simplifier)
-| Lens | Model | Result | Tokens | Wall |
+# Appendix C: models and cost
+| Reviewer | Model | Tokens (two PRs) | Wall time | Note |
 |---|---|---|---|---|
-| 4 | Sonnet | #294: delta price flagged as BLOCKER from the test side, with the cause (`_looked_up_order` pins `avg_fill_price=151.0`); listed-but-unpostable path untested; raw timestamp pinned; `except Exception` untested. #296: nothing asserts the sentinel in either direction (the gap behind G1); steps 06/07/10 and shadow-eval uncovered; rewritten kill-switch branch untested. Verified that new tests fail on revert. | 72k, 74k | 68, 84 s |
-| 4 | Haiku | Mostly low-value gaps; one false claim on each PR; missed the delta-price test gap | 76k, 59k | 223, 193 s |
-| 5 | Sonnet | #294: 4 concerns (duplicate list/lookup loops, duplicated status-reason logic, unrelated client logging, unread fields) and 4 notes. #296: 4 concerns (skip state kept in four places, dead assignment at `workflow.py:329`, one-caller helper). No defects. | 65k, 60k | 63, 37 s |
-| 5 | Haiku | #294 "no issues"; #296 one weak note | 78k, 84k | 185, 280 s |
+| Break it | Sonnet | 142k | 72 + 80 s | 8/8 key defects |
+| Break it | Opus | 225k | 283 + 196 s | 7/8 plus 2 extras |
+| Break it | Haiku | 151k | 346 + 162 s | 0/8, one false BLOCKER, one off-task run |
+| Money and safety | Opus | 186k | 217 + 157 s | no finding Break it lacked |
+| Money and safety | Sonnet | 143k | 68 + 94 s | same recall as Opus |
+| Money and safety | Haiku | 163k | 432 + 258 s | "No findings" stated with high confidence |
+| Operator | Sonnet | 155k | 81 + 69 s | 4/4 specific items |
+| Operator | Haiku | 152k | 187 + 255 s | 2/4; called the `COMPLETE` sentinel a strength |
+| Break it, pre-read bundle | Sonnet | 172k | 130 + 89 s | more tokens, missed two defects |
+| Test skeptic | Sonnet / Haiku | 147k / 134k | 68-84 s / 193-223 s | Haiku: one false claim per PR |
+| Simplifier | Sonnet / Haiku | 125k / 162k | 37-63 s / 185-280 s | Haiku: "no issues" on #294 |
+| Architecture and conventions (old three-section review) | Sonnet | 186k (3 sections, 2 PRs) | 67 + 119 s | |
 
-Overlap and benefit:
-- Lens 4 raised no defect that lenses 1-3 had missed, and independently confirmed one (delta price).
-  Its value is the *Tests* line for each defect: it showed why the existing tests pass (constant test
-  price, hand-built fakes, no sentinel assertion) and what to add. The per-PR comments now carry it.
-- Lens 5 overlapped the others once (the `sizing.py` docstring). Its output is cleanup, not defects,
-  at the lowest cost of any lens; worth running only on large diffs or new abstractions.
-- Lens 2 added no REAL finding that a lens 1 run had not also found, on either PR or either model.
-  What it added was severity: Money & safety called the guard unlock a blocker where one Break it run
-  called it a concern. Superseded the same day: lens 2 is merged into lens 1, and the severity
-  difference is handled by the shared severity rubric ("The four lenses").
-- Run-to-run misses are real: every Sonnet and Opus run missed at least one key defect (A was missed
-  by Sonnet lens 2 and the bundle run; G1 by the bundle run; G3 by Opus). Two samples of lens 1
-  cover more than one run of a bigger model.
+Decisions that follow: Sonnet everywhere; Haiku nowhere (it used as many tokens as Sonnet through
+2-4 times the tool calls, and gave two false all-clears); Opus only as a second Break it on
+aggressive-mode diffs (every single run missed something, so a second sample covers more than a
+bigger model on the same lens); no pre-read bundle; Fable untested. Costs per PR: ordinary diff about
+210k (conventions, Break it, Test skeptic); aggressive diff about 400k (adds the Opus Break it and
+Operator); Simplifier adds about 60k. Rounds 2 and 3 of the pilot cost about 1.8M tokens, most of it
+on the model comparison.
 
-### Model decisions
-1. **Sonnet for all five lenses.** Recall equal to Opus on lens 2, 8/8 on lens 1, and 60-85k tokens
-   and 40-95 s a run.
-2. **No Haiku, for any lens.** It found 0-2 of the key defects, gave two false all-clears stated with
-   high confidence (lens 2 on #296, lens 5 on #294), raised one false BLOCKER, and went off task once.
-   It was not cheaper: tokens per run matched Sonnet because it makes 2-4 times the tool calls, and
-   wall time was 2-6 times longer.
-3. **Opus: a second lens-1 sample on aggressive-tier diffs only**, not on lens 2. It caught A, B, C
-   and G1 and two extras for 1.6 times the tokens and 3 times the time of Sonnet lens 1. Untested
-   alternative: a second Sonnet lens-1 sample, cheaper; try it on the next aggressive-tier PR.
-4. **No pre-read bundle.** It used more tokens (172k against 142k for the same lens) and missed the
-   two defects that need files outside the bundle or a doubt about the runbook (A, G1).
-5. **Fable: untested.** Needs usage credits; revisit if they are enabled.
-
-### Token savings that hold up
-The per-run cost is flat at about 60-85k whatever the model, so savings come from running fewer
-runs, not cheaper ones:
-- Gate by the table (original numbering): an ordinary `src` diff runs lenses 1 and 4 (about 140k); an
-  aggressive-tier diff ran 1, 2, 3 and 4 (about 290k), plus the Opus sample (about 110k a PR); lens 5
-  (about 60k) only on large diffs or new abstractions. After the merge, the aggressive tier is lens 1
-  on Sonnet (about 70k), lens 1 on Opus (about 110k), Operator (about 75k) and Test skeptic (about 70k):
-  about 325k a PR, against about 400k for the unmerged set with the Opus sample.
-- Re-review after fixes runs only the lenses that had findings, on the touched files.
-- Dedupe findings by root cause before showing them (41 raw findings were 25 distinct in round one).
-- Skip lenses entirely for docs-only diffs, as the table already says.
-Total for this round: about 1.6M tokens across 20 runs, most of it spent on the comparison itself;
-a normal aggressive-tier PR is roughly a quarter of that.
-
-### Limits (second round)
-Two PRs, one run per cell, so run-to-run variance is not separated from model and prompt effects (the
-bundle run changes both). One scorer, who is also the orchestrator. Directional, not conclusive.
-
-## Pilot results, third round (the existing Architecture, Style and Quality review)
-Question: can the separate AI Quality step be dropped? Method: the existing `code-review` PR mode
-(three sections in one pass), run by one fresh-context read-only Sonnet agent per PR, no PR text, no
-known list. This tests the prompt, not the same-author effect: today the three steps run in the
-authoring session, which the pilot could not reproduce. Cost: 100k tokens and 119 s for #294, 86k and
-67 s for #296.
-
-| | Architecture | Style | Quality |
-|---|---|---|---|
-| #294 | 1 CONCERN: the cumulative-to-incremental arithmetic in `_postable_order` is side-effect-free decision logic in the services layer (`architecture-conventions.md:317`). New, minor, real. | 4 ADVISORY: raw broker timestamp (also found by lenses 2 and 3), `sizing.py` churn (found), incident narration in the docs (found by the Simplifier), the duplicated loops (found by the Simplifier) | 1 BLOCKER: delta price (found by lens 1). 1 ADVISORY: `Filled` with no quantity (found by lens 1). Missed the socket double-post, the silent unreported orders, the stale runbook. |
-| #296 | 1 CONCERN: `BrokerSessionUnavailableError` is defined in `broker_preflight.py` but raised in `workflow.py`, splitting one rule across two modules. New, minor. | Clean | 4 ADVISORY: stale `docs/maps/trading-package-map.md:79` row ("fails the run with the unavailable accounts named", verified; new, real); step-00 `caps_summary` (found); skip state carried three ways (found by the Simplifier); test gaps (found by the Test skeptic). Missed all six key defects: guard unlock, burn-in, broad `RuntimeError`, duplicate names, repair command, runbook grep. |
-
-Reading:
-- Quality found 2 of the 3 key defects on #294 and none of the 8 on #296. Everything it found that
-  was real was also found by a lens, except the stale map row, which belongs to the docs check (Step 5).
-- Architecture found two small items no lens did. No lens covers layering or placement. Keep it.
-- Style's findings were all duplicated by lenses or by Quality; it was clean on #296. It is cheap to
-  keep as part of the architecture agent, so the conventions check still runs on ordinary diffs where
-  the Simplifier (gated by size) does not.
-- Decided (owner, 2026-10-09): replace the Quality step with the lenses. Still proposed, not
-  confirmed: run Architecture and Style as one fresh-context agent.
-
-Non-agent checks are untouched. The deterministic gate, the docs check and CI keep running first and
-gate all AI spend. Promote a recurring AI finding to a deterministic check when a lens finds the same
-class twice. Candidates seen so far: a docs-map row that names a changed file (the stale map row), and
-a diff that adds more comment and docstring lines than code (the narration tell the skill already
-describes). Not built.
+Limits: two PRs, one run per cell, so run-to-run variance is not separated from model and prompt
+effects; one scorer, who is also the orchestrator; the old review was tested as a prompt, not as run
+in the author's own session. Directional, not conclusive.
