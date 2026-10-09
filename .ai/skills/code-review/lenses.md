@@ -135,7 +135,7 @@ Used by `pr ready` and by a review of a PR by number.
    say why. One defect can be rated differently by different reviewers.
 5. **Add a *Tests* line to each defect.** Whether the current tests catch it and the test to add,
    from the Test skeptic's output and your own reading.
-6. **Cost.** A reviewer costs about 60-85k tokens whatever the model. Run only the selected ones. On a
+6. **Cost.** A reviewer costs about 60-90k tokens whatever the model. Run only the selected ones. On a
    later pass run only the reviewers that had findings on the files that changed.
 7. **Never fix during review.** Findings go to the owner.
 
