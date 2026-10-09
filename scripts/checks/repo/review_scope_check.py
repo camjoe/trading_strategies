@@ -29,7 +29,9 @@ SCOPE_RULES = (
     ScopeRule("src/trading/interfaces/runtime/scheduling/", "aggressive", "runtime job or scheduler change", True),
     ScopeRule("src/infrastructure/brokers/", "aggressive", "broker adapter change", True),
     ScopeRule("src/infrastructure/database/", "aggressive", "database schema or migration change", True),
-    ScopeRule("src/trading/services/execution/", "aggressive", "order submission, fill, or reconciliation change", True),
+    ScopeRule(
+        "src/trading/services/execution/", "aggressive", "order submission, fill, or reconciliation change", True
+    ),
     ScopeRule("src/trading/services/auto_trading/", "aggressive", "auto-trading decision change", True),
     ScopeRule("src/trading/domain/auto_trading/", "aggressive", "sizing or order policy change", True),
     ScopeRule("src/trading/domain/risk_gate.py", "aggressive", "risk gate change", True),

@@ -75,7 +75,10 @@ def test_empty_changes_get_note() -> None:
 @pytest.mark.parametrize(
     ("path", "reason"),
     [
-        ("src/trading/services/execution/open_order_reconciliation.py", "order submission, fill, or reconciliation change"),
+        (
+            "src/trading/services/execution/open_order_reconciliation.py",
+            "order submission, fill, or reconciliation change",
+        ),
         ("src/trading/services/auto_trading/runner.py", "auto-trading decision change"),
         ("src/trading/domain/auto_trading/sizing.py", "sizing or order policy change"),
         ("src/trading/domain/risk_gate.py", "risk gate change"),
