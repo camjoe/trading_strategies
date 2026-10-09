@@ -147,8 +147,10 @@ the table now exposes only settings consumed by the active rotation path.
 Live money and quantity columns are stored as **integer minor units**, not floats. The scale is set
 by two constants in `src/common/constants.py`: `MONEY_MINOR_UNITS_PER_DOLLAR` and
 `QUANTITY_MINOR_UNITS_PER_SHARE` (both provisionally `1_000_000` — micro-dollars and micro-shares —
-until a real IBKR paper fill fixes the broker-reported precision). This lets the system trade
-fractional shares without float dust reading as a phantom open position.
+until a real IBKR paper fill fixes the broker-reported price and commission precision). The storage
+grid is finer than the order grid: IBKR accepts fractional equity orders in multiples of `0.0001`
+(`FRACTIONAL_SHARE_STEP` in `sizing.py`). This lets the system trade fractional shares without float
+dust reading as a phantom open position.
 
 - **What is integer.** The live money and quantity columns on `accounts`, `books`, `orders`,
   `order_fills`, `positions`, `ledger`, `equity_snapshots`, `daily_metrics`, `risk_snapshots`, and

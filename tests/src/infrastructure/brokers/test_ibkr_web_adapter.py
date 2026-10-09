@@ -61,6 +61,27 @@ class TestInteractiveBrokersWebAdapter:
         assert "cOID" in submitted_payload
         assert "manualOrderTime" not in submitted_payload
 
+    @pytest.mark.parametrize(
+        ("qty", "expected_exchange"),
+        [(10.0, "NASDAQ"), (1.0, "NASDAQ"), (0.9342, "SMART"), (10.5, "SMART")],
+    )
+    def test_place_order_routes_fractional_sizes_through_smart(self, qty, expected_exchange):
+        client = self._make_client()
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="272093",
+            ticker="MSFT",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {"acctProps": {}}
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        adapter.place_order(make_order_request(order_type=OrderType.MARKET, qty=qty))
+
+        assert client.submit_order.call_args.args[0]["listingExchange"] == expected_exchange
+
     def test_place_order_includes_manual_order_time_when_required(self):
         client = self._make_client()
         client.account_id = "U1234567"

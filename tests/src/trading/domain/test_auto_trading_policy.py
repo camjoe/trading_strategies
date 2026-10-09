@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from common.constants import QUANTITY_MINOR_UNITS_PER_SHARE
 from trading.domain.auto_trading.exits import order_risk_breaches
 from trading.domain.auto_trading.fairness import order_capacity_claimants, order_signal_candidates
 from trading.domain.auto_trading.options import (
@@ -12,8 +13,10 @@ from trading.domain.auto_trading.options import (
 )
 from trading.domain.auto_trading.sizing import (
     FRACTIONAL_SHARE_STEP,
+    STORAGE_SHARE_STEP,
     allocate_buy_quantities,
     choose_buy_qty,
+    closing_quantity_step_for,
     closing_sell_qty,
 )
 
@@ -65,13 +68,61 @@ def test_choose_buy_qty_sizes_fractional_shares_on_the_grid() -> None:
         max_position_pct=100.0,
         quantity_step=FRACTIONAL_SHARE_STEP,
     )
-    assert frac == pytest.approx(3.333333)
+    assert frac == 3.3333
 
 
 def test_closing_sell_qty_keeps_fractions_on_the_fractional_step() -> None:
     # The whole-share step drops a sub-share holding; the fractional step exits it.
     assert closing_sell_qty(position_qty=0.2, quantity_step=FRACTIONAL_SHARE_STEP) == pytest.approx(0.2)
     assert closing_sell_qty(position_qty=9.7, quantity_step=FRACTIONAL_SHARE_STEP) == pytest.approx(9.7)
+
+
+def test_the_order_step_is_a_whole_number_of_storage_units() -> None:
+    # A quantity on the order grid must store exactly, with nothing truncated on write.
+    assert FRACTIONAL_SHARE_STEP * QUANTITY_MINOR_UNITS_PER_SHARE == pytest.approx(
+        round(FRACTIONAL_SHARE_STEP * QUANTITY_MINOR_UNITS_PER_SHARE)
+    )
+
+
+def test_choose_buy_qty_stays_within_the_ibkr_increment() -> None:
+    # $500 at $535.17/share is 0.934317... shares; IBKR rejected that size for MSFT as
+    # off its 0.0001 minimum variation.
+    qty = choose_buy_qty(
+        cash=5000.0,
+        price=535.17,
+        fee=0.0,
+        trade_size_pct=10.0,
+        max_position_pct=20.0,
+        quantity_step=FRACTIONAL_SHARE_STEP,
+    )
+    assert qty == 0.9342
+
+
+@pytest.mark.parametrize("units", [1, 3, 7, 11, 9343])
+def test_sized_quantities_carry_no_float_noise(units: int) -> None:
+    # 3 * 0.0001 is 0.00030000000000000003 in floating point, which the broker would reject.
+    wanted = units * FRACTIONAL_SHARE_STEP + FRACTIONAL_SHARE_STEP / 10
+    qty = choose_buy_qty(
+        cash=wanted * 100.0,
+        price=100.0,
+        fee=0.0,
+        trade_size_pct=100.0,
+        max_position_pct=100.0,
+        quantity_step=FRACTIONAL_SHARE_STEP,
+    )
+    assert repr(qty) == str(units / 10_000)
+
+
+def test_closing_sell_exits_a_position_held_at_the_storage_grid_whole() -> None:
+    # A holding bought at the finer storage precision must close fully, not leave dust
+    # below the order increment.
+    step = closing_quantity_step_for("equity")
+    assert step == STORAGE_SHARE_STEP
+    assert closing_sell_qty(position_qty=0.934317, quantity_step=step) == 0.934317
+
+
+def test_closing_quantity_step_for_leaps_is_a_whole_contract() -> None:
+    assert closing_quantity_step_for("leaps") == 1.0
 
 
 def test_allocate_buy_quantities_scales_fractionally_when_cash_binds() -> None:
