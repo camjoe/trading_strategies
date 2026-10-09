@@ -234,7 +234,8 @@ Built on a branch off `develop`, separate from PRs #294 and #296. Build order is
    `src/trading/domain/auto_trading/`, the order and fill repositories; #294 only classified as
    aggressive because it touched `brokers/`); add a diff-size trigger. Update `scripts/README.md` and
    `docs/maps/scripts-map.md`.
-6. **`AGENTS.md`**: the `pr code review` and `pr arch review` shortcuts (lines 213-216 describe
+6. **Built** (with `review_scope_check --head`, which the by-number shortcut needs).
+   **`AGENTS.md`**: the `pr code review` and `pr arch review` shortcuts (lines 213-216 describe
    "style + quality" and "architecture"): `pr arch review` runs Architecture and conventions;
    `pr code review` runs the lenses. Add the by-number shortcut for reviewing a PR without checking it
    out. Routing table and skill inventory if wording changes. `.ai/skills/README.md` likewise.
