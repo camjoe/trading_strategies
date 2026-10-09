@@ -23,7 +23,7 @@ login that owns the user services.
 | Daily trader | system timer `daily-paper-trading.timer` (weekdays) | a logged-in session when any run account is on IBKR |
 | Daily health check | system timer `daily-trader-health-check.timer` (weekdays) | the daily trader's log |
 
-The run times come from `src/infrastructure/config/job_schedule.json`. Accounts on the `paper`
+The run times come from the gitignored `job_schedule.json`, which sits beside `src/infrastructure/config/job_schedule.example.json`. Accounts on the `paper`
 broker need none of the gateway pieces; only accounts on `interactive_brokers_web_paper` do.
 
 ## Start
