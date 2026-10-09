@@ -1,6 +1,7 @@
 # Plan: review every PR through several mindsets
 
-Status: drafted 2026-10-09. Nothing is built. Pilot ready to run: see "Pilot kickoff".
+Status: drafted 2026-10-09. Nothing is built. Pilot (lenses 1-3 on PR #294 and #296) run 2026-10-09;
+results and recommendation under "Pilot results".
 
 ## Goal
 Catch what one reviewer with one mindset misses, without making every PR slow or noisy. The repo
@@ -191,4 +192,119 @@ cost with a recommendation. Do not fix any finding.
 - Where do lens findings live between PR updates: the saved report only, or PR comments?
 
 ## Pilot results
-(none yet)
+Run 2026-10-09 from `docs/plan-folder`. PR #294 and #296 both still open. Six read-only `Plan`-type
+agents, one per lens per PR, fresh context, launched in parallel; lens 2 ran on Opus, lenses 1 and 3
+on the orchestrator's model (Sonnet 5.5). No reviewer was given the PR text, commit messages, the
+"Known to the author" list, or the readiness report. Every finding below was checked by reading the
+code at the PR head; none was reproduced by running a test. IDs are `<PR>-L<lens>-<n>`; lines are
+at the PR head.
+
+Verdicts: REAL (true defect or gap, not disclosed), KNOWN (on the author's list), NOTE (true but
+minor, pre-existing, or speculative), NOT REAL (wrong). A dup is the same defect another lens
+already reported.
+
+### PR #294 (reconcile lookup)
+
+| ID | Sev | Verdict | Finding |
+|---|---|---|---|
+| 294-L1-1 | BLOCKER | REAL | `_postable_order` (open_order_reconciliation.py:243-273) synthesizes a `:cum:` fill for any adapter that returns `fills == []` with `filled_qty > 0`, not only IBKR Web. The socket client sets `filled` (orderStatus) and `fills` (execDetails) in separate callbacks (ibapi_client.py:245-290). A poll between them posts the shares as a synthetic fill; the next poll carries the real exec id, which is not in `seen_exec_ids`, and posts them again. Position and cash double. |
+| 294-L1-2 | BLOCKER | REAL | The delta fill is priced at the cumulative `avg_fill_price` (:261-271). 5 @ 100 then 5 @ 110 books 5 @ 105 for the second part: cost 1025 against 1050. Permanent drift for any order that fills over more than one poll. |
+| 294-L1-3 | BLOCKER | REAL | `_broker_order_from_status` (ibkr_web/adapter.py:282-299) defaults `cum_fill` to 0.0, so a `Filled` reply without it gives FILLED with `filled_qty` 0. `_postable_order` returns it unchanged (`new_qty == 0`) and the row is closed `filled` with no fill posted and never polled again. |
+| 294-L1-4 | CONCERN | KNOWN | Looked-up order matched by broker id only; ticker and side not compared. |
+| 294-L1-5 | CONCERN | KNOWN | Status-path fill is dated at the order's placement time. |
+| 294-L1-6 | CONCERN | REAL | A report below what is recorded, or above it with no price, makes `_postable_order` return None with no log line (:249-259); the order falls into "unreported" indistinguishable from "broker does not know it". |
+| 294-L1-7 | CONCERN | KNOWN | One unpaced lookup request per omitted open row on every run. |
+| 294-L1-8 | NOTE | NOTE | `sizing.py:44` docstring cut to one line; out of scope for a reconcile fix. |
+| 294-L2-1 | BLOCKER | REAL (dup of L1-1) | Same socket double-post, with a worked 10-share example. |
+| 294-L2-2 | CONCERN | REAL (dup of L1-2) | Same delta-price defect; notes the tests hold `avg_fill_price` constant across partial fills, which hides it. |
+| 294-L2-3 | CONCERN | REAL (dup of L1-3) | Same FILLED-without-quantity defect. The `average_price` "0" posts-at-$0 variant was not verified. |
+| 294-L2-4 | CONCERN | KNOWN | Status-path fills carry commission 0 and the order closes, so the fee is never posted. |
+| 294-L2-5 | NOTE | KNOWN | Fill dated at placement time; replay order uses `fill_time`. |
+| 294-L2-6 | NOTE | KNOWN | Ticker and side not checked (adds the socket-to-web id-reuse scenario). |
+| 294-L2-7 | NOTE | NOTE | `submit_order` (ibkr_web/client.py:291-293) sends a sixth confirm POST and then raises even if that reply was the acknowledgement. The loop predates the PR. |
+| 294-L3-1 | CONCERN | REAL | A lookup that returns None because of a 503 (`IbWebOrderStatusUnavailableError`) or an unusable reply (no `order_status`/`symbol`) logs nothing (adapter.py:127-133, :236); every such order lands in the generic "not reported by the broker" warning, which now misleads because the broker was asked. |
+| 294-L3-2 | CONCERN | REAL | `docs/runbooks/ibkr-paper-trading.md:258-286` still says reconciliation "never sees it again" and that unreported orders are only reported; it does not mention the per-order status lookup, auto-resolution, or the new log line. Only `broker-integration.md` was updated. |
+| 294-L3-3 | CONCERN | KNOWN | Commission 0 and placement-time `fill_time` on status-path fills; no marker of which fills were synthesized. |
+| 294-L3-4 | CONCERN | KNOWN | Order warnings still auto-confirmed (up to five); now only logged. |
+| 294-L3-5 | NOTE | REAL | `order_fills.fill_time` gets two spellings: the list path stores the raw `lastExecutionTime` (`_normalize_fill_time`, adapter.py:~215), the status path stores ISO. Stored timestamps are string-compared (python-style.md, Timestamps). The raw form predates the PR; the PR puts a second form beside it. |
+| 294-L3-6 | NOTE | KNOWN | Unbounded sequential lookups, no "looked up N, resolved M, failed K" summary. |
+| 294-L3-7 | NOTE | NOTE | Status-reply mapping validated only against a captured payload and a fake gateway; the live-gateway section of the runbook is not updated. |
+| 294-L3-8 | NOTE | NOTE (dup of L1-8) | `sizing.py` docstring. |
+
+### PR #296 (skip unavailable accounts)
+
+| ID | Sev | Verdict | Finding |
+|---|---|---|---|
+| 296-L1-1 | CONCERN | REAL | "Every account unavailable" test is `len(skipped) == len(accounts)` (workflow.py:307); `skipped` is a dict, `resolve_accounts` (job_helpers.py:149-161) does not dedupe. `--accounts a,a` with `a` down: 1 != 2, run proceeds with zero accounts, writes `COMPLETE`, status success. |
+| 296-L1-2 | CONCERN | REAL | Partial run writes `COMPLETE`; the guard (`latest_log_contains_sentinel`, job_helpers.py:176-185) reads only the newest log. Operator force-runs the skipped account while the gateway is still down; that run is all-unavailable, fails, writes no `COMPLETE`, becomes the newest log; a later plain run passes the guard and trades the first account a second time. |
+| 296-L1-3 | CONCERN | REAL | A skipped-account run is `status: success`. `burn_in_status` counts consecutive success artifacts (latest file per date), so ten days with the IBKR account skipped read `ready_for_live`; before the PR those days were failures. Also, a later failed catch-up run's artifact replaces that day's success. |
+| 296-L1-4 | CONCERN | REAL | `except (httpx.TransportError, RuntimeError)` (broker_preflight.py:39) also catches `validate_session`'s account-not-visible and not-enabled-for-trading errors (ibkr_web/client.py:99-111). A wrong or mismatched `account_id` becomes a daily `warn` skip instead of a failed run. Fails closed; the WARN log line does carry the real reason, the alert text does not. |
+| 296-L1-5 | NOTE | NOTE | Socket-transport connect failures are likely not caught, so a down TWS still aborts the run. The exception type was not confirmed. |
+| 296-L1-6 | NOTE | REAL | The alert's repair command carries only `--accounts`, `--run-source`, `--force-run` (workflow.py:263-264). `--account-trade-caps`, `--primary-accounts`, `--fee`, `--seed`, `--as-of-date` are dropped, so the catch-up uses default caps. |
+| 296-L2-1 | BLOCKER | REAL (dup of L1-2) | Same guard unlock; adds that the failure text and runbook tell the operator to "re-run" and that `replay_daily_runs` would also treat the date as missing. |
+| 296-L2-2 | CONCERN | REAL (dup of L1-4) | Same broad `RuntimeError` catch. |
+| 296-L2-3 | CONCERN | REAL (dup of L1-1) | Same duplicate-name count mismatch. |
+| 296-L2-4 | NOTE | NOTE | The test asserting every worker gets only the run account filters on `--accounts` (test_daily_paper_trading_main.py:522-526), so per-account `--account` calls and steps 06/07 are not covered. The code is correct today. |
+| 296-L3-1 | BLOCKER | REAL (dup of L1-2) | Same guard unlock; points at ibkr-operations.md:205 ("so a plain re-run works"), which is the sentence that makes it the documented path. |
+| 296-L3-2 | CONCERN | KNOWN | `COMPLETE` run reads healthy to `daily_trader_health` and `check_jobs`; only the one-shot `warn` signals it (account-failure-visibility item B). |
+| 296-L3-3 | CONCERN | REAL (dup of L1-4) | Same broad `RuntimeError` catch. |
+| 296-L3-4 | CONCERN | REAL (dup of L1-6) | Same repair-command defect; adds that `python -m` is not the `.venv` interpreter and `--repo-root` is omitted. |
+| 296-L3-5 | CONCERN | REAL | The runbook's log grep (`executed\|Market closed\|COMPLETE\|ERROR`, ibkr-operations.md:159) does not match the new `WARN: skipping ...` line that the table below it lists as the key signal. |
+| 296-L3-6 | CONCERN | NOTE | Catch-up step has no deadline or check that it worked, and no market-hours warning. The market-closed case is real but the runbook's log table already gives the `executed N trades` check. |
+| 296-L3-7 | NOTE | NOTE | Step 00 details and the `RUN META` line carry the pre-exclusion `caps_summary` and account list. |
+| 296-L3-8 | NOTE | NOTE | `skipped_accounts` is absent from the artifact on the all-unavailable failure path; the reasons are only in `error`. |
+
+### Tally
+- Raw findings: 41 (PR #294: 23, PR #296: 18). REAL 22, KNOWN 10, NOTE 9, NOT REAL 0.
+- Real-finding rate: 22/41 = 54% raw, 22/32 = 69% when NOTEs are excluded. Counting KNOWN as true
+  findings (the reviewers could not have known), 32/41 = 78%.
+- Distinct findings after merging duplicates: 25. Of those, 12 are REAL and not on the author's
+  list: PR #294 six (socket double-post, delta pricing, FILLED with no quantity, unreported with no
+  cause logged, stale runbook, mixed `fill_time` spellings); PR #296 six (guard unlock by a failed
+  catch-up, burn-in counts skipped days as success, broad `RuntimeError` catch, duplicate
+  `--accounts` names, repair command drops run options, runbook grep misses the WARN line).
+- New vs KNOWN among REAL: 12 new, 0 already known. Of the 11 items on the author's list, 5 were
+  reported by some lens (#294: commission/timestamp, symbol/side, lookup volume, auto-confirm;
+  #296: no escalation of a persistent outage). A sixth, the duplicate-run guard blocking a plain
+  re-run, was gone past: the lenses found the sequence that defeats the guard.
+- By lens: L1 on #294 4 REAL of 8; L2 on #294 3 of 7; L3 on #294 3 of 8; L1 on #296 5 of 6; L2 on
+  #296 3 of 4; L3 on #296 4 of 8.
+- Overlap: every REAL finding from lens 2 duplicated lens 1 (both PRs). Lens 3's unique REAL
+  findings were all documentation or log-visibility (294-L3-1, -2, -5; 296-L3-5). The guard unlock
+  was found by all three lenses on #296; the socket double-post by lenses 1 and 2 on #294.
+- Gap (5 known items no lens raised): #294 the order-list path reporting cumulative state, the
+  `0.0001` one-contract step, the `except Exception` in the lookup (lens 3 checked it and passed
+  it); #296 a session that dies mid-run, and a trading-step anomaly stopping later cap groups.
+  These are disclosed limitations rather than defects, and the `sizing.py` step is outside the
+  diff. The author's readiness report for #294 found no blocker; the lenses found three.
+
+### Cost
+- Wall time about 4 minutes for all six in parallel (launched 21:13Z, last finished about 21:17Z).
+- Per reviewer: 70-80 s on the orchestrator's model, 157 s and 217 s on Opus (lens 2).
+- Tokens (as reported by the harness): about 482k across the six (62k, 76k, 77k, 80k, 89k, 97k),
+  90 tool calls. Verification and scoring by the orchestrator (reading code at the PR heads for
+  every finding) was not timed; it is the larger cost and does not parallelize.
+- Opus on lens 2 cost about 1.2x the tokens and 2-3x the time of the other lenses and found nothing
+  the Sonnet lens 1 had not, so the "different model" check bought no extra findings here.
+
+### Limits of this pilot
+Two PRs, one scorer who is also the orchestrator, verification by code reading only, and a known
+list written after the author's own review. The result is directional.
+
+### Recommendation
+Adopt, with adjustments. The success test is met: three BLOCKER-grade defects in #294 and one in
+#296, none on the author's list and none in the author's readiness report, at a real-finding rate
+above two thirds with no wrong findings.
+- Lens 1 (Break it): keep as written. Add one line: "when the change adds behavior to a base
+  class or shared helper, read every other implementer and caller" (the socket double-post came
+  from that).
+- Lens 2 (Money and safety): adjust, do not drop. It duplicated lens 1. Add concrete probes that
+  lens 1 does not run: "for any fill path, check that posted quantity and posted notional sum to
+  the broker's cumulative figures, across two polls with different prices", and "state each
+  invariant (books equal broker) and name the code that holds it". Keep the different-model run
+  only for broker, sizing, and fill diffs; it was not worth it elsewhere.
+- Lens 3 (Operator): keep. Add "diff the changed behavior against every runbook and reference doc
+  that describes it, including files the PR did not touch" (found the stale runbook).
+- Prompt: add "report a defect once per root cause" to cut duplicates (41 raw to 25 distinct).
+- Run lenses 4 and 5 before rolling out; this pilot did not cover them.
+- Owner decisions still open: which of the 12 REAL findings go into #294 and #296. Not fixed here.
