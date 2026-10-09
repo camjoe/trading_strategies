@@ -20,4 +20,5 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | Plan | Status | Depends on |
 |---|---|---|
 | [review-mindsets.md](review-mindsets.md) | Drafted 2026-10-09. Pilot not run. | none |
+| [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
