@@ -70,8 +70,9 @@ python -m trading.interfaces.runtime.scheduling.manage_job_schedules --env-file 
 sudo bash local/install_trading_timers.sh
 ```
 
-Use an absolute `--env-file` path. systemd ignores a relative one, and the jobs then run without
-`.env`. Re-run both commands whenever the schedule file changes.
+A relative `--env-file` path is resolved to an absolute one when the unit is generated, because
+systemd ignores a relative `EnvironmentFile=`. Re-run both commands whenever the schedule file
+changes.
 
 Run it by hand, for all accounts or for a few:
 
@@ -82,6 +83,9 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manua
 ```bash
 python -m trading.interfaces.runtime.jobs.daily.paper_trading --accounts <name>,<name> --run-source manual
 ```
+
+A manual run does not load `.env` (only the services and timers do), so it sends alerts only if you
+load it first: `set -a; . ./.env; set +a`.
 
 The market must be open for orders to go out. Outside US regular hours the run still completes, and
 every account reports `Market closed: no orders will be submitted`.
