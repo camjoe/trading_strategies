@@ -219,12 +219,12 @@ Built on a branch off `develop`, separate from PRs #294 and #296. Build order is
    advisory and last, so a broken doc link that CI rejects passed it (PR #295). `run_checks ci` is
    not reused: it runs the full suite and takes no `--base`. Update `scripts/README.md`,
    `docs/maps/scripts-map.md` and `validate-code/SKILL.md`.
-2. **`lenses.md`** (new, in the `code-review` skill folder): the reviewers' sections above, the severity
+2. **Built.** **`lenses.md`** (new, in the `code-review` skill folder): the reviewers' sections above, the severity
    definitions, the prompt, and a short "why these choices" section distilled from Appendix C.
-3. **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
+3. **Built.** **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
    (replacing Architecture, Style, Quality), with BLOCKER / CONCERN / NOTE (lines 59-61 use
    VIOLATION, ADVISORY today); a pointer to `lenses.md`.
-4. **`.ai/skills/check-pr-readiness/SKILL.md`**: new step list (1 gate, with the `fix checks` retry;
+4. **Built.** **`.ai/skills/check-pr-readiness/SKILL.md`**: new step list (1 gate, with the `fix checks` retry;
    2 CI check; 3 Architecture and conventions; 4 lenses; 5 docs drift review; 6 comment); stop
    conditions use BLOCKER; the report template is replaced by the comment layout; remove "save to
    `local/pr_readiness_report.md`" (line 72).
