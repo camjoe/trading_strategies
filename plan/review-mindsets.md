@@ -85,10 +85,11 @@ The deterministic gate (`run_checks`: repo checks, ruff, mypy, layer check, test
 unchanged; it gates all AI spend, and the lenses are told to skip anything it reports. The docs
 check (Step 5) stays. For the AI steps (Architecture, Style, Quality in
 `.ai/skills/code-review/SKILL.md`), the third-round comparison (see "Pilot results, third round")
-supports this structure, **proposed, not yet confirmed**:
-- Architecture stays, merged with Style into one fresh-context agent ("Architecture and
-  conventions"), because no lens covers layering or placement and it found items nothing else did.
-- The separate Quality step goes; lenses 1, 3 and 4 cover it and found far more.
+supports this structure:
+- **Decided:** the separate Quality step goes; the lenses cover it and found far more.
+- Architecture stays, because no lens covers layering or placement and it found items nothing else
+  did. **Proposed, not yet confirmed:** merge it with Style into one fresh-context agent
+  ("Architecture and conventions"), so the conventions check still runs on ordinary diffs.
 - The architecture agent runs as a read-only fresh-context agent, not in the author's session.
 
 ## Which lenses run on which PR
@@ -256,10 +257,38 @@ Mechanics: a hidden marker (`<!-- pr-readiness -->`) lets each run find and edit
 the previous comment, re-verifies carried-over findings against the new HEAD, and moves fixed ones
 to "Resolved". Before a PR exists, `pr ready` prints the report and writes the file as it does now.
 
-Standing authorization, drafted for `AGENTS.md`: "`pr ready` may create and edit the single
-marker-tagged readiness comment on the current branch's own pull request without asking. It may not
-post any other comment, review, label, or merge, and never posts security-class findings." The owner
-adds this; an agent must not add it to itself.
+Standing authorization: added to `AGENTS.md` ("Standing authorizations") on the owner's instruction,
+2026-10-09. It covers only the single marker-tagged readiness comment on the branch's own PR; no
+other comment, review, label, or merge; no security-class findings; nothing public that carries
+credentials, broker account ids, local paths, or private strategy parameters.
+
+### Dry run, 2026-10-09
+Both comments were rendered for #294 and #296 without posting (`local/dry_run/`, gitignored): about
+10k and 12k characters, against GitHub's 65,536 limit. Every section of the saved report has a home;
+the comparison found these gaps, each now a rule for the implementation:
+1. **Severity vocabulary.** The report uses VIOLATION/CONCERN (architecture), BLOCKER/ADVISORY (style,
+   quality); the lenses use BLOCKER/CONCERN/NOTE; the comment uses three tiers. Mapping: VIOLATION
+   and any BLOCKER to 🔴; a CONCERN to 🟠 or 🟡 by the severity rubric; ADVISORY and NOTE to 🟡. The
+   orchestrator assigns the final tier, and it is the highest severity any lens gave unless
+   verification lowers it with a stated reason. Needed because one defect got different severities
+   (the socket double-post was a blocker for two runs and a concern for a third).
+2. **Steps that did not run.** The old workflow stops at the first blocking step. The status table
+   must show "not run: stopped at <step>", never an absent row, so a missing result is not read as clean.
+3. **What READY means.** READY when the deterministic gate is green and no 🔴 is open. 🟠 items do
+   not block but are listed in the top line ("ready, 2 to fix"). Owner call to confirm.
+4. **Checkbox ticks.** A re-render would overwrite a tick. Rule: item status is re-derived from the
+   code at the new HEAD, not from ticks; the comment says so. Fixed items move to Resolved with the
+   fixing SHA.
+5. **Deterministic rows.** On a checked-out branch the local gate fills the rows; CI statuses are
+   linked beside them. A branch read by ref (as in this dry run) shows CI only, labelled as such.
+6. **Length.** Keep Resolved to one line per item and drop the oldest first; the comment stays well
+   under the limit.
+7. **Cleanup labels.** Use the code-review skill's exact classes: safe to remove now, needs targeted
+   verification, intentional compatibility path, defer/backlog.
+8. **Public sanitizing.** Before posting: no local paths, broker account ids, credentials, or private
+   strategy parameters; security-class findings are routed elsewhere. The dry-run files passed a
+   scan for these.
+9. **Heading levels.** The findings tiers sit one level under a "Findings (open)" heading.
 
 ## Rollout
 1. Review and edit this file (the lens text is the part that matters most).
@@ -505,8 +534,8 @@ Reading:
 - Style's findings were all duplicated by lenses or by Quality; it was clean on #296. It is cheap to
   keep as part of the architecture agent, so the conventions check still runs on ordinary diffs where
   the Simplifier (gated by size) does not.
-- Proposed: drop the Quality step; run Architecture and Style as one fresh-context agent; the lenses
-  carry the rest. Not yet confirmed by the owner.
+- Decided (owner, 2026-10-09): replace the Quality step with the lenses. Still proposed, not
+  confirmed: run Architecture and Style as one fresh-context agent.
 
 Non-agent checks are untouched. The deterministic gate, the docs check and CI keep running first and
 gate all AI spend. Promote a recurring AI finding to a deterministic check when a lens finds the same
