@@ -21,6 +21,29 @@ account keeps failing for a week and nobody notices?
 The 13:00 health check (`trader_health.py`) only checks that the latest daily log is recent and carries
 `COMPLETE`. It knows nothing about individual accounts.
 
+## Guard fix (decided 2026-10-09) — DURING #296
+The multi-lens review of #296 found that the duplicate-run guard reads only the newest log of the
+date (`latest_log_contains_sentinel`, `job_helpers.py:176`). A partial run now writes `COMPLETE`; a
+failed catch-up run (`--accounts <skipped> --force-run`) then becomes the newest log with no
+`COMPLETE`, and a plain run passes the guard and trades the accounts that already traded.
+
+Decision: the date counts as done if **any** of that date's logs carries `COMPLETE`.
+- Add an any-log helper next to `latest_log_contains_sentinel`; point `already_completed_today`
+  (`paper_trading/__init__.py:66`) at it. The newest-only helper then has no caller; delete it and its
+  three tests in `test_job_helpers.py` (the newest-match test encodes the full-run assumption that
+  #296 changes).
+- `replay_daily_runs` uses the same function; a date with a partial `COMPLETE` was already treated as
+  done there, so it does not change.
+- Reword `ibkr-operations.md:205` ("so a plain re-run works") and `unavailable_message`
+  (`broker_preflight.py:49`): a plain re-run works only if no run completed that day; otherwise run
+  the skipped accounts with `--accounts <names> --force-run`.
+- Tests: a partial skip leaves `COMPLETE`; a following all-unavailable `--force-run` fails; a plain
+  run after that still skips. Plus an any-log helper test and the state tests in
+  `test_daily_paper_trading_state.py`.
+
+This is what makes item A1's premise hold ("a plain re-run cannot trade anyone twice"). Item D is
+the follow-up.
+
 ## Items
 
 ### A. Contain a trading-step failure — DURING #296
@@ -30,7 +53,7 @@ Run every cap group even if one fails, and name the accounts that failed. Same f
 **Decision pending (owner):** how does the run end when a group failed but the others completed?
 - **A1 (recommended).** Write `COMPLETE` and send a `warn` that names the failed accounts and the re-run
   command (`--accounts <names> --run-source manual --force-run`), as #296 does for skipped accounts.
-  A plain re-run cannot trade anyone twice. Cost: the run looks complete to the health check, so the
+  A plain re-run cannot trade anyone twice (true once the guard fix above is in). Cost: the run looks complete to the health check, so the
   `warn` carries the signal. Item B is the escalation.
 - **A2.** Exit 1 and write no `COMPLETE`, but still run the other groups and the snapshots. Louder. Cost:
   a plain re-run would trade the accounts that already traded.
@@ -78,10 +101,26 @@ digest names several accounts. Docs: `ibkr-operations.md` (alert table), `runtim
 - **Heartbeat / dead-man's switch** to something outside the host, for "the host stopped sending
   anything". No check on the host can see that. A separate project.
 
+### D. Per-account guard — AFTER #296
+Replace "a day is done or not" with "which accounts are done today". A plain run trades only the
+accounts that have not completed that date, read from the day's success artifacts (`accounts` and
+`status`, per `report_date`); `--force-run` ignores it; with nothing left the run skips.
+- Why: a timer retry or a plain re-run then catches up a skipped account by itself, which makes the
+  repair command in the `warn` alert unnecessary and removes its dropped-options defect (it omits
+  `--account-trade-caps`, `--primary-accounts`, `--fee`, `--seed`, `--as-of-date`). It also makes item
+  A's failed-group re-run safe without relying on one sentinel.
+- Cost: new artifact reading in the guard, new tests; a failed run that traded some accounts before
+  failing is not counted as done, so those accounts retry (reconcile applies their fills first).
+- UNVERIFIED: how artifacts are named and retained per `report_date`, and whether a failed run's
+  artifact lists accounts that were already submitted. Read `write_artifact` callers and
+  `build_run_context` first.
+
 ## Order
-1. Decide A1 or A2, then add item A to #296 (or leave it for a follow-up PR if #296 is merged first).
+1. Guard fix (above) into #296. Then decide A1 or A2 and add item A to #296 (or leave it for a
+   follow-up PR if #296 is merged first).
 2. Item B on its own branch, off `develop`, once #296 is merged.
-3. Revisit C.
+3. Item D after B, or before it if catching up skipped accounts by hand proves painful.
+4. Revisit C.
 
 ## Constraints
 - Layering per `docs/architecture/architecture-conventions.md`. The freshness query belongs in a
