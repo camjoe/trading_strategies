@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-25
-Last Reviewed: 2026-08-02
+Last Reviewed: 2026-10-06
 Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Governance Review Guide](../runbooks/governance-review.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -37,6 +37,7 @@ in `job_schedule.json`).
 | Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Per-account signal-driven trades, up to `--max-trades`. The daily job shells out to it. |
 | Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc | Counts consecutive successful daily artifacts to report go-live readiness. |
 | Reconcile broker fills | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders` | Indirect/manual | Applies outstanding broker fills to the books. No-op for `paper` accounts. |
+| IBKR session keepalive | `python -m trading.interfaces.runtime.jobs.maintenance.ibkr_session_keepalive` | Long-running service | Tickles the Client Portal Gateway every `keepalive_interval_seconds` so the session stays open between runs, and logs each state change; alerts when the session is lost and when it returns. Runs as a user service, not from the scheduler — see [Production Runtime Host Runbook](../runbooks/production-runtime-host.md#part-6--ibkr-gateway-and-session-keepalive). |
 | Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Replays dates in a range that have no successful daily log. |
 
 ## Governance jobs

@@ -3,7 +3,7 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-07-22
+Last Reviewed: 2026-10-09
 Purpose: Step-by-step setup of the recommended dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it.
 Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
@@ -399,3 +399,70 @@ runbooks describe reusable procedures; they do not record the state of a particu
 
 The private installation checklist should also record whether another host still has these jobs
 registered. Unregister any superseded schedule before enabling this host so jobs cannot run twice.
+
+---
+
+## Part 6 — IBKR gateway and session keepalive
+
+Accounts on `interactive_brokers_web_paper` need the Client Portal Gateway running and logged in at
+every run. Two user services keep it up. Nothing here logs in for you — see
+[ibkr-paper-trading.md](ibkr-paper-trading.md#gateway-session) for the login step.
+
+Replace `<gateway-dir>` (the unzipped `clientportal.gw`) and `<repo>` (the production checkout).
+The keepalive unit loads `.env` so the worker sees the runtime alert settings; the path must be
+absolute. When the session is lost, or the gateway goes down, the worker sends one alert through the
+webhook and SMTP settings in section 1.3, and one more when the session returns.
+
+`~/.config/systemd/user/ibkr-gateway.service`:
+
+```ini
+[Unit]
+Description=IBKR Client Portal Gateway
+
+[Service]
+WorkingDirectory=<gateway-dir>
+ExecStart=<gateway-dir>/bin/run.sh root/conf.yaml
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+```
+
+`~/.config/systemd/user/ibkr-keepalive.service`:
+
+```ini
+[Unit]
+Description=IBKR Client Portal session keepalive
+After=ibkr-gateway.service
+Wants=ibkr-gateway.service
+
+[Service]
+WorkingDirectory=<repo>
+EnvironmentFile=-<repo>/.env
+ExecStart=<repo>/.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.ibkr_session_keepalive
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+```
+
+Enable both, and keep them running after logout and across reboots:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now ibkr-gateway.service ibkr-keepalive.service
+loginctl enable-linger <user>
+```
+
+Follow the session state. The worker logs one line per change: `alive`, `rejected` (gateway up,
+not logged in), or `unreachable` (gateway down):
+
+```bash
+journalctl --user -u ibkr-keepalive.service -f
+```
+
+After a reboot the gateway starts logged out. Log in at `https://localhost:5000` before the next
+daily run. Day-to-day start, confirm, and failure-alert commands are in
+[ibkr-operations.md](ibkr-operations.md).
