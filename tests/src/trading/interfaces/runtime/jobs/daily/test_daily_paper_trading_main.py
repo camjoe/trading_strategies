@@ -20,6 +20,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import BrokerSessionUnavailableError
 
 WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
 
@@ -39,6 +40,12 @@ def _stub_build_daily_operator_report(monkeypatch):
         f"{WORKFLOW_MODULE}._build_daily_operator_report",
         lambda *_args, **_kwargs: dict(_STUB_OPERATOR_REPORT),
     )
+
+
+@pytest.fixture(autouse=True)
+def _stub_check_broker_sessions(monkeypatch):
+    """Step 00 connects every run account's broker; these tests name accounts no database holds."""
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", lambda _accounts: None)
 
 
 @pytest.fixture
@@ -474,6 +481,27 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _
     )
     assert payload["status"] == "failed"
     assert payload["error"] == "step failed"
+
+
+def test_unavailable_broker_session_fails_the_run_before_any_step_runs(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    def _unavailable(_accounts):
+        raise BrokerSessionUnavailableError("Broker session unavailable, no step ran. acct_a: gateway down")
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _unavailable)
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ["--accounts", "acct_a"])
+
+    assert code == 1
+    assert not _runtime_harness.stream_calls
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["status"] == "failed"
+    assert payload["failed_step"] == "00_ingest_market_and_account"
+    assert "gateway down" in payload["error"]
 
 
 def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-10-06
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -76,6 +76,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
 | `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
+| `daily/paper_trading/broker_preflight.py` | Connects every run account's broker before step 00 returns; fails the run with the unavailable accounts named |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
@@ -94,6 +95,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `governance/monthly/m3_performance_audit.py` | Monthly performance audit governance job |
 | `governance/payload_models.py` | Governance job payload models |
 | `maintenance/burn_in_status.py` | Burn-in protocol status job |
+| `maintenance/ibkr_session_keepalive.py` | Long-running worker that tickles the IBKR Client Portal Gateway between scheduled runs |
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |

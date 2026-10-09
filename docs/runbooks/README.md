@@ -3,7 +3,7 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-10-09
 Purpose: Index of operational runbooks for the paper-trading runtime with quick-start commands.
 Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
 
@@ -24,6 +24,7 @@ assume an activated shell.
 | [runtime-operations.md](runtime-operations.md) | Daily + weekly-backup monitoring, failure recovery, log inspection |
 | [burn-in-protocol.md](burn-in-protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
+| [ibkr-operations.md](ibkr-operations.md) | Starting and confirming the IBKR gateway, session keepalive, and daily trader, and what alerts go out when one fails |
 | [ibkr-paper-trading.md](ibkr-paper-trading.md) | Moving a book off the internal simulator onto real IBKR paper-account order mechanics |
 
 ## Quick Start
