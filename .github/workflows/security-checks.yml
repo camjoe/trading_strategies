@@ -1,15 +1,6 @@
 name: Security Checks
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - requirements-base.txt
-      - requirements-dev.txt
-      - apps/paper_trading_web/frontend/package-lock.json
-      - .github/workflows/security-checks.yml
   pull_request:
   schedule:
     - cron: "0 9 * * 1"
