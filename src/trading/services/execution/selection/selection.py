@@ -20,6 +20,7 @@ from trading.domain.auto_trading.options import (
 from trading.domain.auto_trading.sizing import (
     allocate_buy_quantities,
     choose_buy_qty,
+    closing_quantity_step_for,
     closing_sell_qty,
     quantity_step_for,
 )
@@ -469,7 +470,7 @@ def iter_sellable_trades(
     closing positions as it consumes this sees its own writes — which is what
     stops a ticker listed twice from being sold twice.
     """
-    quantity_step = quantity_step_for(instrument_mode)
+    quantity_step = closing_quantity_step_for(instrument_mode)
     for ticker in _order_sell_candidates(sell_candidates, forced_sells, selection_seed):
         price = prices.get(ticker)
         if price is None or price <= 0:
