@@ -1,8 +1,9 @@
 # Plan: review every PR through several mindsets
 
 Status: drafted 2026-10-09. Nothing is built. Pilot (lenses 1-3 on PR #294 and #296) run 2026-10-09;
-results and recommendation under "Pilot results". Lens text and prompt updated from the pilot the
-same day; the adjusted lenses 1-3 are untested until they run on another PR.
+second round (lenses 4-5 and a model comparison) the same day. Results and decisions under "Pilot
+results". Lens text and prompt updated from the pilot; the adjusted lenses are untested until they
+run on another PR.
 
 ## Goal
 Catch what one reviewer with one mindset misses, without making every PR slow or noisy. The repo
@@ -50,11 +51,14 @@ Judge the change by the person who has to find out it broke.
   runbook says it finds.
 
 ### 4. Test skeptic
-Judge whether the tests would catch a regression.
-- Would each new test fail if the change were reverted? (Run it, or reason concretely.)
+Judge whether the tests would catch a regression. The reviewer cannot check the branch out or run
+tests; it reasons from the test and the code.
+- Would each new test fail if the change were reverted? Walk through it.
 - What behavior in the diff has no test? List the paths.
 - Do tests assert behavior or only that code ran? Are mocks hiding the real integration?
 - Is a test copying the implementation's logic instead of stating the expected result?
+- For each behavior gap, say whether it hides a bug (a wrong result today) or only a missing
+  safeguard, and name the missing test.
 
 ### 5. Simplifier
 Find what can be deleted or made plainer. This repo prefers minimal tooling.
@@ -75,7 +79,7 @@ Use the repo's own classifier, `python -m scripts.checks.repo.review_scope_check
 |---|---|
 | Docs, skills, maps only | none (Step 5 docs check is enough) |
 | Ordinary `src/` change | 1 Break it, 4 Test skeptic |
-| Broker adapters, runtime jobs, scheduler, database, sizing, order or fill paths ("aggressive" mode) | 1, 2, 3, 4 |
+| Broker adapters, runtime jobs, scheduler, database, sizing, order or fill paths ("aggressive" mode) | 1, 2, 3, 4, plus a second lens-1 sample on Opus |
 | Any large diff or a new abstraction | add 5 Simplifier |
 
 A human reads every PR that touches the broker, sizing, or fill paths. The lenses inform that reading.
@@ -88,9 +92,14 @@ A human reads every PR that touches the broker, sizing, or fill paths. The lense
    include them in `local/pr_readiness_report.md`. Lens findings use the same severities; a BLOCKER
    from any lens stops readiness.
 4. For a risky PR, the user can also trigger `/code-review ultra` (cloud, multi-agent, billed).
-5. To reduce correlated errors, run lens 2 on a different model than the author's, only when the diff
-   touches broker, sizing, or fill paths. The pilot's Opus run found nothing the same-model lens 1 had
-   not, at 2-3 times the time, so it is not worth running elsewhere.
+5. Models and tokens (decided after the second round, see "Model decisions"):
+   - Every lens runs on Sonnet-class. No Haiku, no pre-read bundle.
+   - Aggressive-tier diffs (broker, fill, guard, scheduler) also get a second, independent lens-1
+     sample on Opus; every single run missed something, and the Opus sample caught what the Sonnet
+     one did not.
+   - Gate by the table below; re-review after fixes runs only the lenses that had findings on the
+     touched files.
+6. Findings are posted as one consolidated PR comment per PR; see "Posting findings".
 
 ## Prompt template (per lens)
 ```
@@ -104,6 +113,18 @@ Rules: no finding without a file and line and a concrete failing scenario. Repor
 root cause. At most 8 findings, most severe first. Skip anything ruff, mypy, or the layer check
 already reports. If you find nothing, say so and list what you checked.
 ```
+
+## Posting findings
+One consolidated comment per PR, edited in place as findings are fixed. Items are tiered by
+priority, one checkbox each:
+- 🔴 Blocker: fix before merge. 🟠 Fix in this PR. 🟡 Decide or follow-up.
+- Each item states the problem first. Two italic lines follow, kept visually apart from the problem
+  text: *Caught by:* the mindsets that raised it (with their own severity where it differed), and
+  *Tests:* whether the current tests catch it and the test to add. The *Tests* line appears on every
+  defect; the orchestrator fills it from lens 4's output and its own reading, so lenses 1-3 need not.
+- A *Pointer* line (italic) gives a one-line direction, not a patch.
+- KNOWN items are listed once under "Already known to the author", so the overlap is visible but not
+  repeated as an action.
 
 ## Keeping noise down
 - Evidence required: file, line, and a scenario. No guesses.
@@ -199,8 +220,8 @@ cost with a recommendation. Do not fix any finding.
 ## Open questions
 - Which lenses matter most to the owner? Order the table accordingly.
 - Run lenses in `pr ready` always, or only when asked (`pr ready: deep`)?
-- Different model for one lens: settled for now (lens 2, broker/sizing/fill diffs only); revisit
-  after lens 2's new conservation probes have run on a few PRs.
+- Models: settled by the second round ("Model decisions"). Open: does a second Sonnet lens-1 sample
+  match the Opus one; does Fable do better once usage credits allow a test.
 - Where do lens findings live between PR updates: the saved report only, or PR comments?
 
 ## Pilot results
@@ -320,3 +341,92 @@ above two thirds with no wrong findings.
 - Prompt: add "report a defect once per root cause" to cut duplicates (41 raw to 25 distinct).
 - Run lenses 4 and 5 before rolling out; this pilot did not cover them.
 - Owner decisions still open: which of the 12 REAL findings go into #294 and #296. Not fixed here.
+
+## Pilot results, second round (lenses 4 and 5, and a model comparison)
+Same two PRs, same method (read-only `Plan`-type agents, no PR text, no known list; instructions
+passed as a file). Run after the lens text was updated, so the first-round Sonnet/Opus runs used the
+older lens wording (one bullet shorter). 20 reviewers completed. Two Fable runs failed (Fable 5.1
+needs usage credits), so Fable is untested.
+
+Runs: lens 4 and 5 on Sonnet and Haiku; lens 1 on Haiku and Opus; lens 2 on Sonnet and Haiku; lens 3
+on Haiku; lens 1 on Sonnet with a pre-read bundle (diff plus the full text of every changed `src`
+file, to test a token saving). Baselines are the first-round runs (lens 1 and 3 Sonnet, lens 2 Opus).
+Scoring is against the verified findings from round one plus what round two added.
+
+### Recall of the key defects, by lens and model
+Key defects: #294 socket double-post (A), delta price (B), FILLED with no quantity (C); #296 guard
+unlock (G1), burn-in (G2), broad `RuntimeError` (G3), duplicate names (G4), repair command (G5).
+
+| Lens | Model | #294 | #296 | Hits | Tokens (both PRs) | Wall (both) |
+|---|---|---|---|---|---|---|
+| 1 Break it | Sonnet (round 1) | A B C | G1 G2 G3 G4 G5 | 8/8 | 142k | 72 + 80 s |
+| 1 Break it | Sonnet, bundle | B C | G2 G3 G4 G5 | 6/8 | 172k | 130 + 89 s |
+| 1 Break it | Opus | A B C | G1 G2 G4 G5 | 7/8 + 2 extra | 225k | 283 + 196 s |
+| 1 Break it | Haiku | none; 1 false BLOCKER | off task (wrote a rollout plan) | 0/8 | 151k | 346 + 162 s |
+| 2 Money | Opus (round 1) | A B C | G1 G3 G4 | 6/8 | 186k | 217 + 157 s |
+| 2 Money | Sonnet | B C (called A "behavior widening") | G1 G3 G4 G5 | 6/8 | 143k | 68 + 94 s |
+| 2 Money | Haiku | B only | "No findings", confidence high | 1/8 | 163k | 432 + 258 s |
+| 3 Operator | Sonnet (round 1) | D E F | G1 G3 G5 G6 | 7 | 155k | 81 + 69 s |
+| 3 Operator | Haiku | D only | G6 only; calls the `COMPLETE` sentinel a strength | 2 | 152k | 187 + 255 s |
+
+Extras found and verified in round two: Opus lens 1 on #294, orders partly filled before deploy can
+stick open, because develop's list path wrote cumulative `web-…` fill rows (mechanism verified in
+code; whether such rows exist is unchecked; query is in the PR comment); Opus lens 1 on #296, socket
+connect failures (`TimeoutError`) are not skipped (verified for `ibapi`).
+
+False or wrong output: Haiku lens 1 on #294 raised a BLOCKER (`commission=None` crash) that is not
+real (`BrokerOrder.commission` defaults to 0.0); Haiku lens 4 on #296 claimed a test would fail for
+multiple skipped accounts (it only covers one) and on #294 cited "241 test cases" (the file has 20;
+241 is the diff size); Sonnet bundle on #294 cited line numbers past the end of the file it read.
+No NOT REAL finding in the Sonnet and Opus findings I checked.
+
+### Lens 4 (Test skeptic) and lens 5 (Simplifier)
+| Lens | Model | Result | Tokens | Wall |
+|---|---|---|---|---|
+| 4 | Sonnet | #294: delta price flagged as BLOCKER from the test side, with the cause (`_looked_up_order` pins `avg_fill_price=151.0`); listed-but-unpostable path untested; raw timestamp pinned; `except Exception` untested. #296: nothing asserts the sentinel in either direction (the gap behind G1); steps 06/07/10 and shadow-eval uncovered; rewritten kill-switch branch untested. Verified that new tests fail on revert. | 72k, 74k | 68, 84 s |
+| 4 | Haiku | Mostly low-value gaps; one false claim on each PR; missed the delta-price test gap | 76k, 59k | 223, 193 s |
+| 5 | Sonnet | #294: 4 concerns (duplicate list/lookup loops, duplicated status-reason logic, unrelated client logging, unread fields) and 4 notes. #296: 4 concerns (skip state kept in four places, dead assignment at `workflow.py:329`, one-caller helper). No defects. | 65k, 60k | 63, 37 s |
+| 5 | Haiku | #294 "no issues"; #296 one weak note | 78k, 84k | 185, 280 s |
+
+Overlap and benefit:
+- Lens 4 raised no defect that lenses 1-3 had missed, and independently confirmed one (delta price).
+  Its value is the *Tests* line for each defect: it showed why the existing tests pass (constant test
+  price, hand-built fakes, no sentinel assertion) and what to add. The per-PR comments now carry it.
+- Lens 5 overlapped the others once (the `sizing.py` docstring). Its output is cleanup, not defects,
+  at the lowest cost of any lens; worth running only on large diffs or new abstractions.
+- Lens 2 added no REAL finding that a lens 1 run had not also found, on either PR or either model.
+  What it added was severity: Money & safety called the guard unlock a blocker where one Break it run
+  called it a concern. Lens 2 stays, as the severity and conservation check, on Sonnet.
+- Run-to-run misses are real: every Sonnet and Opus run missed at least one key defect (A was missed
+  by Sonnet lens 2 and the bundle run; G1 by the bundle run; G3 by Opus). Two samples of lens 1
+  cover more than one run of a bigger model.
+
+### Model decisions
+1. **Sonnet for all five lenses.** Recall equal to Opus on lens 2, 8/8 on lens 1, and 60-85k tokens
+   and 40-95 s a run.
+2. **No Haiku, for any lens.** It found 0-2 of the key defects, gave two false all-clears stated with
+   high confidence (lens 2 on #296, lens 5 on #294), raised one false BLOCKER, and went off task once.
+   It was not cheaper: tokens per run matched Sonnet because it makes 2-4 times the tool calls, and
+   wall time was 2-6 times longer.
+3. **Opus: a second lens-1 sample on aggressive-tier diffs only**, not on lens 2. It caught A, B, C
+   and G1 and two extras for 1.6 times the tokens and 3 times the time of Sonnet lens 1. Untested
+   alternative: a second Sonnet lens-1 sample, cheaper; try it on the next aggressive-tier PR.
+4. **No pre-read bundle.** It used more tokens (172k against 142k for the same lens) and missed the
+   two defects that need files outside the bundle or a doubt about the runbook (A, G1).
+5. **Fable: untested.** Needs usage credits; revisit if they are enabled.
+
+### Token savings that hold up
+The per-run cost is flat at about 60-85k whatever the model, so savings come from running fewer
+runs, not cheaper ones:
+- Gate by the table: an ordinary `src` diff runs lenses 1 and 4 (about 140k); an aggressive-tier
+  diff runs 1, 2, 3 and 4 (about 290k), plus the Opus sample (about 110k a PR) if enabled; lens 5
+  (about 60k) only on large diffs or new abstractions.
+- Re-review after fixes runs only the lenses that had findings, on the touched files.
+- Dedupe findings by root cause before showing them (41 raw findings were 25 distinct in round one).
+- Skip lenses entirely for docs-only diffs, as the table already says.
+Total for this round: about 1.6M tokens across 20 runs, most of it spent on the comparison itself;
+a normal aggressive-tier PR is roughly a quarter of that.
+
+### Limits
+Two PRs, one run per cell, so run-to-run variance is not separated from model and prompt effects (the
+bundle run changes both). One scorer, who is also the orchestrator. Directional, not conclusive.
