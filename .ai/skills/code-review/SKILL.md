@@ -52,6 +52,13 @@ AI review should cover what scripts cannot prove:
 
 Do not flag TODO/comment *style* by itself — formatting, punctuation, or one-line phrasing. Narration is a separate, in-scope finding: report it when commentary explains the author's reasoning or the change's history rather than the system's behavior. Do not report style-only nits unless they materially harm readability or maintenance.
 
+## Lenses
+
+Independent, read-only reviews by fresh-context agents: Architecture and conventions, and four
+lenses (Break it, Operator, Test skeptic, Simplifier). Severity definitions, the rules every reviewer
+follows, each reviewer's checklist, and how the orchestrator runs them are in [lenses.md](lenses.md).
+`review_scope_check` prints which reviewers a diff needs.
+
 ## PR Mode
 
 For PR readiness, produce three scoped sections against `git diff --name-only <base_ref>...HEAD`:
