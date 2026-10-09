@@ -156,11 +156,11 @@ def reconcile_open_orders(
             if looked_up is None:
                 continue
             persisted = open_by_broker_id[broker_order_id]
-            live = _with_cumulative_fill(looked_up, persisted, broker_order_id=broker_order_id, now=now)
-            if live is None:
+            postable = _with_cumulative_fill(looked_up, persisted, broker_order_id=broker_order_id, now=now)
+            if postable is None:
                 continue
             reported_broker_order_ids.add(broker_order_id)
-            if _apply_broker_order(conn, order_repo, persisted, live, broker_order_id=broker_order_id, now=now):
+            if _apply_broker_order(conn, order_repo, persisted, postable, broker_order_id=broker_order_id, now=now):
                 newly_filled += 1
 
         return ReconciliationOutcome(
