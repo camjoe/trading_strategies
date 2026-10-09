@@ -212,7 +212,7 @@ nothing else: no other comment or review, no labels, no merge.
 
 ## What changes in the repo
 Built on a branch off `develop`, separate from PRs #294 and #296. Build order is the numbering.
-1. **The `pr` profile of `run_checks`** (`scripts/checks/pr.py`, `scripts/run_checks.py`, tests in
+1. **Built.** **The `pr` profile of `run_checks`** (`scripts/checks/pr.py`, `scripts/run_checks.py`, tests in
    `tests/scripts/`): enforced docs checks, then the quick profile (repo checks, branch-targeted
    Python) with the frontend steps added when the diff touches `apps/paper_trading_web/frontend/` or
    `.github/workflows/ci.yml`. Today's `pr ready` gate is repo plus Python with the docs check
@@ -228,7 +228,8 @@ Built on a branch off `develop`, separate from PRs #294 and #296. Build order is
    2 CI check; 3 Architecture and conventions; 4 lenses; 5 docs drift review; 6 comment); stop
    conditions use BLOCKER; the report template is replaced by the comment layout; remove "save to
    `local/pr_readiness_report.md`" (line 72).
-5. **`scripts/checks/repo/review_scope_check.py`** and `tests/scripts/test_review_scope_check.py`:
+5. **Built** (threshold: 200 changed lines outside documentation, or a new module).
+   **`scripts/checks/repo/review_scope_check.py`** and `tests/scripts/test_review_scope_check.py`:
    print the reviewer list; add the money paths it misses today (`src/trading/services/execution/`,
    `src/trading/domain/auto_trading/`, the order and fill repositories; #294 only classified as
    aggressive because it touched `brokers/`); add a diff-size trigger. Update `scripts/README.md` and
