@@ -139,8 +139,11 @@ def reconcile_open_orders(
             persisted = open_by_broker_id.get(broker_order_id)
             if persisted is None:
                 continue
+            postable = _postable_order(live, order_repo, persisted, broker_order_id=broker_order_id, now=now)
+            if postable is None:
+                continue
             reported_broker_order_ids.add(broker_order_id)
-            if _apply_broker_order(conn, order_repo, persisted, live, broker_order_id=broker_order_id, now=now):
+            if _apply_broker_order(conn, order_repo, persisted, postable, broker_order_id=broker_order_id, now=now):
                 newly_filled += 1
 
         # The open-order list can lag or drop an order that has filled, so ask the broker
@@ -156,7 +159,7 @@ def reconcile_open_orders(
             if looked_up is None:
                 continue
             persisted = open_by_broker_id[broker_order_id]
-            postable = _postable_lookup(looked_up, persisted, broker_order_id=broker_order_id, now=now)
+            postable = _postable_order(looked_up, order_repo, persisted, broker_order_id=broker_order_id, now=now)
             if postable is None:
                 continue
             reported_broker_order_ids.add(broker_order_id)
@@ -233,34 +236,40 @@ def _apply_broker_order(
     return live.status == OrderStatus.FILLED
 
 
-def _postable_lookup(
-    looked_up: BrokerOrder,
+def _postable_order(
+    live: BrokerOrder,
+    order_repo: OrderRepository,
     persisted: OrderRecord,
     *,
     broker_order_id: str,
     now: str,
 ) -> BrokerOrder | None:
-    """*looked_up* with one fill for what it filled beyond what *persisted* already recorded, or None.
+    """*live* ready to apply to *persisted*, or None when it cannot be applied safely.
 
-    A lookup reports the cumulative filled size and average price, not executions. The
-    fill is the difference from the recorded size, so polling the same state twice posts
-    nothing the second time. None when the lookup cannot be applied safely: it reports
-    less than is recorded, or a larger fill with no price to post it at.
+    An order that carries its own executions applies as reported, deduplicated by exec id. One
+    that reports only a cumulative filled size and average price gets a single fill for the size
+    and commission beyond what its recorded fills already sum to, so polling the same state twice
+    posts nothing and a partial fill followed by the rest posts each part once. None when the
+    report is less than what is recorded, or more with no price to post it at.
     """
-    new_qty = Decimal(str(looked_up.filled_qty)) - persisted.filled_qty
-    price = looked_up.avg_fill_price
+    if live.fills:
+        return live
+    recorded_qty, recorded_commission = order_repo.fetch_fill_totals(order_id=persisted.id)
+    new_qty = Decimal(str(live.filled_qty)) - recorded_qty
+    price = live.avg_fill_price
     if new_qty < 0 or (new_qty > 0 and price is None):
         return None
     if new_qty == 0 or price is None:
-        return looked_up
+        return live
+    new_commission = max(Decimal(str(live.commission)) - recorded_commission, Decimal("0"))
     fill = OrderFill(
         filled_qty=float(new_qty),
         fill_price=price,
-        fill_time=looked_up.updated_at or now,
-        commission=looked_up.commission,
-        exec_id=f"{broker_order_id}:cum:{looked_up.filled_qty}",
+        fill_time=live.updated_at or now,
+        commission=float(new_commission),
+        exec_id=f"{broker_order_id}:cum:{live.filled_qty}",
     )
-    return replace(looked_up, fills=[fill])
+    return replace(live, fills=[fill])
 
 
 def _adopt_pending_orders(

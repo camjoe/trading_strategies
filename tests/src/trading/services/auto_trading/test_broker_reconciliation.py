@@ -28,6 +28,17 @@ class _LookupBroker:
         pass
 
 
+class _ListedBroker(_LookupBroker):
+    """A broker whose open-order list reports the given orders, as the Web API list does."""
+
+    def __init__(self, listed: list[BrokerOrder]) -> None:
+        super().__init__({})
+        self._listed = listed
+
+    def get_open_trades(self) -> list[BrokerOrder]:
+        return self._listed
+
+
 def _looked_up_order(broker_order_id: str, *, status: OrderStatus, filled_qty: float) -> BrokerOrder:
     """The cumulative state a lookup by id reports: no individual executions."""
     return BrokerOrder(
@@ -586,6 +597,13 @@ class TestReconcileOpenBrokerOrders:
         _insert_account_row(conn)
         _, order_id = _open_clean_order(conn, broker_order_id="42")
         repo = OrderRepository(conn)
+        repo.insert_fill(
+            order_id=order_id,
+            filled_qty=Decimal("6"),
+            fill_price=Decimal("151"),
+            fill_time="2024-01-02T10:00:00Z",
+            exec_id="exec-001",
+        )
         repo.update_status(
             order_id=order_id,
             status="partially_filled",
@@ -603,4 +621,60 @@ class TestReconcileOpenBrokerOrders:
         order = repo.fetch_by_id(order_id=order_id)
         assert order is not None
         assert order.filled_qty == 6.0
-        assert repo.fetch_fill_exec_ids(order_id=order_id) == set()
+        assert repo.fetch_fill_exec_ids(order_id=order_id) == {"exec-001"}
+
+    def test_a_partial_fill_listed_across_polls_posts_each_part_once(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        for status, cumulative in ((OrderStatus.PARTIALLY_FILLED, 4.0), (OrderStatus.FILLED, 10.0)):
+            broker = _ListedBroker([_looked_up_order("42", status=status, filled_qty=cumulative)])
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 10.0
+        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[0] == 10
+
+    def test_commission_is_posted_once_across_cumulative_reports(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        for status, cumulative, commission in (
+            (OrderStatus.PARTIALLY_FILLED, 4.0, 1.0),
+            (OrderStatus.FILLED, 10.0, 1.5),
+        ):
+            order = _looked_up_order("42", status=status, filled_qty=cumulative)
+            order.commission = commission
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_ListedBroker([order])))
+
+        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[1] == Decimal("1.5")
+
+    def test_a_cumulative_report_posts_what_the_recorded_fills_do_not_cover(self) -> None:
+        """The posting basis is the fill rows, not the order's own filled_qty.
+
+        If a crash left the order row at the cumulative size with no fill rows, the next
+        poll must still post the fill rather than see "nothing new".
+        """
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        OrderRepository(conn).update_status(
+            order_id=order_id,
+            status="partially_filled",
+            filled_qty=Decimal("4"),
+            avg_fill_price=Decimal("151"),
+            updated_at="2024-01-02T10:00:00Z",
+        )
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        broker = _ListedBroker([_looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=4.0)])
+
+        reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 4.0

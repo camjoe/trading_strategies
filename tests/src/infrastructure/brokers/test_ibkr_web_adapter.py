@@ -258,7 +258,7 @@ class TestInteractiveBrokersWebAdapter:
             "IBM": {"bid": 189.56, "ask": 189.61, "last": 189.6},
         }
 
-    def test_get_open_trades_creates_synthetic_fill(self):
+    def test_get_open_trades_reports_cumulative_state_without_a_fabricated_fill(self):
         client = self._make_client()
         client.fetch_orders.return_value = [
             {
@@ -278,7 +278,10 @@ class TestInteractiveBrokersWebAdapter:
 
         assert len(result) == 1
         assert result[0].status == OrderStatus.FILLED
-        assert result[0].fills[0].exec_id == "web-55-10.0-231211180049"
+        assert result[0].filled_qty == 10.0
+        assert result[0].avg_fill_price == 151.25
+        assert result[0].updated_at == "231211180049"
+        assert result[0].fills == []
 
     def test_disconnect_and_cancel_order_delegate_to_client(self):
         client = self._make_client()
@@ -327,9 +330,12 @@ class TestInteractiveBrokersWebAdapter:
         assert trade.status == OrderStatus.PARTIALLY_FILLED
         assert trade.price == 102.0
         assert trade.commission == 1.25
-        assert trade.fills[0].exec_id == "web-77-5.0-2024-01-02T03:04:05Z"
+        assert trade.filled_qty == 5.0
+        assert trade.avg_fill_price == 101.5
+        assert trade.updated_at == "2024-01-02T03:04:05Z"
+        assert trade.fills == []
 
-    def test_get_open_trades_does_not_create_fill_without_average_price(self):
+    def test_get_open_trades_reports_a_missing_average_price_as_none(self):
         client = self._make_client()
         client.fetch_orders.return_value = [
             {
@@ -348,7 +354,7 @@ class TestInteractiveBrokersWebAdapter:
 
         assert len(result) == 1
         assert result[0].status == OrderStatus.PARTIALLY_FILLED
-        assert result[0].fills == []
+        assert result[0].avg_fill_price is None
 
     def test_get_open_trades_fetches_documented_cancellation_description(self):
         client = self._make_client()

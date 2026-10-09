@@ -17,7 +17,7 @@ from infrastructure.brokers.ibkr_web import (
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -101,18 +101,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                 order_status = OrderStatus.PARTIALLY_FILLED
             status_reason = self._fetch_terminal_status_reason(broker_order_id, order_status)
 
-            fills: list[OrderFill] = []
             fill_time = _normalize_fill_time(row.get("lastExecutionTime") or row.get("lastExecutionTime_r"))
-            if filled_qty > 0 and avg_fill_price is not None:
-                fills.append(
-                    OrderFill(
-                        filled_qty=filled_qty,
-                        fill_price=avg_fill_price,
-                        fill_time=fill_time,
-                        commission=_coerce_number(row.get("commission")) or 0.0,
-                        exec_id=f"web-{broker_order_id}-{filled_qty}-{fill_time}",
-                    )
-                )
 
             result.append(
                 BrokerOrder(
@@ -129,7 +118,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                     filled_qty=filled_qty,
                     avg_fill_price=avg_fill_price,
                     commission=_coerce_number(row.get("commission")) or 0.0,
-                    fills=fills,
+                    updated_at=fill_time,
                     status_reason=status_reason,
                 )
             )

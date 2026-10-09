@@ -237,12 +237,19 @@ the list pass, reconciliation asks the broker about each open order the list lef
 `BrokerConnection.get_order(broker_order_id)`. The default returns `None`; only the Web adapter
 implements it, from the order status reply.
 
-- The reply states the cumulative filled size and average price, not executions, so the fill posted is
-  the size beyond what the row already records. Polling the same state twice posts nothing.
-- The reply has no commission and no execution time, so those fills carry commission `0.0` and the
-  order's own timestamp.
+- Both the Web API's open-order list and its status reply state the cumulative filled size and average
+  price, not executions, and the Web adapter does not invent one. Reconciliation posts a single fill for
+  the size and commission beyond what the order's recorded fills already sum to. Polling the same state
+  twice posts nothing, and a partial fill followed by the rest posts each part once. An order that
+  carries its own executions (the socket path) applies as reported, deduplicated by exec id.
+- The status reply has no commission and no execution time, so those fills carry commission `0.0` and
+  the order's own timestamp.
 - An order the lookup cannot find (status cache miss), a lookup that fails, a fill with no price, and a
-  reply reporting less than is recorded all leave the row untouched and reported as unreported.
+  report of less than is recorded all leave the row untouched and reported as unreported.
+
+When the Web API answers an order with cautionary messages that need a "yes", the client confirms them
+(up to five per order) and logs a warning with the order's client id, the message text, and the IBKR
+message ids. Nothing yet restricts which messages are confirmed.
 
 The shared order contract and `orders.status_reason` retain broker-provided rejection and
 cancellation explanations when IBKR supplies one. The Web adapter reads

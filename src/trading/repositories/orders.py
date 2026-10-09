@@ -6,7 +6,13 @@ from decimal import Decimal
 
 from common.time import next_date_str
 from trading.models.orders import ORDER_STATUS_PENDING, FillEventRecord, OrderInsert, OrderRecord, OrderStatus
-from trading.persistence.money_columns import encode_columns, encode_money, encode_quantity
+from trading.persistence.money_columns import (
+    decode_money,
+    decode_quantity,
+    encode_columns,
+    encode_money,
+    encode_quantity,
+)
 from trading.persistence.unit_of_work import commit_unit_of_work
 
 # Derived rather than listed: the payload's field names are the column names, so
@@ -225,6 +231,14 @@ class OrderRepository:
             (order_id,),
         ).fetchall()
         return {str(row[0]) for row in rows}
+
+    def fetch_fill_totals(self, *, order_id: int) -> tuple[Decimal, Decimal]:
+        """The summed quantity and commission of the fills recorded for an order."""
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(filled_qty), 0), COALESCE(SUM(commission), 0) FROM order_fills WHERE order_id = ?",
+            (order_id,),
+        ).fetchone()
+        return decode_quantity(int(row[0])) or Decimal("0"), decode_money(int(row[1])) or Decimal("0")
 
     def fetch_fill_events_for_account(self, *, account_id: int) -> list[FillEventRecord]:
         """Fill executions for the account's orders as trade-shaped records, oldest first.
