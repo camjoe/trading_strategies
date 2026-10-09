@@ -1,9 +1,15 @@
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 import infrastructure.brokers.ibkr_web.adapter as ib_web_adapter_module
-from infrastructure.brokers.ibkr_web import IbWebApiContract, IbWebOrderStatusUnavailableError
+from infrastructure.brokers.ibkr_web import (
+    IbWebApiContract,
+    IbWebApiSettings,
+    IbWebOrderStatusUnavailableError,
+    InteractiveBrokersWebClient,
+)
 from infrastructure.brokers.ibkr_web.adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
@@ -474,3 +480,63 @@ class TestIbWebAdapterHelpers:
     @pytest.mark.parametrize(("value", "expected"), [("maybe", False), ("true", True), (None, False)])
     def test_coerce_bool_flag_handles_invalid_values(self, value, expected):
         assert _coerce_bool_flag(value) is expected
+
+
+class TestGetOrderThroughTheClient:
+    """The adapter's lookup, wired to the real client over a fake gateway."""
+
+    def _adapter(self, status_response: httpx.Response) -> InteractiveBrokersWebAdapter:
+        def handler(request: httpx.Request) -> httpx.Response:
+            routes = {
+                "/iserver/auth/status": httpx.Response(200, json={"authenticated": True, "connected": True}),
+                "/portfolio/accounts": httpx.Response(200, json=[{"accountId": "DU1234567"}]),
+                "/iserver/accounts": httpx.Response(200, json={"accounts": ["DU1234567"]}),
+                "/iserver/account/order/status/32999660": status_response,
+            }
+            return routes[request.url.path]
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="DU1234567",
+                headers={},
+                keepalive_enabled=False,
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+        adapter = InteractiveBrokersWebAdapter(client=client)
+        adapter.connect()
+        return adapter
+
+    def test_a_filled_reply_becomes_a_filled_broker_order(self):
+        adapter = self._adapter(
+            httpx.Response(
+                200,
+                json={
+                    "symbol": "MSFT",
+                    "side": "B",
+                    "total_size": "0.9343",
+                    "cum_fill": "0.9343",
+                    "order_status": "Filled",
+                    "average_price": "535.92999995",
+                    "order_time": "261009193651",
+                },
+            )
+        )
+
+        order = adapter.get_order("32999660")
+
+        assert order is not None
+        assert (order.ticker, order.side, order.status) == ("MSFT", "buy", OrderStatus.FILLED)
+        assert order.filled_qty == 0.9343
+
+    def test_a_status_cache_miss_is_none(self):
+        adapter = self._adapter(httpx.Response(503, text="order status unavailable"))
+
+        assert adapter.get_order("32999660") is None
+
+    def test_any_other_failure_reaches_the_caller(self):
+        adapter = self._adapter(httpx.Response(500, text="boom"))
+
+        with pytest.raises(RuntimeError, match="500"):
+            adapter.get_order("32999660")

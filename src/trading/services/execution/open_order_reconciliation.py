@@ -27,6 +27,7 @@ surfaces them.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
@@ -40,6 +41,8 @@ from trading.models.orders import BrokerOrder, OrderFill, OrderRecord, OrderStat
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.orders import OrderRepository
 from trading.services.execution.submission import apply_book_fill, clean_order_status
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,12 +146,20 @@ def reconcile_open_orders(
         # The open-order list can lag or drop an order that has filled, so ask the broker
         # about each one it left out. Only an order the broker cannot find stays unreported.
         for broker_order_id in sorted(set(open_by_broker_id) - reported_broker_order_ids):
-            looked_up = broker.get_order(broker_order_id)
+            try:
+                looked_up = broker.get_order(broker_order_id)
+            except Exception:
+                logger.warning(
+                    "Lookup of broker order %s failed; leaving it unreported.", broker_order_id, exc_info=True
+                )
+                continue
             if looked_up is None:
                 continue
             persisted = open_by_broker_id[broker_order_id]
-            reported_broker_order_ids.add(broker_order_id)
             live = _with_cumulative_fill(looked_up, persisted, broker_order_id=broker_order_id, now=now)
+            if live is None:
+                continue
+            reported_broker_order_ids.add(broker_order_id)
             if _apply_broker_order(conn, order_repo, persisted, live, broker_order_id=broker_order_id, now=now):
                 newly_filled += 1
 
@@ -228,19 +239,23 @@ def _with_cumulative_fill(
     *,
     broker_order_id: str,
     now: str,
-) -> BrokerOrder:
+) -> BrokerOrder | None:
     """*looked_up* with one fill for what it filled beyond what *persisted* already recorded.
 
     A lookup reports the cumulative filled size and average price, not executions. The
     fill is the difference from the recorded size, so polling the same state twice posts
-    nothing the second time.
+    nothing the second time. None when the lookup cannot be applied safely: it reports
+    less than is recorded, or a larger fill with no price to post it at.
     """
     new_qty = Decimal(str(looked_up.filled_qty)) - persisted.filled_qty
-    if new_qty <= 0 or looked_up.avg_fill_price is None:
+    price = looked_up.avg_fill_price
+    if new_qty < 0 or (new_qty > 0 and price is None):
+        return None
+    if new_qty == 0 or price is None:
         return looked_up
     fill = OrderFill(
         filled_qty=float(new_qty),
-        fill_price=looked_up.avg_fill_price,
+        fill_price=price,
         fill_time=looked_up.updated_at or now,
         commission=looked_up.commission,
         exec_id=f"{broker_order_id}:cum:{looked_up.filled_qty}",

@@ -1,3 +1,5 @@
+import logging
+from decimal import Decimal
 from unittest.mock import Mock
 
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
@@ -542,3 +544,63 @@ class TestReconcileOpenBrokerOrders:
         assert order.status == "cancelled"
         assert order.status_reason == "Order Cancelled"
         assert OrderRepository(conn).fetch_fill_exec_ids(order_id=order_id) == set()
+
+    def test_a_failed_lookup_leaves_the_order_unreported_instead_of_failing_the_run(self, caplog) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        class _BrokenLookupBroker(_LookupBroker):
+            def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+                raise RuntimeError("IBKR Web API request failed for GET /iserver/account/order/status/42: 500")
+
+        with caplog.at_level(logging.WARNING, logger="trading.services.execution.open_order_reconciliation"):
+            outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_BrokenLookupBroker({})))
+
+        assert outcome.unreported_broker_order_ids == ["42"]
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None and order.status == "submitted"
+        assert "Lookup of broker order 42 failed" in caplog.text
+
+    def test_a_fill_with_no_price_is_left_unapplied_and_unreported(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        priceless = _looked_up_order("42", status=OrderStatus.FILLED, filled_qty=10.0)
+        priceless.avg_fill_price = None
+
+        outcome = reconcile_open_orders(
+            conn, account, broker_factory=Mock(return_value=_LookupBroker({"42": priceless}))
+        )
+
+        assert outcome.newly_filled == 0
+        assert outcome.unreported_broker_order_ids == ["42"]
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None and order.status == "submitted"
+        assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is None
+
+    def test_a_lookup_reporting_less_than_is_recorded_changes_nothing(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        repo = OrderRepository(conn)
+        repo.update_status(
+            order_id=order_id,
+            status="partially_filled",
+            filled_qty=Decimal("6"),
+            avg_fill_price=Decimal("151"),
+            updated_at="2024-01-02T10:00:00Z",
+            status_reason=None,
+        )
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        behind = _looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=4.0)
+
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_LookupBroker({"42": behind})))
+
+        assert outcome.unreported_broker_order_ids == ["42"]
+        order = repo.fetch_by_id(order_id=order_id)
+        assert order is not None
+        assert order.filled_qty == 6.0
+        assert repo.fetch_fill_exec_ids(order_id=order_id) == set()
