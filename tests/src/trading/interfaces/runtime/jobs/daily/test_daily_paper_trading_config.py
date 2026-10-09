@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from trading.interfaces.runtime.jobs.daily.paper_trading import caps as module
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext, exclude_accounts
 
 
 def test_parse_account_trade_caps_accepts_maximum_overrides() -> None:
@@ -33,3 +36,27 @@ def test_group_accounts_by_caps() -> None:
         5: ["a", "c"],
         11: ["b"],
     }
+
+
+def test_exclude_accounts_drops_them_from_the_accounts_the_caps_and_the_run_meta() -> None:
+    context = DailyRunContext(
+        repo_root=Path("."),
+        log_path=Path("run.log"),
+        artifact_path=Path("run.json"),
+        accounts=["a", "b", "c"],
+        account_trade_caps={"a": 5, "b": 11, "c": 5},
+        caps_summary="a:5,b:11,c:5",
+        run_meta={"job": "daily_paper_trading", "accounts": ["a", "b", "c"], "account_count": 3},
+        report_date="2026-10-09",
+    )
+
+    result = exclude_accounts(context, {"b": "gateway down"})
+
+    assert result.accounts == ["a", "c"]
+    assert result.account_trade_caps == {"a": 5, "c": 5}
+    assert result.caps_summary == "a:5,c:5"
+    assert result.run_meta["accounts"] == ["a", "c"]
+    assert result.run_meta["account_count"] == 2
+    assert result.run_meta["skipped_accounts"] == {"b": "gateway down"}
+    assert result.run_meta["job"] == "daily_paper_trading"
+    assert context.accounts == ["a", "b", "c"]

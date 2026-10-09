@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from common.logging_setup import current_run_id
@@ -23,6 +23,10 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.validation import (
     validate_trade_count_args,
 )
 from trading.interfaces.runtime.jobs.job_helpers import resolve_accounts, tee_line, ts
+
+
+def _caps_summary(account_trade_caps: dict[str, int]) -> str:
+    return ",".join(f"{name}:{max_trades}" for name, max_trades in account_trade_caps.items())
 
 
 class RunContextError(Exception):
@@ -88,7 +92,7 @@ def build_run_context(
         args.other_max_trades,
         account_trade_cap_overrides,
     )
-    caps_summary = ",".join(f"{name}:{max_trades}" for name, max_trades in account_trade_caps.items())
+    caps_summary = _caps_summary(account_trade_caps)
 
     tee_line(
         log_path,
@@ -122,4 +126,28 @@ def build_run_context(
         caps_summary=caps_summary,
         run_meta=run_meta,
         report_date=report_date,
+    )
+
+
+def exclude_accounts(context: DailyRunContext, skipped: dict[str, str]) -> DailyRunContext:
+    """*context* for a run that trades everything except the skipped accounts.
+
+    ``skipped`` maps each account name to why it is left out; the artifact records it.
+    """
+    accounts = [name for name in context.accounts if name not in skipped]
+    account_trade_caps = {name: cap for name, cap in context.account_trade_caps.items() if name in accounts}
+    caps_summary = _caps_summary(account_trade_caps)
+    run_meta: dict[str, object] = {
+        **context.run_meta,
+        "accounts": accounts,
+        "account_count": len(accounts),
+        "caps_summary": caps_summary,
+        "skipped_accounts": dict(skipped),
+    }
+    return replace(
+        context,
+        accounts=accounts,
+        account_trade_caps=account_trade_caps,
+        caps_summary=caps_summary,
+        run_meta=run_meta,
     )
