@@ -3,7 +3,7 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-10-06
+Last Reviewed: 2026-10-09
 Purpose: Step-by-step setup of the recommended dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it.
 Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
@@ -464,4 +464,5 @@ journalctl --user -u ibkr-keepalive.service -f
 ```
 
 After a reboot the gateway starts logged out. Log in at `https://localhost:5000` before the next
-daily run.
+daily run. Day-to-day start, confirm, and failure-alert commands are in
+[ibkr-operations.md](ibkr-operations.md).

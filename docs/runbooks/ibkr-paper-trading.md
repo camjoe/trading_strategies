@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-07-27
-Last Reviewed: 2026-10-06
+Last Reviewed: 2026-10-09
 Purpose: Operator procedure for moving a book off the internal simulator onto real IBKR paper-account order mechanics, over either the Web API or the socket/TWS transport.
 Related: [ADR 017: IBKR paper broker type](../adr/017-ibkr-paper-broker-type.md), [ADR 018: broker transport/venue matrix](../adr/018-broker-transport-venue-matrix.md), [Broker Integration Reference](../reference/broker-integration.md), [IBKR Client Portal Gateway Setup](../reference/broker-setup-ibkr.md), [Runtime Jobs Reference](../reference/runtime-jobs.md)
 
@@ -74,6 +74,9 @@ IBKR account.
 - **Logging in** is manual: open `https://localhost:5000` and sign in with the paper login. Do it
   after a reboot, a forced IBKR reset, or any `rejected` line in the keepalive journal.
 - **Check** the session with `python -m scripts.ibkr_web_api_smoke_test`.
+
+The start, confirm, and failure-alert commands for the whole stack are in
+[ibkr-operations.md](ibkr-operations.md).
 
 ## What changes when you switch
 
