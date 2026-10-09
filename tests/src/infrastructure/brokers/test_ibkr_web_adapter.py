@@ -82,6 +82,94 @@ class TestInteractiveBrokersWebAdapter:
 
         assert client.submit_order.call_args.args[0]["listingExchange"] == expected_exchange
 
+    def test_get_order_maps_a_filled_status_reply(self):
+        client = self._make_client()
+        # Shape of a real IBKR paper reply for a filled fractional market order.
+        client.fetch_order_status.return_value = {
+            "order_id": 32999660,
+            "symbol": "MSFT",
+            "side": "B",
+            "total_size": "0.9343",
+            "cum_fill": "0.9343",
+            "order_type": "MARKET",
+            "limit_price": "",
+            "order_status": "Filled",
+            "order_status_description": "Order Filled",
+            "average_price": "535.92999995",
+            "order_time": "261009193651",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("32999660")
+
+        client.fetch_order_status.assert_called_once_with("32999660")
+        assert order is not None
+        assert order.broker_order_id == "32999660"
+        assert order.ticker == "MSFT"
+        assert order.side == "buy"
+        assert order.qty == 0.9343
+        assert order.filled_qty == 0.9343
+        assert order.avg_fill_price == 535.92999995
+        assert order.status == OrderStatus.FILLED
+        assert order.updated_at == "2026-10-09T19:36:51Z"
+        assert order.fills == []
+        assert order.status_reason is None
+
+    def test_get_order_reports_a_partial_fill(self):
+        client = self._make_client()
+        client.fetch_order_status.return_value = {
+            "symbol": "AAPL",
+            "side": "S",
+            "total_size": "10",
+            "cum_fill": "4",
+            "order_status": "Submitted",
+            "average_price": "150.5",
+            "order_time": "261009193651",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("7")
+
+        assert order is not None
+        assert order.side == "sell"
+        assert order.status == OrderStatus.PARTIALLY_FILLED
+        assert order.filled_qty == 4.0
+
+    def test_get_order_carries_the_reason_for_a_terminal_non_fill(self):
+        client = self._make_client()
+        client.fetch_order_status.return_value = {
+            "symbol": "AAPL",
+            "side": "B",
+            "total_size": "10",
+            "cum_fill": "0.0",
+            "order_status": "Cancelled",
+            "order_status_description": " Order Cancelled ",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("7")
+
+        assert order is not None
+        assert order.status == OrderStatus.CANCELLED
+        assert order.status_reason == "Order Cancelled"
+        assert order.avg_fill_price is None
+        assert order.updated_at is None
+
+    def test_get_order_is_none_when_ibkr_no_longer_has_the_order(self):
+        client = self._make_client()
+        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError("gone")
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_order("7") is None
+
+    @pytest.mark.parametrize("payload", [{}, {"symbol": "AAPL"}, {"order_status": "Filled"}])
+    def test_get_order_is_none_for_a_reply_without_a_status_and_symbol(self, payload):
+        client = self._make_client()
+        client.fetch_order_status.return_value = payload
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_order("7") is None
+
     def test_place_order_includes_manual_order_time_when_required(self):
         client = self._make_client()
         client.account_id = "U1234567"

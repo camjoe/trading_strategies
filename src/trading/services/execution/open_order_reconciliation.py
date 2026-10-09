@@ -14,21 +14,22 @@ here — the confirmation that never reached the database on the original run.
 A pending row no live order claims is reported, not resolved: it may have been
 rejected before reaching the broker, or filled and already aged off the list.
 
-**Unreported orders.** A broker only reports on orders it still knows about —
+**Unreported orders.** A broker's open-order list can omit an order that has filled, so
+each omitted order is looked up by id (``BrokerConnection.get_order``) and its fills and
+status applied like any other. A broker only reports on orders it still knows about —
 IBKR's order endpoint covers the current day, so a ``day`` order that expired at a
-previous session's close never appears again. Those persisted rows would otherwise
-sit at ``submitted`` forever and be re-polled on every future run. This module
-reports them rather than resolving them: an absent order might have expired
-unfilled, or might have filled on a day nothing ran, and marking a filled order
-cancelled would silently corrupt the book. Deciding between those needs an
-operator, so the outcome carries the ids and the caller surfaces them.
+previous session's close never appears again. An order the lookup cannot find is
+reported rather than resolved: it might have expired unfilled, or might have filled on
+a day nothing ran, and marking a filled order cancelled would silently corrupt the book.
+Deciding between those needs an operator, so the outcome carries the ids and the caller
+surfaces them.
 """
 
 from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 
 from common.coercion import row_expect_int
@@ -136,53 +137,19 @@ def reconcile_open_orders(
             if persisted is None:
                 continue
             reported_broker_order_ids.add(broker_order_id)
+            if _apply_broker_order(conn, order_repo, persisted, live, broker_order_id=broker_order_id, now=now):
+                newly_filled += 1
 
-            # One transaction per broker order: every new fill's book effect and
-            # the final status update land together, so a crash cannot leave a
-            # recorded fill (which exec_id dedup would then skip) unapplied.
-            with unit_of_work(conn):
-                # Apply only executions we have not already recorded (exec_id dedup), so a
-                # repeated poll of the same partial fill does not double-post to the book.
-                seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
-                for fill_index, fill in enumerate(live.fills):
-                    exec_id = resolve_reconciliation_exec_id(
-                        broker_order_id=broker_order_id,
-                        fill=fill,
-                        fill_index=fill_index,
-                    )
-                    if exec_id in seen_exec_ids:
-                        continue
-                    order_repo.insert_fill(
-                        order_id=persisted.id,
-                        filled_qty=Decimal(str(fill.filled_qty)),
-                        fill_price=Decimal(str(fill.fill_price)),
-                        fill_time=fill.fill_time,
-                        commission=Decimal(str(fill.commission)),
-                        exec_id=exec_id,
-                    )
-                    apply_book_fill(
-                        conn,
-                        book_id=persisted.book_id,
-                        order_id=persisted.id,
-                        side=persisted.side,
-                        symbol=persisted.symbol,
-                        fill_qty=fill.filled_qty,
-                        fill_price=fill.fill_price,
-                        transaction_cost=fill.commission,
-                        fill_time=fill.fill_time,
-                    )
-                    seen_exec_ids.add(exec_id)
-
-                order_repo.update_status(
-                    order_id=persisted.id,
-                    status=clean_order_status(live.status),
-                    filled_qty=Decimal(str(live.filled_qty)),
-                    avg_fill_price=None if live.avg_fill_price is None else Decimal(str(live.avg_fill_price)),
-                    updated_at=now,
-                    status_reason=live.status_reason,
-                )
-
-            if live.status == OrderStatus.FILLED:
+        # The open-order list can lag or drop an order that has filled, so ask the broker
+        # about each one it left out. Only an order the broker cannot find stays unreported.
+        for broker_order_id in sorted(set(open_by_broker_id) - reported_broker_order_ids):
+            looked_up = broker.get_order(broker_order_id)
+            if looked_up is None:
+                continue
+            persisted = open_by_broker_id[broker_order_id]
+            reported_broker_order_ids.add(broker_order_id)
+            live = _with_cumulative_fill(looked_up, persisted, broker_order_id=broker_order_id, now=now)
+            if _apply_broker_order(conn, order_repo, persisted, live, broker_order_id=broker_order_id, now=now):
                 newly_filled += 1
 
         return ReconciliationOutcome(
@@ -194,6 +161,91 @@ def reconcile_open_orders(
         )
     finally:
         broker.disconnect()
+
+
+def _apply_broker_order(
+    conn: sqlite3.Connection,
+    order_repo: OrderRepository,
+    persisted: OrderRecord,
+    live: BrokerOrder,
+    *,
+    broker_order_id: str,
+    now: str,
+) -> bool:
+    """Apply *live*'s new executions and status to *persisted*; True when the order is filled.
+
+    One transaction: every new fill's book effect and the final status update land
+    together, so a crash cannot leave a recorded fill (which exec_id dedup would then
+    skip) unapplied.
+    """
+    with unit_of_work(conn):
+        # Apply only executions we have not already recorded (exec_id dedup), so a
+        # repeated poll of the same partial fill does not double-post to the book.
+        seen_exec_ids = order_repo.fetch_fill_exec_ids(order_id=persisted.id)
+        for fill_index, fill in enumerate(live.fills):
+            exec_id = resolve_reconciliation_exec_id(
+                broker_order_id=broker_order_id,
+                fill=fill,
+                fill_index=fill_index,
+            )
+            if exec_id in seen_exec_ids:
+                continue
+            order_repo.insert_fill(
+                order_id=persisted.id,
+                filled_qty=Decimal(str(fill.filled_qty)),
+                fill_price=Decimal(str(fill.fill_price)),
+                fill_time=fill.fill_time,
+                commission=Decimal(str(fill.commission)),
+                exec_id=exec_id,
+            )
+            apply_book_fill(
+                conn,
+                book_id=persisted.book_id,
+                order_id=persisted.id,
+                side=persisted.side,
+                symbol=persisted.symbol,
+                fill_qty=fill.filled_qty,
+                fill_price=fill.fill_price,
+                transaction_cost=fill.commission,
+                fill_time=fill.fill_time,
+            )
+            seen_exec_ids.add(exec_id)
+
+        order_repo.update_status(
+            order_id=persisted.id,
+            status=clean_order_status(live.status),
+            filled_qty=Decimal(str(live.filled_qty)),
+            avg_fill_price=None if live.avg_fill_price is None else Decimal(str(live.avg_fill_price)),
+            updated_at=now,
+            status_reason=live.status_reason,
+        )
+    return live.status == OrderStatus.FILLED
+
+
+def _with_cumulative_fill(
+    looked_up: BrokerOrder,
+    persisted: OrderRecord,
+    *,
+    broker_order_id: str,
+    now: str,
+) -> BrokerOrder:
+    """*looked_up* with one fill for what it filled beyond what *persisted* already recorded.
+
+    A lookup reports the cumulative filled size and average price, not executions. The
+    fill is the difference from the recorded size, so polling the same state twice posts
+    nothing the second time.
+    """
+    new_qty = Decimal(str(looked_up.filled_qty)) - persisted.filled_qty
+    if new_qty <= 0 or looked_up.avg_fill_price is None:
+        return looked_up
+    fill = OrderFill(
+        filled_qty=float(new_qty),
+        fill_price=looked_up.avg_fill_price,
+        fill_time=looked_up.updated_at or now,
+        commission=looked_up.commission,
+        exec_id=f"{broker_order_id}:cum:{looked_up.filled_qty}",
+    )
+    return replace(looked_up, fills=[fill])
 
 
 def _adopt_pending_orders(

@@ -10,6 +10,38 @@ from trading.repositories.positions import PositionRepository
 from trading.services.execution.open_order_reconciliation import reconcile_open_orders
 
 
+class _LookupBroker:
+    """A broker whose open-order list is empty but which can look an order up by id."""
+
+    def __init__(self, orders_by_id: dict[str, BrokerOrder]) -> None:
+        self._orders_by_id = orders_by_id
+
+    def get_open_trades(self) -> list[BrokerOrder]:
+        return []
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        return self._orders_by_id.get(broker_order_id)
+
+    def disconnect(self) -> None:
+        pass
+
+
+def _looked_up_order(broker_order_id: str, *, status: OrderStatus, filled_qty: float) -> BrokerOrder:
+    """The cumulative state a lookup by id reports: no individual executions."""
+    return BrokerOrder(
+        account_id=0,
+        ticker="AAPL",
+        side="buy",
+        qty=10.0,
+        price=0.0,
+        broker_order_id=broker_order_id,
+        status=status,
+        filled_qty=filled_qty,
+        avg_fill_price=151.0 if filled_qty > 0 else None,
+        updated_at="2024-01-02T10:00:00Z",
+    )
+
+
 def _make_db():
     return memory_db_at_head()
 
@@ -392,6 +424,9 @@ class TestReconcileOpenBrokerOrders:
                     )
                 ]
 
+            def get_order(self, _broker_order_id):
+                return None
+
             def disconnect(self):
                 pass
 
@@ -437,3 +472,73 @@ class TestReconcileOpenBrokerOrders:
 
         assert outcome.unreported_broker_order_ids == []
         assert outcome.has_unreported is False
+
+    def test_an_order_the_list_omits_is_filled_from_a_lookup_by_id(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        broker = _LookupBroker({"42": _looked_up_order("42", status=OrderStatus.FILLED, filled_qty=10.0)})
+
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        assert outcome.newly_filled == 1
+        assert outcome.unreported_broker_order_ids == []
+        repo = OrderRepository(conn)
+        order = repo.fetch_by_id(order_id=order_id)
+        assert order is not None
+        assert order.status == "filled"
+        assert order.filled_qty == 10.0
+        assert repo.fetch_fill_exec_ids(order_id=order_id) == {"42:cum:10.0"}
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 10.0
+
+    def test_polling_the_same_cumulative_fill_twice_posts_it_once(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        broker = _LookupBroker({"42": _looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=4.0)})
+
+        for _ in range(2):
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        assert OrderRepository(conn).fetch_fill_exec_ids(order_id=order_id) == {"42:cum:4.0"}
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 4.0
+
+    def test_a_later_lookup_posts_only_the_size_filled_since(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        for status, cumulative in ((OrderStatus.PARTIALLY_FILLED, 4.0), (OrderStatus.FILLED, 10.0)):
+            broker = _LookupBroker({"42": _looked_up_order("42", status=status, filled_qty=cumulative)})
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        assert OrderRepository(conn).fetch_fill_exec_ids(order_id=order_id) == {"42:cum:4.0", "42:cum:10.0"}
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 10.0
+
+    def test_a_lookup_that_finds_a_cancelled_order_resolves_the_row(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        cancelled = _looked_up_order("42", status=OrderStatus.CANCELLED, filled_qty=0.0)
+        cancelled.status_reason = "Order Cancelled"
+        broker = _LookupBroker({"42": cancelled})
+
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        assert outcome.newly_filled == 0
+        assert outcome.unreported_broker_order_ids == []
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None
+        assert order.status == "cancelled"
+        assert order.status_reason == "Order Cancelled"
+        assert OrderRepository(conn).fetch_fill_exec_ids(order_id=order_id) == set()
