@@ -220,8 +220,9 @@ Built on a branch off `develop`, separate from PRs #294 and #296.
    `pr code review` runs the lenses. Add the by-number shortcut for reviewing a PR without checking it
    out. Routing table and skill inventory if wording changes. `.ai/skills/README.md` likewise.
 6. **Verify:** `python -m scripts.run_checks repo` (the skills drift check covers the inventory).
-7. **Delete this file**; the evidence that must outlive it is in `lenses.md`. Delete the local
-   `local/pr_readiness_report.md` then too; it is the author-review baseline the pilot compared against.
+7. **Delete this file**; the evidence that must outlive it is in `lenses.md`. The local
+   `local/pr_readiness_report.md` (the author-review baseline the pilot compared against) was
+   deleted on 2026-10-09; Appendix A keeps its one-line conclusion.
 
 Promote a recurring finding class to a deterministic check when a lens finds it twice. Candidates so
 far: a docs-map row that names a changed file; a diff adding more comment and docstring lines than code.
