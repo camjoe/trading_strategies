@@ -76,7 +76,7 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/docs/docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
 - `scripts/checks/repo/repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
 - `scripts/checks/python/python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
-- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.
+- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, scope notes, and the reviewers a diff needs (none for documentation-only diffs; more for broker, fill, sizing, and scheduler paths and for large diffs).
 - `scripts/checks/docs/readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
