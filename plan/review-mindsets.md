@@ -202,7 +202,7 @@ nothing else: no other comment or review, no labels, no merge.
 
 ## What changes in the repo
 Built on a branch off `develop`, separate from PRs #294 and #296.
-1. **`.ai/skills/code-review/lenses.md`** (new): the reviewers' sections above, the severity
+1. **`lenses.md`** (new, in the `code-review` skill folder): the reviewers' sections above, the severity
    definitions, the prompt, and a short "why these choices" section distilled from Appendix C.
 2. **`.ai/skills/code-review/SKILL.md`**: PR mode becomes one Architecture and conventions section
    (replacing Architecture, Style, Quality), with BLOCKER / CONCERN / NOTE (lines 59-61 use
