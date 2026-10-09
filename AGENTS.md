@@ -14,6 +14,17 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
   package or repository behind the established strategy interfaces. When classification is unclear,
   stop and ask before writing tracked files.
 
+## Standing authorizations
+
+Granted by the owner on 2026-10-09. Each covers only what is written here; anything else needs the
+owner's yes in that conversation.
+
+- `pr ready` may create and edit the single readiness comment on the current branch's own pull
+  request, identified by the hidden marker `<!-- pr-readiness -->`, without asking. It may not post
+  any other comment or review, add labels, or merge. It never posts security-class findings (route
+  those to `/security-review` and tell the owner privately). The repository is public: the comment
+  carries no credentials, broker account ids, local machine paths, or private strategy parameters.
+
 ## Python environment
 
 - Always run Python tools from the repo-local `.venv` virtual environment.
@@ -27,6 +38,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 ## Working references
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
+- Plans for work about to start (possibly on another branch): `plan/` — short-lived, deleted when the work ships; see `plan/README.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
 - Skill authoring and localization guidance: `.ai/skills/README.md` (Authoring rules)
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
