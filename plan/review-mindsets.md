@@ -1,6 +1,6 @@
 # Plan: review every PR through several mindsets
 
-Status: drafted 2026-10-09. Nothing is built. Pilot not run.
+Status: drafted 2026-10-09. Nothing is built. Pilot ready to run: see "Pilot kickoff".
 
 ## Goal
 Catch what one reviewer with one mindset misses, without making every PR slow or noisy. The repo
@@ -114,6 +114,67 @@ Compare with the author's self-review in `local/pr_readiness_report.md`:
 
 Success: at least one real finding the self-review missed, and a real-finding rate high enough that
 reading the output is worth the time. Failure is also a result; record it and adjust the lenses.
+
+## Pilot kickoff (how to run it)
+Run from the working copy on branch docs/plan-folder: this file exists only there until PR #295
+merges, and the results are recorded in it. The PR branches are read by git ref and are not checked out.
+
+1. `git fetch origin`. Confirm each PR's state with `gh pr view <number> --json state,headRefName`.
+   If one has merged, review its merge commit against its first parent instead.
+2. Per PR, build the review input: `git diff origin/develop...origin/<branch>` (stat, then full) and the
+   changed-file list. The tests are part of the diff.
+3. Launch one reviewer per lens (1 Break it, 2 Money and safety, 3 Operator at 3 a.m.) for each PR: six
+   reviewers, in parallel. Each is a read-only agent (no Edit or Write tools, for example the Plan agent
+   type) with a fresh context. Give each: its lens text from this file, the prompt template, the branch
+   ref and the diff command, and an instruction to read `AGENTS.md` and the conventions it names.
+   Do NOT give any reviewer: the PR description, the commit messages, the "Known to the author" list
+   below, or the author's readiness report.
+4. Run lens 2 (Money and safety) on a different model than the orchestrator's, if the agent tool's
+   `model` option allows it.
+5. Verify every finding before scoring it: open the file and line, then run or reason through the
+   scenario. Mark each REAL (a true defect or gap), KNOWN (listed below), NOT REAL (wrong or misread),
+   or NOTE.
+6. Record the results under "Pilot results": one row per finding (PR, lens, severity, verdict, one
+   line), then the real-finding rate, how many REAL findings were new vs KNOWN, and the cost (rough
+   time, and tokens if visible).
+7. Report to the owner: the value, the gaps (what the author's review found that no lens did), the
+   noise, the cost, and a recommendation (adopt, adjust a named lens, or drop). Do not fix findings
+   during the pilot; the owner decides which go into #294 and #296.
+8. Commit the results to branch docs/plan-folder and push (this updates PR #295).
+
+### Known to the author (score against this; never show it to a reviewer)
+PR #294 (reconcile lookup):
+- Fills posted from a status reply carry commission 0.0 and the order's own timestamp.
+- Every open row the order list omits is looked up on every run; stale rows add one request each.
+- A looked-up order is matched by broker order id alone; symbol and side are not compared.
+- The lookup's `except Exception` logs and leaves the order unreported.
+- The order-list path was changed to report cumulative state (it used to double-post a partial fill).
+- IBKR order warnings are still confirmed automatically; they are now only logged.
+- The `0.0001` order step is a one-contract assumption (see `contract-trading-rules.md`).
+
+PR #296 (skip unavailable accounts):
+- A session that dies during a run still fails the run at the step that notices.
+- A run that skips accounts ends with `COMPLETE`, so the duplicate-run guard blocks a plain re-run
+  that day; the `warn` alert carries the `--accounts <names> --force-run` command.
+- A persistent outage is now a daily `warn` with no escalation (`account-failure-visibility.md`, item B).
+- A trading-step anomaly in one account still stops the later cap groups (same plan, item A).
+
+The author's own readiness report for #294 is `local/pr_readiness_report.md` (gitignored). It found no
+blocker; its advisories were fixed or are listed above. There is no formal report for #296.
+
+### Kickoff prompt (paste into a fresh session)
+```
+We are running the multi-lens review pilot. Work in
+C:\Users\camer\Documents\Workspaces\repo_copies\trading_strategies on branch docs/plan-folder
+(run git checkout docs/plan-folder if you are on another branch). Read AGENTS.md, then
+plan/review-mindsets.md in full, especially "The five lenses", "Prompt template", "Pilot",
+"Pilot kickoff" and "Known to the author". Review PR #294 (fix/ibkr-reconcile-order-status) and PR #296
+(fix/skip-unavailable-ibkr-accounts) against origin/develop with lenses 1, 2 and 3, as independent
+read-only reviewer agents that never see the author's reasoning. Read the PR branches by git ref; do
+not check them out. Verify and score every finding yourself, record the results under "Pilot results"
+in plan/review-mindsets.md, commit and push to docs/plan-folder, then report value, gaps, noise and
+cost with a recommendation. Do not fix any finding.
+```
 
 ## Rollout
 1. Review and edit this file (the lens text is the part that matters most).
