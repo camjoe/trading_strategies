@@ -27,6 +27,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 ## Working references
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
+- Plans for work about to start (possibly on another branch): `plan/` — short-lived, deleted when the work ships; see `plan/README.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
 - Skill authoring and localization guidance: `.ai/skills/README.md` (Authoring rules)
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
