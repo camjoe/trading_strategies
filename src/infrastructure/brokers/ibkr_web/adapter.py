@@ -29,6 +29,10 @@ _ACCOUNT_INFO_FIELDS = (
 # IBKR requires a unique customer order id for each order within a 24-hour span.
 _WEB_ORDER_ID_PREFIX = "ts-web"
 
+# IBKR rejects a fractional-share order routed to a listing exchange: "Only IBKR
+# SmartRouting supports fractional shares".
+_SMART_ROUTING_EXCHANGE = "SMART"
+
 
 class InteractiveBrokersWebAdapter(BrokerConnection):
     """Live broker adapter backed by the IBKR Web API."""
@@ -51,7 +55,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
             "conid": int(contract.conid),
             "secType": f"{contract.conid}:{contract.sec_type}",
             "cOID": _build_customer_order_id(order),
-            "listingExchange": contract.listing_exchange,
+            "listingExchange": _order_exchange(contract.listing_exchange, order.qty),
             "side": order.side.upper(),
             "orderType": "MKT" if order.order_type == OrderType.MARKET else "LMT",
             "ticker": contract.ticker,
@@ -259,6 +263,11 @@ def _summary_amount(summary: dict[str, object], key: str) -> float | None:
     if not isinstance(entry, dict):
         return None
     return _coerce_number(entry.get("amount") or entry.get("value"))
+
+
+def _order_exchange(listing_exchange: str, qty: float) -> str:
+    """The exchange to route an order of ``qty`` shares to: SMART when the size is fractional."""
+    return listing_exchange if float(qty).is_integer() else _SMART_ROUTING_EXCHANGE
 
 
 def _requires_manual_order_time(accounts_payload: dict[str, object], account_id: str) -> bool:
