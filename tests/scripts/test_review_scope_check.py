@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from scripts.checks.repo.review_scope_check import (
     LARGE_DIFF_LINES,
     classify_paths,
     diff_stats,
+    parse_args,
     run_review_scope_check,
     suggest_reviewers,
 )
@@ -210,3 +212,23 @@ def test_run_review_scope_check_reports_no_reviewers_for_a_documentation_only_di
     assert run_review_scope_check(repo, base_ref="main") == 0
 
     assert "Suggested reviewers: none" in capsys.readouterr().out
+
+
+def test_a_head_ref_is_classified_without_checking_it_out(tmp_path: Path, capsys) -> None:
+    repo = _repo_with_broker_change(tmp_path)
+    _git(repo, "checkout", "main")
+
+    assert run_review_scope_check(repo, base_ref="main", head_ref="feature") == 0
+
+    output = capsys.readouterr().out
+    assert "Diff: main...feature" in output
+    assert "- Operator: aggressive-mode paths" in output
+    assert not (repo / "src").exists()
+    assert diff_stats(repo, base_ref="main", head_ref="feature") == (30, ["src/infrastructure/brokers/adapter.py"])
+
+
+def test_head_without_base_is_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["review_scope_check", "--head", "feature"])
+
+    with pytest.raises(SystemExit):
+        parse_args()

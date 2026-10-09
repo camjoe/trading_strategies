@@ -83,8 +83,8 @@ Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
-| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
+| `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
@@ -111,6 +111,7 @@ Default to the most specific matching skill; work without one when nothing match
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Independent review of a PR or another branch, read by ref | `code-review/` (Lenses, `lenses.md`) |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
 | Schema migration work or safety review | `db-migration/` |
@@ -197,23 +198,40 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `pr ready`
 
-Full pre-PR readiness workflow. Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the
-fail-fast step sequence, stop conditions, and the saved report format.
+Full pre-PR readiness workflow, run on committed work. Follow `.ai/skills/check-pr-readiness/SKILL.md`
+— it owns the step order, stop conditions, and the readiness comment on the pull request (updated in
+place by each pass; with no PR yet the text is printed).
 
 - `pr ready` — vs `develop` (default base)
 - `pr ready: <base>` — vs a custom base branch (e.g. `pr ready: main`)
+- `pr ready: lenses=<names>` — override the reviewers `review_scope_check` suggests
 
 **Individual step shortcuts** — run any step on its own:
 
 | Shortcut | What it does |
 |---|---|
+| `pr gate` | The gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks if the diff touches the frontend (`python -m scripts.run_checks pr --base develop`) |
+| `pr gate: <base>` | The gate vs a custom base |
 | `pr tests` | Branch-targeted Python checks only (`--base develop`) |
 | `pr tests: <base>` | Branch-targeted tests vs a custom base |
 | `pr lint` | Repository checks + Python lint/type checks |
-| `pr code review` | AI style + quality review for branch diff vs develop |
-| `pr code review: <base>` | AI style + quality review vs a custom base |
-| `pr arch review` | AI architecture review for branch diff vs develop |
-| `pr arch review: <base>` | AI architecture review vs a custom base |
+| `pr arch review` | The Architecture and conventions reviewer for the branch diff vs develop |
+| `pr arch review: <base>` | The Architecture and conventions reviewer vs a custom base |
+| `pr code review` | The lens reviewers `review_scope_check` selects for the branch diff vs develop |
+| `pr code review: <base>` | The lens reviewers vs a custom base |
 
 For the underlying deterministic commands (no AI, no tokens), see
 `.ai/skills/validate-code/SKILL.md`.
+
+### `review pr`
+
+Independent review of an open pull request without checking it out, for example one on another
+branch.
+
+- `review pr: <number>` — look up the base and head with `gh pr view <number> --json
+  baseRefName,headRefName`, run `git fetch origin`, then
+  `python -m scripts.checks.repo.review_scope_check --base origin/<base> --head origin/<head>` for
+  the reviewers, and follow "For the orchestrator" in `.ai/skills/code-review/lenses.md` with those
+  refs. Print the verified findings; do not fix them.
+- The standing authorization covers only the readiness comment on the current branch's own PR, so
+  posting these findings to another PR needs the owner's yes.

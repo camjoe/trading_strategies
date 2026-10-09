@@ -173,6 +173,7 @@ python -m scripts.checks.docs.docs_check
 python -m scripts.checks.repo.repo_check
 python -m scripts.checks.python.python_check
 python -m scripts.checks.repo.review_scope_check --base main
+python -m scripts.checks.repo.review_scope_check --base origin/develop --head origin/<branch>  # a branch read by ref
 python -m scripts.checks.quick
 python -m scripts.checks.ci
 

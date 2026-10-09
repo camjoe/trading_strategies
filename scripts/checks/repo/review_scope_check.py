@@ -122,18 +122,18 @@ def _git_output(repo_root: Path, command: list[str]) -> str:
     return subprocess.run(command, cwd=repo_root, check=True, capture_output=True, text=True).stdout
 
 
-def _diff_range(base_ref: str | None) -> list[str]:
-    return [f"{base_ref}...HEAD"] if base_ref else ["HEAD"]
+def _diff_range(base_ref: str | None, head_ref: str = "HEAD") -> list[str]:
+    return [f"{base_ref}...{head_ref}"] if base_ref else ["HEAD"]
 
 
-def changed_files(repo_root: Path, base_ref: str | None = None) -> list[str]:
-    output = _git_output(repo_root, ["git", "diff", "--name-only", *_diff_range(base_ref)])
+def changed_files(repo_root: Path, base_ref: str | None = None, head_ref: str = "HEAD") -> list[str]:
+    output = _git_output(repo_root, ["git", "diff", "--name-only", *_diff_range(base_ref, head_ref)])
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
-def diff_stats(repo_root: Path, base_ref: str | None = None) -> tuple[int, list[str]]:
+def diff_stats(repo_root: Path, base_ref: str | None = None, head_ref: str = "HEAD") -> tuple[int, list[str]]:
     """Changed lines outside documentation, and the source modules the diff adds."""
-    numstat = _git_output(repo_root, ["git", "diff", "--numstat", *_diff_range(base_ref)])
+    numstat = _git_output(repo_root, ["git", "diff", "--numstat", *_diff_range(base_ref, head_ref)])
     changed_lines = 0
     for line in numstat.splitlines():
         parts = line.split("\t", 2)
@@ -143,7 +143,9 @@ def diff_stats(repo_root: Path, base_ref: str | None = None) -> tuple[int, list[
         if added.isdigit() and deleted.isdigit() and not _is_documentation(path):
             changed_lines += int(added) + int(deleted)
 
-    added_output = _git_output(repo_root, ["git", "diff", "--diff-filter=A", "--name-only", *_diff_range(base_ref)])
+    added_output = _git_output(
+        repo_root, ["git", "diff", "--diff-filter=A", "--name-only", *_diff_range(base_ref, head_ref)]
+    )
     added_modules = [
         path
         for path in (line.strip().replace("\\", "/") for line in added_output.splitlines())
@@ -152,10 +154,16 @@ def diff_stats(repo_root: Path, base_ref: str | None = None) -> tuple[int, list[
     return changed_lines, added_modules
 
 
-def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quiet: bool = False) -> int:
+def run_review_scope_check(
+    repo_root: Path,
+    *,
+    base_ref: str | None = None,
+    head_ref: str = "HEAD",
+    quiet: bool = False,
+) -> int:
     try:
-        report = classify_paths(changed_files(repo_root, base_ref=base_ref))
-        changed_lines, added_modules = diff_stats(repo_root, base_ref=base_ref)
+        report = classify_paths(changed_files(repo_root, base_ref=base_ref, head_ref=head_ref))
+        changed_lines, added_modules = diff_stats(repo_root, base_ref=base_ref, head_ref=head_ref)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode
@@ -166,7 +174,7 @@ def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quie
 
     print("Review Scope Check")
     print(f"Repo root: {repo_root}")
-    print(f"Diff: {base_ref + '...HEAD' if base_ref else 'HEAD'}")
+    print(f"Diff: {base_ref + '...' + head_ref if base_ref else 'HEAD'}")
     print(f"Changed files: {len(report.changed_files)}")
     print(
         "Suggested review modes: " + ", ".join(sorted(report.modes))
@@ -201,14 +209,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument("--base", metavar="REF", default=None, help="Classify changes vs a git ref.")
+    parser.add_argument(
+        "--head",
+        metavar="REF",
+        default="HEAD",
+        help="Head ref to classify with --base (default HEAD). Read by ref; nothing is checked out.",
+    )
     parser.add_argument("--quiet", action="store_true", help="Collapse empty output to one PASS line.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.head != "HEAD" and not args.base:
+        parser.error("--head requires --base")
+    return args
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
-    return run_review_scope_check(repo_root=repo_root, base_ref=args.base, quiet=args.quiet)
+    return run_review_scope_check(repo_root=repo_root, base_ref=args.base, head_ref=args.head, quiet=args.quiet)
 
 
 if __name__ == "__main__":
