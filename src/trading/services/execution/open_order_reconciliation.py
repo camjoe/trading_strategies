@@ -156,7 +156,7 @@ def reconcile_open_orders(
             if looked_up is None:
                 continue
             persisted = open_by_broker_id[broker_order_id]
-            postable = _with_cumulative_fill(looked_up, persisted, broker_order_id=broker_order_id, now=now)
+            postable = _postable_lookup(looked_up, persisted, broker_order_id=broker_order_id, now=now)
             if postable is None:
                 continue
             reported_broker_order_ids.add(broker_order_id)
@@ -233,14 +233,14 @@ def _apply_broker_order(
     return live.status == OrderStatus.FILLED
 
 
-def _with_cumulative_fill(
+def _postable_lookup(
     looked_up: BrokerOrder,
     persisted: OrderRecord,
     *,
     broker_order_id: str,
     now: str,
 ) -> BrokerOrder | None:
-    """*looked_up* with one fill for what it filled beyond what *persisted* already recorded.
+    """*looked_up* with one fill for what it filled beyond what *persisted* already recorded, or None.
 
     A lookup reports the cumulative filled size and average price, not executions. The
     fill is the difference from the recorded size, so polling the same state twice posts

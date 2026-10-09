@@ -41,12 +41,7 @@ def closing_quantity_step_for(instrument_mode: str) -> float:
 
 
 def _truncate_to_step(quantity: float, step: float) -> float:
-    """The largest multiple of ``step`` not exceeding ``quantity`` (never negative).
-
-    The division and the multiple are done in decimal, so a result carries no float noise
-    (``3 * 0.0001`` is not ``0.0003``, and ``9.7 / 0.0001`` is not ``97000``), which a broker
-    would reject as a size off its increment.
-    """
+    """The largest multiple of ``step`` not exceeding ``quantity`` (never negative), computed in decimal."""
     if quantity <= 0 or step <= 0:
         return 0.0
     decimal_step = Decimal(str(step))
