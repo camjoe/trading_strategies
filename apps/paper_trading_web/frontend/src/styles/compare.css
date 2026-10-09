@@ -15,7 +15,7 @@
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding: 0.95rem 1rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface-subtle);
 }
@@ -37,7 +37,7 @@
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface-white);
-  box-shadow: inset 0 1px 0 #ffffff80;
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 .compare-table {
@@ -56,7 +56,7 @@
 }
 
 .compare-table th {
-  background: var(--table-head-bg-compare);
+  background: var(--surface-subtle);
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.76rem;
@@ -100,6 +100,6 @@
 }
 
 .compare-evaluation .compare-stale {
-  color: var(--warning, #b8860b);
+  color: var(--warn);
   font-weight: 700;
 }

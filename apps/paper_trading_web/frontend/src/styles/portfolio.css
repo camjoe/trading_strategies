@@ -23,7 +23,7 @@
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface-white);
-  box-shadow: inset 0 1px 0 #ffffff80;
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 .portfolio-table {
@@ -41,7 +41,7 @@
 }
 
 .portfolio-table th {
-  background: var(--table-head-bg-compare);
+  background: var(--surface-subtle);
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.76rem;

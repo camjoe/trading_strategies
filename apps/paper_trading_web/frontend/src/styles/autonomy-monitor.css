@@ -13,7 +13,7 @@
   align-items: start;
   gap: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--line);
 }
 
 .autonomy-account-selector {
@@ -36,7 +36,7 @@
 .autonomy-dashboard.empty {
   padding: 2rem;
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 /* Account Overview Card */
@@ -55,14 +55,14 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .overview-item .label {
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -72,11 +72,11 @@
 }
 
 .overview-item.up .value {
-  color: #10b981;
+  color: var(--ok);
 }
 
 .overview-item.down .value {
-  color: #ef4444;
+  color: var(--bad);
 }
 
 /* Books Table */
@@ -111,7 +111,7 @@
 .books-table thead,
 .rotations-table thead,
 .violations-table thead {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
 }
 
 .books-table th,
@@ -120,36 +120,36 @@
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--line);
 }
 
 .books-table td,
 .rotations-table td,
 .violations-table td {
   padding: 0.75rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--line);
 }
 
 .book-row.status-active {
-  background-color: rgba(16, 185, 129, 0.05);
+  background-color: var(--ok-tint);
 }
 
 .book-row.status-paused {
-  background-color: rgba(234, 179, 8, 0.05);
+  background-color: var(--warn-tint);
 }
 
 .book-row.status-closed {
-  background-color: rgba(107, 114, 128, 0.05);
+  background-color: var(--neutral-tint);
 }
 
 .book-row .return.up {
-  color: #10b981;
+  color: var(--ok);
   font-weight: 600;
 }
 
 .book-row .return.down {
-  color: #ef4444;
+  color: var(--bad);
   font-weight: 600;
 }
 
@@ -163,33 +163,33 @@
 }
 
 .status-active {
-  background-color: #dbeafe;
-  color: #0c4a6e;
+  background-color: var(--info-bg);
+  color: var(--info);
 }
 
 .status-paused {
-  background-color: #fef3c7;
-  color: #78350f;
+  background-color: var(--warn-bg);
+  color: var(--warn);
 }
 
 .status-closed {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--neutral-bg);
+  color: var(--neutral);
 }
 
 .status-success {
-  background-color: #dcfce7;
-  color: #14532d;
+  background-color: var(--ok-bg);
+  color: var(--ok);
 }
 
 .status-failed {
-  background-color: #fee2e2;
-  color: #7f1d1d;
+  background-color: var(--bad-bg);
+  color: var(--bad);
 }
 
 .status-not_run {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--neutral-bg);
+  color: var(--neutral);
 }
 
 /* Workflow Status */
@@ -198,19 +198,19 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .workflow-summary.status-success {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .workflow-summary.status-failed {
-  border-color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--bad);
+  background-color: var(--bad-tint);
 }
 
 .workflow-summary .item {
@@ -222,7 +222,7 @@
 
 .workflow-summary .label {
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -241,17 +241,17 @@
 .error-box {
   padding: 1rem;
   margin-top: 1rem;
-  background-color: #fee2e2;
-  border: 1px solid #fca5a5;
+  background-color: var(--bad-bg);
+  border: 1px solid var(--bad-border);
   border-radius: 6px;
-  color: #7f1d1d;
+  color: var(--bad);
   font-size: 0.875rem;
 }
 
 .error-message {
   padding: 2rem;
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 .error-message .btn {
@@ -270,25 +270,25 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background-color: var(--color-bg-secondary);
-  border: 2px solid var(--color-border-subtle);
+  background-color: var(--panel-2);
+  border: 2px solid var(--line);
   border-radius: 6px;
   text-align: center;
 }
 
 .governance-card.status-success {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .governance-card.status-failed {
-  border-color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--bad);
+  background-color: var(--bad-tint);
 }
 
 .governance-card.status-not_run {
-  border-color: var(--color-border-subtle);
-  background-color: var(--color-bg-secondary);
+  border-color: var(--line);
+  background-color: var(--panel-2);
 }
 
 .gov-title {
@@ -298,7 +298,7 @@
 
 .gov-freq {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 .gov-status {
@@ -312,7 +312,7 @@
 
 .gov-lastrun {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
 }
 
 /* Burn-In Progress */
@@ -321,14 +321,14 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 1.5rem;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
   border-radius: 6px;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--line);
 }
 
 .burn-in-summary.ready {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-color: var(--ok);
+  background-color: var(--ok-tint);
 }
 
 .progress-section {
@@ -345,15 +345,15 @@
 .progress-bar-container {
   position: relative;
   height: 32px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border-subtle);
+  background-color: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+  background: linear-gradient(90deg, var(--accent-fill) 0%, var(--ok) 100%);
   transition: width 0.3s ease;
 }
 
@@ -364,7 +364,7 @@
   transform: translate(-50%, -50%);
   font-weight: 600;
   font-size: 0.875rem;
-  color: white;
+  color: var(--on-accent);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -382,7 +382,7 @@
 
 .stat .label {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--ink-muted);
   font-weight: 500;
 }
 
@@ -404,12 +404,12 @@
   align-items: center;
   padding: 1rem;
   border-radius: 6px;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--panel-2);
 }
 
 .kill-switch.triggered {
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 2px solid #ef4444;
+  background-color: var(--bad-tint-strong);
+  border: 2px solid var(--bad);
 }
 
 .kill-switch .status {
@@ -424,30 +424,30 @@
 }
 
 .violation-row.action-block {
-  background-color: rgba(239, 68, 68, 0.05);
+  background-color: var(--bad-tint);
 }
 
 .violation-row.action-rescale {
-  background-color: rgba(234, 179, 8, 0.05);
+  background-color: var(--warn-tint);
 }
 
 .violation-row.action-allow {
-  background-color: rgba(16, 185, 129, 0.05);
+  background-color: var(--ok-tint);
 }
 
 .action-block {
-  background-color: #fee2e2;
-  color: #7f1d1d;
+  background-color: var(--bad-bg);
+  color: var(--bad);
 }
 
 .action-rescale {
-  background-color: #fef3c7;
-  color: #78350f;
+  background-color: var(--warn-bg);
+  color: var(--warn);
 }
 
 .action-allow {
-  background-color: #dcfce7;
-  color: #14532d;
+  background-color: var(--ok-bg);
+  color: var(--ok);
 }
 
 /* Responsive Design */

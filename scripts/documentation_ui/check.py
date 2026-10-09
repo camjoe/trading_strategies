@@ -5,7 +5,9 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.documentation_ui.api.check import run_api_reference_check
+from scripts.documentation_ui.commands.check import run_commands_reference_check
 from scripts.documentation_ui.finance.check import run_finance_reference_check
+from scripts.documentation_ui.overview.check import run_overview_check
 from scripts.documentation_ui.software.check import run_software_reference_check
 
 
@@ -14,6 +16,8 @@ def run_reference_docs_check(
     include_finance: bool = True,
     include_software: bool = True,
     include_api: bool = True,
+    include_commands: bool = True,
+    include_overview: bool = True,
 ) -> int:
     if include_finance:
         finance_exit = run_finance_reference_check(repo_root=repo_root)
@@ -30,6 +34,16 @@ def run_reference_docs_check(
         if api_exit != 0:
             return api_exit
 
+    if include_commands:
+        commands_exit = run_commands_reference_check(repo_root=repo_root)
+        if commands_exit != 0:
+            return commands_exit
+
+    if include_overview:
+        overview_exit = run_overview_check(repo_root=repo_root)
+        if overview_exit != 0:
+            return overview_exit
+
     print("\nReference documentation checks completed successfully.")
     return 0
 
@@ -42,6 +56,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-finance", action="store_true", help="Skip the Finance reference check.")
     parser.add_argument("--skip-software", action="store_true", help="Skip the Software reference check.")
     parser.add_argument("--skip-api", action="store_true", help="Skip the API reference check.")
+    parser.add_argument("--skip-commands", action="store_true", help="Skip the Command reference check.")
+    parser.add_argument("--skip-overview", action="store_true", help="Skip the Overview facts check.")
     return parser.parse_args()
 
 
@@ -53,6 +69,8 @@ def main() -> int:
         include_finance=not args.skip_finance,
         include_software=not args.skip_software,
         include_api=not args.skip_api,
+        include_commands=not args.skip_commands,
+        include_overview=not args.skip_overview,
     )
 
 

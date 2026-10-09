@@ -314,6 +314,14 @@
       "module": "strategy_lab",
       "group": "Strategy Lab Endpoints",
       "description": "Promote an optimization run's winner into a new strategy variant, optionally frozen."
+    },
+    {
+      "method": "POST",
+      "path": "/api/catalog/run",
+      "handler": "api_catalog_run",
+      "module": "catalog",
+      "group": "Catalog Endpoints",
+      "description": "Run one read-only entry from the command catalog and return its exit code and output."
     }
   ]
 }

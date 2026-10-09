@@ -1,11 +1,14 @@
 import "./styles.css";
 import { find, findAll } from "./lib/dom";
+import { initNavGroups, syncNav } from "./lib/nav";
+import { createAboutFeature } from "./features/about";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
 import { init as initAutonomyMonitor } from "./features/autonomy-monitor";
 import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
+import { createCatalogFeature } from "./features/catalog";
 import { createCompareFeature } from "./features/compare";
 import { createPortfolioFeature } from "./features/portfolio";
 import { createLogsFeature } from "./features/logs";
@@ -20,8 +23,10 @@ import adminOverviewTemplate from "./views/admin/overview.html?raw";
 import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
 import adminParametersTemplate from "./views/admin/parameters.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
+import aboutTemplate from "./views/about.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
+import catalogTemplate from "./views/catalog.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import portfolioTemplate from "./views/portfolio.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
@@ -29,6 +34,7 @@ import autonomyMonitorTemplate from "./views/autonomy-monitor.html?raw";
 import strategyLabTemplate from "./views/strategy-lab.html?raw";
 import { createStrategyLabFeature } from "./features/strategy-lab";
 import { errorMessage } from "./lib/http";
+import { currentTheme, initTheme, toggleTheme, type Theme } from "./lib/theme";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -46,6 +52,7 @@ function openTab(target: string): void {
   tabPanels.forEach((panel) => {
     panel.hidden = panel.id !== `tab-${target}`;
   });
+  syncNav(target);
 }
 
 function renderShell(): void {
@@ -62,14 +69,17 @@ function renderShell(): void {
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- AUTONOMY_MONITOR_TAB_PARTIAL -->", autonomyMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
+    .replace("<!-- ABOUT_TAB_PARTIAL -->", aboutTemplate)
+    .replace("<!-- CATALOG_TAB_PARTIAL -->", catalogTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- PORTFOLIO_TAB_PARTIAL -->", portfolioTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- STRATEGY_LAB_TAB_PARTIAL -->", strategyLabTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
-  const demoBanner = find<HTMLElement>("#demoModeBanner");
-  if (demoBanner && import.meta.env.VITE_DEMO_MODE === "1") {
-    demoBanner.hidden = false;
+  if (import.meta.env.VITE_DEMO_MODE === "1") {
+    for (const element of findAll<HTMLElement>("#demoModeBanner, #topbarModeBadge")) {
+      element.hidden = false;
+    }
   }
 }
 
@@ -97,11 +107,32 @@ const portfolioFeature = createPortfolioFeature();
 const logsFeature = createLogsFeature();
 const altStrategiesFeature = createAltStrategiesFeature();
 const strategyLabFeature = createStrategyLabFeature();
+const catalogFeature = createCatalogFeature();
+const aboutFeature = createAboutFeature({ onOpenTab: (target) => openTab(target) });
+
+function syncThemeToggle(theme: Theme): void {
+  const button = find<HTMLButtonElement>("#themeToggle");
+  if (!button) return;
+  const next = theme === "dark" ? "light" : "dark";
+  button.setAttribute("aria-label", `Switch to ${next} theme`);
+  button.title = `Switch to ${next} theme`;
+}
+
+function initThemeToggle(): void {
+  initTheme();
+  syncThemeToggle(currentTheme());
+  find<HTMLButtonElement>("#themeToggle")?.addEventListener("click", () => {
+    syncThemeToggle(toggleTheme());
+  });
+}
 
 async function bootstrap(): Promise<void> {
   renderShell();
+  initThemeToggle();
   initTabs();
-  openTab("accounts");  // Set initial active tab
+  initNavGroups(openTab);
+  // The demo opens on the About page; the operator UI opens on Accounts.
+  openTab(import.meta.env.VITE_DEMO_MODE === "1" ? "about" : "accounts");
   initDocsFeature(openTab);
   accountsFeature.wireActions();
   adminFeature.wireActions();
@@ -111,6 +142,8 @@ async function bootstrap(): Promise<void> {
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
   strategyLabFeature.wireActions();
+  catalogFeature.wireActions();
+  aboutFeature.wireActions();
   initAutonomyMonitor({
     onOpenAccount: async (accountName, bookName) => {
       openTab("accounts");

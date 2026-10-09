@@ -119,6 +119,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/018-broker-transport-venue-matrix.md` | Transport (web/socket) and venue (paper/live) are independent axes; an unknown `broker_type` fails instead of falling through to the simulator | Adding a broker transport or venue, or changing how `broker_type` resolves |
 | `docs/adr/019-rotation-score-components.md` | Rotation score components; `regime_fit` affinity is family-derived, not configured or evidence-derived | Changing the rotation score model or its weights |
 | `docs/adr/020-shared-financial-math-ownership.md` | Math shared by the live runtime and the backtester lives in `trading/domain`; `common/` keeps unit scales, `backtesting/domain` keeps what only a backtest can compute | Adding a metric or ledger calculation either context could need |
+| `docs/adr/021-ui-runs-read-only-catalog-entries.md` | The web UI may run catalog entries that are marked runnable and read-only; how the backend starts them and the limits it applies | Changing which entries are runnable, the runner, or the run endpoint |
 
 ### Templates and Standards
 
