@@ -1,7 +1,8 @@
 # Plan: review every PR through several mindsets
 
 Status: drafted 2026-10-09. Nothing is built. Pilot (lenses 1-3 on PR #294 and #296) run 2026-10-09;
-results and recommendation under "Pilot results".
+results and recommendation under "Pilot results". Lens text and prompt updated from the pilot the
+same day; the adjusted lenses 1-3 are untested until they run on another PR.
 
 ## Goal
 Catch what one reviewer with one mindset misses, without making every PR slow or noisy. The repo
@@ -24,6 +25,8 @@ Find inputs and sequences that make the change misbehave.
 - Partial states: crash between two writes, a retry, the same event twice, an event out of order.
 - Boundaries: zero, negative, huge, None, empty list, duplicate ids, float vs Decimal.
 - State that survives: what is left in the database or at the broker after a failure?
+- Shared code: when the change adds behavior to a base class or shared helper, read every other
+  implementer and caller, not only the one the change targets.
 
 ### 2. Money and safety
 Find ways the change could move money wrongly, hide it, or let the database and the broker disagree.
@@ -32,6 +35,9 @@ Find ways the change could move money wrongly, hide it, or let the database and 
   (`LiveTradingNotEnabledError`, `PaperBrokerAccountMismatchError`, `UnknownBrokerTypeError`)?
 - Can books and the broker drift apart (fills not posted, posted twice, posted at the wrong size/price)?
 - Anything touching `live_trading_enabled`, `broker_type`, account ids, or credentials.
+- Conservation: for any fill or posting path, work two polls with different prices through the code
+  and check that posted quantity and posted notional (and commission) sum to the broker's cumulative
+  figures. Name the invariant ("books equal broker") and the code that holds it.
 
 ### 3. Operator at 3 a.m.
 Judge the change by the person who has to find out it broke.
@@ -39,6 +45,9 @@ Judge the change by the person who has to find out it broke.
 - Does an alert fire? Which one, to whom? What fails silently (host off, no transport configured)?
 - Does the runbook say what to do? Is a doc now stale or wrong?
 - Does it add a recurring manual step, and is that step documented and checkable?
+- Docs: diff the changed behavior against every runbook and reference doc that describes it,
+  including files the PR did not touch. Check that a documented command or grep still finds what the
+  runbook says it finds.
 
 ### 4. Test skeptic
 Judge whether the tests would catch a regression.
@@ -79,7 +88,9 @@ A human reads every PR that touches the broker, sizing, or fill paths. The lense
    include them in `local/pr_readiness_report.md`. Lens findings use the same severities; a BLOCKER
    from any lens stops readiness.
 4. For a risky PR, the user can also trigger `/code-review ultra` (cloud, multi-agent, billed).
-5. To reduce correlated errors, run at least one lens on a different model than the author's.
+5. To reduce correlated errors, run lens 2 on a different model than the author's, only when the diff
+   touches broker, sizing, or fill paths. The pilot's Opus run found nothing the same-model lens 1 had
+   not, at 2-3 times the time, so it is not worth running elsewhere.
 
 ## Prompt template (per lens)
 ```
@@ -89,9 +100,9 @@ You have not seen the author's reasoning. Do not assume the change is correct.
 <paste the lens section above>
 Report each finding exactly as:  SEVERITY | path:line | the issue | the concrete scenario that breaks it
 SEVERITY is BLOCKER (must fix before merge), CONCERN (should fix or decide), or NOTE.
-Rules: no finding without a file and line and a concrete failing scenario. At most 8 findings, most
-severe first. Skip anything ruff, mypy, or the layer check already reports. If you find nothing, say so
-and list what you checked.
+Rules: no finding without a file and line and a concrete failing scenario. Report a defect once, per
+root cause. At most 8 findings, most severe first. Skip anything ruff, mypy, or the layer check
+already reports. If you find nothing, say so and list what you checked.
 ```
 
 ## Keeping noise down
@@ -188,7 +199,8 @@ cost with a recommendation. Do not fix any finding.
 ## Open questions
 - Which lenses matter most to the owner? Order the table accordingly.
 - Run lenses in `pr ready` always, or only when asked (`pr ready: deep`)?
-- Different model for one lens: which, and is the cost acceptable?
+- Different model for one lens: settled for now (lens 2, broker/sizing/fill diffs only); revisit
+  after lens 2's new conservation probes have run on a few PRs.
 - Where do lens findings live between PR updates: the saved report only, or PR comments?
 
 ## Pilot results
