@@ -8,6 +8,9 @@ import pytest
 
 from scripts.checks.repo.review_scope_check import (
     LARGE_DIFF_LINES,
+    NOTE_RULES,
+    SCOPE_RULES,
+    _numstat_entries,
     classify_paths,
     diff_stats,
     parse_args,
@@ -232,3 +235,41 @@ def test_head_without_base_is_rejected(monkeypatch) -> None:
 
     with pytest.raises(SystemExit):
         parse_args()
+
+
+def test_accounting_and_starting_cash_paths_are_aggressive() -> None:
+    for path in (
+        "src/trading/domain/accounting/book.py",
+        "src/trading/services/books/provisioning.py",
+        "src/trading/services/accounts/mutations.py",
+    ):
+        assert "aggressive" in classify_paths([path]).modes
+
+
+def test_every_scope_rule_prefix_exists_in_the_repo() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    missing = [
+        rule.prefix for rule in (*SCOPE_RULES, *NOTE_RULES) if not (repo_root / rule.prefix.rstrip("/")).exists()
+    ]
+
+    assert missing == []
+
+
+def test_numstat_entries_follow_a_rename_to_its_new_path_and_skip_binary_files() -> None:
+    output = "5\t2\tsrc/a.py\0" + "0\t0\t\0src/old.py\0src/new.py\0" + "-\t-\timage.png\0"
+
+    assert _numstat_entries(output) == [(5, 2, "src/a.py"), (0, 0, "src/new.py")]
+
+
+def test_a_pure_rename_adds_no_changed_lines(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "old.py").write_text("x = 1\n" * 400, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "add")
+    _git(repo, "checkout", "-b", "rename")
+    _git(repo, "mv", "src/old.py", "src/new.py")
+    _git(repo, "commit", "-am", "rename")
+
+    assert diff_stats(repo, base_ref="feature", head_ref="rename") == (0, [])

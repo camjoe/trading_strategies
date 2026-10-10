@@ -8,11 +8,19 @@ import pytest
 import scripts.checks.pr as pr_checks
 
 
-def _patch_checks(monkeypatch, *, diff: list[str], docs_exit: int = 0, quick_exit: int = 0) -> dict[str, object]:
-    calls: dict[str, object] = {"quick": None}
+def _patch_checks(
+    monkeypatch, *, diff: list[str], docs_exit: int = 0, quick_exit: int = 0, uncommitted: list[str] | None = None
+) -> dict[str, object]:
+    calls: dict[str, object] = {"quick": None, "docs": None}
 
     monkeypatch.setattr(pr_checks, "changed_files", lambda repo_root, base_ref=None: diff)
-    monkeypatch.setattr(pr_checks, "run_docs_check", lambda **kwargs: docs_exit)
+    monkeypatch.setattr(pr_checks, "uncommitted_files", lambda repo_root: uncommitted or [])
+
+    def fake_docs(**kwargs: object) -> int:
+        calls["docs"] = kwargs
+        return docs_exit
+
+    monkeypatch.setattr(pr_checks, "run_docs_check", fake_docs)
 
     def fake_quick(**kwargs: object) -> int:
         calls["quick"] = kwargs
@@ -98,3 +106,44 @@ def test_run_pr_fails_without_running_checks_when_the_base_ref_is_unknown(monkey
     assert pr_checks.run_pr(tmp_path, "python", base_ref="no-such-ref") == 128
 
     assert ran == []
+
+
+def test_run_pr_runs_the_docs_check_enforced(monkeypatch, tmp_path: Path) -> None:
+    calls = _patch_checks(monkeypatch, diff=["plan/review-mindsets.md"])
+
+    assert pr_checks.run_pr(tmp_path, "python") == 0
+
+    assert calls["docs"] == {"repo_root": tmp_path, "enforce": True, "quiet": True}
+
+
+def test_run_pr_warns_about_uncommitted_files_and_still_runs(monkeypatch, tmp_path: Path, capsys) -> None:
+    calls = _patch_checks(
+        monkeypatch,
+        diff=["scripts/checks/pr.py"],
+        uncommitted=[f"apps/paper_trading_web/frontend/src/f{i}.tsx" for i in range(7)],
+    )
+
+    assert pr_checks.run_pr(tmp_path, "python") == 0
+
+    output = capsys.readouterr().out
+    assert "WARNING: 7 uncommitted file(s)" in output
+    assert "f4.tsx ..." in output
+    assert calls["quick"] is not None
+
+
+def test_uncommitted_files_lists_modified_and_untracked_files(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-b", "main", str(tmp_path)], check=True, capture_output=True)
+    (tmp_path / "tracked.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", "commit", "-m", "base"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    assert pr_checks.uncommitted_files(tmp_path) == []
+
+    (tmp_path / "tracked.py").write_text("x = 2\n", encoding="utf-8")
+    (tmp_path / "new.py").write_text("y = 1\n", encoding="utf-8")
+
+    assert sorted(pr_checks.uncommitted_files(tmp_path)) == ["new.py", "tracked.py"]

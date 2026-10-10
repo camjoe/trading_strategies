@@ -248,9 +248,14 @@ Promote a recurring finding class to a deterministic check when a lens finds it 
 far: a docs-map row that names a changed file; a diff adding more comment and docstring lines than code.
 Not built.
 
+## Decided after the first cold run of `pr ready` (PR #297)
+- **READY** means: gate green, CI not failed, no BLOCKER open, and every open CONCERN either fixed or
+  carrying a Decision (the owner's recorded choice and reason). Only the owner records a Decision;
+  later passes carry it forward and never write one.
+- NOTEs may take one line. Verdicts gain MINOR (true but trivial; dropped and counted separately).
+  The title carries no counts.
+
 ## Open decisions
-- **READY.** Today: NOT READY while the gate is red or any BLOCKER is open. Whether READY may carry
-  open CONCERNs ("ready, 2 to fix") is undecided. Decide later.
 - Does a second Sonnet Break it match the Opus one at lower cost? Try on the next aggressive-mode PR.
 - Fable: untested (needs usage credits).
 - Calibration: after about five PRs, drop or rewrite a lens whose findings are mostly NOT REAL.

@@ -29,6 +29,14 @@ def touches_frontend(paths: list[str]) -> bool:
     return any(path.replace("\\", "/").startswith(FRONTEND_PATHS) for path in paths)
 
 
+def uncommitted_files(repo_root: Path) -> list[str]:
+    """Tracked files with uncommitted changes, plus untracked files git does not ignore."""
+    completed = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo_root, check=True, capture_output=True, text=True
+    )
+    return [line[3:] for line in completed.stdout.splitlines()]
+
+
 def run_pr(
     repo_root: Path,
     python_exe: str,
@@ -42,9 +50,17 @@ def run_pr(
     """
     try:
         with_frontend = touches_frontend(changed_files(repo_root, base_ref=base_ref))
+        uncommitted = uncommitted_files(repo_root)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode
+
+    if uncommitted:
+        print(
+            f"WARNING: {len(uncommitted)} uncommitted file(s). Suite targeting and frontend detection read "
+            f"{base_ref}...HEAD, so edits in them may skip checks: {', '.join(uncommitted[:5])}"
+            + (" ..." if len(uncommitted) > 5 else "")
+        )
 
     try:
         exit_code = run_check_steps(

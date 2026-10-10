@@ -41,6 +41,9 @@ SCOPE_RULES = (
     ScopeRule("src/trading/repositories/ledger.py", "aggressive", "ledger persistence change", True),
     ScopeRule("src/trading/repositories/positions.py", "aggressive", "position persistence change", True),
     ScopeRule("src/trading/persistence/", "aggressive", "money encoding or transaction change", True),
+    ScopeRule("src/trading/domain/accounting/", "aggressive", "book or ledger accounting change", True),
+    ScopeRule("src/trading/services/books/provisioning.py", "aggressive", "book starting-cash change", True),
+    ScopeRule("src/trading/services/accounts/mutations.py", "aggressive", "account starting-cash change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/admin.py", "aggressive", "admin route change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/", "contract", "backend API route change"),
     ScopeRule("apps/paper_trading_web/backend/schemas/", "contract", "backend API schema change"),
@@ -54,8 +57,7 @@ NOTE_RULES = (
     ScopeRule("plan/", "standard", "plan document change"),
 )
 
-# A diff with at least this many changed lines outside documentation gets the Simplifier. Both pilot
-# PRs (about 250 and 800 lines) produced cleanups; tune against the scorecard.
+# A diff with at least this many changed lines outside documentation gets the Simplifier.
 LARGE_DIFF_LINES = 200
 
 DOC_PREFIXES = ("docs/", ".ai/", "plan/")
@@ -131,17 +133,33 @@ def changed_files(repo_root: Path, base_ref: str | None = None, head_ref: str = 
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
+def _numstat_entries(output: str) -> list[tuple[int, int, str]]:
+    """(added, deleted, path) per text file from ``git diff --numstat -z``; a rename reports its new path."""
+    tokens = output.split("\0")
+    entries: list[tuple[int, int, str]] = []
+    index = 0
+    while index < len(tokens):
+        fields = tokens[index].split("\t", 2)
+        index += 1
+        if len(fields) != 3:
+            continue
+        added, deleted, path = fields
+        if not path:
+            if index + 1 >= len(tokens):
+                break
+            path = tokens[index + 1]
+            index += 2
+        if added.isdigit() and deleted.isdigit():
+            entries.append((int(added), int(deleted), path))
+    return entries
+
+
 def diff_stats(repo_root: Path, base_ref: str | None = None, head_ref: str = "HEAD") -> tuple[int, list[str]]:
     """Changed lines outside documentation, and the source modules the diff adds."""
-    numstat = _git_output(repo_root, ["git", "diff", "--numstat", *_diff_range(base_ref, head_ref)])
-    changed_lines = 0
-    for line in numstat.splitlines():
-        parts = line.split("\t", 2)
-        if len(parts) != 3:
-            continue
-        added, deleted, path = parts
-        if added.isdigit() and deleted.isdigit() and not _is_documentation(path):
-            changed_lines += int(added) + int(deleted)
+    numstat = _git_output(repo_root, ["git", "diff", "--numstat", "-z", *_diff_range(base_ref, head_ref)])
+    changed_lines = sum(
+        added + deleted for added, deleted, path in _numstat_entries(numstat) if not _is_documentation(path)
+    )
 
     added_output = _git_output(
         repo_root, ["git", "diff", "--diff-filter=A", "--name-only", *_diff_range(base_ref, head_ref)]

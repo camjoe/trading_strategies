@@ -21,14 +21,16 @@ A reviewer reads "Vocabulary", "Rules for every reviewer", and its own section o
 | **Gate** | The deterministic checks (`python -m scripts.run_checks pr --base <base_ref>`). They have already passed; reviewers skip anything they report. |
 | **Finding** | One defect or gap, after verification and merging duplicates by root cause. |
 | **Severity** | The only rating scale: BLOCKER, CONCERN, NOTE. |
-| **Verdict** | Scoring a finding against the code: REAL or NOT REAL. |
+| **Verdict** | Scoring a reported finding against the code: REAL, NOT REAL (wrong or misread), or MINOR (true but trivial or not actionable; dropped and counted separately). |
+| **Decision** | The owner's recorded choice on a finding, with the reason: accept it, defer it, or reject it. Only the owner makes one; no reviewer or orchestrator invents it. |
 | **Pass** | One `pr ready` invocation. |
 
 **BLOCKER**: fix before merge. Books can diverge from the broker, an account can trade twice, money
 moves differently than intended, a guard error is swallowed, or a documented recovery path does harm.
 
 **CONCERN**: wrong or unsafe in a way that does not move money (an operator misled, a documented step
-that fails, a missing test that hides a bug). Fix in this PR, or decide and say why.
+that fails, a missing test that hides a bug). Fix it in this PR, or the owner records a Decision. An
+open CONCERN with neither keeps the PR from READY.
 
 **NOTE**: optional or follow-up (simplification, placement, a missing safeguard with no bug today).
 
@@ -112,7 +114,8 @@ reason from the test and the code.
 
 ## Simplifier
 
-Find what can be deleted or made plainer. This repo prefers minimal tooling.
+Find what can be deleted or made plainer. This repo prefers minimal tooling. It is selected for
+diffs of 200 or more changed lines outside documentation, and for any diff that adds a source module.
 - Code, parameters, flags, or helpers added that nothing needs yet.
 - Two ways to do one thing; a new abstraction with one user.
 - Defensive code for situations that cannot occur.

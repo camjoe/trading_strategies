@@ -104,7 +104,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | s
 
 <n blockers, n concerns, n notes open; n resolved>
 
-🔴 **Blocker**: fix before merge · 🟠 **Concern**: fix in this PR, or decide and say why · 🟡 **Note**: optional or follow-up.
+🔴 **Blocker**: fix before merge · 🟠 **Concern**: fix in this PR, or the owner records a Decision · 🟡 **Note**: optional or follow-up.
 
 ### Status
 | Step | Result |
@@ -127,7 +127,10 @@ A step that did not run says "not run: stopped at <step>".
 
   *Tests: <do the current tests catch it; the test to add>*      (every defect; not docs or simplification)
 
-  *Pointer: <one-line direction>*   or   *Decision: <the owner's recorded choice>*
+  *Pointer: <one-line direction>*   or   *Decision: <the owner's recorded choice and reason>*
+
+A NOTE may take one line: `- [ ] **<n>. <Title>.** <problem> *Caught by: <reviewers>*`, with a
+*Tests* line only when the note is a defect.
 
 ### How to verify
 <UI route, command, endpoint, expected behavior, and what is not yet true>
@@ -142,16 +145,18 @@ One line per finding with the fixing SHA; oldest dropped first.
 
 <details><summary>Pass history and scorecard</summary>
 | Pass | Commit | Reviewers | Open |
-Findings verified: REAL n, NOT REAL n.
+Findings verified: REAL n, NOT REAL n, MINOR n.
 </details>
 ```
 
-Title: NOT READY when the gate is red, CI failed, or any BLOCKER is open; otherwise READY, with the
-count of open concerns in the first line.
+Title: READY only when the gate is green, CI has not failed, no BLOCKER is open, and every open
+CONCERN is fixed or carries a *Decision*. Otherwise NOT READY, and the line under the title says what
+is unmet (for example "2 concerns need a fix or a Decision"). The title carries no counts.
 
-Each later pass re-reads the previous comment, re-verifies every open finding against the new HEAD,
-and moves fixed ones to Resolved. Ticked checkboxes are ignored: status comes from the code, and the
-comment says so. If the gate is red and a PR exists, still update the comment: the gate row red, the
+A *Decision* is the owner's, recorded when the owner states it in the session; later passes carry it
+forward verbatim and never write one. Everything else is re-derived: each later pass re-reads the
+previous comment, re-verifies every open finding against the new HEAD, and moves fixed ones to
+Resolved. Ticked checkboxes are ignored: status comes from the code, and the comment says so. If the gate is red and a PR exists, still update the comment: the gate row red, the
 rest "not run: stopped at gate", no findings.
 
 Before posting, remove local machine paths, broker account ids, credentials, and private strategy
