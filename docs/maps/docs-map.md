@@ -25,7 +25,7 @@ Directory of all documentation files across the repository. Use this to audit fo
 | `src/common/` | Shared utilities available to all packages (used sparingly) |
 | `apps/trends/` | Trend/signal data assets |
 | `.ai/` | Skill definitions (`skills/`) — the repo's reusable task surface |
-| `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`) and CI workflows |
+| `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`), CI workflows, and the PR readiness agent workflow |
 
 ---
 

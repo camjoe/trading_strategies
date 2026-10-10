@@ -5,8 +5,8 @@ Callers depend on :class:`Forge`; only an adapter module knows which platform it
 """
 
 from collections.abc import Collection
-from dataclasses import dataclass
-from typing import Literal, Protocol
+from dataclasses import asdict, dataclass
+from typing import Any, Literal, Protocol
 
 READINESS_MARKER = "<!-- pr-readiness -->"
 
@@ -31,6 +31,9 @@ class PullRequest:
     def diff_base_ref(self) -> str:
         """The base branch as a remote ref, which exists in any checkout (a CI clone has no local base)."""
         return f"origin/{self.base_ref}"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {**asdict(self), "diff_base_ref": self.diff_base_ref}
 
 
 @dataclass(frozen=True)
@@ -62,12 +65,12 @@ class Forge(Protocol):
         """The pull request *number*, or the one for the current branch when ``None``."""
         ...
 
-    def find_comment(self, number: int, marker: str, authors: Collection[str]) -> Comment | None:
-        """The comment on *number* that starts with *marker* and was written by one of *authors*."""
+    def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
+        """The readiness comment on *number* written by one of *authors*."""
         ...
 
-    def upsert_comment(self, number: int, marker: str, body: str, authors: Collection[str]) -> tuple[Comment, bool]:
-        """Edit the marker comment in place, or create it. Returns the comment and whether it was created."""
+    def upsert_comment(self, number: int, body: str, authors: Collection[str]) -> tuple[Comment, bool]:
+        """Edit the readiness comment in place, or create it. Returns the comment and whether it was created."""
         ...
 
     def ci_status(self, sha: str, exclude: Collection[str] = ()) -> CiStatus:
@@ -75,10 +78,21 @@ class Forge(Protocol):
         ...
 
 
-def require_marker(body: str, marker: str) -> None:
-    """Refuse a comment body that does not start with *marker*.
+def aggregate_ci_state(states: Collection[CiState]) -> CiState:
+    """One state for a set of checks: any failure wins, then any pending, else pass; ``none`` when empty."""
+    if not states:
+        return "none"
+    if "fail" in states:
+        return "fail"
+    if "pending" in states:
+        return "pending"
+    return "pass"
 
-    Every write goes through this, so the tool can post only the marker-tagged comment.
+
+def require_marker(body: str) -> None:
+    """Refuse a comment body that does not start with the readiness marker.
+
+    Every write goes through this, so the tool can post only the readiness comment.
     """
-    if not body.startswith(marker):
-        raise ForgeError(f"Comment body must start with {marker!r}.")
+    if not body.startswith(READINESS_MARKER):
+        raise ForgeError(f"Comment body must start with {READINESS_MARKER!r}.")

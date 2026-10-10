@@ -47,14 +47,16 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `pr-info [--pr N]` | Number, refs, head sha, draft flag, state, and `diff_base_ref` (`origin/<base>`) |
 | `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
-| `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks |
-| `review-context [--pr N]` | Pull request, previous readiness comment, and CI state in one answer |
+| `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks; with `--wait`, polls until the same checks are seen twice |
+| `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
+| `check-body --body-file F [--previous-pass N] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text |
 
 | Module | Responsibility |
 |---|---|
-| `base.py` | Forge-neutral types, the `Forge` interface, and the marker rule |
+| `base.py` | Forge-neutral types, the `Forge` interface, CI aggregation, and the marker rule |
 | `github.py` | GitHub adapter over the `gh` CLI |
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
+| `readiness.py` | Pass-number parsing and the pre-post checks on a comment body |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

@@ -19,7 +19,7 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 ## Index
 | Plan | Status | Depends on |
 |---|---|---|
-| [agent-pipeline-automation.md](agent-pipeline-automation.md) | Drafted 2026-10-10, under discussion (branch `plan/agent-pipeline-automation`). Nothing built. | none |
+| [agent-pipeline-automation.md](agent-pipeline-automation.md) | In progress (branch `plan/agent-pipeline-automation`, PR #301): forge CLI and Stage 2 workflow built and validated; fixer, notification email, and plan pickup not started. | none |
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
 | [account-failure-visibility.md](account-failure-visibility.md) | Drafted 2026-10-09. Item A is DURING PR #296; item B is AFTER #296. A1/A2 decision pending. | PR #296 (open) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |

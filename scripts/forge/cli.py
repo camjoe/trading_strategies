@@ -1,56 +1,78 @@
 """Command line for the forge interface: ``python -m scripts.forge <operation>``.
 
-Every operation prints JSON on stdout. A failed operation prints ``forge: <reason>`` on stderr and
-exits 1. The only comment this tool writes is the readiness comment (``<!-- pr-readiness -->``).
+Every operation prints JSON. A failed operation prints ``forge: <reason>`` on stderr and exits 1.
+The only comment this tool writes is the readiness comment (``<!-- pr-readiness -->``).
 """
 
 import argparse
 import json
+import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
 from common.git import get_repo_root, git_output
-from scripts.forge.base import READINESS_MARKER, Forge, ForgeError
+from scripts.forge.base import Forge, ForgeError
 from scripts.forge.github import GitHubForge
+from scripts.forge.readiness import body_problems
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
+
+
+def _add_pr_argument(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--pr", type=int, help="Pull request number (default: the current branch's).")
+
+
+def _add_author_argument(command: argparse.ArgumentParser) -> None:
+    command.add_argument(
+        "--author",
+        action="append",
+        default=[],
+        help="Trusted comment author; repeatable (default: the authenticated user).",
+    )
+
+
+def _add_ci_arguments(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
+    command.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m scripts.forge", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    pr_info = commands.add_parser("pr-info", help="Pull request number, refs, head sha, draft flag, state.")
-    pr_info.add_argument("--pr", type=int, help="Pull request number (default: the current branch's).")
+    _add_pr_argument(commands.add_parser("pr-info", help="Pull request number, refs, head sha, draft flag, state."))
 
-    for name, help_text in (
-        ("comment-get", "The readiness comment, or null."),
-        ("comment-upsert", "Create or edit the readiness comment from a file."),
-        ("review-context", "Pull request, previous readiness comment, and CI state in one answer."),
-    ):
-        command = commands.add_parser(name, help=help_text)
-        command.add_argument("--pr", type=int, help="Pull request number (default: the current branch's).")
-        command.add_argument(
-            "--author",
-            action="append",
-            default=[],
-            help="Trusted comment author; repeatable (default: the authenticated user).",
-        )
-        if name == "comment-upsert":
-            command.add_argument("--body-file", required=True, help="File holding the comment body, or - for stdin.")
-        if name == "review-context":
-            _add_ci_arguments(command)
+    comment_get = commands.add_parser("comment-get", help="The readiness comment, or null.")
+    _add_pr_argument(comment_get)
+    _add_author_argument(comment_get)
+
+    upsert = commands.add_parser("comment-upsert", help="Create or edit the readiness comment from a file.")
+    _add_pr_argument(upsert)
+    _add_author_argument(upsert)
+    upsert.add_argument("--body-file", required=True, help="File holding the comment body, or - for stdin.")
+
+    context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
+    _add_pr_argument(context)
+    _add_author_argument(context)
+    _add_ci_arguments(context)
+    context.add_argument("--expect-sha", help="Fail if the pull request head is not this commit.")
+    context.add_argument("--max-passes", type=int, help="Report pass_cap_reached once this many passes have run.")
 
     ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
     ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
     _add_ci_arguments(ci)
+
+    check = commands.add_parser("check-body", help="Check a readiness comment body before it is posted.")
+    check.add_argument("--body-file", required=True, help="File holding the comment body.")
+    check.add_argument("--previous-pass", type=int, help="Pass number of the comment being replaced.")
+    check.add_argument(
+        "--forbid-env",
+        action="append",
+        default=[],
+        help="Name of an environment variable whose value must not appear in the body; repeatable.",
+    )
     return parser
-
-
-def _add_ci_arguments(command: argparse.ArgumentParser) -> None:
-    command.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
-    command.add_argument("--wait", type=float, default=0, help="Seconds to wait for pending checks (default: 0).")
 
 
 def _print(value: object) -> None:
@@ -58,35 +80,70 @@ def _print(value: object) -> None:
 
 
 def _pr_number(forge: Forge, requested: int | None) -> int:
-    return forge.pull_request(requested).number
+    return requested if requested is not None else forge.pull_request(None).number
 
 
-def run(args: argparse.Namespace, forge: Forge) -> int:
-    if args.command == "pr-info":
-        pr = forge.pull_request(args.pr)
-        _print({**asdict(pr), "diff_base_ref": pr.diff_base_ref})
-    elif args.command == "comment-get":
-        number = _pr_number(forge, args.pr)
-        comment = forge.find_comment(number, READINESS_MARKER, resolve_authors(forge, args.author))
-        _print(None if comment is None else asdict(comment))
-    elif args.command == "comment-upsert":
-        number = _pr_number(forge, args.pr)
-        body_path = args.body_file
-        body = sys.stdin.read() if body_path == "-" else Path(body_path).read_text(encoding="utf-8")
-        comment, created = forge.upsert_comment(number, READINESS_MARKER, body, resolve_authors(forge, args.author))
-        _print({"id": comment.id, "action": "created" if created else "updated"})
-    elif args.command == "ci-status":
-        sha = git_output(get_repo_root(), "rev-parse", "HEAD").strip() if args.sha == "HEAD" else args.sha
-        _print(asdict(wait_for_ci(forge, sha, args.exclude, args.wait)))
-    else:
-        _print(review_context(forge, args.pr, args.author, args.exclude, args.wait))
-    return 0
+def _read_body(path: str) -> str:
+    return sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
+
+
+def _pr_info(args: argparse.Namespace, forge: Forge) -> None:
+    _print(forge.pull_request(args.pr).to_dict())
+
+
+def _comment_get(args: argparse.Namespace, forge: Forge) -> None:
+    comment = forge.find_comment(_pr_number(forge, args.pr), resolve_authors(forge, args.author))
+    _print(None if comment is None else asdict(comment))
+
+
+def _comment_upsert(args: argparse.Namespace, forge: Forge) -> None:
+    number = _pr_number(forge, args.pr)
+    comment, created = forge.upsert_comment(number, _read_body(args.body_file), resolve_authors(forge, args.author))
+    _print({"id": comment.id, "action": "created" if created else "updated"})
+
+
+def _ci_status(args: argparse.Namespace, forge: Forge) -> None:
+    sha = git_output(get_repo_root(), "rev-parse", "HEAD").strip() if args.sha == "HEAD" else args.sha
+    _print(asdict(wait_for_ci(forge, sha, args.exclude, args.wait)))
+
+
+def _review_context(args: argparse.Namespace, forge: Forge) -> None:
+    _print(
+        review_context(
+            forge,
+            args.pr,
+            args.author,
+            args.exclude,
+            args.wait,
+            expected_sha=args.expect_sha,
+            max_passes=args.max_passes,
+        )
+    )
+
+
+def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
+    forbidden = [os.environ.get(name, "") for name in args.forbid_env]
+    problems = body_problems(Path(args.body_file).read_text(encoding="utf-8"), args.previous_pass, forbidden)
+    if problems:
+        raise ForgeError(" ".join(problems))
+    _print({"ok": True})
+
+
+COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
+    "pr-info": _pr_info,
+    "comment-get": _comment_get,
+    "comment-upsert": _comment_upsert,
+    "ci-status": _ci_status,
+    "review-context": _review_context,
+    "check-body": _check_body,
+}
 
 
 def main(argv: Sequence[str] | None = None, forge: Forge | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        return run(args, forge or GitHubForge())
+        COMMANDS[args.command](args, forge or GitHubForge())
     except ForgeError as exc:
         print(f"forge: {exc}", file=sys.stderr)
         return 1
+    return 0

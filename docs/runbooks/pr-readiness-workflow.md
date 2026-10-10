@@ -15,10 +15,12 @@ a failed run leaves the check red and posts nothing.
 
 1. Checks out the pull request head and builds the repo-local `.venv`.
 2. Reads the pull request, the previous readiness comment from `github-actions[bot]`, and CI state
-   with `python -m scripts.forge review-context`, waiting for CI to settle (its own `readiness` check
-   is excluded).
+   with `python -m scripts.forge review-context`. It waits until the same checks are seen twice (its
+   own `readiness` check is excluded), fails if the head moved since the event, and fails if the pass
+   cap is reached.
 3. Runs the agent with the Claude token and **no GitHub token**. It writes the comment body to a file.
-4. Refuses the body unless it starts with the marker and holds no runner path or credential-like text.
+4. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
+   number is not the previous one plus one, or that holds a runner path or credential-like text.
 5. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
@@ -52,8 +54,11 @@ gh variable set READINESS_SAVE_TRANSCRIPT --body true
 | `CLAUDE_CODE_OAUTH_TOKEN is not set` | The secret is missing |
 | `The agent run reported an error` | Expired or rejected token, or the agent failed; read the step log |
 | `did not write a comment body` | The agent finished without writing the body file; re-run |
-| `contains a path or credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
-| `Readiness pass cap reached` (notice) | `READINESS_MAX_PASSES` passes already ran; raise the variable or review by hand |
+| `local path or a forbidden string` / `credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
+| `Readiness pass cap reached` | `READINESS_MAX_PASSES` passes already ran; the job fails so a stale comment is not mistaken for current. Raise the variable or review by hand |
+| `a newer push landed` | The head moved after the event; the newer push starts its own pass |
+| `Cannot read the pass number` | The previous comment has no `· pass N ·` header; fix or delete the comment |
+| `The header should say pass N` | The agent wrote the wrong pass number; nothing was posted, re-run |
 
 Re-run a failed pass from the Actions tab, or push a commit. A newer push cancels an older pass.
 

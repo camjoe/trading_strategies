@@ -1,7 +1,9 @@
 # Plan: automated plan → PR → readiness → fix pipeline
 
-Status: drafted 2026-10-10, under discussion. Nothing built. Branch: `plan/agent-pipeline-automation`.
-All twelve decisions are settled (see "Decisions"). Phase 0 spike done (see "Phase 0 results"); next is Phase 0b, with the spike's issues list folded in.
+Status: in progress. Branch: `plan/agent-pipeline-automation` (PR #301). All twelve decisions are settled
+(see "Decisions"). Built and validated on this branch: the forge CLI (`scripts/forge/`) and the Stage 2
+reviewer workflow (`.github/workflows/pr-readiness.yml`). Not started: the fixer, the notification email,
+and plan pickup.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -288,6 +290,25 @@ trusted to reconstruct state; the runner must supply it.
     skill's layout, but confirm it matches what the fixer parses.
 12. **Throwaway files in a mergeable PR.** The reviewer correctly flagged the spike workflow as a
     merge hazard. Not a pipeline issue; noted because the same check protects real PRs.
+
+### Status after building Stage 2 (2026-10-10, validated on PR #301)
+| Issue | Status |
+|---|---|
+| 1 Continuity | Fixed: `review-context` supplies the previous comment; `check-body` requires the pass number to be the previous plus one. Verified across passes. |
+| 2 Reviewers ran as one run | Cause was the prompt wording ("running unattended"). The explicit Step 4 instruction fixed it: four separate Sonnet subagents ran, confirmed in the saved transcript. |
+| 3 Failures hidden | Fixed: the job fails on an agent error, a missing result, a bad body, a moved head, or the pass cap. |
+| 4 Review races CI | Fixed in code: `wait_for_ci` waits until the same checks are seen twice, treats `none` as starting for a grace period, and excludes the reviewer's own check. A reviewer found the first version returned too early; the fix has unit tests but has not been observed on a slow CI run. |
+| 5 Cost metrics | The agent step reports cost, turns, and duration in the job summary; treat the first pass's numbers with care. |
+| 6 Output invisible to the API | Fixed: the transcript artifact is available behind `READINESS_SAVE_TRANSCRIPT`. |
+| 7 Unpinned version | Fixed: pinned in the workflow. |
+| 8 `.venv`, 9 frontend dependencies, 10 base ref | Fixed. |
+| 11 Closed-finding placement | Unchanged; the layout held across passes. |
+| 13 (new) A gate-stopped first pass let a later pass skip the reviewers and say READY | Fixed in the skill: READY requires the suggested reviewers to have run on the whole diff, and the incremental shortcut applies only after such a pass. |
+
+Found by the Stage 2 reviewers on this branch, and fixed with it: the CI wait returning on `none`, a pass
+cap that could fail open, an unused expected-head check, test stubs that ignored `--exclude` and
+`--author`, malformed `gh` output producing a traceback, and the prompt passed as one argument (now on
+stdin). Unverified: that `claude -p` reads its prompt from stdin; the first run after this change shows it.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
