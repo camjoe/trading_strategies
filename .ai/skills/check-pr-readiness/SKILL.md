@@ -53,7 +53,7 @@ If a pull request exists for the branch, compare `git rev-parse HEAD` with the P
 (`gh pr view --json number,isDraft,headRefOid,url`). When they match, `gh pr checks` reports on that
 commit, but it does not show which commit; to confirm a CI run exists for HEAD, list runs with
 `gh run list --branch <branch> --json headSha,name,status,conclusion` and look for `headSha` equal to
-HEAD.
+HEAD. Judge only runs for HEAD; a cancelled or superseded run on an older SHA is ignored.
 - A failed check: stop and print the failing job names and links. The local gate missed something.
 - Pending checks, or no run for HEAD yet: continue and show them as pending; the next pass picks up
   the result.
@@ -80,7 +80,8 @@ clear a finding, and READY does not require a fresh reviewer run. Then run the s
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
 200 or more lines outside documentation or adds a source module. Otherwise run none and say so in the
-status table.
+status table. This is the accepted trade-off: a small increment is read by the orchestrator while
+re-verifying the findings it touches, but no reviewer sees it.
 
 ## Step 5 — Docs drift review
 
@@ -111,9 +112,9 @@ Layout:
 <!-- pr-readiness -->
 ## PR readiness: NOT READY | READY
 
-Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | stale (branch has moved)
+Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | PR head is `<sha>`
 
-<n blockers, n concerns, n notes open; n fixed>
+<n blockers, n concerns, n notes open; n closed>
 
 🔴 **Blocker**: fix before merge · 🟠 **Concern**: fix in this PR, or the owner records a Decision · 🟡 **Note**: optional or follow-up.
 
@@ -145,8 +146,8 @@ early, and "not re-run: incremental diff below the threshold" for reviewers a la
 A NOTE may take one line: `- [ ] **<n>. <Title>.** <problem> *Caught by: <reviewers>*`, with a
 *Tests* line only when the note is a defect.
 
-A fixed finding keeps its number and its tier, goes after the open ones, and shrinks to one line with
-its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>`. A finding
+A closed finding (fixed, or covered by a *Decision*) keeps its number and its tier, goes after the
+open ones, and shrinks to one line with its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>`. A finding
 covered by a *Decision* is checked the same way, and its line says `Decided` instead of `Fixed`.
 
 ### How to verify
@@ -162,6 +163,13 @@ A pass that ran no reviewers says so: `| 3 | <sha> | none (open findings re-veri
 Findings verified: REAL n, NOT REAL n, MINOR n.
 </details>
 ```
+
+The scorecard counts only findings that reviewers newly reported in that pass. A pass that ran no
+reviewers reports 0, and re-verifying a finding already in the comment is not counted.
+
+"current" means the reviewed SHA equals the PR head at the moment of writing. A comment cannot update
+itself, so a later push makes it stale until the next pass; readers compare the SHA in the header with
+the PR head. When the local HEAD is not pushed, the header says `PR head is <sha>`.
 
 Title: READY only when the gate is green, CI has not failed, no BLOCKER is open, and every open
 CONCERN is fixed or carries a *Decision*. Otherwise NOT READY, and the line under the title says what
@@ -181,8 +189,8 @@ new finding takes the next number, and a fixed one keeps its number.
 
 A box is checked only by a pass that has verified the fix at HEAD (or that a *Decision* covers). An
 owner's tick is re-verified, not trusted: if the finding is fixed it stays checked; if not, the pass
-unchecks it and says "unchecked: still open at <sha>". Fixed findings older than two passes may be
-dropped to keep the comment short.
+unchecks it and says "unchecked: still open at <sha>". Drop a closed finding two passes after the pass
+that closed it (closed in pass 2, dropped in pass 4) to keep the comment short.
 
 If the gate is red and a PR exists, still update the comment: the gate row red, the rest "not run:
 stopped at gate", no findings.
