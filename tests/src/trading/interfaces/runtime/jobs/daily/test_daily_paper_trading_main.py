@@ -528,7 +528,20 @@ def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_p
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct_a,acct_b", "--notify-webhook-url", "https://example.test/webhook"],
+        [
+            "--accounts",
+            "acct_a,acct_b",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+            "--account-trade-caps",
+            "acct_a:3,acct_b:8",
+            "--fee",
+            "1.5",
+            "--seed",
+            "7",
+            "--as-of-date",
+            "2026-03-30",
+        ],
     )
 
     assert code == 0
@@ -551,7 +564,20 @@ def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_p
     [notification] = _runtime_harness.notifications
     assert notification["status"] == "warn"
     assert "acct_b" in notification["message"]
-    assert "--accounts acct_b --run-source manual --force-run" in notification["message"]
+    command = notification["message"].split("Run them with: ", 1)[1]
+    assert f"-m {DAILY_PAPER_TRADING_MODULE} " in command
+    for option in (
+        "--accounts acct_b",
+        "--account-trade-caps acct_b:8",
+        "--fee 1.5",
+        "--seed 7",
+        "--as-of-date 2026-03-30",
+        "--run-source manual",
+        "--force-run",
+    ):
+        assert option in command
+    assert "acct_a" not in command
+    assert "example.test" not in command
     assert notification["details"]["skipped_accounts"] == {"acct_b": "interactive_brokers_web_paper: gateway down"}
 
 

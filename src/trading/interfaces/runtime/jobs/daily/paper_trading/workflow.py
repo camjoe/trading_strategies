@@ -10,6 +10,8 @@ returns the process exit code.
 from __future__ import annotations
 
 import argparse
+import shlex
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -211,6 +213,44 @@ def build_run_summary(
     }
 
 
+def _interpreter_for(repo_root: Path) -> str:
+    """The running interpreter as a repo-relative path when it lives in the repo (the ``.venv``), else ``python``."""
+    try:
+        return str(Path(sys.executable).absolute().relative_to(repo_root.absolute()))
+    except ValueError:
+        return "python"
+
+
+def catch_up_command(args: argparse.Namespace, context: DailyRunContext, skipped: dict[str, str]) -> str:
+    """The command that runs *skipped* accounts later with this run's effective options.
+
+    Run from the repo root. Trade caps are the resolved per-account caps, so the primary-account options need no carrying.
+    The webhook URL is left out; the environment supplies it.
+    """
+    options = [
+        "--accounts",
+        ",".join(skipped),
+        "--account-trade-caps",
+        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in skipped),
+        "--fee",
+        str(args.fee),
+        "--run-source",
+        "manual",
+        "--force-run",
+        "--repo-root",
+        str(context.repo_root),
+    ]
+    if args.seed is not None:
+        options += ["--seed", str(args.seed)]
+    if args.as_of_date:
+        options += ["--as-of-date", args.as_of_date]
+    if args.run_challenger_shadow_eval:
+        options.append("--run-challenger-shadow-eval")
+        if args.shadow_eval_rolling_window_days is not None:
+            options += ["--shadow-eval-rolling-window-days", str(args.shadow_eval_rolling_window_days)]
+    return shlex.join([_interpreter_for(context.repo_root), "-m", DAILY_PAPER_TRADING_MODULE, *options])
+
+
 def _finish_run(
     args: argparse.Namespace,
     context: DailyRunContext,
@@ -260,8 +300,7 @@ def _finish_run(
         if skipped_accounts:
             notes.append(
                 f"completed without accounts whose IBKR session was unavailable: {', '.join(skipped_accounts)}. "
-                f"Run them with: python -m {DAILY_PAPER_TRADING_MODULE} "
-                f"--accounts {','.join(skipped_accounts)} --run-source manual --force-run"
+                f"Run them with: {context.run_meta['catch_up_command']}"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:
@@ -323,7 +362,9 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         if skipped_accounts:
             for name, reason in skipped_accounts.items():
                 tee_line(log_path, f"[{ts()}] WARN: skipping {name}, broker session unavailable ({reason})")
+            catch_up = catch_up_command(args, context, skipped_accounts)
             context = exclude_accounts(context, skipped_accounts)
+            context.run_meta["catch_up_command"] = catch_up
             accounts = context.accounts
             account_trade_caps = context.account_trade_caps
         # The pre-submit gate reconciles book equity against the latest equity
