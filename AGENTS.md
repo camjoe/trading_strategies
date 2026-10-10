@@ -16,14 +16,21 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Standing authorizations
 
-Granted by the owner on 2026-10-09. Each covers only what is written here; anything else needs the
-owner's yes in that conversation.
+Granted by the owner on 2026-10-09, except the workflow bullet, granted on 2026-10-10. Each covers
+only what is written here; anything else needs the owner's yes in that conversation.
 
 - `pr ready` may create and edit the single readiness comment on the current branch's own pull
   request, identified by the hidden marker `<!-- pr-readiness -->`, without asking. It may not post
   any other comment or review, add labels, or merge. It never posts security-class findings (route
   those to `/security-review` and tell the owner privately). The repository is public: the comment
   carries no credentials, broker account ids, local machine paths, or private strategy parameters.
+- The `PR readiness` workflow (`.github/workflows/pr-readiness.yml`) may create and edit that same
+  readiness comment, identified by the same hidden marker, on any non-draft pull request into
+  `develop`, posting as `github-actions[bot]`, without asking. It has the same limits as `pr ready`
+  above: no other comment or review, no labels, no merge, no security-class findings, and nothing
+  that is not safe on a public repository. It posts only through `python -m scripts.forge
+  comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
+  token. Changing the workflow, the forge write path, or this section needs the owner's yes.
 
 ## Python environment
 

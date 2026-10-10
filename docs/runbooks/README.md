@@ -26,6 +26,7 @@ assume an activated shell.
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
 | [ibkr-operations.md](ibkr-operations.md) | Starting and confirming the IBKR gateway, session keepalive, and daily trader, and what alerts go out when one fails |
 | [ibkr-paper-trading.md](ibkr-paper-trading.md) | Moving a book off the internal simulator onto real IBKR paper-account order mechanics |
+| [pr-readiness-workflow.md](pr-readiness-workflow.md) | The GitHub workflow that runs `pr ready` on pull requests: setup, variables, and failures |
 
 ## Quick Start
 

@@ -137,6 +137,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 | `docs/runbooks/production-runtime-host.md` | Recommended dedicated Linux host setup + test-and-deploy workflow | Host setup steps, deploy workflow, or branch/promotion model change |
 | `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
+| `docs/runbooks/pr-readiness-workflow.md` | Operating the PR readiness GitHub workflow | The workflow, its variables, or `scripts/forge/` change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---
