@@ -1,7 +1,7 @@
 # Plan: automated plan → PR → readiness → fix pipeline
 
 Status: drafted 2026-10-10, under discussion. Nothing built. Branch: `plan/agent-pipeline-automation`.
-All twelve decisions are settled (see "Decisions"). Next: Phase 0 verification spike before building.
+All twelve decisions are settled (see "Decisions"). Phase 0 spike done (see "Phase 0 results"); next is Phase 0b, with the spike's issues list folded in.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -179,13 +179,13 @@ fetch date, so recheck details against the live docs before building):
 
 | Claim | Status |
 |---|---|
-| `anthropics/claude-code-action` supports `pull_request` (opened, synchronize, ready_for_review, reopened), `issue_comment`, `schedule` | reported, recheck |
-| The action skips draft and closed PRs | reported; applies with an explicit prompt? **unconfirmed** |
+| `anthropics/claude-code-action` supports `pull_request` (opened, synchronize, ready_for_review, reopened), `issue_comment`, `schedule` | reported, not tested (the direct CLI call was used) |
+| The action skips draft and closed PRs | reported, not tested; our own workflow condition skips drafts (confirmed) |
 | Same-repo PRs work; fork PRs get no secrets | reported |
-| Subscription auth: `claude setup-token` (one-year OAuth token) passed as `claude_code_oauth_token` | reported supported for Pro, Max, Team, Enterprise |
+| Subscription auth: `claude setup-token` (one-year OAuth token) | **confirmed** with `CLAUDE_CODE_OAUTH_TOKEN` and the CLI |
 | Subscription token does not work with `--bare` | reported |
-| Normal (non-bare) mode loads `CLAUDE.md`, `.ai/skills/`, and subagents, so lens reviewers can run | reported |
-| Subscription usage limits and how CI runs share them with interactive use | **not documented**; inference only |
+| Normal (non-bare) mode loads `CLAUDE.md`, `.ai/skills/`, and subagents, so lens reviewers can run | **confirmed** |
+| Subscription usage limits and how CI runs share them with interactive use | about 1% of the daily limit for the first pass; sharing with interactive use still unverified |
 | GitLab integration is beta, authenticates by API key, Bedrock, or Vertex (no subscription token listed), and mention triggers need a webhook listener | reported |
 | Claude Code on the web scheduled routines need a claude.ai login and suit scheduled work, not PR events | reported |
 
@@ -230,6 +230,64 @@ Settled by the owner, 2026-10-10:
   account ids.
 - Only the direct `claude -p` call is tested; the official action is skipped (decision 1).
 - Run on the default model first; try a cheaper one only if cost is a problem.
+
+## Phase 0 results (2026-10-10, spike PR #299, now closed)
+A throwaway workflow ran `claude -p` (Claude Code 2.1.296, subscription token, default model) on a
+GitHub runner through three passes on one PR. The owner measured about 1% of the daily plan limit
+after the first pass.
+
+| # | Question | Result |
+|---|---|---|
+| 1 | Subscription token authenticates `claude -p` on a runner | **Pass** |
+| 2 | `AGENTS.md`, `CLAUDE.md`, and `.ai/skills/` load | **Pass**, shown by the skill's exact comment layout and six-step table. The probe's answer text went only to the job summary, which the API cannot read. |
+| 3 | Subagents work | **Pass**. Three lens reviewers ran separately on pass 1, each labelled Sonnet. |
+| 4 | `pr ready` end to end | **Pass**. Gate ran on `origin/develop`, 139 tests passed, CI checked at HEAD; about 2.6 minutes for the first pass. |
+| 5 | Create then edit the marker comment with `pull-requests: write` only | **Pass**. One comment, edited in place across three passes. |
+| 6 | Draft skip and triggers | **Pass**. Skipped on the draft; ran on `ready_for_review`; re-ran on `synchronize`. |
+| 7 | Cost | Reported API-equivalent cost: probe about $0.09; `pr ready` about $0.50 (pass 1), $0.27 (pass 2), $0.14 (pass 3). The first pass's JSON reported 2 turns and 5 s against 155 s of wall time, so the JSON metrics are not reliable. The plan-usage meter is the real figure. |
+| 8 | Permission flags | **Pass**. `Read,Glob,Grep,Skill,Agent,Write` plus `Bash` limited to git, gh, python, `.venv/bin/python`, jq, cat, ls produced no `permission_denials`. |
+
+### Continuity finding (resolved by a workaround, not yet by design)
+Pass 2 ran without the previous comment in its prompt. It reset the pass number to 1, renumbered the
+findings, dropped the notes that had been fixed instead of carrying them as checked lines, and
+dropped one open note with no reason. Pass 3 was given the previous comment in its prompt with an
+explicit later-pass instruction. It incremented the pass number, kept finding numbers, checked the
+fixed note with its fix sha, kept the open ones, and kept the pass history. So an agent cannot be
+trusted to reconstruct state; the runner must supply it.
+
+## Issues found in the spike (to address before or while building)
+1. **Comment continuity.** Inject the previous comment into every later-pass prompt (proven by
+   pass 3), or move state into a hidden machine-readable block read and written by the forge CLI.
+   A lost *Decision* line is silent data loss, so verify that a Decision survives a pass by test
+   before trusting this.
+2. **Reviewers ran as one combined run in pass 2** ("the three reviewers ran as one combined agent
+   run, not three separate runs"). Pass 1 ran them separately. The cause is unknown: possibly the
+   agent's own choice, possibly a skill ambiguity. Needs more detail: record the stream-json
+   transcript for a run (`--output-format stream-json`, saved as an artifact) so the Agent calls can
+   be seen, then decide whether the skill must say "one agent per lens".
+3. **`continue-on-error` hides failures.** A failed agent step still shows a green job. The real
+   workflow must read `is_error` and fail, and must fail loudly on an empty or unparsable JSON.
+4. **Review races CI.** The reviewer and CI start on the same push, so Step 2 reports "pending" and
+   the title stays NOT READY for that reason alone. The real pipeline should wait for CI to finish
+   (for example a `workflow_run` trigger) or re-run on CI completion.
+5. **Cost metrics.** The JSON `duration_ms`, `num_turns`, and cost undercounted on pass 1. Do not
+   budget from them; use the plan-usage meter.
+6. **Probe output is invisible to the API.** Anything the agent says that only reaches
+   `$GITHUB_STEP_SUMMARY` cannot be read by a script. The real pipeline logs or uploads what it
+   needs.
+7. **Unpinned Claude Code.** The runner installed whatever was latest (2.1.296 that day). Pin the
+   version, and upgrade deliberately.
+8. **`.venv` on the runner.** `AGENTS.md` says to stop and ask if `./.venv` is missing. The workflow
+   creates it first, which worked. Keep that step.
+9. **Frontend dependencies.** The spike did not install them; a diff touching the frontend would
+   fail the frontend gate on the runner (raised by the reviewer). The real workflow installs them
+   when the diff needs it.
+10. **Base ref.** The checkout has `origin/develop` but no local `develop`, so the prompt had to name
+    `origin/develop`. Move that into the skill or the forge CLI so no prompt carries it.
+11. **Closed findings sit after the open ones** without their tier heading. Acceptable per the
+    skill's layout, but confirm it matches what the fixer parses.
+12. **Throwaway files in a mergeable PR.** The reviewer correctly flagged the spike workflow as a
+    merge hazard. Not a pipeline issue; noted because the same check protects real PRs.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
@@ -287,7 +345,7 @@ decide each of these in `AGENTS.md`, because none is covered today:
 Merging stays out.
 
 ## Phases
-0. **Verification spike** (scope below). Nothing else is built until its results are read.
+0. **Verification spike**: done 2026-10-10 (see "Phase 0 results"). Its "Issues found in the spike" list feeds the phases below.
 0b. **Forge interface.** The `scripts/forge` CLI and GitHub adapter, with tests; point the readiness
    skill at it instead of raw `gh`.
 1. **Hand-run Stage 3.** Take a real PR's readiness comment and run a fixer prompt by hand. Learn
