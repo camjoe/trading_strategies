@@ -320,7 +320,7 @@ def test_a_renamed_documentation_file_that_becomes_code_counts_its_changed_lines
 
     changed_lines, _ = diff_stats(repo, base_ref="feature", head_ref="rename")
 
-    assert changed_lines > 0
+    assert changed_lines == 20
 
 
 def test_non_ascii_paths_are_classified_and_detected_as_new_modules(tmp_path: Path) -> None:

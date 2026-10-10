@@ -25,7 +25,7 @@ def _patch_checks(
 
     monkeypatch.setattr(pr_checks, "changed_paths", lambda repo_root, base_ref=None: diff)
     monkeypatch.setattr(pr_checks, "uncommitted_paths", lambda repo_root: uncommitted or [])
-    monkeypatch.setattr(pr_checks, "resolve_ref", lambda repo_root, ref: "abc1234")
+    monkeypatch.setattr(pr_checks, "merge_base", lambda repo_root, ref: "abc1234")
 
     def fake_docs(**kwargs: object) -> int:
         calls["docs"] = kwargs
@@ -119,6 +119,19 @@ def test_run_pr_fails_without_running_checks_when_the_base_ref_is_unknown(monkey
     assert ran == []
 
 
+def test_run_pr_fails_without_running_checks_when_the_merge_base_cannot_be_found(monkeypatch, tmp_path: Path) -> None:
+    calls = _patch_checks(monkeypatch, diff=["scripts/checks/pr.py"])
+
+    def no_merge_base(repo_root: Path, ref: str) -> str:
+        raise subprocess.CalledProcessError(128, ["git", "merge-base", ref, "HEAD"])
+
+    monkeypatch.setattr(pr_checks, "merge_base", no_merge_base)
+
+    assert pr_checks.run_pr(tmp_path, "python", base_ref="develop") == 128
+
+    assert calls == {"quick": None, "docs": None}
+
+
 def test_run_pr_runs_the_docs_check_enforced(monkeypatch, tmp_path: Path) -> None:
     calls = _patch_checks(monkeypatch, diff=["plan/review-mindsets.md"])
 
@@ -142,12 +155,12 @@ def test_run_pr_warns_about_uncommitted_files_and_still_runs(monkeypatch, tmp_pa
     assert calls["quick"] is not None
 
 
-def test_run_pr_prints_the_base_it_resolved(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_run_pr_prints_the_merge_base_it_targets(monkeypatch, tmp_path: Path, capsys) -> None:
     _patch_checks(monkeypatch, diff=["scripts/checks/pr.py"])
 
     assert pr_checks.run_pr(tmp_path, "python", base_ref="develop") == 0
 
-    assert "Targeting develop...HEAD (base abc1234)" in capsys.readouterr().out
+    assert "Targeting develop...HEAD (merge-base abc1234)" in capsys.readouterr().out
 
 
 def test_run_pr_reaches_the_branch_targeted_python_checks_and_the_frontend(monkeypatch, tmp_path: Path) -> None:
@@ -156,7 +169,7 @@ def test_run_pr_reaches_the_branch_targeted_python_checks_and_the_frontend(monke
     monkeypatch.setattr(
         pr_checks, "changed_paths", lambda repo_root, base_ref=None: ["apps/paper_trading_web/frontend/a.ts"]
     )
-    monkeypatch.setattr(pr_checks, "resolve_ref", lambda repo_root, ref: "abc1234")
+    monkeypatch.setattr(pr_checks, "merge_base", lambda repo_root, ref: "abc1234")
     monkeypatch.setattr(pr_checks, "uncommitted_paths", lambda repo_root: [])
     monkeypatch.setattr(pr_checks, "run_docs_check", lambda **kwargs: 0)
     seen: dict[str, object] = {}

@@ -25,22 +25,16 @@ from pathlib import Path
 
 
 def run_git(*args: str, cwd: str) -> str | None:
-    """Run ``git -C cwd <args>`` and return stripped stdout, or ``None`` on failure.
+    """Run ``git <args>`` in *cwd* and return stripped stdout, or ``None`` on failure.
 
     ``None`` covers both a non-zero exit and empty output — callers only ever want
     a usable value or nothing.
     """
-    completed = subprocess.run(
-        ["git", "-C", cwd, *args],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if completed.returncode != 0:
+    try:
+        output = git_output(cwd, *args)
+    except subprocess.CalledProcessError:
         return None
-    return completed.stdout.strip() or None
+    return output.strip() or None
 
 
 @lru_cache(maxsize=128)
@@ -139,6 +133,7 @@ def uncommitted_paths(repo_root: Path | str) -> list[str]:
     return paths
 
 
-def resolve_ref(repo_root: Path | str, ref: str) -> str:
-    """The abbreviated commit a ref points at."""
-    return git_output(repo_root, "rev-parse", "--short", ref).strip()
+def merge_base(repo_root: Path | str, ref: str, head_ref: str = "HEAD") -> str:
+    """The abbreviated commit a ``ref...head`` diff starts from."""
+    commit = git_output(repo_root, "merge-base", ref, head_ref).strip()
+    return git_output(repo_root, "rev-parse", "--short", commit).strip()

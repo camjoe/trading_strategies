@@ -4,7 +4,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from common.git import changed_paths, get_repo_root, resolve_ref, uncommitted_paths
+from common.git import changed_paths, get_repo_root, merge_base, uncommitted_paths
 from scripts.checks._runner import CheckStep, resolve_python_exe, run_check_steps
 from scripts.checks.docs.docs_check import run_docs_check
 from scripts.checks.quick import run_quick
@@ -41,13 +41,13 @@ def run_pr(
     """
     try:
         with_frontend = touches_frontend(changed_paths(repo_root, base_ref=base_ref))
-        base_sha = resolve_ref(repo_root, base_ref)
+        merge_base_sha = merge_base(repo_root, base_ref)
         uncommitted = uncommitted_paths(repo_root)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode
 
-    print(f"Targeting {base_ref}...HEAD (base {base_sha})")
+    print(f"Targeting {base_ref}...HEAD (merge-base {merge_base_sha})")
     if uncommitted:
         print(
             f"WARNING: {len(uncommitted)} uncommitted file(s). Suite targeting and frontend detection read "
