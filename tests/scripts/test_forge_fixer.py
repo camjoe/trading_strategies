@@ -189,3 +189,17 @@ class TestCheckBodyEditOfEdges:
 
         with pytest.raises(SystemExit):
             main(["check-body", "--body-file", str(new), "--edit-of", str(old), "--previous-pass", "1"], StubForge())
+
+
+class TestEdgesOfAnEdit:
+    def test_a_status_line_added_at_the_end_of_a_file_without_a_newline_is_allowed(self) -> None:
+        old = comment(FINDING).rstrip("\n")
+        new = old + "\n  *Left: reason*"
+
+        assert fixer_edit_problems(old, new) == []
+
+    def test_crlf_line_endings_in_an_added_line_are_allowed(self) -> None:
+        old = comment(FINDING)
+        new = comment(FINDING, "  *Left: reason*\r\n")
+
+        assert fixer_edit_problems(old, new) == []

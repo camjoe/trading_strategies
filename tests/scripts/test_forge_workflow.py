@@ -47,6 +47,15 @@ def test_the_workflow_checks_the_body_before_it_posts() -> None:
     assert text.index("- name: Check the comment body") < text.index("- name: Post the readiness comment")
 
 
+def test_the_check_step_runs_check_body_and_the_post_step_runs_comment_upsert() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    check_step = text[text.index("- name: Check the comment body") : text.index("- name: Post the readiness comment")]
+    post_step = text[text.index("- name: Post the readiness comment") :]
+
+    assert "scripts.forge check-body" in check_step
+    assert "scripts.forge comment-upsert" in post_step.split("- name:")[1]
+
+
 def test_every_shell_variable_the_workflow_reads_is_defined_in_it() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     used = set(re.findall(r"\$\{?([A-Z][A-Z0-9_]+)", text))
