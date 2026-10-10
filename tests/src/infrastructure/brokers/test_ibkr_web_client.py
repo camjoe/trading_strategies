@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -257,6 +258,37 @@ class TestInteractiveBrokersWebClient:
         rows = client.fetch_marketdata_snapshot(["265598"])
 
         assert rows[0]["31"] == "168.42"
+
+    def test_submit_order_logs_the_warning_it_confirms(self, caplog):
+        responses = [
+            httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "reply-1",
+                        "message": ["The order price is outside the allowed range."],
+                        "messageIds": ["o163"],
+                    }
+                ],
+            ),
+            httpx.Response(200, json=[{"order_id": "42", "order_status": "Submitted"}]),
+        ]
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(base_url="https://example.test", account_id="U1234567", headers={}),
+            http_client=httpx.Client(
+                transport=httpx.MockTransport(lambda request: responses.pop(0)),
+                base_url="https://example.test",
+            ),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="infrastructure.brokers.ibkr_web.client"):
+            client.submit_order({"conid": 265598, "side": "BUY", "cOID": "ts-AAPL-BUY-1", "quantity": 1})
+
+        [record] = caplog.records
+        assert record.levelno == logging.WARNING
+        assert "ts-AAPL-BUY-1" in record.getMessage()
+        assert "The order price is outside the allowed range." in record.getMessage()
+        assert "o163" in record.getMessage()
 
     def test_submit_order_confirms_reply_message(self):
         responses = [

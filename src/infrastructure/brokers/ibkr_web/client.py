@@ -7,6 +7,7 @@ inside ``brokers/`` so higher layers continue to depend only on ``BrokerConnecti
 
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass
 from typing import Any
@@ -19,6 +20,8 @@ from infrastructure.brokers.ibkr_web.pacing import (
     IbWebApiPacingLimiter,
 )
 from infrastructure.brokers.ibkr_web.settings import IbWebApiSettings
+
+logger = logging.getLogger(__name__)
 
 # Session reply confirmations are interactive notices; cap automated confirms.
 _MAX_ORDER_REPLY_CONFIRMATIONS = 5
@@ -274,6 +277,12 @@ class InteractiveBrokersWebClient:
         confirmations = 0
         while _is_order_reply_message(payload):
             message_id = str(payload[0]["id"])
+            logger.warning(
+                "Confirming IBKR order warning for %s: %s (message ids: %s)",
+                ticket.get("cOID"),
+                _reply_message_text(payload),
+                _reply_message_ids(payload),
+            )
             payload = self._request_json(
                 "POST",
                 f"/iserver/reply/{message_id}",
@@ -394,6 +403,28 @@ def _is_marketdata_preflight_only(rows: list[dict[str, object]]) -> bool:
         if any(field in row for field in ("31", "84", "86")):
             return False
     return True
+
+
+def _reply_message_text(payload: list[dict[str, object]]) -> str:
+    """The warning text of every item in an order reply, joined for a log line."""
+    texts: list[str] = []
+    for item in payload:
+        message = item.get("message")
+        if isinstance(message, list):
+            texts.extend(str(part) for part in message)
+        else:
+            texts.append(str(message))
+    return " | ".join(texts)
+
+
+def _reply_message_ids(payload: list[dict[str, object]]) -> str:
+    """The IBKR message ids of every item in an order reply, joined for a log line."""
+    ids: list[str] = []
+    for item in payload:
+        message_ids = item.get("messageIds")
+        if isinstance(message_ids, list):
+            ids.extend(str(message_id) for message_id in message_ids)
+    return ", ".join(ids) or "none reported"
 
 
 def _is_order_reply_message(payload: object) -> bool:

@@ -1,9 +1,15 @@
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 import infrastructure.brokers.ibkr_web.adapter as ib_web_adapter_module
-from infrastructure.brokers.ibkr_web import IbWebApiContract, IbWebOrderStatusUnavailableError
+from infrastructure.brokers.ibkr_web import (
+    IbWebApiContract,
+    IbWebApiSettings,
+    IbWebOrderStatusUnavailableError,
+    InteractiveBrokersWebClient,
+)
 from infrastructure.brokers.ibkr_web.adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
@@ -81,6 +87,94 @@ class TestInteractiveBrokersWebAdapter:
         adapter.place_order(make_order_request(order_type=OrderType.MARKET, qty=qty))
 
         assert client.submit_order.call_args.args[0]["listingExchange"] == expected_exchange
+
+    def test_get_order_maps_a_filled_status_reply(self):
+        client = self._make_client()
+        # Shape of a real IBKR paper reply for a filled fractional market order.
+        client.fetch_order_status.return_value = {
+            "order_id": 32999660,
+            "symbol": "MSFT",
+            "side": "B",
+            "total_size": "0.9343",
+            "cum_fill": "0.9343",
+            "order_type": "MARKET",
+            "limit_price": "",
+            "order_status": "Filled",
+            "order_status_description": "Order Filled",
+            "average_price": "535.92999995",
+            "order_time": "261009193651",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("32999660")
+
+        client.fetch_order_status.assert_called_once_with("32999660")
+        assert order is not None
+        assert order.broker_order_id == "32999660"
+        assert order.ticker == "MSFT"
+        assert order.side == "buy"
+        assert order.qty == 0.9343
+        assert order.filled_qty == 0.9343
+        assert order.avg_fill_price == 535.92999995
+        assert order.status == OrderStatus.FILLED
+        assert order.updated_at == "2026-10-09T19:36:51Z"
+        assert order.fills == []
+        assert order.status_reason is None
+
+    def test_get_order_reports_a_partial_fill(self):
+        client = self._make_client()
+        client.fetch_order_status.return_value = {
+            "symbol": "AAPL",
+            "side": "S",
+            "total_size": "10",
+            "cum_fill": "4",
+            "order_status": "Submitted",
+            "average_price": "150.5",
+            "order_time": "261009193651",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("7")
+
+        assert order is not None
+        assert order.side == "sell"
+        assert order.status == OrderStatus.PARTIALLY_FILLED
+        assert order.filled_qty == 4.0
+
+    def test_get_order_carries_the_reason_for_a_terminal_non_fill(self):
+        client = self._make_client()
+        client.fetch_order_status.return_value = {
+            "symbol": "AAPL",
+            "side": "B",
+            "total_size": "10",
+            "cum_fill": "0.0",
+            "order_status": "Cancelled",
+            "order_status_description": " Order Cancelled ",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("7")
+
+        assert order is not None
+        assert order.status == OrderStatus.CANCELLED
+        assert order.status_reason == "Order Cancelled"
+        assert order.avg_fill_price is None
+        assert order.updated_at is None
+
+    def test_get_order_is_none_when_ibkr_no_longer_has_the_order(self):
+        client = self._make_client()
+        client.fetch_order_status.side_effect = IbWebOrderStatusUnavailableError("gone")
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_order("7") is None
+
+    @pytest.mark.parametrize("payload", [{}, {"symbol": "AAPL"}, {"order_status": "Filled"}])
+    def test_get_order_is_none_for_a_reply_without_a_status_and_symbol(self, payload):
+        client = self._make_client()
+        client.fetch_order_status.return_value = payload
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_order("7") is None
 
     def test_place_order_includes_manual_order_time_when_required(self):
         client = self._make_client()
@@ -164,7 +258,7 @@ class TestInteractiveBrokersWebAdapter:
             "IBM": {"bid": 189.56, "ask": 189.61, "last": 189.6},
         }
 
-    def test_get_open_trades_creates_synthetic_fill(self):
+    def test_get_open_trades_reports_cumulative_state_without_a_fabricated_fill(self):
         client = self._make_client()
         client.fetch_orders.return_value = [
             {
@@ -184,7 +278,10 @@ class TestInteractiveBrokersWebAdapter:
 
         assert len(result) == 1
         assert result[0].status == OrderStatus.FILLED
-        assert result[0].fills[0].exec_id == "web-55-10.0-231211180049"
+        assert result[0].filled_qty == 10.0
+        assert result[0].avg_fill_price == 151.25
+        assert result[0].updated_at == "2023-12-11T18:00:49Z"
+        assert result[0].fills == []
 
     def test_disconnect_and_cancel_order_delegate_to_client(self):
         client = self._make_client()
@@ -233,9 +330,12 @@ class TestInteractiveBrokersWebAdapter:
         assert trade.status == OrderStatus.PARTIALLY_FILLED
         assert trade.price == 102.0
         assert trade.commission == 1.25
-        assert trade.fills[0].exec_id == "web-77-5.0-2024-01-02T03:04:05Z"
+        assert trade.filled_qty == 5.0
+        assert trade.avg_fill_price == 101.5
+        assert trade.updated_at == "2024-01-02T03:04:05Z"
+        assert trade.fills == []
 
-    def test_get_open_trades_does_not_create_fill_without_average_price(self):
+    def test_get_open_trades_reports_a_missing_average_price_as_none(self):
         client = self._make_client()
         client.fetch_orders.return_value = [
             {
@@ -254,7 +354,7 @@ class TestInteractiveBrokersWebAdapter:
 
         assert len(result) == 1
         assert result[0].status == OrderStatus.PARTIALLY_FILLED
-        assert result[0].fills == []
+        assert result[0].avg_fill_price is None
 
     def test_get_open_trades_fetches_documented_cancellation_description(self):
         client = self._make_client()
@@ -386,3 +486,63 @@ class TestIbWebAdapterHelpers:
     @pytest.mark.parametrize(("value", "expected"), [("maybe", False), ("true", True), (None, False)])
     def test_coerce_bool_flag_handles_invalid_values(self, value, expected):
         assert _coerce_bool_flag(value) is expected
+
+
+class TestGetOrderThroughTheClient:
+    """The adapter's lookup, wired to the real client over a fake gateway."""
+
+    def _adapter(self, status_response: httpx.Response) -> InteractiveBrokersWebAdapter:
+        def handler(request: httpx.Request) -> httpx.Response:
+            routes = {
+                "/iserver/auth/status": httpx.Response(200, json={"authenticated": True, "connected": True}),
+                "/portfolio/accounts": httpx.Response(200, json=[{"accountId": "DU1234567"}]),
+                "/iserver/accounts": httpx.Response(200, json={"accounts": ["DU1234567"]}),
+                "/iserver/account/order/status/32999660": status_response,
+            }
+            return routes[request.url.path]
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="DU1234567",
+                headers={},
+                keepalive_enabled=False,
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+        adapter = InteractiveBrokersWebAdapter(client=client)
+        adapter.connect()
+        return adapter
+
+    def test_a_filled_reply_becomes_a_filled_broker_order(self):
+        adapter = self._adapter(
+            httpx.Response(
+                200,
+                json={
+                    "symbol": "MSFT",
+                    "side": "B",
+                    "total_size": "0.9343",
+                    "cum_fill": "0.9343",
+                    "order_status": "Filled",
+                    "average_price": "535.92999995",
+                    "order_time": "261009193651",
+                },
+            )
+        )
+
+        order = adapter.get_order("32999660")
+
+        assert order is not None
+        assert (order.ticker, order.side, order.status) == ("MSFT", "buy", OrderStatus.FILLED)
+        assert order.filled_qty == 0.9343
+
+    def test_a_status_cache_miss_is_none(self):
+        adapter = self._adapter(httpx.Response(503, text="order status unavailable"))
+
+        assert adapter.get_order("32999660") is None
+
+    def test_any_other_failure_reaches_the_caller(self):
+        adapter = self._adapter(httpx.Response(500, text="boom"))
+
+        with pytest.raises(RuntimeError, match="500"):
+            adapter.get_order("32999660")

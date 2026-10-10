@@ -21,6 +21,10 @@ class BrokerConnection(ABC):
     :func:`infrastructure.brokers.factory.get_broker_for_account`.
     """
 
+    # False when orders report only a cumulative filled size and average price, with no
+    # individual executions; reconciliation then derives the fill still to post.
+    reports_executions: bool = True
+
     @abstractmethod
     def connect(self) -> None:
         """Establish connection to the broker endpoint."""
@@ -46,6 +50,15 @@ class BrokerConnection(ABC):
     @abstractmethod
     def get_open_trades(self) -> list[BrokerOrder]:
         """Return currently open broker orders with their latest known fill state."""
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        """Return one order by broker id with its latest known fill state, or None.
+
+        None means the broker cannot report on the order: it does not carry it, or the
+        adapter has no lookup by id. An order `get_open_trades` omits may still be found
+        here, because a broker's open-order list can lag or drop an order that has filled.
+        """
+        return None
 
     @abstractmethod
     def get_positions(self) -> dict[str, float]:

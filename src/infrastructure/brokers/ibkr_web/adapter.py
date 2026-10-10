@@ -8,15 +8,16 @@ config via ``load_ib_web_api_settings`` — they are not stored in the app DB.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 
 from common.coercion import coerce_bool, coerce_float
-from common.time import utc_now_iso
+from common.time import as_utc_iso, normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_web import (
     IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -36,6 +37,8 @@ _SMART_ROUTING_EXCHANGE = "SMART"
 
 class InteractiveBrokersWebAdapter(BrokerConnection):
     """Live broker adapter backed by the IBKR Web API."""
+
+    reports_executions = False
 
     def __init__(self, client: InteractiveBrokersWebClient) -> None:
         self._client = client
@@ -100,18 +103,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                 order_status = OrderStatus.PARTIALLY_FILLED
             status_reason = self._fetch_terminal_status_reason(broker_order_id, order_status)
 
-            fills: list[OrderFill] = []
             fill_time = _normalize_fill_time(row.get("lastExecutionTime") or row.get("lastExecutionTime_r"))
-            if filled_qty > 0 and avg_fill_price is not None:
-                fills.append(
-                    OrderFill(
-                        filled_qty=filled_qty,
-                        fill_price=avg_fill_price,
-                        fill_time=fill_time,
-                        commission=_coerce_number(row.get("commission")) or 0.0,
-                        exec_id=f"web-{broker_order_id}-{filled_qty}-{fill_time}",
-                    )
-                )
 
             result.append(
                 BrokerOrder(
@@ -128,11 +120,20 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                     filled_qty=filled_qty,
                     avg_fill_price=avg_fill_price,
                     commission=_coerce_number(row.get("commission")) or 0.0,
-                    fills=fills,
+                    updated_at=fill_time,
                     status_reason=status_reason,
                 )
             )
         return result
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        self._require_connected()
+        try:
+            payload = self._client.fetch_order_status(broker_order_id)
+        except IbWebOrderStatusUnavailableError:
+            # IBKR documents that completed orders may disappear from its status cache.
+            return None
+        return _broker_order_from_status(broker_order_id, payload)
 
     def get_positions(self) -> dict[str, float]:
         self._require_connected()
@@ -226,6 +227,14 @@ _IB_WEB_STATUS_MAP: dict[str, OrderStatus] = {
 _TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJECTED))
 
 
+# Side codes on the order status reply.
+_STATUS_SIDE = {"B": "buy", "S": "sell"}
+
+# Timestamp layout of the status reply's ``order_time`` and the order list's
+# ``lastExecutionTime``: UTC ``yymmddHHMMSS``.
+_STATUS_ORDER_TIME_FORMAT = "%y%m%d%H%M%S"
+
+
 def _map_ib_web_status(status: str) -> OrderStatus:
     normalized = status.strip().replace(" ", "").lower()
     return _IB_WEB_STATUS_MAP.get(normalized, OrderStatus.SUBMITTED)
@@ -241,10 +250,58 @@ def _coerce_number(value: object | None) -> float | None:
 
 
 def _normalize_fill_time(value: object | None) -> str:
-    if value is None:
+    text = str(value or "").strip()
+    if (compact := _status_order_time(text)) is not None:
+        return compact
+    try:
+        return normalize_utc_iso(text)
+    except ValueError:
         return utc_now_iso()
-    text = str(value).strip()
-    return text or utc_now_iso()
+
+
+def _status_order_time(value: object | None) -> str | None:
+    """A ``yymmddHHMMSS`` UTC timestamp as a stored UTC timestamp, or None when unreadable."""
+    try:
+        parsed = datetime.strptime(str(value or "").strip(), _STATUS_ORDER_TIME_FORMAT)
+    except ValueError:
+        return None
+    return as_utc_iso(parsed.replace(tzinfo=timezone.utc))
+
+
+def _broker_order_from_status(broker_order_id: str, payload: dict[str, object]) -> BrokerOrder | None:
+    """Map an order status reply onto a ``BrokerOrder`` carrying the cumulative fill, or None.
+
+    The reply states the cumulative filled size and average price, not individual
+    executions, so ``fills`` is empty and commission is 0.0 (the reply has none).
+    """
+    raw_status = payload.get("order_status")
+    ticker = str(payload.get("symbol") or "").strip()
+    if not isinstance(raw_status, str) or not raw_status.strip() or not ticker:
+        return None
+
+    qty = _coerce_number(payload.get("total_size")) or 0.0
+    filled_qty = _coerce_number(payload.get("cum_fill")) or 0.0
+    status = _map_ib_web_status(raw_status)
+    if status == OrderStatus.SUBMITTED and 0.0 < filled_qty < qty:
+        status = OrderStatus.PARTIALLY_FILLED
+
+    description = payload.get("order_status_description")
+    status_reason: str | None = None
+    if status in _TERMINAL_NON_FILL_STATUSES and isinstance(description, str):
+        status_reason = description.strip() or None
+    return BrokerOrder(
+        account_id=0,
+        ticker=ticker,
+        side=_STATUS_SIDE.get(str(payload.get("side") or "").strip().upper(), ""),
+        qty=qty,
+        price=_coerce_number(payload.get("limit_price")) or 0.0,
+        broker_order_id=broker_order_id,
+        status=status,
+        filled_qty=filled_qty,
+        avg_fill_price=_coerce_number(payload.get("average_price")) if filled_qty > 0 else None,
+        updated_at=_status_order_time(payload.get("order_time")),
+        status_reason=status_reason,
+    )
 
 
 def _select_ledger_row(ledger: dict[str, object]) -> dict[str, object]:

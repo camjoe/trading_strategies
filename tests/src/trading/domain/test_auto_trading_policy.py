@@ -85,8 +85,7 @@ def test_the_order_step_is_a_whole_number_of_storage_units() -> None:
 
 
 def test_choose_buy_qty_stays_within_the_ibkr_increment() -> None:
-    # $500 at $535.17/share is 0.934317... shares; IBKR rejected that size for MSFT as
-    # off its 0.0001 minimum variation.
+    # $500 at $535.17/share is 0.93428... shares, which rounds down to 0.9342 on the 0.0001 grid.
     qty = choose_buy_qty(
         cash=5000.0,
         price=535.17,
