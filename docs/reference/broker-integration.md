@@ -240,12 +240,16 @@ implements it, from the order status reply.
 - Both the Web API's open-order list and its status reply state the cumulative filled size and average
   price, not executions, and the Web adapter does not invent one. Reconciliation posts a single fill for
   the size and commission beyond what the order's recorded fills already sum to. Polling the same state
-  twice posts nothing, and a partial fill followed by the rest posts each part once. An order that
-  carries its own executions (the socket path) applies as reported, deduplicated by exec id.
+  twice posts nothing, and a partial fill followed by the rest posts each part once, the later part priced
+  at what it cost (from the cumulative average and the notional already recorded), not at the average. An
+  adapter opts in by setting `reports_executions = False`; any other adapter (the socket path) applies
+  its executions as reported, deduplicated by exec id, and never gets an invented fill.
 - The status reply has no commission and no execution time, so those fills carry commission `0.0` and
   the order's own timestamp.
 - An order the lookup cannot find (status cache miss), a lookup that fails, a fill with no price, and a
-  report of less than is recorded all leave the row untouched and reported as unreported.
+  report of less than is recorded, and a `Filled` reply with no filled size all leave the row untouched and
+  reported as unreported. Each logs a warning naming the reason, and the pass logs a summary of how many
+  omitted orders were resolved, not found, or failed.
 
 When the Web API answers an order with cautionary messages that need a "yes", the client confirms them
 (up to five per order) and logs a warning with the order's client id, the message text, and the IBKR

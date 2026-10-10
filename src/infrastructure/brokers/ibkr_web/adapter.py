@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 
 from common.coercion import coerce_bool, coerce_float
-from common.time import as_utc_iso, utc_now_iso
+from common.time import as_utc_iso, normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_web import (
     IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
@@ -37,6 +37,8 @@ _SMART_ROUTING_EXCHANGE = "SMART"
 
 class InteractiveBrokersWebAdapter(BrokerConnection):
     """Live broker adapter backed by the IBKR Web API."""
+
+    reports_executions = False
 
     def __init__(self, client: InteractiveBrokersWebClient) -> None:
         self._client = client
@@ -228,7 +230,8 @@ _TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJE
 # Side codes on the order status reply.
 _STATUS_SIDE = {"B": "buy", "S": "sell"}
 
-# Timestamp layout of the status reply's ``order_time``: UTC ``yymmddHHMMSS``.
+# Timestamp layout of the status reply's ``order_time`` and the order list's
+# ``lastExecutionTime``: UTC ``yymmddHHMMSS``.
 _STATUS_ORDER_TIME_FORMAT = "%y%m%d%H%M%S"
 
 
@@ -247,14 +250,17 @@ def _coerce_number(value: object | None) -> float | None:
 
 
 def _normalize_fill_time(value: object | None) -> str:
-    if value is None:
+    text = str(value or "").strip()
+    if (compact := _status_order_time(text)) is not None:
+        return compact
+    try:
+        return normalize_utc_iso(text)
+    except ValueError:
         return utc_now_iso()
-    text = str(value).strip()
-    return text or utc_now_iso()
 
 
 def _status_order_time(value: object | None) -> str | None:
-    """The status reply's ``order_time`` as a stored UTC timestamp, or None when unreadable."""
+    """A ``yymmddHHMMSS`` UTC timestamp as a stored UTC timestamp, or None when unreadable."""
     try:
         parsed = datetime.strptime(str(value or "").strip(), _STATUS_ORDER_TIME_FORMAT)
     except ValueError:

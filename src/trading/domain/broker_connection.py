@@ -21,6 +21,10 @@ class BrokerConnection(ABC):
     :func:`infrastructure.brokers.factory.get_broker_for_account`.
     """
 
+    # False when orders report only a cumulative filled size and average price, with no
+    # individual executions; reconciliation then derives the fill still to post.
+    reports_executions: bool = True
+
     @abstractmethod
     def connect(self) -> None:
         """Establish connection to the broker endpoint."""

@@ -257,18 +257,26 @@ Confirm no orders remain open, then change `broker_type`.
 here needs to â€” and deliberately does not â€” issue an end-of-run cancel sweep.
 
 **What this repo can lose track of is its own rows.** IBKR's `/iserver/account/orders` covers the
-current day. A DAY order that expired at a previous session's close simply stops being reported, so
-reconciliation never sees it again and the persisted `orders` row would sit at `submitted`
-indefinitely.
+current day, and can omit an order that has already filled. For each open order the list omits,
+reconciliation asks IBKR for that order's status by id (`BrokerConnection.get_order`). If the status
+reply shows a fill, the fill is posted to the book and the row closed automatically; a cancel or
+reject closes the row with IBKR's reason. A lookup that fails logs `Lookup of broker order <id> failed`
+and leaves the row alone.
+
+What remains is an order IBKR no longer reports at all, such as a DAY order that expired at a previous
+session's close: the row would sit at `submitted` indefinitely. An order whose reply could not be
+applied (a fill with no price, less filled than recorded, `Filled` with no size) is left the same way,
+and a warning line names the reason.
 
 Reconciliation reports those rather than resolving them. An unreported order might have expired
-unfilled, or might have filled on a day nothing ran â€” and marking a filled order cancelled would
+unfilled, or might have filled on a day nothing ran — and marking a filled order cancelled would
 silently corrupt the book. That call needs a human, so:
 
-- `reconcile_orders` prints a `WARNING â€¦ not reported by the broker and left unresolved` line to
-  stderr, naming each broker order id. The daily run captures stderr into its run log.
+- `reconcile_orders` prints a `WARNING … not reported by the broker and left unresolved` line to
+  stderr, naming each broker order id. The daily run captures stderr into its run log. Read the
+  warnings just above it for why the order could not be resolved before treating it as expired.
 - The daily run artifact's step `07_submit_ibkr_orders` carries `stale_open_count` and a
-  `stale_open` list â€” open orders carried over from an earlier session, per account.
+  `stale_open` list — open orders carried over from an earlier session, per account.
 
 ### Resolving a stale open order
 

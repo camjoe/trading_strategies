@@ -280,7 +280,7 @@ class TestInteractiveBrokersWebAdapter:
         assert result[0].status == OrderStatus.FILLED
         assert result[0].filled_qty == 10.0
         assert result[0].avg_fill_price == 151.25
-        assert result[0].updated_at == "231211180049"
+        assert result[0].updated_at == "2023-12-11T18:00:49Z"
         assert result[0].fills == []
 
     def test_disconnect_and_cancel_order_delegate_to_client(self):

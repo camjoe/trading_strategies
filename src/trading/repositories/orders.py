@@ -232,13 +232,19 @@ class OrderRepository:
         ).fetchall()
         return {str(row[0]) for row in rows}
 
-    def fetch_fill_totals(self, *, order_id: int) -> tuple[Decimal, Decimal]:
-        """The summed quantity and commission of the fills recorded for an order."""
-        row = self._conn.execute(
-            "SELECT COALESCE(SUM(filled_qty), 0), COALESCE(SUM(commission), 0) FROM order_fills WHERE order_id = ?",
+    def fetch_fill_totals(self, *, order_id: int) -> tuple[Decimal, Decimal, Decimal]:
+        """The summed quantity, notional (quantity x price) and commission of an order's recorded fills."""
+        rows = self._conn.execute(
+            "SELECT filled_qty, fill_price, commission FROM order_fills WHERE order_id = ?",
             (order_id,),
-        ).fetchone()
-        return decode_quantity(int(row[0])) or Decimal("0"), decode_money(int(row[1])) or Decimal("0")
+        ).fetchall()
+        qty = notional = commission = Decimal("0")
+        for filled_qty, fill_price, fill_commission in rows:
+            fill_qty = decode_quantity(int(filled_qty)) or Decimal("0")
+            qty += fill_qty
+            notional += fill_qty * (decode_money(int(fill_price)) or Decimal("0"))
+            commission += decode_money(int(fill_commission)) or Decimal("0")
+        return qty, notional, commission
 
     def fetch_fill_events_for_account(self, *, account_id: int) -> list[FillEventRecord]:
         """Fill executions for the account's orders as trade-shaped records, oldest first.

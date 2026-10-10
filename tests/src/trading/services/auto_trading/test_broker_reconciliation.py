@@ -13,7 +13,12 @@ from trading.services.execution.open_order_reconciliation import reconcile_open_
 
 
 class _LookupBroker:
-    """A broker whose open-order list is empty but which can look an order up by id."""
+    """A broker whose open-order list is empty but which can look an order up by id.
+
+    Like the IBKR Web API, it reports cumulative state rather than executions.
+    """
+
+    reports_executions = False
 
     def __init__(self, orders_by_id: dict[str, BrokerOrder]) -> None:
         self._orders_by_id = orders_by_id
@@ -159,6 +164,8 @@ class TestAdoptPendingOrders:
         )
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [live]
 
@@ -187,6 +194,8 @@ class TestAdoptPendingOrders:
         account = make_broker_account(broker_type="interactive_brokers_web", id=1)
 
         class _EmptyBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return []
 
@@ -222,6 +231,8 @@ class TestAdoptPendingOrders:
         )
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [stranger]
 
@@ -277,6 +288,8 @@ class TestReconcileOpenBrokerOrders:
         )
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [filled_order]
 
@@ -325,6 +338,8 @@ class TestReconcileOpenBrokerOrders:
         )
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [partial_order]
 
@@ -351,6 +366,8 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="interactive_brokers_web", id=1)
 
         class _FakeBroker:
+            reports_executions = True
+
             _disconnect_calls = 0
 
             def get_open_trades(self):
@@ -387,6 +404,8 @@ class TestReconcileOpenBrokerOrders:
             )
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [
                     _terminal_order("s-cancel", OrderStatus.CANCELLED),
@@ -420,6 +439,8 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="interactive_brokers_web", id=1)
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [
                     BrokerOrder(
@@ -461,6 +482,8 @@ class TestReconcileOpenBrokerOrders:
         account = make_broker_account(broker_type="interactive_brokers_web", id=1)
 
         class _FakeBroker:
+            reports_executions = True
+
             def get_open_trades(self):
                 return [
                     BrokerOrder(
@@ -652,7 +675,7 @@ class TestReconcileOpenBrokerOrders:
             order.commission = commission
             reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_ListedBroker([order])))
 
-        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[1] == Decimal("1.5")
+        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[2] == Decimal("1.5")
 
     def test_a_cumulative_report_posts_what_the_recorded_fills_do_not_cover(self) -> None:
         """The posting basis is the fill rows, not the order's own filled_qty.
@@ -678,3 +701,97 @@ class TestReconcileOpenBrokerOrders:
         position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
         assert position is not None
         assert position.qty == 4.0
+
+    def test_a_later_part_of_a_fill_is_priced_at_what_that_part_cost(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        for status, cumulative, average in (
+            (OrderStatus.PARTIALLY_FILLED, 5.0, 100.0),
+            (OrderStatus.FILLED, 10.0, 105.0),
+        ):
+            order = _looked_up_order("42", status=status, filled_qty=cumulative)
+            order.avg_fill_price = average
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_ListedBroker([order])))
+
+        qty, notional, _ = OrderRepository(conn).fetch_fill_totals(order_id=order_id)
+        assert (qty, notional) == (Decimal("10"), Decimal("1050"))
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.avg_cost == 105.0
+
+    def test_a_filled_reply_with_no_filled_size_stays_unreported(self, caplog) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        empty = _looked_up_order("42", status=OrderStatus.FILLED, filled_qty=0.0)
+
+        with caplog.at_level(logging.WARNING, logger="trading.services.execution.open_order_reconciliation"):
+            outcome = reconcile_open_orders(
+                conn, account, broker_factory=Mock(return_value=_LookupBroker({"42": empty}))
+            )
+
+        assert outcome.unreported_broker_order_ids == ["42"]
+        order = OrderRepository(conn).fetch_by_id(order_id=order_id)
+        assert order is not None and order.status == "submitted"
+        assert "reported filled with no filled size" in caplog.text
+
+    def test_a_listed_fill_with_no_price_is_unreported_and_the_log_names_why(self, caplog) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        priceless = _looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=4.0)
+        priceless.avg_fill_price = None
+
+        with caplog.at_level(logging.WARNING, logger="trading.services.execution.open_order_reconciliation"):
+            outcome = reconcile_open_orders(
+                conn, account, broker_factory=Mock(return_value=_ListedBroker([priceless]))
+            )
+
+        assert outcome.unreported_broker_order_ids == ["42"]
+        assert "no average price" in caplog.text
+
+    def test_a_lower_cumulative_commission_never_posts_a_negative_commission(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        for status, cumulative, commission in (
+            (OrderStatus.PARTIALLY_FILLED, 4.0, 1.0),
+            (OrderStatus.FILLED, 10.0, 0.0),
+        ):
+            order = _looked_up_order("42", status=status, filled_qty=cumulative)
+            order.commission = commission
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_ListedBroker([order])))
+
+        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[2] == Decimal("1")
+
+    def test_a_socket_order_reported_before_its_executions_is_not_posted_twice(self) -> None:
+        """A broker that reports executions keeps its own fills; no cumulative fill is invented."""
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers", id=1)
+
+        class _SocketBroker(_ListedBroker):
+            reports_executions = True
+
+        before_executions = _looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=5.0)
+        with_executions = _looked_up_order("42", status=OrderStatus.PARTIALLY_FILLED, filled_qty=5.0)
+        with_executions.fills = [
+            OrderFill(filled_qty=5.0, fill_price=151.0, fill_time="2024-01-02T10:00:00Z", commission=0.0, exec_id="E1")
+        ]
+        for order in (before_executions, with_executions, with_executions):
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_SocketBroker([order])))
+
+        repo = OrderRepository(conn)
+        assert repo.fetch_fill_exec_ids(order_id=order_id) == {"E1"}
+        assert repo.fetch_fill_totals(order_id=order_id)[0] == Decimal("5")
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+        assert position is not None
+        assert position.qty == 5.0
