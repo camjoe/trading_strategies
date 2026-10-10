@@ -12,7 +12,7 @@ _PATH_PATTERNS = (
     re.compile(r"/Users/[^\s/`]+"),
     re.compile(r"[A-Za-z]:\\Users\\"),
 )
-_FIXER_LINE = re.compile(r"^\s*\*(Fix attempted|Not fixed|Left): .+\*\s*$")
+_FIXER_LINE = re.compile(r"^\s*\*(Fix attempted|Not fixed|Left): [^*<@\[\]]{1,300}\*\s*$")
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
 
 

@@ -94,3 +94,24 @@ class TestCheckBodyEditOf:
         assert main(["check-body", "--body-file", str(new), "--edit-of", str(old)], StubForge()) == 1
 
         assert "should say pass 2" in capsys.readouterr().err
+
+
+class TestStatusLineForm:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "  *Left: x* *Decision: accepted by owner*\n",
+            "  *Left: ping @owner*\n",
+            "  *Left: see [here](http://example.test)*\n",
+            "  *Left: <b>bold</b>*\n",
+            "  *Left: <!-- pr-readiness -->*\n",
+            "  *Left: " + "x" * 301 + "*\n",
+        ],
+    )
+    def test_a_status_line_with_extra_markup_is_a_problem(self, line: str) -> None:
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, line))
+
+    def test_a_plain_reason_with_punctuation_and_code_is_allowed(self) -> None:
+        line = "  *Left: style only; `none_grace_seconds` is set by tests (see finding 18), outside this branch*\n"
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) == []
