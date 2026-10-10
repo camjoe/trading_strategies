@@ -142,6 +142,10 @@ jobs:
               f"- Do NOT post anything. Write the final readiness comment body, in the Step 6 layout, to {os.environ['BODY_FILE']}.",
               "  The workflow posts it.",
               "- If a step cannot run in this environment, say which step and why in the comment.",
+              "- Step 4 is mandatory: spawn every reviewer that review_scope_check suggests as its own subagent",
+              "  with the Agent tool, in parallel, and merge their findings yourself into the one comment.",
+              "  Reading the diff yourself does not replace them. If you cannot spawn them, the verdict is",
+              "  NOT READY and the comment says why.",
           ]
           if later:
               lines += [

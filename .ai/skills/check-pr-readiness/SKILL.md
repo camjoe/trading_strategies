@@ -84,14 +84,18 @@ python -m scripts.checks.repo.review_scope_check --base <base_ref>
 It prints the reviewers the diff needs (none for a documentation-only diff). Run them in parallel
 following "For the orchestrator" in [lenses.md](../code-review/lenses.md): spawn, verify every
 finding, merge duplicates, assign severity, and add each defect's *Tests* line. Security-class
-findings are routed to `/security-review` and never posted.
+findings are routed to `/security-review` and never posted. Each reviewer is a separate fresh-context
+subagent; reading the diff yourself does not stand in for one, and an unattended session spawns them
+the same way.
 
 **Later passes.** First re-verify every open finding by hand against the new HEAD; that alone can
 clear a finding, and READY does not require a fresh reviewer run. Then run the same command on the
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
 200 or more lines outside documentation or adds a source module. Otherwise run none and say so in the
-status table. This is the accepted trade-off: a small increment is read by the orchestrator while
+status table. This shortcut applies only after a pass in which the reviewers ran on the whole diff
+against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
+command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
 
 ## Step 5 — Docs drift review
@@ -183,8 +187,9 @@ reviewers reports 0, and re-verifying a finding already in the comment is not co
 itself, so a later push makes it stale until the next pass; readers compare the SHA in the header with
 the PR head. When the local HEAD is not pushed, the header says `PR head is <sha>`.
 
-Title: READY only when the gate is green, CI has not failed, no BLOCKER is open, and every open
-CONCERN is fixed or carries a *Decision*. Otherwise NOT READY, and the line under the title says what
+Title: READY only when the gate is green, CI has not failed, no BLOCKER is open, every open
+CONCERN is fixed or carries a *Decision*, and the reviewers `review_scope_check` suggests for the whole
+diff have run in this pass or an earlier one. Otherwise NOT READY, and the line under the title says what
 is unmet (for example "2 concerns need a fix or a Decision"). The title carries no counts.
 
 A *Decision* is the owner's. The owner states it in the session; that pass writes it onto the finding's
