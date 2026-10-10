@@ -308,7 +308,14 @@ trusted to reconstruct state; the runner must supply it.
 Found by the Stage 2 reviewers on this branch, and fixed with it: the CI wait returning on `none`, a pass
 cap that could fail open, an unused expected-head check, test stubs that ignored `--exclude` and
 `--author`, malformed `gh` output producing a traceback, and the prompt passed as one argument (now on
-stdin). Unverified: that `claude -p` reads its prompt from stdin; the first run after this change shows it.
+stdin, which works.
+
+Validation outcome (PR #301, three passes on the Stage 2 workflow): the job runs the gate and the four
+lens reviewers as separate subagents, merges their findings into one comment, edits it in place, and
+carries findings forward across passes (pass 3 closed 15 and reached READY). Its guards refused one
+comment (a false positive on quoted path prefixes, since fixed) and posted nothing. About 1 USD of
+API-equivalent cost for a pass with reviewers, far less for a pass that re-verifies by hand. Still
+unobserved: a slow CI run against the new wait (unit-tested only).
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
