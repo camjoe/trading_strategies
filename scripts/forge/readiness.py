@@ -29,8 +29,8 @@ def body_problems(
 
     *previous_pass* is the pass number of the comment being replaced (``None`` on a first pass), so a
     pass must be exactly one more than the last, or equal to it when *same_pass* is set (an edit of the
-    same pass). *forbidden* lists literal strings, such as a token's
-    value, that must not appear; an empty entry is an error because it would check nothing.
+    same pass). *forbidden* lists literal strings, such as a token's value, that must not appear; an
+    empty entry is an error because it would check nothing.
     """
     problems: list[str] = []
     try:

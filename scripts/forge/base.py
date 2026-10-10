@@ -33,6 +33,7 @@ class PullRequest:
         return f"origin/{self.base_ref}"
 
     def to_dict(self) -> dict[str, Any]:
+        """The fields plus ``diff_base_ref``, ready for JSON."""
         return {**asdict(self), "diff_base_ref": self.diff_base_ref}
 
 
