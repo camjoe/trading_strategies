@@ -12,7 +12,8 @@ _PATH_PATTERNS = (
     re.compile(r"/Users/[^\s/`]+"),
     re.compile(r"[A-Za-z]:\\Users\\"),
 )
-_FIXER_LINE = re.compile(r"^\s*\*(Fix attempted|Not fixed|Left): [^*<@\[\]]{1,300}\*\s*$")
+_FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\*\s*$")
+_AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
 
 
@@ -52,6 +53,11 @@ def body_problems(
     return problems
 
 
+def _is_status_line(line: str) -> bool:
+    match = _FIXER_LINE.match(line)
+    return match is not None and not _AUTOLINK.search(match.group(2))
+
+
 def fixer_edit_problems(old: str, new: str) -> list[str]:
     """Reasons *new* is not a fixer's edit of *old*: it may only add status lines and blank lines.
 
@@ -67,7 +73,7 @@ def fixer_edit_problems(old: str, new: str) -> list[str]:
         if tag == "equal":
             continue
         added = new_lines[new_start:new_end]
-        if tag != "insert" or any(line.strip() and not _FIXER_LINE.match(line) for line in added):
+        if tag != "insert" or any(line.strip() and not _is_status_line(line) for line in added):
             problems.append(
                 f"Line {new_start + 1}: only Fix attempted, Not fixed, and Left lines may be added; existing lines stay."
             )

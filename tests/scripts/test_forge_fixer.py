@@ -116,15 +116,36 @@ class TestStatusLineForm:
             "  *Left: <b>bold</b>*\n",
             "  *Left: <!-- pr-readiness -->*\n",
             "  *Left: " + "x" * 301 + "*\n",
+            "  *Left: see http://evil.example/x*\n",
+            "  *Left: see www.evil.example*\n",
+            "  *Left: mention &#64;owner*\n",
+            "  *Left: back\\slash*\n",
+            "  *Left: `code`*\n",
+            "  *Left: bidi ‮override*\n",
+            "  *Left: x]*\n",
+            "\t*Left: indented as a code block*\n",
+            "    *Left: four spaces is a code block*\n",
+            "  *Done: not a status keyword*\n",
+            "  *fix attempted: wrong case*\n",
         ],
     )
     def test_a_status_line_with_extra_markup_is_a_problem(self, line: str) -> None:
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, line))
 
-    def test_a_plain_reason_with_punctuation_and_code_is_allowed(self) -> None:
-        line = "  *Left: style only; `none_grace_seconds` is set by tests (see finding 18), outside this branch*\n"
+    def test_a_plain_reason_with_punctuation_is_allowed(self) -> None:
+        line = "  *Left: style only; none_grace_seconds is set by tests (see finding 18), outside this branch*\n"
 
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) == []
+
+    def test_a_long_body_with_one_valid_added_line_has_no_problems(self) -> None:
+        filler = "".join(f"line {i}\n" for i in range(300))
+
+        assert fixer_edit_problems(comment(filler, FINDING), comment(filler, FINDING, FIX_LINE)) == []
+
+    def test_a_valid_line_cannot_hide_an_edited_finding_in_the_same_body(self) -> None:
+        new = comment(FINDING.replace("A defect", "Fine"), FIX_LINE)
+
+        assert fixer_edit_problems(comment(FINDING), new)
 
 
 class TestCheckBodyEditOfEdges:
