@@ -237,13 +237,26 @@ def test_head_without_base_is_rejected(monkeypatch) -> None:
         parse_args()
 
 
-def test_accounting_and_starting_cash_paths_are_aggressive() -> None:
-    for path in (
+@pytest.mark.parametrize(
+    "path",
+    [
         "src/trading/domain/accounting/book.py",
+        "src/trading/domain/rotation/policy.py",
         "src/trading/services/books/provisioning.py",
-        "src/trading/services/accounts/mutations.py",
-    ):
-        assert "aggressive" in classify_paths([path]).modes
+        "src/trading/services/books/rotation/engine.py",
+        "src/trading/services/accounts/deletions.py",
+        "src/trading/repositories/accounts.py",
+        "src/trading/repositories/book_rotation_settings.py",
+        "src/trading/repositories/rotation_decisions.py",
+        "src/trading/repositories/book_strategy_history.py",
+        "src/trading/repositories/strategy_decisions.py",
+    ],
+)
+def test_accounting_book_rotation_and_account_paths_are_aggressive(path: str) -> None:
+    report = classify_paths([path])
+
+    assert "aggressive" in report.modes
+    assert report.high_risk, path
 
 
 def test_every_scope_rule_prefix_exists_in_the_repo() -> None:

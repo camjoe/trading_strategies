@@ -42,8 +42,16 @@ SCOPE_RULES = (
     ScopeRule("src/trading/repositories/positions.py", "aggressive", "position persistence change", True),
     ScopeRule("src/trading/persistence/", "aggressive", "money encoding or transaction change", True),
     ScopeRule("src/trading/domain/accounting/", "aggressive", "book or ledger accounting change", True),
-    ScopeRule("src/trading/services/books/provisioning.py", "aggressive", "book starting-cash change", True),
-    ScopeRule("src/trading/services/accounts/mutations.py", "aggressive", "account starting-cash change", True),
+    ScopeRule("src/trading/domain/rotation/", "aggressive", "book rotation policy change", True),
+    ScopeRule("src/trading/services/books/", "aggressive", "book setup, assignment, or rotation change", True),
+    ScopeRule("src/trading/services/accounts/", "aggressive", "account setup or mutation change", True),
+    ScopeRule("src/trading/repositories/accounts.py", "aggressive", "account persistence change", True),
+    ScopeRule(
+        "src/trading/repositories/book_rotation_settings.py", "aggressive", "rotation setting persistence change", True
+    ),
+    ScopeRule("src/trading/repositories/rotation_decisions.py", "aggressive", "rotation decision record change", True),
+    ScopeRule("src/trading/repositories/book_strategy_history.py", "aggressive", "book strategy history change", True),
+    ScopeRule("src/trading/repositories/strategy_decisions.py", "aggressive", "strategy decision record change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/admin.py", "aggressive", "admin route change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/", "contract", "backend API route change"),
     ScopeRule("apps/paper_trading_web/backend/schemas/", "contract", "backend API schema change"),
