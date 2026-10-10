@@ -133,8 +133,8 @@ accounts that have not completed that date, read from the day's success artifact
 - A broker error on one account no longer stops the other cap groups, and the alert names it.
 - An account that has not been snapshotted for the threshold number of weekdays appears in a daily
   alert with its last-seen date; the alert escalates from `warn` to `fail`.
-- `python -m scripts.run_checks quick` passes; the multi-lens review in `review-mindsets.md` is run on
-  each PR.
+- `python -m scripts.run_checks pr --base develop` passes, and `pr ready` (the independent reviewers and
+  the readiness comment) is run on each PR.
 
 ## Hand-off prompt (for a fresh agent)
 Read `AGENTS.md`, `docs/architecture/architecture-conventions.md`, and this file in full. Do not start

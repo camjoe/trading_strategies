@@ -148,7 +148,7 @@ Used by `pr ready` and by a review of a PR by number.
 
 From a pilot on two open PRs (an order-reconciliation change and a skip-unavailable-accounts change),
 41 reports, every finding checked against the code. The full record is the plan file
-`review-mindsets.md`, deleted at rollout; see its git history.
+`review-mindsets.md`, deleted when this shipped; it is in git history at the merge commit of PR #295.
 - The reviewers found 12 distinct defects that the author's own review missed, including 3 BLOCKERs
   on one PR and a duplicate-trading hole on the other. About 69% of reported findings were real
   (excluding trivial ones), and none of the Sonnet or Opus findings checked was wrong.

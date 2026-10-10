@@ -108,7 +108,8 @@ the broker disagree.
    documented default for brokers that return `None`. Decide and say which.
 7. Docs: `docs/reference/broker-integration.md`, `docs/reference/strategies.md` if sizing is described,
    and the `docs/reference/db-schema.md` note added by #293 about the order grid.
-8. `python -m scripts.run_checks quick`, then run the multi-lens review (see `review-mindsets.md`).
+8. `python -m scripts.run_checks pr --base develop`, then `pr ready` (the independent reviewers and the
+   readiness comment).
 
 ## Acceptance
 - A fractional-eligible contract sizes on its own increment; a contract that is not eligible sizes whole
