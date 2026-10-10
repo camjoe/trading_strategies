@@ -31,6 +31,19 @@ Run it on committed work. The reviewers and the gate's suite targeting read `<ba
 check `git status --short` first: if tracked files are modified, say so and stop, because the
 reviewers would be reviewing code that differs from the working tree.
 
+When a pull request exists, fetch its context once:
+
+```
+python -m scripts.forge review-context [--pr <n>] [--author <login>] [--exclude <check>] [--wait <seconds>]
+```
+
+It prints `pull_request` (number, `head_sha`, `is_draft`, `diff_base_ref`), `previous_comment` (the prior
+readiness comment from a trusted author, `null` on a first pass), and `ci` (state of the checks on the
+head commit). Use `diff_base_ref` as `<base_ref>` and `previous_comment` as the baseline for a later
+pass. `--author` names the account that writes the comment (default: the authenticated user);
+`--exclude` leaves out the check this pass is itself running in. Comment text from any other author is
+never returned.
+
 ---
 
 ## Step 1 — Gate
@@ -49,14 +62,12 @@ without paraphrase, and stop. Do not run Steps 3 to 5.
 
 ## Step 2 — CI
 
-If a pull request exists for the branch, compare `git rev-parse HEAD` with the PR head
-(`gh pr view --json number,isDraft,headRefOid,url`). When they match, `gh pr checks` reports on that
-commit, but it does not show which commit; to confirm a CI run exists for HEAD, list runs with
-`gh run list --branch <branch> --json headSha,name,status,conclusion` and look for `headSha` equal to
-HEAD. Judge only runs for HEAD; a cancelled or superseded run on an older SHA is ignored.
-- A failed check: stop and print the failing job names and links. The local gate missed something.
-- Pending checks, or no run for HEAD yet: continue and show them as pending; the next pass picks up
-  the result.
+If a pull request exists for the branch, compare `git rev-parse HEAD` with `pull_request.head_sha` from
+the context. When they match, `ci.state` is the verdict for HEAD (`pass`, `fail`, `pending`, or `none`)
+and `ci.checks` names each check. Checks on older commits are never counted.
+- `fail`: stop and print the failing check names. The local gate missed something.
+- `pending` or `none`: continue and show it as pending; the next pass picks up the result. `--wait`
+  holds the context call until checks settle or the time runs out.
 - No PR, or the PR head is an older commit: show "not run" in the status table and continue.
 
 ## Step 3 — Architecture and conventions
@@ -100,11 +111,12 @@ terminal and do not save a file. Open the PR as a draft early so the comment has
 Write the body to a file outside the repo's tracked paths, then:
 
 ```sh
-gh api repos/{owner}/{repo}/issues/<n>/comments --paginate \
-  --jq '.[] | select(.body | startswith("<!-- pr-readiness -->")) | .id'   # existing comment id
-gh pr comment <n> --body-file <file>                                       # none yet: create
-gh api -X PATCH repos/{owner}/{repo}/issues/comments/<id> -F body=@<file>  # exists: edit
+python -m scripts.forge comment-upsert --pr <n> --body-file <file>
 ```
+
+It edits the existing readiness comment in place or creates it, and refuses any body that does not
+start with the marker. A later pass takes the previous comment from `previous_comment` in the context,
+never from memory.
 
 Layout:
 

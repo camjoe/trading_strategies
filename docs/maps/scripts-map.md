@@ -36,6 +36,30 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 
 ---
 
+## Forge Interface (`scripts/forge/`)
+
+Platform-neutral pull-request operations for the readiness workflow. Run via
+`python -m scripts.forge <operation>`; every operation prints JSON, and the only comment it writes is the
+`<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
+
+| Operation | What it returns or does |
+|---|---|
+| `pr-info [--pr N]` | Number, refs, head sha, draft flag, state, and `diff_base_ref` (`origin/<base>`) |
+| `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
+| `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
+| `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks |
+| `review-context [--pr N]` | Pull request, previous readiness comment, and CI state in one answer |
+
+| Module | Responsibility |
+|---|---|
+| `base.py` | Forge-neutral types, the `Forge` interface, and the marker rule |
+| `github.py` | GitHub adapter over the `gh` CLI |
+| `service.py` | Trusted-author resolution, CI waiting, and the review context |
+| `cli.py` | Argument parsing and JSON output |
+| `__main__.py` | Entry point for `python -m scripts.forge` |
+
+---
+
 ## Fixes (`scripts/fixes/`)
 
 Fix counterparts of checks under `scripts/checks/`. Each fixer applies only the mechanical
