@@ -234,8 +234,8 @@ jobs:
 
           path = Path(os.environ["TRANSCRIPT_FILE"])
           text = path.read_text(encoding="utf-8")
-          token = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
-          path.write_text(text.replace(token, "***") if token else text, encoding="utf-8")
+          needle = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
+          path.write_text(text.replace(needle, "***") if needle else text, encoding="utf-8")
           PY
 
       - name: Transcript artifact
