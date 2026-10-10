@@ -196,6 +196,41 @@ subscription token, and records what posts, which skills and subagents load, how
 action's draft behavior is no longer on the critical path (decisions 1 and 12); test it only if we
 later want the action.
 
+## Phase 0: verification spike (scope)
+Purpose: retire the unverified claims above with the least work. If items 1-5 fail, nothing later
+matters; if they pass, the biggest risks are gone.
+
+| # | Question | How it is answered |
+|---|---|---|
+| 1 | Does the subscription token authenticate `claude -p` on a GitHub runner? | A trivial prompt returns text. |
+| 2 | Do `AGENTS.md`/`CLAUDE.md` and the `.ai/skills/` skills load in that mode? | Ask it to name the `pr ready` shortcut and the six steps of `check-pr-readiness`. |
+| 3 | Can the lens reviewers spawn subagents? | A prompt that spawns one subagent and reports its result. |
+| 4 | Can it do `pr ready` end to end on the runner? | Run `pr ready` on a small diff; steps 1-6 complete. The runner uses the Python setup `ci.yml` already uses. |
+| 5 | Can it create, then edit, the marker comment with only `pull-requests: write`? | Run twice on one PR: one comment created, then that same comment edited. |
+| 6 | Does the trigger and draft skip work? | No run while the PR is a draft; a run on `ready_for_review`; a re-run on `synchronize`. |
+| 7 | What does a review cost? | `--output-format json` usage and duration, plus the owner's plan-usage reading before and after. |
+| 8 | Which permission flags does non-interactive mode need? | Record the `--allowedTools` and permission settings required to run unattended. |
+
+Shape:
+- A throwaway branch `spike/agent-review-ci` with a throwaway workflow and a small harmless code
+  change (so `review_scope_check` selects at least one lens and exercises item 3). The PR starts as a
+  draft, then is marked ready.
+- The workflow runs only for same-repo PRs from that branch name. Fork PRs cannot read the secret
+  anyway; the branch condition is a second guard because the repo is public.
+- Out of scope: the forge CLI, the fixer, the email, plan pickup.
+
+Owner actions (agents do not handle credentials): run `claude setup-token` and add the result as a
+repository secret; read the plan-usage meter before and after each run.
+
+Cleanup: close the PR; delete the branch, the workflow, and the secret (or rotate the token). Record
+results in a "Spike results" section here and update the "Verified vs unverified" table.
+
+Settled by the owner, 2026-10-10:
+- The spike PR is public, in this repo. Its comment holds review text only: no keys, paths, or
+  account ids.
+- Only the direct `claude -p` call is tested; the official action is skipped (decision 1).
+- Run on the default model first; try a cheaper one only if cost is a problem.
+
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
 |---|---|---|
@@ -252,9 +287,7 @@ decide each of these in `AGENTS.md`, because none is covered today:
 Merging stays out.
 
 ## Phases
-0. **Verification spike** (see "Verified vs unverified"): subscription token in Actions with a direct
-   CLI call, subagents and skills in the runner, behavior on ready_for_review and synchronize, and
-   cost per review. Nothing else is built until this is read.
+0. **Verification spike** (scope below). Nothing else is built until its results are read.
 0b. **Forge interface.** The `scripts/forge` CLI and GitHub adapter, with tests; point the readiness
    skill at it instead of raw `gh`.
 1. **Hand-run Stage 3.** Take a real PR's readiness comment and run a fixer prompt by hand. Learn
