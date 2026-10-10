@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,19 @@ def test_already_completed_today_returns_false_when_sentinel_absent(tmp_path: Pa
     log = tmp_path / f"daily_paper_trading_{today.strftime('%Y%m%d')}_120000.log"
     log.write_text("partial run\n", encoding="utf-8")
     assert module.already_completed_today(tmp_path, today=today) is False
+
+
+def test_already_completed_today_counts_a_completed_log_older_than_a_failed_one(tmp_path: Path) -> None:
+    today = dt.date(2026, 3, 30)
+    tag = today.strftime("%Y%m%d")
+    completed = tmp_path / f"daily_paper_trading_{tag}_130000.log"
+    failed_catch_up = tmp_path / f"daily_paper_trading_{tag}_140000.log"
+    completed.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+    failed_catch_up.write_text("ERROR: Broker session unavailable for every run account\n", encoding="utf-8")
+    os.utime(completed, (100, 100))
+    os.utime(failed_catch_up, (200, 200))
+
+    assert module.already_completed_today(tmp_path, today=today) is True
 
 
 def test_already_completed_today_uses_todays_date_tag_by_default(tmp_path: Path) -> None:

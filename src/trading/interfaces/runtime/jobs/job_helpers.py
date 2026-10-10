@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common.files import sorted_by_mtime_desc
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 
 RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
@@ -171,18 +170,6 @@ def tee_line(log_path: Path, text: str) -> None:
     print(text)
     with log_path.open("a", encoding="utf-8") as handle:
         handle.write(text + "\n")
-
-
-def latest_log_contains_sentinel(log_dir: Path, pattern: str, sentinel: str) -> bool:
-    logs = sorted_by_mtime_desc(log_dir.glob(pattern))
-    if not logs:
-        return False
-
-    latest = logs[0]
-    try:
-        return sentinel in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
 
 
 def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple[int, str]:

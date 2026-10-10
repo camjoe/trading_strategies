@@ -50,6 +50,17 @@ Evaluate the output artifact at `local/artifacts/check_burn_in_status_*.json`.
 latest `daily_paper_trading_*.json` artifact per date and treats top-level `status == "success"` as
 a successful day; it does not independently validate market calendars or broker trading sessions.
 
+**Per account.** Without `--accounts` the checker judges whole runs, which proves nothing about any one
+broker account: a run that skipped the IBKR account is still a success. For go-live, name the accounts
+being signed off:
+```bash
+python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --accounts <name>,<name> --force-run
+```
+A day then counts for an account only if the run succeeded, traded that account (a skipped account is
+not in the artifact's `accounts`), and tripped no kill switch on it. The artifact's `accounts` key
+holds each account's metrics. `ready_for_live` is true only if every named account is ready, and the
+top-level `consecutive_successes` is the weakest account's.
+
 **To apply tighter thresholds:**
 ```bash
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status \
@@ -77,7 +88,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 
 ### System health
 
-- [ ] `check_burn_in_status` returns `ready_for_live: true`
+- [ ] `check_burn_in_status --accounts <every account going live>` returns `ready_for_live: true`
 - [ ] No kill switch events in the burn-in window
 - [ ] All book NAV balances reconcile with broker account state
 - [ ] No open promotion review requests that need resolution
