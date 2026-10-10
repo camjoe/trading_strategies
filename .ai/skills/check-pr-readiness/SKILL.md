@@ -49,10 +49,14 @@ without paraphrase, and stop. Do not run Steps 3 to 5.
 
 ## Step 2 — CI
 
-If a pull request exists for the branch (`gh pr view --json number,isDraft,headRefOid,url`) and its
-head is the local HEAD, read its checks (`gh pr checks`).
+If a pull request exists for the branch, compare `git rev-parse HEAD` with the PR head
+(`gh pr view --json number,isDraft,headRefOid,url`). When they match, `gh pr checks` reports on that
+commit, but it does not show which commit; to confirm a CI run exists for HEAD, list runs with
+`gh run list --branch <branch> --json headSha,name,status,conclusion` and look for `headSha` equal to
+HEAD.
 - A failed check: stop and print the failing job names and links. The local gate missed something.
-- Pending checks: continue and show them as pending; the next pass picks up the result.
+- Pending checks, or no run for HEAD yet: continue and show them as pending; the next pass picks up
+  the result.
 - No PR, or the PR head is an older commit: show "not run" in the status table and continue.
 
 ## Step 3 — Architecture and conventions
@@ -66,7 +70,9 @@ reviewer on the branch diff. A BLOCKER skips Step 4, and Step 5 still runs.
 python -m scripts.checks.repo.review_scope_check --base <base_ref>
 ```
 
-It prints the reviewers the diff needs (none for a documentation-only diff). Run them in parallel
+It prints the reviewers the diff needs (none for a documentation-only diff). On a later pass run only
+the reviewers that have an open finding on a file changed since the previous pass's reviewed commit
+(the SHA in the comment header). Run them in parallel
 following "For the orchestrator" in [lenses.md](../code-review/lenses.md): spawn, verify every
 finding, merge duplicates, assign severity, and add each defect's *Tests* line. Security-class
 findings are routed to `/security-review` and never posted.
@@ -153,11 +159,20 @@ Title: READY only when the gate is green, CI has not failed, no BLOCKER is open,
 CONCERN is fixed or carries a *Decision*. Otherwise NOT READY, and the line under the title says what
 is unmet (for example "2 concerns need a fix or a Decision"). The title carries no counts.
 
-A *Decision* is the owner's, recorded when the owner states it in the session; later passes carry it
-forward verbatim and never write one. Everything else is re-derived: each later pass re-reads the
-previous comment, re-verifies every open finding against the new HEAD, and moves fixed ones to
-Resolved. Ticked checkboxes are ignored: status comes from the code, and the comment says so. If the gate is red and a PR exists, still update the comment: the gate row red, the
-rest "not run: stopped at gate", no findings.
+A *Decision* is the owner's. The owner states it in the session; that pass writes it onto the finding's
+*Decision* line, and every later pass copies it forward from the previous comment unchanged. It exists
+nowhere else, so it survives only if each pass copies it. No pass ever writes one on its own.
+
+A severity lowered after verification stays on the finding, in the lowered tier, with the original
+and the reason on the *Caught by* line: `*Caught by: Break it (rated CONCERN; lowered to NOTE because
+CI is the backstop)*`.
+
+Everything else is re-derived. Each later pass re-reads the previous comment, re-verifies every open
+finding against the new HEAD, and moves fixed ones to Resolved. Ticked checkboxes are ignored: status
+comes from the code, and the comment says so.
+
+If the gate is red and a PR exists, still update the comment: the gate row red, the rest "not run:
+stopped at gate", no findings.
 
 Before posting, remove local machine paths, broker account ids, credentials, and private strategy
 parameters; the repository is public.
