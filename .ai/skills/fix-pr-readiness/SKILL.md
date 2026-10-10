@@ -36,7 +36,7 @@ For every open finding (unchecked box), blockers first, then concerns, then note
 | Class | When |
 |---|---|
 | **fix** | A defect or improvement with a clear *Pointer* and no decision needed. For a note: easy to resolve or simply beneficial, such as a missing test, a stale comment or doc line, a small simplification, a clearer name, or a cleanup this branch created. |
-| **needs-decision** | A design choice or tradeoff; a finding already carrying a `*Fix attempted*` or `*Not fixed*` line from an earlier round that is still open (never attempt a finding twice); or one whose fix touches a path below. |
+| **needs-decision** | A design choice or tradeoff; a finding an earlier round already attempted that is still open (never attempt a finding twice); or one whose fix touches a path below. An earlier attempt shows in `git log <pull_request.diff_base_ref>..HEAD --grep "finding <n>:"`, because the reviewer removes the `*Fix attempted*` line once it has verified. |
 | **leave** | A note that is subjective, style-only, outside the branch's touched scope, or large enough to deserve its own pull request. |
 
 `AGENTS.md` still applies: no style-only rewrites, and cleanup is limited to what this branch created or
@@ -61,13 +61,19 @@ For each **fix** finding, in order:
 
 ## Step 4 — Record
 
-Copy the old file and add one line under each finding this round touched, and change nothing else:
+Copy the old file and add lines under each finding this round touched, and change nothing else. Add,
+never rewrite or remove:
 
 ```
   *Fix attempted: <short sha>, awaiting verification*
   *Not fixed: <reason>*
   *Left: <reason>*
 ```
+
+A finding that is only partly resolved gets two lines, for example `Fix attempted` for what the commit
+did and `Left` for the rest. The text of a line is plain: ASCII letters, digits, spaces, and
+`, . ; ( ) ' _ -`, at most 300 characters, with no colon, slash, backtick, bracket, `@`, `*`, `www.`,
+or link, and at most three spaces of indent. Put a reason in words, not in code or paths.
 
 Then check and post, before pushing, so the next pass sees the lines:
 
@@ -77,12 +83,21 @@ python -m scripts.forge comment-upsert --pr <n> --author <login> --body-file <ne
 ```
 
 `check-body --edit-of` rejects a body whose pass number changed, or in which anything other than these
-three kinds of line was added, changed, or removed (a ticked box, a *Decision* line, an edited finding).
+three kinds of line was added, or any existing line was changed or removed (a ticked box, a *Decision*
+line, an edited finding, an earlier status line).
 
 ## Step 5 — Push and report
 
 `git push`, then print one row per finding: its number, its class, and its commit or reason. Stop
 without pushing when no finding was classified **fix**.
+
+## Unattended mode
+
+When the controller (`python -m scripts.forge fix-loop`) starts the round, it names two files in the
+prompt. Do Steps 1 to 3, then: write the new comment body to the file it names, with the Step 4 lines.
+Do not run `comment-upsert`, do not push, and do not touch GitHub. The controller then checks the
+paths your commits touched, checks the body with `check-body --edit-of`, posts it, and pushes. A round
+in which nothing was classified **fix** writes no body.
 
 ## Constraints
 

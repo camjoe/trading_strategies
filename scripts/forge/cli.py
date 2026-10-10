@@ -8,13 +8,16 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
 from common.git import get_repo_root, git_output
 from scripts.forge.base import Forge, ForgeError
+from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
+from scripts.forge.local import LocalGit, email_notifier, run_claude_agent
 from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
@@ -58,6 +61,16 @@ def build_parser() -> argparse.ArgumentParser:
     _add_ci_arguments(context)
     context.add_argument("--expect-sha", help="Fail if the pull request head is not this commit.")
     context.add_argument("--max-passes", type=int, help="Report pass_cap_reached once this many passes have run.")
+
+    loop = commands.add_parser(
+        "fix-loop", help="Run fixer rounds on a pull request until READY or the owner is needed."
+    )
+    loop.add_argument("--pr", type=int, required=True, help="Pull request number.")
+    _add_author_argument(loop)
+    loop.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
+    loop.add_argument(
+        "--wait-minutes", type=float, default=45, help="Minutes to wait for each review pass (default: 45)."
+    )
 
     ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
     ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
@@ -150,6 +163,26 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
     _print({"ok": True})
 
 
+def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
+    git = LocalGit()
+    git.require_clean_tree()
+    with tempfile.TemporaryDirectory(prefix="fix-loop-") as work_dir:
+        result = run_fix_loop(
+            forge,
+            git,
+            run_claude_agent,
+            email_notifier,
+            Path(work_dir),
+            args.pr,
+            args.author,
+            max_rounds=args.max_rounds,
+            wait_seconds=args.wait_minutes * 60,
+        )
+    print(result_as_json(result))
+    if result.outcome == "stopped":
+        raise ForgeError(result.detail)
+
+
 COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "pr-info": _pr_info,
     "comment-get": _comment_get,
@@ -157,6 +190,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "ci-status": _ci_status,
     "review-context": _review_context,
     "check-body": _check_body,
+    "fix-loop": _fix_loop,
 }
 
 

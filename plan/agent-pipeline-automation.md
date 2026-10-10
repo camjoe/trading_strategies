@@ -1,9 +1,10 @@
 # Plan: automated plan → PR → readiness → fix pipeline
 
 Status: in progress. Branch: `plan/agent-pipeline-automation` (PR #301). All twelve decisions are settled
-(see "Decisions"). Built and validated on this branch: the forge CLI (`scripts/forge/`) and the Stage 2
-reviewer workflow (`.github/workflows/pr-readiness.yml`). Not started: the fixer, the notification email,
-and plan pickup.
+(see "Decisions"). Built and validated on this branch: the forge CLI (`scripts/forge/`), the Stage 2
+reviewer workflow (`.github/workflows/pr-readiness.yml`), and the Stage 3 fixer skill, hand-run through two
+rounds to READY. Built but not yet run live: the unattended loop (`fix-loop`), the guarded-path check, and
+the notification email. Not started: plan pickup (Stage 1).
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -316,6 +317,32 @@ carries findings forward across passes (pass 3 closed 15 and reached READY). Its
 comment (a false positive on quoted path prefixes, since fixed) and posted nothing. About 1 USD of
 API-equivalent cost for a pass with reviewers, far less for a pass that re-verifies by hand. Still
 unobserved: a slow CI run against the new wait (unit-tested only).
+
+## Stage 3 build and hand-run results (2026-10-10, PR #301)
+Hand-run: two fixer rounds on this PR's own readiness comment reached READY (pass 7). Round 1 fixed one
+concern and four notes; round 2 fixed a new concern and two notes; the reviewer verified each fix with
+its sha, removed the `Fix attempted` lines, and carried `Not fixed` and `Left` lines forward. The fixer
+refused to edit a skill file (a guarded path) and recorded it. Each round's own fixes raised smaller
+findings, which is the shape the three-round cap expects.
+
+Skill gaps found and fixed with the owner's approval: partial fixes get two lines; an earlier attempt is
+found from the commit log, because the reviewer removes the line; a status line is plain ASCII text with
+no colon, slash, backtick, link, or bracket; an edit may only add lines.
+
+Built from it: `check-body --edit-of` (additions-only, plain-text status lines); `findings.py` (verdict and
+which open findings a fixer can still work); `guarded_paths.py` (broker, database, execution, risk, and
+runtime code from the review-scope rules, plus the forge tool, workflows, skills, `AGENTS.md`, ADRs,
+`.env*`, and `local/`); `fix_loop.py` (one round: agent, path check, body check, post, push, wait for the
+next pass; stops at READY, nothing left for a fixer, three rounds, or anything unexplained); `local.py`
+(real git, headless `claude`, email through the runtime alert settings); and the `fix-loop` command.
+The agent commits locally and writes a body to a file; the loop checks paths and body before it posts or
+pushes, the same split Stage 2 uses.
+
+Unverified: a live `fix-loop` run with a real `claude -p` session (including whether the tool-permission
+patterns match on Windows paths), and email delivery. The unattended run also needs a standing
+authorization in `AGENTS.md` for pushing to a pull request branch and editing the comment; the owner
+grants it. Decision 22 (status-line placement) was accepted by the owner; finding 21 (`comment-upsert`
+enforcing the edit rule itself) is still the owner's.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |

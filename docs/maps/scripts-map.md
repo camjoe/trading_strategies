@@ -48,6 +48,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
 | `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks; with `--wait`, polls until the same checks are seen twice |
+| `fix-loop --pr N [--max-rounds 3] [--wait-minutes 45]` | Runs fixer rounds on a pull request from the owner's machine until its comment says READY, only owner decisions are left, or the round cap is reached; emails the owner at the end |
 | `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
 | `check-body --body-file F [--previous-pass N \| --edit-of OLD] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text; with `--edit-of`, the pass must be unchanged and only status lines may be added to `OLD` |
 
@@ -57,6 +58,10 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `github.py` | GitHub adapter over the `gh` CLI |
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
 | `readiness.py` | Pass-number parsing and the pre-post checks on a comment body |
+| `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
+| `guarded_paths.py` | Paths an unattended fixer must never change |
+| `fix_loop.py` | The fixer loop: one round, its checks, the post and push, the wait for the next pass |
+| `local.py` | The owner's real git, headless `claude` runner, and email notifier behind the loop |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

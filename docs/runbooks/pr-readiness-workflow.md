@@ -63,6 +63,22 @@ gh variable set READINESS_SAVE_TRANSCRIPT --body true
 
 Re-run a failed pass from the Actions tab, or push a commit. A newer push cancels an older pass.
 
+## Running the fixer loop
+
+`python -m scripts.forge fix-loop --pr <n>` runs on your machine, not in GitHub. Start it from the pull
+request's branch with a clean working tree, signed in to `claude` and `gh`. Each round it:
+
+1. reads the readiness comment and stops if it says READY or nothing is left that a fixer can do;
+2. starts a headless `claude -p` session that follows the `fix-pr-readiness` skill, commits locally, and
+   writes a new comment body to a file (it may not push, reset, or use `gh`);
+3. undoes the round and stops if its commits touched a guarded path (`scripts/forge/guarded_paths.py`);
+4. refuses the new body unless it only adds status lines, then posts it and pushes;
+5. waits up to 45 minutes for the next review pass.
+
+It stops after three rounds. At the end it emails the pull request link, the verdict, and the open
+counts through the `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
+Run it only where you are comfortable with the agent editing files under your account.
+
 ## Pin and upgrade the agent
 
 The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it
