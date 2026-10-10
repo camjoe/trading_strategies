@@ -65,10 +65,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     check = commands.add_parser("check-body", help="Check a readiness comment body before it is posted.")
     check.add_argument("--body-file", required=True, help="File holding the comment body.")
-    check.add_argument("--previous-pass", type=int, help="Pass number of the comment being replaced.")
-    check.add_argument(
+    baseline = check.add_mutually_exclusive_group()
+    baseline.add_argument("--previous-pass", type=int, help="Pass number of the comment being replaced.")
+    baseline.add_argument(
         "--edit-of",
-        help="File holding the comment being edited: same pass, and only fixer status lines may differ.",
+        help="File holding the comment being edited: same pass, and only fixer status lines may be added.",
     )
     check.add_argument(
         "--forbid-env",
@@ -134,8 +135,14 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
         raise ForgeError("The agent did not write a comment body.")
     forbidden = [os.environ.get(name, "") for name in args.forbid_env]
     if args.edit_of:
-        old = Path(args.edit_of).read_text(encoding="utf-8")
-        problems = body_problems(body, pass_number(old), forbidden, same_pass=True) + fixer_edit_problems(old, body)
+        try:
+            old = Path(args.edit_of).read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            raise ForgeError(f"The comment being edited was not found: {args.edit_of}.") from exc
+        old_pass = pass_number(old)
+        if old_pass is None:
+            raise ForgeError("The comment being edited has no pass header.")
+        problems = body_problems(body, old_pass, forbidden, same_pass=True) + fixer_edit_problems(old, body)
     else:
         problems = body_problems(body, args.previous_pass, forbidden)
     if problems:

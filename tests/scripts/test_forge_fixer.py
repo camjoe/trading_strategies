@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts.forge.base import READINESS_MARKER
 from scripts.forge.cli import main
 from scripts.forge.readiness import body_problems, fixer_edit_problems
 from tests.scripts.test_forge import StubForge, readiness_body
@@ -124,3 +125,46 @@ class TestStatusLineForm:
         line = "  *Left: style only; `none_grace_seconds` is set by tests (see finding 18), outside this branch*\n"
 
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) == []
+
+
+class TestCheckBodyEditOfEdges:
+    def _files(self, tmp_path: Path, old_text: str, new_text: str) -> tuple[Path, Path]:
+        old, new = tmp_path / "old.md", tmp_path / "new.md"
+        old.write_text(old_text, encoding="utf-8")
+        new.write_text(new_text, encoding="utf-8")
+        return old, new
+
+    def test_a_forbidden_value_in_a_status_line_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("SPIKE_EDIT_VALUE", "s3cr3t-value")
+        old, new = self._files(
+            tmp_path, comment(FINDING, pass_no=2), comment(FINDING, "  *Left: s3cr3t-value*\n", pass_no=2)
+        )
+
+        argv = ["check-body", "--body-file", str(new), "--edit-of", str(old), "--forbid-env", "SPIKE_EDIT_VALUE"]
+
+        assert main(argv, StubForge()) == 1
+        assert "forbidden" in capsys.readouterr().err
+
+    def test_a_missing_edit_of_file_is_a_forge_error(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        _, new = self._files(tmp_path, "", comment(FINDING))
+
+        assert main(["check-body", "--body-file", str(new), "--edit-of", str(tmp_path / "gone.md")], StubForge()) == 1
+
+        assert "was not found" in capsys.readouterr().err
+
+    def test_an_old_comment_without_a_pass_header_is_a_forge_error(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        old, new = self._files(tmp_path, f"{READINESS_MARKER}\nno header\n", comment(FINDING))
+
+        assert main(["check-body", "--body-file", str(new), "--edit-of", str(old)], StubForge()) == 1
+
+        assert "no pass header" in capsys.readouterr().err
+
+    def test_previous_pass_and_edit_of_cannot_be_combined(self, tmp_path: Path) -> None:
+        old, new = self._files(tmp_path, comment(FINDING), comment(FINDING))
+
+        with pytest.raises(SystemExit):
+            main(["check-body", "--body-file", str(new), "--edit-of", str(old), "--previous-pass", "1"], StubForge())
