@@ -91,6 +91,7 @@ Current skill inventory:
 | Skill | Purpose |
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `fix-pr-readiness/` | Resolve a readiness comment's findings that need no decision: one commit each, every attempt recorded on the comment |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
@@ -118,6 +119,7 @@ Default to the most specific matching skill; work without one when nothing match
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Fix the findings in a PR's readiness comment | `fix-pr-readiness/` |
 | Independent review of a PR or another branch, read by ref | `code-review/` (Lenses, `lenses.md`) |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
@@ -242,3 +244,13 @@ branch.
   refs. Print the verified findings; do not fix them.
 - The standing authorization covers only the readiness comment on the current branch's own PR, so
   posting these findings to another PR needs the owner's yes.
+
+### `fix pr`
+
+Resolve the open findings in a pull request's readiness comment. Follow
+`.ai/skills/fix-pr-readiness/SKILL.md`.
+
+- `fix pr` — the current branch's pull request
+- `fix pr: <number>` — pull request `<number>`
+- Invoking it is what authorizes the commits, the push to the pull request branch, and the comment edit
+  the skill describes. An unattended run needs its own standing authorization above.

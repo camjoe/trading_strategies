@@ -99,6 +99,11 @@ against the base; if no earlier pass did (for example pass 1 stopped at the gate
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
 
+**Fixer lines.** A finding with `*Fix attempted: <sha>, awaiting verification*` is re-verified at the new
+HEAD: if the fix holds, tick the box and write `Fixed in <sha>`; if not, leave it open with "still open at
+<sha>". Remove the line either way. `*Not fixed: ...*` and `*Left: ...*` lines are copied forward
+unchanged unless you disagree, in which case remove the line and say why on the finding.
+
 ## Step 5 — Docs drift review
 
 The gate already enforces the mechanical docs checks. This step is judgment: use `docs/maps/docs-map.md`

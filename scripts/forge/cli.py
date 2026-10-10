@@ -15,7 +15,7 @@ from pathlib import Path
 from common.git import get_repo_root, git_output
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.github import GitHubForge
-from scripts.forge.readiness import body_problems
+from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
 
@@ -66,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
     check = commands.add_parser("check-body", help="Check a readiness comment body before it is posted.")
     check.add_argument("--body-file", required=True, help="File holding the comment body.")
     check.add_argument("--previous-pass", type=int, help="Pass number of the comment being replaced.")
+    check.add_argument(
+        "--edit-of",
+        help="File holding the comment being edited: same pass, and only fixer status lines may differ.",
+    )
     check.add_argument(
         "--forbid-env",
         action="append",
@@ -129,7 +133,11 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
     if not body.strip():
         raise ForgeError("The agent did not write a comment body.")
     forbidden = [os.environ.get(name, "") for name in args.forbid_env]
-    problems = body_problems(body, args.previous_pass, forbidden)
+    if args.edit_of:
+        old = Path(args.edit_of).read_text(encoding="utf-8")
+        problems = body_problems(body, pass_number(old), forbidden, same_pass=True) + fixer_edit_problems(old, body)
+    else:
+        problems = body_problems(body, args.previous_pass, forbidden)
     if problems:
         raise ForgeError(" ".join(problems))
     _print({"ok": True})

@@ -49,7 +49,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
 | `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks; with `--wait`, polls until the same checks are seen twice |
 | `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
-| `check-body --body-file F [--previous-pass N] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text |
+| `check-body --body-file F [--previous-pass N \| --edit-of OLD] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text; with `--edit-of`, the pass must be unchanged and only fixer status lines may differ from `OLD` |
 
 | Module | Responsibility |
 |---|---|
