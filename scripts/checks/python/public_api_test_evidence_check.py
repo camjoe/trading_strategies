@@ -7,7 +7,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from common.git import get_repo_root
+from common.git import changed_paths, diff_range, get_repo_root, git_output, run_git, untracked_paths
 
 SOURCE_ROOTS = (
     "scripts",
@@ -50,24 +50,7 @@ def _is_test_path(path: str) -> bool:
 
 
 def changed_files(repo_root: Path, base_ref: str | None = None) -> list[str]:
-    if base_ref:
-        command = ["git", "diff", "--name-only", f"{base_ref}...HEAD"]
-    else:
-        command = ["git", "diff", "--name-only", "HEAD"]
-    diff_completed = subprocess.run(command, cwd=repo_root, check=True, capture_output=True, text=True)
-    untracked_completed = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    paths = {
-        _normalize(line.strip())
-        for output in (diff_completed.stdout, untracked_completed.stdout)
-        for line in output.splitlines()
-        if line.strip()
-    }
+    paths = {_normalize(path) for path in (*changed_paths(repo_root, base_ref), *untracked_paths(repo_root))}
     return sorted(paths)
 
 
@@ -76,14 +59,10 @@ def changed_line_numbers(repo_root: Path, path: str, base_ref: str | None = None
     if not _is_tracked(repo_root, path) and absolute.is_file():
         return set(range(1, len(absolute.read_text(encoding="utf-8", errors="replace").splitlines()) + 1))
 
-    if base_ref:
-        command = ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", path]
-    else:
-        command = ["git", "diff", "--unified=0", "HEAD", "--", path]
-    completed = subprocess.run(command, cwd=repo_root, check=True, capture_output=True, text=True)
+    diff = git_output(repo_root, "diff", "--unified=0", *diff_range(base_ref), "--", path)
 
     lines: set[int] = set()
-    for diff_line in completed.stdout.splitlines():
+    for diff_line in diff.splitlines():
         match = HUNK_RE.search(diff_line)
         if not match:
             continue
@@ -96,13 +75,7 @@ def changed_line_numbers(repo_root: Path, path: str, base_ref: str | None = None
 
 
 def _is_tracked(repo_root: Path, path: str) -> bool:
-    completed = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", path],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-    )
-    return completed.returncode == 0
+    return run_git("ls-files", "--error-unmatch", path, cwd=str(repo_root)) is not None
 
 
 def _public_functions(tree: ast.Module) -> list[ChangedFunction]:

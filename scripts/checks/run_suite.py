@@ -40,7 +40,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common.git import get_repo_root
+from common.git import changed_paths, get_repo_root, git_output, split_nul
 from scripts.checks._runner import resolve_python_exe
 
 _EXCLUDED_DIRS = {"support", "__pycache__"}
@@ -71,34 +71,11 @@ def _git_changed_files(repo_root: Path, base_ref: str | None) -> list[str]:
     """Return a list of repo-relative changed file paths from git."""
     if base_ref:
         # Three-dot diff: all commits on current branch not on base_ref
-        cmd = ["git", "diff", "--name-only", f"{base_ref}...HEAD"]
-    else:
-        # All uncommitted changes: staged + unstaged
-        staged = subprocess.run(
-            ["git", "diff", "--name-only", "--cached"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-        unstaged = subprocess.run(
-            ["git", "diff", "--name-only"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-        files = set((staged + unstaged).splitlines())
-        return sorted(f for f in files if f)
-
-    result = subprocess.run(
-        cmd,
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [f for f in result.stdout.splitlines() if f]
+        return changed_paths(repo_root, base_ref)
+    # All uncommitted changes: staged + unstaged
+    staged = split_nul(git_output(repo_root, "diff", "--name-only", "-z", "--cached"))
+    unstaged = split_nul(git_output(repo_root, "diff", "--name-only", "-z"))
+    return sorted(set(staged + unstaged))
 
 
 def _best_suite_for_file(rel_path: str, tests_root: Path) -> str | None:

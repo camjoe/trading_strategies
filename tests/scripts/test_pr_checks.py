@@ -23,8 +23,8 @@ def _patch_checks(
 ) -> dict[str, object]:
     calls: dict[str, object] = {"quick": None, "docs": None}
 
-    monkeypatch.setattr(pr_checks, "changed_files", lambda repo_root, base_ref=None: diff)
-    monkeypatch.setattr(pr_checks, "uncommitted_files", lambda repo_root: uncommitted or [])
+    monkeypatch.setattr(pr_checks, "changed_paths", lambda repo_root, base_ref=None: diff)
+    monkeypatch.setattr(pr_checks, "uncommitted_paths", lambda repo_root: uncommitted or [])
     monkeypatch.setattr(pr_checks, "resolve_ref", lambda repo_root, ref: "abc1234")
 
     def fake_docs(**kwargs: object) -> int:
@@ -109,7 +109,7 @@ def test_run_pr_fails_without_running_checks_when_the_base_ref_is_unknown(monkey
     def unknown_ref(repo_root: Path, base_ref: str | None = None) -> list[str]:
         raise subprocess.CalledProcessError(128, ["git", "diff", "--name-only", f"{base_ref}...HEAD"])
 
-    monkeypatch.setattr(pr_checks, "changed_files", unknown_ref)
+    monkeypatch.setattr(pr_checks, "changed_paths", unknown_ref)
     ran: list[str] = []
     monkeypatch.setattr(pr_checks, "run_docs_check", lambda **kwargs: ran.append("docs") or 0)
     monkeypatch.setattr(pr_checks, "run_quick", lambda **kwargs: ran.append("quick") or 0)
@@ -142,24 +142,6 @@ def test_run_pr_warns_about_uncommitted_files_and_still_runs(monkeypatch, tmp_pa
     assert calls["quick"] is not None
 
 
-def test_uncommitted_files_lists_modified_and_untracked_files(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-b", "main", str(tmp_path)], check=True, capture_output=True)
-    (tmp_path / "tracked.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", "commit", "-m", "base"],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-    )
-    assert pr_checks.uncommitted_files(tmp_path) == []
-
-    (tmp_path / "tracked.py").write_text("x = 2\n", encoding="utf-8")
-    (tmp_path / "new.py").write_text("y = 1\n", encoding="utf-8")
-
-    assert sorted(pr_checks.uncommitted_files(tmp_path)) == ["new.py", "tracked.py"]
-
-
 def test_run_pr_prints_the_base_it_resolved(monkeypatch, tmp_path: Path, capsys) -> None:
     _patch_checks(monkeypatch, diff=["scripts/checks/pr.py"])
 
@@ -168,26 +150,14 @@ def test_run_pr_prints_the_base_it_resolved(monkeypatch, tmp_path: Path, capsys)
     assert "Targeting develop...HEAD (base abc1234)" in capsys.readouterr().out
 
 
-def test_uncommitted_files_returns_plain_paths_for_renames_spaces_and_non_ascii_names(tmp_path: Path) -> None:
-    _git(tmp_path, "init", "-b", "main", str(tmp_path))
-    (tmp_path / "old.py").write_text("x = 1\n" * 40, encoding="utf-8")
-    _git(tmp_path, "add", "-A")
-    _git(tmp_path, "commit", "-m", "base")
-    _git(tmp_path, "mv", "old.py", "new.py")
-    (tmp_path / "has space.py").write_text("z = 3\n", encoding="utf-8")
-    (tmp_path / "módulo.py").write_text("y = 2\n", encoding="utf-8")
-
-    assert sorted(pr_checks.uncommitted_files(tmp_path)) == ["has space.py", "módulo.py", "new.py"]
-
-
 def test_run_pr_reaches_the_branch_targeted_python_checks_and_the_frontend(monkeypatch, tmp_path: Path) -> None:
     import scripts.checks.quick as quick
 
     monkeypatch.setattr(
-        pr_checks, "changed_files", lambda repo_root, base_ref=None: ["apps/paper_trading_web/frontend/a.ts"]
+        pr_checks, "changed_paths", lambda repo_root, base_ref=None: ["apps/paper_trading_web/frontend/a.ts"]
     )
     monkeypatch.setattr(pr_checks, "resolve_ref", lambda repo_root, ref: "abc1234")
-    monkeypatch.setattr(pr_checks, "uncommitted_files", lambda repo_root: [])
+    monkeypatch.setattr(pr_checks, "uncommitted_paths", lambda repo_root: [])
     monkeypatch.setattr(pr_checks, "run_docs_check", lambda **kwargs: 0)
     seen: dict[str, object] = {}
     monkeypatch.setattr(quick, "run_repo_check", lambda **kwargs: 0)

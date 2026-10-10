@@ -3,10 +3,16 @@
 Everything here asks git a question about the repository the code is running
 from: where its root is, what revision is checked out, or an arbitrary command.
 
-All of it is best-effort by design. The repository may not be a checkout, git
+Most of it is best-effort by design. The repository may not be a checkout, git
 may not be installed, or a command may simply fail — so these degrade to
 ``None`` rather than raising, with the exception of :func:`get_repo_root`, whose
 callers cannot proceed without an answer.
+
+The strict helpers (:func:`git_output` and the path and ref helpers built on it)
+are for callers that must report a failed command: they raise
+``subprocess.CalledProcessError``. Path lists are read with ``-z`` and output is
+decoded as UTF-8, because git otherwise quotes non-ASCII names and the locale
+decides how the bytes are read.
 
 No domain dependencies; usable from any layer.
 """
@@ -78,3 +84,61 @@ def git_head_revision() -> str | None:
         return None
 
     return run_git("rev-parse", "HEAD", cwd=str(repo_root))
+
+
+def git_output(repo_root: Path | str, *args: str) -> str:
+    """Run ``git <args>`` in *repo_root* and return its stdout.
+
+    Raises ``subprocess.CalledProcessError`` when git exits non-zero.
+    """
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return completed.stdout
+
+
+def split_nul(output: str) -> list[str]:
+    """Split ``-z`` output into its non-empty entries."""
+    return [entry for entry in output.split("\0") if entry]
+
+
+def diff_range(base_ref: str | None, head_ref: str = "HEAD") -> list[str]:
+    """Revision arguments for a diff: ``base...head`` (changes on the branch), or ``HEAD`` with no base."""
+    return [f"{base_ref}...{head_ref}"] if base_ref else ["HEAD"]
+
+
+def changed_paths(repo_root: Path | str, base_ref: str | None = None, head_ref: str = "HEAD") -> list[str]:
+    """Paths changed by ``base...head``, or by the working tree against ``HEAD`` with no base."""
+    return split_nul(git_output(repo_root, "diff", "--name-only", "-z", *diff_range(base_ref, head_ref)))
+
+
+def untracked_paths(repo_root: Path | str) -> list[str]:
+    """Untracked files that git does not ignore."""
+    return split_nul(git_output(repo_root, "ls-files", "--others", "--exclude-standard", "-z"))
+
+
+def uncommitted_paths(repo_root: Path | str) -> list[str]:
+    """Tracked files with uncommitted changes, plus untracked files git does not ignore."""
+    tokens = git_output(repo_root, "status", "--porcelain", "-z").split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(tokens):
+        entry = tokens[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        paths.append(entry[3:])
+        if entry[0] in "RC" or entry[1] in "RC":
+            index += 1  # a rename or copy is followed by its old path
+    return paths
+
+
+def resolve_ref(repo_root: Path | str, ref: str) -> str:
+    """The abbreviated commit a ref points at."""
+    return git_output(repo_root, "rev-parse", "--short", ref).strip()

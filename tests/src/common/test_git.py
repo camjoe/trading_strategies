@@ -205,3 +205,102 @@ class TestGitHeadRevision:
         git.git_head_revision()
 
         assert seen == [(("rev-parse", "HEAD"), str(Path("/repo")))]
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(tmp_path, "init", "-b", "main", str(repo))
+    (repo / "old.py").write_text("x = 1\n" * 40, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    return repo
+
+
+class TestStrictHelpers:
+    def test_git_output_returns_stdout(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+
+        assert git.git_output(repo, "log", "--format=%s") == "base\n"
+
+    def test_git_output_raises_when_git_fails(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            git.git_output(repo, "rev-parse", "no-such-ref")
+
+        assert raised.value.returncode != 0
+        assert "no-such-ref" in " ".join(raised.value.cmd)
+
+    def test_split_nul_drops_empty_entries(self) -> None:
+        assert git.split_nul("a.py\0b c.py\0") == ["a.py", "b c.py"]
+        assert git.split_nul("") == []
+
+    def test_diff_range_is_three_dot_with_a_base_and_head_without(self) -> None:
+        assert git.diff_range("develop") == ["develop...HEAD"]
+        assert git.diff_range("develop", "feature") == ["develop...feature"]
+        assert git.diff_range(None) == ["HEAD"]
+
+    def test_changed_paths_returns_unquoted_names_for_branch_changes(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _git(repo, "checkout", "-b", "feature")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+        (repo / "has space.py").write_text("z = 3\n", encoding="utf-8")
+        _git(repo, "mv", "old.py", "new.py")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "change")
+
+        assert sorted(git.changed_paths(repo, "main")) == ["has space.py", "módulo.py", "new.py"]
+
+    def test_changed_paths_reads_a_ref_that_is_not_checked_out(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _git(repo, "checkout", "-b", "feature")
+        (repo / "added.py").write_text("y = 2\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "change")
+        _git(repo, "checkout", "main")
+
+        assert git.changed_paths(repo, "main", "feature") == ["added.py"]
+
+    def test_changed_paths_without_a_base_diffs_the_working_tree_against_head(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / "old.py").write_text("x = 2\n", encoding="utf-8")
+
+        assert git.changed_paths(repo) == ["old.py"]
+
+    def test_untracked_paths_lists_files_git_does_not_ignore(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
+        _git(repo, "add", ".gitignore")
+        (repo / "ignored.txt").write_text("i\n", encoding="utf-8")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+
+        assert git.untracked_paths(repo) == ["módulo.py"]
+
+    def test_uncommitted_paths_returns_plain_paths_for_renames_spaces_and_non_ascii_names(
+        self, tmp_path: Path
+    ) -> None:
+        repo = _repo(tmp_path)
+        assert git.uncommitted_paths(repo) == []
+
+        _git(repo, "mv", "old.py", "new.py")
+        (repo / "has space.py").write_text("z = 3\n", encoding="utf-8")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+
+        assert sorted(git.uncommitted_paths(repo)) == ["has space.py", "módulo.py", "new.py"]
+
+    def test_resolve_ref_returns_the_abbreviated_commit(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        head = git.git_output(repo, "rev-parse", "HEAD").strip()
+
+        assert head.startswith(git.resolve_ref(repo, "main"))
+        assert 4 <= len(git.resolve_ref(repo, "main")) < len(head)

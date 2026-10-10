@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
+from common.git import changed_paths
 from scripts.checks.repo.review_scope_check import (
     LARGE_DIFF_LINES,
     NOTE_RULES,
     SCOPE_RULES,
     _numstat_entries,
-    changed_files,
     classify_paths,
     diff_stats,
     parse_args,
@@ -326,7 +326,7 @@ def test_a_renamed_documentation_file_that_becomes_code_counts_its_changed_lines
 def test_non_ascii_paths_are_classified_and_detected_as_new_modules(tmp_path: Path) -> None:
     repo = _commit_branch(tmp_path, {"src/infrastructure/brokers/módulo.py": "x = 1\n"})
 
-    assert changed_files(repo, base_ref="main", head_ref="change") == ["src/infrastructure/brokers/módulo.py"]
+    assert changed_paths(repo, base_ref="main", head_ref="change") == ["src/infrastructure/brokers/módulo.py"]
     assert diff_stats(repo, base_ref="main", head_ref="change")[1] == ["src/infrastructure/brokers/módulo.py"]
 
 

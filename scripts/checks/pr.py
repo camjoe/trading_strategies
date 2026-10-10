@@ -4,11 +4,10 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from common.git import get_repo_root
+from common.git import changed_paths, get_repo_root, resolve_ref, uncommitted_paths
 from scripts.checks._runner import CheckStep, resolve_python_exe, run_check_steps
 from scripts.checks.docs.docs_check import run_docs_check
 from scripts.checks.quick import run_quick
-from scripts.checks.repo.review_scope_check import changed_files
 
 DEFAULT_BASE_REF = "develop"
 
@@ -29,38 +28,6 @@ def touches_frontend(paths: list[str]) -> bool:
     return any(path.replace("\\", "/").startswith(FRONTEND_PATHS) for path in paths)
 
 
-def uncommitted_files(repo_root: Path) -> list[str]:
-    """Tracked files with uncommitted changes, plus untracked files git does not ignore."""
-    completed = subprocess.run(
-        ["git", "status", "--porcelain", "-z"],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    tokens = completed.stdout.split("\0")
-    paths: list[str] = []
-    index = 0
-    while index < len(tokens):
-        entry = tokens[index]
-        index += 1
-        if len(entry) < 4:
-            continue
-        paths.append(entry[3:])
-        if entry[0] in "RC" or entry[1] in "RC":
-            index += 1  # a rename or copy is followed by its old path
-    return paths
-
-
-def resolve_ref(repo_root: Path, ref: str) -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "--short", ref], cwd=repo_root, check=True, capture_output=True, text=True
-    )
-    return completed.stdout.strip()
-
-
 def run_pr(
     repo_root: Path,
     python_exe: str,
@@ -73,9 +40,9 @@ def run_pr(
     Targeting reads the committed diff ``base...HEAD``; uncommitted edits are not seen.
     """
     try:
-        with_frontend = touches_frontend(changed_files(repo_root, base_ref=base_ref))
+        with_frontend = touches_frontend(changed_paths(repo_root, base_ref=base_ref))
         base_sha = resolve_ref(repo_root, base_ref)
-        uncommitted = uncommitted_files(repo_root)
+        uncommitted = uncommitted_paths(repo_root)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode

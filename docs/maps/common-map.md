@@ -20,7 +20,7 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | `constants.py` | Shared cross-module constants (annualization factor, basis-points divisor, settlement ticker, money/quantity minor-unit scales, …) |
 | `money.py` | Pure scale conversion between a `Decimal` and integer minor units (`to_minor_units`, `from_minor_units`, `truncate_to_scale`) with one swappable rounding policy |
 | `files.py` | Generic file metadata helpers (`modified_at_utc`, `modified_at_iso`, `sorted_by_mtime_desc`, `latest_by_mtime`) |
-| `git.py` | Best-effort git interrogation of the checkout — arbitrary commands (`run_git`), repo-root discovery (`get_repo_root`), and HEAD revision for provenance (`git_head_revision`) |
+| `git.py` | Git interrogation of the checkout — best-effort commands (`run_git`), repo-root discovery (`get_repo_root`), HEAD revision for provenance (`git_head_revision`), and strict helpers that raise on failure (`git_output`, `changed_paths`, `untracked_paths`, `uncommitted_paths`, `resolve_ref`) reading `-z` paths as UTF-8 |
 | `logging_setup.py` | Central stdlib-logging config for runtime jobs (`configure_logging`), a per-run correlation id (`bind_run_id`/`resolve_run_id`/`current_run_id`), and a WARNING+ tally (`log_counts`) |
 | `paths.py` | Repo-relative path constants (`REPO_ROOT`, `LOCAL_DIR`, `LOGS_DIR`, …) and path display formatting (`relative_posix`) |
 | `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
