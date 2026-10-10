@@ -69,5 +69,6 @@ def load_ticker_categories(file_path: str) -> dict[str, list[str]]:
 
 
 def filter_tickers_by_prefix(tickers: list[str], prefix: str) -> list[str]:
-    """Return the tickers that start with ``prefix``, keeping their order."""
-    return [t for t in tickers if t.startswith(prefix)]
+    """Return the tickers that start with ``prefix`` (case-insensitive), keeping their order."""
+    normalized = prefix.strip().upper()
+    return [t for t in tickers if t.startswith(normalized)]

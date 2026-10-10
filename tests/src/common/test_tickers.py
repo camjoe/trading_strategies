@@ -88,5 +88,14 @@ class TestLoadTickerCategories:
 
 
 class TestFilterTickersByPrefix:
-    def test_keeps_matching_tickers_in_order(self) -> None:
-        assert filter_tickers_by_prefix(["AAPL", "AMZN", "MSFT"], "A") == ["AAPL", "AMZN"]
+    def test_keeps_matching_tickers_in_input_order(self) -> None:
+        assert filter_tickers_by_prefix(["MSFT", "AMZN", "AAPL"], "A") == ["AMZN", "AAPL"]
+
+    def test_prefix_match_is_case_insensitive(self) -> None:
+        assert filter_tickers_by_prefix(["AAPL", "MSFT"], "a") == ["AAPL"]
+
+    def test_empty_prefix_keeps_every_ticker(self) -> None:
+        assert filter_tickers_by_prefix(["AAPL", "MSFT"], "") == ["AAPL", "MSFT"]
+
+    def test_no_match_returns_empty_list(self) -> None:
+        assert filter_tickers_by_prefix(["AAPL", "MSFT"], "Z") == []
