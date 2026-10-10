@@ -1,8 +1,7 @@
 # Plan: automated plan → PR → readiness → fix pipeline
 
 Status: drafted 2026-10-10, under discussion. Nothing built. Branch: `plan/agent-pipeline-automation`.
-Decisions 1-5, 8, 9, 12 are settled (see "Decisions"); 6, 7, 10, 11 are to be re-asked after the
-owner reviews the current text. Edit this file until they are closed.
+All twelve decisions are settled (see "Decisions"). Next: Phase 0 verification spike before building.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -128,6 +127,9 @@ agent judgment:
 - DB migrations
 - anything touching the public/private strategy classification rule in `AGENTS.md`
 - the pipeline's own files (workflows, this skill set, the standing authorizations)
+- credential handling: `.env*` files and any code that reads secrets
+- the runtime schedule and job inventory (they change what runs unattended)
+- `docs/adr/` (accepted decisions are the owner's to change)
 
 ## Tool independence
 The pipeline's logic must not depend on GitHub. Three layers, only the bottom one platform-specific:
@@ -279,14 +281,16 @@ Settled by the owner, 2026-10-10:
 9. Email also when the loop stops with only needs-decision findings (or a cap, or a red gate).
 12. Review only after the PR leaves draft; email when ready. The reviewer skips drafts.
 
-To re-ask after the owner reviews this text:
-- 6. Is the forced needs-decision path list complete? (Proposed additions: `.env*` and credential
-  handling, the runtime schedule and job inventory, `docs/adr/`.)
-- 7. Email delivery: local job polling PR state (SMTP stays on the host), or repository secrets and a
-  workflow step?
-- 10. Is "easy or simply beneficial, within the branch's touched scope" the right bar for the
-  fixer's notes, or should it also take follow-ups?
-- 11. Forge interface as a CLI in `scripts/forge` (recommended) or an MCP server?
+Settled by the owner, 2026-10-10 (second round):
+6. Forced needs-decision paths: the four originals plus credential handling, the runtime schedule and
+   job inventory, and `docs/adr/` (all listed under "Forced needs-decision paths").
+7. Email delivery: a local job polls PR state; SMTP settings stay on the host. Consequence: the email
+   waits if the owner's machine is off.
+10. The fixer takes notes that are easy or simply beneficial within the branch's touched scope, and
+    leaves the rest with a reason. It does not take follow-ups.
+11. The forge interface is a CLI (`scripts/forge`), not an MCP server. "Forge" is the generic term
+    for a code-hosting platform (GitHub, GitLab, Gitea); the CLI is our wrapper over whichever one is
+    in use. Its name can change if "forge" proves confusing.
 
 Open consequence of 8 and 12 together: the owner learns of a PR only at the READY or stopped email,
 not at PR creation. If that is too quiet, add a "PR opened" email.
