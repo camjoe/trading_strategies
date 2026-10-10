@@ -45,10 +45,15 @@ plan/foo.md -> [1 Implement] -> PR (draft) -> [2 pr ready] -> comment
 ### Stage 2: reviewer (`pr ready`)
 - A fresh session that never saw the implementer's reasoning. This independence is the point.
 - Triggered by GitHub on PR events, not by the implementer.
-- Runs on draft PRs too, and creates or edits the readiness comment on the draft. Confirmed from the
-  skill ("Open the PR as a draft early so the comment has a home"; `gh pr comment` works on drafts).
-  The workflow must not skip drafts: `ci.yml`'s bare `pull_request` trigger already fires on drafts,
-  and the new workflow must do the same (no `if: !github.event.pull_request.draft`).
+- Runs on draft PRs too, and creates or edits the readiness comment on the draft. The skill already
+  expects this ("Open the PR as a draft early so the comment has a home"). The workflow must not
+  skip drafts: `ci.yml`'s bare `pull_request` trigger fires on drafts, and the new workflow must do
+  the same (no `if: !github.event.pull_request.draft`).
+- **Conflict found in the docs (2026-10-10, see "Verified vs unverified")**: the official GitHub
+  action reportedly skips draft and closed PRs. Whether that applies when the action is given an
+  explicit prompt is unconfirmed. If it does, the reviewer step runs the CLI directly
+  (`claude -p`, non-interactive) instead of through the action; the draft behavior then belongs to
+  our own workflow condition.
 - Writes the existing readiness comment, changed only as "Comment changes" below says.
 
 ### Stage 3: fixer
@@ -114,11 +119,85 @@ agent judgment:
 - anything touching the public/private strategy classification rule in `AGENTS.md`
 - the pipeline's own files (workflows, this skill set, the standing authorizations)
 
+## Tool independence
+The pipeline's logic must not depend on GitHub. Three layers, only the bottom one platform-specific:
+
+1. **Policy and behavior** (platform-neutral): the skills in `.ai/skills/`, the readiness comment
+   format and its `<!-- pr-readiness -->` marker, the fixer rules, the stop conditions, the forced
+   needs-decision paths. These say "pull request", "draft", "readiness comment", never `gh`.
+2. **A forge interface** (platform-neutral surface, one adapter per platform): the only code that
+   knows how to talk to the host. Proposed as a small CLI in `scripts/`, e.g.
+   `python -m scripts.forge <operation>`, with a GitHub adapter first and room for GitLab or others.
+   Operations the pipeline needs:
+   - `pr-info`: number, base, head ref and sha, draft flag, state, URL
+   - `list-prs`: open PRs, optionally only drafts or only ones lacking a readiness comment
+   - `comment-get` / `comment-upsert`: the marker-tagged comment, found by marker
+   - `ci-status <sha>`: pass, fail, or pending per check, for that commit
+   - `set-ready` / `set-draft`, `add-label`
+   - `open-pr`
+   The skills call these instead of `gh`. Today `check-pr-readiness/SKILL.md` calls `gh pr view`,
+   `gh run list`, `gh pr checks`, and `gh api .../issues/<n>/comments` directly; those move behind
+   the interface.
+3. **Triggers and runners** (platform-specific, thin): a workflow file that fires on PR events and
+   runs one command (for example `python -m scripts.pipeline review --pr <n>`). Everything else is
+   behind that command. Moving to another forge means rewriting this file and writing one adapter.
+
+The notification email (above) is already platform-neutral because it uses the runtime SMTP settings.
+The agent runner is the same idea: the prompt is "run `pr ready`", whether that is started by an
+Actions step, a GitLab job, or a local scheduler.
+
+### MCP server or CLI for the forge interface?
+An MCP server would work, but the benefit that matters is not MCP-specific:
+- **Narrow, auditable permissions.** An agent with `gh` or a shell can do anything the token allows.
+  A fixed set of operations (`comment-upsert` only on the marker comment, no merge, no other
+  comments) turns the standing authorization into something the tool enforces. A CLI with an allowed-tools
+  rule such as `Bash(python -m scripts.forge:*)` gives the same narrowing.
+- **Platform independence.** Same either way.
+- **MCP's extra value** is use from clients that cannot shell out, or sharing one server across
+  tools. This repo's agents run commands, so it adds a server to build, run, authenticate, and keep
+  alive for little gain.
+- Recommendation: build the CLI with unit tests under `tests/`, matching the repo's `scripts/`
+  conventions. Revisit an MCP wrapper only if a client needs it. Unverified: how well the
+  allowed-tools restriction holds when the agent can still reach the shell directly; the CLI narrows
+  the instructions, but a separately scoped token is the real enforcement.
+
+## Verified vs unverified
+A docs check on 2026-10-10 (by a research subagent, summarized; its report footer carried a wrong
+fetch date, so recheck details against the live docs before building):
+
+| Claim | Status |
+|---|---|
+| `anthropics/claude-code-action` supports `pull_request` (opened, synchronize, ready_for_review, reopened), `issue_comment`, `schedule` | reported, recheck |
+| The action skips draft and closed PRs | reported; applies with an explicit prompt? **unconfirmed** |
+| Same-repo PRs work; fork PRs get no secrets | reported |
+| Subscription auth: `claude setup-token` (one-year OAuth token) passed as `claude_code_oauth_token` | reported supported for Pro, Max, Team, Enterprise |
+| Subscription token does not work with `--bare` | reported |
+| Normal (non-bare) mode loads `CLAUDE.md`, `.ai/skills/`, and subagents, so lens reviewers can run | reported |
+| Subscription usage limits and how CI runs share them with interactive use | **not documented**; inference only |
+| GitLab integration is beta, authenticates by API key, Bedrock, or Vertex (no subscription token listed), and mention triggers need a webhook listener | reported |
+| Claude Code on the web scheduled routines need a claude.ai login and suit scheduled work, not PR events | reported |
+
+Everything marked reported or unconfirmed is verified by a small spike before Phase 2 is built:
+a throwaway workflow on a test draft PR that runs the reviewer step both ways (through the action,
+and as a direct CLI call) and records what posts, what is skipped, and what it costs.
+
 ## Triggering: where each stage runs (proposal, not decided)
 | Stage | Runs | Why |
 |---|---|---|
 | 2 reviewer | GitHub Actions on `pull_request` (opened, synchronize, ready_for_review) | Independent, fires for every PR, read-mostly token |
 | 1 implementer, 3 fixer | Locally or as a scheduled task | Needs `.venv`, Windows paths, DB fixtures; no broker secrets in CI |
+
+### Authentication for the agent runs
+| Option | Billing and limits | Where it works |
+|---|---|---|
+| `ANTHROPIC_API_KEY` repository secret | Per token, separate from the subscription. Predictable cost, no effect on interactive use. | Actions, headless, `--bare` |
+| Subscription OAuth token (`claude setup-token`, one year) | Draws on the plan's usage limits. Unverified: whether CI runs share the window with interactive sessions (assumed yes). A busy review loop could crowd out interactive work. | Actions, headless `claude -p`; not `--bare` |
+| Bedrock, Vertex, Foundry | Cloud billing, OIDC with no static key | Actions, headless |
+
+Both API key and subscription token are first-class options, so a subscription is not a blocker. A
+token is a long-lived credential in a public repo's secrets: scope it to the reviewer job, rotate at
+expiry, and keep it out of fork-triggered runs. Unverified: whether the plan's terms allow
+automated CI use at this volume; check the current terms before relying on it.
 
 GitHub constraints to design around (general GitHub behavior; not yet checked against this repo):
 - A PR or push made with the default `GITHUB_TOKEN` does not trigger other workflows. Either the
@@ -157,10 +236,16 @@ decide each of these in `AGENTS.md`, because none is covered today:
 Merging stays out.
 
 ## Phases
+0. **Verification spike** (see "Verified vs unverified"): draft-PR behavior of the action vs a direct
+   CLI call, subscription token in Actions, subagents and skills in the runner, and cost per review.
+   Nothing else is built until this is read.
+0b. **Forge interface.** The `scripts/forge` CLI and GitHub adapter, with tests; point the readiness
+   skill at it instead of raw `gh`.
 1. **Hand-run Stage 3.** Take a real PR's readiness comment and run a fixer prompt by hand. Learn
    whether the comment is parseable and where the fixer stalls. Cheapest, no infrastructure.
 2. **Stage 2 trigger.** Workflow running `pr ready` on PR events with the controls above.
-   Unverified: whether the lens reviewers (which spawn subagents) run inside the chosen action.
+   Unverified: whether the lens reviewers (which spawn subagents) run inside the chosen runner;
+   the docs reportedly say subagents work outside `--bare` (settled by the Phase 0 spike).
 3. **Fixer loop** with the cap, the forced-decision path check, the stop conditions, the *Fix
    attempted* comment lines, and note handling.
 3b. **Notification email** on draft to ready and first READY.
@@ -169,8 +254,8 @@ Merging stays out.
 
 ## Decisions needed
 1. Where does Stage 2 run: GitHub Actions, or a local scheduled task polling for new PRs?
-2. Is there an Anthropic API key and a per-month budget for CI runs? A multi-lens review per push is
-   the cost driver.
+2. API key (per-token billing) or subscription OAuth token (plan limits, possibly shared with
+   interactive use)? What monthly budget? A multi-lens review per push is the cost driver.
 3. Who opens the PR and pushes: the owner's login (triggers workflows) or a GitHub App?
 4. Fix-round cap: 3?
 5. Should plan pickup ever be automatic, or always an explicit instruction?
@@ -183,6 +268,10 @@ Merging stays out.
 9. Also email when the loop stops with only needs-decision findings? Not requested; proposed.
 10. Notes the fixer leaves: is "easy or simply beneficial, within the branch's touched scope" the
     right bar, or should it also take follow-ups?
+11. Forge interface as a CLI in `scripts/forge` (recommended), or an MCP server?
+12. Draft-skip fallback: if the action skips drafts, run the reviewer as a direct CLI call (keeps
+    review on drafts), or review only once the PR is ready (simpler, but the loop then starts after
+    the owner's draft-to-ready step)?
 
 ## Not in scope
 - Auto-merge. Merging is the owner's.
