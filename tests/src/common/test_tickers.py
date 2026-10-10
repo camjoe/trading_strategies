@@ -99,3 +99,6 @@ class TestFilterTickersByPrefix:
 
     def test_no_match_returns_empty_list(self) -> None:
         assert filter_tickers_by_prefix(["AAPL", "MSFT"], "Z") == []
+
+    def test_surrounding_whitespace_in_prefix_is_ignored(self) -> None:
+        assert filter_tickers_by_prefix(["AAPL"], " a ") == ["AAPL"]

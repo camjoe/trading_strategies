@@ -102,6 +102,20 @@ jobs:
           and post or edit the single <!-- pr-readiness --> comment on this PR as Step 6 describes.
           If a step cannot run in this environment, say which step and why instead of skipping it.
           EOF
+          prev="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate             --jq '.[] | select(.body | startswith("<!-- pr-readiness -->")) | .body')"
+          if [ -n "$prev" ]; then
+            {
+              echo
+              echo "This is a LATER PASS. The previous readiness comment is below. Follow Step 4 (Later"
+              echo "passes) and Step 6 exactly: edit this same comment, increment the pass number, keep"
+              echo "every finding number, re-verify each open finding at the new HEAD, carry closed"
+              echo "findings forward as checked one-liners, copy every Decision line unchanged, and give"
+              echo "a reason for any finding you stop listing. Do not renumber."
+              echo
+              echo "PREVIOUS COMMENT:"
+              echo "$prev"
+            } >> "$RUNNER_TEMP/review.txt"
+          fi
           claude -p "$(cat "$RUNNER_TEMP/review.txt")" \
             --output-format json \
             --allowedTools "$ALLOWED_TOOLS" \
