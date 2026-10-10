@@ -1,29 +1,26 @@
 from __future__ import annotations
 
 import json
-
 from unittest.mock import Mock
 
-from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
+import pytest
+
+import trading.services.auto_trading.runtime as runtime_service
+from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
+from tests.support.books import latest_rotation_decision
+from trading.models.evaluation import EvaluationBacktestEvidence, EvaluationConfidence, StrategyEvaluationArtifact
+from trading.models.execution import BookTradeCandidate
+from trading.models.market_data import MarketInputs
+from trading.models.orders import BrokerOrder, OrderFill, OrderStatus
+from trading.persistence.money_columns import decode_quantity
 from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
-from trading.models.evaluation import (
-    EvaluationBacktestEvidence,
-    EvaluationConfidence,
-    StrategyEvaluationArtifact,
-)
-from trading.models.orders.broker_order import OrderFill, OrderStatus
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.auto_trading.runtime import run_for_account
-import trading.services.auto_trading.runtime as runtime_service
-from trading.services.operational_settings import set_runtime_throttle_settings
-from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
-from tests.support.repositories import insert_repository_account
-from tests.support.books import insert_test_book
 from trading.services.books.book_assignments import open_assignment_for_book
+from trading.services.operational_settings.mutations import set_runtime_throttle_settings
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 
@@ -41,12 +38,12 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
         )
 
     monkeypatch.setattr(
-        "trading.services.evaluation.fetch_strategy_evaluation_for_account_row",
+        "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row",
         _fake_fetch,
     )
 
 
-def _make_buy_intent(*, account_id: int, book_id: int, qty: int = 1) -> BookTradeCandidate:
+def _make_buy_intent(*, account_id: int, book_id: int, qty: float = 1) -> BookTradeCandidate:
     return BookTradeCandidate(
         account_id=account_id,
         book_id=book_id,
@@ -82,7 +79,7 @@ def _patch_runtime_book_execution(
     *,
     now_iso: str = DEFAULT_RUNTIME_NOW_ISO,
 ) -> None:
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: now_iso)
 
 
@@ -119,21 +116,19 @@ def test_run_for_account_book_mode_applies_rotation_before_intent_generation(
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     assert captured["active_strategy"] == "meanrev"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
+    latest_decision = latest_rotation_decision(conn, book_id)
     assert latest_decision is not None
-    assert latest_decision["rotation_action"] == "rotate"
-    assert latest_decision["selected_strategy"] == "meanrev"
+    assert latest_decision.rotation_action == "rotate"
+    assert latest_decision.selected_strategy == "meanrev"
 
 
 def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env, conn, monkeypatch) -> None:
@@ -168,22 +163,20 @@ def test_run_for_account_book_mode_respects_rotation_cooldown(rotation_book_env,
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     assert captured["active_strategy"] == "trend"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
+    latest_decision = latest_rotation_decision(conn, book_id)
     assert latest_decision is not None
-    assert latest_decision["rotation_action"] == "hold"
-    assert latest_decision["decision_reason"] == "cooldown_active"
-    assert int(latest_decision["cooldown_active"]) == 1
+    assert latest_decision.rotation_action == "hold"
+    assert latest_decision.decision_reason == "cooldown_active"
+    assert latest_decision.cooldown_active == 1
 
 
 def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, monkeypatch) -> None:
@@ -199,16 +192,14 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     # The book submits through the shared service onto its bridging book's clean tables.
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
@@ -268,6 +259,41 @@ def test_run_for_account_book_mode_submits_and_persists_orders(book_env, conn, m
     broker.disconnect.assert_called_once()
 
 
+def test_run_for_account_book_mode_submits_a_fractional_equity_buy(book_env, conn, monkeypatch) -> None:
+    # An equity book trades fractional shares. The pre-submit gate must not truncate
+    # the intent to a whole share, so a 0.5-share buy persists at 0.5, not 0 (blocked).
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
+    broker = FakeBroker()
+
+    _patch_runtime_book_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_book_trade_intents",
+        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, book_id=book_id, qty=0.5)],
+    )
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
+        max_trades=1,
+        fee=0.0,
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
+    )
+
+    assert executed.submitted_count == 1
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert float(orders[0].qty) == pytest.approx(0.5)
+    position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+    assert position is not None
+    assert float(position.qty) == pytest.approx(0.5)
+
+
 def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkeypatch) -> None:
     # The global trade throttle (operational settings) gates the book path:
     # a hit day cap blocks submission and records a risk decision.
@@ -301,16 +327,14 @@ def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkey
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     broker.disconnect.assert_called_once()
     throttle_rows = conn.execute(
@@ -333,24 +357,23 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     broker.place_order.assert_called_once()
     broker_order = broker.place_order.call_args.args[0]
-    assert broker_order.qty == 2.0
+    # The equity book trades fractional shares: the 250 notional cap rescales the
+    # 5-share intent to the exact 2.5 shares the cap funds, not a floored 2.
+    assert broker_order.qty == pytest.approx(2.5)
 
-    # The notional cap rescaled the intent from 5 to 2 shares before submission.
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
-    assert float(orders[0].qty) == 2.0
+    assert float(orders[0].qty) == pytest.approx(2.5)
     rescale_row = conn.execute(
         """
         SELECT action, reason_code, requested_qty, approved_qty
@@ -364,8 +387,8 @@ def test_run_for_account_book_mode_applies_risk_rescale_before_submit(book_env, 
     assert rescale_row is not None
     assert rescale_row["action"] == "rescale"
     assert rescale_row["reason_code"] == "book_notional_cap"
-    assert int(rescale_row["requested_qty"]) == 5
-    assert int(rescale_row["approved_qty"]) == 2
+    assert int(decode_quantity(rescale_row["requested_qty"])) == 5
+    assert float(decode_quantity(rescale_row["approved_qty"])) == pytest.approx(2.5)
 
 
 def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(book_env, conn, monkeypatch) -> None:
@@ -381,16 +404,14 @@ def test_run_for_account_book_mode_kill_switch_stale_price_blocks_submission(boo
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 0.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 0.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -428,16 +449,14 @@ def test_run_for_account_book_mode_kill_switch_reconciliation_mismatch(book_env,
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -485,16 +504,14 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
@@ -503,8 +520,16 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     assert int(row["kill_switch_triggered"]) == 1
     payload = json.loads(row["risk_payload_json"])
     assert "broker_api_anomaly" in payload["kill_switch_reasons"]
-    # The broker raised before any order was persisted → no clean order row.
-    assert OrderRepository(conn).fetch_for_book(book_id=book_id) == []
+    # The row is written before the send, so a broker that raises leaves a pending
+    # order behind rather than nothing. That is the point: the send may still have
+    # reached IB, and the client order id is what lets reconciliation find out.
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert orders[0].status == "pending"
+    assert orders[0].broker_order_id is None
+    assert orders[0].client_order_id is not None
+    # It is not a submission: a sent-but-unconfirmed order has executed nothing.
+    assert executed.submitted_count == 0
     decision_row = conn.execute(
         """
         SELECT action, reason_code
@@ -519,53 +544,6 @@ def test_run_for_account_book_mode_kill_switch_broker_anomaly(book_env, conn, mo
     assert decision_row["action"] == "block"
     assert decision_row["reason_code"] == "broker_api_anomaly"
     assert broker.disconnect_calls == 1
-
-
-def test_run_for_account_book_mode_kill_switch_stale_reconciliation_snapshot(conn, monkeypatch) -> None:
-    account_id = insert_repository_account(conn, name="acct_book")
-    book_id = insert_test_book(
-        conn,
-        account_id=account_id,
-        start_equity=1_000.0,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
-        snapshot_time="2026-05-01T00:00:00Z",
-        cash=1_000.0,
-        market_value=0.0,
-        equity=1_000.0,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
-
-    broker = FakeBroker()
-    _patch_runtime_book_execution(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
-
-    executed = run_for_account(
-        conn,
-        account_name="acct_book",
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
-        max_trades=1,
-        fee=0.0,
-        broker_factory=lambda _, b=broker: b,
-        feature_fetchers=make_feature_fetchers(),
-    )
-
-    assert executed == 0
-    broker.place_order.assert_not_called()
-    row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
-        (account_id,),
-    ).fetchone()
-    assert row is not None
-    assert int(row["kill_switch_triggered"]) == 1
-    payload = json.loads(row["risk_payload_json"])
-    assert "stale_reconciliation_snapshot" in payload["kill_switch_reasons"]
 
 
 def test_run_for_account_book_mode_kill_switch_when_reconciliation_snapshot_missing_value_error(
@@ -583,16 +561,14 @@ def test_run_for_account_book_mode_kill_switch_when_reconciliation_snapshot_miss
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 0
+    assert executed.submitted_count == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
         "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
@@ -613,12 +589,9 @@ def test_run_for_account_book_mode_submitted_order_with_no_broker_id_skips_broke
 
     class _NoBrokerIdBroker:
         def place_order(self, order):
-            order.broker_order_id = None
-            order.status = OrderStatus.SUBMITTED
-            order.filled_qty = 0.0
-            order.avg_fill_price = None
-            order.fills = []
-            return order
+            placed = BrokerOrder.from_request(order)
+            placed.status = OrderStatus.SUBMITTED
+            return placed
 
         def disconnect(self) -> None:
             return None
@@ -631,16 +604,14 @@ def test_run_for_account_book_mode_submitted_order_with_no_broker_id_skips_broke
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     # The clean order carries a null broker id (the legacy broker_orders table is gone).
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
@@ -655,11 +626,10 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
 
     class _BrokerWithFill:
         def place_order(self, order):
-            order.broker_order_id = "fill-broker-order"
-            order.status = OrderStatus.SUBMITTED
-            order.filled_qty = 0.0
-            order.avg_fill_price = None
-            order.fills = [
+            placed = BrokerOrder.from_request(order)
+            placed.broker_order_id = "fill-broker-order"
+            placed.status = OrderStatus.SUBMITTED
+            placed.fills = [
                 OrderFill(
                     filled_qty=1.0,
                     fill_price=100.5,
@@ -668,7 +638,7 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
                     exec_id="fill-001",
                 )
             ]
-            return order
+            return placed
 
         def disconnect(self) -> None:
             return None
@@ -681,16 +651,14 @@ def test_run_for_account_book_mode_persists_broker_fills_when_present(book_env, 
     executed = run_for_account(
         conn,
         account_name=account_name,
-        universe=["AAPL"],
-        prices={"AAPL": 100.0},
-        iv_rank_proxy={},
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
-    assert executed == 1
+    assert executed.submitted_count == 1
     row = conn.execute(
         """
         SELECT COUNT(*) AS n

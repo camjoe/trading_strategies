@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import datetime as dt
-from pathlib import Path
 import sys
+from pathlib import Path
+
 import pytest
 
 import trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review as module
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
-from trading.interfaces.runtime.jobs.job_helpers import week_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
@@ -16,6 +16,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     stub_runtime_job_basics,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import week_tag
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review"
 RUN_ALL_ARGS = RUN_ALL_ACCOUNTS_ARGS
@@ -39,21 +40,6 @@ class TestDedupGuard:
 
         result = _run_job(monkeypatch, tmp_path)
         assert result == 0
-
-    def test_returns_false_when_no_prior_log(self, tmp_path: Path) -> None:
-        assert module.already_completed_this_week(tmp_path, "2099_W01") is False
-
-    def test_returns_true_when_sentinel_in_log(self, tmp_path: Path) -> None:
-        tag = "2099_W42"
-        log = tmp_path / f"weekly_governance_w3_allocation_review_{tag}_20990101_000000.log"
-        log.write_text(f"stuff\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
-        assert module.already_completed_this_week(tmp_path, tag) is True
-
-    def test_returns_false_when_sentinel_absent(self, tmp_path: Path) -> None:
-        tag = "2099_W43"
-        log = tmp_path / f"weekly_governance_w3_allocation_review_{tag}_20990101_000000.log"
-        log.write_text("incomplete run\n", encoding="utf-8")
-        assert module.already_completed_this_week(tmp_path, tag) is False
 
 
 class TestArtifactStructure:
@@ -150,7 +136,7 @@ def test_main_returns_1_when_book_lookup_raises(monkeypatch, tmp_path: Path) -> 
 
 
 def test_weekly_allocation_review_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: [])
     monkeypatch.setattr(sys, "argv", ["w3_allocation_review", "--repo-root", str(tmp_path)])
 
     with pytest.raises(SystemExit) as excinfo:

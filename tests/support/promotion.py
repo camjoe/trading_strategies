@@ -34,7 +34,6 @@ def make_ready_evaluation(
         ),
         walk_forward=EvaluationWalkForwardEvidence(
             available=True,
-            grouped=True,
             average_return_pct=1.0,
         ),
         paper_live=EvaluationPaperLiveEvidence(

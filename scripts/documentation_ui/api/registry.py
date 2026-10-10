@@ -6,7 +6,6 @@ from pathlib import Path
 
 from scripts.documentation_ui.registry_utils import sort_registry_rows
 
-
 ROUTES_DIR = "apps/paper_trading_web/backend/routes"
 API_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/api.json"
 
@@ -17,6 +16,7 @@ GROUP_ORDER = [
     "Admin Endpoints",
     "Logs Endpoints",
     "Backtesting Endpoints",
+    "Strategy Lab Endpoints",
 ]
 
 GROUP_BY_MODULE = {
@@ -30,6 +30,7 @@ GROUP_BY_MODULE = {
     "admin": "Admin Endpoints",
     "logs": "Logs Endpoints",
     "backtests": "Backtesting Endpoints",
+    "strategy_lab": "Strategy Lab Endpoints",
 }
 
 

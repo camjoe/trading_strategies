@@ -13,7 +13,7 @@
 ## Strategy by case
 
 ### Case 1: Additive revision, no data written to the new column yet
-Run `.venv/Scripts/python.exe -m scripts.data_ops.manage_db_migrations downgrade -1`. Nothing is lost; the
+Run `python -m scripts.data_ops.manage_db_migrations downgrade -1`. Nothing is lost; the
 downgrade drops the empty column via a batch rebuild.
 
 ### Case 2: Additive revision with backfill, or data already written
@@ -28,7 +28,7 @@ State this explicitly in the rollback plan.
 
 ## Before generating a rollback plan
 
-1. Run `.venv/Scripts/python.exe -m scripts.data_ops.manage_db_migrations status` — confirm the
+1. Run `python -m scripts.data_ops.manage_db_migrations status` — confirm the
    database revision.
 2. Confirm the pre-upgrade backup exists in `local/db_backups/` and note its timestamp.
 3. Identify code paths that read/write the affected columns — application code must be reverted

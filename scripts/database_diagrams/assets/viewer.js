@@ -1,13 +1,17 @@
     const payload = JSON.parse(document.getElementById("schema-payload").textContent);
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
     const tabsEl = document.getElementById("tabs");
+    const categoryTabsEl = document.getElementById("categoryTabs");
+    const roleTabsEl = document.getElementById("roleTabs");
+    const categoryViews = payload.categoryViews || [];
+    const roleViews = payload.roleViews || [];
+    const allViews = [...payload.views, ...categoryViews, ...roleViews];
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
     const colorKeyEl = document.getElementById("colorKey");
     const linesEl = document.getElementById("lines");
     const canvasEl = document.getElementById("canvas");
     const stageEl = document.getElementById("stage");
-    const searchEl = document.getElementById("search");
     const viewTitleEl = document.getElementById("viewTitle");
     const viewDescriptionEl = document.getElementById("viewDescription");
     const toggleIndexesEl = document.getElementById("toggleIndexes");
@@ -58,6 +62,10 @@
       return `database-diagram-arrow-sources:${activeView.id}`;
     }
 
+    function sectionStorageKey() {
+      return `database-diagram-section-labels:${activeView.id}`;
+    }
+
     function loadJson(key) {
       try {
         return JSON.parse(localStorage.getItem(key) || "{}");
@@ -105,7 +113,12 @@
             .join("")
         : "<li>No indexes</li>";
       return `
-        <article class="table-card" id="table-${table.name}" data-table="${table.name}">
+        <article
+          class="table-card"
+          id="table-${table.name}"
+          data-table="${table.name}"
+          style="--table-section-color: ${table.section?.color || "#475467"}"
+        >
           <header><h3>${escapeHtml(table.name)}</h3></header>
           <ul class="column-list">${columns}</ul>
           <details class="indexes" ${showIndexes ? "open" : ""}>
@@ -278,20 +291,27 @@
     }
 
     function renderTabs() {
-      tabsEl.innerHTML = payload.views.map((view) => `
+      function renderViewButtons(container, views) {
+        container.innerHTML = views.map((view) => `
         <button class="tab" type="button" aria-pressed="${view.id === activeView.id}" data-view="${view.id}">
           ${escapeHtml(view.label)}
         </button>`).join("");
-      tabsEl.querySelectorAll("button").forEach((button) => {
-        button.addEventListener("click", () => {
-          activeView = payload.views.find((view) => view.id === button.dataset.view);
-          render();
+        container.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeView = allViews.find((view) => view.id === button.dataset.view);
+            render();
+          });
         });
-      });
+      }
+
+      renderViewButtons(tabsEl, payload.views);
+      categoryTabsEl.hidden = categoryViews.length === 0;
+      renderViewButtons(categoryTabsEl, categoryViews);
+      roleTabsEl.hidden = roleViews.length === 0;
+      renderViewButtons(roleTabsEl, roleViews);
     }
 
     function render() {
-      const query = searchEl.value.trim().toLowerCase();
       const viewTables = activeViewTables();
       const layout = layoutTables(viewTables);
       currentPositions = layout.positions;
@@ -303,10 +323,6 @@
         const pos = currentPositions.get(table.name);
         card.style.left = `${pos.x}px`;
         card.style.top = `${pos.y}px`;
-        const matches = !query
-          || table.name.toLowerCase().includes(query)
-          || table.columns.some((column) => column.name.toLowerCase().includes(query));
-        card.classList.toggle("hidden", !matches);
       }
       restackDefaultLayout(viewTables);
       renderSections(layout.sections);
@@ -334,16 +350,18 @@
     }
 
     function sectionDisplayRegions(sections) {
+      const saved = loadJson(sectionStorageKey());
       return sections.map((section) => {
         const positions = section.tables.map((tableName) => currentPositions.get(tableName)).filter(Boolean);
         if (!positions.length) return section;
         const minX = Math.min(...positions.map((position) => position.x));
         const minY = Math.min(...positions.map((position) => position.y));
         const maxX = Math.max(...positions.map((position) => position.x + 300));
+        const savedPosition = saved[section.id];
         return {
           ...section,
-          x: minX,
-          y: Math.max(0, minY - 48),
+          x: Number.isFinite(savedPosition?.x) ? savedPosition.x : minX,
+          y: Number.isFinite(savedPosition?.y) ? savedPosition.y : Math.max(0, minY - 48),
           width: maxX - minX,
         };
       });
@@ -412,7 +430,6 @@
             startY: event.clientY,
             originX: section.x,
             originY: section.y,
-            origins: new Map(section.tables.map((tableName) => [tableName, currentPositions.get(tableName)])),
           };
           label.classList.add("moving");
           label.setPointerCapture(event.pointerId);
@@ -426,23 +443,17 @@
           sectionDragState.section.y = sectionDragState.originY + deltaY;
           sectionDragState.label.style.left = `${sectionDragState.section.x}px`;
           sectionDragState.label.style.top = `${sectionDragState.section.y}px`;
-          for (const [tableName, origin] of sectionDragState.origins.entries()) {
-            if (!origin) continue;
-            const next = { x: origin.x + deltaX, y: origin.y + deltaY };
-            currentPositions.set(tableName, next);
-            const card = document.getElementById(`table-${tableName}`);
-            if (card) {
-              card.style.left = `${next.x}px`;
-              card.style.top = `${next.y}px`;
-            }
-          }
-          drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
           event.stopPropagation();
         });
         label.addEventListener("pointerup", (event) => {
           if (!sectionDragState || sectionDragState.pointerId !== event.pointerId) return;
           sectionDragState.label.classList.remove("moving");
-          saveCurrentPositions();
+          const saved = loadJson(sectionStorageKey());
+          saved[sectionDragState.section.id] = {
+            x: sectionDragState.section.x,
+            y: sectionDragState.section.y,
+          };
+          saveJson(sectionStorageKey(), saved);
           sectionDragState = null;
           event.stopPropagation();
         });
@@ -1128,20 +1139,6 @@
       applyTransform();
     }
 
-    document.getElementById("zoomOut").addEventListener("click", () => setScale(scale - 0.1));
-    document.getElementById("zoomIn").addEventListener("click", () => setScale(scale + 0.1));
-    document.getElementById("zoomReset").addEventListener("click", () => {
-      scale = 0.78;
-      offsetX = 40;
-      offsetY = 72;
-      applyTransform();
-    });
-    document.getElementById("resetLayout").addEventListener("click", () => {
-      localStorage.removeItem(storageKey());
-      localStorage.removeItem(arrowStorageKey());
-      localStorage.removeItem(arrowSourceStorageKey());
-      render();
-    });
     toggleIndexesEl.addEventListener("click", () => {
       showIndexes = !showIndexes;
       toggleIndexesEl.setAttribute("aria-pressed", String(showIndexes));
@@ -1162,7 +1159,6 @@
       toggleDeleteActionsEl.setAttribute("aria-pressed", String(showDeleteActions));
       drawRelationships(relationshipsFor(activeViewTables()), currentPositions);
     });
-    searchEl.addEventListener("input", render);
     canvasEl.addEventListener("wheel", (event) => {
       event.preventDefault();
       setScale(scale + (event.deltaY < 0 ? 0.06 : -0.06));

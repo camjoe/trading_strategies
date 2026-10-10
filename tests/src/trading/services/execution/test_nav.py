@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.repositories import insert_repository_account
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.nav import mark_account_to_market, mark_book_to_market
-from tests.support.repositories import insert_repository_account
 
 AS_OF = "2026-07-05T12:00:00Z"
 
@@ -101,3 +101,22 @@ def test_mark_account_marks_every_book(conn):
 def test_missing_book_raises(conn):
     with pytest.raises(LookupError):
         mark_book_to_market(conn, book_id=999, prices={}, as_of=AS_OF)
+
+
+def test_mark_rolls_back_position_when_balance_update_fails(conn, monkeypatch):
+    account_id = insert_repository_account(conn, name="nav_rollback")
+    book_id = _book(conn, account_id=account_id, name="default", is_default=1, cash=1_000.0)
+    _position(conn, book_id=book_id, symbol="AAPL", qty=10.0, avg_cost=100.0)
+
+    def fail_balance_update(*args, **kwargs) -> None:
+        raise RuntimeError("balance update failed")
+
+    monkeypatch.setattr(BookRepository, "update_balances", fail_balance_update)
+
+    with pytest.raises(RuntimeError, match="balance update failed"):
+        mark_book_to_market(conn, book_id=book_id, prices={"AAPL": 120.0}, as_of=AS_OF)
+
+    position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
+    assert position is not None
+    assert position.market_value == pytest.approx(1_000.0)
+    assert position.unrealized_pnl == pytest.approx(0.0)

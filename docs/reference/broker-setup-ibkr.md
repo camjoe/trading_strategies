@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-10-06
 Purpose: Operator setup and connection checklist for Interactive Brokers via the Client Portal Gateway.
 Related: [Broker Integration Reference](broker-integration.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md)
 
@@ -50,11 +50,13 @@ export TRADING_IBKR_WEB_API_CONFIG="$HOME/Desktop/brokers/config.json"
 
 Or set individual environment variables — see [Broker Integration Reference — IBKR Web API Configuration](broker-integration.md#ibkr-web-api-configuration) for the full list.
 
+On a host that runs scheduled jobs, run the gateway and the session keepalive as services instead of
+from a terminal — see [Production Runtime Host Runbook, Part 6](../runbooks/production-runtime-host.md#part-6--ibkr-gateway-and-session-keepalive).
+
 4. **Verify connectivity** with the smoke test:
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test   # Windows
-.venv/bin/python -m scripts.ibkr_web_api_smoke_test        # macOS/Linux
+python -m scripts.ibkr_web_api_smoke_test
 ```
 
 5. **Run the module or script** as needed.
@@ -77,13 +79,13 @@ file under `local/` or another ignored private path.
 Read-only test — validates session, auth, account visibility, ledger, and positions:
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test
+python -m scripts.ibkr_web_api_smoke_test
 ```
 
 Optional paper-order lifecycle check (paper account only):
 
 ```sh
-.venv\Scripts\python -m scripts.ibkr_web_api_smoke_test \
+python -m scripts.ibkr_web_api_smoke_test \
   --paper-order-check \
   --paper-order-symbol AAPL \
   --paper-order-limit-price 1.00

@@ -43,3 +43,26 @@ exclude = ["paper_trading_web.frontend*"]
 # `infrastructure` (and a future src/trading) are PEP 420 namespace packages
 # with no top-level __init__.py, so namespace discovery must be enabled.
 namespaces = true
+
+[tool.mypy]
+# mypy has to be told the src/ layout, or it cannot map a file path to a module
+# name and stops before checking anything.
+#
+# Set mypy_path here and not via the MYPYPATH environment variable: mypy splits
+# that variable on os.pathsep — ';' on Windows — so a colon-separated value is
+# read as one nonexistent directory, intra-repo modules silently fall back to
+# Any, and the run reports far fewer errors than exist.
+mypy_path = "src:apps/paper_trading_web/backend"
+explicit_package_bases = true
+
+# A "type: ignore" that no longer suppresses anything is worse than none: it
+# silently swallows the next real error on that line. Nine of fourteen had gone
+# stale before this was turned on.
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# The official IBKR SDK is optional and not installed here, so its imports read
+# as unused ignores under --ignore-missing-imports. They are load-bearing
+# without that flag, and once the SDK is present.
+module = "infrastructure.brokers.ibkr_socket.ibapi_client"
+warn_unused_ignores = false

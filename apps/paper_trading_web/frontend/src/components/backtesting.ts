@@ -1,5 +1,5 @@
 import { currency, esc, pct } from "../lib/format";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../types/backtesting";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary } from "../types/backtesting";
 
 export function warningListHtml(warnings: string[]): string {
   if (!warnings.length) {
@@ -92,17 +92,6 @@ export function renderBacktestRunResult(result: BacktestRunResult): string {
       <div>${benchmarkLine}</div>
       ${renderBacktestMetricGrid(result)}
       <div class="bt-warning">${warningListHtml(result.warnings)}</div>
-    </div>
-  `;
-}
-
-export function renderWalkForwardResult(result: WalkForwardResult): string {
-  const runIds = result.runIds.length ? result.runIds.join(", ") : "none";
-  return `
-    <div class="bt-result">
-      <div><strong>${esc(result.accountName)}</strong> | ${esc(result.startDate)}..${esc(result.endDate)} | Windows: ${result.windowCount}</div>
-      <div>Avg ${pct(result.averageReturnPct)} | Median ${pct(result.medianReturnPct)} | Best ${pct(result.bestReturnPct)} | Worst ${pct(result.worstReturnPct)}</div>
-      <div>Run IDs: ${esc(runIds)}</div>
     </div>
   `;
 }

@@ -21,7 +21,7 @@ Named constants
 Import these constants in test modules to reference seeded entities without
 hard-coding string literals:
 
-    from tests.support.seed.db import ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL
+    from tests.support.seed.db import ACCT_TREND, ACCT_MOMENTUM, ACCT_THIRD
 
 All constants are also importable directly from their domain module, e.g.::
 
@@ -35,14 +35,20 @@ from __future__ import annotations
 import sqlite3
 
 from tests.support.seed.accounts import (
-    ACCT_LOCAL,
     ACCT_MOMENTUM,
+    ACCT_THIRD,
     ACCT_TREND,
     PROMOTION_STRATEGY,
     seed_accounts,
     seed_global_settings,
 )
 from tests.support.seed.backtesting import BACKTEST_RUN_NAME, seed_backtest_run
+from tests.support.seed.book_data import (
+    BOOK_METRIC_DATE,
+    BOOK_STRATEGY,
+    BOOK_TREND,
+    seed_books,
+)
 from tests.support.seed.promotion_review import seed_promotion_review
 from tests.support.seed.reporting import (
     SNAPSHOT_T1,
@@ -53,12 +59,6 @@ from tests.support.seed.reporting import (
     TRADE_SELL_AAPL,
     seed_snapshots,
     seed_trades,
-)
-from tests.support.seed.book_data import (
-    BOOK_METRIC_DATE,
-    BOOK_STRATEGY,
-    BOOK_TREND,
-    seed_books,
 )
 
 
@@ -79,8 +79,8 @@ def seed_session_db(conn: sqlite3.Connection) -> None:
 
 
 __all__ = [
-    "ACCT_LOCAL",
     "ACCT_MOMENTUM",
+    "ACCT_THIRD",
     "ACCT_TREND",
     "BACKTEST_RUN_NAME",
     "PROMOTION_STRATEGY",

@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from trading.interfaces.cli.commands import build_parser
-from trading.services.profiles.source import DEFAULT_ACCOUNT_PROFILES_FILE
 
 
 def test_create_account_defaults_and_required_fields() -> None:
@@ -90,21 +89,3 @@ def test_enum_choices_parse_for_configure_account(instrument_mode: str, risk_pol
 
     assert args.instrument_mode == instrument_mode
     assert args.risk_policy == risk_policy
-
-
-def test_apply_account_profiles_defaults() -> None:
-    parser = build_parser()
-
-    args = parser.parse_args(["apply-account-profiles"])
-
-    assert args.file == DEFAULT_ACCOUNT_PROFILES_FILE
-    assert args.no_create_missing is False
-
-
-def test_apply_account_preset_requires_choice() -> None:
-    parser = build_parser()
-
-    args = parser.parse_args(["apply-account-preset", "--preset", "aggressive"])
-
-    assert args.preset == "aggressive"
-    assert args.no_create_missing is False

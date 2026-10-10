@@ -32,11 +32,27 @@ export interface OperationArtifact {
   sizeBytes: number;
 }
 
+export interface ScheduleStatusJob {
+  taskName: string;
+  desired: boolean;
+  registered: boolean | null;
+  state: "ok" | "missing" | "stale" | "off" | "unknown";
+}
+
+export interface ScheduleStatus {
+  generatedAt: string | null;
+  host: string | null;
+  scheduler: string | null;
+  inSync: boolean;
+  installedReadable: boolean;
+  jobs: ScheduleStatusJob[];
+}
+
 export interface OperationsOverviewResponse {
   jobs: OperationJobStatus[];
-  dailyBacktestRefreshArtifacts: OperationArtifact[];
-  dailySnapshotArtifacts: OperationArtifact[];
   databaseBackups: OperationArtifact[];
+  // Null until manage_job_schedules has written the drift artifact at least once.
+  scheduleStatus: ScheduleStatus | null;
 }
 
 export interface PromotionAssessment {
@@ -81,7 +97,7 @@ export interface PromotionEvaluationDetail {
   };
   walkForward: {
     available: boolean;
-    grouped: boolean;
+    windowCount: number;
     averageReturnPct: number | null;
     bestReturnPct: number | null;
     worstReturnPct: number | null;

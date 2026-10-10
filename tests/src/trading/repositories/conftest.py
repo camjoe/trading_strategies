@@ -1,7 +1,7 @@
 import pytest
 
-from tests.support.repositories import insert_repository_account
 from tests.support.books import insert_test_book
+from tests.support.repositories import insert_repository_account
 
 
 @pytest.fixture

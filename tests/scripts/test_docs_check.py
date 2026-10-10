@@ -11,7 +11,7 @@ def test_docs_check_runs_expected_steps_in_order(monkeypatch) -> None:
     monkeypatch.setattr(
         docs_check,
         "run_readme_consistency",
-        lambda **kwargs: calls.append(f"readme:{kwargs['enforce_style']}:{kwargs['enforce_staleness']}") or 0,
+        lambda **kwargs: calls.append(f"readme:{kwargs['enforce_style']}") or 0,
     )
     monkeypatch.setattr(docs_check, "run_maps_check", lambda **kwargs: calls.append("maps") or 0)
     monkeypatch.setattr(docs_check, "run_link_check", lambda **kwargs: calls.append("links") or 0)
@@ -23,7 +23,7 @@ def test_docs_check_runs_expected_steps_in_order(monkeypatch) -> None:
 
     assert docs_check.run_docs_check(Path("."), enforce=True, quiet=True) == 0
     assert calls == [
-        "readme:True:True",
+        "readme:True",
         "maps",
         "links",
         "modules",

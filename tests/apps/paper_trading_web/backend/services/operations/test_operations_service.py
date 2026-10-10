@@ -4,9 +4,10 @@ import datetime as dt
 import sqlite3
 from pathlib import Path
 
-from paper_trading_web.backend.services import operations as services_operations
-from paper_trading_web.backend.services import promotion as services_promotion
+from paper_trading_web.backend.services import operations as services_operations, promotion as services_promotion
+
 from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.services.operations.job_status import period_tag
 
 
 def _write(path: Path, text: str) -> None:
@@ -16,14 +17,16 @@ def _write(path: Path, text: str) -> None:
 
 def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypatch) -> None:
     logs_dir = tmp_path / "logs"
-    exports_dir = tmp_path / "exports"
     backups_dir = tmp_path / "local" / "db_backups"
     today = dt.date.today()
     today_tag = today.strftime("%Y%m%d")
     week_tag = f"{today.isocalendar().year}_W{today.isocalendar().week:02d}"
+    # The daily run is a weekdays-cadence job: over a weekend its current period is
+    # Friday, so tag its log with the same rule the monitor uses to find it.
+    trading_tag = period_tag("weekdays", dt.datetime.now())
 
     _write(
-        logs_dir / f"daily_paper_trading_{today_tag}_131001.log",
+        logs_dir / f"daily_paper_trading_{trading_tag}_131001.log",
         f"header\n{services_operations.DAILY_PAPER_TRADING_SENTINEL}\n",
     )
     _write(logs_dir / f"daily_snapshot_{today_tag}_131500.log", "started only\n")
@@ -31,31 +34,19 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
         logs_dir / f"weekly_db_backup_{week_tag}_090000.log",
         f"header\n{services_operations.WEEKLY_DB_BACKUP_SENTINEL}\n",
     )
-    _write(
-        exports_dir / "daily_backtest_refresh" / f"daily_backtest_refresh_{today_tag}_131800.json",
-        "{}\n",
-    )
-    _write(
-        exports_dir / "daily_snapshots" / f"daily_snapshot_{today_tag}_132000.json",
-        "{}\n",
-    )
     _write(backups_dir / f"paper_trading_{today_tag}_133000.db", "db")
 
     monkeypatch.setattr(services_operations, "LOGS_DIR", logs_dir)
-    monkeypatch.setattr(services_operations, "EXPORTS_DIR", exports_dir)
     monkeypatch.setattr(services_operations, "DB_BACKUPS_DIR", backups_dir)
 
     payload = services_operations.list_operations_overview()
 
-    assert payload["dailyBacktestRefreshArtifacts"][0]["name"].endswith(".json")
-    assert payload["dailySnapshotArtifacts"][0]["name"].endswith(".json")
     assert payload["databaseBackups"][0]["name"].endswith(".db")
 
     jobs = {job["key"]: job for job in payload["jobs"]}
     assert jobs["daily_paper_trading"]["status"] == "ok"
-    assert jobs["daily_snapshot"]["status"] == "warning"
-    assert jobs["daily_backtest_refresh"]["status"] == "missing"
     assert jobs["weekly_db_backup"]["status"] == "ok"
+    assert all(job["runHint"].startswith("python -m ") for job in jobs.values())
 
 
 class _FakePayload:
@@ -81,7 +72,7 @@ class _FakeHistoryEntry:
 def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch) -> None:
     monkeypatch.setattr(
         services_promotion,
-        "fetch_current_promotion_snapshot",
+        "fetch_promotion_snapshot",
         lambda *_args, **_kwargs: (
             StrategyEvaluationArtifact(),
             _FakePayload(
@@ -119,3 +110,44 @@ def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch)
     assert payload["evaluation"]["confidence"]["blendedScore"] is None
     assert payload["history"][0]["review"]["review_state"] == "requested"
     assert payload["history"][0]["events"][0]["event_type"] == "requested"
+
+
+def test_list_operations_overview_maps_schedule_status_to_camelcase(tmp_path, monkeypatch) -> None:
+    import json as _json
+
+    artifact = tmp_path / "schedule_status.json"
+    artifact.write_text(
+        _json.dumps(
+            {
+                "generated_at": "2026-09-12T13:00:00Z",
+                "host": "trading-host",
+                "scheduler": "windows",
+                "in_sync": False,
+                "installed_readable": True,
+                "jobs": [
+                    {"task_name": "Trading\DailyPaperTrading", "desired": True, "registered": True, "state": "ok"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(services_operations, "SCHEDULE_STATUS_PATH", artifact)
+    monkeypatch.setattr(services_operations, "LOGS_DIR", tmp_path / "logs")
+
+    payload = services_operations.list_operations_overview()
+
+    schedule = payload["scheduleStatus"]
+    assert schedule is not None
+    assert schedule["inSync"] is False
+    assert schedule["installedReadable"] is True
+    assert schedule["jobs"][0]["taskName"] == "Trading\DailyPaperTrading"
+    assert schedule["jobs"][0]["state"] == "ok"
+
+
+def test_list_operations_overview_schedule_status_none_when_artifact_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(services_operations, "SCHEDULE_STATUS_PATH", tmp_path / "absent.json")
+    monkeypatch.setattr(services_operations, "LOGS_DIR", tmp_path / "logs")
+
+    payload = services_operations.list_operations_overview()
+
+    assert payload["scheduleStatus"] is None

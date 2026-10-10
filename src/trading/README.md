@@ -10,25 +10,26 @@ Provide the core runtime and tooling for paper trading, reporting, promotion rev
 
 The `src/trading/` module handles:
 
-- Account lifecycle (create, configure, benchmark, profiles)
+- Account lifecycle (create, configure, benchmark)
 - Trade simulation and position tracking
-- Live broker integration (Interactive Brokers via the Client Portal / Web API as the current path, with legacy TWS/IB Gateway support retained; paper broker by default)
+- Live broker integration (Interactive Brokers via Client Portal/Web API or the TWS/IB Gateway socket API; paper broker by default)
 - Snapshot history and reporting
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
-- Backtesting and walk-forward analysis support, including persisted per-window detail reporting
+- Backtesting and walk-forward optimization, including persisted per-window and per-candidate audit trails
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `src/infrastructure/feature_providers/` (repo root)
 
 ## Architecture Shape
 
-`src/trading/` uses a **hybrid structure**:
+`src/trading/` is **layers only** — `interfaces -> services -> repositories/domain -> database`,
+plus `models/` and `persistence/` beneath them. Every subpackage here is a layer, so a sibling of
+`domain/` or `services/` is always the same kind of thing.
 
-- A layered backbone for most runtime behavior:
-  - `interfaces -> services -> repositories/domain -> database`
-- Explicit top-level bounded contexts where isolation is valuable:
-  - `src/trading/backtesting/`
-  - `src/infrastructure/brokers/` (repo root — broker adapters)
-  - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
+Packages with distinct ownership sit at the repo root instead, beside `trading/`:
+
+- `src/backtesting/` — bounded context; owns the backtest and optimizer tables
+- `src/infrastructure/brokers/` — broker adapters
+- `src/infrastructure/feature_providers/` — external-data feature providers
 
 `src/trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
@@ -38,22 +39,26 @@ For a "where do I put X" placement guide, see `docs/architecture/nav-guide.md`.
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
-**DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`
+**DB path resolution:** `TRADING_DB_PATH` env var → `local/paper_trading.db`
 
-When `db_path` in `local/db_config.json` is relative, it is resolved from the
-repository root.
+To point tooling at a disposable database, run `scripts/launch_sandbox.py` or
+`scripts/launch_demo.py`, which set `TRADING_DB_PATH` for you.
 
-**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `src/infrastructure/config/market_data_config.example.json` for the config format.
+**Market data:** defaults to `yfinance`. Override via the `TRADING_MARKET_DATA_PROVIDER` env var (`yfinance` or `demo`); any other value raises at `build_provider()`.
 
 ## Quick Start
 
-Run these common commands from the repository root:
+Run these common commands from the repository root with the virtual environment created in the root
+README active.
 
 ```sh
-python -m trading.interfaces.cli.main init
-python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m scripts.data_ops.manage_db_migrations upgrade
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy momentum --initial-cash 5000 --benchmark SPY
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k
 ```
+
+The migration command creates a missing database or upgrades an existing one. Application commands
+verify the schema version and never apply migrations automatically.
 
 For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
 
@@ -62,7 +67,6 @@ For scheduler operations, promotion review flows, and data-ops commands, use the
 All commands accept `--help` for the full flag reference.
 
 ```sh
-python -m trading.interfaces.cli.main init
 python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
 python -m trading.interfaces.cli.main report --account momentum_5k
 python -m trading.interfaces.cli.main snapshot --account momentum_5k
@@ -76,12 +80,10 @@ Backup and export:
 
 ```sh
 python -m trading.interfaces.runtime.data_ops.admin backup-db
-python -m trading.interfaces.runtime.data_ops.csv_export
 python -m scripts.data_ops.backup_db
-python -m scripts.data_ops.export_db_csv
 ```
 
-Canonical admin/export modules live in `src/trading/interfaces/runtime/data_ops/`.
+Canonical admin modules live in `src/trading/interfaces/runtime/data_ops/`.
 The `scripts.data_ops.*` commands are convenience wrappers around those
 canonical runtime data-op modules and should not be treated as the ownership
 source.
@@ -91,7 +93,7 @@ source.
 - `src/trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
 - `src/trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
-- `src/infrastructure/database/`: database infrastructure (schema init, backend, config).
+- `src/infrastructure/database/`: database migrations, schema-version verification, backend, and config.
 
 Use `src/trading/interfaces/runtime/jobs/` for schedulers and `src/trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
@@ -103,21 +105,16 @@ schedule the runtime job entrypoints, see the [Runtime Jobs Reference](../../doc
 
 ## Auto-Trading
 
-Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
+The run prices the union of `books.trade_symbols` across the books it is about to trade — the same
+column selection reads — so a symbol a book can select is a symbol the run priced.
 
-| File | Description |
-|------|-------------|
-| `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
-| `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
-
-Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help` for all options.
+`--tickers-file` overrides that with an explicit ticker file, for manual runs against a universe
+no book names. Run
+`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help`
+for all options.
 
 ```sh
-# Default universe
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
-
-# S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker
@@ -131,15 +128,6 @@ placement instead of submitting paper or live orders outside the session. The
 guard includes major full-day NYSE holidays plus scheduled 1:00 PM Eastern
 early closes for the day after Thanksgiving, eligible July 3 sessions, and
 eligible Christmas Eve sessions.
-
-### Rotation overlays
-
-Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.
-
-- Overlay coverage is computed from the union of the account's current holdings and its per-account `rotation_overlay_watchlist`.
-- New accounts and migrated existing accounts seed `rotation_overlay_watchlist` from `src/infrastructure/config/trade_universe.txt`, providing a stable default universe before positions are opened.
-- That seed is stored in the database schema/defaults at migration time. If you later change `src/infrastructure/config/trade_universe.txt` and want that new list to propagate, you must also run an explicit DB update or migration/backfill for `rotation_overlay_watchlist`.
-- Override the seeded watchlist per account through account profiles or the UI/API account-parameter endpoints when a narrower overlay universe is needed.
 
 ## Scheduler Operations
 
@@ -169,8 +157,9 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 ## Backtesting Notes
 
-- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
+- `python -m trading.interfaces.cli.main backtest-optimize-show <experiment_id>`
+  shows a stored optimization experiment: winner params, OOS/holdout evidence, the per-window and
+  per-candidate audit trail, and the promotion-gate preview.
 
 ## Notes
 
@@ -195,17 +184,31 @@ Review requests freeze the current evaluation evidence into a durable record and
 - Broker integration: [docs/reference/broker-integration.md](../../docs/reference/broker-integration.md)
 - Trading architecture guide: [docs/architecture/architecture-conventions.md](../../docs/architecture/architecture-conventions.md)
 
-## Preset Profiles
+## Trade universes
 
-Built-in account profile presets now live under:
+Named universe files under `src/infrastructure/config/trade_universes/` are a **write-time
+shorthand**. Naming one on `create-account`, `configure-book`, or the book-params API expands it and
+stores the resulting tickers in `books.trade_symbols` (revision 0029).
 
-- `src/infrastructure/config/account_profiles/`
+Nothing reads those files on the trading path, so editing one changes what future writes resolve to
+and never what an existing book is already trading. Re-apply the name to pull in a changed roster.
 
-CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
+The tracked universe files are synthetic examples. Their membership is not derived from any index or
+screen — see the provenance header in each file.
+
+Keep real strategy parameters, operator profiles, and research notes under the gitignored
+`local/strategies/` workspace. Do not replace the tracked presets with personal operating
+configuration. If private strategy implementation code later needs to run as part of the application,
+move it into a separately distributed private package or repository rather than importing code from
+`local/`.
 
 ## Boundary Snapshot
 
-- The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
+- The CLI entry point is `src/trading/interfaces/cli/main.py`
+  (`python -m trading.interfaces.cli.main`). The auto-trader entry point is
+  `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py`
+  (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`).
+  There are no top-level facade modules in `src/trading/`.
 - SQL access is owned by repository modules under `src/trading/repositories/`.
 - Orchestration and composition are owned by service modules under `src/trading/services/`.
 - Policy logic is owned by domain modules under `src/trading/domain/`.

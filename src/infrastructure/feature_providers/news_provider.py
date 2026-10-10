@@ -30,13 +30,13 @@ import xml.etree.ElementTree as ET
 from urllib.error import URLError
 
 from trading.domain.feature_provider import (
-    ExternalFeatureBundle,
-    ExternalFeatureProvider,
     NEWS_BUY_SENTIMENT_THRESHOLD,
     NEWS_HEADLINE_COUNT,
     NEWS_MIN_HEADLINES_REQUIRED,
     NEWS_SELL_SENTIMENT_THRESHOLD,
     NEWS_SENTIMENT_SCORE,
+    ExternalFeatureBundle,
+    ExternalFeatureProvider,
 )
 
 _LOG = logging.getLogger(__name__)

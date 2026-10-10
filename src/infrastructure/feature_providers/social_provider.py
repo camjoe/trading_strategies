@@ -6,14 +6,14 @@ import logging
 import os
 
 from trading.domain.feature_provider import (
-    ExternalFeatureBundle,
-    ExternalFeatureProvider,
     SOCIAL_MENTION_COUNT,
     SOCIAL_MIN_REDDIT_SENTIMENT,
     SOCIAL_REDDIT_SENTIMENT,
     SOCIAL_TREND_BUY_THRESHOLD,
     SOCIAL_TREND_EXIT_THRESHOLD,
     SOCIAL_TREND_SCORE,
+    ExternalFeatureBundle,
+    ExternalFeatureProvider,
 )
 
 _LOG = logging.getLogger(__name__)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from trading.interfaces.cli.commands import build_parser
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
 def test_backtest_defaults() -> None:
@@ -25,11 +27,15 @@ def test_backtest_batch_parses_accounts_and_defaults() -> None:
     assert args.allow_approximate_leaps is False
 
 
-def test_backtest_walk_forward_report_parses_selectors() -> None:
+def test_backtest_bench_accepts_a_bench_metric() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["backtest-bench", "--metric", "max_drawdown_pct"])
+
+    assert args.metric == "max_drawdown_pct"
+
+
+def test_backtest_bench_rejects_an_unknown_metric() -> None:
     parser = build_parser()
 
-    args = parser.parse_args(["backtest-walk-forward-report", "--group-id", "7"])
-
-    assert args.group_id == 7
-    assert args.account is None
-    assert args.strategy is None
+    with pytest.raises(SystemExit):
+        parser.parse_args(["backtest-bench", "--metric", "no_such_metric"])

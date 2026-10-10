@@ -13,7 +13,8 @@ python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab backtesting
 python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab portfolio
-python -m scripts.screenshot_ui --tab ibkr-paper-monitor
+python -m scripts.screenshot_ui --tab autonomy-monitor
+python -m scripts.screenshot_ui --tab strategy-lab
 python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
@@ -30,7 +31,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, compare, portfolio, backtesting, ibkr-paper-monitor,
+  accounts, compare, portfolio, backtesting, strategy-lab, autonomy-monitor,
   alt-strategies, docs, admin
 """
 
@@ -44,7 +45,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common.paths.project_paths import SCREENSHOTS_DIR
+from common.paths import SCREENSHOTS_DIR
 from scripts.ui_config import FRONTEND_PORT, UI_HOST
 
 
@@ -90,14 +91,15 @@ def capture(
     full_page: bool,
     headed: bool,
 ) -> None:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import TimeoutError as PWTimeout, sync_playwright
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=not headed)
         page = browser.new_page(viewport={"width": width, "height": height})
 
         print(f"→ Opening {url} ...")
-        page.goto(url, wait_until="networkidle")
+        page.goto(url, wait_until="domcontentloaded")
+        page.locator(".tab-nav").wait_for()
 
         # Click the target tab
         tab_btn = page.locator(f'[data-tab="{tab}"]')
@@ -162,7 +164,8 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-        "compare, portfolio, backtesting, ibkr-paper-monitor, alt-strategies, docs, admin",
+        "compare, portfolio, backtesting, strategy-lab, autonomy-monitor, "
+        "alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import argparse
 
-from common.paths.repo_paths import get_repo_root
-
+from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe
 from scripts.checks.ci import run_ci
 from scripts.checks.docs.docs_check import run_docs_check
+from scripts.checks.pr import DEFAULT_BASE_REF, run_pr
 from scripts.checks.python.python_check import run_python_check
 from scripts.checks.quick import run_quick
 from scripts.checks.repo.repo_check import run_repo_check
@@ -19,12 +19,6 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command")
 
     docs = subparsers.add_parser("docs", help="Run documentation drift and reference-doc checks.")
-    docs.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for consistency checks.",
-    )
     docs.add_argument(
         "--advisory",
         action="store_true",
@@ -51,13 +45,14 @@ def parse_args() -> argparse.Namespace:
     _add_python_targeting_args(quick)
 
     ci = subparsers.add_parser("ci", help="Run CI-shaped checks: docs, repo, Python, and frontend.")
-    ci.add_argument(
-        "--readme-max-age-days",
-        type=int,
-        default=90,
-        help="Max README age in days for consistency checks.",
-    )
     ci.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
+
+    pr = subparsers.add_parser(
+        "pr",
+        help="Run the checks CI enforces, targeted at the branch diff (frontend only if touched).",
+    )
+    pr.add_argument("--base", metavar="REF", dest="base_ref", default=DEFAULT_BASE_REF, help="Branch base ref.")
+    pr.add_argument("--no-cov", action="store_true", help="Disable coverage for faster test runs.")
 
     parser.set_defaults(command="quick")
     return parser.parse_args()
@@ -102,7 +97,6 @@ def main() -> int:
             repo_root=repo_root,
             enforce=not args.advisory,
             quiet=True,
-            readme_max_age_days=args.readme_max_age_days,
             include_reference_docs=not args.skip_reference_docs,
         )
     if args.command == "repo":
@@ -116,12 +110,18 @@ def main() -> int:
             suite_base=args.suite_base,
             no_cov=args.no_cov,
         )
+    if args.command == "pr":
+        return run_pr(
+            repo_root=repo_root,
+            python_exe=python_exe,
+            base_ref=args.base_ref,
+            no_cov=args.no_cov,
+        )
     if args.command == "ci":
         return run_ci(
             repo_root=repo_root,
             python_exe=python_exe,
             skip_frontend=args.skip_frontend,
-            readme_max_age_days=args.readme_max_age_days,
         )
 
     return run_quick(

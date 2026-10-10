@@ -9,28 +9,12 @@ can be seeded as CASH buys here just like the retired trades rows.
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
+
+from tests.support.books import ensure_default_book_id
+from trading.persistence.money_columns import encode_money, encode_quantity
 
 _NOW_FALLBACK = "2026-01-01T00:00:00Z"
-
-
-def ensure_default_book_id(conn: sqlite3.Connection, account_id: int, *, now: str = _NOW_FALLBACK) -> int:
-    row = conn.execute(
-        "SELECT id FROM books WHERE account_id = ? AND is_default = 1",
-        (int(account_id),),
-    ).fetchone()
-    if row is not None:
-        return int(row[0])
-    cursor = conn.execute(
-        """
-        INSERT INTO books (
-            account_id, name, is_default, start_equity, current_cash, current_equity,
-            trade_universes, created_at, updated_at
-        )
-        VALUES (?, 'default', 1, 0, 0, 0, '["default"]', ?, ?)
-        """,
-        (int(account_id), now, now),
-    )
-    return int(cursor.lastrowid)
 
 
 def seed_fill_event(
@@ -46,6 +30,10 @@ def seed_fill_event(
 ) -> int:
     """Insert a filled order + fill row; returns the order id."""
     book_id = ensure_default_book_id(conn, account_id, now=trade_time)
+    # Money and quantity columns store integer minor units; encode like the repository.
+    qty_units = encode_quantity(Decimal(str(qty)))
+    price_units = encode_money(Decimal(str(price)))
+    fee_units = encode_money(Decimal(str(fee)))
     cursor = conn.execute(
         """
         INSERT INTO orders (
@@ -59,11 +47,11 @@ def seed_fill_event(
             int(account_id),
             ticker,
             side,
-            float(qty),
-            float(price),
-            float(qty),
-            float(price),
-            float(fee),
+            qty_units,
+            price_units,
+            qty_units,
+            price_units,
+            fee_units,
             trade_time,
             trade_time,
         ),
@@ -74,7 +62,7 @@ def seed_fill_event(
         INSERT INTO order_fills (order_id, filled_qty, fill_price, commission, fill_time)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (order_id, float(qty), float(price), float(fee), trade_time),
+        (order_id, qty_units, price_units, fee_units, trade_time),
     )
     conn.commit()
     return order_id

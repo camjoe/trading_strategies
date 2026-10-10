@@ -42,8 +42,8 @@ export function renderConfigSummary(detail: AccountDetail): string {
           ${configStat("Goal Period", esc(account.goalPeriod ?? "—"))}
           ${configStat("Stop Loss %", formatOptionalNumber(account.stopLossPct, 2))}
           ${configStat("Take Profit %", formatOptionalNumber(account.takeProfitPct, 2))}
-          ${configStat("Profit Take %", formatOptionalNumber(account.profitTakePct, 2))}
-          ${configStat("Max Loss %", formatOptionalNumber(account.maxLossPct, 2))}
+          ${configStat("Profit Take %", formatOptionalNumber(account.optionProfitTakePct, 2))}
+          ${configStat("Max Loss %", formatOptionalNumber(account.optionMaxLossPct, 2))}
         </div>
       </section>
       <section class="config-summary-card">

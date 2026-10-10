@@ -2,23 +2,32 @@
 
 from __future__ import annotations
 
-from .accounts import AccountParamsRequest
+from .accounts import AccountParamsRequest, BookParamsRequest
 from .admin import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from .backtests import (
     BacktestBaseRequest,
     BacktestPreflightRequest,
     BacktestRunRequest,
-    WalkForwardRunRequest,
 )
 from .features import FeatureSignalsRequest
+from .strategy_lab import (
+    ConfigureStrategyRequest,
+    CreateStrategyVariantRequest,
+    PromoteOptimizationRequest,
+    RunOptimizationRequest,
+)
 
 __all__ = [
     "AccountParamsRequest",
+    "BookParamsRequest",
     "AdminCreateAccountRequest",
     "AdminDeleteAccountRequest",
     "BacktestBaseRequest",
     "BacktestPreflightRequest",
     "BacktestRunRequest",
     "FeatureSignalsRequest",
-    "WalkForwardRunRequest",
+    "ConfigureStrategyRequest",
+    "CreateStrategyVariantRequest",
+    "PromoteOptimizationRequest",
+    "RunOptimizationRequest",
 ]

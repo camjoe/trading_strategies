@@ -31,9 +31,9 @@ Current state (measured):
   **bare `ValueError`**.
 - A single app instance (`apps/paper_trading_web/backend/main.py`) with **no**
   exception handlers registered today.
-- `services/exports.py` raises `HTTPException` *directly* as path-validation
-  guard clauses — that is route-specific transport logic, a different concern
-  from mapping a domain error.
+- Route-specific validation (e.g. a preflight `FileNotFoundError -> 400` for a
+  missing input file) raises `HTTPException` *directly* — that is route-specific
+  transport logic, a different concern from mapping a domain error.
 
 Per the **UI Backend Boundary Rule**, this mapping legitimately belongs to the UI
 transport layer — the issue is only that it is duplicated per route rather than
@@ -67,8 +67,8 @@ raise those typed exceptions instead of bare `ValueError`.
 `ValidationError`/`ConflictError`) to `src/trading/domain/exceptions.py`; (2)
 register app-level handlers mapping those types → 404/400/409; (3) migrate the
 heuristic and per-route catches as their underlying services adopt the typed
-exceptions; (4) leave genuinely route-specific `HTTPException` guards (e.g.
-`exports.py` path validation) in place.
+exceptions; (4) leave genuinely route-specific `HTTPException` guards (e.g. the
+preflight missing-file check) in place.
 
 ## Decision
 
@@ -92,26 +92,29 @@ Accepted and shipped as the first slice:
   validation, tests) keep working unchanged, while the UI can match the type for
   404. A bare `ValueError` still surfaces as 500.
 - The user-facing entity-lookup not-found sources now raise it:
-  `services/accounts/mutations.get_account`, `backtesting/services/report_service`,
-  `backtesting/repositories/walk_forward_repository` (backtest run),
-  `backtesting/services/walk_forward_report_service` (group),
-  `services/ibkr_paper_monitor/queries`, `services/admin/deletions`, and
-  `services/promotion/actions._fetch_review_or_raise`.
+  `services/accounts/mutations.get_account`, `backtesting/services/reporting`
+  (backtest run), `backtesting/services/optimization_experiment` (optimizer
+  account/strategy), `services/autonomy_monitor/queries`,
+  `services/admin/deletions`, and `services/promotion/actions._fetch_review_or_raise`.
 - One app-level handler in `apps/paper_trading_web/backend/main.py`:
   `NotFoundError -> 404`.
 - The not-found-only routes dropped their local 404 mapping
-  (`routes/backtests.py`, `routes/ibkr_paper_monitor.py`,
+  (`routes/backtests.py`, `routes/autonomy_monitor.py`,
   `services/accounts/data_access.require_account_row`), and
   `services/admin.delete_managed_account` dropped its
   `"Accounts not found:"` string heuristic — all now rely on the app handler.
 
 **Conversion principle.** Only "a requested entity does not exist" (a lookup
 miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
-(`backtest_data_service` bad directory path, `csv_export` invalid table — 400
--class) and *internal post-write integrity* checks (`repositories/promotion`
-"not found after insert", `services/promotion/actions` "not found after request
+(`run_inputs` bad directory path — 400-class) and *internal post-write
+integrity* checks (`services/promotion/actions` "not found after request
 creation", `services/books/accounting` fill-processing invariants — 500-class,
 not user not-found).
+
+The original text cited two more examples that no longer exist: `csv_export`'s
+invalid-table rejection, removed with the CSV export, and
+`repositories/promotion`'s "not found after insert", removed when its writes
+moved to `RETURNING`. The principle is unchanged.
 
 ### Phase 2 — implemented
 
@@ -123,12 +126,12 @@ The second slice completes the migration for the remaining per-route
   `except ValueError` callers — CLI, tests — are unchanged). A second app-level
   handler in `apps/paper_trading_web/backend/main.py` maps `ValidationError -> 400`.
 - User-input validation raises reachable from the migrated routes now raise
-  `ValidationError`: `services/accounts/config.py` (enum/range/sizing/option
+  `ValidationError`: `services/books/settings_validation.py` (enum/range/sizing/option
   checks), `services/accounts/mutations.py` and `queries.py` (empty-name,
   positive-id/limit, `initial_cash > 0`), `domain/strategy_signals.py`
   (unknown-strategy), `backtesting/domain/windowing.py` and
-  `backtesting/services/backtest_data_service.py` (date/lookback/universe
-  checks), and `services/profiles/rotation_config_parser.py` (rotation object
+  `backtesting/services/run_inputs.py` (date/lookback/universe
+  checks), and `services/books/rotation/config_parser.py` (rotation object
   shape, lookback, schedule strategy names).
 - Routes dropped their blanket `except ValueError -> 400`: `routes/backtests.py`
   (run/preflight/walk-forward), `routes/admin.py` (create account). The account
@@ -145,12 +148,11 @@ The second slice completes the migration for the remaining per-route
 **Conversion principle (unchanged).** Only user-input validation becomes
 `ValidationError`. Deliberately left as bare `ValueError` -> 500: backtest
 domain-math invariants (`backtesting/domain/metrics.py`,
-`simulation_math.py`, `execution_service.py`), internal post-write integrity
+`simulation_math.py`, `simulation.py`), internal post-write integrity
 checks, and the generic `domain/rotation.py` list parser (also used on
 DB-sourced data, where a failure is an integrity error, not user input).
 Route-specific transport guards stay direct `HTTPException`: the preflight
-`FileNotFoundError -> 400` (missing tickers file) and `services/exports.py`
-path validation.
+`FileNotFoundError -> 400` (missing tickers file).
 
 **Deferred.** No `ConflictError`/409 was introduced — a duplicate account
 stays 400, preserving the prior client contract. It can be added later if a

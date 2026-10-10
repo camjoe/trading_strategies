@@ -37,7 +37,7 @@ def daily_account_job(
     in-process (the runner opens the session); leave it False for bodies that
     shell out to subprocesses.
     """
-    return account_job(  # type: ignore[return-value]
+    return account_job(
         job_name=job_name,
         sentinel=sentinel,
         period="day",

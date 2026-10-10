@@ -4,12 +4,12 @@ Composes the pre-submit kill switches (stale-price + reconciliation) with the
 notional risk gate, so every book — a plain account's default book and any
 additional book alike — inherits the same guards.
 
-**Book-as-bucket.** ``book_id`` is the risk bucket. The notional risk-gate
-*policy* (``trading.domain.risk_gate.evaluate_risk_gate``) is reused
-**unchanged**; this module only adapts book intents / equity / positions into the
-bucket-shaped inputs the policy expects (a book is just "the bucket").
-Reconciliation likewise rolls up book equity for the account. Kept free of any
-``auto_trading`` *service* dependency so ``auto_trading`` can call this
+**Book-as-bucket.** ``book_id`` is the risk bucket. No policy decision is taken
+here; this module only assembles what
+``trading.domain.risk_gate.evaluate_risk_gate`` expects — book intents, equity and
+positions shaped as buckets (a book is just "the bucket"), plus the account's
+drawdown. Reconciliation likewise rolls up book equity for the account. Kept free
+of any ``auto_trading`` *service* dependency so ``auto_trading`` can call this
 without a cycle.
 """
 
@@ -19,21 +19,18 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy
-from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.execution.gate_result import GateResult
-from trading.models.execution.risk_gate_position import RiskGatePosition
-from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.domain.auto_trading.sizing import WHOLE_SHARE_STEP, quantity_step_for
+from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy, point_in_time_drawdown_pct
+from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
-    MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
     RECONCILIATION_EQUITY_TOLERANCE,
 )
+from trading.services.execution.equity_reconciliation import reconcile_book_equity
 from trading.services.execution.gate import GateAuditSink
-from trading.services.execution.reconciliation import reconcile_book_equity
 
 
 class BookPreSubmitGate:
@@ -52,7 +49,6 @@ class BookPreSubmitGate:
         snapshot_time: str,
         config: RiskGateConfig | None = None,
         equity_tolerance: float = RECONCILIATION_EQUITY_TOLERANCE,
-        max_snapshot_age_seconds: int = MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
         reconcile: bool = True,
         audit_sink: GateAuditSink | None = None,
     ) -> None:
@@ -60,7 +56,6 @@ class BookPreSubmitGate:
         self._snapshot_time = snapshot_time
         self._config = config if config is not None else RiskGateConfig()
         self._equity_tolerance = abs(float(equity_tolerance))
-        self._max_snapshot_age_seconds = int(max_snapshot_age_seconds)
         # When False, the equity reconciliation kill switch is skipped here — the
         # caller runs it once pre-flight instead (account mode gates per trade in a
         # loop, so mid-loop book equity drifts from the snapshot by fees and would
@@ -116,33 +111,42 @@ class BookPreSubmitGate:
         intents: list[BookTradeIntent],
     ) -> tuple[list, list[BookTradeIntent], list[BookTradeIntent], list[BookTradeIntent]]:
         books = BookRepository(conn).fetch_for_account(account_id=account_id)
-        equity_by_book = {book.id: book.current_equity for book in books}
+        # The risk gate is float policy math; convert the Decimal balances and
+        # positions to float at this read boundary.
+        equity_by_book = {book.id: float(book.current_equity) for book in books}
+        # The gate rescales a cap-bound buy down to this step; equity books trade
+        # fractional shares, so a whole-unit floor would drop the fractional part.
+        step_by_book = {book.id: quantity_step_for(book.instrument_mode) for book in books}
         positions = PositionRepository(conn).fetch_for_account(account_id=account_id)
         gate_positions = [
             RiskGatePosition(
                 book_id=position.book_id,
                 symbol=position.symbol,
-                qty=position.qty,
-                avg_cost=position.avg_cost,
-                market_value=position.market_value,
-                unrealized_pnl=position.unrealized_pnl,
+                qty=float(position.qty),
+                avg_cost=float(position.avg_cost),
+                market_value=float(position.market_value),
+                unrealized_pnl=float(position.unrealized_pnl),
                 updated_at=position.updated_at,
             )
             for position in positions
         ]
         result = evaluate_risk_gate_policy(
-            intents=[self._as_bucket_intent(intent) for intent in intents],
+            intents=[self._as_bucket_intent(intent, step_by_book) for intent in intents],
             book_equity_by_id=equity_by_book,
             positions=gate_positions,
             config=self._config,
+            drawdown_pct=self._account_drawdown_pct(conn, account_id, equity_by_book),
         )
 
         # Decisions are 1:1 with the input intents, in order — map each back to its
         # BookTradeIntent, applying the rescaled qty where the gate trimmed it.
+        # strict: the domain gate keeps that 1:1 by appending exactly one decision
+        # per branch of its loop. Were that ever to slip, a silent zip would drop
+        # the surplus intents from every bucket — neither approved nor blocked.
         approved: list[BookTradeIntent] = []
         blocked: list[BookTradeIntent] = []
         rescaled: list[BookTradeIntent] = []
-        for original, decision in zip(intents, result.decisions):
+        for original, decision in zip(intents, result.decisions, strict=True):
             if decision.action == "block":
                 blocked.append(original)
             elif decision.action == "rescale":
@@ -153,20 +157,38 @@ class BookPreSubmitGate:
                 approved.append(original)
         return list(result.decisions), approved, blocked, rescaled
 
-    def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
+    def _account_drawdown_pct(
+        self,
+        conn: sqlite3.Connection,
+        account_id: int,
+        equity_by_book: Mapping[int, float],
+    ) -> float | None:
+        """The account's distance below peak equity, for the gate's loss breaker.
+
+        Current equity is the book roll-up, not the latest snapshot: the runtime
+        marks books to market before the gate, so the roll-up is the live number.
+        """
+        peak_equity = EquitySnapshotRepository(conn).fetch_max_equity(account_id=account_id)
+        return point_in_time_drawdown_pct(
+            total_equity=sum(equity_by_book.values()),
+            peak_equity=None if peak_equity is None else float(peak_equity),
+        )
+
+    def _as_bucket_intent(self, intent: BookTradeIntent, step_by_book: Mapping[int, float]) -> BookTradeCandidate:
         # book_id is the risk bucket key; the policy only uses side,
-        # symbol, qty, requested_price, and the bucket id from the intent.
+        # symbol, qty, requested_price, quantity_step, and the bucket id.
         return BookTradeCandidate(
             account_id=intent.account_id,
             book_id=intent.book_id,
             strategy_name="",
             side=intent.side,
             symbol=intent.symbol,
-            qty=int(intent.qty),
+            qty=float(intent.qty),
             requested_price=float(intent.requested_price or 0.0),
             forced_sell=None,
             delta_est=None,
             iv_est=None,
+            quantity_step=step_by_book.get(intent.book_id, WHOLE_SHARE_STEP),
         )
 
     # --- stale-price kill switch --------------------------------------------
@@ -188,7 +210,5 @@ class BookPreSubmitGate:
         return reconcile_book_equity(
             conn,
             account_id=account_id,
-            now_iso=self._snapshot_time,
             equity_tolerance=self._equity_tolerance,
-            max_snapshot_age_seconds=self._max_snapshot_age_seconds,
         )

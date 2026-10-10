@@ -1,4 +1,7 @@
 # Growth universe — high-growth companies across technology and adjacent sectors
+# Source: unrecorded. Hand-picked 2026-05-14 (commit 23c7cceb) with no stated
+# index, screen, or cap band. Treat membership as fixture seed data only;
+# re-derive against a named source before a real book trades it.
 # Cloud & Software
 CRWD
 SNOW

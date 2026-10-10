@@ -126,11 +126,11 @@ export function renderConfigEditor(detail: AccountDetail, showActions: boolean):
         <div class="bt-row">
           <div class="bt-field">
             <span>Profit Take %</span>
-            <input id="editProfitTakePctInput" type="number" step="0.1" value="${detail.account.profitTakePct ?? ""}" />
+            <input id="editOptionProfitTakePctInput" type="number" step="0.1" value="${detail.account.optionProfitTakePct ?? ""}" />
           </div>
           <div class="bt-field">
             <span>Max Loss %</span>
-            <input id="editMaxLossPctInput" type="number" step="0.1" value="${detail.account.maxLossPct ?? ""}" />
+            <input id="editOptionMaxLossPctInput" type="number" step="0.1" value="${detail.account.optionMaxLossPct ?? ""}" />
           </div>
         </div>
       </details>

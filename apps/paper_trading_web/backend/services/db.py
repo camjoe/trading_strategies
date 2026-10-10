@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Iterator
 
 from infrastructure.database.connection import ensure_db
 
 
 @contextmanager
-def db_conn() -> Iterator[sqlite3.Connection]:
+def db_conn() -> Generator[sqlite3.Connection]:
     conn = ensure_db()
     try:
         yield conn

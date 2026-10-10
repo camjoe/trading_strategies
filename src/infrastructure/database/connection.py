@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
 
 from infrastructure.database.backend import get_backend
 from infrastructure.database.schema_version import EXPECTED_HEAD_REVISION, read_database_revisions
 
-# Type alias — the concrete type depends on the active DatabaseBackend.
-DBConnection = Any
+# Nominally this depends on the active DatabaseBackend, but SQLiteBackend is the
+# only implementation. Adding a second one means widening this to a Protocol —
+# not back to `Any`, which propagates to every caller and hides mismatches.
+DBConnection = sqlite3.Connection
 
 _STATUS_COMMAND = "python -m scripts.data_ops.manage_db_migrations status"
 
@@ -22,35 +24,40 @@ class SchemaVersionError(RuntimeError):
     """
 
 
-def ensure_db() -> DBConnection:
-    """Open a connection and verify the database is at the expected head.
+def verify_schema_revision(conn: DBConnection) -> None:
+    """Raise ``SchemaVersionError`` unless *conn* is at the expected head.
 
-    Verification is plain SQL against ``alembic_version`` — runtime never
-    imports Alembic and never mutates the schema.
+    Callers that open their own connection from the backend must apply this
+    themselves before running application queries; ``ensure_db()`` does it for
+    the connection it opens.
     """
+    revisions = read_database_revisions(conn)
+    if revisions == (EXPECTED_HEAD_REVISION,):
+        return
+    found = ", ".join(revisions) if revisions else "none"
+    raise SchemaVersionError(
+        f"Database schema revision is '{found}', expected '{EXPECTED_HEAD_REVISION}'. "
+        f"Diagnose and migrate with: {_STATUS_COMMAND}"
+    )
+
+
+def ensure_db() -> DBConnection:
+    """Open a connection and verify the database is at the expected head."""
     conn = get_backend().open_connection()
     try:
-        revisions = read_database_revisions(conn)
+        verify_schema_revision(conn)
     except Exception:
         conn.close()
         raise
-    if revisions != (EXPECTED_HEAD_REVISION,):
-        conn.close()
-        found = ", ".join(revisions) if revisions else "none"
-        raise SchemaVersionError(
-            f"Database schema revision is '{found}', expected '{EXPECTED_HEAD_REVISION}'. "
-            f"Diagnose and migrate with: {_STATUS_COMMAND}"
-        )
     return conn
 
 
 @contextmanager
-def db_session() -> Iterator[DBConnection]:
+def db_session() -> Generator[DBConnection]:
     """Open a verified DB connection and guarantee it is closed.
 
-    The shared resource-lifecycle wrapper for the `conn = ensure_db(); try: ...
-    finally: conn.close()` pattern. Tests stub the connection by patching
-    `infrastructure.database.connection.ensure_db`.
+    Tests stub the connection by patching
+    ``infrastructure.database.connection.ensure_db``.
     """
     conn = ensure_db()
     try:

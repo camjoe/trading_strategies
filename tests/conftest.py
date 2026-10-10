@@ -8,10 +8,25 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.backend import SQLiteBackend, use_backend
 from infrastructure.database.connection import ensure_db
 from tests.support.db_schema import build_db_at_head
 from tests.support.seed.db import seed_session_db
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Tag tests by folder so ``-m integration`` / ``-m e2e`` select them.
+
+    The two suites break the mirror-``src`` layout on purpose, because they
+    cross modules. The marker follows the folder, so a new file needs no
+    per-module ``pytestmark``.
+    """
+    for item in items:
+        path = str(item.fspath).replace("\\", "/")
+        if "/tests/integration/" in path:
+            item.add_marker("integration")
+        elif "/tests/e2e/" in path:
+            item.add_marker("e2e")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -57,15 +72,13 @@ def _guard_sqlite_uri_readonly() -> None:
 
 @pytest.fixture
 def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
-    original = get_backend()
     db_path = build_db_at_head(tmp_path / "paper_trading.db")
-    set_backend(SQLiteBackend(db_path))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
+    with use_backend(SQLiteBackend(db_path)):
+        connection = ensure_db()
+        try:
+            yield connection
+        finally:
+            connection.close()
 
 
 @pytest.fixture(scope="session")
@@ -94,13 +107,13 @@ def seeded_conn(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sqlite3.Co
     db_path = tmp_path / "paper_trading_seeded.db"
 
     # Phase 1: seed via the standard backend so schema + seed data are written.
-    original = get_backend()
     build_db_at_head(db_path)
-    set_backend(SQLiteBackend(db_path))
-    write_conn = ensure_db()
-    seed_session_db(write_conn)
-    write_conn.close()
-    set_backend(original)
+    with use_backend(SQLiteBackend(db_path)):
+        write_conn = ensure_db()
+        try:
+            seed_session_db(write_conn)
+        finally:
+            write_conn.close()
 
     # Phase 2: re-open at OS level as truly read-only.
     ro_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)

@@ -1,66 +1,43 @@
 from __future__ import annotations
 
+import json
+from collections import Counter
+from functools import partial
 from typing import Any
+
+from backtesting.composition import run_backtest, run_backtest_batch, run_backtest_metrics_only, run_bench
+from backtesting.domain.scenario_bench.registry import (
+    SCENARIO_REGISTRY,
+    available_scenario_ids,
+    default_scenario_ids,
+    resolve_scenario,
+)
+from backtesting.models import BacktestBatchConfig, BacktestConfig
+from backtesting.models.optimizer import OptimizerConfig
+from backtesting.services.audit import fetch_experiment_audit
+from backtesting.services.optimization_experiment import run_and_persist_optimization
+from backtesting.services.reporting import fetch_leaderboard, fetch_report
+from backtesting.services.run_inputs import resolve_run_strategy
+from backtesting.services.scenario_bench import render_bench_matrix
+from trading.domain.promotion.gate import evaluate_promotion_gate
+from trading.domain.strategies.registry import available_strategy_ids
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.strategy_catalog.optimizer_promotion import promote_optimization_experiment
+
+
+def _split_csv(value: str | None) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()] if value else []
 
 
 def _format_metric(value: float | None, *, suffix: str = "") -> str:
     return "n/a" if value is None else f"{value:.2f}{suffix}"
 
 
-def _target_age_label(target: Any) -> str:
-    return "missing" if target.age_days is None else f"{target.age_days:.1f}d"
-
-
-def handle_refresh_stale_backtests(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    targets = deps["find_stale_backtests"](conn, account_name=args.account)
-    if args.limit is not None:
-        targets = targets[: max(0, args.limit)]
-
-    if not targets:
-        print("No stale or missing backtests found.")
-        return
-
-    if args.dry_run:
-        print(f"{len(targets)} stale/missing backtest target(s):")
-        for target in targets:
-            print(f"  {target.account_name}/{target.strategy_name} ({target.reason}, {_target_age_label(target)})")
-        return
-
-    refreshed = 0
-    failed = 0
-    for target in targets:
-        try:
-            result = deps["run_backtest"](
-                conn,
-                deps["BacktestConfig"](
-                    account_name=target.account_name,
-                    tickers_file=args.tickers_file,
-                    universe_history_dir=args.universe_history_dir,
-                    start=args.start,
-                    end=args.end,
-                    lookback_months=args.lookback_months,
-                    slippage_bps=args.slippage_bps,
-                    fee_per_trade=args.fee,
-                    run_name=f"refresh_{target.strategy_name}",
-                    allow_approximate_leaps=bool(args.allow_approximate_leaps),
-                    strategy=target.strategy_name,
-                ),
-            )
-        except Exception as error:  # noqa: BLE001 - one bad target must not abort the batch
-            print(f"Failed {target.account_name}/{target.strategy_name}: {error}")
-            failed += 1
-            continue
-        print(f"Refreshed {target.account_name}/{target.strategy_name}: run_id={result.run_id}")
-        refreshed += 1
-
-    print(f"Done: {refreshed} refreshed, {failed} failed.")
-
-
-def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        result = deps["run_backtest"](
+        result = run_backtest(
             conn,
-            deps["BacktestConfig"](
+            BacktestConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -73,6 +50,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
                 strategy=args.strategy,
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -108,43 +86,75 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
             print(f"- {warning}")
 
 
-def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    report = deps["backtest_report"](conn, args.run_id)
+def handle_backtest_bench(conn, args, parser, *, ctx: CliContext) -> None:
+    if args.list_scenarios:
+        for scenario_id in available_scenario_ids():
+            spec = SCENARIO_REGISTRY[scenario_id]
+            origin = f"real; needs fixture {spec.source.fixture_id}" if spec.source else "synthetic"
+            print(f"{scenario_id}: {spec.description} ({origin}, paths={spec.path_count})")
+        return
+
+    strategy_labels = _split_csv(args.strategies) or available_strategy_ids()
+    scenario_labels = _split_csv(args.scenarios) or default_scenario_ids()
+    try:
+        resolved = [resolve_run_strategy(conn, label) for label in strategy_labels]
+        strategy_names = list(dict.fromkeys(strategy.strategy_key for strategy in resolved))
+        scenario_specs = [resolve_scenario(label) for label in scenario_labels]
+        matrix = run_bench(
+            conn,
+            strategy_names=strategy_names,
+            scenario_specs=scenario_specs,
+            paths_override=args.paths,
+            slippage_bps=args.slippage_bps,
+            fee_per_trade=args.fee,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+
+    for warning in dict.fromkeys(warning for strategy in resolved for warning in strategy.warnings):
+        print(f"Note: {warning}")
+    print(render_bench_matrix(matrix, metric=args.metric))
+
+
+def handle_backtest_report(conn, args, parser, *, ctx: CliContext) -> None:
+    report = fetch_report(conn, run_id=args.run_id)
+    summary = report.summary
     print(
-        f"Backtest Run {report['run_id']} ({report['run_name'] or 'unnamed'}) | "
-        f"account={report['account_name']} strategy={report['strategy']}"
+        f"Backtest Run {summary.run_id} ({summary.run_name or 'unnamed'}) | "
+        f"account={summary.account_name} strategy={summary.strategy}"
     )
     print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Trades: {report['trade_count']}"
+        f"Range: {summary.start_date}..{summary.end_date} | Created: {summary.created_at} "
+        f"| Trades: {summary.trade_count}"
     )
     print(
-        f"Start Equity: {report['starting_equity']:.2f} | End Equity: {report['ending_equity']:.2f} "
-        f"| Return: {report['total_return_pct']:.2f}% | Max DD: {report['max_drawdown_pct']:.2f}%"
+        f"Start Equity: {summary.starting_equity:.2f} | End Equity: {summary.ending_equity:.2f} "
+        f"| Return: {summary.total_return_pct:.2f}% | Max DD: {summary.max_drawdown_pct:.2f}%"
     )
     print(
-        f"Slippage (bps): {report['slippage_bps']:.2f} | Fee/Trade: {report['fee_per_trade']:.2f} "
-        f"| Tickers File: {report['tickers_file']}"
+        f"Slippage (bps): {summary.slippage_bps:.2f} | Fee/Trade: {summary.fee_per_trade:.2f} "
+        f"| Tickers File: {summary.tickers_file}"
     )
     print(
         "Risk Analytics: "
-        f"Sharpe {_format_metric(report.get('sharpe_ratio'))} | "
-        f"Sortino {_format_metric(report.get('sortino_ratio'))} | "
-        f"Calmar {_format_metric(report.get('calmar_ratio'))}"
+        f"Sharpe {_format_metric(summary.sharpe_ratio)} | "
+        f"Sortino {_format_metric(summary.sortino_ratio)} | "
+        f"Calmar {_format_metric(summary.calmar_ratio)}"
     )
     print(
         "Trade Analytics: "
-        f"Win Rate {_format_metric(report.get('win_rate_pct'), suffix='%')} | "
-        f"Profit Factor {_format_metric(report.get('profit_factor'))} | "
-        f"Avg Trade Return {_format_metric(report.get('avg_trade_return_pct'), suffix='%')}"
+        f"Win Rate {_format_metric(summary.win_rate_pct, suffix='%')} | "
+        f"Profit Factor {_format_metric(summary.profit_factor)} | "
+        f"Avg Trade Return {_format_metric(summary.avg_trade_return_pct, suffix='%')}"
     )
-    if report["warnings"]:
-        print(f"Safeguards / notes: {report['warnings']}")
+    if summary.warnings:
+        print(f"Safeguards / notes: {' | '.join(summary.warnings)}")
 
 
-def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_leaderboard(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        rows = deps["backtest_leaderboard_entries"](
+        rows = fetch_leaderboard(
             conn,
             limit=int(args.limit),
             account_name=args.account,
@@ -186,12 +196,12 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> 
         )
 
 
-def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_batch(conn, args, parser, *, ctx: CliContext) -> None:
     account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
     try:
-        results = deps["run_backtest_batch"](
+        results = run_backtest_batch(
             conn,
-            deps["BacktestBatchConfig"](
+            BacktestBatchConfig(
                 account_names=account_names,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
@@ -203,6 +213,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 run_name_prefix=args.run_name_prefix,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
             ),
+            provider=ctx.provider,
         )
     except ValueError as error:
         parser.error(str(error))
@@ -217,78 +228,246 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
         )
 
 
-def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_backtest_optimize(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        summary = deps["run_walk_forward_backtest"](
+        search_space = json.loads(args.search_space)
+    except json.JSONDecodeError as error:
+        parser.error(f"--search-space must be valid JSON: {error}")
+        return
+    if not isinstance(search_space, dict):
+        parser.error("--search-space must be a JSON object mapping parameter -> list of values")
+        return
+
+    try:
+        summary = run_and_persist_optimization(
             conn,
-            deps["WalkForwardConfig"](
+            OptimizerConfig(
                 account_name=args.account,
                 tickers_file=args.tickers_file,
                 universe_history_dir=args.universe_history_dir,
+                strategy=args.strategy,
+                search_space=search_space,
                 start=args.start,
                 end=args.end,
                 lookback_months=args.lookback_months,
-                test_months=args.test_months,
-                step_months=args.step_months,
                 slippage_bps=args.slippage_bps,
                 fee_per_trade=args.fee,
-                run_name_prefix=args.run_name_prefix,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
+                train_months=args.train_months,
+                test_months=args.test_months,
+                step_months=args.step_months,
+                holdout_months=args.holdout_months,
+                candidate_budget=args.candidate_budget,
+                warmup_months=args.warmup_months,
             ),
+            run_metrics_only_fn=partial(run_backtest_metrics_only, provider=ctx.provider),
+            run_persisted_fn=partial(run_backtest, provider=ctx.provider),
+            market_data_provider=ctx.provider_name,
         )
     except ValueError as error:
         parser.error(str(error))
         return
 
-    print(
-        f"Walk-forward complete: account={summary.account_name} range={summary.start_date}..{summary.end_date} "
-        f"windows={summary.window_count}"
-    )
-    print(
-        f"Average Return: {summary.average_return_pct:.2f}% | Median Return: {summary.median_return_pct:.2f}% "
-        f"| Best: {summary.best_return_pct:.2f}% | Worst: {summary.worst_return_pct:.2f}%"
-    )
-    run_ids_preview = ", ".join([str(run_id) for run_id in summary.run_ids[:10]])
-    if len(summary.run_ids) > 10:
-        run_ids_preview += ", ..."
-    print(f"Generated run ids: {run_ids_preview}")
+    _print_optimization_summary(summary)
+    if summary.experiment_id is not None:
+        print(f"Persisted optimization experiment #{summary.experiment_id}")
+        print(f"Promote its winner with: backtest-optimize-promote {summary.experiment_id} --key <new_key>")
 
 
-def handle_backtest_walk_forward_report(
-    conn,
-    args,
-    parser,
-    *,
-    deps: dict[str, Any],
-) -> None:
+def handle_backtest_optimize_show(conn, args, parser, *, ctx: CliContext) -> None:
+    audit = fetch_experiment_audit(conn, experiment_id=args.experiment_id)
+    if audit is None:
+        parser.error(f"Optimization experiment not found: {args.experiment_id}")
+        return
+    _print_experiment(audit.experiment, evaluate_promotion_gate=evaluate_promotion_gate)
+    if audit.experiment.status == "failed":
+        return
+    _print_window_audit(audit.windows)
+    _print_compounded_oos(audit.compounded_oos)
+    _print_manifest(audit.manifest)
+
+
+def handle_backtest_optimize_promote(conn, args, parser, *, ctx: CliContext) -> None:
     try:
-        report = deps["walk_forward_report"](
+        variant = promote_optimization_experiment(
             conn,
-            group_id=args.group_id,
-            account_name=args.account,
-            strategy_name=args.strategy,
+            experiment_id=args.experiment_id,
+            new_strategy_key=args.key,
+            freeze=not args.no_freeze,
+            allow_no_edge=args.allow_no_edge,
         )
     except ValueError as error:
         parser.error(str(error))
         return
+    print(
+        f"Promoted experiment #{args.experiment_id} -> strategy {variant.strategy_key} "
+        f"(primitive={variant.primitive} status={variant.status} params={variant.params_json})"
+    )
 
+
+def _print_experiment(experiment: Any, *, evaluate_promotion_gate: Any) -> None:
     print(
-        f"Walk-forward Group {report['group_id']} | account={report['account_name']} "
-        f"strategy={report['strategy_name']}"
+        f"Optimization experiment #{experiment.id} | account_id={experiment.account_id} "
+        f"primitive={experiment.primitive} objective={experiment.objective_name} created={experiment.created_at} "
+        f"status={experiment.status}"
     )
-    print(
-        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
-        f"| Windows: {report['window_count']} | Prefix: {report['run_name_prefix'] or 'n/a'}"
-    )
-    print(
-        f"Average Return: {report['average_return_pct']:.2f}% | Median Return: {report['median_return_pct']:.2f}% "
-        f"| Best: {report['best_return_pct']:.2f}% | Worst: {report['worst_return_pct']:.2f}%"
-    )
-    print("window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count")
-    for window in report["windows"]:
-        summary = window["backtest_summary"]
+    if experiment.status == "failed":
         print(
-            f"{window['window_index']},{window['window_start']}..{window['window_end']},"
-            f"{summary['run_id']},{summary['run_name'] or ''},{window['total_return_pct']:.4f},"
-            f"{summary['max_drawdown_pct']:.4f},{summary['trade_count']}"
+            f"Failed during {experiment.failure_stage} after {experiment.window_count} window(s): "
+            f"{experiment.failure_message}"
+        )
+        return
+    print(
+        f"Range {experiment.start_date}..{experiment.end_date} | windows={experiment.window_count} "
+        f"| train/test/step/holdout(mo)={experiment.train_months}/{experiment.test_months}/"
+        f"{experiment.step_months}/{experiment.holdout_months} warmup={experiment.warmup_months}"
+    )
+    print(f"Search space: {experiment.search_space_json} (budget {experiment.candidate_budget})")
+    print(f"Winner params: {experiment.winner_params_json}")
+    if experiment.oos_mean_winner_return_pct is not None:
+        print(
+            f"OOS means: return {_pair(experiment.oos_mean_winner_return_pct, experiment.oos_mean_baseline_return_pct)} "
+            f"| winner beat baseline in {experiment.oos_windows_beat_baseline}/{experiment.window_count} windows"
+        )
+    if experiment.holdout_run_id is None:
+        print("Holdout: none")
+    else:
+        print(
+            f"Holdout (run {experiment.holdout_run_id}): "
+            f"return {_pair(experiment.holdout_winner_return_pct, experiment.holdout_baseline_return_pct)}"
+        )
+    gate = evaluate_promotion_gate(
+        oos_mean_winner_return_pct=experiment.oos_mean_winner_return_pct,
+        oos_mean_baseline_return_pct=experiment.oos_mean_baseline_return_pct,
+        oos_windows_beat_baseline=experiment.oos_windows_beat_baseline,
+        window_count=experiment.window_count,
+        holdout_winner_return_pct=experiment.holdout_winner_return_pct,
+        holdout_baseline_return_pct=experiment.holdout_baseline_return_pct,
+    )
+    if gate.passed:
+        print("Promotion gate: PASS")
+    else:
+        print(f"Promotion gate: FAIL ({'; '.join(gate.reasons)})")
+    if experiment.promoted_strategy_id is None:
+        print("Promotion: not promoted")
+    else:
+        print(f"Promotion: strategy id {experiment.promoted_strategy_id}")
+
+
+def _print_window_audit(window_audits: list[Any]) -> None:
+    """Print the persisted per-window / per-candidate audit trail.
+
+    The multiple-testing record: every window's train/test boundaries plus each
+    evaluated candidate's objective and eligibility — not just the winner."""
+    if not window_audits:
+        print("Windows: none persisted (experiment predates per-window audit)")
+        return
+    print(f"Windows ({len(window_audits)}) with per-candidate trials:")
+    for window_audit in window_audits:
+        window = window_audit.window
+        window_trials = window_audit.trials
+        eligible = sum(1 for trial in window_trials if trial.eligible)
+        winner = next((trial for trial in window_trials if trial.selected), None)
+        winner_label = (
+            f"win #{winner.candidate_index} score {_format_metric(winner.objective_value, suffix='')}"
+            if winner is not None
+            else "no winner recorded"
+        )
+        print(
+            f"  W{window.window_index:02d} train {window.train_start}..{window.train_end} "
+            f"test {window.test_start}..{window.test_end} (oos run {window.oos_run_id}) | "
+            f"{len(window_trials)} candidates, {eligible} eligible | {winner_label}"
+        )
+        for reason, count in _rejection_tally(window_trials):
+            print(f"       rejected: {reason} x{count}")
+
+
+def _print_manifest(manifest: Any) -> None:
+    """Print the frozen provenance manifest: the assumptions the run executed under."""
+    if manifest is None:
+        print("Provenance: unavailable (experiment predates run manifests)")
+        return
+    print(f"Provenance ({manifest.manifest_version}) | account={manifest.account_name} book_id={manifest.book_id}")
+    print(
+        f"  economics: initial_cash={manifest.initial_cash:.2f} benchmark={manifest.benchmark_ticker} "
+        f"slippage_bps={manifest.slippage_bps:.2f} fee={manifest.fee_per_trade:.2f}"
+    )
+    print(f"  execution: {manifest.effective_execution_json}")
+    lineage = manifest.universe_history_dir or manifest.tickers_file or "n/a"
+    print(f"  universe: {manifest.universe_size} tickers | lineage={lineage}")
+    revision = manifest.engine_revision or "unknown"
+    print(f"  data: provider={manifest.market_data_provider} as_of={manifest.data_as_of} | engine={revision}")
+
+
+def _print_compounded_oos(series: Any) -> None:
+    """Print the compounded chronological OOS series across the experiment's windows.
+
+    Each OOS window is an independently reset account, so returns are compounded
+    (geometrically linked), never summed; a window with a preceding time gap is marked."""
+    if series is None or not series.points:
+        print("Compounded OOS: unavailable (no persisted windows or missing OOS equity)")
+        return
+    gap_count = sum(1 for point in series.points if point.gap_before)
+    gap_note = f", {gap_count} gap(s)" if series.has_gaps else ""
+    print(f"Compounded OOS (across {len(series.points)} windows{gap_note}): {series.compounded_return_pct:.2f}%")
+    for point in series.points:
+        marker = " [GAP]" if point.gap_before else ""
+        print(
+            f"  W{point.window_index:02d} {point.test_start}..{point.test_end}{marker} "
+            f"period {point.period_return_pct:.2f}% | cumulative {point.cumulative_return_pct:.2f}%"
+        )
+
+
+def _rejection_tally(window_trials: list[Any]) -> list[tuple[str, int]]:
+    """Count ineligible candidates by rejection-reason family (prefix before any detail)."""
+    tally = Counter(
+        (trial.rejection_reason or "unknown").split(" (")[0] for trial in window_trials if not trial.eligible
+    )
+    return sorted(tally.items())
+
+
+def _pair(winner: float | None, default: float | None, *, suffix: str = "%") -> str:
+    """Format a winner/baseline metric pair for the optimizer summary."""
+    return f"{_format_metric(winner, suffix=suffix)}/{_format_metric(default, suffix=suffix)}"
+
+
+def _print_optimization_summary(summary: Any) -> None:
+    print(
+        f"Walk-forward optimization: account={summary.account_name} strategy={summary.strategy} "
+        f"objective={summary.objective_name}"
+    )
+    print(f"Baseline params: {summary.baseline_params}")
+    print(f"Windows: {len(summary.windows)} (metrics shown as winner/baseline)")
+    for window in summary.windows:
+        winner, default = window.winner_oos, window.baseline_oos
+        print(
+            f"  W{window.window_index:02d} {window.split.test_start}..{window.split.test_end} "
+            f"win={window.winner.params} | "
+            f"return {_pair(winner.total_return_pct, default.total_return_pct)} | "
+            f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} (run {winner.run_id})"
+        )
+    if summary.windows:
+        count = len(summary.windows)
+        avg_win_return = sum(w.winner_oos.total_return_pct for w in summary.windows) / count
+        avg_def_return = sum(w.baseline_oos.total_return_pct for w in summary.windows) / count
+        avg_win_dd = sum(w.winner_oos.max_drawdown_pct for w in summary.windows) / count
+        avg_def_dd = sum(w.baseline_oos.max_drawdown_pct for w in summary.windows) / count
+        beats = sum(1 for w in summary.windows if w.winner_oos.total_return_pct > w.baseline_oos.total_return_pct)
+        print(
+            f"OOS means: return {_pair(avg_win_return, avg_def_return)} | maxDD {_pair(avg_win_dd, avg_def_dd)} "
+            f"| winner beat baseline on return in {beats}/{count} windows"
+        )
+    if summary.holdout is None:
+        print("Holdout: disabled")
+    else:
+        holdout = summary.holdout
+        winner, default = holdout.winner, holdout.baseline
+        print(
+            f"Holdout {holdout.holdout_start}..{holdout.holdout_end} params={holdout.winner_params} (run {winner.run_id})"
+        )
+        print(
+            f"  return {_pair(winner.total_return_pct, default.total_return_pct)} | "
+            f"maxDD {_pair(winner.max_drawdown_pct, default.max_drawdown_pct)} | "
+            f"annualized {_pair(winner.annualized_return_pct, default.annualized_return_pct)} | "
+            f"calmar {_pair(winner.calmar_ratio, default.calmar_ratio, suffix='')}"
         )

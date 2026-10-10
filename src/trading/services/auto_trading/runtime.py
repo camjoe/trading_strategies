@@ -2,167 +2,64 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict
 
-import pandas as pd
-
 from common.coercion import row_expect_int
-from common.time import parse_utc_iso
-from common.time import utc_now_iso
-from collections.abc import Callable, Mapping
-
-from trading.models import AccountRecord
-from trading.models.orders.broker_order import OrderFill
+from common.time import parse_utc_iso, utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.domain.feature_provider import FeatureFetcherSet
-from trading.domain.market_hours import is_regular_us_equity_market_open
-from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.services.accounts import get_account
-from trading.services.operational_settings import enforce_runtime_trade_throttles
-from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from trading.services.auto_trading.execution import (
+from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
+from trading.domain.market.hours import is_regular_us_equity_market_open
+from trading.models import AccountRecord
+from trading.models.execution import (
+    AccountRunResult,
+    BookRunAudit,
+    BookTradeIntent,
+    RiskGateConfig,
+    RiskGateDecision,
+)
+from trading.models.market_data import MarketInputs
+from trading.services.accounts.mutations import get_account
+from trading.services.books.rotation.account_rotation import run_account_book_rotations
+from trading.services.books.sector_config import load_symbol_sector_map
+from trading.services.execution.constants import (
+    KILL_SWITCH_REASON_BROKER_API_ANOMALY,
+    KILL_SWITCH_REASON_UNPRICED_POSITION,
+)
+from trading.services.execution.equity_reconciliation import reconcile_book_equity
+from trading.services.execution.gate import AllowAllGate
+from trading.services.execution.nav import mark_account_to_market
+from trading.services.execution.pre_submit_gate import BookPreSubmitGate
+from trading.services.execution.risk import persist_book_run_audit
+from trading.services.execution.selection.book_intents import generate_book_trade_intents
+from trading.services.execution.selection.selection import (
     FeatureHistoryFn,
     build_feature_history_fn,
 )
-from trading.services.auto_trading.runtime_reconciliation import (
-    reconcile_open_orders_impl,
-    resolve_reconciliation_exec_id,
-)
-from trading.services.market_data import MarketDataProvider
-from trading.services.auto_trading.runtime_book_risk import (
-    persist_book_risk_snapshot,
-    persist_normalized_risk_decisions,
-)
-from trading.models.execution.book_trade_candidate import BookTradeCandidate
-from trading.models.execution.risk_gate_decision import RiskGateDecision
-from trading.models.execution.risk_gate_config import RiskGateConfig
-from trading.services.books.execution import generate_book_trade_intents
-from trading.services.books.sector_config import load_symbol_sector_map
-from trading.services.books.rotation import (
-    evaluate_and_apply_book_rotation,
-    resolve_rotation_policy_config,
-)
-from trading.services.books.challenger_evaluation import build_book_challenger_evaluations
-from trading.repositories.positions import PositionRepository
-from trading.repositories.books import BookRepository
-from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.services.execution.submission import submit_book_intents
-from trading.services.execution.gate import AllowAllGate
-from trading.services.execution.pre_submit_gate import BookPreSubmitGate
-from trading.services.execution.nav import mark_account_to_market
-from trading.services.execution.reconciliation import reconcile_book_equity
-
-logger = logging.getLogger(__name__)
-
-# Kill-switch reason when required price marks are unavailable or invalid.
-KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
-# Kill-switch reason when book/account equity reconciliation is out of tolerance.
-KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
-# Kill-switch reason when no account snapshot exists for reconciliation guard.
-KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
-# Kill-switch reason when latest account snapshot is older than freshness threshold.
-KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT = "stale_reconciliation_snapshot"
-# Kill-switch reason when broker submission raises an exception.
-KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
-
-# Maximum allowed age for account snapshot freshness validation (seconds).
-MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
+from trading.services.operational_settings.enforcement import enforce_runtime_trade_throttles
 
 # Risk-decision reason when the global trade throttle blocks further submissions.
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
 
 
-def _is_runtime_submission_window_open(now_iso: str) -> bool:
-    return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
+def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
+    """Whether the runtime may submit orders right now (US regular equity hours).
+
+    Public so callers can report *why* a run submitted nothing instead of
+    reporting an indistinguishable zero-trade result.
+    """
+    return is_regular_us_equity_market_open(parse_utc_iso(now_iso or utc_now_iso()))
 
 
-def _resolve_reconciliation_exec_id(
-    *,
-    broker_order_id: str,
-    fill: OrderFill,
-    fill_index: int,
-) -> str:
-    return resolve_reconciliation_exec_id(
-        broker_order_id=broker_order_id,
-        fill=fill,
-        fill_index=fill_index,
+def _account_run_result(account: AccountRecord, audit: BookRunAudit) -> AccountRunResult:
+    return AccountRunResult(
+        account_name=str(account.name),
+        submitted_count=audit.submitted_count,
+        kill_switch_reasons=tuple(audit.kill_switch_reasons),
     )
-
-
-def _persist_book_risk_snapshot(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    snapshot_time: str,
-    kill_switch_triggered: bool,
-    payload: dict[str, object],
-) -> None:
-    # Exposure is sourced from the clean book positions/equity (the submission path's
-    # source of truth); persisted to the account-keyed risk_snapshots table.
-    persist_book_risk_snapshot(
-        conn,
-        account_id=account_id,
-        snapshot_time=snapshot_time,
-        kill_switch_triggered=kill_switch_triggered,
-        payload=payload,
-        fetch_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
-            account_id=account_id
-        ),
-        fetch_books_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(account_id=account_id),
-        insert_risk_snapshot_fn=RiskSnapshotRepository(conn).insert,
-        symbol_sector_map=load_symbol_sector_map(),
-    )
-
-
-def _persist_normalized_risk_decisions(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    decision_time: str,
-    risk_decisions: list[dict[str, object]],
-) -> None:
-    persist_normalized_risk_decisions(
-        conn,
-        account_id=account_id,
-        decision_time=decision_time,
-        risk_decisions=risk_decisions,
-        insert_risk_decision_fn=lambda c, **kwargs: RiskDecisionRepository(c).insert(**kwargs),
-    )
-
-
-def _run_book_rotation_decisions(
-    conn: sqlite3.Connection,
-    *,
-    account: AccountRecord,
-    decision_time: str,
-) -> None:
-    # Scheduling is book-owned (ADR 014): the evaluation resolves each book's
-    # enabled gate, challenger schedule, and lookback from its settings row.
-    shadow_eval = build_book_challenger_evaluations(
-        conn,
-        account=account,
-        as_of_iso=decision_time,
-    )
-    for book_eval in shadow_eval.books:
-        # Per-book effective policy: book_rotation_settings overrides with
-        # code-default fallback.
-        config = resolve_rotation_policy_config(
-            conn,
-            book_id=book_eval.book_id,
-            rolling_window_days=book_eval.rolling_window_days,
-            config_version=f"book-rotation:{decision_time[:10]}",
-        )
-        evaluate_and_apply_book_rotation(
-            conn,
-            book_id=book_eval.book_id,
-            incumbent=book_eval.incumbent,
-            challengers=book_eval.challengers,
-            config=config,
-            decision_time=decision_time,
-        )
 
 
 def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
@@ -170,131 +67,105 @@ def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[st
     return [asdict(decision) for decision in decisions]
 
 
-def _persist_book_run_audit(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    snapshot_time: str,
-    risk_decisions: list[dict[str, object]],
-    kill_switch_reasons: list[str],
-    summary: dict[str, object],
-) -> None:
-    _persist_normalized_risk_decisions(
-        conn,
-        account_id=account_id,
-        decision_time=snapshot_time,
-        risk_decisions=risk_decisions,
-    )
-    _persist_book_risk_snapshot(
-        conn,
-        account_id=account_id,
-        snapshot_time=snapshot_time,
-        kill_switch_triggered=bool(kill_switch_reasons),
-        payload={
-            "kill_switch_reasons": kill_switch_reasons,
-            "risk_decisions": risk_decisions,
-            "summary": summary,
-        },
-    )
-
-
 def _run_books_for_account(
     conn: sqlite3.Connection,
     *,
-    account_name: str,
     account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
-    feature_fetchers: FeatureFetcherSet,
-    histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
-) -> int:
+    fetch_regime: Callable[[str], ExternalFeatureBundle] | None = None,
+) -> AccountRunResult:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
+    audit = BookRunAudit()
+    # Static for the run: read the operator-editable symbol→sector data once and
+    # feed both the risk gate config and the audit snapshot, not once per call.
+    symbol_sector_map = load_symbol_sector_map()
     # Universes are book-owned and required (revision 0008): each book resolves
     # its own names; the global list is only the guard for malformed data.
-    _run_book_rotation_decisions(conn, account=account, decision_time=snapshot_time)
+    run_account_book_rotations(conn, account=account, decision_time=snapshot_time, fetch_regime=fetch_regime)
     intents = generate_book_trade_intents(
         conn,
         account=account,
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank_proxy,
+        market=market,
         max_trades=max_trades,
         fee=fee,
-        histories=histories,
         feature_history_fn=feature_history_fn,
+        # Seeded per run date, so candidate order is stable within a run and
+        # reproducible from the audit trail, but does not favour the same names
+        # run after run.
+        selection_seed=snapshot_time[:10],
     )
     if not intents:
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
-            risk_decisions=[],
-            kill_switch_reasons=[],
-            summary={"submitted_count": 0, "blocked_count": 0, "rescaled_count": 0, "allowed_count": 0},
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
         )
-        return 0
+        return _account_run_result(account, audit)
 
-    # Intents are book-keyed; keep the book → intent context for the audit
-    # trail and fill notes (the intent's book_id feeds the risk audit).
-    book_intents: list[BookTradeIntent] = []
-    candidate_by_book: dict[int, BookTradeCandidate] = {}
-    for candidate in intents:
-        book_intents.append(
-            BookTradeIntent(
-                book_id=candidate.book_id,
-                account_id=candidate.account_id,
-                strategy_id=None,
-                symbol=candidate.symbol,
-                side=candidate.side,
-                qty=float(candidate.qty),
-                requested_price=float(candidate.requested_price),
-            )
+    # Intents are book-keyed; the intent's book_id feeds the risk audit.
+    book_intents: list[BookTradeIntent] = [
+        BookTradeIntent(
+            book_id=candidate.book_id,
+            account_id=candidate.account_id,
+            strategy_id=None,
+            symbol=candidate.symbol,
+            side=candidate.side,
+            qty=float(candidate.qty),
+            requested_price=float(candidate.requested_price),
         )
-        candidate_by_book[candidate.book_id] = candidate
+        for candidate in intents
+    ]
 
     # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
     # for the run (reconciliation is per-run, not
     # per-book). The batch gate then applies the notional caps + stale-price across all
     # books with reconcile=False, so cross-book exposure caps are enforced together.
-    mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=snapshot_time)
-    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id, now_iso=snapshot_time)
+    nav_results = mark_account_to_market(conn, account_id=account_id, prices=market.prices, as_of=snapshot_time)
+    unpriced_symbols = sorted({symbol for result in nav_results for symbol in result.unpriced_symbols})
+    if unpriced_symbols:
+        # A held symbol with no live mark is carried at cost in book equity but
+        # skipped by the equity snapshot, so reconcile_book_equity would report a
+        # spurious reconciliation_mismatch. Hold the book on the real cause and
+        # skip the now-uninformative equity check — a run must not trade a book it
+        # cannot value. See docs/overview.md (Known limitations).
+        reconciliation_reasons = [KILL_SWITCH_REASON_UNPRICED_POSITION]
+    else:
+        reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id)
     gate = BookPreSubmitGate(
-        prices=prices,
+        prices=market.prices,
         snapshot_time=snapshot_time,
         reconcile=False,
-        config=RiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
+        config=RiskGateConfig(symbol_sector_map=symbol_sector_map),
     )
     gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
 
-    risk_decisions = _risk_decisions_from_gate(gate_result.decisions)
-    kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
-    for reason in kill_switch_reasons:
-        risk_decisions.append({"action": "block", "reason_code": reason})
-    allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
-    summary_counts: dict[str, object] = {
-        "blocked_count": len(gate_result.blocked_intents),
-        "rescaled_count": len(gate_result.rescaled_intents),
-        "allowed_count": allowed_count,
-    }
+    audit.risk_decisions = _risk_decisions_from_gate(gate_result.decisions)
+    audit.kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
+    for reason in audit.kill_switch_reasons:
+        audit.record_block(reason)
+    audit.blocked_count = len(gate_result.blocked_intents)
+    audit.rescaled_count = len(gate_result.rescaled_intents)
+    audit.allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
 
-    # A kill switch (stale-price or reconciliation) holds the whole run.
-    approved_intents = [] if kill_switch_reasons else gate_result.approved_intents
+    # Any kill-switch reason (stale-price, reconciliation, or unpriced position)
+    # holds the whole run.
+    approved_intents = [] if audit.kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
-            risk_decisions=risk_decisions,
-            kill_switch_reasons=kill_switch_reasons,
-            summary={"submitted_count": 0, **summary_counts},
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
         )
-        return 0
+        return _account_run_result(account, audit)
 
     approved_by_book: dict[int, list[BookTradeIntent]] = defaultdict(list)
     for book_intent in approved_intents:
@@ -302,24 +173,7 @@ def _run_books_for_account(
 
     broker = broker_factory(account)
     try:
-        submitted_count = 0
         for book_id, book_intents_for_book in approved_by_book.items():
-            candidate = candidate_by_book[book_id]
-
-            # The global trade throttle (operational settings) applies across
-            # the whole run: once exceeded, no further books submit.
-            try:
-                enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso())
-            except RuntimeTradeThrottleExceededError:
-                risk_decisions.append(
-                    {
-                        "action": "block",
-                        "reason_code": RISK_REASON_TRADE_THROTTLE_EXCEEDED,
-                        "book_id": candidate.book_id,
-                    }
-                )
-                break
-
             result = submit_book_intents(
                 conn,
                 book_id=book_id,
@@ -328,109 +182,59 @@ def _run_books_for_account(
                 broker=broker,
                 gate=AllowAllGate(),  # gating already ran once above for the whole batch
                 fee=fee,
+                # Checked before every order, not once per book.
+                enforce_throttle=lambda: enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso()),
             )
-            submitted_count += result.submitted_count
+            if result.throttled:
+                # The throttle is global: no later book submits either.
+                audit.record_block(RISK_REASON_TRADE_THROTTLE_EXCEEDED, book_id=book_id)
+                audit.submitted_count += result.submitted_count
+                break
+            audit.submitted_count += result.submitted_count
             if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
-                kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
-                risk_decisions.append(
-                    {
-                        "action": "block",
-                        "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
-                        "book_id": candidate.book_id,
-                    }
-                )
+                audit.kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
+                audit.record_block(KILL_SWITCH_REASON_BROKER_API_ANOMALY, book_id=book_id)
                 break
 
-        _persist_book_run_audit(
+        persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
-            risk_decisions=risk_decisions,
-            kill_switch_reasons=kill_switch_reasons,
-            summary={"submitted_count": submitted_count, **summary_counts},
+            audit=audit,
+            symbol_sector_map=symbol_sector_map,
         )
-        return submitted_count
+        return _account_run_result(account, audit)
     finally:
         broker.disconnect()
 
 
 def run_for_account(
     conn: sqlite3.Connection,
+    *,
     account_name: str,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
+    market: MarketInputs,
     max_trades: int,
     fee: float,
-    *,
-    histories: Mapping[str, pd.Series] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
-    provider: MarketDataProvider | None = None,
-) -> int:
+) -> AccountRunResult:
     """Run the account's trading books (the one execution path, ADR 014).
 
     Every active, openly assigned book — the default book included — trades
     through the book flow. Books without an open assignment do not trade.
     """
     now_iso = utc_now_iso()
-    if not _is_runtime_submission_window_open(now_iso):
-        return 0
+    if not is_runtime_submission_window_open(now_iso):
+        return AccountRunResult(account_name=account_name, submitted_count=0, submission_window_closed=True)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)
     return _run_books_for_account(
         conn,
-        account_name=account_name,
         account=account,
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank_proxy,
+        market=market,
         max_trades=max_trades,
         fee=fee,
         broker_factory=broker_factory,
-        feature_fetchers=feature_fetchers,
-        histories=histories,
         feature_history_fn=feature_history_fn,
+        fetch_regime=feature_fetchers.fetch_policy,
     )
-
-
-def reconcile_open_broker_orders(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    fee: float,
-    *,
-    broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> int:
-    """Poll the account broker for fill updates on all open persisted clean orders.
-
-    For each open ``orders`` row the broker reports fills on, this function:
-      - Inserts any new ``order_fills`` rows and applies them to the book
-        (positions/ledger/balances via the shared ``apply_book_fill``)
-      - Updates the ``orders`` row status/fill state
-
-    Returns the number of orders that were newly FILLED in this call.
-    ``account_name``/``fee`` are retained for call-site compatibility; fills
-    carry their own costs and account history derives from the fill rows.
-
-    Called periodically for accounts with broker-managed open orders. It is a no-op
-    for paper accounts, which fill synchronously and report no open trades.
-    """
-    del account_name, fee
-    return reconcile_open_orders_impl(
-        conn,
-        account,
-        get_broker_for_account_fn=broker_factory,
-    )
-
-
-def reconcile_open_ib_orders(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    fee: float,
-    *,
-    broker_factory: Callable[[AccountRecord], BrokerConnection],
-) -> int:
-    """Compatibility alias for the old broker reconciliation name."""
-    return reconcile_open_broker_orders(conn, account_name, account, fee, broker_factory=broker_factory)

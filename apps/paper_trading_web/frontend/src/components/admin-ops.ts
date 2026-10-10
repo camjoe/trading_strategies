@@ -5,6 +5,8 @@ import type {
   OperationJobStatus,
   OperationsOverviewResponse,
   PromotionOverviewResponse,
+  ScheduleStatus,
+  ScheduleStatusJob,
 } from "../types/admin";
 
 function formatDate(value: string | null | undefined): string {
@@ -81,22 +83,48 @@ function renderArtifactPanel(title: string, emptyText: string, artifacts: Operat
   `;
 }
 
+function scheduleStatePill(state: ScheduleStatusJob["state"]): { cls: string; label: string } {
+  if (state === "ok") return { cls: "ok", label: "Registered" };
+  if (state === "missing") return { cls: "missing", label: "Not registered" };
+  if (state === "stale") return { cls: "warning", label: "Stale" };
+  if (state === "off") return { cls: "ok", label: "Off" };
+  return { cls: "warning", label: "Unknown" };
+}
+
+function renderScheduleStatusPanel(status: ScheduleStatus | null): string {
+  if (!status) {
+    return `
+      <section class="ops-artifact-panel">
+        <h3>Schedule Registration</h3>
+        <div class="empty">Not available yet — run <code>manage_job_schedules --status</code> (or apply a schedule) on the host to populate it.</div>
+      </section>
+    `;
+  }
+  const syncBadge = status.installedReadable
+    ? `<span class="status-pill ${status.inSync ? "ok" : "warning"}">${status.inSync ? "In sync" : "Drift"}</span>`
+    : `<span class="status-pill warning">Not readable on this host</span>`;
+  const rows = status.jobs
+    .map((job) => {
+      const pill = scheduleStatePill(job.state);
+      return `<li><strong>${esc(job.taskName)}</strong><span class="status-pill ${pill.cls}">${esc(pill.label)}</span></li>`;
+    })
+    .join("");
+  return `
+    <section class="ops-artifact-panel">
+      <h3>Schedule Registration ${syncBadge}</h3>
+      <div class="ops-card-meta">Host: <code>${esc(status.host ?? "—")}</code> · ${esc(status.scheduler ?? "—")} · ${esc(formatDate(status.generatedAt))}</div>
+      <ul class="ops-artifact-list">${rows}</ul>
+    </section>
+  `;
+}
+
 export function renderOperationsOverview(data: OperationsOverviewResponse): string {
   return `
     <div class="ops-status-grid">
       ${data.jobs.map(renderJobCard).join("")}
     </div>
     <div class="ops-artifact-grid">
-      ${renderArtifactPanel(
-        "Daily Backtest Refresh Artifacts",
-        "No daily backtest refresh artifacts found in local/exports/daily_backtest_refresh yet.",
-        data.dailyBacktestRefreshArtifacts,
-      )}
-      ${renderArtifactPanel(
-        "Daily Snapshot Artifacts",
-        "No daily snapshot artifacts found in local/exports/daily_snapshots yet.",
-        data.dailySnapshotArtifacts,
-      )}
+      ${renderScheduleStatusPanel(data.scheduleStatus)}
       ${renderArtifactPanel(
         "Database Backups",
         "No database backups found in local/db_backups yet.",
@@ -159,7 +187,7 @@ function renderPromotionEvaluation(data: PromotionOverviewResponse): string {
         ${renderEvidenceStat("Backtest Snapshots", formatCount(evaluation.backtest.snapshotCount))}
         ${renderEvidenceStat("Backtest Freshness", formatBacktestFreshness(evaluation.backtestFreshness))}
         ${renderEvidenceStat("Max Drawdown", formatPctValue(evaluation.backtest.maxDrawdownPct))}
-        ${renderEvidenceStat("Walk-Forward Grouped", evaluation.walkForward.grouped ? "yes" : "no")}
+        ${renderEvidenceStat("WF Windows", formatCount(evaluation.walkForward.windowCount))}
         ${renderEvidenceStat("WF Average Return", formatPctValue(evaluation.walkForward.averageReturnPct))}
         ${renderEvidenceStat("WF Best Return", formatPctValue(evaluation.walkForward.bestReturnPct))}
         ${renderEvidenceStat("WF Worst Return", formatPctValue(evaluation.walkForward.worstReturnPct))}

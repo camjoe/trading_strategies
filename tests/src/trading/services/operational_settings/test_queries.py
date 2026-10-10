@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from trading.domain.evaluation.confidence import EvaluationConfidenceSettings
+from trading.domain.promotion.policy import PromotionPolicySettings
+from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
@@ -15,19 +18,12 @@ from trading.services.operational_settings.queries import (
     fetch_runtime_throttle_settings,
 )
 
-
 # ---------------------------------------------------------------------------
 # fetch_runtime_throttle_settings
 # ---------------------------------------------------------------------------
 
 
 class TestFetchRuntimeThrottleSettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        """Non-connection object returns default RuntimeThrottleSettings."""
-        result = fetch_runtime_throttle_settings(object())  # type: ignore[arg-type]
-        assert result.max_trades_per_day is None
-        assert result.max_trades_per_minute is None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         """No global_settings row → defaults."""
         result = fetch_runtime_throttle_settings(conn)
@@ -52,13 +48,24 @@ class TestFetchRuntimeThrottleSettings:
 
 
 class TestFetchEvaluationConfidenceSettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        result = fetch_evaluation_confidence_settings(object())  # type: ignore[arg-type]
-        assert result.backtest_trade_confidence_weight is not None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         result = fetch_evaluation_confidence_settings(conn)
         assert result.backtest_trade_confidence_weight is not None
+
+    def test_throttle_row_does_not_materialize_policy_overrides(self, conn) -> None:
+        set_runtime_throttle_settings(
+            conn,
+            runtime_max_trades_per_day=25,
+            runtime_max_trades_per_minute=None,
+            updated_at="2026-01-01T00:00:00Z",
+        )
+
+        record = GlobalSettingsRepository(conn).fetch()
+        result = fetch_evaluation_confidence_settings(conn)
+
+        assert record is not None
+        assert record.evaluation_backtest_trade_count_for_full_confidence is None
+        assert result == EvaluationConfidenceSettings()
 
     def test_returns_persisted_values(self, conn) -> None:
         set_evaluation_confidence_settings(
@@ -101,13 +108,19 @@ class TestFetchEvaluationConfidenceSettings:
 
 
 class TestFetchPromotionPolicySettings:
-    def test_no_execute_attr_returns_defaults(self) -> None:
-        result = fetch_promotion_policy_settings(object())  # type: ignore[arg-type]
-        assert result.min_research_backtest_trade_count is not None
-
     def test_empty_db_returns_defaults(self, conn) -> None:
         result = fetch_promotion_policy_settings(conn)
         assert result.min_research_backtest_trade_count is not None
+
+    def test_null_policy_fields_use_code_defaults(self, conn) -> None:
+        set_runtime_throttle_settings(
+            conn,
+            runtime_max_trades_per_day=25,
+            runtime_max_trades_per_minute=None,
+            updated_at="2026-01-01T00:00:00Z",
+        )
+
+        assert fetch_promotion_policy_settings(conn) == PromotionPolicySettings()
 
     def test_returns_persisted_values(self, conn) -> None:
         set_promotion_policy_settings(

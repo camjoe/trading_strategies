@@ -4,12 +4,7 @@ import ast
 from pathlib import Path
 
 from scripts.checks.python.function_complexity_check import analyze_function, check_file
-
-
-def _write(path: Path, content: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return path
+from tests.scripts.helpers import write_file
 
 
 def _first_function(source: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
@@ -42,7 +37,7 @@ def test_changed_function_complexity_is_reported_for_changed_lines(tmp_path: Pat
     for index in range(13):
         source += f"    if value == {index}:\n        return {index}\n"
     source += "    return value\n"
-    _write(tmp_path / "scripts/example.py", source)
+    write_file(tmp_path / "scripts/example.py", source)
 
     report = check_file(tmp_path, "scripts/example.py", {5})
 

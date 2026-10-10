@@ -26,23 +26,20 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 
 | Skill folder | Covers |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
-| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
+| `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
-| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
-| `help/` | Interactive discovery: list available skills and common prompts |
-| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
-| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
+| `strategy-advisor/` | Advisor session over the strategy decision ledger: score, review, decide (including hold), act only on approval |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
 | `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 
 ## Workflows vs skills
 
 Some skills are executable workflows that orchestrate other skills and commands. For example,
-`check-pr-readiness/` runs deterministic validation, invokes code-review judgment, runs advisory
-docs checks, and saves a report. Keep workflow skills when ordering, stop conditions, or output
+`check-pr-readiness/` runs the deterministic gate, invokes code-review's independent reviewers, runs
+a docs drift review, and keeps one readiness comment on the pull request up to date. Keep workflow skills when ordering, stop conditions, or output
 artifacts matter; keep capability skills like `validate-code/` and `code-review/` focused on one
 kind of work.
 
@@ -55,7 +52,9 @@ loads; the folders on disk are the source of truth. A reference file exists only
 Retired from the active set (do not reintroduce without a fresh decision): the standalone
 `deep-code-review`, `frontend-cleanup`, and `python-cleanup` skills (merged into `code-review/`
 modes); flat `.skill.md` shims; blank `templates/`; `update-documentation/docs-sync.md` and
-`reference-doc/reference-doc.md` (folded into their `SKILL.md`s, 2026-07-02).
+`reference-doc/reference-doc.md` (folded into their `SKILL.md`s, 2026-07-02); the `expand-tests`,
+`help`, and `manage-skill` skills; and `reference-doc` (its workflow folded into
+`docs/conventions/docs-authoring.md`).
 
 ## Authoring rules
 

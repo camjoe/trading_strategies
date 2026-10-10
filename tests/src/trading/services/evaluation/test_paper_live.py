@@ -1,12 +1,11 @@
 import pytest
 
-from tests.support.books import set_test_book_rotation_scheduling
-from trading.repositories.book_bridge import default_book_id
+from tests.support.books import ensure_default_book_id, set_test_book_rotation_scheduling
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.accounts import create_account, get_account
+from trading.services.accounts.mutations import create_account, get_account
 from trading.services.books.book_assignments import sync_default_book_assignment
-from trading.services.evaluation import fetch_strategy_evaluation
+from trading.services.evaluation.queries import fetch_strategy_evaluation
 
 
 def _enable_rotation(conn, name: str, *, active: str) -> None:
@@ -14,14 +13,14 @@ def _enable_rotation(conn, name: str, *, active: str) -> None:
     # sure the book's open assignment runs the requested active strategy.
     account = get_account(conn, name)
     account_id = int(account["id"])
-    book_id = default_book_id(conn, account_id)
+    book_id = ensure_default_book_id(conn, account_id)
     sync_default_book_assignment(conn, account_id=account_id, strategy_name=active, now_iso="2026-01-01T00:00:00Z")
     set_test_book_rotation_scheduling(conn, book_id=book_id, enabled=1, schedule=["trend_v1", "mean_reversion"])
 
 
 def _snapshot(conn, account_id: int, *, at: str, equity: float) -> None:
-    EquitySnapshotRepository(conn).insert(
-        account_id=account_id,
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=ensure_default_book_id(conn, account_id),
         snapshot_time=at,
         cash=equity,
         market_value=0.0,
@@ -52,7 +51,7 @@ def test_fetch_strategy_evaluation_uses_closed_strategy_window_for_inactive_stra
     create_account(conn, "acct_rotation_eval", "trend_v1", 1000.0, "SPY")
     _enable_rotation(conn, "acct_rotation_eval", active="trend_v1")
     account = get_account(conn, "acct_rotation_eval")
-    book_id = default_book_id(conn, int(account["id"]))
+    book_id = ensure_default_book_id(conn, int(account["id"]))
 
     # mean_reversion held the book from 02-01 (rotated in) until 02-10 (rotated back to trend_v1).
     _snapshot(conn, int(account["id"]), at="2026-02-01T00:00:00Z", equity=1000.0)
@@ -106,5 +105,5 @@ def test_fetch_strategy_evaluation_reports_data_gaps_when_evidence_missing(conn)
     assert artifact.diagnostics.data_gaps == [
         "missing_backtest_evidence",
         "missing_paper_live_evidence",
-        "walk_forward_grouping_not_persisted",
+        "missing_walk_forward_evidence",
     ]

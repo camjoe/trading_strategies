@@ -1,12 +1,12 @@
 import pytest
 
-from trading.models.promotion import PromotionAssessment
-from trading.services.promotion import fetch_current_promotion_assessment, fetch_promotion_assessment
-from trading.services.promotion import assessment as promotion_assessment
 from tests.support.promotion import make_ready_evaluation
+from trading.domain.promotion.policy import PromotionPolicySettings
+from trading.services.promotion import assessment as promotion_assessment
+from trading.services.promotion.assessment import fetch_promotion_assessment
 
 
-def test_fetch_current_promotion_assessment_uses_evaluation_service(
+def test_fetch_promotion_assessment_uses_evaluation_service(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, str | None]] = []
@@ -16,26 +16,10 @@ def test_fetch_current_promotion_assessment_uses_evaluation_service(
         return make_ready_evaluation(account_name=account_name, strategy_name=strategy_name or "trend_v1")
 
     monkeypatch.setattr(promotion_assessment, "fetch_strategy_evaluation", fake_fetch_strategy_evaluation)
-
-    assessment = fetch_current_promotion_assessment(
-        object(),  # type: ignore[arg-type]
-        account_name="acct_service",
-        strategy_name="trend_v1",
-    )
-
-    assert calls == [("acct_service", "trend_v1")]
-    assert assessment.stage == "promotion_review"
-    assert assessment.ready_for_live is True
-
-
-def test_fetch_promotion_assessment_wraps_current_assessment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    expected = PromotionAssessment(account_name="acct_service", strategy_name="trend_v1")
+    # The snapshot also reads promotion policy settings; feed defaults so the test
+    # stays hermetic without a real connection.
     monkeypatch.setattr(
-        promotion_assessment,
-        "fetch_current_promotion_assessment",
-        lambda _conn, *, account_name, strategy_name=None: expected,
+        promotion_assessment, "fetch_promotion_policy_settings", lambda _conn: PromotionPolicySettings()
     )
 
     assessment = fetch_promotion_assessment(
@@ -44,4 +28,6 @@ def test_fetch_promotion_assessment_wraps_current_assessment(
         strategy_name="trend_v1",
     )
 
-    assert assessment is expected
+    assert calls == [("acct_service", "trend_v1")]
+    assert assessment.stage == "promotion_review"
+    assert assessment.ready_for_live is True

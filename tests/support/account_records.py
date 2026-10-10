@@ -1,7 +1,19 @@
 from __future__ import annotations
 
 from trading.models import AccountRecord
-from trading.models.books.book_record import BookRecord
+from trading.models.books import BookRecord
+from trading.persistence.money_columns import encode_money
+
+
+def _encode_money_columns(values: dict[str, object], columns: tuple[str, ...]) -> None:
+    """Encode dollar-valued money fields to the integer minor units ``from_mapping`` decodes.
+
+    Callers pass money as dollars; the Record stores integer minor units, so encode
+    in place before materializing the row.
+    """
+    for column in columns:
+        if column in values and values[column] is not None:
+            values[column] = encode_money(values[column])  # type: ignore[arg-type]
 
 
 def make_account_record(**overrides: object) -> AccountRecord:
@@ -15,7 +27,6 @@ def make_account_record(**overrides: object) -> AccountRecord:
     values: dict[str, object] = {
         "id": 1,
         "name": "acct-sample",
-        "account_kind": "managed",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00Z",
         "benchmark_ticker": "SPY",
@@ -28,6 +39,7 @@ def make_account_record(**overrides: object) -> AccountRecord:
         "live_trading_enabled": 0,
     }
     values.update(overrides)
+    _encode_money_columns(values, ("initial_cash",))
     return AccountRecord.from_mapping(values)
 
 
@@ -47,7 +59,7 @@ def make_book_record(**overrides: object) -> BookRecord:
         "start_equity": 1000.0,
         "current_cash": 1000.0,
         "current_equity": 1000.0,
-        "trade_universes": '["default"]',
+        "trade_symbols": '["AAPL","MSFT"]',
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": None,
@@ -55,8 +67,8 @@ def make_book_record(**overrides: object) -> BookRecord:
         "risk_policy": "none",
         "stop_loss_pct": None,
         "take_profit_pct": None,
-        "profit_take_pct": None,
-        "max_loss_pct": None,
+        "option_profit_take_pct": None,
+        "option_max_loss_pct": None,
         "trade_size_pct": None,
         "max_position_pct": None,
         "max_trades_per_run": None,
@@ -76,6 +88,7 @@ def make_book_record(**overrides: object) -> BookRecord:
         "updated_at": "2026-01-01T00:00:00Z",
     }
     values.update(overrides)
+    _encode_money_columns(values, ("start_equity", "current_cash", "current_equity", "max_premium_per_trade"))
     return BookRecord.from_mapping(values)
 
 

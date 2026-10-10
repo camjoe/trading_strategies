@@ -33,9 +33,4 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print plain-English definitions for RS/RSI, MACD, and MACDSignal.",
     )
-    parser.add_argument(
-        "--debug-columns",
-        action="store_true",
-        help="Print dataframe column structure before/after normalization.",
-    )
     return parser.parse_args()

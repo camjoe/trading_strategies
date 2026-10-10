@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 
-from trading.services.profiles.source import DEFAULT_TICKERS_FILE
+from backtesting.domain.scenario_bench.aggregation import BENCH_METRICS
+from trading.interfaces.cli.commands.options import add_account_arg
+from trading.services.universe import DEFAULT_TICKERS_FILE
 
 
 def _add_shared_backtest_args(p: argparse.ArgumentParser) -> None:
-    """Add arguments common to backtest, backtest-batch, and backtest-walk-forward."""
+    """Add arguments common to backtest, backtest-batch, and backtest-optimize."""
     p.add_argument(
         "--tickers-file",
         default=DEFAULT_TICKERS_FILE,
@@ -39,7 +41,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         "backtest",
         help="Run a historical backtest for an existing account configuration.",
     )
-    p_backtest.add_argument("--account", required=True, help="Account name")
+    add_account_arg(p_backtest)
     _add_shared_backtest_args(p_backtest)
     p_backtest.add_argument(
         "--strategy",
@@ -47,27 +49,6 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         help="Optional strategy override (default: the account's active strategy)",
     )
     p_backtest.add_argument("--run-name", default=None, help="Optional run label")
-
-    p_refresh_stale = sub.add_parser(
-        "refresh-stale-backtests",
-        help=(
-            "Re-run backtests whose evidence is stale or missing, across each account's"
-            " rotation candidate strategies (incumbent + challengers)."
-        ),
-    )
-    p_refresh_stale.add_argument("--account", default=None, help="Optional account filter")
-    p_refresh_stale.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="List the stale/missing (account, strategy) targets without running backtests",
-    )
-    p_refresh_stale.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Cap the number of backtests run in one invocation (default: no cap)",
-    )
-    _add_shared_backtest_args(p_refresh_stale)
 
     p_backtest_report = sub.add_parser(
         "backtest-report",
@@ -108,30 +89,116 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     _add_shared_backtest_args(p_backtest_batch)
     p_backtest_batch.add_argument("--run-name-prefix", default=None, help="Optional prefix for generated run names")
 
-    p_walk_forward = sub.add_parser(
-        "backtest-walk-forward",
-        help="Run rolling monthly walk-forward backtests across a date range.",
+    p_optimize = sub.add_parser(
+        "backtest-optimize",
+        help=(
+            "Walk-forward parameter optimization for one strategy: grid-search on each"
+            " training window, freeze the winner, then report out-of-sample and holdout"
+            " evidence against the strategy's current catalog parameters."
+        ),
     )
-    p_walk_forward.add_argument("--account", required=True, help="Account name")
-    _add_shared_backtest_args(p_walk_forward)
-    p_walk_forward.add_argument(
-        "--test-months",
+    add_account_arg(p_optimize)
+    p_optimize.add_argument("--strategy", required=True, help="Strategy to optimize (catalog key or alias)")
+    p_optimize.add_argument(
+        "--search-space",
+        required=True,
+        help=(
+            "JSON object of parameter -> candidate values, e.g. "
+            '\'{"fast_window": [5, 10, 15], "slow_window": [20, 30]}\'. '
+            "Keys must be parameters of the strategy."
+        ),
+    )
+    _add_shared_backtest_args(p_optimize)
+    p_optimize.add_argument("--train-months", type=int, default=12, help="Training window length in months")
+    p_optimize.add_argument("--test-months", type=int, default=1, help="Out-of-sample test window length in months")
+    p_optimize.add_argument("--step-months", type=int, default=1, help="Months to roll forward between windows")
+    p_optimize.add_argument(
+        "--holdout-months",
         type=int,
-        default=1,
-        help="Number of months in each walk-forward test window",
+        default=6,
+        help="Untouched final holdout length in months (0 to disable)",
     )
-    p_walk_forward.add_argument(
-        "--step-months",
+    p_optimize.add_argument(
+        "--candidate-budget",
         type=int,
-        default=1,
-        help="Months to roll forward between windows",
+        default=256,
+        help="Maximum grid size; a larger Cartesian product is rejected, not truncated",
     )
-    p_walk_forward.add_argument("--run-name-prefix", default=None, help="Optional prefix for generated run names")
+    p_optimize.add_argument(
+        "--warmup-months",
+        type=int,
+        default=6,
+        help="Indicator warm-up history loaded before each window (default: 6); raise for large window params",
+    )
 
-    p_walk_forward_report = sub.add_parser(
-        "backtest-walk-forward-report",
-        help="Show persisted walk-forward group details and per-window backtest summaries.",
+    p_optimize_show = sub.add_parser(
+        "backtest-optimize-show",
+        help="Show a persisted optimization experiment: config, winner params, OOS/holdout evidence, promotion status.",
     )
-    p_walk_forward_report.add_argument("--group-id", type=int, default=None, help="Walk-forward group id")
-    p_walk_forward_report.add_argument("--account", default=None, help="Account name for latest walk-forward group")
-    p_walk_forward_report.add_argument("--strategy", default=None, help="Optional strategy filter with --account")
+    p_optimize_show.add_argument("experiment_id", type=int, help="optimization_experiments row id")
+
+    p_optimize_promote = sub.add_parser(
+        "backtest-optimize-promote",
+        help=(
+            "Promote an optimization experiment's winner into a new tradeable strategy variant"
+            " (frozen by default) and link it back to the experiment."
+        ),
+    )
+    p_optimize_promote.add_argument("experiment_id", type=int, help="optimization_experiments row id")
+    p_optimize_promote.add_argument("--key", required=True, help="Strategy key for the new variant")
+    p_optimize_promote.add_argument(
+        "--no-freeze",
+        action="store_true",
+        help="Leave the new variant as an editable draft instead of freezing it (default: freeze)",
+    )
+    p_optimize_promote.add_argument(
+        "--allow-no-edge",
+        action="store_true",
+        help=(
+            "Bypass the promotion quality bar (winner must beat its baseline on OOS and holdout"
+            " evidence) and promote anyway"
+        ),
+    )
+
+    p_bench = sub.add_parser(
+        "backtest-bench",
+        help=(
+            "Run strategies through synthetic and real-history scenarios and compare their outcome"
+            " distributions. Behavioral only — bench runs are not persisted and are not promotion evidence."
+        ),
+    )
+    p_bench.add_argument(
+        "--strategies",
+        default=None,
+        help="Comma-separated strategies to run (default: all registered strategies)",
+    )
+    p_bench.add_argument(
+        "--scenarios",
+        default=None,
+        help=(
+            "Comma-separated scenario ids or aliases (default: all synthetic scenarios;"
+            " real-history scenarios need a captured fixture and run only by name)"
+        ),
+    )
+    p_bench.add_argument(
+        "--paths",
+        type=int,
+        default=None,
+        help=(
+            "Paths per Monte Carlo scenario (default: each scenario's own count, 200);"
+            " single-path replay scenarios always run once"
+        ),
+    )
+    p_bench.add_argument(
+        "--metric",
+        default="total_return_pct",
+        choices=BENCH_METRICS,
+        help="Metric rendered in the matrix (default: total_return_pct)",
+    )
+    p_bench.add_argument("--slippage-bps", type=float, default=5.0, help="Slippage in basis points per trade")
+    p_bench.add_argument("--fee", type=float, default=0.0, help="Fixed fee per trade")
+    p_bench.add_argument(
+        "--list-scenarios",
+        action="store_true",
+        help="List the available scenarios and exit",
+    )

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 
 JOB_NAME = "<job_name>"
@@ -75,7 +75,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 
 JOB_NAME = "<job_name>"
@@ -120,9 +120,9 @@ from __future__ import annotations
 
 import argparse
 
+from common.runtime_job_status import <SENTINEL_CONST>
 from trading.interfaces.runtime.jobs.job_helpers import run_command
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
-from trading.interfaces.runtime.job_status import <SENTINEL_CONST>
 
 JOB_NAME = "<job_name>"
 COMPLETE_SENTINEL = <SENTINEL_CONST>
@@ -179,7 +179,7 @@ def _run(monkeypatch, tmp_path: Path, args: tuple[str, ...]) -> int:
 
 
 def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: list(accounts))
 
 
 def test_reports_disabled_runs(monkeypatch, tmp_path, capsys) -> None:
@@ -235,12 +235,20 @@ the DB/account surfaces, and reads the artifact from `tmp_path / "local" / "arti
 # ...add the name to __all__
 ```
 
-`manage_job_schedules.py` (daily/maintenance only):
+`scheduling/job_catalog.py` (daily/maintenance only) — add to `JOB_CATALOG`:
 
 ```python
-<NAME>_MODULE = "trading.interfaces.runtime.jobs.<area>.<name>"
-DEFAULT_<NAME>_TASK_NAME = r"Trading\<TaskName>"
-# parse_args: parser.add_argument("--<name>-time", default="", help="HH:MM ...")
-# build_scheduled_tasks: append _scheduled_task(...) when args.<name>_time is set
-# default_task_names: include args.<name>_task_name
+"<job_id>": JobDefinition(
+    job_id="<job_id>",
+    task_name=r"Trading\<TaskName>",
+    module="trading.interfaces.runtime.jobs.<area>.<name>",
+    schedule_kind="daily",  # or "weekly"
+    log_name="<name>_scheduler.log",
+),
+```
+
+The operator enables it in `job_schedule.json`:
+
+```json
+{ "id": "<job_id>", "time": "HH:MM", "enabled": true }
 ```

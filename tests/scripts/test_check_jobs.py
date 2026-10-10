@@ -1,104 +1,83 @@
 from __future__ import annotations
 
-import datetime as dt
 from pathlib import Path
 
 from scripts import check_jobs
+from trading.services.operations.job_status import JobStatus, MonitoredJob
 
 
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
-def test_daily_job_checks_cover_snapshot_and_backtest_refresh(tmp_path: Path, monkeypatch) -> None:
-    today_tag = dt.date.today().strftime("%Y%m%d")
-    monkeypatch.setattr(check_jobs, "LOGS_DIR", tmp_path)
-
-    _write(
-        tmp_path / f"daily_snapshot_{today_tag}_133000.log",
-        f"ok\n{check_jobs.DAILY_SNAPSHOT_SENTINEL}\n",
+def _status(
+    key: str,
+    *,
+    cadence: str,
+    status: str,
+    module: str = "pkg.mod",
+) -> JobStatus:
+    job = MonitoredJob(
+        key=key,
+        label=key.replace("_", " ").title(),
+        cadence=cadence,  # type: ignore[arg-type]
+        log_pattern=f"{key}_*.log",
+        sentinel="COMPLETE",
+        module=module,
     )
-    _write(
-        tmp_path / f"daily_backtest_refresh_{today_tag}_134500.log",
-        f"ok\n{check_jobs.DAILY_BACKTEST_REFRESH_SENTINEL}\n",
+    return JobStatus(
+        job=job,
+        window_label="2026_W37",
+        status=status,  # type: ignore[arg-type]
+        current_run_present=status != "missing",
+        current_run_complete=status == "ok",
+        current_log=None,
+        last_success_log=None,
     )
 
-    snapshot = check_jobs._check_daily_snapshot()
-    refresh = check_jobs._check_daily_backtest_refresh()
 
-    assert snapshot["today_complete"] is True
-    assert snapshot["job"] == "Daily Snapshot"
-    assert snapshot["run_cmd"] == [check_jobs.sys.executable, "-m", check_jobs.DAILY_SNAPSHOT_SCRIPT, "--enable-run"]
+def test_is_unhealthy_flags_daily_missing_and_any_warning() -> None:
+    assert check_jobs.is_unhealthy(_status("daily_paper_trading", cadence="daily", status="missing")) is True
+    assert (
+        check_jobs.is_unhealthy(_status("weekly_governance_w1_leaderboard", cadence="weekly", status="warning"))
+        is True
+    )
+    # A monthly job that has not run yet this month is expected, not a failure.
+    assert (
+        check_jobs.is_unhealthy(_status("monthly_governance_m1_risk_rebaseline", cadence="monthly", status="missing"))
+        is False
+    )
+    assert check_jobs.is_unhealthy(_status("daily_paper_trading", cadence="daily", status="ok")) is False
 
-    assert refresh["today_complete"] is True
-    assert refresh["job"] == "Daily Backtest Refresh"
-    assert refresh["run_cmd"] == [
-        check_jobs.sys.executable,
-        "-m",
-        check_jobs.DAILY_BACKTEST_REFRESH_SCRIPT,
-        "--accounts",
-        "all",
-        "--enable-run",
+
+def test_main_run_missing_triggers_unhealthy_jobs(monkeypatch, capsys) -> None:
+    statuses = [
+        _status("daily_paper_trading", cadence="daily", status="missing"),
+        _status("weekly_db_backup", cadence="weekly", status="ok"),
+        _status("monthly_governance_m1_risk_rebaseline", cadence="monthly", status="missing"),
     ]
-
-
-def test_main_run_missing_triggers_new_daily_jobs(monkeypatch, capsys) -> None:
-    daily = {
-        "job": "Daily Paper Trading",
-        "today_complete": True,
-        "run_cmd": ["paper"],
-        "today_ran": True,
-        "today_log": None,
-        "last_success": dt.date.today(),
-        "last_success_log": None,
-    }
-    snapshot = {
-        "job": "Daily Snapshot",
-        "today_complete": False,
-        "run_cmd": ["snapshot"],
-        "today_ran": False,
-        "today_log": None,
-        "last_success": None,
-        "last_success_log": None,
-    }
-    refresh = {
-        "job": "Daily Backtest Refresh",
-        "today_complete": False,
-        "run_cmd": ["refresh"],
-        "today_ran": False,
-        "today_log": None,
-        "last_success": None,
-        "last_success_log": None,
-    }
-    weekly = {
-        "job": "Weekly DB Backup",
-        "week_tag": "2026_W16",
-        "this_week_complete": True,
-        "run_cmd": ["weekly"],
-        "this_week_ran": True,
-        "this_week_log": None,
-        "last_success": dt.date.today(),
-        "last_success_log": None,
-    }
-
-    triggered: list[tuple[list[str], str]] = []
-    argv = ["check_jobs.py", "--run-missing"]
-
-    monkeypatch.setattr(check_jobs, "_check_daily", lambda: daily)
-    monkeypatch.setattr(check_jobs, "_check_daily_snapshot", lambda: snapshot)
-    monkeypatch.setattr(check_jobs, "_check_daily_backtest_refresh", lambda: refresh)
-    monkeypatch.setattr(check_jobs, "_check_weekly", lambda: weekly)
-    monkeypatch.setattr(check_jobs, "_trigger", lambda run_cmd, label: triggered.append((run_cmd, label)))
-    monkeypatch.setattr(check_jobs.sys, "argv", argv)
+    triggered: list[str] = []
+    monkeypatch.setattr(check_jobs, "evaluate_all_jobs", lambda **_kwargs: statuses)
+    monkeypatch.setattr(check_jobs, "_trigger", lambda status: triggered.append(status.job.key))
+    monkeypatch.setattr(check_jobs.sys, "argv", ["check_jobs.py", "--run-missing"])
 
     result = check_jobs.main()
 
-    assert result == 1
-    assert triggered == [
-        (["snapshot"], "Daily Snapshot"),
-        (["refresh"], "Daily Backtest Refresh"),
+    assert result == 1  # the fake daily run stays missing after the trigger
+    # Only the daily run is triggered — the not-yet-run monthly job is not.
+    assert triggered == ["daily_paper_trading"]
+    assert "Daily Paper Trading" in capsys.readouterr().out
+
+
+def test_main_healthy_when_only_future_period_jobs_missing(monkeypatch, capsys) -> None:
+    statuses = [
+        _status("daily_paper_trading", cadence="daily", status="ok"),
+        _status("monthly_governance_m3_performance_audit", cadence="monthly", status="missing"),
     ]
-    output = capsys.readouterr().out
-    assert "Daily Snapshot" in output
-    assert "Daily Backtest Refresh" in output
+    monkeypatch.setattr(check_jobs, "evaluate_all_jobs", lambda **_kwargs: statuses)
+    monkeypatch.setattr(check_jobs.sys, "argv", ["check_jobs.py"])
+
+    assert check_jobs.main() == 0
+    assert "Tip:" not in capsys.readouterr().out
+
+
+def test_check_jobs_logs_dir_is_under_local(tmp_path: Path) -> None:
+    # Guard the wiring: the report reads the repo's local/logs directory.
+    assert check_jobs.LOGS_DIR.name == "logs"
+    assert check_jobs.LOGS_DIR.parent.name == "local"

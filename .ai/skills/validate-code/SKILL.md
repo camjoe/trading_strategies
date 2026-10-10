@@ -11,24 +11,26 @@ All checks are deterministic — no AI, no reasoning.
 
 | Step | Command | What it covers |
 |---|---|---|
-| 1 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
-| 2 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
+| 1 | `python -m scripts.run_checks docs` | Enforced docs checks: README consistency, maps drift, doc links, API registry |
+| 2 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
+| 3 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
+
+These are the checks CI enforces on a pull request. A docs failure that CI would reject must stop here, not surface after the PR is open.
 
 ## Run all checks at once
 
 ```
-.venv\Scripts\python.exe -m scripts.run_checks repo
-.venv\Scripts\python.exe -m scripts.run_checks python --base develop
-.venv\Scripts\python.exe -m scripts.run_checks python --base main --no-cov
+python -m scripts.run_checks pr --base develop
+python -m scripts.run_checks pr --base main --no-cov
 ```
 
-Run `repo` first, then `python`. Stop at the first failure.
+`pr` runs steps 1 to 3 in order and stops at the first failure. Commit first: suite targeting and frontend detection read the committed diff `<base_ref>...HEAD`, not uncommitted edits. It adds the frontend lint, typecheck, and tests when the diff touches `apps/paper_trading_web/frontend/` or `.github/workflows/ci.yml`.
 
 ## Day-to-day profiles
 
 ```
-.venv\Scripts\python.exe -m scripts.run_checks quick
-.venv\Scripts\python.exe -m scripts.run_checks ci
+python -m scripts.run_checks quick
+python -m scripts.run_checks ci
 ```
 
 Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `python --suite <suite> --no-cov` for focused iteration.
@@ -38,10 +40,10 @@ Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `py
 Use these only when isolating a failure:
 
 ```sh
-.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
-.venv\Scripts\python.exe -m scripts.checks.python.ruff_check
-.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
-.venv\Scripts\python.exe -m scripts.checks.run_suite <suite> --no-cov
+python -m scripts.checks.repo.layer_check
+python -m scripts.checks.python.ruff_check
+python -m scripts.checks.python.mypy_check
+python -m scripts.checks.run_suite <suite> --no-cov
 ```
 
 ## On failure
@@ -50,7 +52,7 @@ Stop. Report the exact failing command and output — do not paraphrase. Do not 
 
 ## Constraints
 
-- Always use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (POSIX) — never system Python.
+- Follow the repository interpreter rules in `AGENTS.md`; command examples use `python` for readability.
 - Do not auto-fix lint errors unless explicitly asked. Run and report first.
 
 ## Not covered here (verify manually)

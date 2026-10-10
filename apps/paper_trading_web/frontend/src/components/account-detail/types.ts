@@ -1,1 +1,1 @@
-export type DetailSectionName = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
+export type DetailSectionName = "summary" | "books" | "analysis" | "positions" | "trades" | "snapshots" | "config";

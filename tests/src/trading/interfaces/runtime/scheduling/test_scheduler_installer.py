@@ -24,7 +24,7 @@ def test_validate_time_rejects_invalid_values(value: str) -> None:
         scheduler_installer.validate_time(value)
 
 
-def test_schedule_expression_requires_day_for_weekly_task() -> None:
+def test_cron_day_field_requires_day_for_weekly_task() -> None:
     task = scheduler_installer.ScheduledTaskSpec(
         task_name="weekly",
         module="pkg.mod",
@@ -33,7 +33,15 @@ def test_schedule_expression_requires_day_for_weekly_task() -> None:
     )
 
     with pytest.raises(ValueError, match="requires day_of_week"):
-        scheduler_installer._schedule_expression(task)
+        scheduler_installer._cron_day_of_week_field(task)
+
+
+def test_cron_day_field_renders_range_for_weekdays() -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name="t", module="pkg.mod", time="09:30", schedule_kind="weekdays"
+    )
+
+    assert scheduler_installer._cron_day_of_week_field(task) == "1-5"
 
 
 def test_load_crontab_lines_handles_missing_crontab(monkeypatch) -> None:
@@ -111,6 +119,66 @@ def test_build_windows_register_command_for_weekly_task(tmp_path: Path) -> None:
     assert "-Weekly" in command
     assert "-DaysOfWeek Sunday" in command
     assert "value with space" in command
+
+
+def test_build_windows_register_command_hardening_settings(tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:10"
+    )
+
+    with_wake = scheduler_installer.build_windows_register_command(
+        task, tmp_path, tmp_path / "python.exe", wake_system=True
+    )
+    # StartWhenAvailable is the Persistent=true analogue: run a missed start once
+    # the machine is back. The battery flags let a laptop start and finish off AC.
+    assert "New-ScheduledTaskSettingsSet" in with_wake
+    assert "-StartWhenAvailable" in with_wake
+    assert "-AllowStartIfOnBatteries" in with_wake
+    assert "-DontStopIfGoingOnBatteries" in with_wake
+    assert "-WakeToRun" in with_wake
+
+    without_wake = scheduler_installer.build_windows_register_command(
+        task, tmp_path, tmp_path / "python.exe", wake_system=False
+    )
+    assert "-WakeToRun" not in without_wake
+    assert "-StartWhenAvailable" in without_wake
+
+
+def test_registered_task_names_windows_returns_only_present(monkeypatch) -> None:
+    monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Windows")
+    present = {r"Trading\DailyPaperTrading"}
+
+    def fake_run(command, *, check, capture_output, text):
+        return SimpleNamespace(returncode=0 if command[-1] in present else 1)
+
+    monkeypatch.setattr(scheduler_installer.subprocess, "run", fake_run)
+
+    result = scheduler_installer.registered_task_names(
+        [r"Trading\DailyPaperTrading", r"Trading\WeeklyDbBackup"],
+        scheduler_type="auto",
+    )
+    assert result == {r"Trading\DailyPaperTrading"}
+
+
+def test_registered_task_names_cron_matches_markers(monkeypatch) -> None:
+    monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(scheduler_installer, "load_crontab_lines", lambda: ["0 1 * * * cmd # Trading\\WeeklyDbBackup"])
+
+    result = scheduler_installer.registered_task_names(
+        [r"Trading\DailyPaperTrading", r"Trading\WeeklyDbBackup"],
+        scheduler_type="cron",
+    )
+    assert result == {r"Trading\WeeklyDbBackup"}
+
+
+def test_registered_task_names_systemd_off_host_returns_none(monkeypatch) -> None:
+    # A systemd target queried from a host without /etc/systemd/system cannot be
+    # read; None tells the caller to say so rather than report "all missing".
+    monkeypatch.setattr(scheduler_installer, "resolve_scheduler_backend", lambda _kind: "systemd")
+    monkeypatch.setattr(scheduler_installer.Path, "exists", lambda self: False)
+
+    result = scheduler_installer.registered_task_names([r"Trading\DailyPaperTrading"], scheduler_type="systemd")
+    assert result is None
 
 
 def test_build_linux_cron_line_for_weekly_task(tmp_path: Path) -> None:
@@ -309,6 +377,29 @@ def test_task_name_to_unit_name_kebab_cases_camelcase() -> None:
     assert scheduler_installer._task_name_to_unit_name(r"Trading\WeeklyDbBackup") == "weekly-db-backup"
 
 
+@pytest.mark.parametrize(
+    ("day", "cron_field", "systemd_abbr"),
+    [
+        ("Monday", "1", "Mon"),
+        ("Tuesday", "2", "Tue"),
+        ("Wednesday", "3", "Wed"),
+        ("Thursday", "4", "Thu"),
+        ("Friday", "5", "Fri"),
+        ("Saturday", "6", "Sat"),
+        # cron numbers Sunday 0, not 7.
+        ("Sunday", "0", "Sun"),
+    ],
+)
+def test_every_day_renders_for_cron_and_systemd(day: str, cron_field: str, systemd_abbr: str, tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name="t", module="pkg.mod", time="04:05", schedule_kind="weekly", day_of_week=day
+    )
+
+    cron_line = scheduler_installer.build_linux_cron_line(task, tmp_path, tmp_path / "python", tmp_path / "job.log")
+    assert cron_line.startswith(f"5 4 * * {cron_field} ")
+    assert scheduler_installer._systemd_calendar_expression(task) == f"{systemd_abbr} *-*-* 04:05:00"
+
+
 def test_systemd_calendar_expression_for_daily_and_weekly() -> None:
     daily = scheduler_installer.ScheduledTaskSpec(task_name="t", module="pkg.mod", time="13:05")
     weekly = scheduler_installer.ScheduledTaskSpec(
@@ -317,6 +408,20 @@ def test_systemd_calendar_expression_for_daily_and_weekly() -> None:
 
     assert scheduler_installer._systemd_calendar_expression(daily) == "*-*-* 13:05:00"
     assert scheduler_installer._systemd_calendar_expression(weekly) == "Sun *-*-* 12:58:00"
+
+
+def test_weekdays_task_renders_for_every_backend(tmp_path: Path) -> None:
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00", schedule_kind="weekdays"
+    )
+
+    cron_line = scheduler_installer.build_linux_cron_line(task, tmp_path, tmp_path / "python", tmp_path / "job.log")
+    assert cron_line.startswith("0 13 * * 1-5 ")
+
+    assert scheduler_installer._systemd_calendar_expression(task) == "Mon..Fri *-*-* 13:00:00"
+
+    windows = scheduler_installer.build_windows_register_command(task, tmp_path, tmp_path / "python.exe")
+    assert "-DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday" in windows
 
 
 def test_build_systemd_timer_unit_sets_wake_system() -> None:
@@ -343,7 +448,7 @@ def test_build_systemd_service_unit_includes_user_command_and_optional_env_file(
         task_name=r"Trading\DailyPaperTrading",
         module="pkg.mod",
         time="13:00",
-        args=("--run-source", "scheduled-daily-fallback"),
+        args=("--run-source", "scheduled-daily"),
     )
     log_path = tmp_path / "logs" / "daily.log"
 
@@ -352,7 +457,7 @@ def test_build_systemd_service_unit_includes_user_command_and_optional_env_file(
     )
     assert "Type=oneshot" in without_env
     assert "User=cam" in without_env
-    assert "-m pkg.mod --run-source scheduled-daily-fallback" in without_env
+    assert "-m pkg.mod --run-source scheduled-daily" in without_env
     assert f"StandardOutput=append:{log_path}" in without_env
     assert "EnvironmentFile" not in without_env
 

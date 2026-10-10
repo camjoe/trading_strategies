@@ -2,22 +2,19 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.coercion import coerce_float
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from trading.domain.auto_trading.sizing import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.models import AccountRecord, AccountState
-from trading.services.market_data import MarketDataProvider
-from trading.services.accounts import (
-    DEFAULT_MAX_POSITION_PCT,
-    DEFAULT_TRADE_SIZE_PCT,
-    get_latest_account_snapshot,
-)
-from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
-from trading.services.books.rotation import resolve_default_book_rotation_schedule
-from trading.services.reporting import (
+from trading.services.accounts.queries import get_latest_account_snapshot
+from trading.services.analysis.portfolio import (
     build_account_stats,
     inject_settlement_price,
-    settlement_cash,
     settlement_corrected_equity,
 )
+from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
+from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
+from trading.services.market_data.protocols import MarketDataProvider
 
 
 def build_account_summary(
@@ -26,19 +23,16 @@ def build_account_summary(
     *,
     provider: MarketDataProvider | None = None,
 ) -> dict[str, object]:
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
+    state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
-    if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = settlement_corrected_equity(state, prices)
-    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    return _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
+    equity = settlement_corrected_equity(state, prices)
+    return _build_summary_from_stats(conn, row, equity, float(state.cash), float(state.total_deposited))
 
 
 def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
     return {
         "name": summary["name"],
         "displayName": summary["displayName"],
-        "accountKind": summary["accountKind"],
         "strategy": summary["strategy"],
         "instrumentMode": summary["instrumentMode"],
         "benchmark": summary["benchmark"],
@@ -57,12 +51,10 @@ def build_account_summary_and_positions(
     provider: MarketDataProvider | None = None,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
+    state, prices, _mv, _unrealized, _equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
-    if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = settlement_corrected_equity(state, prices)
-    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    summary = _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
+    equity = settlement_corrected_equity(state, prices)
+    summary = _build_summary_from_stats(conn, row, equity, float(state.cash), float(state.total_deposited))
     positions = _build_positions_from_stats(state, prices)
     return summary, positions
 
@@ -82,13 +74,13 @@ def _build_summary_from_stats(
     active_strategy = active_strategy_for_account(conn, row.id)
     book = get_default_book(conn, account_id=row.id)
 
-    effective_initial = row.initial_cash if row.initial_cash else total_deposited
+    effective_initial = float(row.initial_cash) if row.initial_cash else total_deposited
     delta = equity - effective_initial
     delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0
 
     change_since_snapshot = None
     if latest_snapshot is not None:
-        previous_equity = latest_snapshot.equity
+        previous_equity = float(latest_snapshot.equity)
         change_since_snapshot = equity - previous_equity
 
     return {
@@ -96,11 +88,10 @@ def _build_summary_from_stats(
         "displayName": row.descriptive_name,
         "strategy": active_strategy,
         "instrumentMode": book.instrument_mode if book is not None else "equity",
-        "accountKind": row.account_kind,
         "brokerType": row.broker_type or "paper",
         "riskPolicy": book.risk_policy if book is not None else "none",
         "benchmark": row.benchmark_ticker,
-        "initialCash": row.initial_cash,
+        "initialCash": float(row.initial_cash),
         "equity": equity,
         "settlementCash": settlement_cash,
         "totalChange": delta,
@@ -127,13 +118,13 @@ def _build_summary_from_stats(
         "optionType": book.option_type if book is not None else None,
         "targetDeltaMin": book.target_delta_min if book is not None else None,
         "targetDeltaMax": book.target_delta_max if book is not None else None,
-        "maxPremiumPerTrade": book.max_premium_per_trade if book is not None else None,
+        "maxPremiumPerTrade": coerce_float(book.max_premium_per_trade) if book is not None else None,
         "maxContractsPerTrade": book.max_contracts_per_trade if book is not None else None,
         "ivRankMin": book.iv_rank_min if book is not None else None,
         "ivRankMax": book.iv_rank_max if book is not None else None,
         "rollDteThreshold": book.roll_dte_threshold if book is not None else None,
-        "profitTakePct": book.profit_take_pct if book is not None else None,
-        "maxLossPct": book.max_loss_pct if book is not None else None,
+        "optionProfitTakePct": book.option_profit_take_pct if book is not None else None,
+        "optionMaxLossPct": book.option_max_loss_pct if book is not None else None,
         "activeStrategy": active_strategy,
         "rotation": {
             "enabled": rotation.rotation_enabled,
@@ -143,16 +134,14 @@ def _build_summary_from_stats(
     }
 
 
-def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list[dict[str, object]]:
-    from trading.models.accounts.account_state import AccountState
-
-    if not isinstance(state, AccountState):
-        return []
+def _build_positions_from_stats(state: AccountState, prices: dict[str, float]) -> list[dict[str, object]]:
     result = []
-    for ticker, qty in sorted(state.positions.items()):
-        if qty <= 0 or ticker == _SETTLEMENT_TICKER:
+    for ticker, qty_raw in sorted(state.positions.items()):
+        if qty_raw <= 0 or ticker == _SETTLEMENT_TICKER:
             continue
-        avg_cost = state.avg_cost.get(ticker, 0.0)
+        # The account state carries Decimal; the payload renders to float.
+        qty = float(qty_raw)
+        avg_cost = float(state.avg_cost.get(ticker, 0.0))
         market_price = prices.get(ticker)
         if market_price is None:
             continue

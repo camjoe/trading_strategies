@@ -8,9 +8,6 @@ from pathlib import Path
 import pytest
 
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
-from trading.interfaces.runtime.jobs.job_helpers import day_tag
-from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.services.books.challenger_evaluation import ChallengerEvaluationRun, BookChallengerEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE as MODULE_NAME,
@@ -19,6 +16,9 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     run_runtime_job_main,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.job_helpers import day_tag
+from trading.models.rotation import RotationStrategyMetrics
+from trading.services.books.rotation.challenger_evaluation import BookChallengerEvaluation, ChallengerEvaluationRun
 
 EXPORT_DIR_PARTS = ("local", "exports", "daily_challenger_shadow_eval")
 ARTIFACT_GLOB = "daily_challenger_shadow_eval_*.json"
@@ -29,7 +29,7 @@ def _run(monkeypatch, tmp_path: Path, args: list[str]) -> int:
 
 
 def _stub_accounts(monkeypatch, accounts: list[str]) -> None:
-    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: list(accounts))
+    monkeypatch.setattr(job_runner, "load_account_names", lambda: list(accounts))
 
 
 def _stub_db(monkeypatch) -> None:
@@ -57,7 +57,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                     risk_adjusted_return=0.5,
                     stability=0.0,
                     drawdown_penalty=0.0,
-                    cost_penalty=0.0,
                     regime_fit=0.0,
                 ),
                 challengers=[
@@ -67,7 +66,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                         risk_adjusted_return=0.9,
                         stability=0.58,
                         drawdown_penalty=0.4,
-                        cost_penalty=0.0,
                         regime_fit=0.0,
                     )
                 ],
@@ -93,7 +91,7 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         module,
         "run_shadow_eval_for_account",
-        lambda _conn, *, account_name, rolling_window_days, as_of_iso: _sample_run(account_name),
+        lambda _conn, *, account_name, rolling_window_days, as_of_iso, fetch_regime=None: _sample_run(account_name),
     )
 
     assert _run(monkeypatch, tmp_path, ["--accounts", "acct1", "--enable-run"]) == 0
@@ -156,7 +154,7 @@ def test_run_shadow_eval_for_account_uses_account_lookup_and_builder(monkeypatch
 
     monkeypatch.setattr(module, "get_account", lambda _conn, name: {"name": name})
 
-    def _fake_builder(_conn, *, account, as_of_iso, rolling_window_days):
+    def _fake_builder(_conn, *, account, as_of_iso, rolling_window_days, fetch_regime=None):
         captured["account"] = account
         captured["as_of_iso"] = as_of_iso
         captured["rolling_window_days"] = rolling_window_days

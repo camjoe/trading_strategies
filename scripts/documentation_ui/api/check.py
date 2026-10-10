@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.documentation_ui.api.registry import API_REGISTRY_REL, ROUTES_DIR, endpoint_key, parse_routes
 
 

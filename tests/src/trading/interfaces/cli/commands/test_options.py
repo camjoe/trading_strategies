@@ -38,5 +38,5 @@ def test_add_option_args_help_uses_operator_facing_labels() -> None:
     assert "Display name" in parser._option_string_actions["--display-name"].help
     assert "heuristic exploration mode" in parser._option_string_actions["--learning-enabled"].help
     assert "heuristic exploration mode" in parser._option_string_actions["--learning-disabled"].help
-    assert "LEAPs/options" in parser._option_string_actions["--profit-take-pct"].help
-    assert "LEAPs/options" in parser._option_string_actions["--max-loss-pct"].help
+    assert "LEAPs/options" in parser._option_string_actions["--option-profit-take-pct"].help
+    assert "LEAPs/options" in parser._option_string_actions["--option-max-loss-pct"].help

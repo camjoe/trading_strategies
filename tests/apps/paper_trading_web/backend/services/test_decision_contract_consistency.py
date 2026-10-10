@@ -5,19 +5,19 @@ decision-score contract (`derive_decision_score`) and handle missing evidence id
 from __future__ import annotations
 
 import pytest
-
 from paper_trading_web.backend.services.evaluation import build_evaluation_summary_payload
-from trading.domain.evaluation_decision_score import derive_decision_score
-from trading.domain.promotion_policy import assess_promotion_readiness
+
+from trading.domain.evaluation.decision_score import derive_decision_score
+from trading.domain.promotion.policy import assess_promotion_readiness
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
     EvaluationDiagnostics,
     StrategyEvaluationArtifact,
 )
-from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
+from trading.services.books.rotation.metrics import build_rotation_strategy_metrics
 
-_ROTATION_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
+_ROTATION_FETCH_TARGET = "trading.services.evaluation.queries.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(

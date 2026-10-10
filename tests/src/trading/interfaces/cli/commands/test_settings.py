@@ -97,3 +97,23 @@ def test_configure_book_rotation_omitted_flags_are_absent() -> None:
     assert args.enabled is False
     assert not hasattr(args, "schedule")
     assert not hasattr(args, "lookback_days")
+
+
+def test_settings_history_defaults_limit() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["settings-history"])
+
+    assert args.limit == 20
+
+
+def test_book_rotation_history_requires_account() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["book-rotation-history", "--account", "acct1", "--limit", "5"])
+    assert args.account == "acct1"
+    assert args.book is None
+    assert args.limit == 5
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["book-rotation-history"])

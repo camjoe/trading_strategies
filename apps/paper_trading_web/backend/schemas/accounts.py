@@ -7,7 +7,6 @@ from .admin import RotationSettingsPayload
 
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
-    accountKind: str | None = None
     descriptiveName: str | None = None
     riskPolicy: str | None = None
     stopLossPct: float | None = None
@@ -30,6 +29,22 @@ class AccountParamsRequest(BaseModel):
     ivRankMin: float | None = None
     ivRankMax: float | None = None
     rollDteThreshold: int | None = None
-    profitTakePct: float | None = None
-    maxLossPct: float | None = None
+    optionProfitTakePct: float | None = None
+    optionMaxLossPct: float | None = None
     rotation: RotationSettingsPayload | None = None
+
+
+class RotationPolicyRequest(BaseModel):
+    minTradesInWindow: int | None = None
+    outperformanceThresholdBps: float | None = None
+    cooldownDays: int | None = None
+    riskAdjustedReturnWeight: float | None = None
+    stabilityWeight: float | None = None
+    drawdownPenaltyWeight: float | None = None
+    regimeFitWeight: float | None = None
+
+
+class BookParamsRequest(AccountParamsRequest):
+    tradeUniverses: list[str] | None = None
+    maxTradesPerRun: int | None = None
+    rotationPolicy: RotationPolicyRequest | None = None

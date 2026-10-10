@@ -15,19 +15,25 @@ job (rather than monitor it), see the [Runtime Jobs Reference](../reference/runt
 
 ## Scheduled job
 
-The daily paper-trading job runs once per trading day via the OS scheduler — systemd timers on the
-dedicated Linux production host (per [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md)
-and the [Production Runtime Host runbook](production-runtime-host.md)); Windows Task Scheduler when
-running from a Windows dev machine.
+The daily paper-trading job runs once per trading day via systemd timers on the dedicated Linux
+production host (per [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md) and the
+[Production Runtime Host runbook](production-runtime-host.md)). That host is the only machine that
+should have runtime jobs registered.
+
+`manage_job_schedules` can still write Windows Task Scheduler entries, which is how the job was
+scheduled before ADR 008 moved it to its own host. Nothing runs that way now, and a dev box with
+`Trading\*` tasks registered would trade a second time alongside production. Use
+`--scheduler systemd --dry-run` on Windows to review the production units instead of registering
+anything locally.
 
 **Entrypoint:**
 ```
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading
 ```
 
-**Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
+**Expected run window:** configured in `manage_job_schedules`. There is one scheduled entry; a missed run is backfilled with `replay_daily_runs` rather than re-attempted automatically.
 
-**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, backtest-refresh, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
+**Schedule setup:** to register, enable, or remove scheduled jobs (the challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
 
 ---
 
@@ -77,10 +83,13 @@ running from a Windows dev machine.
    cat local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log | grep -A 5 "ERROR\|FAIL"
    ```
 3. Fix the underlying issue (connectivity, data freshness, configuration).
-4. Re-run with `--force-run`:
+4. Re-run. The duplicate-run guard keys on the complete sentinel, which a failed run never wrote, so
+   a retry is not blocked:
    ```bash
-   ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
+   python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```
+   Add `--force-run` only to re-run a date that already *succeeded* — that is a second full trading
+   pass, not a retry.
 
 ### Run did not execute (scheduler missed)
 
@@ -90,12 +99,12 @@ running from a Windows dev machine.
    ```
 2. Replay via the backfill tool:
    ```bash
-   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+   python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date YYYY-MM-DD --to-date YYYY-MM-DD
    ```
 3. Use `--dry-run` first to confirm which dates are missing across a range:
    ```bash
-   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+   python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date 2026-05-01 --to-date 2026-05-07 --dry-run
    ```
 
@@ -106,9 +115,9 @@ If `kill_switch_triggered: true` appears in the daily operator report or the M1 
 1. Identify the triggering account from the report's `account_reports` section.
 2. Review the latest account report/risk state:
    ```bash
-   ./.venv/bin/python -m trading.interfaces.cli.main report --account <name>
-   ./.venv/bin/python -m trading.interfaces.cli.main portfolio-exposure
-   ./.venv/bin/python -m trading.interfaces.cli.main portfolio-concentration
+   python -m trading.interfaces.cli.main report --account <name>
+   python -m trading.interfaces.cli.main portfolio-exposure
+   python -m trading.interfaces.cli.main portfolio-concentration
    ```
 3. Inspect the daily run artifact, M1 risk rebaseline artifact, or `risk_snapshots` table for the
    kill-switch reason payload.
@@ -127,12 +136,15 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
    ```
 2. **Run on demand** if a scheduled run was missed:
    ```bash
-   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
+   python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
    ```
-3. The combined daily paper-trading, daily snapshot, daily backtest-refresh, and weekly backup status is summarized by:
+3. Every monitored job — the daily run, challenger shadow-eval, weekly backup, and the weekly/monthly
+   governance jobs — is summarized by the same source the web Admin panel reads:
    ```bash
-   ./.venv/bin/python -m scripts.check_jobs
+   python -m scripts.check_jobs
    ```
+   It exits non-zero when the daily run has not completed today or any job started but never wrote its
+   success sentinel. Pass `--run-missing` to trigger those.
 
 ---
 
@@ -144,8 +156,6 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
 | Run artifacts | `local/exports/daily_paper_trading/daily_paper_trading_{YYYYMMDD}_{HHMMSS}.json` |
 | Startup log | `local/logs/daily_paper_trading_startup_{YYYYMMDD}.log` |
 | Scheduler logs | `local/logs/*_scheduler.log` |
-| Daily snapshot artifacts | `local/exports/daily_snapshots/daily_snapshot_{YYYYMMDD}_{HHMMSS}.json` |
-| Daily backtest refresh artifacts | `local/exports/daily_backtest_refresh/daily_backtest_refresh_{YYYYMMDD}_{HHMMSS}.json` |
 | Governance artifacts | `local/artifacts/{job}_{tag}_{YYYYMMDD}_{HHMMSS}.json` |
 | Burn-in status artifacts | `local/artifacts/check_burn_in_status_{YYYYMMDD}_{HHMMSS}.json` |
 
@@ -186,5 +196,5 @@ not yet implemented.
 
 The `check_daily_trader_health` job validates that a recent successful run artifact exists within the configured `--max-age-hours` window:
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```

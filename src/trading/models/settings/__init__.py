@@ -1,1 +1,0 @@
-"""settings data contracts."""

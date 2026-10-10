@@ -363,8 +363,8 @@
 
 @media (max-width: 900px) {
   .docs-nav-menu {
-    left: auto;
-    right: 0;
+    left: 0;
+    right: auto;
     width: min(82vw, 320px);
   }
 }

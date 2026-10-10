@@ -16,7 +16,6 @@ from scripts.checks.docs.link_check import (
     run_link_check,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 

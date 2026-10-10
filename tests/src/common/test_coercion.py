@@ -1,4 +1,5 @@
 import sqlite3
+from decimal import Decimal
 
 import pytest
 
@@ -89,6 +90,34 @@ def test_expect_int_rejects_none_with_field_name() -> None:
         coercion.expect_int(None, "count")
 
 
+def test_coerce_decimal_passes_a_decimal_through_unchanged() -> None:
+    value = Decimal("0.333333")
+    assert coercion.coerce_decimal(value) is value
+
+
+def test_coerce_decimal_converts_a_float_without_a_binary_tail() -> None:
+    # Decimal(0.1) would be 0.1000000000000000055...; the str() path keeps 0.1 exact.
+    assert coercion.coerce_decimal(0.1) == Decimal("0.1")
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [(7, Decimal("7")), ("1.25", Decimal("1.25")), (None, None)],
+)
+def test_coerce_decimal_accepts_numeric_like_values(raw: object, expected: Decimal | None) -> None:
+    assert coercion.coerce_decimal(raw) == expected
+
+
+def test_coerce_decimal_rejects_non_convertible_type() -> None:
+    with pytest.raises(ValueError, match="Expected decimal-convertible value, got list"):
+        coercion.coerce_decimal([1, 2])
+
+
+def test_expect_decimal_rejects_none_with_field_name() -> None:
+    with pytest.raises(ValueError, match="amount cannot be null"):
+        coercion.expect_decimal(None, "amount")
+
+
 def test_row_helpers_coerce_and_expect(sample_row: sqlite3.Row) -> None:
     assert coercion.row_str(sample_row, "txt") == "abc"
     assert coercion.row_expect_str(sample_row, "txt") == "abc"
@@ -96,6 +125,8 @@ def test_row_helpers_coerce_and_expect(sample_row: sqlite3.Row) -> None:
     assert coercion.row_expect_float(sample_row, "num_txt") == 1.25
     assert coercion.row_int(sample_row, "int_txt") == 7
     assert coercion.row_expect_int(sample_row, "int_txt") == 7
+    assert coercion.row_decimal(sample_row, "num_txt") == Decimal("1.25")
+    assert coercion.row_expect_decimal(sample_row, "num_txt") == Decimal("1.25")
 
 
 def test_row_expect_helpers_reject_null_values(sample_row: sqlite3.Row) -> None:

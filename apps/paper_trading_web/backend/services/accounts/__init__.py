@@ -22,8 +22,8 @@ from .benchmark import (
 from .data_access import (
     build_snapshot_payload,
     build_trade_payload,
-    require_account_row,
     fetch_visible_account_rows,
+    require_account_row,
 )
 from .mutations import update_account_params
 from .summaries import (

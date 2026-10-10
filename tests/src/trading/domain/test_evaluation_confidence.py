@@ -1,6 +1,6 @@
 import pytest
 
-from trading.domain.evaluation_confidence import (
+from trading.domain.evaluation.confidence import (
     EvaluationConfidenceSettings,
     compute_backtest_confidence,
     compute_blended_score,

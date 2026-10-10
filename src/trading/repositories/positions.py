@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
-from trading.models.books.position_record import PositionRecord
+from trading.models.books import PositionRecord
+from trading.persistence.money_columns import encode_money, encode_quantity
+from trading.persistence.unit_of_work import commit_unit_of_work
 
 
 class PositionRepository:
@@ -11,18 +14,15 @@ class PositionRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> PositionRecord:
-        return PositionRecord.from_mapping(dict(row))
-
     def upsert(
         self,
         *,
         book_id: int,
         symbol: str,
-        qty: float,
-        avg_cost: float,
-        market_value: float,
-        unrealized_pnl: float,
+        qty: Decimal,
+        avg_cost: Decimal,
+        market_value: Decimal,
+        unrealized_pnl: Decimal,
         updated_at: str,
     ) -> None:
         self._conn.execute(
@@ -39,47 +39,37 @@ class PositionRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
+                book_id,
                 symbol,
-                float(qty),
-                float(avg_cost),
-                float(market_value),
-                float(unrealized_pnl),
+                encode_quantity(qty),
+                encode_money(avg_cost),
+                encode_money(market_value),
+                encode_money(unrealized_pnl),
                 updated_at,
             ),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
 
     def delete(self, *, book_id: int, symbol: str) -> None:
         self._conn.execute(
             "DELETE FROM positions WHERE book_id = ? AND symbol = ?",
-            (int(book_id), symbol),
+            (book_id, symbol),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
+
+    def _fetch(self, filter_sql: str, params: tuple[object, ...]) -> list[PositionRecord]:
+        rows = self._conn.execute(f"SELECT p.* FROM positions p {filter_sql}", params).fetchall()
+        return [PositionRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch(self, *, book_id: int, symbol: str) -> PositionRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM positions WHERE book_id = ? AND symbol = ?",
-            (int(book_id), symbol),
-        ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        found = self._fetch("WHERE p.book_id = ? AND p.symbol = ?", (book_id, symbol))
+        return found[0] if found else None
 
     def fetch_for_book(self, *, book_id: int) -> list[PositionRecord]:
-        rows = self._conn.execute(
-            "SELECT * FROM positions WHERE book_id = ? ORDER BY symbol ASC",
-            (int(book_id),),
-        ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return self._fetch("WHERE p.book_id = ? ORDER BY p.symbol ASC", (book_id,))
 
     def fetch_for_account(self, *, account_id: int) -> list[PositionRecord]:
-        rows = self._conn.execute(
-            """
-            SELECT p.*
-            FROM positions p
-            JOIN books u ON u.id = p.book_id
-            WHERE u.account_id = ?
-            ORDER BY p.book_id ASC, p.symbol ASC
-            """,
-            (int(account_id),),
-        ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return self._fetch(
+            "JOIN books b ON b.id = p.book_id WHERE b.account_id = ? ORDER BY p.book_id ASC, p.symbol ASC",
+            (account_id,),
+        )

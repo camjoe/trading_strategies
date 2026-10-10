@@ -46,27 +46,24 @@ def test_get_signals_returns_hold_for_missing_provider(monkeypatch) -> None:
     assert signals[0]["interpretation"] == ""
 
 
-def test_get_signals_uses_resolve_signal_for_available_bundle(monkeypatch) -> None:
+def test_get_signals_reports_features_without_a_signal(monkeypatch) -> None:
+    """An available bundle yields its features and a hold.
+
+    Nothing consumes these features since the feature-gated primitives were
+    retired, so the panel reports what the provider sees rather than inventing a
+    signal from a strategy that no longer exists.
+    """
     provider = _FakeProvider(bundle=_FakeBundle(available=True, features={"policy_risk_on_score": 0.65}))
     monkeypatch.setattr(
         features_signals,
         "load_providers",
         lambda: [(provider, "Policy", "etf-proxies", "policy_regime", "PolicyFeatureProvider")],
     )
-
-    calls: list[tuple[str, dict[str, Any], int]] = []
-
-    def _fake_resolve_signal(strategy_id: str, price_history, feature_row: dict[str, Any]) -> str:
-        calls.append((strategy_id, feature_row, len(price_history)))
-        return "buy"
-
-    monkeypatch.setattr(features_signals, "resolve_signal", _fake_resolve_signal)
     monkeypatch.setattr(features_signals, "interpret_signal", lambda *_args, **_kwargs: "Risk-on (bullish)")
 
     signals = features_signals.get_signals("SPY")
 
-    assert calls == [("policy_regime", {"policy_risk_on_score": 0.65}, 0)]
-    assert signals[0]["signal"] == "buy"
+    assert signals[0]["signal"] == "hold"
     assert signals[0]["available"] is False
     assert signals[0]["reason"] == "no_price_history"
     assert signals[0]["features"] == {"policy_risk_on_score": 0.65}
@@ -89,29 +86,6 @@ def test_get_signals_returns_hold_when_provider_errors(monkeypatch) -> None:
     assert signals[0]["available"] is False
     assert signals[0]["features"] == {}
     assert signals[0]["interpretation"] == ""
-
-
-def test_get_signals_returns_hold_when_signal_resolution_raises(monkeypatch) -> None:
-    provider = _FakeProvider(bundle=_FakeBundle(available=True, features={"social_trend_score": 0.72}))
-    monkeypatch.setattr(
-        features_signals,
-        "load_providers",
-        lambda: [(provider, "Social", "reddit+gtrends", "social_trend_rotation", "SocialFeatureProvider")],
-    )
-    monkeypatch.setattr(
-        features_signals, "resolve_signal", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom"))
-    )
-    monkeypatch.setattr(features_signals, "interpret_signal", lambda *_args, **_kwargs: "Trend interest 72%")
-
-    signals = features_signals.get_signals("TSLA")
-
-    assert len(signals) == 1
-    assert signals[0]["strategy"] == "social_trend_rotation"
-    assert signals[0]["signal"] == "hold"
-    assert signals[0]["available"] is False
-    assert signals[0]["reason"] == "no_price_history"
-    assert signals[0]["features"] == {"social_trend_score": 0.72}
-    assert signals[0]["interpretation"] == "Trend interest 72%"
 
 
 def test_get_signals_returns_hold_when_bundle_unavailable(monkeypatch) -> None:

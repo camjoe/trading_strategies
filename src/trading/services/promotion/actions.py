@@ -11,7 +11,7 @@ from dataclasses import replace
 
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
-from trading.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategies.resolution import validate_strategy_name
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
     PromotionAssessment,
@@ -19,15 +19,15 @@ from trading.models.promotion import (
     PromotionReviewRecord,
     PromotionReviewState,
 )
+from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.promotion import PromotionReviewRepository
-from trading.services.promotion.assessment import fetch_current_promotion_snapshot
+from trading.repositories.strategies import StrategyRepository
+from trading.services.promotion.assessment import fetch_promotion_snapshot
 from trading.services.promotion.helpers import normalize_optional_text
 
 PROMOTION_REVIEW_ACTION_APPROVE = "approve"
 PROMOTION_REVIEW_ACTION_REJECT = "reject"
 PROMOTION_REVIEW_ACTION_NOTE = "note"
-
-_fetch_current_promotion_snapshot = fetch_current_promotion_snapshot
 
 
 def _require_request_context(
@@ -65,55 +65,18 @@ def _ensure_no_open_review_for_request(
     raise ValueError(f"An open promotion review already exists for {account_name}/{strategy_name}.")
 
 
+def _require_strategy_id(conn: sqlite3.Connection, *, strategy_name: str) -> int:
+    strategy = StrategyRepository(conn).fetch_by_key(strategy_key=strategy_name)
+    if strategy is None:
+        raise ValueError(f"Promotion review request requires a strategy_id for '{strategy_name}'.")
+    return strategy.id
+
+
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
     review = PromotionReviewRepository(conn).fetch_by_id(review_id=review_id)
     if review is None:
         raise NotFoundError(f"Promotion review {review_id} not found.")
     return review
-
-
-def _record_review_event(
-    conn: sqlite3.Connection,
-    *,
-    review_id: int,
-    event_type: PromotionReviewEventType,
-    actor_name: str | None,
-    from_review_state: PromotionReviewState | None,
-    to_review_state: PromotionReviewState | None,
-    note: str | None,
-    event_payload: dict[str, object],
-    created_at: str,
-) -> None:
-    PromotionReviewRepository(conn).insert_event(
-        review_id=review_id,
-        event_type=event_type,
-        actor_name=actor_name,
-        from_review_state=from_review_state,
-        to_review_state=to_review_state,
-        note=note,
-        event_payload=event_payload,
-        created_at=created_at,
-    )
-
-
-def _update_review(
-    conn: sqlite3.Connection,
-    *,
-    review_id: int,
-    review_state: PromotionReviewState,
-    reviewed_by: str | None,
-    operator_summary_note: str | None,
-    updated_at: str,
-    closed_at: str | None,
-) -> PromotionReviewRecord:
-    return PromotionReviewRepository(conn).update_review(
-        review_id=review_id,
-        review_state=review_state,
-        reviewed_by=reviewed_by,
-        operator_summary_note=operator_summary_note,
-        updated_at=updated_at,
-        closed_at=closed_at,
-    )
 
 
 def _request_event_payload(assessment: PromotionAssessment) -> dict[str, object]:
@@ -133,12 +96,13 @@ def execute_promotion_review_request(
     requested_by: str | None = None,
     note: str | None = None,
 ) -> PromotionReviewRecord:
-    artifact, assessment = _fetch_current_promotion_snapshot(
+    artifact, assessment = fetch_promotion_snapshot(
         conn,
         account_name=account_name,
         strategy_name=strategy_name,
     )
     account_id, resolved_strategy_name = _require_request_context(artifact, assessment)
+    strategy_id = _require_strategy_id(conn, strategy_name=resolved_strategy_name)
     artifact = replace(
         artifact,
         basic=replace(artifact.basic, requested_strategy=resolved_strategy_name),
@@ -155,18 +119,18 @@ def execute_promotion_review_request(
     created_at = utc_now_iso()
     normalized_requested_by = normalize_optional_text(requested_by)
     normalized_note = normalize_optional_text(note)
-    with conn:
+    with unit_of_work(conn):
         repo = PromotionReviewRepository(conn)
         review = repo.insert_review(
             assessment=assessment,
             evaluation=artifact,
+            strategy_id=strategy_id,
             requested_by=normalized_requested_by,
             operator_summary_note=normalized_note,
             created_at=created_at,
         )
-        _record_review_event(
-            conn,
-            review_id=int(review.id),
+        repo.insert_event(
+            review_id=review.id,
             event_type=PromotionReviewEventType.REQUESTED,
             actor_name=normalized_requested_by,
             from_review_state=None,
@@ -175,7 +139,7 @@ def execute_promotion_review_request(
             event_payload=_request_event_payload(assessment),
             created_at=created_at,
         )
-        refreshed = repo.fetch_by_id(review_id=int(review.id))
+        refreshed = repo.fetch_by_id(review_id=review.id)
     if refreshed is None:
         raise ValueError(f"Promotion review {review.id} not found after request creation.")
     return refreshed
@@ -208,10 +172,10 @@ def _execute_promotion_review_note(
     note: str | None,
     updated_at: str,
 ) -> PromotionReviewRecord:
-    with conn:
-        _record_review_event(
-            conn,
-            review_id=int(review.id),
+    repo = PromotionReviewRepository(conn)
+    with unit_of_work(conn):
+        repo.insert_event(
+            review_id=review.id,
             event_type=PromotionReviewEventType.NOTE_ADDED,
             actor_name=actor_name,
             from_review_state=review.review_state,
@@ -220,9 +184,9 @@ def _execute_promotion_review_note(
             event_payload={},
             created_at=updated_at,
         )
-        return _update_review(
-            conn,
-            review_id=int(review.id),
+        return repo.update_review(
+            review_id=review.id,
+            expected_review_state=PromotionReviewState.REQUESTED,
             review_state=review.review_state,
             reviewed_by=review.reviewed_by,
             operator_summary_note=note or review.operator_summary_note,
@@ -256,9 +220,9 @@ def execute_promotion_review_action(
 
     next_state, event_type = _resolve_review_closure(action, ready_for_live=review.ready_for_live)
 
-    with conn:
-        _record_review_event(
-            conn,
+    repo = PromotionReviewRepository(conn)
+    with unit_of_work(conn):
+        repo.insert_event(
             review_id=review_id,
             event_type=event_type,
             actor_name=normalized_actor_name,
@@ -268,9 +232,9 @@ def execute_promotion_review_action(
             event_payload={},
             created_at=updated_at,
         )
-        return _update_review(
-            conn,
+        return repo.update_review(
             review_id=review_id,
+            expected_review_state=review.review_state,
             review_state=next_state,
             reviewed_by=normalized_actor_name or review.reviewed_by,
             operator_summary_note=normalized_note or review.operator_summary_note,

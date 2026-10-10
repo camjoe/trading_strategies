@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from trading.interfaces.cli.handlers.context import CliContext
+from trading.services.strategy_catalog.mutations import configure_strategy, create_strategy_variant, freeze_strategy
+
 
 def _knob_overrides(args: object) -> dict[str, str]:
     return {key: value for key, value in getattr(args, "set_knobs", []) or []}
@@ -21,8 +24,8 @@ def _describe(record: Any) -> str:
     )
 
 
-def handle_create_strategy_variant(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    saved = deps["create_strategy_variant"](
+def handle_create_strategy_variant(conn, args, parser, *, ctx: CliContext) -> None:
+    saved = create_strategy_variant(
         conn,
         strategy_key=args.strategy,
         primitive=args.primitive,
@@ -32,12 +35,12 @@ def handle_create_strategy_variant(conn, args, parser, *, deps: dict[str, Any]) 
     print(f"Created strategy {saved.strategy_key}: {_describe(saved)}")
 
 
-def handle_configure_strategy(conn, args, parser, *, deps: dict[str, Any]) -> None:
+def handle_configure_strategy(conn, args, parser, *, ctx: CliContext) -> None:
     knobs = _knob_overrides(args)
     enabled = getattr(args, "enabled", None)
     if not knobs and enabled is None:
         parser.error("Provide --set KEY=VALUE and/or --enabled to change.")
-    saved = deps["configure_strategy"](
+    saved = configure_strategy(
         conn,
         strategy_key=args.strategy,
         params=knobs or None,
@@ -46,6 +49,6 @@ def handle_configure_strategy(conn, args, parser, *, deps: dict[str, Any]) -> No
     print(f"Updated strategy {saved.strategy_key}: {_describe(saved)}")
 
 
-def handle_freeze_strategy(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    saved = deps["freeze_strategy"](conn, strategy_key=args.strategy)
+def handle_freeze_strategy(conn, args, parser, *, ctx: CliContext) -> None:
+    saved = freeze_strategy(conn, strategy_key=args.strategy)
     print(f"Froze strategy {saved.strategy_key}: status={saved.status}")

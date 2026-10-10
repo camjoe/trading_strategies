@@ -22,11 +22,38 @@ TRADING_DAYS_PER_YEAR = 252
 ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 SECONDS_PER_DAY = 86_400
 
-# Number of seconds in one calendar minute
-SECONDS_PER_MINUTE = 60
+# ---------------------------------------------------------------------------
+# Money and quantity minor-unit scales
+# ---------------------------------------------------------------------------
+
+# Integer minor units per whole dollar for money storage. Provisional micro-dollars
+# (1e-6): fine enough to hold a sub-cent IBKR commission and an averaged fill price
+# without truncation. Finalize from a real IBKR paper fill (see docs/reference/db-schema.md).
+MONEY_MINOR_UNITS_PER_DOLLAR = 1_000_000
+
+# Integer minor units per whole share for quantity storage. Provisional micro-shares
+# (1e-6): a superset of the broker fractional-order granularity. Finalize from a real
+# IBKR paper fill (see docs/reference/db-schema.md).
+QUANTITY_MINOR_UNITS_PER_SHARE = 1_000_000
+
+# ---------------------------------------------------------------------------
+# Percent and basis-point scaling
+# ---------------------------------------------------------------------------
+
+# Decimal fraction -> operator-facing percent (0.05 -> 5.0).
+PERCENT_SCALE = 100.0
 
 # Divisor for converting basis points to a decimal fraction (1 bps = 0.0001)
 BASIS_POINTS_DIVISOR = 10_000
+
+# Decimal fraction -> basis points (0.0005 -> 5.0). The float counterpart to
+# BASIS_POINTS_DIVISOR, for readings reported in bps rather than consumed as a rate.
+BASIS_POINTS_SCALE = 10_000.0
+
+# Percentage points -> basis points (0.25pp -> 25 bps). Shares the value of
+# PERCENT_SCALE and means something different: this one converts between two
+# already-scaled readings, where PERCENT_SCALE scales a decimal fraction up.
+PERCENT_POINTS_TO_BASIS_POINTS = BASIS_POINTS_SCALE / PERCENT_SCALE
 
 # ---------------------------------------------------------------------------
 # RSI indicator
@@ -56,7 +83,3 @@ MACD_SLOW_SPAN = 26
 
 # EMA period for the MACD signal (trigger) line
 MACD_SIGNAL_SPAN = 9
-
-# Minimum history bars needed before the MACD signal line has enough data
-# to generate a reliable crossover: slow span + signal span warm-up.
-MACD_MIN_HISTORY = MACD_SLOW_SPAN + MACD_SIGNAL_SPAN

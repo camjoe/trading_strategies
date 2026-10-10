@@ -3,23 +3,27 @@
 All broker adapters must implement :class:`BrokerConnection`.  Concrete adapters
 are injected at the runtime / interface layer.
 
-Order data types live in :mod:`trading.models.orders.broker_order` so that repositories
-and services can use them without depending on this package.
+Order data types live in :mod:`trading.models.orders` so that repositories and
+services can use them without depending on this package.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.models.orders.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
+from trading.models.orders import BrokerOrder, OrderRequest
 
 
 class BrokerConnection(ABC):
     """Abstract interface over a broker connection.
 
     Implement this class to add a new broker.  Register the adapter in
-    :func:`brokers.factory.get_broker_for_account`.
+    :func:`infrastructure.brokers.factory.get_broker_for_account`.
     """
+
+    # False when orders report only a cumulative filled size and average price, with no
+    # individual executions; reconciliation then derives the fill still to post.
+    reports_executions: bool = True
 
     @abstractmethod
     def connect(self) -> None:
@@ -30,12 +34,13 @@ class BrokerConnection(ABC):
         """Close the connection gracefully."""
 
     @abstractmethod
-    def place_order(self, order: BrokerOrder) -> BrokerOrder:
-        """Submit *order* and return it populated with broker-assigned fields.
+    def place_order(self, order: OrderRequest) -> BrokerOrder:
+        """Submit *order* and return a placed order carrying the broker's fields.
 
-        For synchronous/paper brokers the returned order will have
-        ``status == OrderStatus.FILLED``.  For async live brokers the status
-        will be ``SUBMITTED`` initially and updated via separate fill events.
+        The returned order is a new object; *order* is left untouched.  For
+        synchronous/paper brokers it will have ``status == OrderStatus.FILLED``.
+        For async live brokers the status will be ``SUBMITTED`` initially and
+        updated via separate fill events.
         """
 
     @abstractmethod
@@ -45,6 +50,15 @@ class BrokerConnection(ABC):
     @abstractmethod
     def get_open_trades(self) -> list[BrokerOrder]:
         """Return currently open broker orders with their latest known fill state."""
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        """Return one order by broker id with its latest known fill state, or None.
+
+        None means the broker cannot report on the order: it does not carry it, or the
+        adapter has no lookup by id. An order `get_open_trades` omits may still be found
+        here, because a broker's open-order list can lag or drop an order that has filled.
+        """
+        return None
 
     @abstractmethod
     def get_positions(self) -> dict[str, float]:

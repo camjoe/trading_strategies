@@ -7,13 +7,6 @@ from datetime import timedelta
 from common.time import parse_utc_iso
 
 
-def mean(values: list[float]) -> float:
-    """Return the arithmetic mean of values, or 0.0 for an empty list."""
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
-
-
 def resolve_window_bounds(
     *,
     as_of_iso: str,

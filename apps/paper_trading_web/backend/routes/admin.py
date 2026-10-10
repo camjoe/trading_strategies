@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from trading.services.parameters.view import fetch_parameter_source_view
+
 from ..account_contract import build_admin_create_account_command
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services.accounts.benchmark import attach_live_benchmark_summary
@@ -13,11 +15,39 @@ from ..services.admin import (
     delete_managed_account,
 )
 from ..services.db import db_conn
-from ..services.exports import list_csv_exports, preview_csv_export
 from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
 
 router = APIRouter()
+
+
+@router.get("/api/admin/parameters")
+def api_parameter_source(
+    accountName: str | None = Query(default=None),  # noqa: N803
+) -> dict[str, object]:
+    """Return the unified effective parameter view for operator inspection."""
+    with db_conn() as conn:
+        view = fetch_parameter_source_view(
+            conn,
+            account_name=accountName.strip() if accountName else None,
+        )
+    return {
+        "groups": [
+            {
+                "scope": group.scope,
+                "note": group.note,
+                "entries": [
+                    {
+                        "name": entry.name,
+                        "value": entry.value,
+                        "source": entry.source,
+                    }
+                    for entry in group.entries
+                ],
+            }
+            for group in view.groups
+        ]
+    }
 
 
 @router.post("/api/admin/accounts/create")
@@ -49,11 +79,6 @@ def api_admin_delete_account_preview(accountName: str = Query(..., min_length=1)
     return {"status": "ok", "preview": build_account_deletion_preview(accountName)}
 
 
-@router.get("/api/admin/exports/csv")
-def api_csv_exports() -> dict[str, object]:
-    return list_csv_exports()
-
-
 @router.get("/api/admin/operations/overview")
 def api_operations_overview() -> dict[str, object]:
     """Return current runtime job health, recent artifacts, and backup visibility."""
@@ -77,12 +102,3 @@ def api_promotion_overview(
             strategy_name=strategyName,
             limit=limit,
         )
-
-
-@router.get("/api/admin/exports/csv/preview")
-def api_csv_export_preview(
-    exportName: str = Query(..., min_length=1),  # noqa: N803
-    fileName: str = Query(..., min_length=1),  # noqa: N803
-    limit: int = Query(default=200, ge=1, le=2000),
-) -> dict[str, object]:
-    return preview_csv_export(exportName, fileName, limit)

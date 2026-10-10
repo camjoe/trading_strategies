@@ -1,6 +1,6 @@
 interface BacktestBasePayload {
   account: string;
-  tickersFile: string;
+  tickersFile?: string;
   universeHistoryDir: string | null;
   start: string | null;
   end: string | null;
@@ -12,14 +12,6 @@ interface BacktestRunPayload extends BacktestBasePayload {
   slippageBps: number;
   fee: number;
   runName: string | null;
-}
-
-interface WalkForwardPayload extends BacktestBasePayload {
-  testMonths: number;
-  stepMonths: number;
-  slippageBps: number;
-  fee: number;
-  runNamePrefix: string | null;
 }
 
 function parseOptInt(raw: string): number | null {
@@ -46,7 +38,7 @@ function parseFormNumber(fd: FormData, key: string, fallback: number): number {
 export function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
   return {
     account: String(fd.get("account") ?? "").trim(),
-    tickersFile: String(fd.get("tickersFile") ?? "trading/config/trade_universe.txt").trim(),
+    tickersFile: parseOptStr(String(fd.get("tickersFile") ?? "")) ?? undefined,
     universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
     start: parseOptStr(String(fd.get("start") ?? "")),
     end: parseOptStr(String(fd.get("end") ?? "")),
@@ -62,18 +54,6 @@ export function buildBacktestRunPayload(form: HTMLFormElement): BacktestRunPaylo
     slippageBps: parseFormNumber(fd, "slippageBps", 5),
     fee: parseFormNumber(fd, "fee", 0),
     runName: parseOptStr(String(fd.get("runName") ?? "")),
-  };
-}
-
-export function buildWalkForwardPayload(form: HTMLFormElement): WalkForwardPayload {
-  const fd = new FormData(form);
-  return {
-    ...buildBacktestBasePayload(fd),
-    testMonths: parseFormNumber(fd, "testMonths", 1),
-    stepMonths: parseFormNumber(fd, "stepMonths", 1),
-    slippageBps: parseFormNumber(fd, "slippageBps", 5),
-    fee: parseFormNumber(fd, "fee", 0),
-    runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
   };
 }
 

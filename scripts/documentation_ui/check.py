@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.paths.repo_paths import get_repo_root
+from common.git import get_repo_root
 from scripts.documentation_ui.api.check import run_api_reference_check
 from scripts.documentation_ui.finance.check import run_finance_reference_check
 from scripts.documentation_ui.software.check import run_software_reference_check

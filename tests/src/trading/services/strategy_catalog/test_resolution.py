@@ -5,22 +5,21 @@ import json
 import pytest
 
 from trading.repositories.strategies import StrategyRepository
-from trading.services.strategy_catalog import (
+from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_params,
     resolve_catalog_strategy,
-    seed_strategy_catalog,
 )
+from trading.services.strategy_catalog.seeding import seed_strategy_catalog
 
 NOW = "2026-07-12T12:00:00Z"
 
 
-def _insert_strategy(conn, *, strategy_key, primitive, params_json, style="neutral"):
+def _insert_strategy(conn, *, strategy_key, primitive, params_json):
     return StrategyRepository(conn).insert(
         strategy_key=strategy_key,
         primitive=primitive,
         params_json=params_json,
-        style=style,
         created_at=NOW,
         updated_at=NOW,
     )
@@ -47,7 +46,6 @@ def test_params_json_overrides_layer_over_primitive_defaults(conn) -> None:
         strategy_key="trend_fast",
         primitive="trend",
         params_json=json.dumps({"fast_window": 5}),
-        style="trend",
     )
 
     resolved = resolve_catalog_strategy(conn, "trend_fast")
@@ -58,7 +56,7 @@ def test_params_json_overrides_layer_over_primitive_defaults(conn) -> None:
 
 
 def test_empty_params_json_yields_primitive_defaults(conn) -> None:
-    _insert_strategy(conn, strategy_key="trend_bare", primitive="trend", params_json="{}", style="trend")
+    _insert_strategy(conn, strategy_key="trend_bare", primitive="trend", params_json="{}")
 
     assert resolve_catalog_params(conn, "trend_bare") == {"fast_window": 10, "slow_window": 20}
 
@@ -92,14 +90,13 @@ def test_alias_primitive_resolves_to_canonical_primitive(conn) -> None:
 def test_variant_key_runs_its_primitives_signal_fn(conn) -> None:
     # A data variant: distinct key, same trend primitive, tuned knob. It exposes
     # the trend primitive's signal function so execution runs the right code.
-    from trading.domain.strategy_signals import PRIMITIVE_CATALOG
+    from trading.domain.strategies.registry import PRIMITIVE_CATALOG
 
     _insert_strategy(
         conn,
         strategy_key="trend_fast",
         primitive="trend",
         params_json=json.dumps({"fast_window": 5}),
-        style="trend",
     )
 
     resolved = resolve_catalog_strategy(conn, "trend_fast")

@@ -1,0 +1,29 @@
+{
+  "_comment": "Template for the runtime job schedule. Copy to job_schedule.json (gitignored) in this folder and set real times. Each entry: id (from the job catalog), time HH:MM, optional day_of_week for weekly jobs, optional args, enabled. A job absent or enabled=false is removed on the next apply.",
+  "jobs": [
+    {
+      "id": "daily_paper_trading",
+      "time": "13:00",
+      "enabled": true,
+      "args": []
+    },
+    {
+      "id": "daily_challenger_shadow_eval",
+      "time": "12:00",
+      "enabled": true,
+      "args": ["--enable-run"]
+    },
+    {
+      "id": "daily_trader_health",
+      "time": "15:00",
+      "enabled": true,
+      "args": ["--max-age-hours", "24"]
+    },
+    {
+      "id": "weekly_db_backup",
+      "time": "12:00",
+      "day_of_week": "Sunday",
+      "enabled": true
+    }
+  ]
+}

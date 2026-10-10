@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.services.promotion import (
-    fetch_current_promotion_snapshot,
-    fetch_promotion_review_history,
-)
+from trading.services.promotion.assessment import fetch_promotion_snapshot
+from trading.services.promotion.history import fetch_promotion_review_history
 
 from .evaluation import build_evaluation_detail_payload
 
@@ -25,7 +23,7 @@ def build_promotion_overview(
     limit: int = 5,
 ) -> dict[str, object]:
     normalized_strategy_name = _normalize_optional_text(strategy_name)
-    evaluation, assessment = fetch_current_promotion_snapshot(
+    evaluation, assessment = fetch_promotion_snapshot(
         conn,
         account_name=account_name,
         strategy_name=normalized_strategy_name,

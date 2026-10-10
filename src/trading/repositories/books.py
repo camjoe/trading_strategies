@@ -1,9 +1,21 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
+from dataclasses import fields
+from decimal import Decimal
 
-from common.time import utc_now_iso
-from trading.models.books.book_record import BookRecord
+from trading.models.books import BookRecord, BookSettingsUpdate
+from trading.persistence.money_columns import encode_columns, encode_money
+from trading.persistence.unit_of_work import commit_unit_of_work
+
+# The BookSettingsUpdate fields are book column names; a settings edit writes the
+# non-None subset of them.
+_BOOK_SETTINGS_COLUMNS = tuple(field.name for field in fields(BookSettingsUpdate))
+
+# Money columns stored as integer minor units; books have no quantity columns.
+_BOOK_MONEY_COLUMNS = frozenset({"start_equity", "current_cash", "current_equity", "max_premium_per_trade"})
+_BOOK_QUANTITY_COLUMNS: frozenset[str] = frozenset()
 
 
 class BookRepository:
@@ -17,9 +29,6 @@ class BookRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _row_to_record(self, row: sqlite3.Row) -> BookRecord:
-        return BookRecord.from_mapping(dict(row))
-
     def insert(
         self,
         *,
@@ -27,178 +36,144 @@ class BookRepository:
         name: str,
         status: str = "active",
         is_default: int = 0,
-        start_equity: float,
-        current_cash: float,
-        current_equity: float,
-        trade_universes: str = '["default"]',
-        goal_min_return_pct: float | None = None,
-        goal_max_return_pct: float | None = None,
-        goal_period: str | None = None,
-        learning_enabled: int = 0,
-        risk_policy: str = "none",
-        stop_loss_pct: float | None = None,
-        take_profit_pct: float | None = None,
-        profit_take_pct: float | None = None,
-        max_loss_pct: float | None = None,
-        trade_size_pct: float | None = None,
-        max_position_pct: float | None = None,
-        max_trades_per_run: int | None = None,
-        instrument_mode: str = "equity",
-        option_strike_offset_pct: float | None = None,
-        option_min_dte: int | None = None,
-        option_max_dte: int | None = None,
-        option_type: str | None = None,
-        target_delta_min: float | None = None,
-        target_delta_max: float | None = None,
-        max_premium_per_trade: float | None = None,
-        max_contracts_per_trade: int | None = None,
-        iv_rank_min: float | None = None,
-        iv_rank_max: float | None = None,
-        roll_dte_threshold: int | None = None,
+        start_equity: Decimal,
+        current_cash: Decimal,
+        current_equity: Decimal,
+        # Explicitly unset. Resolving a universe name to symbols is service
+        # work, so the repository has no default to offer.
+        trade_symbols: str = "[]",
         created_at: str,
         updated_at: str,
     ) -> int:
+        """Create a book with its identity, opening balances, and universe.
+
+        Execution, risk, goal, and option settings are not arguments here. They
+        are columns on `books` (revisions 0004/0005) that every one of them
+        either defaults or nulls at creation, and callers apply them afterwards
+        through `update`. The fixture seeder is the one other insert path, and
+        it writes these same columns.
+        """
         cursor = self._conn.execute(
             """
             INSERT INTO books (
                 account_id, name, status, is_default, start_equity, current_cash,
-                current_equity, trade_universes, goal_min_return_pct,
-                goal_max_return_pct, goal_period, learning_enabled, risk_policy,
-                stop_loss_pct, take_profit_pct, profit_take_pct, max_loss_pct,
-                trade_size_pct, max_position_pct, max_trades_per_run,
-                instrument_mode, option_strike_offset_pct, option_min_dte,
-                option_max_dte, option_type, target_delta_min, target_delta_max,
-                max_premium_per_trade, max_contracts_per_trade, iv_rank_min,
-                iv_rank_max, roll_dte_threshold, created_at, updated_at
+                current_equity, trade_symbols, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(account_id),
+                account_id,
                 name,
                 status,
-                int(is_default),
-                float(start_equity),
-                float(current_cash),
-                float(current_equity),
-                trade_universes,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                goal_period,
-                int(learning_enabled),
-                risk_policy,
-                stop_loss_pct,
-                take_profit_pct,
-                profit_take_pct,
-                max_loss_pct,
-                trade_size_pct,
-                max_position_pct,
-                max_trades_per_run,
-                instrument_mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                option_type,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
+                is_default,
+                encode_money(start_equity),
+                encode_money(current_cash),
+                encode_money(current_equity),
+                trade_symbols,
                 created_at,
                 updated_at,
             ),
         )
         book_id = int(cursor.lastrowid or 0)
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=created_at)
-        self._conn.commit()
+        self._record_universe_history(book_id=book_id, trade_symbols=trade_symbols, effective_from=created_at)
+        commit_unit_of_work(self._conn)
         return book_id
 
-    def _record_universe_history(self, *, book_id: int, universes_json: str, effective_from: str) -> None:
-        """Close the open universe-history row (if any) and open a new one."""
+    def _record_universe_history(self, *, book_id: int, trade_symbols: str, effective_from: str) -> None:
+        """Close the open universe-history row (if any) and open a new one.
+
+        `book_universe_history` records the **resolved ticker set** effective over
+        each interval, not the universe names — so what a book was
+        actually trading on a past date stays reconstructable even after a universe
+        file is edited. That is the point-in-time guarantee backtest and evaluation
+        integrity rest on.
+
+        Nothing reads the table yet; the read side has not been built. The writes
+        still matter: history only exists later if it is recorded now, so do not
+        take the absent reader as a sign these are dead.
+        """
         self._conn.execute(
             "UPDATE book_universe_history SET effective_to = ? WHERE book_id = ? AND effective_to IS NULL",
-            (effective_from, int(book_id)),
+            (effective_from, book_id),
         )
         self._conn.execute(
             """
-            INSERT INTO book_universe_history (book_id, universes_json, effective_from, effective_to)
+            INSERT INTO book_universe_history (book_id, trade_symbols, effective_from, effective_to)
             VALUES (?, ?, ?, NULL)
             """,
-            (int(book_id), universes_json, effective_from),
+            (book_id, trade_symbols, effective_from),
         )
 
-    def fetch_universe_history(self, *, book_id: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
-            """
-            SELECT universes_json, effective_from, effective_to
-            FROM book_universe_history
-            WHERE book_id = ?
-            ORDER BY effective_from ASC, id ASC
-            """,
-            (int(book_id),),
-        ).fetchall()
+    def update(self, *, book_id: int, values: Mapping[str, object], updated_at: str) -> None:
+        """Write ``values`` as a partial column update to one book; no-op when empty.
 
-    def update_settings_columns(self, *, book_id: int, updates: list[str], params: list[object]) -> None:
-        """Apply pre-built ``column = ?`` update fragments to one book."""
+        Callers pass column name to value; deciding which columns to include
+        (and so which to leave at their current value) is theirs.
+        """
+        if not values:
+            return
+        encoded = encode_columns(values, money_columns=_BOOK_MONEY_COLUMNS, quantity_columns=_BOOK_QUANTITY_COLUMNS)
+        assignments = ", ".join(f"{column} = ?" for column in encoded)
         self._conn.execute(
-            f"UPDATE books SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
-            (*params, utc_now_iso(), int(book_id)),
+            f"UPDATE books SET {assignments}, updated_at = ? WHERE id = ?",
+            (*encoded.values(), updated_at, book_id),
         )
-        self._conn.commit()
+        commit_unit_of_work(self._conn)
+
+    def update_settings(self, *, book_id: int, settings: BookSettingsUpdate, updated_at: str) -> None:
+        """Write the set (non-None) columns of a typed settings edit to one book.
+
+        None fields are left at their current value. A settings object with no
+        set field is a no-op, exactly as an empty ``update``.
+        """
+        values = {
+            column: value for column in _BOOK_SETTINGS_COLUMNS if (value := getattr(settings, column)) is not None
+        }
+        self.update(book_id=book_id, values=values, updated_at=updated_at)
 
     def fetch_by_id(self, *, book_id: int) -> BookRecord | None:
         row = self._conn.execute(
             "SELECT * FROM books WHERE id = ?",
-            (int(book_id),),
+            (book_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return BookRecord.from_mapping(dict(row)) if row is not None else None
 
     def fetch_for_account(self, *, account_id: int) -> list[BookRecord]:
         rows = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? ORDER BY id ASC",
-            (int(account_id),),
+            (account_id,),
         ).fetchall()
-        return [self._row_to_record(row) for row in rows]
+        return [BookRecord.from_mapping(dict(row)) for row in rows]
 
     def fetch_default_for_account(self, *, account_id: int) -> BookRecord | None:
         row = self._conn.execute(
             "SELECT * FROM books WHERE account_id = ? AND is_default = 1",
-            (int(account_id),),
+            (account_id,),
         ).fetchone()
-        return self._row_to_record(row) if row is not None else None
+        return BookRecord.from_mapping(dict(row)) if row is not None else None
 
     def update_status(self, *, book_id: int, status: str, updated_at: str) -> None:
-        self._conn.execute(
-            "UPDATE books SET status = ?, updated_at = ? WHERE id = ?",
-            (status, updated_at, int(book_id)),
-        )
-        self._conn.commit()
+        self.update(book_id=book_id, values={"status": status}, updated_at=updated_at)
 
-    def update_trade_universes(self, *, book_id: int, trade_universes: str, updated_at: str) -> None:
+    def update_trade_symbols(self, *, book_id: int, trade_symbols: str, updated_at: str) -> None:
         """Set the book's universes and record the change in the history table."""
         self._conn.execute(
-            "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
-            (trade_universes, updated_at, int(book_id)),
+            "UPDATE books SET trade_symbols = ?, updated_at = ? WHERE id = ?",
+            (trade_symbols, updated_at, book_id),
         )
-        self._record_universe_history(book_id=book_id, universes_json=trade_universes, effective_from=updated_at)
-        self._conn.commit()
+        self._record_universe_history(book_id=book_id, trade_symbols=trade_symbols, effective_from=updated_at)
+        commit_unit_of_work(self._conn)
 
     def update_balances(
         self,
         *,
         book_id: int,
-        current_cash: float,
-        current_equity: float,
+        current_cash: Decimal,
+        current_equity: Decimal,
         updated_at: str,
     ) -> None:
-        self._conn.execute(
-            """
-            UPDATE books
-            SET current_cash = ?, current_equity = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (float(current_cash), float(current_equity), updated_at, int(book_id)),
+        self.update(
+            book_id=book_id,
+            values={"current_cash": current_cash, "current_equity": current_equity},
+            updated_at=updated_at,
         )
-        self._conn.commit()

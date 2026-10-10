@@ -7,6 +7,23 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Before editing any file under `src/trading/`, read `docs/architecture/architecture-conventions.md` in full.
 - Respect the layering and ownership rules there. Do not invert dependency direction such as `interfaces -> services -> repositories/domain -> database`.
 - If a requested change would violate those conventions, stop and flag it before proceeding.
+- Before adding a strategy primitive, feature provider, strategy-specific parameter set, fixture, or
+  strategy documentation, classify it as intentionally public or private/proprietary. Only
+  intentionally public examples belong in tracked files. Keep private research and parameters under
+  `local/strategies/`; private executable strategy logic belongs in a separately distributed private
+  package or repository behind the established strategy interfaces. When classification is unclear,
+  stop and ask before writing tracked files.
+
+## Standing authorizations
+
+Granted by the owner on 2026-10-09. Each covers only what is written here; anything else needs the
+owner's yes in that conversation.
+
+- `pr ready` may create and edit the single readiness comment on the current branch's own pull
+  request, identified by the hidden marker `<!-- pr-readiness -->`, without asking. It may not post
+  any other comment or review, add labels, or merge. It never posts security-class findings (route
+  those to `/security-review` and tell the owner privately). The repository is public: the comment
+  carries no credentials, broker account ids, local machine paths, or private strategy parameters.
 
 ## Python environment
 
@@ -21,17 +38,26 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 ## Working references
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
+- Plans for work about to start (possibly on another branch): `plan/` — short-lived, deleted when the work ships; see `plan/README.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
-- Skill authoring and localization guidance: `.ai/skills/manage-skill/SKILL.md`
+- Skill authoring and localization guidance: `.ai/skills/README.md` (Authoring rules)
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
+- Grouping several DB writes into one atomic transaction (commit once, roll back on any failure): use `unit_of_work` / `commit_unit_of_work` from `src/trading/persistence/unit_of_work.py` — see `docs/reference/database-transactions.md`.
+- Writing a timestamp to a database column: render it with `utc_now_iso` / `as_utc_iso` / `normalize_utc_iso` from `src/common/time.py`, never a bare `datetime.isoformat()`. Stored timestamps are string-compared in SQL, so mixed spellings of one instant break ordering and range filters — see `docs/conventions/python-style.md` (Timestamps).
 
 ## Output style
 
 - Apply a **balanced** style (see `docs/conventions/general-style.md`): prefer a touched file's existing local style, make consistency improvements only when they reduce ambiguity, and avoid broad style-only churn. Keep behavior unchanged unless asked.
 - Do **not** do style-only rewrites unless explicitly requested.
+- **Do not narrate in source.** Comments and docstrings carry facts a reader would otherwise get
+  wrong — not your reasoning. Rationale for a change (what you considered, what it replaced, what
+  bug it fixed, why the old way was worse) goes in the commit message and your summary, never in
+  the file: code gets edited and the story rots, while `git log` stays accurate. If a change adds
+  more prose lines than code lines, cut it back. Full rule: `docs/conventions/python-style.md`
+  (Comments and docstrings).
 - Explain any non-trivial style decision in your summary.
 - For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
 - After each completed implementation phase and in final summaries, include:
@@ -57,15 +83,12 @@ Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
-| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
+| `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
-| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
-| `help/` | Interactive discovery: list available skills and common prompts |
-| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
-| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
+| `strategy-advisor/` | Advisor session: score past decisions, read the digest, record a decision per book (including hold), act only on approval |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
 | `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 
@@ -80,24 +103,22 @@ Default to the most specific matching skill; work without one when nothing match
 | Lightweight quick diff check | `code-review/` (Baseline mode) |
 | High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
 | Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
-| Create or update a reference doc or ADR | `reference-doc/` |
+| Create or update a reference doc or ADR | Follow `docs/conventions/docs-authoring.md` |
 | README, reference, or API drift | `update-documentation/` |
 | Frontend-only cleanup in `apps/paper_trading_web/frontend` | `code-review/` (Cleanup mode) |
 | Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
 | Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
-| Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Independent review of a PR or another branch, read by ref | `code-review/` (Lenses, `lenses.md`) |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
-| Create a new skill | `manage-skill/` |
-| Update or improve a skill | `manage-skill/` |
-| Discover available skills and prompts | `help/` |
 | Schema migration work or safety review | `db-migration/` |
 | Broker adapters or live-trading safety review | `code-review/` (Aggressive mode) + the Live Trading Safety Guard in `docs/architecture/architecture-conventions.md` |
 | Runtime job / scheduler work | `create-runtime-job/` for new jobs; `docs/reference/runtime-jobs.md` + `docs/runbooks/` for operating existing ones |
 | Backtest methodology, walk-forward, evaluation honesty | `finance-strategy/` (Evaluation honesty) + `docs/reference/backtesting.md` |
+| Run the advisor, review strategy performance, decide what to change | `strategy-advisor/` |
 
 ## Shortcut workflows
 
@@ -130,9 +151,9 @@ These phrases are repo conventions for common tasks.
 
 ### `sync docs` or `docs sync`
 
-- Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.ai/skills/update-documentation/SKILL.md`.
-- After edits, run `python -m scripts.checks.docs.readme_check`.
+- Detect drift: `python -m scripts.run_checks docs --advisory` (README structure, links, maps, headers).
+- Rewrite the flagged prose: follow `.ai/skills/update-documentation/SKILL.md`.
+- After edits, re-run `python -m scripts.run_checks docs --advisory` to confirm.
 
 ### `run suite`
 
@@ -175,38 +196,42 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.run_checks ci`.
 - Report pass/fail by step and include failing command details.
 
-### `update documentation`
-
-- Run `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`.
-- Report which README files need updates.
-
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs deterministic aggregate checks and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow, run on committed work. Follow `.ai/skills/check-pr-readiness/SKILL.md`
+— it owns the step order, stop conditions, and the readiness comment on the pull request (updated in
+place by each pass; with no PR yet the text is printed).
 
-- `pr ready` — full 6-step workflow vs `develop` (default base)
-- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
-
-Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step sequence
-(deterministic gate → architecture → style → quality → docs check → report saved to
-`local/pr_readiness_report.md`).
+- `pr ready` — vs `develop` (default base)
+- `pr ready: <base>` — vs a custom base branch (e.g. `pr ready: main`)
+- `pr ready: lenses=<names>` — override the reviewers `review_scope_check` suggests
 
 **Individual step shortcuts** — run any step on its own:
 
 | Shortcut | What it does |
 |---|---|
+| `pr gate` | The gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks if the diff touches the frontend (`python -m scripts.run_checks pr --base develop`) |
+| `pr gate: <base>` | The gate vs a custom base |
 | `pr tests` | Branch-targeted Python checks only (`--base develop`) |
 | `pr tests: <base>` | Branch-targeted tests vs a custom base |
 | `pr lint` | Repository checks + Python lint/type checks |
-| `pr code review` | AI style + quality review for branch diff vs develop |
-| `pr code review: <base>` | AI style + quality review vs a custom base |
-| `pr arch review` | AI architecture review for branch diff vs develop |
-| `pr arch review: <base>` | AI architecture review vs a custom base |
+| `pr arch review` | The Architecture and conventions reviewer for the branch diff vs develop |
+| `pr arch review: <base>` | The Architecture and conventions reviewer vs a custom base |
+| `pr code review` | The lens reviewers `review_scope_check` selects for the branch diff vs develop |
+| `pr code review: <base>` | The lens reviewers vs a custom base |
 
-**Deterministic-only commands** (no AI, no tokens):
+For the underlying deterministic commands (no AI, no tokens), see
+`.ai/skills/validate-code/SKILL.md`.
 
-```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base develop
-python -m scripts.run_checks python --base main --no-cov
-```
+### `review pr`
+
+Independent review of an open pull request without checking it out, for example one on another
+branch.
+
+- `review pr: <number>` — look up the base and head with `gh pr view <number> --json
+  baseRefName,headRefName`, run `git fetch origin`, then
+  `python -m scripts.checks.repo.review_scope_check --base origin/<base> --head origin/<head>` for
+  the reviewers, and follow "For the orchestrator" in `.ai/skills/code-review/lenses.md` with those
+  refs. Print the verified findings; do not fix them.
+- The standing authorization covers only the readiness comment on the current branch's own PR, so
+  posting these findings to another PR needs the owner's yes.

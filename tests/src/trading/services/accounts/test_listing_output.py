@@ -1,7 +1,8 @@
 import pytest
 
 from trading.models import AccountConfig
-from trading.services.accounts import create_account, get_account, list_accounts, set_benchmark
+from trading.services.accounts.listing import fetch_account_listing_lines
+from trading.services.accounts.mutations import create_account, get_account, set_benchmark
 
 
 class TestAccountListingOutput:
@@ -14,7 +15,7 @@ class TestAccountListingOutput:
         assert account["benchmark_ticker"] == "QQQ"
 
     def test_list_accounts_returns_empty_when_no_accounts(self, conn) -> None:
-        assert list_accounts(conn) == []
+        assert fetch_account_listing_lines(conn) == []
 
     @pytest.mark.parametrize(
         ("name", "goal_min", "goal_max", "goal_period", "expected_goal_text"),
@@ -47,7 +48,7 @@ class TestAccountListingOutput:
             ),
         )
 
-        lines = list_accounts(conn)
+        lines = fetch_account_listing_lines(conn)
 
         combined = "\n".join(lines)
         if expected_goal_text is None:
@@ -60,7 +61,7 @@ class TestAccountListingOutput:
         create_account(conn, "acct_a", "Trend", 1000.0, "SPY")
         create_account(conn, "acct_b", "MeanRev", 1000.0, "SPY")
 
-        lines = list_accounts(conn, by_strategy=False)
+        lines = fetch_account_listing_lines(conn, by_strategy=False)
 
         combined = "\n".join(lines)
         assert "Strategy:" not in combined

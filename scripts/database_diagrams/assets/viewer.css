@@ -40,7 +40,7 @@
       gap: 8px;
       justify-content: flex-end;
     }
-    button, input {
+    button {
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--ink);
@@ -54,7 +54,6 @@
       color: var(--accent);
       background: #eef4ff;
     }
-    input { min-width: 220px; padding: 0 10px; }
     .tabs {
       display: flex;
       gap: 6px;
@@ -67,8 +66,30 @@
       white-space: nowrap;
       min-width: max-content;
     }
+    .category-tabs {
+      background: #f8fafc;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .role-tabs {
+      background: #f1f5f9;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      align-items: center;
+    }
+    .role-tabs::before {
+      content: "By data role";
+      align-self: center;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: 4px;
+    }
     main {
-      height: calc(100vh - 118px);
+      height: calc(100vh - 162px);
       overflow: hidden;
       position: relative;
     }
@@ -136,15 +157,15 @@
     }
     .section-label {
       position: absolute;
-      min-width: 260px;
-      height: 34px;
-      padding: 7px 12px 6px;
+      min-width: 290px;
+      height: 40px;
+      padding: 9px 14px 8px;
       border-left: 6px solid var(--section-color);
       border-radius: 7px;
       background: rgba(255, 255, 255, 0.86);
       color: var(--section-color);
       box-shadow: var(--shadow);
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 760;
       letter-spacing: 0;
       cursor: grab;
@@ -168,8 +189,9 @@
       position: static;
       padding: 10px 12px;
       display: block;
-      border-bottom: 1px solid var(--line);
-      background: #f9fafb;
+      border-bottom: 1px solid color-mix(in srgb, var(--table-section-color) 35%, var(--line));
+      border-left: 5px solid var(--table-section-color);
+      background: color-mix(in srgb, var(--table-section-color) 12%, #ffffff);
     }
     .table-card h3 { margin: 0; font-size: 15px; }
     .column-list {

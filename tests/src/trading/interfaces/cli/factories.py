@@ -7,7 +7,7 @@ def make_backtest_args(**overrides):
     defaults = {
         "command": "backtest",
         "account": "acct1",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universes/default.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",
@@ -43,31 +43,11 @@ def make_backtest_batch_args(**overrides):
     defaults = {
         "command": "backtest-batch",
         "accounts": "acct1, acct2",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universes/default.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",
         "lookback_months": None,
-        "slippage_bps": 5.0,
-        "fee": 0.0,
-        "run_name_prefix": None,
-        "allow_approximate_leaps": False,
-    }
-    defaults.update(overrides)
-    return SimpleNamespace(**defaults)
-
-
-def make_walk_forward_args(**overrides):
-    defaults = {
-        "command": "backtest-walk-forward",
-        "account": "acct1",
-        "tickers_file": "src/infrastructure/config/trade_universe.txt",
-        "universe_history_dir": None,
-        "start": "2026-01-01",
-        "end": "2026-03-31",
-        "lookback_months": None,
-        "test_months": 1,
-        "step_months": 1,
         "slippage_bps": 5.0,
         "fee": 0.0,
         "run_name_prefix": None,
@@ -101,28 +81,10 @@ def make_backtest_result(**overrides):
     return SimpleNamespace(**defaults)
 
 
-def make_walk_forward_summary(**overrides):
-    defaults = {
-        "account_name": "acct1",
-        "start_date": "2026-01-01",
-        "end_date": "2026-03-31",
-        "window_count": 3,
-        "run_ids": [101, 102, 103],
-        "average_return_pct": 1.2,
-        "median_return_pct": 1.0,
-        "best_return_pct": 2.3,
-        "worst_return_pct": 0.1,
-    }
-    defaults.update(overrides)
-    return SimpleNamespace(**defaults)
-
-
 __all__ = [
     "make_backtest_args",
     "make_backtest_batch_args",
     "make_backtest_leaderboard_args",
     "make_backtest_report_args",
     "make_backtest_result",
-    "make_walk_forward_args",
-    "make_walk_forward_summary",
 ]

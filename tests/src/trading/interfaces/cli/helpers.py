@@ -49,8 +49,8 @@ def configure_account_args(**overrides):
         "iv_rank_min": None,
         "iv_rank_max": None,
         "roll_dte_threshold": None,
-        "profit_take_pct": None,
-        "max_loss_pct": None,
+        "option_profit_take_pct": None,
+        "option_max_loss_pct": None,
     }
     base.update(overrides)
     return SimpleNamespace(**base)

@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio.account_exposure import AccountExposure
-from trading.models.portfolio.portfolio_exposure_rollup import PortfolioExposureRollup
+from trading.models.portfolio import AccountExposure, PortfolioExposureRollup
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -37,9 +36,9 @@ def _account_exposure(
         account_id=account_id,
         account_name=account_name,
         snapshot_time=latest.snapshot_time,
-        cash=latest.cash,
-        market_value=latest.market_value,
-        equity=latest.equity,
+        cash=float(latest.cash),
+        market_value=float(latest.market_value),
+        equity=float(latest.equity),
         position_count=position_count,
     )
 
