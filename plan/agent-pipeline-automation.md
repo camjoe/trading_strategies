@@ -1,7 +1,8 @@
 # Plan: automated plan → PR → readiness → fix pipeline
 
 Status: drafted 2026-10-10, under discussion. Nothing built. Branch: `plan/agent-pipeline-automation`.
-Open questions are in "Decisions needed"; edit this file until they are closed.
+Decisions 1-5, 8, 9, 12 are settled (see "Decisions"); 6, 7, 10, 11 are to be re-asked after the
+owner reviews the current text. Edit this file until they are closed.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -10,10 +11,12 @@ repeats until every open finding either is fixed or needs the owner's decision, 
 The owner reviews and merges. No auto-merge.
 
 ```
-plan/foo.md -> [1 Implement] -> PR (draft) -> [2 pr ready] -> comment
-                                    ^                           |
-                                    +------ [3 Fix] <-----------+
-                            (loop until READY, or only needs-decision remains)
+plan/foo.md -> [1 Implement] -> draft PR -> gate green -> PR ready for review
+                                                              |
+                                                       [2 pr ready] -> comment
+                                                              ^           |
+                                                              +-- [3 Fix] <+
+              (loop until READY, or only needs-decision remains; email owner either way)
 ```
 
 ## What exists today (read from the repo, 2026-10-10)
@@ -33,28 +36,30 @@ plan/foo.md -> [1 Implement] -> PR (draft) -> [2 pr ready] -> comment
 ## Design
 
 ### Stage 1: implementer
-- Input: one plan file. Output: a branch off `develop` and a **draft** PR. The plan file stays in the
-  branch while the PR is a draft (see "Plan file lifecycle").
-- Claims the plan by opening the draft PR and setting the plan's Status line to "in progress
-  (branch)". A plan already in progress, blocked, or with unmet "Depends on" is not picked up.
-- Opens the PR as a draft immediately after the first push, so the readiness comment has a home.
-- Runs `pr gate` before opening the PR. Follows the existing skill routing in `AGENTS.md`.
+- Input: one plan file. Output: a branch off `develop` and a PR that it moves out of draft itself.
+  The plan file stays in the branch until the loop ends (see "Plan file lifecycle").
+- Claims the plan by opening a **draft** PR after the first push and setting the plan's Status line
+  to "in progress (branch)". The draft is only the visible claim; no review runs on it. A plan
+  already in progress, blocked, or with unmet "Depends on" is not picked up.
+- When the implementation is complete and `pr gate` is green, it marks the PR ready for review. That
+  transition is what starts Stage 2. It uses the owner's login, because a transition made with the
+  default workflow token would not trigger the workflow.
+- Follows the existing skill routing in `AGENTS.md`.
 - Any step the plan leaves ambiguous, or any public/private classification that is unclear, stops
   the run and records the question on the PR (see Stage 3 states).
 
 ### Stage 2: reviewer (`pr ready`)
 - A fresh session that never saw the implementer's reasoning. This independence is the point.
-- Triggered by GitHub on PR events, not by the implementer.
-- Runs on draft PRs too, and creates or edits the readiness comment on the draft. The skill already
-  expects this ("Open the PR as a draft early so the comment has a home"). The workflow must not
-  skip drafts: `ci.yml`'s bare `pull_request` trigger fires on drafts, and the new workflow must do
-  the same (no `if: !github.event.pull_request.draft`).
-- **Conflict found in the docs (2026-10-10, see "Verified vs unverified")**: the official GitHub
-  action reportedly skips draft and closed PRs. Whether that applies when the action is given an
-  explicit prompt is unconfirmed. If it does, the reviewer step runs the CLI directly
-  (`claude -p`, non-interactive) instead of through the action; the draft behavior then belongs to
-  our own workflow condition.
+- Triggered by GitHub on PR events (`opened`, `ready_for_review`, `synchronize`), not by the
+  implementer. It reviews **non-draft PRs only** (decision 12): the workflow skips drafts with its
+  own condition. The first readiness comment is therefore created on the first pass after the PR
+  leaves draft.
+- Runs the reviewer as a direct non-interactive CLI call (`claude -p`), not through the official
+  action (decision 1). The docs reportedly say the action skips draft PRs; with our own condition
+  that no longer matters for the design, and the direct call keeps the trigger layer thin.
 - Writes the existing readiness comment, changed only as "Comment changes" below says.
+- `.ai/skills/check-pr-readiness/SKILL.md` currently says "Open the PR as a draft early so the
+  comment has a home". That line changes to match: the comment's home is the PR once it is ready.
 
 ### Stage 3: fixer
 - Reads the readiness comment. For each open finding, **blockers, concerns, and notes alike**,
@@ -77,16 +82,21 @@ plan/foo.md -> [1 Implement] -> PR (draft) -> [2 pr ready] -> comment
   with "still open at <sha>", and removes the line.
 
 ### Plan file lifecycle
-The plan file is not deleted while the PR is a draft. It is the record of what the PR is meant to
-do, and the fixer and reviewers may need it. It is deleted in the commit that precedes the draft to
-ready transition (or later), which still satisfies `plan/README.md` ("delete the file in the same PR
-that ships the work"). A docs-only deletion gives `review_scope_check` no reviewers, so it does not
-trigger a full re-review.
+The plan file is not deleted while the PR is a draft, and it stays after the PR leaves draft. It is
+the record of what the PR is meant to do, and the fixer and reviewers read it. It is deleted in the
+final commit of the loop, once the comment says READY. That satisfies `plan/README.md` ("delete the
+file in the same PR that ships the work"). The deletion makes the READY comment one commit stale; the
+next pass sees a docs-only increment, `review_scope_check` suggests no reviewers, and the pass
+re-confirms READY by hand at low cost. The owner is emailed after that confirming pass, not before.
+If the loop instead stops on needs-decision, the plan file stays.
 
 ### Notifications
 The owner gets an email when:
-1. the PR moves from draft to ready for review, and
-2. the readiness comment first reaches READY (these may coincide).
+1. the readiness comment reaches READY and the plan-file deletion pass has confirmed it, and
+2. the loop stops with only needs-decision (or left) findings, or on a cap or red gate (decision 9).
+
+The draft to ready transition is not a notification: the implementer makes it itself right after
+the local gate is green, so an email there would be noise. Add one if wanted.
 
 Delivery uses the existing runtime alert path: `resolve_email_config_from_env()` in
 `src/trading/interfaces/runtime/jobs/job_helpers.py` reads `TRADING_RUNTIME_ALERT_SMTP_HOST`, `_FROM`,
@@ -105,7 +115,7 @@ and the message must hold no account ids, local paths, or private parameters.
 Stop and hand to the owner when any holds:
 - no open finding is classifiable as fix (title is READY, or only needs-decision and leave remain);
 - the same finding is still open after one fix attempt;
-- the fix round count reaches the cap (proposal: 3);
+- the fix round count reaches the cap (3, decision 4);
 - the gate is red after a fix and `fix checks` does not clear it.
 Label the PR `ready-to-merge` or `needs-decision` at the end. (Labels need their own authorization;
 see "Authorizations".)
@@ -178,13 +188,16 @@ fetch date, so recheck details against the live docs before building):
 | Claude Code on the web scheduled routines need a claude.ai login and suit scheduled work, not PR events | reported |
 
 Everything marked reported or unconfirmed is verified by a small spike before Phase 2 is built:
-a throwaway workflow on a test draft PR that runs the reviewer step both ways (through the action,
-and as a direct CLI call) and records what posts, what is skipped, and what it costs.
+a throwaway workflow on a test PR that runs the reviewer step as a direct CLI call with the
+subscription token, and records what posts, which skills and subagents load, how it behaves on
+`ready_for_review` vs `synchronize`, and what it costs against the plan's limits. The official
+action's draft behavior is no longer on the critical path (decisions 1 and 12); test it only if we
+later want the action.
 
-## Triggering: where each stage runs (proposal, not decided)
+## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
 |---|---|---|
-| 2 reviewer | GitHub Actions on `pull_request` (opened, synchronize, ready_for_review) | Independent, fires for every PR, read-mostly token |
+| 2 reviewer | GitHub Actions on `pull_request` (opened, ready_for_review, synchronize), non-draft only, direct `claude -p` | Independent, fires for every ready PR, read-mostly token |
 | 1 implementer, 3 fixer | Locally or as a scheduled task | Needs `.venv`, Windows paths, DB fixtures; no broker secrets in CI |
 
 ### Authentication for the agent runs
@@ -194,7 +207,8 @@ and as a direct CLI call) and records what posts, what is skipped, and what it c
 | Subscription OAuth token (`claude setup-token`, one year) | Draws on the plan's usage limits. Unverified: whether CI runs share the window with interactive sessions (assumed yes). A busy review loop could crowd out interactive work. | Actions, headless `claude -p`; not `--bare` |
 | Bedrock, Vertex, Foundry | Cloud billing, OIDC with no static key | Actions, headless |
 
-Both API key and subscription token are first-class options, so a subscription is not a blocker. A
+Decision 2: start with the subscription token (no per-token bill), switch to an API key if CI runs
+crowd out interactive sessions. Both are first-class options, so a subscription is not a blocker. A
 token is a long-lived credential in a public repo's secrets: scope it to the reviewer job, rotate at
 expiry, and keep it out of fork-triggered runs. Unverified: whether the plan's terms allow
 automated CI use at this volume; check the current terms before relying on it.
@@ -236,9 +250,9 @@ decide each of these in `AGENTS.md`, because none is covered today:
 Merging stays out.
 
 ## Phases
-0. **Verification spike** (see "Verified vs unverified"): draft-PR behavior of the action vs a direct
-   CLI call, subscription token in Actions, subagents and skills in the runner, and cost per review.
-   Nothing else is built until this is read.
+0. **Verification spike** (see "Verified vs unverified"): subscription token in Actions with a direct
+   CLI call, subagents and skills in the runner, behavior on ready_for_review and synchronize, and
+   cost per review. Nothing else is built until this is read.
 0b. **Forge interface.** The `scripts/forge` CLI and GitHub adapter, with tests; point the readiness
    skill at it instead of raw `gh`.
 1. **Hand-run Stage 3.** Take a real PR's readiness comment and run a fixer prompt by hand. Learn
@@ -248,30 +262,34 @@ Merging stays out.
    the docs reportedly say subagents work outside `--bare` (settled by the Phase 0 spike).
 3. **Fixer loop** with the cap, the forced-decision path check, the stop conditions, the *Fix
    attempted* comment lines, and note handling.
-3b. **Notification email** on draft to ready and first READY.
+3b. **Notification email** on confirmed READY and on a loop that stops for the owner.
 4. **Plan pickup.** Status field handling and the implementer. Manually triggered first
    ("implement `plan/x.md`"); automatic selection only after the rest is trusted.
 
-## Decisions needed
-1. Where does Stage 2 run: GitHub Actions, or a local scheduled task polling for new PRs?
-2. API key (per-token billing) or subscription OAuth token (plan limits, possibly shared with
-   interactive use)? What monthly budget? A multi-lens review per push is the cost driver.
-3. Who opens the PR and pushes: the owner's login (triggers workflows) or a GitHub App?
-4. Fix-round cap: 3?
-5. Should plan pickup ever be automatic, or always an explicit instruction?
-6. Is the forced needs-decision path list above complete?
-7. Email delivery: a local job that polls PR state (SMTP settings stay on the host), or repository
-   secrets and a workflow step (simpler, but SMTP credentials leave the host)?
-8. Who moves the PR from draft to ready: the agent, once the comment says READY, or only the owner?
-   (The email fires on the transition either way; if the owner does it, the READY email is the
-   prompt to do so.)
-9. Also email when the loop stops with only needs-decision findings? Not requested; proposed.
-10. Notes the fixer leaves: is "easy or simply beneficial, within the branch's touched scope" the
-    right bar, or should it also take follow-ups?
-11. Forge interface as a CLI in `scripts/forge` (recommended), or an MCP server?
-12. Draft-skip fallback: if the action skips drafts, run the reviewer as a direct CLI call (keeps
-    review on drafts), or review only once the PR is ready (simpler, but the loop then starts after
-    the owner's draft-to-ready step)?
+## Decisions
+Settled by the owner, 2026-10-10:
+1. Stage 2 runs in GitHub Actions as a direct `claude -p` call, not the official action.
+2. Subscription OAuth token first; switch to an API key if CI runs crowd out interactive use.
+3. The owner's login opens PRs and pushes (so workflows trigger). A GitHub App is a later option.
+4. Fix-round cap: 3.
+5. Plan pickup is explicit ("implement `plan/x.md`") until the rest has run cleanly on a few PRs.
+8. The agent moves the PR from draft to ready, right after implementation and a green local gate.
+   The owner noted this may move earlier or later if drafts turn out not to hit the triggers; adjust
+   then.
+9. Email also when the loop stops with only needs-decision findings (or a cap, or a red gate).
+12. Review only after the PR leaves draft; email when ready. The reviewer skips drafts.
+
+To re-ask after the owner reviews this text:
+- 6. Is the forced needs-decision path list complete? (Proposed additions: `.env*` and credential
+  handling, the runtime schedule and job inventory, `docs/adr/`.)
+- 7. Email delivery: local job polling PR state (SMTP stays on the host), or repository secrets and a
+  workflow step?
+- 10. Is "easy or simply beneficial, within the branch's touched scope" the right bar for the
+  fixer's notes, or should it also take follow-ups?
+- 11. Forge interface as a CLI in `scripts/forge` (recommended) or an MCP server?
+
+Open consequence of 8 and 12 together: the owner learns of a PR only at the READY or stopped email,
+not at PR creation. If that is too quiet, add a "PR opened" email.
 
 ## Not in scope
 - Auto-merge. Merging is the owner's.
