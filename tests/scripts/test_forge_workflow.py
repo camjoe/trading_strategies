@@ -44,4 +44,15 @@ def test_the_workflow_reads_keys_that_review_context_returns() -> None:
 def test_the_workflow_checks_the_body_before_it_posts() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
-    assert text.index("scripts.forge check-body") < text.index("scripts.forge comment-upsert")
+    assert text.index("- name: Check the comment body") < text.index("- name: Post the readiness comment")
+
+
+def test_every_shell_variable_the_workflow_reads_is_defined_in_it() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    used = set(re.findall(r"\$\{?([A-Z][A-Z0-9_]+)", text))
+    defined = set(re.findall(r"^\s+([A-Z][A-Z0-9_]+):", text, re.MULTILINE))
+    defined |= set(re.findall(r'echo "([A-Z][A-Z0-9_]+)=', text))
+    provided_by_the_runner = {"RUNNER_TEMP", "GITHUB_ENV", "GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"}
+
+    assert {"HEAD_SHA", "MAX_PASSES", "PR_NUMBER"} <= used
+    assert used <= defined | provided_by_the_runner, used - defined - provided_by_the_runner

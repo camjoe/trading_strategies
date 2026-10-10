@@ -128,6 +128,11 @@ class TestReadiness:
     def test_a_github_token_is_a_problem(self) -> None:
         assert any("credential" in p for p in body_problems(readiness_body(1, "ghp_" + "a" * 24), None))
 
+    def test_the_first_header_line_wins_when_several_say_pass(self) -> None:
+        body = f"{READINESS_MARKER}\nReviewed `a` · 2026-10-10 · pass 3 · current\nReviewed `b` · 2026-10-10 · pass 7 · current\n"
+
+        assert pass_number(body) == 3
+
     def test_a_stray_pass_mention_before_the_header_does_not_win(self) -> None:
         body = f"{READINESS_MARKER}\nnote: see pass 9 below\nReviewed `abc` · 2026-10-10 · pass 2 · current\n"
 
@@ -391,6 +396,12 @@ def wait(forge: StubForge, **kwargs: float) -> CiStatus:
 
 
 class TestWaitForCi:
+    def test_no_checks_and_no_timeout_is_a_single_reading_of_none(self) -> None:
+        forge = StubForge(ci_sequence=[ci("none")])
+
+        assert wait(forge).state == "none"
+        assert forge.ci_polls == 1
+
     def test_no_timeout_is_a_single_reading(self) -> None:
         forge = StubForge(ci_sequence=[PYTHON_PENDING, PYTHON_PASS])
 
