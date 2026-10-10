@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from common.tickers import (
+    filter_tickers_by_prefix,
     load_ticker_categories,
     load_tickers_from_file,
     parse_ticker_tokens,
@@ -84,3 +85,8 @@ class TestLoadTickerCategories:
             "core": ["AAPL", "MSFT", "GOOG"],
             "satellite": ["TSLA", "NVDA"],
         }
+
+
+class TestFilterTickersByPrefix:
+    def test_keeps_matching_tickers_in_order(self) -> None:
+        assert filter_tickers_by_prefix(["AAPL", "AMZN", "MSFT"], "A") == ["AAPL", "AMZN"]
