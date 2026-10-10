@@ -259,7 +259,8 @@ def _normalize_fill_time(value: object | None) -> str:
     try:
         return normalize_utc_iso(text)
     except ValueError:
-        logger.warning("Unreadable IBKR execution time %r; stamping the fill with the poll time.", text)
+        if text:
+            logger.warning("Unreadable IBKR execution time %r; stamping the fill with the poll time.", text)
         return utc_now_iso()
 
 

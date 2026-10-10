@@ -275,6 +275,14 @@ class TestInteractiveBrokersWebAdapter:
         assert result == "2026-01-01T00:00:00Z"
         assert "Unreadable IBKR execution time" in caplog.text
 
+    @pytest.mark.parametrize("missing", [None, "", "  "])
+    def test_normalize_fill_time_does_not_warn_when_there_is_no_time(self, missing, caplog):
+        with patch.object(ib_web_adapter_module, "utc_now_iso", return_value="2026-01-01T00:00:00Z"):
+            result = ib_web_adapter_module._normalize_fill_time(missing)
+
+        assert result == "2026-01-01T00:00:00Z"
+        assert caplog.text == ""
+
     def test_get_open_trades_reports_cumulative_state_without_a_fabricated_fill(self):
         client = self._make_client()
         client.fetch_orders.return_value = [
