@@ -151,7 +151,7 @@ The pipeline's logic must not depend on GitHub. Three layers, only the bottom on
    `gh run list`, `gh pr checks`, and `gh api .../issues/<n>/comments` directly; those move behind
    the interface.
 3. **Triggers and runners** (platform-specific, thin): a workflow file that fires on PR events and
-   runs one command (for example `python -m scripts.pipeline review --pr <n>`). Everything else is
+   runs one command (a single review entry point). Everything else is
    behind that command. Moving to another forge means rewriting this file and writing one adapter.
 
 The notification email (above) is already platform-neutral because it uses the runtime SMTP settings.
