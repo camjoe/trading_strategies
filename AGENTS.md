@@ -16,8 +16,9 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Standing authorizations
 
-Granted by the owner on 2026-10-09, except the workflow bullet, granted on 2026-10-10. Each covers
-only what is written here; anything else needs the owner's yes in that conversation.
+Granted by the owner on 2026-10-09, except the workflow bullet and the fixer-loop bullet, granted on
+2026-10-10. Each covers only what is written here; anything else needs the owner's yes in that
+conversation.
 
 - `pr ready` may create and edit the single readiness comment on the current branch's own pull
   request, identified by the hidden marker `<!-- pr-readiness -->`, without asking. It may not post
@@ -31,6 +32,15 @@ only what is written here; anything else needs the owner's yes in that conversat
   that is not safe on a public repository. It posts only through `python -m scripts.forge
   comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
   token. Changing the workflow, the forge write path, or this section needs the owner's yes.
+- `python -m scripts.forge fix-loop`, started by the owner on a pull request, may for up to three rounds
+  commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
+  lines to its readiness comment, and email the owner the pull request link, the verdict, and the open
+  counts, without asking. It never changes a path in `scripts/forge/guarded_paths.py` (a round that does
+  is undone), writes a `Decision` line, ticks a box, edits a finding, force-pushes, touches another
+  branch, opens or marks ready a pull request, labels, or merges. The agent it starts holds no push or
+  `gh` access: the loop checks the round's paths and the new comment body, then posts and pushes. It has
+  the same public-repository limits as `pr ready`. Starting it on a schedule or from a trigger, or
+  changing the loop, the guarded-path list, or this section, needs the owner's yes.
 
 ## Python environment
 
