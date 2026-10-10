@@ -6,6 +6,9 @@ from trading.models.orders import OrderFill, OrderStatus
 
 
 class TestPaperBrokerAdapter:
+    def test_get_order_reports_none_because_there_is_no_lookup_by_id(self):
+        assert PaperBrokerAdapter().get_order("paper-abc") is None
+
     def test_place_order_fills_immediately(self):
         adapter = PaperBrokerAdapter()
         order = make_order_request()

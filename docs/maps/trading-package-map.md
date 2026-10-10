@@ -286,6 +286,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
+| `incremental_fill.py` | Cumulative-to-incremental fill arithmetic: the shares, price and commission still to post from a broker's cumulative report |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |

@@ -29,6 +29,8 @@ class FillEverythingBroker:
     constraint.
     """
 
+    reports_executions = True
+
     def __init__(self) -> None:
         self.disconnect_calls = 0
         self._order_seq = 0
