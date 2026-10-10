@@ -76,7 +76,7 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/docs/docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
 - `scripts/checks/repo/repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
 - `scripts/checks/python/python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
-- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.
+- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, scope notes, and the reviewers a diff needs (none for documentation-only diffs; more for broker, fill, sizing, and scheduler paths and for large diffs).
 - `scripts/checks/docs/readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
@@ -84,6 +84,7 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/python/pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
 - `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
+- `pr.py`: the pre-PR gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks when the diff touches the frontend.
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
 
 Data operation scripts (`scripts/data_ops/`):
@@ -140,6 +141,7 @@ python -m scripts.run_checks repo
 python -m scripts.run_checks python
 python -m scripts.run_checks quick
 python -m scripts.run_checks ci
+python -m scripts.run_checks pr --base develop
 python -m scripts.fix_checks
 
 # Standalone docs drift fixers (also run as part of fix_checks)
@@ -171,6 +173,7 @@ python -m scripts.checks.docs.docs_check
 python -m scripts.checks.repo.repo_check
 python -m scripts.checks.python.python_check
 python -m scripts.checks.repo.review_scope_check --base main
+python -m scripts.checks.repo.review_scope_check --base origin/develop --head origin/<branch>  # a branch read by ref
 python -m scripts.checks.quick
 python -m scripts.checks.ci
 
