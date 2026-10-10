@@ -168,8 +168,22 @@ class TestInteractiveBrokersWebAdapter:
 
         assert adapter.get_order("7") is None
 
-    @pytest.mark.parametrize("payload", [{}, {"symbol": "AAPL"}, {"order_status": "Filled"}])
-    def test_get_order_is_none_for_a_reply_without_a_status_and_symbol(self, payload):
+    def test_get_order_maps_a_reply_without_a_symbol(self):
+        client = self._make_client()
+        client.fetch_order_status.return_value = {
+            "order_status": "Cancelled",
+            "order_status_description": "Order Cancelled",
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        order = adapter.get_order("7")
+
+        assert order is not None
+        assert order.status == OrderStatus.CANCELLED
+        assert order.ticker == ""
+
+    @pytest.mark.parametrize("payload", [{}, {"symbol": "AAPL"}])
+    def test_get_order_is_none_for_a_reply_without_a_status(self, payload):
         client = self._make_client()
         client.fetch_order_status.return_value = payload
         adapter = InteractiveBrokersWebAdapter(client=client)

@@ -658,6 +658,27 @@ class TestInteractiveBrokersWebClient:
 
         assert client.fetch_marketdata_snapshot(["1"]) == [{"conid": "1", "31": "123.45"}]
 
+    def test_submit_order_confirms_up_to_five_warnings_and_no_more(self, monkeypatch):
+        warning = [{"id": "reply-1", "message": ["confirm"]}]
+        for warnings, expect_error in ((5, False), (6, True)):
+            posts: list[str] = []
+            responses = iter([warning] * warnings + [{"order_id": "9"}])
+
+            def fake_request(method, path, **kwargs):
+                posts.append(path)
+                return next(responses)
+
+            client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())
+            monkeypatch.setattr(client, "_request_json", fake_request)
+
+            if expect_error:
+                with pytest.raises(RuntimeError, match="safety limit"):
+                    client.submit_order({"cOID": "c1"})
+                assert len(posts) == 1 + 5
+            else:
+                assert client.submit_order({"cOID": "c1"}) == {"order_id": "9"}
+                assert len(posts) == 1 + 5
+
     def test_submit_order_rejects_confirmation_loops_and_error_payloads(self, monkeypatch):
         client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())
         monkeypatch.setattr(

@@ -2,6 +2,9 @@ import logging
 from decimal import Decimal
 from unittest.mock import Mock
 
+import httpx
+
+from infrastructure.brokers.ibkr_web.adapter import InteractiveBrokersWebAdapter
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.books import ensure_default_book_id
 from tests.support.brokers import make_broker_account
@@ -817,3 +820,46 @@ class TestReconcileOpenBrokerOrders:
         position = PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL")
         assert position is not None
         assert position.qty == 5.0
+
+    def test_a_status_reply_from_the_web_adapter_is_posted_through_reconcile(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        book_id, order_id = _open_clean_order(conn, broker_order_id="32999660", symbol="MSFT")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        client = Mock()
+        client.is_connected.return_value = True
+        client.fetch_orders.return_value = []
+        client.fetch_order_status.return_value = {
+            "symbol": "MSFT",
+            "side": "B",
+            "total_size": "10",
+            "cum_fill": "10",
+            "order_status": "Filled",
+            "average_price": "535.93",
+            "order_time": "261009193651",
+        }
+
+        outcome = reconcile_open_orders(
+            conn, account, broker_factory=Mock(return_value=InteractiveBrokersWebAdapter(client=client))
+        )
+
+        assert outcome.newly_filled == 1
+        assert outcome.unreported_broker_order_ids == []
+        position = PositionRepository(conn).fetch(book_id=book_id, symbol="MSFT")
+        assert position is not None
+        assert (position.qty, position.avg_cost) == (Decimal("10"), Decimal("535.93"))
+        assert OrderRepository(conn).fetch_fill_totals(order_id=order_id)[0] == Decimal("10")
+
+    def test_any_lookup_exception_leaves_the_order_unreported(self) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        _open_clean_order(conn, broker_order_id="42")
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+
+        class _DownBroker(_LookupBroker):
+            def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+                raise httpx.ConnectError("gateway down")
+
+        outcome = reconcile_open_orders(conn, account, broker_factory=Mock(return_value=_DownBroker({})))
+
+        assert outcome.unreported_broker_order_ids == ["42"]

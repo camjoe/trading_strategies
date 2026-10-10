@@ -280,8 +280,7 @@ def _broker_order_from_status(broker_order_id: str, payload: dict[str, object]) 
     executions, so ``fills`` is empty and commission is 0.0 (the reply has none).
     """
     raw_status = payload.get("order_status")
-    ticker = str(payload.get("symbol") or "").strip()
-    if not isinstance(raw_status, str) or not raw_status.strip() or not ticker:
+    if not isinstance(raw_status, str) or not raw_status.strip():
         return None
 
     qty = _coerce_number(payload.get("total_size")) or 0.0
@@ -296,7 +295,7 @@ def _broker_order_from_status(broker_order_id: str, payload: dict[str, object]) 
         status_reason = description.strip() or None
     return BrokerOrder(
         account_id=0,
-        ticker=ticker,
+        ticker=str(payload.get("symbol") or "").strip(),
         side=_STATUS_SIDE.get(str(payload.get("side") or "").strip().upper(), ""),
         qty=qty,
         price=_coerce_number(payload.get("limit_price")) or 0.0,

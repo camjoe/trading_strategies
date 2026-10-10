@@ -280,6 +280,8 @@ class InteractiveBrokersWebClient:
         )
         confirmations = 0
         while _is_order_reply_message(payload):
+            if confirmations >= _MAX_ORDER_REPLY_CONFIRMATIONS:
+                raise RuntimeError("IBKR Web API order reply confirmation loop exceeded safety limit.")
             message_id = str(payload[0]["id"])
             logger.warning(
                 "Confirming IBKR order warning for %s: %s (message ids: %s)",
@@ -293,8 +295,6 @@ class InteractiveBrokersWebClient:
                 json={"confirmed": True},
             )
             confirmations += 1
-            if confirmations > _MAX_ORDER_REPLY_CONFIRMATIONS:
-                raise RuntimeError("IBKR Web API order reply confirmation loop exceeded safety limit.")
 
         if isinstance(payload, list) and payload and isinstance(payload[0], dict):
             payload = payload[0]
