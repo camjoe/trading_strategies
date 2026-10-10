@@ -66,3 +66,8 @@ def load_ticker_categories(file_path: str) -> dict[str, list[str]]:
         categories[category] = list(dict.fromkeys(tickers))
 
     return categories
+
+
+def unique_in_order(items: list[str]) -> list[str]:
+    """Return *items* without duplicates, keeping the first occurrence of each."""
+    return list(dict.fromkeys(items))
