@@ -149,42 +149,19 @@ def reconcile_open_orders(
                 reported_broker_order_ids.add(broker_order_id)
             newly_filled += filled
 
-        # The open-order list can lag or drop an order that has filled, so ask the broker
-        # about each one it left out. Only an order the broker cannot find stays unreported.
-        omitted = sorted(set(open_by_broker_id) - reported_broker_order_ids)
-        not_found = failed = 0
-        for broker_order_id in omitted:
-            try:
-                looked_up = broker.get_order(broker_order_id)
-            except Exception:
-                failed += 1
-                logger.warning(
-                    "Lookup of broker order %s failed; leaving it unreported.", broker_order_id, exc_info=True
-                )
-                continue
-            if looked_up is None:
-                not_found += 1
-                continue
-            applied, filled = _apply_reported(
-                conn,
-                order_repo,
-                open_by_broker_id[broker_order_id],
-                looked_up,
-                broker_order_id=broker_order_id,
-                cumulative=cumulative,
-                now=now,
-            )
-            if applied:
-                reported_broker_order_ids.add(broker_order_id)
-            newly_filled += filled
-        if omitted:
-            logger.info(
-                "Looked up %d order(s) missing from the open-order list: %d resolved, %d not found, %d lookups failed.",
-                len(omitted),
-                sum(1 for order_id in omitted if order_id in reported_broker_order_ids),
-                not_found,
-                failed,
-            )
+        resolved_ids, resolved_filled = _reconcile_omitted_orders(
+            conn,
+            order_repo,
+            broker,
+            omitted_by_broker_id={
+                broker_order_id: open_by_broker_id[broker_order_id]
+                for broker_order_id in sorted(set(open_by_broker_id) - reported_broker_order_ids)
+            },
+            cumulative=cumulative,
+            now=now,
+        )
+        reported_broker_order_ids |= resolved_ids
+        newly_filled += resolved_filled
 
         return ReconciliationOutcome(
             newly_filled=newly_filled,
@@ -195,6 +172,53 @@ def reconcile_open_orders(
         )
     finally:
         broker.disconnect()
+
+
+def _reconcile_omitted_orders(
+    conn: sqlite3.Connection,
+    order_repo: OrderRepository,
+    broker: BrokerConnection,
+    *,
+    omitted_by_broker_id: dict[str, OrderRecord],
+    cumulative: bool,
+    now: str,
+) -> tuple[set[str], int]:
+    """Look up each order the broker's open-order list left out; return (ids applied, orders now filled).
+
+    The list can lag or drop an order that has filled. An order the broker cannot find, whose
+    lookup fails, or whose reply cannot be applied stays unreported.
+    """
+    resolved: set[str] = set()
+    newly_filled = not_found = failed = unusable = 0
+    for broker_order_id, persisted in omitted_by_broker_id.items():
+        try:
+            looked_up = broker.get_order(broker_order_id)
+        except Exception:
+            failed += 1
+            logger.warning("Lookup of broker order %s failed; leaving it unreported.", broker_order_id, exc_info=True)
+            continue
+        if looked_up is None:
+            not_found += 1
+            continue
+        applied, filled = _apply_reported(
+            conn, order_repo, persisted, looked_up, broker_order_id=broker_order_id, cumulative=cumulative, now=now
+        )
+        if not applied:
+            unusable += 1
+            continue
+        resolved.add(broker_order_id)
+        newly_filled += filled
+    if omitted_by_broker_id:
+        logger.info(
+            "Looked up %d order(s) missing from the open-order list: %d resolved, %d reply unusable, "
+            "%d not found, %d lookups failed.",
+            len(omitted_by_broker_id),
+            len(resolved),
+            unusable,
+            not_found,
+            failed,
+        )
+    return resolved, newly_filled
 
 
 def _apply_broker_order(

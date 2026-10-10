@@ -7,6 +7,7 @@ config via ``load_ib_web_api_settings`` — they are not stored in the app DB.
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timezone
 
@@ -18,6 +19,8 @@ from infrastructure.brokers.ibkr_web import (
 )
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType
+
+logger = logging.getLogger(__name__)
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -230,9 +233,9 @@ _TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJE
 # Side codes on the order status reply.
 _STATUS_SIDE = {"B": "buy", "S": "sell"}
 
-# Timestamp layout of the status reply's ``order_time`` and the order list's
-# ``lastExecutionTime``: UTC ``yymmddHHMMSS``.
-_STATUS_ORDER_TIME_FORMAT = "%y%m%d%H%M%S"
+# Compact UTC layout ``yymmddHHMMSS`` of the status reply's ``order_time`` and the order
+# list's ``lastExecutionTime``.
+_COMPACT_UTC_FORMAT = "%y%m%d%H%M%S"
 
 
 def _map_ib_web_status(status: str) -> OrderStatus:
@@ -251,18 +254,19 @@ def _coerce_number(value: object | None) -> float | None:
 
 def _normalize_fill_time(value: object | None) -> str:
     text = str(value or "").strip()
-    if (compact := _status_order_time(text)) is not None:
+    if (compact := _compact_utc_time(text)) is not None:
         return compact
     try:
         return normalize_utc_iso(text)
     except ValueError:
+        logger.warning("Unreadable IBKR execution time %r; stamping the fill with the poll time.", text)
         return utc_now_iso()
 
 
-def _status_order_time(value: object | None) -> str | None:
+def _compact_utc_time(value: object | None) -> str | None:
     """A ``yymmddHHMMSS`` UTC timestamp as a stored UTC timestamp, or None when unreadable."""
     try:
-        parsed = datetime.strptime(str(value or "").strip(), _STATUS_ORDER_TIME_FORMAT)
+        parsed = datetime.strptime(str(value or "").strip(), _COMPACT_UTC_FORMAT)
     except ValueError:
         return None
     return as_utc_iso(parsed.replace(tzinfo=timezone.utc))
@@ -299,7 +303,7 @@ def _broker_order_from_status(broker_order_id: str, payload: dict[str, object]) 
         status=status,
         filled_qty=filled_qty,
         avg_fill_price=_coerce_number(payload.get("average_price")) if filled_qty > 0 else None,
-        updated_at=_status_order_time(payload.get("order_time")),
+        updated_at=_compact_utc_time(payload.get("order_time")),
         status_reason=status_reason,
     )
 

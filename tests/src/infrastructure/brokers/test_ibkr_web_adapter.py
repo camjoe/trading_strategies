@@ -258,6 +258,23 @@ class TestInteractiveBrokersWebAdapter:
             "IBM": {"bid": 189.56, "ask": 189.61, "last": 189.6},
         }
 
+    def test_the_adapter_reports_cumulative_state_not_executions(self):
+        assert InteractiveBrokersWebAdapter.reports_executions is False
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [("231211180049", "2023-12-11T18:00:49Z"), ("2024-01-02T03:04:05+00:00", "2024-01-02T03:04:05Z")],
+    )
+    def test_normalize_fill_time_reads_both_spellings(self, raw, expected):
+        assert ib_web_adapter_module._normalize_fill_time(raw) == expected
+
+    def test_normalize_fill_time_falls_back_to_now_and_says_so(self, caplog):
+        with patch.object(ib_web_adapter_module, "utc_now_iso", return_value="2026-01-01T00:00:00Z"):
+            result = ib_web_adapter_module._normalize_fill_time("1702317649000")
+
+        assert result == "2026-01-01T00:00:00Z"
+        assert "Unreadable IBKR execution time" in caplog.text
+
     def test_get_open_trades_reports_cumulative_state_without_a_fabricated_fill(self):
         client = self._make_client()
         client.fetch_orders.return_value = [

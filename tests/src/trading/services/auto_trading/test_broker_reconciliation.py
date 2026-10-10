@@ -755,6 +755,28 @@ class TestReconcileOpenBrokerOrders:
         assert outcome.unreported_broker_order_ids == ["42"]
         assert "no average price" in caplog.text
 
+    def test_the_lookup_summary_counts_every_omitted_order_once(self, caplog) -> None:
+        conn = _make_db()
+        _insert_account_row(conn)
+        for broker_order_id in ("1", "2", "3", "4"):
+            _open_clean_order(conn, broker_order_id=broker_order_id)
+        account = make_broker_account(broker_type="interactive_brokers_web", id=1)
+        unusable = _looked_up_order("2", status=OrderStatus.FILLED, filled_qty=10.0)
+        unusable.avg_fill_price = None
+
+        class _MixedBroker(_LookupBroker):
+            def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+                if broker_order_id == "4":
+                    raise RuntimeError("503")
+                return super().get_order(broker_order_id)
+
+        broker = _MixedBroker({"1": _looked_up_order("1", status=OrderStatus.FILLED, filled_qty=10.0), "2": unusable})
+        with caplog.at_level(logging.INFO, logger="trading.services.execution.open_order_reconciliation"):
+            reconcile_open_orders(conn, account, broker_factory=Mock(return_value=broker))
+
+        assert "Looked up 4 order(s)" in caplog.text
+        assert "1 resolved, 1 reply unusable, 1 not found, 1 lookups failed" in caplog.text
+
     def test_a_lower_cumulative_commission_never_posts_a_negative_commission(self) -> None:
         conn = _make_db()
         _insert_account_row(conn)
