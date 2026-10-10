@@ -25,7 +25,6 @@ from common.runtime_job_status import (
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
     BrokerSessionUnavailableError,
     check_broker_sessions,
-    unavailable_message,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
@@ -288,8 +287,9 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
-    raw_skipped = context.run_meta.get("skipped_accounts")
-    skipped_accounts: dict[str, str] = dict(raw_skipped) if isinstance(raw_skipped, dict) else {}
+    skipped_accounts = context.skipped_accounts
+    if isinstance(error, BrokerSessionUnavailableError):
+        payload["skipped_accounts"] = error.unavailable
 
     if failed:
         message = f"Daily paper trading run failed: {error}"
@@ -300,7 +300,7 @@ def _finish_run(
         if skipped_accounts:
             notes.append(
                 f"completed without accounts whose IBKR session was unavailable: {', '.join(skipped_accounts)}. "
-                f"Run them with: {context.run_meta['catch_up_command']}"
+                f"Run them with: {context.catch_up_command}"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:
@@ -334,7 +334,6 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     artifact_path = context.artifact_path
     accounts = context.accounts
     account_trade_caps = context.account_trade_caps
-    caps_summary = context.caps_summary
     report_date = context.report_date
     step_results = new_step_results()
 
@@ -343,13 +342,10 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     def _ingest_market_and_account() -> dict[str, object]:
         nonlocal skipped_accounts
         skipped_accounts = check_broker_sessions(accounts)
-        if set(skipped_accounts) >= set(accounts):
-            raise BrokerSessionUnavailableError(unavailable_message(skipped_accounts))
         return {
             "accounts": [name for name in accounts if name not in skipped_accounts],
             "account_count": len(accounts) - len(skipped_accounts),
             "skipped_accounts": skipped_accounts,
-            "caps_summary": caps_summary,
         }
 
     try:
@@ -362,11 +358,13 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         if skipped_accounts:
             for name, reason in skipped_accounts.items():
                 tee_line(log_path, f"[{ts()}] WARN: skipping {name}, broker session unavailable ({reason})")
-            catch_up = catch_up_command(args, context, skipped_accounts)
-            context = exclude_accounts(context, skipped_accounts)
-            context.run_meta["catch_up_command"] = catch_up
+            context = exclude_accounts(context, skipped_accounts, catch_up_command(args, context, skipped_accounts))
             accounts = context.accounts
             account_trade_caps = context.account_trade_caps
+            tee_line(
+                log_path,
+                f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
+            )
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
         # value. Books are marked to current prices just before that check, so a

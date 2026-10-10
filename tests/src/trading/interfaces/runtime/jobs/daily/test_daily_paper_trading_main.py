@@ -20,6 +20,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import BrokerSessionUnavailableError
 
 WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
 
@@ -482,15 +483,24 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _
     assert payload["error"] == "step failed"
 
 
+def _every_account_unavailable(monkeypatch) -> None:
+    def _raise(_accounts):
+        raise BrokerSessionUnavailableError({"acct_a": "interactive_brokers_web_paper: gateway down"})
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _raise)
+
+
 def test_every_account_unavailable_fails_the_run_before_any_step_runs(
     monkeypatch, tmp_path: Path, _runtime_harness
 ) -> None:
-    monkeypatch.setattr(
-        f"{WORKFLOW_MODULE}.check_broker_sessions",
-        lambda _accounts: {"acct_a": "interactive_brokers_web_paper: gateway down"},
-    )
+    _every_account_unavailable(monkeypatch)
 
-    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ["--accounts", "acct_a"])
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
 
     assert code == 1
     assert not _runtime_harness.stream_calls
@@ -501,20 +511,15 @@ def test_every_account_unavailable_fails_the_run_before_any_step_runs(
     assert payload["status"] == "failed"
     assert payload["failed_step"] == "00_ingest_market_and_account"
     assert "gateway down" in payload["error"]
+    assert payload["skipped_accounts"] == {"acct_a": "interactive_brokers_web_paper: gateway down"}
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert module.COMPLETE_SENTINEL not in _only_log(tmp_path).read_text(encoding="utf-8")
 
 
-def test_a_repeated_account_name_does_not_hide_that_every_account_is_unavailable(
-    monkeypatch, tmp_path: Path, _runtime_harness
-) -> None:
-    monkeypatch.setattr(
-        f"{WORKFLOW_MODULE}.check_broker_sessions",
-        lambda _accounts: {"acct_a": "interactive_brokers_web_paper: gateway down"},
-    )
-
-    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ["--accounts", "acct_a,acct_a"])
-
-    assert code == 1
-    assert not _runtime_harness.stream_calls
+def _only_log(tmp_path: Path) -> Path:
+    [log] = (tmp_path / "local" / "logs").glob("daily_paper_trading_2*.log")
+    return log
 
 
 def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -551,6 +556,15 @@ def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_p
     ]
     assert account_args
     assert all(value == "acct_a" for value in account_args)
+    snapshot_accounts = [
+        args[args.index("--account") + 1] for _label, args in _runtime_harness.stream_calls if "--account" in args
+    ]
+    assert snapshot_accounts
+    assert "acct_b" not in snapshot_accounts
+    log_text = _only_log(tmp_path).read_text(encoding="utf-8")
+    assert module.COMPLETE_SENTINEL in log_text
+    assert "WARN: skipping acct_b" in log_text
+    assert "RUN META (after skips): accounts=acct_a caps=acct_a:" in log_text
 
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_paper_trading",
@@ -776,3 +790,84 @@ def test_replay_reports_the_replayed_date_not_today(monkeypatch, tmp_path: Path,
         "_submission_step_result": "2026-03-27",
         "_build_daily_operator_report": "2026-03-27",
     }
+
+
+def _skip_acct_b(monkeypatch) -> None:
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_b": "interactive_brokers_web_paper: gateway down"},
+    )
+
+
+def test_a_skipped_account_is_left_out_of_the_shadow_eval_and_the_command_carries_its_window(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _skip_acct_b(monkeypatch)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a,acct_b",
+            "--run-challenger-shadow-eval",
+            "--shadow-eval-rolling-window-days",
+            "45",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+        ],
+    )
+
+    assert code == 0
+    [shadow_args] = [args for label, args in _runtime_harness.stream_calls if label == "Challenger Shadow Eval"]
+    assert shadow_args[shadow_args.index("--accounts") + 1] == "acct_a"
+    [notification] = _runtime_harness.notifications
+    command = notification["message"].split("Run them with: ", 1)[1]
+    assert "--run-challenger-shadow-eval" in command
+    assert "--shadow-eval-rolling-window-days 45" in command
+
+
+def _trip_kill_switch(monkeypatch, accounts: list[str]) -> None:
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}._risk_gate_step_result",
+        lambda *_args, **_kwargs: {"kill_switch_accounts": accounts},
+    )
+
+
+def test_a_kill_switch_alone_warns_without_a_catch_up_command(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _trip_kill_switch(monkeypatch, ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    assert notification["message"] == "Daily paper trading run completed with kill switches on: acct_a"
+
+
+def test_a_kill_switch_and_a_skipped_account_are_both_named_in_one_alert(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _skip_acct_b(monkeypatch)
+    _trip_kill_switch(monkeypatch, ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a,acct_b", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    assert "completed with kill switches on: acct_a | completed without accounts" in notification["message"]
+    assert "--accounts acct_b" in notification["message"]

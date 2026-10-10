@@ -73,20 +73,31 @@ def test_an_unauthenticated_session_is_reported_and_the_rest_still_connect(monke
     assert brokers["acct_a"].disconnected
 
 
-def test_an_unreachable_gateway_reports_every_failing_account(monkeypatch) -> None:
+def test_an_unreachable_gateway_fails_when_every_account_is_down(monkeypatch) -> None:
     refused = httpx.ConnectError("[Errno 111] Connection refused")
     install(monkeypatch, {"acct_a": refused, "acct_b": refused})
 
-    unavailable = module.check_broker_sessions(["acct_a", "acct_b"])
+    with pytest.raises(module.BrokerSessionUnavailableError) as raised:
+        module.check_broker_sessions(["acct_a", "acct_b"])
 
-    assert set(unavailable) == {"acct_a", "acct_b"}
-    assert "Connection refused" in unavailable["acct_a"]
+    assert set(raised.value.unavailable) == {"acct_a", "acct_b"}
+    assert "Connection refused" in raised.value.unavailable["acct_a"]
+
+
+def test_a_repeated_account_name_does_not_hide_that_every_account_is_down(monkeypatch) -> None:
+    install(monkeypatch, {"acct_a": httpx.ConnectError("refused")})
+
+    with pytest.raises(module.BrokerSessionUnavailableError):
+        module.check_broker_sessions(["acct_a", "acct_a"])
 
 
 def test_a_socket_gateway_that_times_out_is_reported_not_raised(monkeypatch) -> None:
-    install(monkeypatch, {"acct_a": TimeoutError("Timed out waiting for IBKR native nextValidId callback")})
+    install(
+        monkeypatch,
+        {"acct_a": TimeoutError("Timed out waiting for IBKR native nextValidId callback"), "acct_b": None},
+    )
 
-    unavailable = module.check_broker_sessions(["acct_a"])
+    unavailable = module.check_broker_sessions(["acct_a", "acct_b"])
 
     assert "nextValidId" in unavailable["acct_a"]
 
@@ -116,8 +127,12 @@ def test_broker_guard_errors_propagate_unchanged(monkeypatch, guard_error: Runti
     assert raised.value is guard_error
 
 
-def test_the_failure_text_names_each_account_and_the_runbook() -> None:
-    message = module.unavailable_message({"acct_a": "interactive_brokers_web_paper: gateway down"})
+def test_the_failure_text_names_each_account_and_the_runbook(monkeypatch) -> None:
+    install(monkeypatch, {"acct_a": httpx.ConnectError("gateway down")})
 
+    with pytest.raises(module.BrokerSessionUnavailableError) as raised:
+        module.check_broker_sessions(["acct_a"])
+
+    message = str(raised.value)
     assert "acct_a (interactive_brokers_web_paper: gateway down)" in message
     assert "docs/runbooks/ibkr-paper-trading.md" in message

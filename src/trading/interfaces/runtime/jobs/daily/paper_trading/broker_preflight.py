@@ -22,15 +22,27 @@ from infrastructure.brokers.ibkr_web.client import IbWebAccountUnavailableError
 from infrastructure.database.connection import db_session
 from trading.services.accounts.mutations import get_account
 
-__all__ = ["BrokerSessionUnavailableError", "check_broker_sessions", "unavailable_message"]
+__all__ = ["BrokerSessionUnavailableError", "check_broker_sessions"]
 
 
 class BrokerSessionUnavailableError(RuntimeError):
     """No run account has a usable broker session."""
 
+    def __init__(self, unavailable: dict[str, str]) -> None:
+        self.unavailable = unavailable
+        super().__init__(
+            "Broker session unavailable for every run account, no step ran. "
+            + "; ".join(f"{name} ({reason})" for name, reason in unavailable.items())
+            + ". Start the IBKR Client Portal gateway and log in, then re-run (a plain re-run works only if no run "
+            "completed today). See docs/runbooks/ibkr-paper-trading.md (Gateway session)."
+        )
+
 
 def check_broker_sessions(account_names: list[str]) -> dict[str, str]:
-    """Map each account whose broker session is unavailable to ``"<broker type>: <reason>"``."""
+    """Map each account whose broker session is unavailable to ``"<broker type>: <reason>"``.
+
+    Raises ``BrokerSessionUnavailableError`` when no account has a usable session.
+    """
     unavailable: dict[str, str] = {}
     with db_session() as conn:
         for name in account_names:
@@ -46,15 +58,6 @@ def check_broker_sessions(account_names: list[str]) -> dict[str, str]:
                 raise
             except (httpx.TransportError, OSError, RuntimeError) as exc:
                 unavailable[name] = f"{account.broker_type}: {exc}"
+    if set(unavailable) >= set(account_names):
+        raise BrokerSessionUnavailableError(unavailable)
     return unavailable
-
-
-def unavailable_message(unavailable: dict[str, str]) -> str:
-    """The failure text for a run in which every account is unavailable."""
-    return (
-        "Broker session unavailable for every run account, no step ran. "
-        + "; ".join(f"{name} ({reason})" for name, reason in unavailable.items())
-        + ". Start the IBKR Client Portal gateway and log in, then re-run (a plain re-run works only if no run "
-        "completed today). "
-        "See docs/runbooks/ibkr-paper-trading.md (Gateway session)."
-    )

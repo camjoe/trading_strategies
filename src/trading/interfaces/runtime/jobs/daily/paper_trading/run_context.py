@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from common.logging_setup import current_run_id
@@ -47,6 +47,10 @@ class DailyRunContext:
     # --as-of-date reports the replayed date's rows instead of today's, and the
     # artifact cannot end up carrying two different dates.
     report_date: str
+    # Accounts left out of this run because their broker session was unavailable,
+    # and the command that runs them later with this run's options.
+    skipped_accounts: dict[str, str] = field(default_factory=dict)
+    catch_up_command: str = ""
 
 
 def build_run_context(
@@ -129,7 +133,7 @@ def build_run_context(
     )
 
 
-def exclude_accounts(context: DailyRunContext, skipped: dict[str, str]) -> DailyRunContext:
+def exclude_accounts(context: DailyRunContext, skipped: dict[str, str], catch_up_command: str) -> DailyRunContext:
     """*context* for a run that trades everything except the skipped accounts.
 
     ``skipped`` maps each account name to why it is left out; the artifact records it.
@@ -150,4 +154,6 @@ def exclude_accounts(context: DailyRunContext, skipped: dict[str, str]) -> Daily
         account_trade_caps=account_trade_caps,
         caps_summary=caps_summary,
         run_meta=run_meta,
+        skipped_accounts=dict(skipped),
+        catch_up_command=catch_up_command,
     )

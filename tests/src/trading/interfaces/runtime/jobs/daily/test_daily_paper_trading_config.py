@@ -50,7 +50,7 @@ def test_exclude_accounts_drops_them_from_the_accounts_the_caps_and_the_run_meta
         report_date="2026-10-09",
     )
 
-    result = exclude_accounts(context, {"b": "gateway down"})
+    result = exclude_accounts(context, {"b": "gateway down"}, "python -m job --accounts b")
 
     assert result.accounts == ["a", "c"]
     assert result.account_trade_caps == {"a": 5, "c": 5}
@@ -58,5 +58,7 @@ def test_exclude_accounts_drops_them_from_the_accounts_the_caps_and_the_run_meta
     assert result.run_meta["accounts"] == ["a", "c"]
     assert result.run_meta["account_count"] == 2
     assert result.run_meta["skipped_accounts"] == {"b": "gateway down"}
+    assert result.skipped_accounts == {"b": "gateway down"}
+    assert result.catch_up_command == "python -m job --accounts b"
     assert result.run_meta["job"] == "daily_paper_trading"
     assert context.accounts == ["a", "b", "c"]
