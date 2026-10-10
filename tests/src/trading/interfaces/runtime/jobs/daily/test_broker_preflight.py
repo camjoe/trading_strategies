@@ -11,6 +11,7 @@ from infrastructure.brokers.factory import (
     PaperBrokerAccountMismatchError,
     UnknownBrokerTypeError,
 )
+from infrastructure.brokers.ibkr_web.client import IbWebAccountUnavailableError
 from tests.src.trading.interfaces.runtime.jobs.loaders import load_runtime_job
 
 BROKER_PREFLIGHT_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight"
@@ -80,6 +81,22 @@ def test_an_unreachable_gateway_reports_every_failing_account(monkeypatch) -> No
 
     assert set(unavailable) == {"acct_a", "acct_b"}
     assert "Connection refused" in unavailable["acct_a"]
+
+
+def test_a_socket_gateway_that_times_out_is_reported_not_raised(monkeypatch) -> None:
+    install(monkeypatch, {"acct_a": TimeoutError("Timed out waiting for IBKR native nextValidId callback")})
+
+    unavailable = module.check_broker_sessions(["acct_a"])
+
+    assert "nextValidId" in unavailable["acct_a"]
+
+
+def test_an_account_the_session_cannot_see_stops_the_run(monkeypatch) -> None:
+    error = IbWebAccountUnavailableError("account_id 'DU1' is not visible in the current session.")
+    install(monkeypatch, {"acct_a": error})
+
+    with pytest.raises(IbWebAccountUnavailableError):
+        module.check_broker_sessions(["acct_a"])
 
 
 @pytest.mark.parametrize(

@@ -503,6 +503,20 @@ def test_every_account_unavailable_fails_the_run_before_any_step_runs(
     assert "gateway down" in payload["error"]
 
 
+def test_a_repeated_account_name_does_not_hide_that_every_account_is_unavailable(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_a": "interactive_brokers_web_paper: gateway down"},
+    )
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ["--accounts", "acct_a,acct_a"])
+
+    assert code == 1
+    assert not _runtime_harness.stream_calls
+
+
 def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     _runtime_harness.accounts = ["acct_a", "acct_b"]
     monkeypatch.setattr(

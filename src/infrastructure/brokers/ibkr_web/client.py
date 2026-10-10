@@ -44,6 +44,10 @@ class IbWebOrderStatusUnavailableError(RuntimeError):
     """Raised when IBKR no longer has a completed order in its status cache."""
 
 
+class IbWebAccountUnavailableError(RuntimeError):
+    """Raised when the configured account_id is not usable in an otherwise live session."""
+
+
 class InteractiveBrokersWebClient:
     """Thin HTTP client for the IBKR Client Portal / Web API."""
 
@@ -97,14 +101,14 @@ class InteractiveBrokersWebClient:
 
         portfolio_account_ids = self.fetch_portfolio_account_ids()
         if self._settings.account_id not in portfolio_account_ids:
-            raise RuntimeError(
+            raise IbWebAccountUnavailableError(
                 f"Configured IBKR Web API account_id {self._settings.account_id!r} "
                 "is not visible in the current session."
             )
 
         trade_account_ids = self.fetch_trade_account_ids()
         if trade_account_ids and self._settings.account_id not in trade_account_ids:
-            raise RuntimeError(
+            raise IbWebAccountUnavailableError(
                 f"Configured IBKR Web API account_id {self._settings.account_id!r} "
                 "is not enabled for trading in the current session."
             )

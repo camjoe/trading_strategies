@@ -156,7 +156,7 @@ journalctl -u daily-paper-trading.service --since today --no-pager | tail -20
 The run's own log has the detail. Look for the success line and the per-account trade counts:
 
 ```bash
-grep -h "executed\|Market closed\|COMPLETE\|ERROR" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
+grep -h "executed\|Market closed\|COMPLETE\|ERROR\|WARN: skipping" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 ```
 
 | Log line | Meaning |
@@ -202,8 +202,10 @@ An account whose broker session is unavailable is skipped; the others still trad
 any account still ends with `COMPLETE`, so the duplicate-run guard stops a plain second run that day.
 After you fix the session, run the skipped accounts with `--accounts <names> --force-run` (the `warn`
 alert prints the command). `--accounts` limits the run to those accounts, so nothing else trades twice.
-Only a run in which every account is unavailable fails, and that run writes no `COMPLETE`, so a plain
-re-run works.
+A run in which every account is unavailable fails and writes no `COMPLETE`, but the guard counts the
+date as done if any of that date's logs has `COMPLETE`, so a plain re-run works only when no run
+completed that day. While an account is skipped, nothing reconciles its fills or snapshots its equity;
+its books catch up when you run it.
 
 ### What sends nothing
 

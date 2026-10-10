@@ -304,7 +304,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     def _ingest_market_and_account() -> dict[str, object]:
         nonlocal skipped_accounts
         skipped_accounts = check_broker_sessions(accounts)
-        if len(skipped_accounts) == len(accounts):
+        if set(skipped_accounts) >= set(accounts):
             raise BrokerSessionUnavailableError(unavailable_message(skipped_accounts))
         return {
             "accounts": [name for name in accounts if name not in skipped_accounts],
@@ -326,7 +326,6 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             context = exclude_accounts(context, skipped_accounts)
             accounts = context.accounts
             account_trade_caps = context.account_trade_caps
-            caps_summary = context.caps_summary
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
         # value. Books are marked to current prices just before that check, so a

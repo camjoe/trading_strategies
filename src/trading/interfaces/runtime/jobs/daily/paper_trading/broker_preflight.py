@@ -3,7 +3,9 @@
 Connects every run account through ``get_broker_for_account`` and disconnects. Simulator accounts
 connect for free. The broker guard errors propagate untouched (``LiveTradingNotEnabledError``,
 ``PaperBrokerAccountMismatchError``, ``UnknownBrokerTypeError``): they mean the operator must
-investigate, not retry, so they stop the whole run.
+investigate, not retry, so they stop the whole run, as does ``IbWebAccountUnavailableError`` (a wrong
+``account_id`` is a configuration error, not an outage). A down gateway or TWS/IB Gateway socket is
+unavailable, not an error.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from infrastructure.brokers.factory import (
     UnknownBrokerTypeError,
     get_broker_for_account,
 )
+from infrastructure.brokers.ibkr_web.client import IbWebAccountUnavailableError
 from infrastructure.database.connection import db_session
 from trading.services.accounts.mutations import get_account
 
@@ -34,9 +37,14 @@ def check_broker_sessions(account_names: list[str]) -> dict[str, str]:
             account = get_account(conn, name)
             try:
                 get_broker_for_account(account).disconnect()
-            except LiveTradingNotEnabledError, PaperBrokerAccountMismatchError, UnknownBrokerTypeError:
+            except (
+                LiveTradingNotEnabledError,
+                PaperBrokerAccountMismatchError,
+                UnknownBrokerTypeError,
+                IbWebAccountUnavailableError,
+            ):
                 raise
-            except (httpx.TransportError, RuntimeError) as exc:
+            except (httpx.TransportError, OSError, RuntimeError) as exc:
                 unavailable[name] = f"{account.broker_type}: {exc}"
     return unavailable
 
@@ -46,6 +54,7 @@ def unavailable_message(unavailable: dict[str, str]) -> str:
     return (
         "Broker session unavailable for every run account, no step ran. "
         + "; ".join(f"{name} ({reason})" for name, reason in unavailable.items())
-        + ". Start the IBKR Client Portal gateway and log in, then re-run. "
+        + ". Start the IBKR Client Portal gateway and log in, then re-run (a plain re-run works only if no run "
+        "completed today). "
         "See docs/runbooks/ibkr-paper-trading.md (Gateway session)."
     )

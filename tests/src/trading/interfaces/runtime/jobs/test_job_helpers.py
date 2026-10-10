@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from trading.interfaces.runtime.jobs.job_helpers import (
@@ -12,7 +11,6 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     RUNTIME_ALERT_SMTP_USE_TLS_ENV,
     RUNTIME_ALERT_SMTP_USERNAME_ENV,
     already_completed_for_period,
-    latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
     resolve_email_config_from_env,
@@ -114,17 +112,6 @@ def test_tee_line_appends_and_prints(tmp_path: Path, capsys):
     assert log_path.read_text(encoding="utf-8") == "hello\n"
 
 
-def test_latest_log_contains_sentinel_uses_newest_match(tmp_path: Path):
-    older = tmp_path / "job_older.log"
-    newer = tmp_path / "job_newer.log"
-    older.write_text("COMPLETE\n", encoding="utf-8")
-    newer.write_text("incomplete\n", encoding="utf-8")
-    os.utime(older, (100, 100))
-    os.utime(newer, (200, 200))
-
-    assert latest_log_contains_sentinel(tmp_path, "job_*.log", "COMPLETE") is False
-
-
 def test_already_completed_for_period_checks_older_completed_logs(tmp_path: Path):
     completed = tmp_path / "job_2026_06_20260601_000000.log"
     current = tmp_path / "job_2026_06_20260629_120000.log"
@@ -166,10 +153,6 @@ def test_already_completed_for_period_is_false_when_the_log_lacks_the_sentinel(t
         )
         is False
     )
-
-
-def test_latest_log_contains_sentinel_returns_false_without_matches(tmp_path: Path):
-    assert latest_log_contains_sentinel(tmp_path, "missing_*.log", "COMPLETE") is False
 
 
 def test_run_command_returns_exit_code_and_output(tmp_path: Path):
@@ -254,18 +237,3 @@ def test_skip_if_already_completed_for_period_returns_false_without_matching_log
 
     assert skipped is False
     assert capsys.readouterr().out == ""
-
-
-def test_latest_log_contains_sentinel_returns_false_when_latest_read_fails(monkeypatch, tmp_path: Path):
-    log = tmp_path / "job_latest.log"
-    log.write_text("COMPLETE\n", encoding="utf-8")
-    original_read_text = Path.read_text
-
-    def _broken_read_text(self, *args, **kwargs):
-        if self == log:
-            raise OSError("boom")
-        return original_read_text(self, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", _broken_read_text)
-
-    assert latest_log_contains_sentinel(tmp_path, "job_*.log", "COMPLETE") is False
