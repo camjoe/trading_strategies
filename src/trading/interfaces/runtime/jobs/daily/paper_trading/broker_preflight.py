@@ -5,7 +5,8 @@ connect for free. The broker guard errors propagate untouched (``LiveTradingNotE
 ``PaperBrokerAccountMismatchError``, ``UnknownBrokerTypeError``): they mean the operator must
 investigate, not retry, so they stop the whole run, as does ``IbWebAccountUnavailableError`` (a wrong
 ``account_id`` is a configuration error, not an outage). A down gateway or TWS/IB Gateway socket is
-unavailable, not an error.
+unavailable, not an error. When no account has a usable session the check raises
+``BrokerSessionUnavailableError`` and the run fails before any step runs.
 """
 
 from __future__ import annotations

@@ -165,6 +165,7 @@ grep -h "executed\|Market closed\|COMPLETE\|ERROR\|WARN: skipping" local/logs/da
 | `<account>: executed N trades` | Orders were sent for that account |
 | `Market closed: no orders will be submitted` | Completed, but outside market hours |
 | `WARN: skipping <account>, broker session unavailable (...)` | That account was left out; the others traded |
+| `RUN META (after skips): accounts=... caps=...` | The accounts and caps the run actually traded, after the skips; the first `RUN META` line lists every requested account |
 | `ERROR: Broker session unavailable for every run account, no step ran. ...` | No run account could connect, so nothing ran |
 
 Status of every monitored job in one view:
@@ -189,7 +190,7 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 | Gateway down | Keepalive journal: `IBKR session unreachable: ...`; the gateway service restarts it after 30 seconds, logged out | `fail`, same event: "IBKR session unreachable: ... Start the Client Portal gateway and log in." |
 | Session back after either | Keepalive journal: `IBKR session alive` | `ok`: "IBKR session alive again" |
 | Daily run starts with some accounts' sessions down (the rest, such as simulator accounts, are fine) | Log: `WARN: skipping <account>, broker session unavailable (<broker type>: <reason>)`; the run trades the other accounts and ends with `COMPLETE`; artifact `skipped_accounts` names the skipped ones | `warn`, event `daily-paper-trading`: "completed without accounts whose IBKR session was unavailable: ... Run them with: <repo .venv python> -m ... --accounts <names> (the run's caps, fee, seed and date carried over) --run-source manual --force-run" |
-| Daily run starts with every account's session down | Log: `ERROR: Broker session unavailable for every run account, no step ran. <account> (<broker type>: <reason>)`; artifact `status: failed`, `failed_step: 00_ingest_market_and_account` | `fail`, event `daily-paper-trading`: "Daily paper trading run failed: ..." |
+| Daily run starts with every account's session down | Log: `ERROR: Broker session unavailable for every run account, no step ran. <account> (<broker type>: <reason>)`; artifact `status: failed`, `failed_step: 00_ingest_market_and_account`, `skipped_accounts` naming every account and why (the run failed; none traded) | `fail`, event `daily-paper-trading`: "Daily paper trading run failed: ..." |
 | Any later daily step fails | Log `ERROR:` line; artifact `failed`, with the failed step | `fail`, event `daily-paper-trading` |
 | A kill switch is on | Run completes; artifact lists `kill_switch_accounts` | `warn`, event `daily-paper-trading` |
 | Daily health check finds the latest log stale or missing the success line | `[FAIL] ...` on its output | `fail`, event `daily-trader-health` |

@@ -514,6 +514,7 @@ def test_every_account_unavailable_fails_the_run_before_any_step_runs(
     assert payload["skipped_accounts"] == {"acct_a": "interactive_brokers_web_paper: gateway down"}
     [notification] = _runtime_harness.notifications
     assert notification["status"] == "fail"
+    assert notification["details"]["skipped_accounts"] == payload["skipped_accounts"]
     assert module.COMPLETE_SENTINEL not in _only_log(tmp_path).read_text(encoding="utf-8")
 
 

@@ -287,9 +287,11 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
-    skipped_accounts = context.skipped_accounts
-    if isinstance(error, BrokerSessionUnavailableError):
-        payload["skipped_accounts"] = error.unavailable
+    skipped_accounts = (
+        error.unavailable if isinstance(error, BrokerSessionUnavailableError) else context.skipped_accounts
+    )
+    if skipped_accounts:
+        payload["skipped_accounts"] = skipped_accounts
 
     if failed:
         message = f"Daily paper trading run failed: {error}"

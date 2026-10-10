@@ -146,7 +146,6 @@ def exclude_accounts(context: DailyRunContext, skipped: dict[str, str], catch_up
         "accounts": accounts,
         "account_count": len(accounts),
         "caps_summary": caps_summary,
-        "skipped_accounts": dict(skipped),
     }
     return replace(
         context,
