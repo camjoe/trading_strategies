@@ -122,8 +122,14 @@ def _review_context(args: argparse.Namespace, forge: Forge) -> None:
 
 
 def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
-    forbidden = [os.environ.get(name, "") for name in args.forbid_env]
-    problems = body_problems(Path(args.body_file).read_text(encoding="utf-8"), args.previous_pass, forbidden)
+    path = Path(args.body_file)
+    if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+        raise ForgeError("The agent did not write a comment body.")
+    unset = [name for name in args.forbid_env if not os.environ.get(name)]
+    if unset:
+        raise ForgeError(f"--forbid-env variable is not set or empty: {', '.join(unset)}.")
+    forbidden = [os.environ[name] for name in args.forbid_env]
+    problems = body_problems(path.read_text(encoding="utf-8"), args.previous_pass, forbidden)
     if problems:
         raise ForgeError(" ".join(problems))
     _print({"ok": True})

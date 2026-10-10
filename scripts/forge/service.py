@@ -2,6 +2,7 @@
 
 import time
 from collections.abc import Callable, Collection
+from dataclasses import asdict
 from typing import Any
 
 from scripts.forge.base import CiStatus, Forge, ForgeError
@@ -84,10 +85,8 @@ def review_context(
     ci = wait_for_ci(forge, pr.head_sha, exclude_checks, wait_seconds)
     return {
         "pull_request": pr.to_dict(),
-        "previous_comment": None
-        if previous is None
-        else {"id": previous.id, "body": previous.body, "author": previous.author},
+        "previous_comment": None if previous is None else asdict(previous),
         "previous_pass": previous_pass,
         "pass_cap_reached": max_passes is not None and (previous_pass or 0) >= max_passes,
-        "ci": {"sha": ci.sha, "state": ci.state, "checks": [{"name": c.name, "state": c.state} for c in ci.checks]},
+        "ci": asdict(ci),
     }

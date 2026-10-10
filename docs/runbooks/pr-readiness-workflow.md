@@ -53,8 +53,9 @@ gh variable set READINESS_SAVE_TRANSCRIPT --body true
 |---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN is not set` | The secret is missing |
 | `The agent run reported an error` | Expired or rejected token, or the agent failed; read the step log |
-| `did not write a comment body` | The agent finished without writing the body file; re-run |
-| `local path or a forbidden string` / `credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
+| `The agent did not write a comment body` | The agent finished without writing the body file; re-run |
+| `contains a local path` / `a forbidden string` / `credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
+| `--forbid-env variable is not set or empty` | The token variable was missing from the check step, so the leak guard would check nothing |
 | `Readiness pass cap reached` | `READINESS_MAX_PASSES` passes already ran; the job fails so a stale comment is not mistaken for current. Raise the variable or review by hand |
 | `a newer push landed` | The head moved after the event; the newer push starts its own pass |
 | `Cannot read the pass number` | The previous comment has no `· pass N ·` header; fix or delete the comment |

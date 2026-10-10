@@ -111,16 +111,32 @@ class TestReadiness:
     def test_a_missing_marker_is_a_problem(self) -> None:
         body = readiness_body(1).removeprefix(READINESS_MARKER)
 
-        assert any("marker" in problem for problem in body_problems(body, None))
+        assert any("must start with" in problem for problem in body_problems(body, None))
 
-    def test_a_runner_path_is_a_problem(self) -> None:
-        assert any("path" in problem for problem in body_problems(readiness_body(1, "see /home/runner/x"), None))
+    @pytest.mark.parametrize("text", ["see /home/runner/work/x", "at /Users/someone/repo", r"at C:\Users\someone"])
+    def test_a_local_path_is_a_problem(self, text: str) -> None:
+        assert any("local path" in p for p in body_problems(readiness_body(1, text), None))
+
+    def test_text_that_only_names_a_path_prefix_is_fine(self) -> None:
+        body = readiness_body(1, "The `/Users/` and `/home/runner` patterns have no test.")
+
+        assert body_problems(body, None) == []
+
+    def test_a_github_token_is_a_problem(self) -> None:
+        assert any("credential" in p for p in body_problems(readiness_body(1, "ghp_" + "a" * 24), None))
+
+    def test_a_stray_pass_mention_before_the_header_does_not_win(self) -> None:
+        body = f"{READINESS_MARKER}\nnote: see pass 9 below\nReviewed `abc` · 2026-10-10 · pass 2 · current\n"
+
+        assert pass_number(body) == 2
 
     def test_a_forbidden_string_is_a_problem(self) -> None:
-        assert body_problems(readiness_body(1, "value s3cr3t here"), None, forbidden=["s3cr3t"])
+        assert any(
+            "forbidden" in p for p in body_problems(readiness_body(1, "value s3cr3t"), None, forbidden=["s3cr3t"])
+        )
 
-    def test_an_empty_forbidden_string_is_ignored(self) -> None:
-        assert body_problems(readiness_body(1), None, forbidden=[""]) == []
+    def test_an_empty_forbidden_string_is_a_problem(self) -> None:
+        assert any("empty" in p for p in body_problems(readiness_body(1), None, forbidden=[""]))
 
     def test_credential_like_text_is_a_problem(self) -> None:
         assert any(
@@ -266,6 +282,12 @@ class TestGitHubForge:
     def test_malformed_gh_output_becomes_a_forge_error(self, responses: dict[str, str], call: object) -> None:
         with pytest.raises(ForgeError, match="Unexpected gh output"):
             call(GitHubForge(FakeRunner(responses)))  # type: ignore[operator]
+
+    def test_a_malformed_comment_write_reply_becomes_a_forge_error(self) -> None:
+        runner = FakeRunner({"-X POST": "{}", "issues/7/comments --paginate": ""})
+
+        with pytest.raises(ForgeError, match="Unexpected gh output"):
+            GitHubForge(runner).upsert_comment(7, readiness_body(), ["bot"])
 
 
 class TestRunGh:
@@ -487,6 +509,17 @@ class TestService:
 
         assert review_context(forge, 7, [])["previous_pass"] is None
 
+    def test_review_context_waits_for_ci_when_asked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        forge = StubForge(ci_sequence=[PYTHON_PENDING, PYTHON_PASS, PYTHON_PASS])
+        clock = FakeClock()
+        monkeypatch.setattr("scripts.forge.service.time.sleep", clock.sleep)
+        monkeypatch.setattr("scripts.forge.service.time.monotonic", clock)
+
+        context = review_context(forge, 7, [], wait_seconds=100)
+
+        assert context["ci"]["state"] == "pass"
+        assert forge.ci_polls == 3
+
     def test_review_context_passes_the_excluded_checks_to_ci(self) -> None:
         forge = StubForge()
 
@@ -643,6 +676,24 @@ class TestCli:
         assert main(["check-body", "--body-file", str(body), "--forbid-env", "SPIKE_TEST_VALUE"], StubForge()) == 1
 
         assert "forbidden" in capsys.readouterr().err
+
+    def test_check_body_fails_when_a_forbidden_variable_is_unset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.delenv("SPIKE_UNSET_VALUE", raising=False)
+        body = tmp_path / "body.md"
+        body.write_text(readiness_body(1), encoding="utf-8")
+
+        assert main(["check-body", "--body-file", str(body), "--forbid-env", "SPIKE_UNSET_VALUE"], StubForge()) == 1
+
+        assert "not set or empty" in capsys.readouterr().err
+
+    def test_check_body_fails_when_no_body_was_written(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert main(["check-body", "--body-file", str(tmp_path / "missing.md")], StubForge()) == 1
+
+        assert "did not write a comment body" in capsys.readouterr().err
 
     def test_a_forge_error_prints_to_stderr_and_exits_one(self, capsys: pytest.CaptureFixture[str]) -> None:
         assert main(["comment-get", "--pr", "7"], StubForge(user=None)) == 1
