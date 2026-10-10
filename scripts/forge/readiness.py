@@ -53,19 +53,22 @@ def body_problems(
 
 
 def fixer_edit_problems(old: str, new: str) -> list[str]:
-    """Reasons *new* is not a fixer's edit of *old*: only status lines may be added, changed, or removed.
+    """Reasons *new* is not a fixer's edit of *old*: it may only add status lines and blank lines.
 
-    A status line is ``*Fix attempted: ...*``, ``*Not fixed: ...*``, or ``*Left: ...*``. Blank lines
-    around them may change. Anything else, such as a finding's text or a ticked box, is a problem.
+    A status line is ``*Fix attempted: ...*``, ``*Not fixed: ...*``, or ``*Left: ...*`` with plain text.
+    Every existing line must survive unchanged, so an earlier status line stays as evidence. Anything
+    else, such as a finding's text or a ticked box, is a problem.
     """
     old_lines, new_lines = old.splitlines(), new.splitlines()
     problems: list[str] = []
-    for tag, old_start, old_end, new_start, new_end in difflib.SequenceMatcher(
+    for tag, _, _, new_start, new_end in difflib.SequenceMatcher(
         None, old_lines, new_lines, autojunk=False
     ).get_opcodes():
         if tag == "equal":
             continue
-        changed = old_lines[old_start:old_end] + new_lines[new_start:new_end]
-        if any(line.strip() and not _FIXER_LINE.match(line) for line in changed):
-            problems.append(f"Line {new_start + 1}: only Fix attempted, Not fixed, and Left lines may change.")
+        added = new_lines[new_start:new_end]
+        if tag != "insert" or any(line.strip() and not _FIXER_LINE.match(line) for line in added):
+            problems.append(
+                f"Line {new_start + 1}: only Fix attempted, Not fixed, and Left lines may be added; existing lines stay."
+            )
     return problems

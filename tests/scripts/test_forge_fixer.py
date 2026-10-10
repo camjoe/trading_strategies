@@ -28,14 +28,23 @@ class TestFixerEditProblems:
     def test_the_other_status_lines_are_allowed(self, line: str) -> None:
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) == []
 
-    def test_replacing_an_earlier_status_line_is_allowed(self) -> None:
+    def test_replacing_an_earlier_status_line_is_a_problem(self) -> None:
         old = comment(FINDING, FIX_LINE)
         new = comment(FINDING, "  *Not fixed: still open at def5678*\n")
 
-        assert fixer_edit_problems(old, new) == []
+        assert fixer_edit_problems(old, new)
 
-    def test_removing_a_status_line_is_allowed(self) -> None:
-        assert fixer_edit_problems(comment(FINDING, FIX_LINE), comment(FINDING)) == []
+    def test_removing_a_status_line_is_a_problem(self) -> None:
+        assert fixer_edit_problems(comment(FINDING, FIX_LINE), comment(FINDING))
+
+    def test_each_bad_hunk_is_reported_with_its_line_number(self) -> None:
+        old = comment(FINDING, "second\n", "third\n")
+        new = old.replace("second", "changed").replace("third", "altered")
+
+        assert [problem.split(":")[0] for problem in fixer_edit_problems(old, new)] == [
+            f"Line {new.splitlines().index('changed') + 1}",
+            f"Line {new.splitlines().index('altered') + 1}",
+        ]
 
     def test_ticking_a_box_is_a_problem(self) -> None:
         new = comment(FINDING.replace("- [ ]", "- [x]"))
