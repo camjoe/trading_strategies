@@ -10,6 +10,8 @@ returns the process exit code.
 from __future__ import annotations
 
 import argparse
+import shlex
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -20,7 +22,10 @@ from common.runtime_job_status import (
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import check_broker_sessions
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
+    BrokerSessionUnavailableError,
+    check_broker_sessions,
+)
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
     DagStepResult,
@@ -39,10 +44,11 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     risk_gate_step_result as _risk_gate_step_result,
     submission_step_result as _submission_step_result,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext, exclude_accounts
 from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+    DAILY_PAPER_TRADING_MODULE,
     RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
     resolve_email_config_from_env,
@@ -206,6 +212,44 @@ def build_run_summary(
     }
 
 
+def _interpreter_for(repo_root: Path) -> str:
+    """The running interpreter as a repo-relative path when it lives in the repo (the ``.venv``), else ``python``."""
+    try:
+        return str(Path(sys.executable).absolute().relative_to(repo_root.absolute()))
+    except ValueError:
+        return "python"
+
+
+def catch_up_command(args: argparse.Namespace, context: DailyRunContext, skipped: dict[str, str]) -> str:
+    """The command that runs *skipped* accounts later with this run's effective options.
+
+    Run from the repo root. Trade caps are the resolved per-account caps, so the primary-account options need no carrying.
+    The webhook URL is left out; the environment supplies it.
+    """
+    options = [
+        "--accounts",
+        ",".join(skipped),
+        "--account-trade-caps",
+        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in skipped),
+        "--fee",
+        str(args.fee),
+        "--run-source",
+        "manual",
+        "--force-run",
+        "--repo-root",
+        str(context.repo_root),
+    ]
+    if args.seed is not None:
+        options += ["--seed", str(args.seed)]
+    if args.as_of_date:
+        options += ["--as-of-date", args.as_of_date]
+    if args.run_challenger_shadow_eval:
+        options.append("--run-challenger-shadow-eval")
+        if args.shadow_eval_rolling_window_days is not None:
+            options += ["--shadow-eval-rolling-window-days", str(args.shadow_eval_rolling_window_days)]
+    return shlex.join([_interpreter_for(context.repo_root), "-m", DAILY_PAPER_TRADING_MODULE, *options])
+
+
 def _finish_run(
     args: argparse.Namespace,
     context: DailyRunContext,
@@ -243,10 +287,24 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
+    skipped_accounts = (
+        error.unavailable if isinstance(error, BrokerSessionUnavailableError) else context.skipped_accounts
+    )
+    if skipped_accounts:
+        payload["skipped_accounts"] = skipped_accounts
+
     if failed:
         message = f"Daily paper trading run failed: {error}"
-    elif kill_switch_accounts:
-        message = f"Daily paper trading run completed with kill switches on: {', '.join(kill_switch_accounts)}"
+    elif kill_switch_accounts or skipped_accounts:
+        notes: list[str] = []
+        if kill_switch_accounts:
+            notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
+        if skipped_accounts:
+            notes.append(
+                f"completed without accounts whose IBKR session was unavailable: {', '.join(skipped_accounts)}. "
+                f"Run them with: {context.catch_up_command}"
+            )
+        message = "Daily paper trading run " + " | ".join(notes)
     else:
         message = "Daily paper trading run completed successfully"
 
@@ -256,14 +314,15 @@ def _finish_run(
         webhook_url=args.notify_webhook_url,
         email_config=resolve_email_config_from_env(),
         notify_on_success=args.notify_on_success,
-        # A kill switch is not a step failure, but it is not a quiet success
-        # either — alert on it even when notify_on_success is off.
-        status="fail" if failed else ("warn" if kill_switch_accounts else "ok"),
+        # A kill switch or a skipped account is not a step failure, but it is not a
+        # quiet success either — alert on it even when notify_on_success is off.
+        status="fail" if failed else ("warn" if kill_switch_accounts or skipped_accounts else "ok"),
         message=message,
         details={
             "accounts": context.accounts,
             "account_count": len(context.accounts),
             "kill_switch_accounts": kill_switch_accounts,
+            "skipped_accounts": skipped_accounts,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
@@ -277,16 +336,18 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     artifact_path = context.artifact_path
     accounts = context.accounts
     account_trade_caps = context.account_trade_caps
-    caps_summary = context.caps_summary
     report_date = context.report_date
     step_results = new_step_results()
 
+    skipped_accounts: dict[str, str] = {}
+
     def _ingest_market_and_account() -> dict[str, object]:
-        check_broker_sessions(accounts)
+        nonlocal skipped_accounts
+        skipped_accounts = check_broker_sessions(accounts)
         return {
-            "accounts": accounts,
-            "account_count": len(accounts),
-            "caps_summary": caps_summary,
+            "accounts": [name for name in accounts if name not in skipped_accounts],
+            "account_count": len(accounts) - len(skipped_accounts),
+            "skipped_accounts": skipped_accounts,
         }
 
     try:
@@ -296,6 +357,16 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             run_fn=_ingest_market_and_account,
             now_iso=ts,
         )
+        if skipped_accounts:
+            for name, reason in skipped_accounts.items():
+                tee_line(log_path, f"[{ts()}] WARN: skipping {name}, broker session unavailable ({reason})")
+            context = exclude_accounts(context, skipped_accounts, catch_up_command(args, context, skipped_accounts))
+            accounts = context.accounts
+            account_trade_caps = context.account_trade_caps
+            tee_line(
+                log_path,
+                f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
+            )
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
         # value. Books are marked to current prices just before that check, so a

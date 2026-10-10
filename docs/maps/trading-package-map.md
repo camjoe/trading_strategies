@@ -76,7 +76,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
 | `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
-| `daily/paper_trading/broker_preflight.py` | Connects every run account's broker before step 00 returns; fails the run with the unavailable accounts named |
+| `daily/paper_trading/broker_preflight.py` | Connects every run account's broker in step 00 and returns the ones whose session is unavailable; raises `BrokerSessionUnavailableError` (failing the run) only when every account is |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |

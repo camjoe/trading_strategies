@@ -56,6 +56,7 @@ Root files are orchestration and shared helpers. Concrete checks live under `doc
 |---|---|
 | `quick.py` | Quick aggregate: repository checks + Python checks, with optional frontend |
 | `ci.py` | CI aggregate: docs + repo + Python + frontend |
+| `pr.py` | Pre-PR gate: enforced docs + repo + branch-targeted Python, plus frontend when the diff touches it |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
 | `_runner.py` | Internal shared check-runner helpers for steps and tool executable resolution |
 
@@ -77,12 +78,12 @@ python -m scripts.run_checks docs
 python -m scripts.run_checks repo
 python -m scripts.run_checks python
 python -m scripts.run_checks ci
+python -m scripts.run_checks pr --base develop
 ```
 
 **Deterministic pre-PR gate (no AI, no tokens):**
 ```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base main --no-cov
+python -m scripts.run_checks pr --base develop
 ```
 
 ---

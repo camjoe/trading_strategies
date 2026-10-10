@@ -156,7 +156,7 @@ journalctl -u daily-paper-trading.service --since today --no-pager | tail -20
 The run's own log has the detail. Look for the success line and the per-account trade counts:
 
 ```bash
-grep -h "executed\|Market closed\|COMPLETE\|ERROR" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
+grep -h "executed\|Market closed\|COMPLETE\|ERROR\|WARN: skipping" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 ```
 
 | Log line | Meaning |
@@ -164,7 +164,9 @@ grep -h "executed\|Market closed\|COMPLETE\|ERROR" local/logs/daily_paper_tradin
 | `COMPLETE: Daily paper trading run succeeded.` | Every step finished |
 | `<account>: executed N trades` | Orders were sent for that account |
 | `Market closed: no orders will be submitted` | Completed, but outside market hours |
-| `ERROR: Broker session unavailable, no step ran. ...` | A run account's broker could not connect, so nothing ran |
+| `WARN: skipping <account>, broker session unavailable (...)` | That account was left out; the others traded |
+| `RUN META (after skips): accounts=... caps=...` | The accounts and caps the run actually traded, after the skips; the first `RUN META` line lists every requested account |
+| `ERROR: Broker session unavailable for every run account, no step ran. ...` | No run account could connect, so nothing ran |
 
 Status of every monitored job in one view:
 
@@ -187,7 +189,8 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 | Session lost (gateway answers, not logged in) | Keepalive journal: `IBKR session rejected: ...` | `fail`, event `ibkr-session-keepalive`: "IBKR session rejected: ... Log in at the Client Portal gateway." |
 | Gateway down | Keepalive journal: `IBKR session unreachable: ...`; the gateway service restarts it after 30 seconds, logged out | `fail`, same event: "IBKR session unreachable: ... Start the Client Portal gateway and log in." |
 | Session back after either | Keepalive journal: `IBKR session alive` | `ok`: "IBKR session alive again" |
-| Daily run starts with a session down | Log: `ERROR: Broker session unavailable, no step ran. <account> (<broker type>): ...`; artifact `status: failed`, `failed_step: 00_ingest_market_and_account`; no step runs for any account | `fail`, event `daily-paper-trading`: "Daily paper trading run failed: ..." |
+| Daily run starts with some accounts' sessions down (the rest, such as simulator accounts, are fine) | Log: `WARN: skipping <account>, broker session unavailable (<broker type>: <reason>)`; the run trades the other accounts and ends with `COMPLETE`; artifact `skipped_accounts` names the skipped ones | `warn`, event `daily-paper-trading`: "completed without accounts whose IBKR session was unavailable: ... Run them with: <repo .venv python> -m ... --accounts <names> (the run's caps, fee, seed and date carried over) --run-source manual --force-run" |
+| Daily run starts with every account's session down | Log: `ERROR: Broker session unavailable for every run account, no step ran. <account> (<broker type>: <reason>)`; artifact `status: failed`, `failed_step: 00_ingest_market_and_account`, `skipped_accounts` naming every account and why (the run failed; none traded) | `fail`, event `daily-paper-trading`: "Daily paper trading run failed: ..." |
 | Any later daily step fails | Log `ERROR:` line; artifact `failed`, with the failed step | `fail`, event `daily-paper-trading` |
 | A kill switch is on | Run completes; artifact lists `kill_switch_accounts` | `warn`, event `daily-paper-trading` |
 | Daily health check finds the latest log stale or missing the success line | `[FAIL] ...` on its output | `fail`, event `daily-trader-health` |
@@ -196,9 +199,14 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 The keepalive alerts once per change, not once a minute. A start with the session already down alerts;
 a healthy start does not.
 
-One unavailable IBKR account stops the whole run, simulator accounts included. If you cannot log in
-before a run, set the IBKR account back to `paper` (see Rolling back in
-[ibkr-paper-trading.md](ibkr-paper-trading.md)) so the others trade.
+An account whose broker session is unavailable is skipped; the others still trade. A run that skips
+any account still ends with `COMPLETE`, so the duplicate-run guard stops a plain second run that day.
+After you fix the session, run the skipped accounts with `--accounts <names> --force-run` (the `warn`
+alert prints the command). `--accounts` limits the run to those accounts, so nothing else trades twice.
+A run in which every account is unavailable fails and writes no `COMPLETE`, but the guard counts the
+date as done if any of that date's logs has `COMPLETE`, so a plain re-run works only when no run
+completed that day. While an account is skipped, nothing reconciles its fills or snapshots its equity;
+its books catch up when you run it.
 
 ### What sends nothing
 

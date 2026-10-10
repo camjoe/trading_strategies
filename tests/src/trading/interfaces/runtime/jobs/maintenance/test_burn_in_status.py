@@ -268,6 +268,8 @@ def test_scan_artifacts_ignores_invalid_names_and_handles_corrupt_json(tmp_path:
             "date": "2026-05-20",
             "status": "failed",
             "artifact_file": "daily_paper_trading_20260520_120000.json",
+            "accounts": [],
+            "kill_switch_accounts": [],
         }
     ]
 
@@ -283,3 +285,74 @@ def test_burn_in_status_module_main_entrypoint(monkeypatch, tmp_path: Path) -> N
         run_module_as_main(MODULE)
 
     assert excinfo.value.code == 0
+
+
+def _write_days(export_dir: Path, days: int, **extra) -> None:
+    today = _real_dt.date(2026, 5, 20)
+    for i in range(days):
+        day = today - _real_dt.timedelta(days=days - 1 - i)
+        _write_artifact(export_dir, day.strftime("%Y%m%d"), "130000", DAILY_RUN_STATUS_SUCCESS, **extra)
+
+
+class TestPerAccountBurnIn:
+    def test_a_day_the_account_was_skipped_breaks_only_its_streak(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130000",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["sim"],
+            skipped_accounts={"ibkr": "gateway down"},
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr", "--min-consecutive-days", "10"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["sim"]["consecutive_successes"] == 10
+        assert data["accounts"]["sim"]["ready_for_live"] is True
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+        assert data["accounts"]["ibkr"]["ready_for_live"] is False
+        assert data["ready_for_live"] is False
+        assert data["consecutive_successes"] == 0
+
+    def test_a_kill_switch_day_breaks_the_streak_of_the_account_it_tripped_on(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "140000",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["ibkr"],
+            kill_switch_accounts=["ibkr"],
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "ibkr"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+        assert data["ready_for_live"] is False
+
+    def test_every_account_must_be_ready(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["ready_for_live"] is True
+        assert set(data["accounts"]) == {"sim", "ibkr"}
+
+    def test_without_accounts_whole_runs_are_judged(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["ready_for_live"] is True
+        assert data["accounts"] == {}

@@ -37,7 +37,10 @@ class TestRunGit:
         assert git.run_git("rev-parse", "HEAD", cwd=".") == "deadbeef"
 
     def test_returns_none_when_git_exits_non_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(git.subprocess, "run", lambda *_a, **_k: _completed(128, ""))
+        def _fail(*_a: object, **_k: object) -> subprocess.CompletedProcess[str]:
+            raise subprocess.CalledProcessError(128, ["git"])
+
+        monkeypatch.setattr(git.subprocess, "run", _fail)
 
         assert git.run_git("rev-parse", "HEAD", cwd=".") is None
 
@@ -47,17 +50,17 @@ class TestRunGit:
         assert git.run_git("rev-parse", "--show-toplevel", cwd=".") is None
 
     def test_passes_cwd_and_args_through_to_git(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen: list[list[str]] = []
+        seen: list[tuple[list[str], object]] = []
 
-        def _fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-            seen.append(command)
+        def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            seen.append((command, kwargs["cwd"]))
             return _completed(0, "ok")
 
         monkeypatch.setattr(git.subprocess, "run", _fake_run)
 
         git.run_git("rev-parse", "HEAD", cwd="/repo")
 
-        assert seen == [["git", "-C", "/repo", "rev-parse", "HEAD"]]
+        assert seen == [(["git", "rev-parse", "HEAD"], "/repo")]
 
 
 class TestGetRepoRoot:
@@ -205,3 +208,137 @@ class TestGitHeadRevision:
         git.git_head_revision()
 
         assert seen == [(("rev-parse", "HEAD"), str(Path("/repo")))]
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(tmp_path, "init", "-b", "main", str(repo))
+    (repo / "old.py").write_text("x = 1\n" * 40, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    return repo
+
+
+class TestStrictHelpers:
+    def test_git_output_returns_stdout(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+
+        assert git.git_output(repo, "log", "--format=%s") == "base\n"
+
+    def test_git_output_raises_when_git_fails(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            git.git_output(repo, "rev-parse", "no-such-ref")
+
+        assert raised.value.returncode != 0
+        assert "no-such-ref" in " ".join(raised.value.cmd)
+
+    def test_split_nul_drops_empty_entries(self) -> None:
+        assert git.split_nul("a.py\0b c.py\0") == ["a.py", "b c.py"]
+        assert git.split_nul("") == []
+
+    def test_diff_range_is_three_dot_with_a_base_and_head_without(self) -> None:
+        assert git.diff_range("develop") == ["develop...HEAD"]
+        assert git.diff_range("develop", "feature") == ["develop...feature"]
+        assert git.diff_range(None) == ["HEAD"]
+
+    def test_changed_paths_returns_unquoted_names_for_branch_changes(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _git(repo, "checkout", "-b", "feature")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+        (repo / "has space.py").write_text("z = 3\n", encoding="utf-8")
+        _git(repo, "mv", "old.py", "new.py")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "change")
+
+        assert sorted(git.changed_paths(repo, "main")) == ["has space.py", "módulo.py", "new.py"]
+
+    def test_changed_paths_reads_a_ref_that_is_not_checked_out(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _git(repo, "checkout", "-b", "feature")
+        (repo / "added.py").write_text("y = 2\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "change")
+        _git(repo, "checkout", "main")
+
+        assert git.changed_paths(repo, "main", "feature") == ["added.py"]
+
+    def test_changed_paths_without_a_base_diffs_the_working_tree_against_head(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / "old.py").write_text("x = 2\n", encoding="utf-8")
+
+        assert git.changed_paths(repo) == ["old.py"]
+
+    def test_untracked_paths_lists_files_git_does_not_ignore(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
+        _git(repo, "add", ".gitignore")
+        (repo / "ignored.txt").write_text("i\n", encoding="utf-8")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+
+        assert git.untracked_paths(repo) == ["módulo.py"]
+
+    def test_uncommitted_paths_returns_plain_paths_for_renames_spaces_and_non_ascii_names(
+        self, tmp_path: Path
+    ) -> None:
+        repo = _repo(tmp_path)
+        assert git.uncommitted_paths(repo) == []
+
+        _git(repo, "mv", "old.py", "new.py")
+        (repo / "has space.py").write_text("z = 3\n", encoding="utf-8")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+
+        assert sorted(git.uncommitted_paths(repo)) == ["has space.py", "módulo.py", "new.py"]
+
+    def test_merge_base_is_the_fork_point_not_the_tip_of_the_base_ref(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        fork = git.git_output(repo, "rev-parse", "HEAD").strip()
+        _git(repo, "checkout", "-b", "feature")
+        (repo / "added.py").write_text("y = 2\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "change")
+        _git(repo, "checkout", "main")
+        (repo / "old.py").write_text("x = 3\n", encoding="utf-8")
+        _git(repo, "commit", "-am", "main moves on")
+        tip = git.git_output(repo, "rev-parse", "main").strip()
+
+        found = git.merge_base(repo, "main", "feature")
+
+        assert fork.startswith(found)
+        assert not tip.startswith(found)
+        assert 4 <= len(found) < len(fork)
+
+    def test_merge_base_resolves_an_annotated_tag_to_a_commit(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        head = git.git_output(repo, "rev-parse", "HEAD").strip()
+        _git(repo, "tag", "-a", "v1", "-m", "release")
+
+        assert head.startswith(git.merge_base(repo, "v1"))
+
+    def test_uncommitted_paths_covers_modified_deleted_and_renamed_files_together(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / "keep.py").write_text("k = 1\n", encoding="utf-8")
+        (repo / "gone.py").write_text("g = 1\n", encoding="utf-8")
+        (repo / "both.py").write_text("b = 1\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "more files")
+
+        (repo / "old.py").write_text("x = 2\n", encoding="utf-8")
+        (repo / "gone.py").unlink()
+        (repo / "both.py").write_text("b = 2\n", encoding="utf-8")
+        _git(repo, "add", "both.py")
+        (repo / "both.py").write_text("b = 3\n", encoding="utf-8")
+        _git(repo, "mv", "keep.py", "kept.py")
+
+        assert sorted(git.uncommitted_paths(repo)) == ["both.py", "gone.py", "kept.py", "old.py"]

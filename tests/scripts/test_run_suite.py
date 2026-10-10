@@ -1,11 +1,12 @@
 """Tests for scripts.checks.run_suite — pure-logic functions only.
 
-Subprocess-dependent functions (run_suite, _git_changed_files, main) are not
-covered here because they require a live pytest process or a git repository.
+Subprocess-dependent functions (run_suite, main) are not covered here because they
+require a live pytest process; _git_changed_files is tested against a real git repository.
 """
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from scripts.checks.run_suite import (
     _best_suite_for_file,
     _deduplicate_suites,
     _format_suite_listing,
+    _git_changed_files,
     detect_suites_from_changes,
     discover_suites,
     resolve_targets,
@@ -263,3 +265,38 @@ class TestDetectSuitesFromChanges:
 
         result = detect_suites_from_changes(repo_root, tests_root)
         assert result == []
+
+
+class TestGitChangedFiles:
+    @staticmethod
+    def _repo(tmp_path: Path) -> Path:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        run = lambda *a: subprocess.run(  # noqa: E731
+            ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", *a],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        run("init", "-b", "main")
+        (repo / "a.py").write_text("x = 1\n", encoding="utf-8")
+        run("add", "-A")
+        run("commit", "-m", "base")
+        run("checkout", "-b", "feature")
+        (repo / "módulo.py").write_text("y = 2\n", encoding="utf-8")
+        run("add", "-A")
+        run("commit", "-m", "change")
+        return repo
+
+    def test_branch_changes_include_non_ascii_names_unquoted(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path)
+
+        assert _git_changed_files(repo, "main") == ["módulo.py"]
+
+    def test_uncommitted_changes_combine_staged_and_unstaged(self, tmp_path: Path) -> None:
+        repo = self._repo(tmp_path)
+        (repo / "a.py").write_text("x = 2\n", encoding="utf-8")
+        (repo / "módulo.py").write_text("y = 3\n", encoding="utf-8")
+        subprocess.run(["git", "add", "módulo.py"], cwd=repo, check=True, capture_output=True)
+
+        assert _git_changed_files(repo, None) == ["a.py", "módulo.py"]

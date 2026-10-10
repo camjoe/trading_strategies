@@ -20,6 +20,9 @@ from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_j
 JOB_NAME = "check_burn_in_status"
 COMPLETE_SENTINEL = BURN_IN_STATUS_COMPLETE_SENTINEL
 
+ACCOUNT_STATUS_KILL_SWITCH = "kill_switch"
+ACCOUNT_STATUS_NOT_TRADED = "not_traded"
+
 # Pattern: daily_paper_trading_YYYYMMDD_HHMMSS.json
 _ARTIFACT_RE = re.compile(r"^daily_paper_trading_(\d{8})_(\d{6})\.json$")
 
@@ -43,6 +46,36 @@ def _add_arguments(parser: argparse.ArgumentParser) -> None:
         default=30,
         help="How many calendar days of history to scan for artifacts (default: 30)",
     )
+    parser.add_argument(
+        "--accounts",
+        default="",
+        help=(
+            "Comma-separated accounts to evaluate individually: a day counts for an account only if the run "
+            "succeeded, traded that account, and tripped no kill switch on it. Default: judge whole runs."
+        ),
+    )
+
+
+def _name_list(value: object) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def account_entries(entries: list[dict[str, object]], account: str) -> list[dict[str, object]]:
+    """*entries* with each day's status judged for one *account*.
+
+    A successful run counts only if it traded the account (skipped accounts are left out of the
+    artifact's ``accounts``) and tripped no kill switch on it.
+    """
+    judged: list[dict[str, object]] = []
+    for entry in entries:
+        status = entry.get("status")
+        if status == DAILY_RUN_STATUS_SUCCESS:
+            if account in _name_list(entry.get("kill_switch_accounts")):
+                status = ACCOUNT_STATUS_KILL_SWITCH
+            elif account not in _name_list(entry.get("accounts")):
+                status = ACCOUNT_STATUS_NOT_TRADED
+        judged.append({**entry, "status": status})
+    return judged
 
 
 def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[dict[str, object]]:
@@ -87,6 +120,8 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
         }
         if "failed_step" in data:
             entry["failed_step"] = data["failed_step"]
+        entry["accounts"] = _name_list(data.get("accounts"))
+        entry["kill_switch_accounts"] = _name_list(data.get("kill_switch_accounts"))
         entries.append(entry)
 
     return entries
@@ -133,6 +168,16 @@ def main(ctx: JobContext) -> int:
 
     entries = scan_artifacts(export_dir, ctx.args.window_days, ctx.now.date())
     metrics = evaluate_readiness(entries, ctx.args.min_consecutive_days, ctx.args.max_failure_rate_pct)
+    account_metrics: dict[str, dict[str, object]] = {}
+    for account in (item.strip() for item in ctx.args.accounts.split(",")):
+        if account:
+            account_metrics[account] = evaluate_readiness(
+                account_entries(entries, account), ctx.args.min_consecutive_days, ctx.args.max_failure_rate_pct
+            )
+    if account_metrics:
+        # The headline is the weakest account's: the autonomy monitor reads these keys.
+        weakest = min(account_metrics.values(), key=lambda m: int(m["consecutive_successes"]))  # type: ignore[call-overload]
+        metrics = {**weakest, "ready_for_live": all(m["ready_for_live"] for m in account_metrics.values())}
 
     # Written to this job's own long-standing filename, not ctx.artifact_path: the
     # burn-in runbook and the autonomy monitor both look for it, and the runner's
@@ -147,6 +192,7 @@ def main(ctx: JobContext) -> int:
             "min_consecutive_days": ctx.args.min_consecutive_days,
             "max_failure_rate_pct": ctx.args.max_failure_rate_pct,
             **metrics,
+            "accounts": account_metrics,
             "entries": entries,
         },
     )
