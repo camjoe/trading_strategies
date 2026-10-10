@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge import cli as cli_module, github as github_module
+from scripts.forge import cli as cli_module, github as github_module, service as service_module
 from scripts.forge.base import (
     READINESS_MARKER,
     CheckRun,
@@ -113,7 +113,10 @@ class TestReadiness:
 
         assert any("must start with" in problem for problem in body_problems(body, None))
 
-    @pytest.mark.parametrize("text", ["see /home/runner/work/x", "at /Users/someone/repo", r"at C:\Users\someone"])
+    @pytest.mark.parametrize(
+        "text",
+        ["see /home/runner/work/x", "at /Users/someone/repo", "ends with `/Users/someone`", r"at C:\Users\someone"],
+    )
     def test_a_local_path_is_a_problem(self, text: str) -> None:
         assert any("local path" in p for p in body_problems(readiness_body(1, text), None))
 
@@ -340,6 +343,7 @@ class StubForge:
         self.pr_lookups = 0
         self.find_authors: Collection[str] = ()
         self.ci_excludes: list[Collection[str]] = []
+        self.ci_shas: list[str] = []
         self.upserted: list[str] = []
         self.upsert_authors: Collection[str] = ()
 
@@ -364,6 +368,7 @@ class StubForge:
 
     def ci_status(self, sha: str, exclude: Collection[str] = ()) -> CiStatus:
         self.ci_excludes.append(exclude)
+        self.ci_shas.append(sha)
         status = self.ci_sequence[min(self.ci_polls, len(self.ci_sequence) - 1)]
         self.ci_polls += 1
         return status
@@ -512,8 +517,8 @@ class TestService:
     def test_review_context_waits_for_ci_when_asked(self, monkeypatch: pytest.MonkeyPatch) -> None:
         forge = StubForge(ci_sequence=[PYTHON_PENDING, PYTHON_PASS, PYTHON_PASS])
         clock = FakeClock()
-        monkeypatch.setattr("scripts.forge.service.time.sleep", clock.sleep)
-        monkeypatch.setattr("scripts.forge.service.time.monotonic", clock)
+        monkeypatch.setattr(service_module.time, "sleep", clock.sleep)
+        monkeypatch.setattr(service_module.time, "monotonic", clock)
 
         context = review_context(forge, 7, [], wait_seconds=100)
 
@@ -620,6 +625,15 @@ class TestCli:
         assert forge.find_authors == ("bot",)
         assert forge.ci_excludes == [["readiness"]]
 
+    def test_review_context_reports_the_pass_cap_from_the_command_line(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        forge = StubForge(previous=Comment(id=3, body=readiness_body(8), author="bot"))
+
+        assert main(["review-context", "--pr", "7", "--author", "bot", "--max-passes", "8"], forge) == 0
+
+        assert json.loads(capsys.readouterr().out)["pass_cap_reached"] is True
+
     def test_review_context_stops_when_the_head_is_not_the_expected_commit(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
@@ -628,9 +642,13 @@ class TestCli:
         assert "newer push" in capsys.readouterr().err
 
     def test_ci_status_accepts_an_explicit_sha(self, capsys: pytest.CaptureFixture[str]) -> None:
-        assert main(["ci-status", "--sha", "deadbeef", "--exclude", "readiness"], StubForge()) == 0
+        forge = StubForge()
 
-        assert json.loads(capsys.readouterr().out)["sha"] == "abc123"
+        assert main(["ci-status", "--sha", "deadbeef", "--exclude", "readiness"], forge) == 0
+
+        assert forge.ci_shas == ["deadbeef"]
+        assert forge.ci_excludes == [["readiness"]]
+        assert json.loads(capsys.readouterr().out)["state"] == "pass"
 
     def test_ci_status_defaults_to_the_checked_out_commit(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

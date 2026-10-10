@@ -31,8 +31,8 @@ def wait_for_ci(
     timeout_seconds: float = 0,
     interval_seconds: float = 20,
     none_grace_seconds: float = NONE_GRACE_SECONDS,
-    sleep: Callable[[float], None] = time.sleep,
-    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] | None = None,
+    clock: Callable[[], float] | None = None,
 ) -> CiStatus:
     """CI status for *sha*, polling until it is settled or *timeout_seconds* have passed.
 
@@ -41,6 +41,8 @@ def wait_for_ci(
     ``none`` is treated as still starting for the first *none_grace_seconds*. A failure is returned at
     once. With no timeout this is a single reading.
     """
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
     start = clock()
     deadline = start + timeout_seconds
     status = forge.ci_status(sha, exclude)

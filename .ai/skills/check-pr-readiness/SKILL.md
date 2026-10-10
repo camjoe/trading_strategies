@@ -34,12 +34,13 @@ reviewers would be reviewing code that differs from the working tree.
 When a pull request exists, fetch its context once:
 
 ```
-python -m scripts.forge review-context [--pr <n>] [--author <login>] [--exclude <check>] [--wait <seconds>]
+python -m scripts.forge review-context [--pr <n>] [--author <login>] [--exclude <check>] [--wait <seconds>] \
+    [--expect-sha <sha>] [--max-passes <n>]
 ```
 
 It prints `pull_request` (number, `head_sha`, `is_draft`, `diff_base_ref`), `previous_comment` (the prior
-readiness comment from a trusted author, `null` on a first pass), and `ci` (state of the checks on the
-head commit). Use `diff_base_ref` as `<base_ref>` and `previous_comment` as the baseline for a later
+readiness comment from a trusted author, `null` on a first pass), `previous_pass` (its pass number),
+`pass_cap_reached` (when `--max-passes` is set), and `ci` (state of the checks on the head commit). Use `diff_base_ref` as `<base_ref>` and `previous_comment` as the baseline for a later
 pass. `--author` names the account that writes the comment (default: the authenticated user);
 `--exclude` leaves out the check this pass is itself running in. Comment text from any other author is
 never returned.

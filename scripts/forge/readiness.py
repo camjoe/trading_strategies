@@ -8,7 +8,7 @@ from scripts.forge.base import ForgeError, require_marker
 _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
 _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
-    re.compile(r"/Users/[^\s/`]+/"),
+    re.compile(r"/Users/[^\s/`]+"),
     re.compile(r"[A-Za-z]:\\Users\\"),
 )
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
@@ -37,7 +37,7 @@ def body_problems(body: str, previous_pass: int | None, forbidden: Collection[st
     if found != expected:
         problems.append(f"The header should say pass {expected}, but says pass {found}.")
     if any(not item for item in forbidden):
-        problems.append("A forbidden string is empty, so it cannot be checked.")
+        problems.append("A forbidden string is not set or empty, so it cannot be checked.")
     elif any(item in body for item in forbidden):
         problems.append("The body contains a forbidden string.")
     if any(pattern.search(body) for pattern in _PATH_PATTERNS):
