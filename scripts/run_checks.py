@@ -6,6 +6,7 @@ from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe
 from scripts.checks.ci import run_ci
 from scripts.checks.docs.docs_check import run_docs_check
+from scripts.checks.pr import DEFAULT_BASE_REF, run_pr
 from scripts.checks.python.python_check import run_python_check
 from scripts.checks.quick import run_quick
 from scripts.checks.repo.repo_check import run_repo_check
@@ -45,6 +46,13 @@ def parse_args() -> argparse.Namespace:
 
     ci = subparsers.add_parser("ci", help="Run CI-shaped checks: docs, repo, Python, and frontend.")
     ci.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
+
+    pr = subparsers.add_parser(
+        "pr",
+        help="Run the checks CI enforces, targeted at the branch diff (frontend only if touched).",
+    )
+    pr.add_argument("--base", metavar="REF", dest="base_ref", default=DEFAULT_BASE_REF, help="Branch base ref.")
+    pr.add_argument("--no-cov", action="store_true", help="Disable coverage for faster test runs.")
 
     parser.set_defaults(command="quick")
     return parser.parse_args()
@@ -100,6 +108,13 @@ def main() -> int:
             suite_names=args.suite_names,
             suite_changed=args.suite_changed,
             suite_base=args.suite_base,
+            no_cov=args.no_cov,
+        )
+    if args.command == "pr":
+        return run_pr(
+            repo_root=repo_root,
+            python_exe=python_exe,
+            base_ref=args.base_ref,
             no_cov=args.no_cov,
         )
     if args.command == "ci":

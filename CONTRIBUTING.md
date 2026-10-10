@@ -17,6 +17,7 @@ below assume `.venv` is active and run from the repository root as modules.
 | `python -m scripts.fix_checks` | Safe mechanical fixes: Ruff lint fixes, formatting, generated reference-doc assets, docs drift fixes |
 | `python -m scripts.run_checks quick` | Repository safety checks + Python lint/type/test checks |
 | `python -m scripts.run_checks ci` | Docs + repository + Python + frontend checks |
+| `python -m scripts.run_checks pr --base <base>` | The pre-PR gate: enforced docs checks, repository checks, and branch-targeted Python checks, plus frontend checks when the diff touches the frontend. Reads the committed diff, so commit first |
 | `python -m scripts.run_checks repo` | Repository structure, safety, migration, skill, and secret-hygiene checks |
 | `python -m scripts.run_checks docs` | Documentation links, headers, maps, module references, and generated-reference consistency |
 | `python -m scripts.run_checks python` | Python conventions, Ruff, mypy, and the full Python test suite |
@@ -56,7 +57,7 @@ The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not
 
 ## Pull requests
 
-Run `python -m scripts.run_checks repo` and `python -m scripts.run_checks python --base <base>` first. Include in the PR:
+Commit your work, then run `python -m scripts.run_checks pr --base <base>` first. Include in the PR:
 
 - Summary of the change and **why**
 - Testing performed
