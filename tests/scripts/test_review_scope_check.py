@@ -11,6 +11,7 @@ from scripts.checks.repo.review_scope_check import (
     NOTE_RULES,
     SCOPE_RULES,
     _numstat_entries,
+    changed_files,
     classify_paths,
     diff_stats,
     parse_args,
@@ -286,3 +287,71 @@ def test_a_pure_rename_adds_no_changed_lines(tmp_path: Path) -> None:
     _git(repo, "commit", "-am", "rename")
 
     assert diff_stats(repo, base_ref="feature", head_ref="rename") == (0, [])
+
+
+def _commit_branch(tmp_path: Path, files: dict[str, str], base_files: dict[str, str] | None = None) -> Path:
+    repo = _init_repo(tmp_path)
+    for name, text in (base_files or {}).items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "more base", "--allow-empty")
+    _git(repo, "checkout", "-b", "change")
+    for name, text in files.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "change")
+    return repo
+
+
+def test_a_renamed_documentation_file_that_becomes_code_counts_its_changed_lines(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "tool.md").write_text("line\n" * 40, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "docs")
+    _git(repo, "checkout", "-b", "rename")
+    (repo / "src").mkdir()
+    _git(repo, "mv", "docs/tool.md", "src/tool.py")
+    (repo / "src" / "tool.py").write_text("line\n" * 30 + "x = 1\n" * 10, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "rename")
+
+    changed_lines, _ = diff_stats(repo, base_ref="feature", head_ref="rename")
+
+    assert changed_lines > 0
+
+
+def test_non_ascii_paths_are_classified_and_detected_as_new_modules(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"src/infrastructure/brokers/módulo.py": "x = 1\n"})
+
+    assert changed_files(repo, base_ref="main", head_ref="change") == ["src/infrastructure/brokers/módulo.py"]
+    assert diff_stats(repo, base_ref="main", head_ref="change")[1] == ["src/infrastructure/brokers/módulo.py"]
+
+
+def test_a_large_diff_that_also_adds_a_module_names_the_simplifier_once() -> None:
+    report = classify_paths(["scripts/checks/pr.py"])
+
+    reviewers = suggest_reviewers(report, LARGE_DIFF_LINES + 1, ["scripts/checks/pr.py"])
+
+    assert [name for name, _ in reviewers].count("Simplifier") == 1
+    assert reviewers[-1][1] == f"{LARGE_DIFF_LINES + 1} changed lines outside documentation"
+
+
+def test_added_test_files_are_not_new_modules(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"tests/test_new.py": "def test_x():\n    pass\n", "config.json": "{}\n"})
+
+    assert diff_stats(repo, base_ref="main", head_ref="change") == (3, [])
+
+
+def test_diff_stats_without_a_base_reads_the_working_tree_against_head(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"src/a.py": "x = 1\n" * 5})
+    (repo / "src" / "a.py").write_text("x = 1\n" * 12, encoding="utf-8")
+
+    assert diff_stats(repo) == (7, [])
+
+
+def test_skills_are_documentation_but_other_files_under_ai_are_code() -> None:
+    assert _reviewer_names([".ai/skills/code-review/SKILL.md"]) == []
+    assert _reviewer_names([".ai/tools/lint.py"]) == ["Architecture and conventions", "Break it", "Test skeptic"]

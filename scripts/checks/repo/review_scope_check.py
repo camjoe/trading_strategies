@@ -68,7 +68,7 @@ NOTE_RULES = (
 # A diff with at least this many changed lines outside documentation gets the Simplifier.
 LARGE_DIFF_LINES = 200
 
-DOC_PREFIXES = ("docs/", ".ai/", "plan/")
+DOC_PREFIXES = tuple(rule.prefix for rule in NOTE_RULES)
 MODULE_SUFFIXES = (".py", ".ts", ".tsx")
 
 
@@ -129,16 +129,23 @@ def suggest_reviewers(
 
 
 def _git_output(repo_root: Path, command: list[str]) -> str:
-    return subprocess.run(command, cwd=repo_root, check=True, capture_output=True, text=True).stdout
+    completed = subprocess.run(
+        command, cwd=repo_root, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
+    return completed.stdout
 
 
 def _diff_range(base_ref: str | None, head_ref: str = "HEAD") -> list[str]:
     return [f"{base_ref}...{head_ref}"] if base_ref else ["HEAD"]
 
 
+def _names(output: str) -> list[str]:
+    """Paths from ``git diff --name-only -z``, which never quotes or escapes a name."""
+    return [name for name in output.split("\0") if name]
+
+
 def changed_files(repo_root: Path, base_ref: str | None = None, head_ref: str = "HEAD") -> list[str]:
-    output = _git_output(repo_root, ["git", "diff", "--name-only", *_diff_range(base_ref, head_ref)])
-    return [line.strip() for line in output.splitlines() if line.strip()]
+    return _names(_git_output(repo_root, ["git", "diff", "--name-only", "-z", *_diff_range(base_ref, head_ref)]))
 
 
 def _numstat_entries(output: str) -> list[tuple[int, int, str]]:
@@ -170,11 +177,11 @@ def diff_stats(repo_root: Path, base_ref: str | None = None, head_ref: str = "HE
     )
 
     added_output = _git_output(
-        repo_root, ["git", "diff", "--diff-filter=A", "--name-only", *_diff_range(base_ref, head_ref)]
+        repo_root, ["git", "diff", "--diff-filter=A", "--name-only", "-z", *_diff_range(base_ref, head_ref)]
     )
     added_modules = [
         path
-        for path in (line.strip().replace("\\", "/") for line in added_output.splitlines())
+        for path in (name.replace("\\", "/") for name in _names(added_output))
         if path.endswith(MODULE_SUFFIXES) and not path.startswith("tests/") and not path.endswith("__init__.py")
     ]
     return changed_lines, added_modules

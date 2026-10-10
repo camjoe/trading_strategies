@@ -32,9 +32,33 @@ def touches_frontend(paths: list[str]) -> bool:
 def uncommitted_files(repo_root: Path) -> list[str]:
     """Tracked files with uncommitted changes, plus untracked files git does not ignore."""
     completed = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=repo_root, check=True, capture_output=True, text=True
+        ["git", "status", "--porcelain", "-z"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
-    return [line[3:] for line in completed.stdout.splitlines()]
+    tokens = completed.stdout.split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(tokens):
+        entry = tokens[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        paths.append(entry[3:])
+        if entry[0] in "RC" or entry[1] in "RC":
+            index += 1  # a rename or copy is followed by its old path
+    return paths
+
+
+def resolve_ref(repo_root: Path, ref: str) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--short", ref], cwd=repo_root, check=True, capture_output=True, text=True
+    )
+    return completed.stdout.strip()
 
 
 def run_pr(
@@ -50,11 +74,13 @@ def run_pr(
     """
     try:
         with_frontend = touches_frontend(changed_files(repo_root, base_ref=base_ref))
+        base_sha = resolve_ref(repo_root, base_ref)
         uncommitted = uncommitted_files(repo_root)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode
 
+    print(f"Targeting {base_ref}...HEAD (base {base_sha})")
     if uncommitted:
         print(
             f"WARNING: {len(uncommitted)} uncommitted file(s). Suite targeting and frontend detection read "
