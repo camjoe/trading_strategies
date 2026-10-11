@@ -3,8 +3,8 @@
 Status: in progress. Branch: `plan/agent-pipeline-automation` (PR #301). All twelve decisions are settled
 (see "Decisions"). Built and validated on this branch: the forge CLI (`scripts/forge/`), the Stage 2
 reviewer workflow (`.github/workflows/pr-readiness.yml`), and the Stage 3 fixer skill, hand-run through two
-rounds to READY. The unattended loop (`fix-loop`) was live-tested for one round. Built but not yet run live: plan pickup
-(Stage 1, `implement-plan`) and the notification email.
+rounds to READY. The unattended loop (`fix-loop`) was live-tested for one round, and plan pickup (Stage 1,
+`implement-plan`) was live-tested end to end on a throwaway plan. Not yet run live: the notification email.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`
@@ -353,6 +353,25 @@ delivery, and a start without the owner's terminal. The unattended run also need
 authorization in `AGENTS.md` for pushing to a pull request branch and editing the comment; the owner
 grants it. Decision 22 (status-line placement) was accepted by the owner; finding 21 (`comment-upsert`
 enforcing the edit rule itself) is still the owner's.
+
+## Stage 1 build and live test (2026-10-10)
+Built: `implement-plan --plan plan/<file>` (controller `implement.py`, plan reading and claiming in
+`plans.py`, skill `implement-plan`). It refuses a plan that is unlisted, in progress, blocked, or has
+unconfirmed dependencies; creates the branch off the base; commits the claim; opens a draft pull request;
+runs a headless Sonnet agent that cannot push; then pushes, runs the gate itself, checks guarded paths, and
+takes the pull request out of draft only when the agent committed, raised no question, the gate passed, and
+nothing guarded was touched.
+
+Live test, from the owner's terminal, on a throwaway plan (a small pure helper with tests and a map row),
+with the plan branch as the base because `develop` lacks the pipeline: the agent used 14 turns and about
+71 s, the gate passed, no guarded path was touched, and the pull request left draft with an edge case
+handled that the plan only implied (`fullmatch`, so a trailing newline is rejected). Two commands were
+denied (a `git checkout` of generated files), which led to the one real defect: `fix_checks` regenerates
+`api.json` and `software.json` with CRLF line endings on Windows, which left the working tree dirty and
+would have blocked the next run's clean-tree check. The generators now write LF, with a test.
+
+Still open for Stage 1: removing the plan file when the work is ready to merge (nothing does it yet), a run
+on a plan that needs a guarded path or raises questions, and a start that does not need the owner's terminal.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
