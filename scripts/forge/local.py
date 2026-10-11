@@ -1,8 +1,10 @@
 """The real git, agent, and email behind the fixer loop, all running on the owner's machine."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from common.git import changed_paths, get_repo_root, git_output
 from scripts.forge.base import ForgeError
@@ -14,7 +16,7 @@ AGENT_TIMEOUT_SECONDS = 3600
 _ALLOWED_TOOLS = (
     "Read,Glob,Grep,Edit,Write,Skill,Agent,"
     "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),"
-    "Bash(python:*),Bash(.venv/bin/python:*),Bash(.venv/Scripts/python.exe:*),Bash(cat:*),Bash(ls:*)"
+    "Bash(python:*),Bash(.venv/bin/python:*),Bash(.venv/Scripts/python.exe:*),Bash(.venv/bin/pytest:*),Bash(.venv/Scripts/pytest.exe:*),Bash(cat:*),Bash(ls:*)"
 )
 _DENIED_TOOLS = "Bash(git push:*),Bash(git reset:*),Bash(gh:*)"
 
@@ -43,7 +45,7 @@ class LocalGit:
 def run_claude_agent(task: RoundTask) -> None:
     """Run one fixer round with the headless ``claude`` CLI, signed in as the owner."""
     try:
-        subprocess.run(
+        completed = subprocess.run(
             [
                 "claude",
                 "-p",
@@ -58,22 +60,41 @@ def run_claude_agent(task: RoundTask) -> None:
             text=True,
             encoding="utf-8",
             cwd=get_repo_root(),
-            check=True,
+            capture_output=True,
             timeout=AGENT_TIMEOUT_SECONDS,
-            stdout=sys.stderr,
         )
     except FileNotFoundError as exc:
         raise ForgeError("The claude CLI is not installed or not on PATH.") from exc
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        raise ForgeError(f"The fixer agent failed: {exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ForgeError("The fixer agent timed out.") from exc
+    result = _agent_result(completed.stdout)
+    if completed.returncode != 0 or result.get("is_error"):
+        raise ForgeError(f"The fixer agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
+    print(
+        f"Fixer agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, "
+        f"{len(result.get('permission_denials') or [])} permission denials.",
+        file=sys.stderr,
+    )
+
+
+def _agent_result(stdout: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def email_notifier(subject: str, message: str, details: dict[str, object]) -> None:
     """Email the owner through the runtime alert settings; a missing configuration sends nothing."""
-    notify_runtime_event(
+    config = resolve_email_config_from_env()
+    delivered = notify_runtime_event(
         event="pr-readiness-loop",
         status="ok" if details.get("outcome") == "ready" else "warn",
         message=f"{subject}. {message}",
         details=details,
-        email_config=resolve_email_config_from_env(),
+        email_config=config,
     )
+    if not delivered:
+        reason = "the SMTP settings are not set" if config is None else "delivery failed"
+        print(f"No email was sent: {reason}.", file=sys.stderr)
