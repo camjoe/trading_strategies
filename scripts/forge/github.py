@@ -110,6 +110,9 @@ class GitHubForge:
     def set_ready(self, number: int) -> None:
         self._run(["pr", "ready", str(number)], None)
 
+    def set_pull_request_body(self, number: int, body: str) -> None:
+        self._run(["pr", "edit", str(number), "--body-file", "-"], body)
+
     def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
         output = self._run(
             [

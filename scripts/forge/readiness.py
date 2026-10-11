@@ -42,13 +42,19 @@ def body_problems(
     expected = (previous_pass or 0) + (0 if same_pass else 1)
     if found != expected:
         problems.append(f"The header should say pass {expected}, but says pass {found}.")
+    return problems + leak_problems(body, forbidden)
+
+
+def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
+    """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text."""
+    problems: list[str] = []
     if any(not item for item in forbidden):
         problems.append("A forbidden string is not set or empty, so it cannot be checked.")
-    elif any(item in body for item in forbidden):
+    elif any(item in text for item in forbidden):
         problems.append("The body contains a forbidden string.")
-    if any(pattern.search(body) for pattern in _PATH_PATTERNS):
+    if any(pattern.search(text) for pattern in _PATH_PATTERNS):
         problems.append("The body contains a local path.")
-    if any(pattern.search(body) for pattern in _CREDENTIAL_PATTERNS):
+    if any(pattern.search(text) for pattern in _CREDENTIAL_PATTERNS):
         problems.append("The body contains credential-like text.")
     return problems
 

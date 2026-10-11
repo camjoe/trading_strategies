@@ -14,6 +14,7 @@ from typing import Literal, Protocol
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
+from scripts.forge.readiness import leak_problems
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -123,14 +124,11 @@ def _run(
     )
     git.commit_files([plan_path, readme], f"docs(plan): claim {plan_file}")
     git.push_new_branch(plan.branch)
-    pr = forge.open_pull_request(
-        base,
-        plan.branch,
-        plan.title,
+    claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
-        "passes and nothing needs the owner.",
-        draft=True,
+        "passes and nothing needs the owner."
     )
+    pr = forge.open_pull_request(base, plan.branch, plan.title, claim_body, draft=True)
 
     start = git.head()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
@@ -149,14 +147,10 @@ def _run(
     committed = end != start
     if committed:
         git.push()
-    if questions.is_file() and questions.read_text(encoding="utf-8").strip():
-        return ImplementResult(
-            "needs-owner",
-            plan_file,
-            plan.branch,
-            pr.url,
-            "The agent has questions:\n" + questions.read_text(encoding="utf-8"),
-        )
+    asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
+    _record_on_pull_request(forge, pr.number, claim_body, summary, asked)
+    if asked:
+        return ImplementResult("needs-owner", plan_file, plan.branch, pr.url, "The agent has questions:\n" + asked)
     if not committed:
         return ImplementResult("no-progress", plan_file, plan.branch, pr.url, "The agent made no commits.")
     guarded = guarded_paths_touched(git.changed_paths(start, end))
@@ -171,3 +165,16 @@ def _run(
         return ImplementResult("needs-owner", plan_file, plan.branch, pr.url, "Ready, left as a draft as asked.")
     forge.set_ready(pr.number)
     return ImplementResult("ready-for-review", plan_file, plan.branch, pr.url, "The gate passed; the review starts.")
+
+
+def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> None:
+    """Put the agent's summary and questions in the pull request description, unless they are unsafe to publish."""
+    summary = summary_file.read_text(encoding="utf-8").strip() if summary_file.is_file() else ""
+    sections = [claim_body]
+    if summary:
+        sections.append("## Summary\n\n" + summary)
+    if questions:
+        sections.append("## Questions for the owner\n\n" + questions)
+    body = "\n\n".join(sections)
+    if len(sections) > 1 and not leak_problems(body):
+        forge.set_pull_request_body(number, body)

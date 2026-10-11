@@ -351,6 +351,7 @@ class StubForge:
         self.ci_shas: list[str] = []
         self.opened: list[tuple[str, str, str, str, bool]] = []
         self.ready: list[int] = []
+        self.bodies: list[tuple[int, str]] = []
         self.upserted: list[str] = []
         self.upsert_authors: Collection[str] = ()
 
@@ -386,6 +387,9 @@ class StubForge:
 
     def set_ready(self, number: int) -> None:
         self.ready.append(number)
+
+    def set_pull_request_body(self, number: int, body: str) -> None:
+        self.bodies.append((number, body))
 
 
 class FakeClock:
@@ -766,6 +770,13 @@ class TestWriteOperations:
     def test_an_unexpected_create_reply_is_a_forge_error(self) -> None:
         with pytest.raises(ForgeError, match="Unexpected gh output"):
             GitHubForge(FakeRunner({"pr create": "created\n"})).open_pull_request("develop", "f", "t", "b")
+
+    def test_set_pull_request_body_sends_the_body_on_stdin(self) -> None:
+        runner = FakeRunner({"pr edit 7": ""})
+
+        GitHubForge(runner).set_pull_request_body(7, "New description")
+
+        assert runner.calls[0] == (["pr", "edit", "7", "--body-file", "-"], "New description")
 
     def test_set_ready_marks_the_pull_request_ready(self) -> None:
         runner = FakeRunner({"pr ready 7": ""})

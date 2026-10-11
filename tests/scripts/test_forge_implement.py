@@ -66,7 +66,7 @@ class Setup:
         self.tasks: list[ImplementTask] = []
         self.gate_result = (True, "ok")
 
-    def agent(self, commits: bool = True, questions: str = "", fail: bool = False):  # type: ignore[no-untyped-def]
+    def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
         def run(task: ImplementTask) -> None:
             self.git.calls.append("agent")
             self.tasks.append(task)
@@ -76,6 +76,8 @@ class Setup:
                 self.git.head_value = "work111"
             if questions:
                 task.questions_file.write_text(questions, encoding="utf-8")
+            if summary:
+                task.summary_file.write_text(summary, encoding="utf-8")
 
         return run
 
@@ -156,6 +158,37 @@ class TestClaim:
         assert "in progress (branch `feature/thing`)" in (setup.repo / "plan" / "README.md").read_text(
             encoding="utf-8"
         )
+
+
+class TestRecordedOnThePullRequest:
+    def test_the_summary_and_the_questions_go_in_the_description(self, setup: Setup) -> None:
+        setup.run(setup.agent(questions="Which tickers?", summary="Added the universe option."))
+
+        ((number, body),) = setup.forge.bodies
+        assert number == 42
+        assert "## Summary\n\nAdded the universe option." in body
+        assert "## Questions for the owner\n\nWhich tickers?" in body
+        assert body.startswith("Implements `plan/thing.md`")
+
+    def test_a_summary_alone_is_recorded_on_a_clean_run(self, setup: Setup) -> None:
+        setup.run(setup.agent(summary="Done."))
+
+        assert "## Summary" in setup.forge.bodies[0][1] and "Questions" not in setup.forge.bodies[0][1]
+
+    def test_nothing_is_written_when_the_agent_wrote_neither_file(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.forge.bodies == []
+
+    def test_text_with_a_local_path_or_credential_is_not_published(self, setup: Setup) -> None:
+        setup.run(setup.agent(questions="See /Users/someone/repo for the file", summary="key sk-ant-abcdefghij12345"))
+
+        assert setup.forge.bodies == []
+
+    def test_questions_are_still_reported_to_the_owner_when_they_are_not_published(self, setup: Setup) -> None:
+        result = setup.run(setup.agent(questions="See /Users/someone/repo"))
+
+        assert result.outcome == "needs-owner" and "See /Users/someone/repo" in result.detail
 
 
 class TestOutcome:

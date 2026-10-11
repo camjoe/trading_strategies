@@ -86,6 +86,10 @@ class Forge(Protocol):
         """Take pull request *number* out of draft."""
         ...
 
+    def set_pull_request_body(self, number: int, body: str) -> None:
+        """Replace the description of pull request *number*."""
+        ...
+
 
 def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     """One state for a set of checks: any failure wins, then any pending, else pass; ``none`` when empty."""
