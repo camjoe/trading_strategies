@@ -198,7 +198,8 @@ def _one_round(
     if guarded or ignored:
         git.discard_changes(start)
         listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
-        return "stopped", "The round touched guarded paths and was undone: " + listed
+        note = " Files git ignores cannot be restored here; inspect them." if ignored else ""
+        return "stopped", "The round touched guarded paths and was undone: " + listed + "." + note
     if leftover:
         git.discard_changes(start)
         return "stopped", "The round left uncommitted changes and was undone: " + ", ".join(leftover)

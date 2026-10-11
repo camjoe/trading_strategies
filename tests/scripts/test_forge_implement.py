@@ -26,6 +26,9 @@ class FakeGit:
         self.ignored: list[str] = []
         self.discarded: list[str] = []
         self.on_base = True
+        self.switched: list[str] = []
+        self.deleted: list[str] = []
+        self.cleanup_error: ForgeError | None = None
         self.push_new_error: ForgeError | None = None
 
     def head(self) -> str:
@@ -69,6 +72,17 @@ class FakeGit:
 
     def exists_on(self, ref: str, relative: str) -> bool:
         return self.on_base
+
+    def current_branch(self) -> str:
+        return "develop"
+
+    def switch(self, branch: str) -> None:
+        if self.cleanup_error:
+            raise self.cleanup_error
+        self.switched.append(branch)
+
+    def delete_branch(self, name: str) -> None:
+        self.deleted.append(name)
 
 
 class Setup:
@@ -348,3 +362,62 @@ class TestPickupHardening:
         setup.run(setup.agent(summary="Added tests using `@pytest.mark.parametrize`."))
 
         assert len(setup.forge.bodies) == 1
+
+
+class TestRerunAfterFailures:
+    def test_a_failed_claim_puts_the_checkout_back_and_removes_the_local_branch(self, setup: Setup) -> None:
+        setup.git.push_new_error = ForgeError("rejected")
+
+        result = setup.run()
+
+        assert setup.git.discarded == ["start000"] and setup.git.switched == ["develop"]
+        assert setup.git.deleted == ["feature/thing"]
+        assert "back on develop" in result.detail and "git push origin --delete feature/thing" in result.detail
+
+    def test_a_cleanup_that_fails_says_what_to_remove_by_hand(self, setup: Setup) -> None:
+        setup.git.push_new_error = ForgeError("rejected")
+        setup.git.cleanup_error = ForgeError("branch is checked out")
+
+        result = setup.run()
+
+        assert "remove it by hand" in result.detail and "branch is checked out" in result.detail
+
+    def test_an_agent_that_fails_restores_the_checkout_to_the_claim(self, setup: Setup) -> None:
+        setup.git.dirty = ["half-written.py"]
+
+        result = setup.run(setup.agent(fail=True))
+
+        assert result.outcome == "stopped" and setup.git.discarded == ["start000"]
+
+    def test_leftover_files_are_discarded_even_when_the_agent_asks_a_question(self, setup: Setup) -> None:
+        setup.git.dirty = ["scratch.txt"]
+
+        result = setup.run(setup.agent(questions="Which tickers?"))
+
+        assert result.outcome == "needs-owner" and "Which tickers?" in result.detail
+        assert setup.git.discarded == ["work111"]
+
+    def test_a_question_is_recorded_and_commits_pushed_even_when_a_guarded_path_was_touched(
+        self, setup: Setup
+    ) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        result = setup.run(setup.agent(questions="Is the endpoint public?", summary="Changed the adapter."))
+
+        assert result.outcome == "needs-owner" and "Is the endpoint public?" in result.detail
+        assert "push" in setup.git.calls
+        assert "## Questions for the owner" in setup.forge.bodies[0][1]
+
+    def test_guarded_commits_are_pushed_to_the_draft_for_review_but_never_marked_ready(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "push" in setup.git.calls and setup.forge.ready == []
+
+    def test_a_changed_ignored_file_is_reported_as_not_restorable(self, setup: Setup) -> None:
+        setup.git.ignored = [".claude/settings.local.json"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "cannot be restored" in result.detail

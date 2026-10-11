@@ -75,8 +75,9 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 3. checks the round: every committed path (renames count as a delete and an add) and every uncommitted or
    untracked file is compared with the guarded list in `scripts/forge/guarded_paths.py`, and files git
    ignores that tools run (under `.venv/`, `.claude/`, env files, `sitecustomize`) are checked for changes
-   since the round began; a guarded path, a changed ignored file, or any uncommitted leftover undoes the round
-   and stops;
+   since the round began; a guarded path or any uncommitted leftover undoes the round and stops. Files git
+   ignores cannot be restored automatically, so a changed one stops the round and the detail names it for you to
+   inspect;
 4. refuses the new body unless it only adds status lines (the round's commits are dropped), then posts it and
    pushes `HEAD` to the pull request's branch by name; if the push fails the comment is restored and the round
    undone;
@@ -125,8 +126,9 @@ another `--base` pass `--no-fix`. The loop trusts the readiness comment from `gi
 
 The pickup refuses a plan that is not on the base branch, so push or merge a new plan first. The agent runs in
 the same restricted environment as the fixer's, and any uncommitted leftover, guarded path, or changed ignored
-file keeps the pull request a draft and is discarded. If the claim fails after the branch reached the remote,
-the detail gives the command to delete it before you try again.
+file keeps the pull request a draft; uncommitted leftovers are discarded, and the commits are pushed to the draft
+so you can review them. If the claim fails, the checkout goes back to the branch you started on and the local
+branch is removed; the detail gives the command to delete the remote branch if it got there.
 
 The pull request leaves draft, which starts the review, only when the agent made commits and raised no
 question, the gate passed, and no guarded path was touched. Otherwise it stays a draft and the command

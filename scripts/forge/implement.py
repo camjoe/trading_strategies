@@ -28,6 +28,9 @@ class PlanGit(Protocol):
     def ignored_changes(self, since: float) -> list[str]: ...
     def discard_changes(self, sha: str) -> None: ...
     def exists_on(self, ref: str, relative: str) -> bool: ...
+    def current_branch(self) -> str: ...
+    def switch(self, branch: str) -> None: ...
+    def delete_branch(self, name: str) -> None: ...
     def require_clean_tree(self) -> None: ...
     def fetch(self) -> None: ...
     def create_branch(self, name: str, start: str) -> None: ...
@@ -124,6 +127,7 @@ def _run(
     if problems:
         return ImplementResult("refused", plan_file, plan.branch, None, " ".join(problems))
 
+    original = ""
     try:
         git.require_clean_tree()
         git.fetch()
@@ -135,10 +139,12 @@ def _run(
                 None,
                 f"plan/{plan_file} is not on origin/{base}; push or merge it there first.",
             )
+        original = git.current_branch()
         git.create_branch(plan.branch, f"origin/{base}")
     except ForgeError as exc:
         return ImplementResult("refused", plan_file, plan.branch, None, str(exc))
 
+    fresh = git.head()
     claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
         "passes and nothing needs the owner."
@@ -157,8 +163,7 @@ def _run(
             plan_file,
             plan.branch,
             None,
-            f"The claim failed: {exc}. If the branch reached the remote, delete it before trying again: "
-            f"git push origin --delete {plan.branch}",
+            f"The claim failed: {exc}. {_abandon_claim(git, original, plan.branch, fresh)}",
         )
 
     def finish(outcome: Outcome, detail: str) -> ImplementResult:
@@ -170,6 +175,18 @@ def _run(
         )
     except ForgeError as exc:
         return finish("stopped", f"The run failed after the pull request was opened: {exc}")
+
+
+def _abandon_claim(git: PlanGit, original: str, branch: str, fresh: str) -> str:
+    """Put the checkout back where it was so a rerun can start; the sentence to add to the failure detail."""
+    remote = f"If the branch reached the remote, delete it too: git push origin --delete {branch}"
+    try:
+        git.discard_changes(fresh)
+        git.switch(original)
+        git.delete_branch(branch)
+    except ForgeError as exc:
+        return f"The local branch {branch} could not be removed ({exc}); remove it by hand. {remote}"
+    return f"The checkout is back on {original} and the local branch is removed. {remote}"
 
 
 def _implement(
@@ -196,15 +213,14 @@ def _implement(
             ImplementTask(implement_prompt(plan_file, branch, base, questions, summary), plan_file, questions, summary)
         )
     except ForgeError as exc:
-        return finish("stopped", f"The agent failed: {exc}")
+        git.discard_changes(start)
+        return finish("stopped", f"The agent failed and the checkout was restored: {exc}")
 
     end = git.head()
     leftover, ignored = git.dirty_paths(), git.ignored_changes(started)
     guarded = guarded_paths_touched([*(git.changed_paths(start, end) if end != start else []), *leftover])
-    if guarded or ignored:
+    if leftover:
         git.discard_changes(end)
-        listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
-        return finish("needs-owner", f"The work touches guarded paths, so the pull request stays a draft: {listed}")
     if end != start:
         git.push(branch)
     asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
@@ -213,8 +229,13 @@ def _implement(
         return finish("needs-owner", "The agent has questions:\n" + asked)
     if end == start:
         return finish("no-progress", "The agent made no commits.")
+    if guarded or ignored:
+        listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
+        note = " Files git ignores cannot be restored here; inspect them." if ignored else ""
+        return finish(
+            "needs-owner", f"The work touches guarded paths, so the pull request stays a draft: {listed}.{note}"
+        )
     if leftover:
-        git.discard_changes(end)
         return finish(
             "needs-owner", "The agent left uncommitted changes, which were discarded: " + ", ".join(leftover)
         )

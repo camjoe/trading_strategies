@@ -116,6 +116,15 @@ class LocalGit:
                 continue
         return changed
 
+    def current_branch(self) -> str:
+        return self._git("branch", "--show-current").strip()
+
+    def switch(self, branch: str) -> None:
+        self._git("switch", branch)
+
+    def delete_branch(self, name: str) -> None:
+        self._git("branch", "-D", name)
+
     def exists_on(self, ref: str, relative: str) -> bool:
         """Whether *relative* exists in the tree at *ref*."""
         try:

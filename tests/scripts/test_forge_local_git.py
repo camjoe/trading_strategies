@@ -131,3 +131,31 @@ def test_a_failed_push_is_a_forge_error(repo: Path) -> None:
 
     with pytest.raises(ForgeError, match="git push to pr-head failed"):
         LocalGit(repo).push("pr-head")
+
+
+def test_a_failed_claim_can_be_retried_after_the_cleanup_the_pickup_does(repo: Path) -> None:
+    local = LocalGit(repo)
+    local.create_branch("feature/x", "develop")
+    fresh = local.head()
+    (repo / "plan.md").write_text("claimed", encoding="utf-8")
+    local.commit_files([repo / "plan.md"], "claim")
+
+    local.discard_changes(fresh)
+    local.switch("develop")
+    local.delete_branch("feature/x")
+
+    local.require_clean_tree()
+    local.create_branch("feature/x", "develop")
+    assert local.current_branch() == "feature/x"
+
+
+def test_discarding_changes_does_not_touch_ignored_files(repo: Path) -> None:
+    (repo / ".gitignore").write_text("secret.txt\n", encoding="utf-8")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-q", "-m", "ignore")
+    local = LocalGit(repo)
+    (repo / "secret.txt").write_text("planted", encoding="utf-8")
+
+    local.discard_changes(local.head())
+
+    assert (repo / "secret.txt").read_text(encoding="utf-8") == "planted"
