@@ -338,8 +338,18 @@ next pass; stops at READY, nothing left for a fixer, three rounds, or anything u
 The agent commits locally and writes a body to a file; the loop checks paths and body before it posts or
 pushes, the same split Stage 2 uses.
 
-Unverified: a live `fix-loop` run with a real `claude -p` session (including whether the tool-permission
-patterns match on Windows paths), and email delivery. The unattended run also needs a standing
+Live test (two runs on a throwaway pull request, run from the owner's terminal): the first, on the
+owner's default model, fixed a missing-test finding in 60 s and about 0.41 USD, and left or declined the
+rest. It showed rough edges, now fixed: a failed agent buried its reason in a JSON dump, the repo's
+own pytest executable was denied, and a missing SMTP configuration was silent. The second, on Sonnet
+(now the default, `--model` overrides), fixed a code-and-tests finding, recorded `Not fixed` for a design
+question and for a skills-folder wording nit (a guarded path), and `Left` for a rename, in 12 turns and
+44 s. Both ended with the expected "next review pass did not arrive", since the reviewer does not run on
+a pull request into a non-develop base. Headless `claude` is not signed in by the desktop app: the owner
+signs in once in the terminal with `/login`.
+
+Still unverified: a loop that crosses a real review pass (round, push, reviewer, next round), email
+delivery, and a start without the owner's terminal. The unattended run also needs a standing
 authorization in `AGENTS.md` for pushing to a pull request branch and editing the comment; the owner
 grants it. Decision 22 (status-line placement) was accepted by the owner; finding 21 (`comment-upsert`
 enforcing the edit rule itself) is still the owner's.

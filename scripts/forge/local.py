@@ -72,11 +72,15 @@ def run_claude_agent(task: RoundTask, model: str | None = None) -> None:
     result = _agent_result(completed.stdout)
     if completed.returncode != 0 or result.get("is_error"):
         raise ForgeError(f"The fixer agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
+    denials = result.get("permission_denials") or []
     print(
         f"Fixer agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, "
-        f"{len(result.get('permission_denials') or [])} permission denials.",
+        f"{len(denials)} permission denials.",
         file=sys.stderr,
     )
+    for denial in denials:
+        command = (denial.get("tool_input") or {}).get("command") or denial.get("tool_name")
+        print(f"  denied: {str(command)[:120]}", file=sys.stderr)
 
 
 def _agent_result(stdout: str) -> dict[str, Any]:

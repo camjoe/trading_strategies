@@ -126,3 +126,13 @@ def test_the_fix_loop_command_defaults_to_sonnet() -> None:
 
     assert build_parser().parse_args(["fix-loop", "--pr", "1"]).model == "sonnet"
     assert build_parser().parse_args(["fix-loop", "--pr", "1", "--model", "opus"]).model == "opus"
+
+
+def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    denial = {"tool_name": "Bash", "tool_input": {"command": "cp a b"}}
+    result = {"is_error": False, "num_turns": 1, "duration_ms": 1, "permission_denials": [denial]}
+    monkeypatch.setattr(local.subprocess, "run", lambda *a, **k: completed(json.dumps(result)))
+
+    local.run_claude_agent(TASK)
+
+    assert "denied: cp a b" in capsys.readouterr().err
