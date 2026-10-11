@@ -1,13 +1,55 @@
+import json
 import re
 import subprocess
+import sys
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from common.git import get_repo_root
 from scripts.forge.cli import build_parser
 from scripts.forge.service import review_context
 from tests.scripts.test_forge import StubForge
 
-WORKFLOW = get_repo_root() / ".github" / "workflows" / "pr-readiness.yml"
+ROOT = get_repo_root()
+WORKFLOW = ROOT / ".github" / "workflows" / "pr-readiness.yml"
+SKILL = ROOT / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md"
+
+PINNED_ALLOWED_TOOLS = [
+    "Read",
+    "Glob",
+    "Grep",
+    "Skill",
+    "Agent",
+    "Write",
+    "Bash(git:*)",
+    "Bash(.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
+    "Bash(./.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
+    "Bash(cat:*)",
+    "Bash(ls:*)",
+]
+PINNED_DENIED_TOOLS = ["Bash(git push:*)", "Bash(gh:*)", "Monitor"]
+
+
+def _workflow() -> dict[str, Any]:
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+
+
+def _steps(job: str) -> list[dict[str, Any]]:
+    return _workflow()["jobs"][job]["steps"]
+
+
+def _names(job: str) -> list[str]:
+    return [step["name"] for step in _steps(job)]
+
+
+def _step(job: str, name: str) -> dict[str, Any]:
+    return next(step for step in _steps(job) if step["name"] == name)
+
+
+def _run(job: str, name: str) -> str:
+    return _step(job, name)["run"]
 
 
 def _flags_by_command() -> dict[str, set[str]]:
@@ -43,21 +85,6 @@ def test_the_workflow_reads_keys_that_review_context_returns() -> None:
     assert set(keys) <= set(context)
 
 
-def test_the_workflow_checks_the_body_before_it_posts() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
-
-    assert text.index("- name: Check the comment body") < text.index("- name: Post the readiness comment")
-
-
-def test_the_check_step_runs_check_body_and_the_post_step_runs_comment_upsert() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    check_step = text[text.index("- name: Check the comment body") : text.index("- name: Post the readiness comment")]
-    post_step = text[text.index("- name: Post the readiness comment") :]
-
-    assert "scripts.forge check-body" in check_step
-    assert "scripts.forge comment-upsert" in post_step.split("- name:")[1]
-
-
 def test_every_shell_variable_the_workflow_reads_is_defined_in_it() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     used = set(re.findall(r"\$\{?([A-Z][A-Z0-9_]+)", text))
@@ -70,73 +97,59 @@ def test_every_shell_variable_the_workflow_reads_is_defined_in_it() -> None:
     assert used <= defined | provided_by_the_runner, used - defined - provided_by_the_runner
 
 
-def _job(name: str) -> str:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    starts = {job: text.index(f"\n  {job}:\n") for job in ("review", "post")}
-    later = [index for index in starts.values() if index > starts[name]]
-    return text[starts[name] : min(later)] if later else text[starts[name] :]
+def test_the_posting_job_checks_confirms_and_posts_in_that_order() -> None:
+    names = _names("post")
+    check = names.index("Check the comment body")
+    confirm = names.index("Confirm the pull request head has not moved")
+    post = names.index("Post the readiness comment")
+
+    assert check < confirm < post
+    assert "scripts.forge check-body" in _run("post", "Check the comment body")
+    assert "scripts.forge pr-info" in _run("post", "Confirm the pull request head has not moved")
+    assert "scripts.forge comment-upsert" in _run("post", "Post the readiness comment")
 
 
-def test_the_agent_job_never_posts_and_never_holds_the_github_token_after_the_agent_starts() -> None:
-    review = _job("review")
-    after_agent = review[review.index("- name: Run pr ready") :]
+def test_the_agent_job_never_posts_and_holds_no_github_token_once_the_agent_starts() -> None:
+    steps = _steps("review")
+    started = _names("review").index("Run pr ready")
 
-    assert "comment-upsert" not in review and "check-body" not in review
-    assert "GH_TOKEN" not in after_agent and "github.token" not in after_agent
+    for step in steps:
+        assert "comment-upsert" not in step.get("run", "") and "check-body" not in step.get("run", "")
+    for step in steps[started:]:
+        assert "GH_TOKEN" not in step.get("env", {}) and "github.token" not in json.dumps(step)
 
 
 def test_the_posting_job_starts_from_a_fresh_checkout_and_never_runs_the_agent() -> None:
-    post = _job("post")
+    job = _workflow()["jobs"]["post"]
+    names = _names("post")
+    uses = [step.get("uses", "") for step in job["steps"]]
+    post_text = json.dumps(job)
 
-    assert "needs: review" in post and "actions/checkout" in post and "download-artifact" in post
-    assert "claude " not in post and "npm install" not in post
-    assert post.index("actions/checkout") < post.index("download-artifact") < post.index("comment-upsert")
+    assert job["needs"] == "review"
+    assert "claude " not in post_text and "npm install" not in post_text
+    checkout_at = next(index for index, value in enumerate(uses) if value.startswith("actions/checkout@"))
+    download_at = next(index for index, value in enumerate(uses) if value.startswith("actions/download-artifact@"))
+    assert checkout_at < download_at < names.index("Post the readiness comment")
 
 
 def test_the_job_that_posts_keeps_the_name_readiness() -> None:
-    assert "name: readiness\n" in _job("post") and "name: readiness-review\n" in _job("review")
+    jobs = _workflow()["jobs"]
+
+    assert jobs["post"]["name"] == "readiness" and jobs["review"]["name"] == "readiness-review"
 
 
 def test_the_transcript_is_scrubbed_with_the_system_python_not_the_agents_venv() -> None:
-    review = _job("review")
-    scrub = review[review.index("- name: Scrub the transcript") : review.index("- name: Transcript artifact")]
+    script = _run("review", "Scrub the transcript")
 
-    assert "python3 -" in scrub and ".venv" not in scrub
-
-
-def test_the_posting_job_confirms_the_head_has_not_moved_just_before_it_posts() -> None:
-    post = _job("post")
-    confirm = post.index("- name: Confirm the pull request head has not moved")
-
-    assert post.index("- name: Check the comment body") < confirm < post.index("- name: Post the readiness comment")
-    assert "scripts.forge pr-info" in post[confirm : post.index("- name: Post the readiness comment")]
-
-
-def test_a_failed_review_turns_the_readiness_check_red_instead_of_skipped() -> None:
-    post = _job("post")
-    first_step = post[post.index("steps:") : post.index("- name: Checkout")]
-
-    assert "!cancelled()" in post.split("steps:")[0]
-    assert "needs.review.result != 'success'" in first_step and "exit 1" in first_step
-
-
-def test_the_two_jobs_agree_on_the_artifact_and_the_body_file() -> None:
-    assert "name: readiness-body" in _job("review") and "name: readiness-body" in _job("post")
-    assert "readiness-comment.md" in _job("review") and "readiness-comment.md" in _job("post")
-    assert "overwrite: true" in _job("review")
+    assert "python3 -" in script and ".venv" not in script
 
 
 def _head_check_script() -> str:
-    post = _job("post")
-    step = post[post.index("- name: Confirm the pull request head has not moved") :]
-    body = step.split("<<'PY'")[1].split("          PY")[0]
-    return "".join(line[10:] + chr(10) for line in body.splitlines()[1:])
+    run = _run("post", "Confirm the pull request head has not moved")
+    return run.split("<<'PY'\n")[1].split("\nPY")[0]
 
 
 def _run_head_check(tmp_path: Path, reviewed: str, current: str) -> subprocess.CompletedProcess[str]:
-    import json
-    import sys
-
     (tmp_path / "pr.json").write_text(json.dumps({"head_sha": current}), encoding="utf-8")
     return subprocess.run(
         [sys.executable, "-c", _head_check_script()],
@@ -156,88 +169,82 @@ def test_the_head_check_fails_with_an_error_when_the_head_moved(tmp_path: Path) 
     assert result.returncode != 0 and "moved to def" in result.stderr
 
 
+def test_a_failed_review_turns_the_readiness_check_red_instead_of_skipped() -> None:
+    job = _workflow()["jobs"]["post"]
+    first = job["steps"][0]
+
+    assert job["if"].startswith("!cancelled()")
+    assert first["if"] == "needs.review.result != 'success'" and "exit 1" in first["run"]
+
+
+def test_the_two_jobs_agree_on_the_artifact_and_the_body_file() -> None:
+    upload = _step("review", "Hand over the comment body")
+    download = _step("post", "Fetch the handed-over comment body")
+    reads_body = _run("post", "Read the pass number of the comment being replaced")
+
+    assert upload["with"]["name"] == download["with"]["name"] == "readiness-body"
+    assert upload["with"]["overwrite"] is True and upload["with"]["if-no-files-found"] == "error"
+    assert upload["with"]["path"].endswith("/readiness-comment.md")
+    assert "handoff/readiness-comment.md" in reads_body
+    assert download["with"]["path"].endswith("/handoff")
+
+
 def test_each_job_asks_for_only_the_permissions_it_uses() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    header = text[: text.index("\njobs:\n")]
-    review, post = _job("review"), _job("post")
+    workflow = _workflow()
 
-    assert "pull-requests: write" not in header and "pull-requests: write" not in review
-    assert "pull-requests: write" in post and "checks:" not in post
-
-
-def _allowed_tools() -> list[str]:
-    review = _job("review")
-    line = next(line for line in review.splitlines() if "ALLOWED_TOOLS:" in line)
-    return line.split("ALLOWED_TOOLS:")[1].strip().split(",")
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["jobs"]["review"]["permissions"] == {
+        "contents": "read",
+        "checks": "read",
+        "pull-requests": "read",
+    }
+    assert workflow["jobs"]["post"]["permissions"] == {"contents": "read", "pull-requests": "write"}
 
 
-def test_the_review_agent_may_run_exactly_these_commands() -> None:
-    assert sorted(_allowed_tools()) == sorted(
-        [
-            "Read",
-            "Glob",
-            "Grep",
-            "Skill",
-            "Agent",
-            "Write",
-            "Bash(git:*)",
-            "Bash(.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
-            "Bash(./.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
-            "Bash(cat:*)",
-            "Bash(ls:*)",
-        ]
-    )
+def test_the_review_agent_may_run_exactly_these_tools_and_the_claude_call_uses_them() -> None:
+    step = _step("review", "Run pr ready")
+    allowed = step["env"]["ALLOWED_TOOLS"].split(",")
+    denied = step["env"]["DENIED_TOOLS"].split(",")
+    run = step["run"]
+
+    assert sorted(allowed) == sorted(PINNED_ALLOWED_TOOLS)
+    assert sorted(denied) == sorted(PINNED_DENIED_TOOLS)
+    assert '--allowedTools "$ALLOWED_TOOLS"' in run and '--disallowedTools "$DENIED_TOOLS"' in run
+    assert '< "$PROMPT_FILE"' in run
+    assert "--dangerously" not in run and "--permission-mode" not in run
 
 
 def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:
-    interpreters = ("python", ".venv/bin/python", "./.venv/bin/python")
-    for entry in _allowed_tools():
+    bare = {f"{name}:*" for name in ("python", "python3", ".venv/bin/python", "./.venv/bin/python")}
+    for entry in _step("review", "Run pr ready")["env"]["ALLOWED_TOOLS"].split(","):
         if entry.startswith("Bash("):
-            command = entry[len("Bash(") : -len(")")]
-            assert command not in tuple(f"{name}:*" for name in interpreters), entry
+            assert entry[len("Bash(") : -len(")")] not in bare, entry
+
+
+def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_claude_token() -> None:
+    steps = _steps("review")[_names("review").index("Run pr ready") :]
+    holding = [step for step in steps if "CLAUDE_CODE_OAUTH_TOKEN" in step.get("env", {}) and "run" in step]
+
+    assert holding and all(".venv/bin/python" not in step["run"] for step in holding)
+
+
+def test_the_prompt_tells_the_agent_to_use_plan_subagents_and_not_to_poll() -> None:
+    script = _run("review", "Build the prompt")
+
+    assert "subagent_type Plan" in script and "do not poll" in script and "sleep loops, Monitor" in script
+    assert "Do NOT run the gate" in script and "review_scope_check" in script
 
 
 def test_the_skill_tells_the_unattended_agent_to_use_ci_as_the_gate_and_the_allowed_scope_check_form() -> None:
-    skill = (WORKFLOW.parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md").read_text(encoding="utf-8")
+    skill = SKILL.read_text(encoding="utf-8")
 
     assert "Unattended in CI" in skill and "`ci.state` as the gate result" in skill
     assert "`pass`" in skill and "continues to Step 2" in skill
     assert ".venv/bin/python -m scripts.checks.repo.review_scope_check --base <base_ref>" in skill
 
 
-def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_claude_token() -> None:
-    review = _job("review")
-    after = review[review.index("- name: Run pr ready") :]
-    steps = after.split("      - name:")
-
-    scripts = [step.split("run: |")[1] for step in steps if "CLAUDE_CODE_OAUTH_TOKEN" in step and "run: |" in step]
-
-    assert scripts and all(".venv/bin/python" not in script for script in scripts)
-
-
-def _agent_step() -> str:
-    review = _job("review")
-    start = review.index("- name: Run pr ready")
-    return review[start : review.index("- name:", start + 10)]
-
-
-def test_the_agents_denied_tools_include_monitor_and_are_passed_to_the_claude_call() -> None:
-    step = _agent_step()
-    env_line = next(line for line in step.splitlines() if line.strip().startswith("DENIED_TOOLS:"))
-
-    assert "Monitor" in env_line.split("DENIED_TOOLS:")[1].strip().split(",")
-    assert '--disallowedTools "$DENIED_TOOLS"' in step.split("run: |")[1]
-
-
-def test_the_prompt_tells_the_agent_to_use_plan_subagents_and_not_to_poll() -> None:
-    review = _job("review")
-    prompt = review[review.index("- name: Build the prompt") : review.index("- name: Run pr ready")]
-
-    assert "subagent_type Plan" in prompt and "do not poll" in prompt and "sleep loops, Monitor" in prompt
-
-
 def test_the_skill_says_security_findings_do_not_decide_the_title_and_points_to_the_owners_decision() -> None:
-    skill = (WORKFLOW.parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md").read_text(encoding="utf-8")
+    skill = SKILL.read_text(encoding="utf-8")
 
     assert "do not decide the title" in skill and "run /security-review before merge" in skill
     assert "The title follows the rules above only." in skill
