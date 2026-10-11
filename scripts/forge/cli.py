@@ -5,6 +5,7 @@ The only comment this tool writes is the readiness comment (``<!-- pr-readiness 
 """
 
 import argparse
+import functools
 import json
 import os
 import sys
@@ -68,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     loop.add_argument("--pr", type=int, required=True, help="Pull request number.")
     _add_author_argument(loop)
     loop.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
+    loop.add_argument("--model", default="sonnet", help="Model for the fixer agent (default: sonnet).")
     loop.add_argument(
         "--wait-minutes", type=float, default=45, help="Minutes to wait for each review pass (default: 45)."
     )
@@ -170,7 +172,7 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
         result = run_fix_loop(
             forge,
             git,
-            run_claude_agent,
+            functools.partial(run_claude_agent, model=args.model),
             email_notifier,
             Path(work_dir),
             args.pr,

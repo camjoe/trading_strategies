@@ -286,7 +286,7 @@ class TestFixLoopCommand:
 
         git.require_clean_tree = lambda: None  # type: ignore[attr-defined]
         monkeypatch.setattr(cli_module, "LocalGit", lambda: git)
-        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task: None)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
     def test_a_ready_pull_request_prints_the_result_and_exits_zero(

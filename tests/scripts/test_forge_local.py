@@ -98,3 +98,31 @@ class TestEmailNotifier:
         local.email_notifier("subject", "message", {"outcome": "stopped"})
 
         assert "delivery failed" in capsys.readouterr().err
+
+
+class TestModelOption:
+    def _command_for(self, monkeypatch: pytest.MonkeyPatch, **kwargs: object) -> list[str]:
+        seen: list[list[str]] = []
+
+        def run(command: list[str], **_k: object) -> subprocess.CompletedProcess[str]:
+            seen.append(command)
+            return completed(json.dumps({"is_error": False}))
+
+        monkeypatch.setattr(local.subprocess, "run", run)
+        local.run_claude_agent(TASK, **kwargs)  # type: ignore[arg-type]
+        return seen[0]
+
+    def test_the_model_is_passed_to_claude(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        command = self._command_for(monkeypatch, model="sonnet")
+
+        assert command[command.index("--model") + 1] == "sonnet"
+
+    def test_without_a_model_claude_uses_its_own_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert "--model" not in self._command_for(monkeypatch)
+
+
+def test_the_fix_loop_command_defaults_to_sonnet() -> None:
+    from scripts.forge.cli import build_parser
+
+    assert build_parser().parse_args(["fix-loop", "--pr", "1"]).model == "sonnet"
+    assert build_parser().parse_args(["fix-loop", "--pr", "1", "--model", "opus"]).model == "opus"

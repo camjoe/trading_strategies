@@ -69,7 +69,7 @@ Re-run a failed pass from the Actions tab, or push a commit. A newer push cancel
 request's branch with a clean working tree, signed in to `claude` and `gh`. Each round it:
 
 1. reads the readiness comment and stops if it says READY or nothing is left that a fixer can do;
-2. starts a headless `claude -p` session that follows the `fix-pr-readiness` skill, commits locally, and
+2. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the `fix-pr-readiness` skill, commits locally, and
    writes a new comment body to a file (it may not push, reset, or use `gh`);
 3. undoes the round and stops if its commits touched a guarded path (`scripts/forge/guarded_paths.py`);
 4. refuses the new body unless it only adds status lines, then posts it and pushes;

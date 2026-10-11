@@ -42,8 +42,9 @@ class LocalGit:
             raise ForgeError("The working tree has uncommitted changes; commit or stash them first.")
 
 
-def run_claude_agent(task: RoundTask) -> None:
+def run_claude_agent(task: RoundTask, model: str | None = None) -> None:
     """Run one fixer round with the headless ``claude`` CLI, signed in as the owner."""
+    model_args = ["--model", model] if model else []
     try:
         completed = subprocess.run(
             [
@@ -55,6 +56,7 @@ def run_claude_agent(task: RoundTask) -> None:
                 _ALLOWED_TOOLS,
                 "--disallowedTools",
                 _DENIED_TOOLS,
+                *model_args,
             ],
             input=task.prompt,
             text=True,
