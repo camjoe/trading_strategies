@@ -6,7 +6,7 @@ from scripts.forge.base import READINESS_MARKER, Comment, ForgeError
 from scripts.forge.findings import open_counts, parse_findings, unhandled_open_findings, verdict
 from scripts.forge.fix_loop import LoopResult, RoundTask, run_fix_loop
 from scripts.forge.guarded_paths import guarded_paths_touched
-from tests.scripts.test_forge import FakeClock, StubForge
+from tests.scripts.test_forge import FakeClock, FakeSandboxes, StubForge
 
 
 def readiness(
@@ -90,8 +90,9 @@ class FakeGit:
         self.reset_to: list[str] = []
         self.pushes = 0
         self.removals: list[str] = []
-        self.dirty: list[str] = []
-        self.ignored: list[str] = []
+        self.sandbox_head: str | None = None
+        self.forwarded: list[str] = []
+        self.ff_error: ForgeError | None = None
         self.push_error: ForgeError | None = None
         self.pushed_to: list[str] = []
         self.posted_before_push = -1
@@ -109,13 +110,16 @@ class FakeGit:
     def discard_changes(self, sha: str) -> None:
         self.reset_to.append(sha)
         self.head_value = sha
-        self.dirty = []
 
-    def dirty_paths(self) -> list[str]:
-        return self.dirty
+    def import_commits(self, source: Path) -> str:
+        head, self.sandbox_head = self.sandbox_head or self.head_value, None
+        return head
 
-    def ignored_changes(self, since: float) -> list[str]:
-        return self.ignored
+    def fast_forward(self, sha: str) -> None:
+        if self.ff_error:
+            raise self.ff_error
+        self.forwarded.append(sha)
+        self.head_value = sha
 
     def push(self, branch: str = "") -> None:
         if self.push_error:
@@ -161,6 +165,7 @@ def run(
     max_rounds: int = 3,
     wait_seconds: float = 100,
     repo_root: Path | None = None,
+    sandboxes: FakeSandboxes | None = None,
 ) -> tuple[LoopResult, list[tuple[str, str, dict[str, object]]]]:
     sent: list[tuple[str, str, dict[str, object]]] = []
     clock = FakeClock()
@@ -168,6 +173,7 @@ def run(
         forge,
         git,
         agent or (lambda task: None),  # type: ignore[arg-type]
+        sandboxes or FakeSandboxes(tmp_path),
         lambda subject, message, details: sent.append((subject, message, details)),
         tmp_path,
         7,
@@ -186,7 +192,7 @@ def fixing_agent(
     git: FakeGit, new_head: str = "def456", line: str = "  *Fix attempted: def456, awaiting verification*\n"
 ):
     def agent(task: RoundTask) -> None:
-        git.head_value = new_head
+        git.sandbox_head = new_head
         old = task.old_comment_file.read_text(encoding="utf-8")
         task.new_comment_file.write_text(
             old.replace("  *Pointer: fix it.*\n", "  *Pointer: fix it.*\n\n" + line), encoding="utf-8"
@@ -231,20 +237,22 @@ class TestLoop:
         assert (result.outcome, result.rounds, git.pushes) == ("ready", 1, 1)
         assert len(sent) == 1
 
-    def test_a_round_that_touches_a_guarded_path_is_undone_and_nothing_is_posted(self, tmp_path: Path) -> None:
+    def test_a_round_that_touches_a_guarded_path_is_discarded_and_nothing_reaches_the_checkout(
+        self, tmp_path: Path
+    ) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
         git.changed = [".github/workflows/pr-readiness.yml"]
 
         result, _ = run(forge, git, tmp_path, fixing_agent(git))
 
         assert result.outcome == "stopped" and "guarded" in result.detail
-        assert git.reset_to == ["abc123"] and git.pushes == 0 and forge.upserted == []
+        assert git.forwarded == [] and git.reset_to == [] and git.pushes == 0 and forge.upserted == []
 
     def test_a_body_that_edits_a_finding_is_refused_and_not_pushed(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
 
         def agent(task: RoundTask) -> None:
-            git.head_value = "def456"
+            git.sandbox_head = "def456"
             old = task.old_comment_file.read_text(encoding="utf-8")
             task.new_comment_file.write_text(old.replace("A defect", "Fine"), encoding="utf-8")
 
@@ -278,7 +286,7 @@ class TestLoop:
         heads = iter(["h1", "h2", "h3", "h4"])
 
         def agent(task: RoundTask) -> None:
-            git.head_value = next(heads)
+            git.sandbox_head = next(heads)
             old = task.old_comment_file.read_text(encoding="utf-8")
             line = "  *Fix attempted: x, awaiting verification*\n"
             task.new_comment_file.write_text(
@@ -313,6 +321,7 @@ class TestFixLoopCommand:
 
         git.require_clean_tree = lambda: None  # type: ignore[attr-defined]
         monkeypatch.setattr(cli_module, "LocalGit", lambda: git)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
@@ -417,24 +426,6 @@ class TestPlanFileRemoval:
 
 
 class TestRoundHardening:
-    def test_an_uncommitted_edit_to_a_guarded_path_is_undone_and_nothing_is_posted(self, tmp_path: Path) -> None:
-        forge, git = world(readiness(concerns=OPEN_CONCERN))
-        git.dirty = [".github/workflows/pr-readiness.yml"]
-
-        result, _ = run(forge, git, tmp_path, fixing_agent(git))
-
-        assert result.outcome == "stopped" and "guarded" in result.detail
-        assert git.reset_to == ["abc123"] and git.pushes == 0 and forge.upserted == []
-
-    def test_any_uncommitted_leftover_stops_the_round_and_is_discarded(self, tmp_path: Path) -> None:
-        forge, git = world(readiness(concerns=OPEN_CONCERN))
-        git.dirty = ["notes.txt"]
-
-        result, _ = run(forge, git, tmp_path, fixing_agent(git))
-
-        assert result.outcome == "stopped" and "uncommitted" in result.detail and "notes.txt" in result.detail
-        assert git.reset_to == ["abc123"] and forge.upserted == []
-
     def test_the_status_lines_are_posted_before_the_push_so_the_next_pass_reads_them(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
 
@@ -460,23 +451,23 @@ class TestRoundHardening:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
 
         def agent(task: RoundTask) -> None:
-            git.head_value = "def456"
+            git.sandbox_head = "def456"
             old = task.old_comment_file.read_text(encoding="utf-8")
             task.new_comment_file.write_text(old.replace("A defect", "Fine"), encoding="utf-8")
 
         result, _ = run(forge, git, tmp_path, agent)
 
-        assert result.outcome == "stopped" and git.reset_to == ["abc123"]
+        assert result.outcome == "stopped" and git.forwarded == [] and git.reset_to == []
 
     def test_a_round_with_commits_but_no_body_drops_them(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
 
         def agent(task: RoundTask) -> None:
-            git.head_value = "def456"
+            git.sandbox_head = "def456"
 
         result, _ = run(forge, git, tmp_path, agent)
 
-        assert result.outcome == "no-progress" and git.reset_to == ["abc123"]
+        assert result.outcome == "no-progress" and git.forwarded == [] and git.reset_to == []
 
     def test_a_failed_push_restores_the_comment_undoes_the_round_and_still_notifies(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
@@ -530,15 +521,6 @@ class TestFindingsParsing:
 
 
 class TestLoopHardeningTwo:
-    def test_a_sensitive_ignored_file_changed_by_the_round_stops_and_undoes_it(self, tmp_path: Path) -> None:
-        forge, git = world(readiness(concerns=OPEN_CONCERN))
-        git.ignored = [".claude/settings.local.json"]
-
-        result, _ = run(forge, git, tmp_path, fixing_agent(git))
-
-        assert result.outcome == "stopped" and ".claude/settings.local.json" in result.detail
-        assert git.reset_to == ["abc123"] and forge.upserted == []
-
     def test_a_push_failure_is_reported_even_when_the_comment_cannot_be_restored(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
         git.push_error = ForgeError("rejected")
@@ -559,14 +541,64 @@ class TestLoopHardeningTwo:
         assert git.reset_to == ["abc123"] and len(sent) == 1
 
 
-def test_an_agent_that_crashes_mid_round_leaves_the_checkout_as_it_was(tmp_path: Path) -> None:
+def test_an_agent_that_crashes_mid_round_never_touches_the_checkout(tmp_path: Path) -> None:
     forge, git = world(readiness(concerns=OPEN_CONCERN))
 
     def agent(task: RoundTask) -> None:
-        git.head_value = "def456"
+        git.sandbox_head = "def456"
         raise ForgeError("timed out")
 
     result, _ = run(forge, git, tmp_path, agent)
 
     assert result.outcome == "stopped" and "timed out" in result.detail
-    assert git.reset_to == ["abc123"]
+    assert git.forwarded == [] and git.reset_to == []
+
+
+class TestSandboxedRound:
+    def test_each_round_works_in_a_sandbox_cut_from_the_pull_requests_head_and_closes_it(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+        boxes = FakeSandboxes(tmp_path)
+
+        run(forge, git, tmp_path, fixing_agent(git), sandboxes=boxes)
+
+        assert boxes.refs == ["abc123"] and boxes.closed == 1
+
+    def test_the_agent_is_started_in_the_sandbox(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        seen: list[Path] = []
+
+        def agent(task: RoundTask) -> None:
+            seen.append(task.cwd)
+
+        run(forge, git, tmp_path, agent)
+
+        assert seen == [tmp_path / "box"]
+
+    def test_the_sandbox_is_closed_even_when_the_agent_fails(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        boxes = FakeSandboxes(tmp_path)
+
+        def agent(task: RoundTask) -> None:
+            raise ForgeError("timed out")
+
+        run(forge, git, tmp_path, agent, sandboxes=boxes)
+
+        assert boxes.closed == 1
+
+    def test_commits_are_applied_to_the_checkout_only_after_the_checks_pass(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+
+        run(forge, git, tmp_path, fixing_agent(git, new_head="def456"))
+
+        assert git.forwarded == ["def456"]
+
+    def test_commits_that_do_not_descend_from_the_round_start_are_refused_and_nothing_is_posted(
+        self, tmp_path: Path
+    ) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.ff_error = ForgeError("not a fast-forward")
+
+        result, sent = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "not a fast-forward" in result.detail
+        assert forge.upserted == [] and git.pushes == 0 and len(sent) == 1

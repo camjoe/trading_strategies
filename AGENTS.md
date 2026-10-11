@@ -40,12 +40,14 @@ conversation.
   it also commits the removal of that plan file and its index row. It never changes a path in
   `scripts/forge/guarded_paths.py` (a round that does is undone), writes a `Decision` line, ticks a box,
   edits a finding, force-pushes, touches another branch, opens or marks ready a pull request, labels, or
-  merges. The agent it starts is a guardrail, not a sandbox: it runs on the owner's machine under the
-  owner's account, with GitHub tokens and the owner's git and `gh` configuration withheld, only the `file`
-  git transport, and tool permissions that deny pushing, resetting, `gh`, and writes under `.git/`. The
-  loop checks the round's committed, uncommitted, and ignored files and the new comment body, then posts
-  and pushes. It has the same public-repository limits as `pr ready`. Starting it on a schedule or from a
-  trigger, or changing the loop, the guarded-path list, or this section, needs the owner's yes.
+  merges. The agent it starts works in a throwaway clone of the repository with its own virtual
+  environment and no usable remote, and only commits that pass the loop's path check and comment-body
+  check ever reach the owner's checkout, which then posts and pushes. That isolates the repository, not
+  the machine: the agent still runs as the owner, with GitHub tokens and the owner's git and `gh`
+  configuration withheld and tool permissions that deny pushing, resetting, and `gh`, but code it writes
+  and runs can reach the rest of the filesystem and the network. It has the same public-repository limits
+  as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop, the guarded-path
+  list, or this section, needs the owner's yes.
 
 ## Python environment
 

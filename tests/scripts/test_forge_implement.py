@@ -5,7 +5,7 @@ import pytest
 
 from scripts.forge.base import ForgeError
 from scripts.forge.implement import ImplementResult, ImplementTask, run_implement_plan
-from tests.scripts.test_forge import StubForge
+from tests.scripts.test_forge import FakeSandboxes, StubForge
 
 PLAN = "# Plan: add the thing\n\nStatus: drafted 2026-10-10. Not started.\n\n## Goal\nDo it.\n"
 README = (
@@ -22,8 +22,9 @@ class FakeGit:
         self.changed: list[str] = []
         self.branch_error: ForgeError | None = None
         self.committed: list[tuple[list[str], str]] = []
-        self.dirty: list[str] = []
-        self.ignored: list[str] = []
+        self.sandbox_head: str | None = None
+        self.forwarded: list[str] = []
+        self.ff_error: ForgeError | None = None
         self.discarded: list[str] = []
         self.on_base = True
         self.switched: list[str] = []
@@ -60,15 +61,18 @@ class FakeGit:
             raise self.push_new_error
         self.calls.append(f"push-new {name}")
 
-    def dirty_paths(self) -> list[str]:
-        return self.dirty
+    def import_commits(self, source: Path) -> str:
+        head, self.sandbox_head = self.sandbox_head or self.head_value, None
+        return head
 
-    def ignored_changes(self, since: float) -> list[str]:
-        return self.ignored
+    def fast_forward(self, sha: str) -> None:
+        if self.ff_error:
+            raise self.ff_error
+        self.forwarded.append(sha)
+        self.head_value = sha
 
     def discard_changes(self, sha: str) -> None:
         self.discarded.append(sha)
-        self.dirty = []
 
     def exists_on(self, ref: str, relative: str) -> bool:
         return self.on_base
@@ -99,6 +103,12 @@ class Setup:
         self.sent: list[tuple[str, str, dict[str, object]]] = []
         self.tasks: list[ImplementTask] = []
         self.gate_result = (True, "ok")
+        self.sandboxes = FakeSandboxes(self.work)
+        self.gate_runs: list[Path] = []
+
+    def _gate(self, cwd: Path) -> tuple[bool, str]:
+        self.gate_runs.append(cwd)
+        return self.gate_result
 
     def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
         def run(task: ImplementTask) -> None:
@@ -107,7 +117,7 @@ class Setup:
             if fail:
                 raise ForgeError("not logged in")
             if commits:
-                self.git.head_value = "work111"
+                self.git.sandbox_head = "work111"
             if questions:
                 task.questions_file.write_text(questions, encoding="utf-8")
             if summary:
@@ -120,7 +130,8 @@ class Setup:
             self.forge,
             self.git,
             agent or self.agent(),  # type: ignore[arg-type]
-            lambda base: self.gate_result,
+            self.sandboxes,
+            lambda base, cwd: self._gate(cwd),
             lambda subject, message, details: self.sent.append((subject, message, details)),
             self.repo,
             self.work,
@@ -293,7 +304,8 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
-        monkeypatch.setattr(cli_module, "run_gate", lambda base: (True, "ok"))
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
         assert cli_module.main(["implement-plan", "--plan", "plan/nope.md"], setup.forge) == 1
@@ -330,29 +342,6 @@ class TestPickupHardening:
         assert result.outcome == "stopped" and "gh failed" in result.detail
         assert result.pr_number == 42 and len(setup.sent) == 1
 
-    def test_an_uncommitted_edit_to_a_guarded_path_keeps_it_a_draft_and_is_discarded(self, setup: Setup) -> None:
-        setup.git.dirty = ["scripts/checks/repo/review_scope_check.py"]
-
-        result = setup.run()
-
-        assert result.outcome == "needs-owner" and "guarded" in result.detail and setup.forge.ready == []
-        assert setup.git.discarded == ["work111"]
-
-    def test_a_file_git_ignores_that_tools_run_keeps_it_a_draft(self, setup: Setup) -> None:
-        setup.git.ignored = [".venv/Lib/site-packages/sitecustomize.py"]
-
-        result = setup.run()
-
-        assert result.outcome == "needs-owner" and "sitecustomize" in result.detail and setup.forge.ready == []
-
-    def test_any_uncommitted_leftover_blocks_ready_and_is_discarded(self, setup: Setup) -> None:
-        setup.git.dirty = ["notes.txt"]
-
-        result = setup.run()
-
-        assert result.outcome == "needs-owner" and "uncommitted" in result.detail and setup.forge.ready == []
-        assert setup.git.discarded == ["work111"]
-
     def test_a_summary_with_a_mention_or_a_link_is_not_published(self, setup: Setup) -> None:
         setup.run(setup.agent(summary="Thanks @someone, see https://example.test"))
 
@@ -382,21 +371,6 @@ class TestRerunAfterFailures:
 
         assert "remove it by hand" in result.detail and "branch is checked out" in result.detail
 
-    def test_an_agent_that_fails_restores_the_checkout_to_the_claim(self, setup: Setup) -> None:
-        setup.git.dirty = ["half-written.py"]
-
-        result = setup.run(setup.agent(fail=True))
-
-        assert result.outcome == "stopped" and setup.git.discarded == ["start000"]
-
-    def test_leftover_files_are_discarded_even_when_the_agent_asks_a_question(self, setup: Setup) -> None:
-        setup.git.dirty = ["scratch.txt"]
-
-        result = setup.run(setup.agent(questions="Which tickers?"))
-
-        assert result.outcome == "needs-owner" and "Which tickers?" in result.detail
-        assert setup.git.discarded == ["work111"]
-
     def test_a_question_is_recorded_and_commits_pushed_even_when_a_guarded_path_was_touched(
         self, setup: Setup
     ) -> None:
@@ -415,9 +389,37 @@ class TestRerunAfterFailures:
 
         assert result.outcome == "needs-owner" and "push" in setup.git.calls and setup.forge.ready == []
 
-    def test_a_changed_ignored_file_is_reported_as_not_restorable(self, setup: Setup) -> None:
-        setup.git.ignored = [".claude/settings.local.json"]
+
+class TestSandboxedPickup:
+    def test_the_agent_works_in_a_sandbox_cut_from_the_claim_commit_and_it_is_closed(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.sandboxes.refs == ["start000"] and setup.sandboxes.closed == 1
+
+    def test_the_gate_runs_inside_the_sandbox_never_in_the_checkout(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.gate_runs == [setup.work / "box"]
+
+    def test_the_agent_is_started_in_the_sandbox(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.tasks[0].cwd == setup.work / "box"
+
+    def test_an_agent_failure_closes_the_sandbox_and_never_touches_the_checkout(self, setup: Setup) -> None:
+        result = setup.run(setup.agent(fail=True))
+
+        assert result.outcome == "stopped" and setup.sandboxes.closed == 1
+        assert setup.git.forwarded == [] and setup.git.discarded == []
+
+    def test_commits_are_applied_to_the_checkout_and_pushed_only_from_the_fetched_copy(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.git.forwarded == ["work111"] and setup.git.calls.count("push") == 1
+
+    def test_commits_that_do_not_descend_from_the_claim_are_refused_and_the_run_stops(self, setup: Setup) -> None:
+        setup.git.ff_error = ForgeError("not a fast-forward")
 
         result = setup.run()
 
-        assert result.outcome == "needs-owner" and "cannot be restored" in result.detail
+        assert result.outcome == "stopped" and "not a fast-forward" in result.detail and setup.forge.ready == []

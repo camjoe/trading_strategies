@@ -65,7 +65,8 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `implement.py` | The plan pickup: claim, agent, push, gate, path check, and the decision to leave draft |
 | `pipeline.py` | The join: pickup, then the wait for the first review, then the fixer loop, with one final notification |
 | `fix_loop.py` | The fixer loop: one round, its checks, the post and push, the wait for the next pass |
-| `local.py` | The owner's real git, headless `claude` runner, and email notifier behind the loop |
+| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back |
+| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits), the headless `claude` runner with a scrubbed environment, the gate runner, and the email notifier |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

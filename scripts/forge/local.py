@@ -10,8 +10,9 @@ from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
-from common.git import get_repo_root, git_output, split_nul, uncommitted_paths
+from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError
+from scripts.forge.sandbox import venv_python
 from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
@@ -51,12 +52,14 @@ _DENIED_TOOLS = ",".join(
 
 _SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|^SSH_AUTH_SOCK$", re.IGNORECASE)
 _KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
-_SENSITIVE_IGNORED_NAMES = ("sitecustomize.py", "usercustomize.py")
 
 
 class HasPrompt(Protocol):
     @property
     def prompt(self) -> str: ...
+
+    @property
+    def cwd(self) -> Path: ...
 
 
 class LocalGit:
@@ -84,38 +87,6 @@ class LocalGit:
         """Every path changed from *base* to *head*, with renames reported as a delete and an add."""
         return split_nul(self._git("diff", "--name-only", "--no-renames", "-z", f"{base}..{head}"))
 
-    def dirty_paths(self) -> list[str]:
-        """Tracked files with uncommitted changes and untracked files that git does not ignore."""
-        try:
-            return uncommitted_paths(self._root)
-        except subprocess.CalledProcessError as exc:
-            raise ForgeError(f"git status failed: {(exc.stderr or '').strip()}") from exc
-
-    def ignored_changes(self, since: float) -> list[str]:
-        """Sensitive files git ignores that changed after *since* (epoch seconds).
-
-        These are files the gate or the owner's tools may run: anything under ``.venv/`` except bytecode,
-        ``.claude/``, env files, ``.pth`` files, and ``sitecustomize``/``usercustomize`` modules.
-        """
-        listed = split_nul(self._git("ls-files", "--others", "--ignored", "--exclude-standard", "-z"))
-        changed: list[str] = []
-        for relative in listed:
-            normalized = relative.replace("\\", "/")
-            name = normalized.rsplit("/", 1)[-1]
-            sensitive = (
-                normalized.startswith(".claude/")
-                or name.startswith(".env")
-                or name in _SENSITIVE_IGNORED_NAMES
-                or name.endswith(".pth")
-                or (normalized.startswith(".venv/") and "__pycache__" not in normalized and not name.endswith(".pyc"))
-            )
-            try:
-                if sensitive and (self._root / relative).stat().st_mtime > since:
-                    changed.append(relative)
-            except OSError:
-                continue
-        return changed
-
     def current_branch(self) -> str:
         return self._git("branch", "--show-current").strip()
 
@@ -124,6 +95,15 @@ class LocalGit:
 
     def delete_branch(self, name: str) -> None:
         self._git("branch", "-D", name)
+
+    def import_commits(self, source: Path) -> str:
+        """Fetch HEAD of the repository at *source* into this one and return its commit; nothing is checked out."""
+        self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
+        return self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
+
+    def fast_forward(self, sha: str) -> None:
+        """Move the current branch to *sha*, which must descend from it."""
+        self._git("merge", "--ff-only", "--quiet", sha)
 
     def exists_on(self, ref: str, relative: str) -> bool:
         """Whether *relative* exists in the tree at *ref*."""
@@ -232,7 +212,7 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                 input=task.prompt,
                 text=True,
                 encoding="utf-8",
-                cwd=root,
+                cwd=task.cwd,
                 env=agent_environment(os.environ, Path(scratch), LocalGit(root).identity()),
                 capture_output=True,
                 timeout=AGENT_TIMEOUT_SECONDS,
@@ -278,11 +258,11 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
         print(f"No email was sent: {reason}.", file=sys.stderr)
 
 
-def run_gate(base: str) -> tuple[bool, str]:
-    """Run the pull-request gate against *base*; return whether it passed and the end of its output."""
+def run_gate(base: str, cwd: Path) -> tuple[bool, str]:
+    """Run the pull-request gate against *base* in the checkout at *cwd*, with that checkout's own interpreter."""
     completed = subprocess.run(
-        [sys.executable, "-m", "scripts.run_checks", "pr", "--base", base],
-        cwd=get_repo_root(),
+        [str(venv_python(cwd / ".venv")), "-m", "scripts.run_checks", "pr", "--base", base],
+        cwd=cwd,
         capture_output=True,
         text=True,
         encoding="utf-8",

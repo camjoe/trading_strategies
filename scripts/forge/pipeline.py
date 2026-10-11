@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.fix_loop import Agent as FixAgent, Git, LoopResult, run_fix_loop, wait_for_next_pass
@@ -20,10 +21,11 @@ from scripts.forge.implement import (
     PlanGit,
     run_implement_plan,
 )
+from scripts.forge.sandbox import SandboxFactory
 from scripts.forge.service import resolve_authors
 
 
-class PipelineGit(PlanGit, Git):
+class PipelineGit(PlanGit, Git, Protocol):
     """What both controllers need from git."""
 
 
@@ -39,6 +41,7 @@ def run_pipeline(
     git: PipelineGit,
     implement_agent: ImplementAgent,
     fix_agent: FixAgent,
+    sandbox: SandboxFactory,
     gate: Gate,
     notify: Notifier,
     repo_root: Path,
@@ -59,7 +62,7 @@ def run_pipeline(
     """Implement *plan_file*; when its pull request leaves draft, carry on into the fixer loop."""
     chaining = fix and mark_ready
     implemented = run_implement_plan(
-        forge, git, implement_agent, gate, notify, repo_root, work_dir, plan_file, depends_ok, base, mark_ready,
+        forge, git, implement_agent, sandbox, gate, notify, repo_root, work_dir, plan_file, depends_ok, base, mark_ready,
         quiet_when_ready=chaining,
     )  # fmt: skip
     if not chaining or implemented.outcome != "ready-for-review" or implemented.pr_number is None:
@@ -76,7 +79,7 @@ def run_pipeline(
         return PipelineResult(implemented, None, stopped)
 
     fixed = run_fix_loop(
-        forge, git, fix_agent, notify, work_dir, number, authors, max_rounds, wait_seconds, interval_seconds,
+        forge, git, fix_agent, sandbox, notify, work_dir, number, authors, max_rounds, wait_seconds, interval_seconds,
         repo_root, sleep, clock,
     )  # fmt: skip
     return PipelineResult(implemented, fixed, fixed.detail)

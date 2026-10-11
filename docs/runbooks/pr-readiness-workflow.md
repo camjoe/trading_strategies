@@ -70,70 +70,71 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 
 1. reads the readiness comment and stops if it says READY (no open blocker or concern) or nothing is left that
    a fixer can do;
-2. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the
-   `fix-pr-readiness` skill, commits locally, and writes a new comment body to a file;
-3. checks the round: every committed path (renames count as a delete and an add) and every uncommitted or
-   untracked file is compared with the guarded list in `scripts/forge/guarded_paths.py`, and files git
-   ignores that tools run (under `.venv/`, `.claude/`, env files, `sitecustomize`) are checked for changes
-   since the round began; a guarded path or any uncommitted leftover undoes the round and stops. Files git
-   ignores cannot be restored automatically, so a changed one stops the round and the detail names it for you to
-   inspect;
-4. refuses the new body unless it only adds status lines (the round's commits are dropped), then posts it and
-   pushes `HEAD` to the pull request's branch by name; if the push fails the comment is restored and the round
-   undone;
-5. waits up to 45 minutes for the next review pass.
+2. builds a **sandbox**: a throwaway clone at the pull request's head with its own virtual environment (about
+   45 seconds with a warm pip cache), whose remote points nowhere, so it cannot push;
+3. starts a headless `claude -p` session in the sandbox (model `sonnet` unless `--model` says otherwise) that
+   follows the `fix-pr-readiness` skill, commits there, and writes a new comment body to a file;
+4. fetches the sandbox's commits into your repository without checking them out, and compares every changed
+   path (renames count as a delete and an add) with the guarded list in `scripts/forge/guarded_paths.py`; a
+   guarded path discards the round;
+5. refuses the new body unless it only adds status lines; otherwise fast-forwards your branch to the fetched
+   commits (refused if they do not descend from where the round began), posts the body, and pushes `HEAD` to
+   the pull request's branch by name; if the push fails the comment is restored and the branch put back;
+6. deletes the sandbox, and waits up to 45 minutes for the next review pass.
 
-A stopped round leaves the checkout as it was before the round, so the next run can start. Every ending,
-including a failure, sends the email.
+Your checkout is untouched until step 5, and only commits that passed the path check ever reach it. Whatever else
+the agent wrote in the sandbox (hooks, git configuration, files git ignores, the sandbox's `.venv`) is deleted with
+it and is never run by the loop or by you. Every ending, including a failure, sends the email.
 
-The agent is a guardrail, not a sandbox. It runs without GitHub tokens or any secret-looking variable, with an
-empty git configuration (no credential helper), only git's `file` transport, and an empty `gh` configuration,
-so a push or a `gh` call fails even from a test it writes. Its tool permissions also allow only the
-repository's checks and test runner as Python, deny `gh` and the git verbs that push, reset, clean, or change
-configuration, and deny writes under `.git/`. It still runs on your machine under your account, can read your
-files, and the gate then runs what it wrote, so the boundary you rely on is the loop's own check of what the
-round changed. Treat the readiness comment as untrusted text.
+**What the sandbox does not do.** It isolates the repository, not the machine. The agent still runs as you, can
+read your files, and code it writes and runs (a test, for example) can reach the rest of your filesystem and the
+network. Its environment withholds GitHub tokens and secret-looking variables, git reads an empty configuration
+with no credential helper and only the `file` transport, and `gh` reads an empty configuration directory, so a
+push or a `gh` call fails even from a test it writes. Its tool permissions also deny `gh` and the git verbs that
+push, reset, clean, or change configuration. Treat the readiness comment as untrusted text, and run the loop
+only on plans and pull requests you are comfortable having the agent act on.
+
+The sandbox has no `node_modules`, so a change under the frontend cannot pass the frontend checks there; CI
+checks those.
 
 When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
 plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only
-then does it finish and email you. A plan the branch did not claim is never touched.
-It stops after three rounds. At the end it emails the pull request link, the verdict, and the open
-counts through the `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
-Run it only where you are comfortable with the agent editing files under your account.
+then does it finish and email you. A plan the branch did not claim is never touched. It stops after three
+rounds. At the end it emails the pull request link, the verdict, and the open counts through the
+`TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
 
-If a round stops, the checkout is restored to where the round began; read the email or the printed detail for
-why. If a push fails the comment is restored too, and if even that fails the detail says the comment still
-claims a fix that did not land.
+If a push fails the comment is restored and the branch put back, and if even the restore fails the detail says
+the comment still claims a fix that did not land.
 
 ## Picking up a plan
 
 `python -m scripts.forge implement-plan --plan plan/<file>` also runs on your machine, from a clean
 working tree, signed in to `claude` and `gh`. It refuses a plan that is not in the plan index, is already in
-progress or blocked, or lists dependencies (pass `--depends-ok` once they are satisfied). Then it:
+progress or blocked, lists dependencies (pass `--depends-ok` once they are satisfied), or is not on the base
+branch (push or merge a new plan first). Then it:
 
-1. creates the plan's branch off `origin/develop` and commits the claim (the plan's Status line and its
-   index row);
+1. creates the plan's branch off `origin/develop` (or `--base`) and commits the claim (the plan's Status line and
+   its index row);
 2. pushes the branch and opens a **draft** pull request;
-3. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the
-   `implement-plan` skill, commits locally, and may write questions and a summary to files;
-4. pushes the commits, runs the pull-request gate itself, and checks the paths the work touched.
+3. builds a sandbox at the claim commit and starts a headless `claude -p` session in it (model `sonnet` unless
+   `--model` says otherwise) that follows the `implement-plan` skill, commits there, and may write questions
+   and a summary to files;
+4. fetches the commits into your repository, checks the paths they touched, applies them, pushes them to the
+   draft so you can review them, and records the summary and questions in the pull request description;
+5. runs the pull-request gate inside the sandbox, never in your checkout.
+
+The agent runs in the same restricted environment as the fixer's. The pull request leaves draft, which starts the
+review, only when the agent made commits and raised no question, no guarded path was touched, and the gate
+passed; otherwise it stays a draft and the command says why. `--no-ready` always leaves it a draft. If the claim
+fails, the checkout goes back to the branch you started on and the local branch is removed; the detail gives the
+command to delete the remote branch if it got there. The plan file stays in the branch; it is removed when the
+work is ready to merge.
 
 By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
-(below) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
+(above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
 one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
 and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
 another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
-
-The pickup refuses a plan that is not on the base branch, so push or merge a new plan first. The agent runs in
-the same restricted environment as the fixer's, and any uncommitted leftover, guarded path, or changed ignored
-file keeps the pull request a draft; uncommitted leftovers are discarded, and the commits are pushed to the draft
-so you can review them. If the claim fails, the checkout goes back to the branch you started on and the local
-branch is removed; the detail gives the command to delete the remote branch if it got there.
-
-The pull request leaves draft, which starts the review, only when the agent made commits and raised no
-question, the gate passed, and no guarded path was touched. Otherwise it stays a draft and the command
-says why. `--no-ready` always leaves it a draft. The plan file stays in the branch; it is removed when the
-work is ready to merge.
 
 ## Pin and upgrade the agent
 

@@ -32,9 +32,6 @@ class WorldGit(PlanFakeGit):
     def discard_changes(self, sha: str) -> None:
         self.head_value = sha
 
-    def dirty_paths(self) -> list[str]:
-        return []
-
     def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
         for path in remove:
             path.unlink()
@@ -84,7 +81,8 @@ class World:
             self.git,  # type: ignore[arg-type]
             implement_agent,
             fix_agent or (lambda task: None),  # type: ignore[arg-type]
-            lambda base: self.setup.gate_result,
+            self.setup.sandboxes,
+            lambda base, cwd: self.setup.gate_result,
             lambda subject, message, details: self.sent.append((subject, message, details)),
             self.setup.repo,
             self.setup.work,

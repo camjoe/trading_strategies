@@ -21,6 +21,7 @@ from scripts.forge.github import GitHubForge
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
+from scripts.forge.sandbox import SandboxFactory, sandbox
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
 
@@ -199,6 +200,11 @@ def _loop_authors(args: argparse.Namespace, forge: Forge) -> list[str]:
         return [REVIEW_BOT]
 
 
+def _sandbox_factory(git: LocalGit) -> SandboxFactory:
+    """Sandboxes cloned from this repository, whose commits carry the owner's identity."""
+    return functools.partial(sandbox, get_repo_root(), identity=git.identity())
+
+
 def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
     git = LocalGit()
     git.require_clean_tree()
@@ -207,6 +213,7 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
             forge,
             git,
             functools.partial(run_claude_agent, model=args.model),
+            _sandbox_factory(git),
             email_notifier,
             Path(work_dir),
             args.pr,
@@ -224,11 +231,13 @@ def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
     repo_root = get_repo_root()
     with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
         agent = functools.partial(run_claude_agent, model=args.model)
+        git = LocalGit()
         result = run_pipeline(
             forge,
-            LocalGit(),
+            git,
             agent,
             agent,
+            _sandbox_factory(git),
             run_gate,
             email_notifier,
             repo_root,

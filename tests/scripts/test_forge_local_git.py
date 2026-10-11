@@ -91,15 +91,6 @@ def test_a_renamed_file_is_reported_as_both_its_old_and_new_path(repo: Path) -> 
     assert sorted(local.changed_paths(start, local.head())) == ["elsewhere.py", "guarded/a.py"]
 
 
-def test_dirty_paths_lists_modified_and_untracked_files_and_nothing_when_clean(repo: Path) -> None:
-    local = LocalGit(repo)
-    assert local.dirty_paths() == []
-    (repo / "a.txt").write_text("changed", encoding="utf-8")
-    (repo / "new.txt").write_text("n", encoding="utf-8")
-
-    assert sorted(local.dirty_paths()) == ["a.txt", "new.txt"]
-
-
 def test_discard_changes_drops_later_commits_edits_and_untracked_files(repo: Path) -> None:
     local = LocalGit(repo)
     start = local.head()
@@ -110,7 +101,7 @@ def test_discard_changes_drops_later_commits_edits_and_untracked_files(repo: Pat
 
     local.discard_changes(start)
 
-    assert local.head() == start and local.dirty_paths() == []
+    assert local.head() == start and git(repo, "status", "--porcelain") == ""
     assert not (repo / "c.txt").exists() and not (repo / "stray.txt").exists()
 
 
@@ -159,3 +150,51 @@ def test_discarding_changes_does_not_touch_ignored_files(repo: Path) -> None:
     local.discard_changes(local.head())
 
     assert (repo / "secret.txt").read_text(encoding="utf-8") == "planted"
+
+
+def test_import_commits_fetches_a_clones_head_without_touching_the_checkout(repo: Path, tmp_path: Path) -> None:
+    clone = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(repo), str(clone))
+    git(clone, "config", "user.name", "t")
+    git(clone, "config", "user.email", "t@t")
+    (clone / "new.txt").write_text("n", encoding="utf-8")
+    git(clone, "add", "new.txt")
+    git(clone, "commit", "-q", "-m", "in the clone")
+    local = LocalGit(repo)
+    before = local.head()
+
+    imported = local.import_commits(clone)
+
+    assert imported == git(clone, "rev-parse", "HEAD") and local.head() == before
+    assert not (repo / "new.txt").exists()
+    assert local.changed_paths(before, imported) == ["new.txt"]
+
+
+def test_fast_forward_applies_imported_commits_and_refuses_ones_that_do_not_descend(
+    repo: Path, tmp_path: Path
+) -> None:
+    clone = tmp_path / "clone"
+    git(tmp_path, "clone", "-q", str(repo), str(clone))
+    git(clone, "config", "user.name", "t")
+    git(clone, "config", "user.email", "t@t")
+    (clone / "new.txt").write_text("n", encoding="utf-8")
+    git(clone, "add", "new.txt")
+    git(clone, "commit", "-q", "-m", "in the clone")
+    local = LocalGit(repo)
+    imported = local.import_commits(clone)
+
+    local.fast_forward(imported)
+
+    assert local.head() == imported and (repo / "new.txt").exists()
+
+    (repo / "diverge.txt").write_text("d", encoding="utf-8")
+    git(repo, "add", "diverge.txt")
+    git(repo, "commit", "-q", "-m", "diverge")
+    git(clone, "reset", "-q", "--hard", "HEAD~1")
+    (clone / "other.txt").write_text("o", encoding="utf-8")
+    git(clone, "add", "other.txt")
+    git(clone, "commit", "-q", "-m", "elsewhere")
+    elsewhere = local.import_commits(clone)
+
+    with pytest.raises(ForgeError, match="merge failed"):
+        local.fast_forward(elsewhere)

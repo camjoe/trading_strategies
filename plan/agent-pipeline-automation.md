@@ -363,6 +363,19 @@ whose body is refused, is undone; the push names the pull request's branch and a
 comment; every ending notifies; READY needs no open blocker or concern; and the agent's tool permissions are
 narrowed to the repository's checks, with the docs describing them as a guardrail rather than a sandbox.
 
+## Sandbox for the agents (2026-10-11)
+Review passes 9 and 10 kept finding ways around checks run on the owner's real checkout after the agent had
+written to it (planted hooks, git configuration, gitignored files, crafted bytecode). The owner chose to
+isolate the agent instead of adding more checks. Both agent stages now work in a throwaway clone with its own
+virtual environment and a remote that points nowhere (`sandbox.py`); the controller fetches the clone's commits,
+checks the paths they touched and the comment body, fast-forwards the owner's branch only if they descend from
+where the round began, and pushes with the owner's credentials. The pickup's gate also runs in the clone.
+The checks on the checkout for uncommitted and ignored files were removed as moot. The isolation covers the
+repository, not the machine, and the docs and the `AGENTS.md` grant say so. A full sandbox build took about
+45 seconds with a warm pip cache. Known gaps: no `node_modules` in the clone, so frontend changes cannot pass
+the frontend checks there; and the new tool permissions and environment have not run with a real `claude`
+session yet.
+
 ## Stage 1 build and live test (2026-10-10)
 Built: `implement-plan --plan plan/<file>` (controller `implement.py`, plan reading and claiming in
 `plans.py`, skill `implement-plan`). It refuses a plan that is unlisted, in progress, blocked, or has

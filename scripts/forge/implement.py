@@ -6,7 +6,6 @@ paths the work touched, and only then takes the pull request out of draft. Anyth
 leaves the pull request a draft and tells the owner.
 """
 
-import time
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +15,7 @@ from scripts.forge.base import Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
+from scripts.forge.sandbox import SandboxFactory
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -24,8 +24,8 @@ class PlanGit(Protocol):
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
     def push(self, branch: str) -> None: ...
-    def dirty_paths(self) -> list[str]: ...
-    def ignored_changes(self, since: float) -> list[str]: ...
+    def import_commits(self, source: Path) -> str: ...
+    def fast_forward(self, sha: str) -> None: ...
     def discard_changes(self, sha: str) -> None: ...
     def exists_on(self, ref: str, relative: str) -> bool: ...
     def current_branch(self) -> str: ...
@@ -44,10 +44,11 @@ class ImplementTask:
     plan_file: str
     questions_file: Path
     summary_file: Path
+    cwd: Path
 
 
 Agent = Callable[[ImplementTask], None]
-Gate = Callable[[str], tuple[bool, str]]
+Gate = Callable[[str, Path], tuple[bool, str]]
 Notifier = Callable[[str, str, dict[str, object]], None]
 
 
@@ -66,7 +67,8 @@ def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, su
         [
             "Run the `implement plan` workflow from .ai/skills/implement-plan/SKILL.md, unattended.",
             f"The plan is plan/{plan_file}; you are on branch {branch}, started from {base}.",
-            "Commit locally in logical commits, each with its tests. Do not push, do not use gh, and do not",
+            "You are in a throwaway clone of the repository with its own .venv. Commit locally in logical commits,",
+            "each with its tests. Do not push, do not use gh, and do not",
             "edit the plan's Status line or the plan index.",
             "If the plan is ambiguous, or it is unclear whether something is public or private, write the",
             f"questions to {questions} and leave that part undone.",
@@ -80,6 +82,7 @@ def run_implement_plan(
     forge: Forge,
     git: PlanGit,
     agent: Agent,
+    sandbox: SandboxFactory,
     gate: Gate,
     notify: Notifier,
     repo_root: Path,
@@ -95,7 +98,7 @@ def run_implement_plan(
     With *quiet_when_ready*, a pull request taken out of draft sends no notification, because a caller
     that goes on to fix it sends the final one.
     """
-    result = _run(forge, git, agent, gate, repo_root, work_dir, plan_file, depends_ok, base, mark_ready)
+    result = _run(forge, git, agent, sandbox, gate, repo_root, work_dir, plan_file, depends_ok, base, mark_ready)
     if quiet_when_ready and result.outcome == "ready-for-review":
         return result
     notify(
@@ -110,6 +113,7 @@ def _run(
     forge: Forge,
     git: PlanGit,
     agent: Agent,
+    sandbox: SandboxFactory,
     gate: Gate,
     repo_root: Path,
     work_dir: Path,
@@ -171,7 +175,19 @@ def _run(
 
     try:
         return _implement(
-            forge, git, agent, gate, work_dir, plan_file, plan.branch, base, mark_ready, claim_body, pr.number, finish
+            forge,
+            git,
+            agent,
+            sandbox,
+            gate,
+            work_dir,
+            plan_file,
+            plan.branch,
+            base,
+            mark_ready,
+            claim_body,
+            pr.number,
+            finish,
         )
     except ForgeError as exc:
         return finish("stopped", f"The run failed after the pull request was opened: {exc}")
@@ -193,6 +209,7 @@ def _implement(
     forge: Forge,
     git: PlanGit,
     agent: Agent,
+    sandbox: SandboxFactory,
     gate: Gate,
     work_dir: Path,
     plan_file: str,
@@ -203,43 +220,41 @@ def _implement(
     number: int,
     finish: Callable[[Outcome, str], ImplementResult],
 ) -> ImplementResult:
+    """Run the agent in a sandbox, import its commits, and decide whether the pull request may leave draft.
+
+    The agent works in a throwaway clone, so the owner's checkout is untouched until its commits have been
+    fetched; the gate also runs in the clone, never in the owner's checkout.
+    """
     start = git.head()
-    started = time.time()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
     questions.unlink(missing_ok=True)
     summary.unlink(missing_ok=True)
-    try:
-        agent(
-            ImplementTask(implement_prompt(plan_file, branch, base, questions, summary), plan_file, questions, summary)
+    with sandbox(start) as box:
+        task = ImplementTask(
+            implement_prompt(plan_file, branch, base, questions, summary), plan_file, questions, summary, box.path
         )
-    except ForgeError as exc:
-        git.discard_changes(start)
-        return finish("stopped", f"The agent failed and the checkout was restored: {exc}")
-
-    end = git.head()
-    leftover, ignored = git.dirty_paths(), git.ignored_changes(started)
-    guarded = guarded_paths_touched([*(git.changed_paths(start, end) if end != start else []), *leftover])
-    if leftover:
-        git.discard_changes(end)
-    if end != start:
-        git.push(branch)
-    asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-    _record_on_pull_request(forge, number, claim_body, summary, asked)
-    if asked:
-        return finish("needs-owner", "The agent has questions:\n" + asked)
-    if end == start:
-        return finish("no-progress", "The agent made no commits.")
-    if guarded or ignored:
-        listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
-        note = " Files git ignores cannot be restored here; inspect them." if ignored else ""
-        return finish(
-            "needs-owner", f"The work touches guarded paths, so the pull request stays a draft: {listed}.{note}"
-        )
-    if leftover:
-        return finish(
-            "needs-owner", "The agent left uncommitted changes, which were discarded: " + ", ".join(leftover)
-        )
-    passed, tail = gate(f"origin/{base}")
+        try:
+            agent(task)
+        except ForgeError as exc:
+            return finish("stopped", f"The agent failed: {exc}")
+        end = git.import_commits(box.path)
+        committed = end != start
+        guarded = guarded_paths_touched(git.changed_paths(start, end) if committed else [])
+        if committed:
+            git.fast_forward(end)
+            git.push(branch)
+        asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
+        _record_on_pull_request(forge, number, claim_body, summary, asked)
+        if asked:
+            return finish("needs-owner", "The agent has questions:\n" + asked)
+        if not committed:
+            return finish("no-progress", "The agent made no commits.")
+        if guarded:
+            return finish(
+                "needs-owner",
+                "The work touches guarded paths, so the pull request stays a draft: " + "; ".join(guarded),
+            )
+        passed, tail = gate(f"origin/{base}", box.path)
     if not passed:
         return finish("needs-owner", "The gate is red:\n" + tail)
     if not mark_ready:

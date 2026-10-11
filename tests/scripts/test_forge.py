@@ -818,3 +818,27 @@ class TestPublishProblems:
         from scripts.forge.readiness import publish_problems
 
         assert publish_problems(text) == []
+
+
+class FakeSandboxes:
+    """Stands in for the sandbox factory: records the commit each sandbox was cut from and when it closed."""
+
+    def __init__(self, base: Path) -> None:
+        self.base = base
+        self.refs: list[str] = []
+        self.closed = 0
+
+    def __call__(self, ref: str):  # type: ignore[no-untyped-def]
+        from contextlib import contextmanager
+
+        from scripts.forge.sandbox import Sandbox
+
+        @contextmanager
+        def opened():  # type: ignore[no-untyped-def]
+            self.refs.append(ref)
+            try:
+                yield Sandbox(self.base / "box")
+            finally:
+                self.closed += 1
+
+        return opened()
