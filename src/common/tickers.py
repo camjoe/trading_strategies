@@ -75,4 +75,6 @@ def unique_in_order(items: list[str]) -> list[str]:
 
 def chunked(items: list[str], size: int) -> list[list[str]]:
     """Split *items* into consecutive lists of at most *size* items."""
+    if size < 1:
+        raise ValueError("size must be positive")
     return [items[start : start + size] for start in range(0, len(items), size)]

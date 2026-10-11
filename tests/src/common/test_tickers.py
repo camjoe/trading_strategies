@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from common.tickers import (
+    chunked,
     load_ticker_categories,
     load_tickers_from_file,
     parse_ticker_tokens,
@@ -96,3 +97,19 @@ class TestUniqueInOrder:
 
     def test_keeps_order_when_there_are_no_duplicates(self) -> None:
         assert unique_in_order(["TSLA", "AAPL", "NVDA"]) == ["TSLA", "AAPL", "NVDA"]
+
+
+class TestChunked:
+    def test_splits_evenly(self) -> None:
+        assert chunked(["A", "B", "C", "D"], 2) == [["A", "B"], ["C", "D"]]
+
+    def test_last_chunk_may_be_shorter(self) -> None:
+        assert chunked(["A", "B", "C"], 2) == [["A", "B"], ["C"]]
+
+    def test_empty_list(self) -> None:
+        assert chunked([], 3) == []
+
+    @pytest.mark.parametrize("size", [0, -1])
+    def test_rejects_size_below_one(self, size: int) -> None:
+        with pytest.raises(ValueError, match="size must be positive"):
+            chunked(["A"], size)
