@@ -73,7 +73,8 @@ token path in the posting job. It needs `scripts/forge` on `develop`, so it cann
    while. Keep the host path as a fallback only if the owner asks for it.
 4. Repeat for `run_claude_agent` (phase 2).
 5. Add the Dockerfile and its directory to `guarded_paths.py` (an agent must not change its own jail).
-6. Update `AGENTS.md` (the standing authorization wording), the runbook, and the security notes.
+6. Update `AGENTS.md` (the standing authorization wording), the runbook (including the workflow's job layout
+   after phase 3), and the security notes.
 7. Phase 3 after the merge.
 
 ## Tests and verification
@@ -89,6 +90,8 @@ token path in the posting job. It needs `scripts/forge` on `develop`, so it cann
 1. Open egress or an allowlisting proxy for the agent container (phase 2).
 2. Whether the gate runs in a container by default once it works, or stays opt-in.
 3. Whether to keep a host fallback for people without Docker.
+4. Approval to change the `AGENTS.md` standing-authorization wording (step 6) and `.github/workflows/pr-readiness.yml`
+   (phase 3); both are guarded and need the owner's yes when the work starts.
 
 ## Risks and unverified items
 - Docker Desktop on Windows: bind-mount speed, line endings, file ownership, and git's `safe.directory`

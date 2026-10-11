@@ -214,9 +214,22 @@ def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_clau
     assert scripts and all(".venv/bin/python" not in script for script in scripts)
 
 
-def test_the_agent_is_told_not_to_poll_for_reviewers_and_the_monitor_tool_is_denied() -> None:
+def _agent_step() -> str:
     review = _job("review")
-    denied = next(line for line in review.splitlines() if "DENIED_TOOLS:" in line)
+    start = review.index("- name: Run pr ready")
+    return review[start : review.index("- name:", start + 10)]
 
-    assert "Monitor" in denied.split("DENIED_TOOLS:")[1].split(",")
-    assert "do not poll" in review and "subagent_type Plan" in review
+
+def test_the_agents_denied_tools_include_monitor_and_are_passed_to_the_claude_call() -> None:
+    step = _agent_step()
+    env_line = next(line for line in step.splitlines() if line.strip().startswith("DENIED_TOOLS:"))
+
+    assert "Monitor" in env_line.split("DENIED_TOOLS:")[1].strip().split(",")
+    assert '--disallowedTools "$DENIED_TOOLS"' in step.split("run: |")[1]
+
+
+def test_the_prompt_tells_the_agent_to_use_plan_subagents_and_not_to_poll() -> None:
+    review = _job("review")
+    prompt = review[review.index("- name: Build the prompt") : review.index("- name: Run pr ready")]
+
+    assert "subagent_type Plan" in prompt and "do not poll" in prompt and "sleep loops, Monitor" in prompt
