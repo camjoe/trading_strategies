@@ -122,7 +122,7 @@ branch (push or merge a new plan first). Then it:
    `--model` says otherwise) that follows the `implement-plan` skill, commits there, and may write questions
    and a summary to files;
 4. fetches the commits into your repository, checks the paths they touched, applies them, pushes them to the
-   draft so you can review them, and records the summary and questions in the pull request description;
+   draft so you can review them (even when a guarded path was touched, which keeps the pull request a draft), and records the summary and questions in the pull request description;
 5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
    this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate still runs the
    branch's tests, which are code the agent wrote, as you; it never runs in your checkout. It needs the dev requirements

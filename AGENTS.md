@@ -37,8 +37,8 @@ conversation.
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
   lines to its readiness comment, and email the owner the pull request link, the verdict, and the open
   counts, without asking. When the comment says READY and `implement-plan` claimed a plan for the branch,
-  it also commits the removal of that plan file and its index row. It never changes a path in
-  `scripts/forge/guarded_paths.py` (a round that does is undone), writes a `Decision` line, ticks a box,
+  it also commits the removal of that plan file and its index row. In a fixer round it never changes a
+  path in `scripts/forge/guarded_paths.py` (a round that does is undone), writes a `Decision` line, ticks a box,
   edits a finding, force-pushes, touches another branch, opens or marks ready a pull request, labels, or
   merges. The agent it starts works in a throwaway clone of the repository with its own virtual
   environment and no usable remote, and only commits that pass the loop's path check and comment-body
@@ -272,8 +272,10 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
 - `implement plan: <file>` — plan `plan/<file>`, in this session
 - `python -m scripts.forge implement-plan --plan plan/<file>` — the unattended pickup: claims the plan
   with a draft pull request, runs the agent, runs the gate, and takes the pull request out of draft only
-  when the gate passes, no guarded path was touched, and the agent raised no question; it then waits for
-  the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
+  when the gate passes, no guarded path was touched, and the agent raised no question. The agent's
+  commits are pushed to the draft branch even when they touch a guarded path, so the owner can review
+  them there; such a pull request is never taken out of draft by the pickup. When it does leave draft,
+  the command waits for the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
 - Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, that one
   transition out of draft, and the fixer loop that follows within its own standing authorization. A start
   from a schedule or a trigger needs its own standing authorization.
