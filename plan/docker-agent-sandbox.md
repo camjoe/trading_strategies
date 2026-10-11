@@ -60,10 +60,11 @@ exposure; a network policy limits the rest.
   the agent cannot start itself (not designed; would need a tool the agent can call).
 - Same flags as phase 1 except the network. The tool allow and deny lists stay as a second layer.
 
-### Phase 3: run the forge tool from the base branch in the workflow (separate, small)
-After the pipeline branch is merged, `.github/workflows/pr-readiness.yml` should check out the base branch
-for `scripts.forge` and treat the pull request head as data only. This removes pull-request code from the
-token path in the posting job. It needs `scripts/forge` on `develop`, so it cannot start before the merge.
+### Phase 3: run the forge tool from the base branch in the workflow (done in this branch)
+Both jobs of `.github/workflows/pr-readiness.yml` check out the base branch into `trusted` and run every
+`scripts.forge` call from there with `PYTHONPATH=src`; the posting job no longer checks out the pull request or
+builds a virtual environment. Not covered: the agent step still runs the pull request's scope check, and a pull
+request that edits the workflow file itself still runs its own copy (that is how `pull_request` workflows work).
 
 ## Steps
 1. Spike: build the phase 1 image on the owner's Windows machine (Docker Desktop, WSL2) and run the gate on a
