@@ -1,6 +1,7 @@
 # Plan: add is_valid_ticker (throwaway live test of the plan pickup)
 
-Status: drafted 2026-10-10. Throwaway plan for the live test of the plan pickup; delete it afterwards.
+Status: in progress (branch `feature/live-test-valid-ticker`). Before pickup: drafted 2026-10-10.
+Throwaway plan for the live test of the plan pickup; delete it afterwards.
 
 ## Goal
 Add one small pure helper, `is_valid_ticker`, to `src/common/tickers.py` so callers can check a symbol's
