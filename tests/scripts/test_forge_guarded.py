@@ -91,3 +91,19 @@ def test_hook_directories_are_guarded_at_any_depth(path: str) -> None:
 @pytest.mark.parametrize("path", ["Apps/.GitHooks/pre-push", "x/.HUSKY/pre-commit", ".ENV.production", "NOXFILE.PY"])
 def test_mixed_case_hook_directories_and_executed_names_are_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "scripts/__init__.py",
+        "scripts/data_ops/anything.py",
+        "src/common/__init__.py",
+        "src/__init__.py",
+        "tests/sitecustomize.py",
+        "venvs/site/extra.pth",
+        "USERCUSTOMIZE.PY",
+    ],
+)
+def test_everything_the_workflows_import_and_every_run_on_start_file_is_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1

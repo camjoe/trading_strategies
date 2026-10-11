@@ -20,12 +20,16 @@ The `readiness-review` job:
    with `python -m scripts.forge review-context`. It waits until the same checks are seen twice (its
    own `readiness-review` and `readiness` checks are excluded), fails if the head moved since the event,
    and fails if the pass cap is reached.
-3. Runs the agent with the Claude token and **no GitHub token**. It writes the comment body to a file, and
+3. Runs the agent with the Claude token and **no GitHub token**. The job's permissions are read-only. The agent
+   may run `git`, `cat`, `ls` and the scope check only: not the gate, pytest or any other code from the pull
+   request, because that code would run with the Claude token in its environment. CI is the gate result it
+   reports. It writes the comment body to a file, and
    that file is the only thing handed on, as an artifact.
 
 The `readiness` job, which starts only if the first succeeded:
 
-4. Checks out the pull request head again, so nothing the agent wrote in its working tree or `.venv` is
+4. Checks out the pull request head again (the only job with `pull-requests: write`; it imports nothing under
+   `trading`, and `scripts/` and the files it imports are guarded paths), so nothing the agent wrote in its working tree or `.venv` is
    present, and fetches the body artifact.
 5. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
    number is not the live comment's plus one, or that holds a runner path, an account-id shape, or

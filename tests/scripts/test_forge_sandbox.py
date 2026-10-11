@@ -259,7 +259,11 @@ def test_a_directory_that_cannot_be_deleted_is_reported_and_does_not_replace_the
 ) -> None:
     from scripts.forge import sandbox as sandbox_module
 
-    def fail(*_a: object, **_k: object) -> None:
+    real_rmtree = sandbox_module.shutil.rmtree
+
+    def fail(path: object, *args: object, **kwargs: object) -> None:
+        if kwargs.get("ignore_errors"):
+            return real_rmtree(path, *args, **kwargs)  # type: ignore[arg-type]
         raise PermissionError("locked")
 
     monkeypatch.setattr(sandbox_module.shutil, "rmtree", fail)
@@ -308,3 +312,16 @@ class TestProcessGroupPerPlatform:
         seen = self._popen_kwargs(monkeypatch, "linux", tmp_path)
 
         assert seen.get("start_new_session") is True and "creationflags" not in seen
+
+
+def test_the_clone_carries_no_trace_of_the_owners_repository_path(repo: Path, tmp_path: Path) -> None:
+    (tmp_path / "parent").mkdir()
+    box = build_sandbox(repo, git(repo, "rev-parse", "HEAD"), tmp_path / "parent", install=False)
+
+    assert not (box.path / ".git" / "FETCH_HEAD").exists() and not (box.path / ".git" / "logs").exists()
+    found = [
+        path
+        for path in (box.path / ".git").rglob("*")
+        if path.is_file() and str(repo).encode() in path.read_bytes() and path.name != "index"
+    ]
+    assert found == []

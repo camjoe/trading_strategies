@@ -13,8 +13,6 @@ from typing import Any, Protocol
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError
 from scripts.forge.sandbox import run_bounded, venv_python
-from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
-from trading.interfaces.runtime.notifications import notify_runtime_event
 
 AGENT_TIMEOUT_SECONDS = 3600
 _CONTROLLER_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
@@ -52,7 +50,9 @@ _DENIED_TOOLS = ",".join(
     ]
 )
 
-_SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|^SSH_AUTH_SOCK$", re.IGNORECASE)
+_SECRET_NAME = re.compile(
+    r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|WEBHOOK|SMTP|^TRADING_RUNTIME|^SSH_AUTH_SOCK$", re.IGNORECASE
+)
 _KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
 
 
@@ -270,7 +270,13 @@ def _agent_result(stdout: str) -> dict[str, Any]:
 
 
 def email_notifier(subject: str, message: str, details: dict[str, object]) -> None:
-    """Email the owner through the runtime alert settings; a missing configuration sends nothing."""
+    """Email the owner through the runtime alert settings; a missing configuration sends nothing.
+
+    The runtime modules load here, not at import, so the workflow's posting job never imports ``trading``.
+    """
+    from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
+    from trading.interfaces.runtime.notifications import notify_runtime_event
+
     config = resolve_email_config_from_env()
     delivered = notify_runtime_event(
         event="pr-readiness-loop",

@@ -8,6 +8,8 @@ import pytest
 from scripts.forge import local
 from scripts.forge.base import ForgeError
 from scripts.forge.fix_loop import RoundTask
+from trading.interfaces.runtime import notifications
+from trading.interfaces.runtime.jobs import job_helpers
 
 TASK = RoundTask("prompt", Path("old.md"), Path("new.md"), Path("."))
 
@@ -83,8 +85,8 @@ class TestEmailNotifier:
 
     def test_sends_through_the_runtime_notifier_when_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         sent: list[dict[str, object]] = []
-        monkeypatch.setattr(local, "resolve_email_config_from_env", lambda: object())
-        monkeypatch.setattr(local, "notify_runtime_event", lambda **kwargs: sent.append(kwargs) or True)
+        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", lambda: object())
+        monkeypatch.setattr(notifications, "notify_runtime_event", lambda **kwargs: sent.append(kwargs) or True)
 
         local.email_notifier("subject", "message", {"outcome": "ready"})
 
@@ -93,8 +95,8 @@ class TestEmailNotifier:
     def test_a_failed_send_is_reported(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(local, "resolve_email_config_from_env", lambda: object())
-        monkeypatch.setattr(local, "notify_runtime_event", lambda **kwargs: False)
+        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", lambda: object())
+        monkeypatch.setattr(notifications, "notify_runtime_event", lambda **kwargs: False)
 
         local.email_notifier("subject", "message", {"outcome": "stopped"})
 
@@ -356,3 +358,33 @@ class TestGateEnvironment:
         env = seen["env"]
         assert "GH_TOKEN" not in env and "TRADING_RUNTIME_ALERT_SMTP_PASSWORD" not in env
         assert env["GIT_CONFIG_NOSYSTEM"] == "1" and env["PYTHONPATH"].startswith(str(tmp_path / "src"))
+
+
+class TestScrubbedNames:
+    def test_webhook_smtp_and_runtime_settings_do_not_reach_the_agent_or_the_gate(self, tmp_path: Path) -> None:
+        base = {
+            "PATH": "/bin",
+            "TRADING_RUNTIME_ALERT_WEBHOOK_URL": "https://hooks.example.test/x",
+            "TRADING_RUNTIME_ALERT_SMTP_HOST": "smtp.example.test",
+            "SOME_WEBHOOK": "x",
+            "HOME": "/home/owner",
+        }
+
+        env = local.agent_environment(base, tmp_path)
+
+        assert set(env) & set(base) == {"PATH", "HOME"}
+
+
+def test_importing_the_command_line_tool_does_not_import_the_trading_package() -> None:
+    import sys
+
+    code = "import sys; sys.modules['trading'] = None; import scripts.forge.cli; print('ok')"
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[2],
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(["src", "apps"])},
+    )
+
+    assert result.returncode == 0 and "ok" in result.stdout, result.stderr

@@ -119,6 +119,8 @@ def build_sandbox(
     # The checks diff against remote-tracking refs, which a clone does not copy; bring them, then cut the remote.
     _run(["git", "fetch", "--quiet", "--no-tags", str(root), "+refs/remotes/origin/*:refs/remotes/origin/*"], dest)
     _run(["git", "remote", "set-url", "origin", str(parent / "no-such-remote")], dest)
+    (dest / ".git" / "FETCH_HEAD").unlink(missing_ok=True)
+    shutil.rmtree(dest / ".git" / "logs", ignore_errors=True)
     if identity:
         _run(["git", "config", "user.name", identity[0]], dest)
         _run(["git", "config", "user.email", identity[1]], dest)

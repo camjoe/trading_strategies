@@ -11,11 +11,10 @@ from pathlib import PurePosixPath
 from scripts.checks.repo.review_scope_check import SCOPE_RULES
 
 _EXTRA_GUARDS = (
-    ("scripts/forge/", "the forge tool and its checks"),
-    ("scripts/checks/", "the gate's checks and the review-scope rules"),
-    ("scripts/run_checks.py", "the gate"),
-    ("scripts/fix_checks.py", "the gate"),
+    ("scripts/", "the forge tool, the gate's checks, and everything the workflow imports from scripts"),
+    ("src/common/__init__.py", "imported by the forge tool"),
     ("src/common/git.py", "the git helper the guards call"),
+    ("src/__init__.py", "imported by the forge tool"),
     (".github/", "the pipeline's workflows and repository settings"),
     (".claude/", "agent permissions"),
     (".ai/skills/", "the skills"),
@@ -37,6 +36,8 @@ _EXTRA_GUARDS = (
 )
 
 _EXECUTED_CONFIGS = ("vite.config.", "vitest.config.", "eslint.config.", "jest.config.", ".eslintrc")
+
+_RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 
 _EXECUTED_NAMES = frozenset(
     {
@@ -71,6 +72,8 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         normalized = path.replace("\\", "/").casefold()
         name = PurePosixPath(normalized).name
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):
+            reason = "code Python runs when it starts"
         if reason is None and {".githooks", ".husky"} & set(normalized.split("/")[:-1]):
             reason = "commit hooks"
         if reason is None and name.startswith(".env"):

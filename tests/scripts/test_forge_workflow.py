@@ -154,3 +154,30 @@ def test_the_head_check_fails_with_an_error_when_the_head_moved(tmp_path: Path) 
     result = _run_head_check(tmp_path, "abc", "def")
 
     assert result.returncode != 0 and "moved to def" in result.stderr
+
+
+def test_each_job_asks_for_only_the_permissions_it_uses() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    header = text[: text.index("\njobs:\n")]
+    review, post = _job("review"), _job("post")
+
+    assert "pull-requests: write" not in header and "pull-requests: write" not in review
+    assert "pull-requests: write" in post and "checks:" not in post
+
+
+def test_the_review_agent_may_run_only_the_scope_check_among_python_commands() -> None:
+    review = _job("review")
+    allowed = next(line for line in review.splitlines() if "ALLOWED_TOOLS:" in line)
+
+    assert "Bash(python" not in allowed and "run_checks" not in allowed and "pytest" not in allowed
+    assert "review_scope_check" in allowed
+
+
+def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_claude_token() -> None:
+    review = _job("review")
+    after = review[review.index("- name: Run pr ready") :]
+    steps = after.split("      - name:")
+
+    scripts = [step.split("run: |")[1] for step in steps if "CLAUDE_CODE_OAUTH_TOKEN" in step and "run: |" in step]
+
+    assert scripts and all(".venv/bin/python" not in script for script in scripts)
