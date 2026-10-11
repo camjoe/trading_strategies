@@ -8,6 +8,7 @@ from common.tickers import (
     load_ticker_categories,
     load_tickers_from_file,
     parse_ticker_tokens,
+    unique_in_order,
 )
 
 
@@ -84,3 +85,14 @@ class TestLoadTickerCategories:
             "core": ["AAPL", "MSFT", "GOOG"],
             "satellite": ["TSLA", "NVDA"],
         }
+
+
+class TestUniqueInOrder:
+    def test_drops_duplicates_keeping_first_occurrence_order(self) -> None:
+        assert unique_in_order(["MSFT", "AAPL", "MSFT", "GOOG", "AAPL"]) == ["MSFT", "AAPL", "GOOG"]
+
+    def test_empty_list(self) -> None:
+        assert unique_in_order([]) == []
+
+    def test_keeps_order_when_there_are_no_duplicates(self) -> None:
+        assert unique_in_order(["TSLA", "AAPL", "NVDA"]) == ["TSLA", "AAPL", "NVDA"]
