@@ -48,3 +48,29 @@ def test_tool_configuration_the_checks_execute_is_guarded() -> None:
     )
 
     assert len(touched) == 4
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".githooks/pre-push",
+        ".husky/pre-commit",
+        "package.json",
+        "package-lock.json",
+        "Makefile",
+        "tox.ini",
+        "setup.cfg",
+        "setup.py",
+        "noxfile.py",
+        ".coveragerc",
+        "apps/web/package.json",
+        ".env.local",
+    ],
+)
+def test_executed_files_and_hook_directories_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["src/common/thing.py", "docs/notes.md", "tests/scripts/test_x.py", "README.md"])
+def test_ordinary_files_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []

@@ -86,7 +86,7 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 
 Your checkout is untouched until step 5, and only commits that passed the path check ever reach it. Whatever else
 the agent wrote in the sandbox (hooks, git configuration, files git ignores, the sandbox's `.venv`) is deleted with
-it and is never run by the loop's own steps. Every ending, including a failure, sends the email.
+it and is never run by the loop's own steps (the pickup's gate does run the branch's tests; see "Picking up a plan"). Every ending, including a failure, sends the email.
 
 **What the sandbox does not do.** It isolates the repository, not the machine. The agent still runs as you, can
 read your files, and code it writes and runs (a test, for example) can reach the rest of your filesystem and the
@@ -101,7 +101,7 @@ checks those.
 
 When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
 plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only
-then does it finish and email you. A plan the branch did not claim is never touched. It stops after three
+then does it finish and email you. A plan the branch did not claim is never touched. The loop stops after three
 rounds. At the end it emails the pull request link, the verdict, and the open counts through the
 `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
 
@@ -125,7 +125,8 @@ branch (push or merge a new plan first). Then it:
    draft so you can review them, and records the summary and questions in the pull request description;
 5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
    this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate still runs the
-   branch's tests, which are code the agent wrote, as you; it never runs in your checkout. Uncommitted work
+   branch's tests, which are code the agent wrote, as you; it never runs in your checkout. It needs the dev requirements
+   installed in the environment you start the command from. Uncommitted work
    left in the sandbox keeps the pull request a draft.
 
 The agent runs in the same restricted environment as the fixer's. The pull request leaves draft, which starts the

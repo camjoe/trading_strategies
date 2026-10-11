@@ -628,7 +628,7 @@ class TestLeftovers:
         result, _ = run(forge, git, tmp_path, fixing_agent(git))
 
         assert result.outcome == "stopped" and "rate limited" in result.detail
-        assert git.reset_to == ["abc123"] and git.pushes == 0
+        assert git.forwarded == ["def456"] and git.reset_to == ["abc123"] and git.pushes == 0
 
     def test_the_commits_are_imported_relative_to_the_round_start(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
@@ -636,3 +636,9 @@ class TestLeftovers:
         run(forge, git, tmp_path, fixing_agent(git))
 
         assert git.imported == [(tmp_path / "box", "abc123")]
+
+
+def test_the_round_prompt_tells_the_fixer_to_leave_no_uncommitted_files() -> None:
+    from scripts.forge.fix_loop import round_prompt
+
+    assert "uncommitted" in round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))

@@ -848,7 +848,7 @@ class FakeSandboxes:
             self.refs.append(ref)
             self.installs.append(install)
             try:
-                yield Box(self.base / "box")
+                yield Box(self.base / ("box" if len(self.refs) == 1 else f"box{len(self.refs)}"))
             finally:
                 self.closed += 1
 

@@ -199,10 +199,34 @@ class TestInstallAndTimeouts:
         def slow(*_a: object, **_k: object) -> None:
             raise subprocess.TimeoutExpired("git", 1)
 
-        monkeypatch.setattr(sandbox_module.subprocess, "run", slow)
+        monkeypatch.setattr(sandbox_module, "run_bounded", slow)
 
         with pytest.raises(ForgeError, match="timed out"):
             sandbox_module._run(["git", "clone", "x"], tmp_path)
+
+    def test_a_timeout_kills_a_grandchild_that_holds_the_output_pipes(self, tmp_path: Path) -> None:
+        import sys
+        import time
+
+        from scripts.forge.sandbox import run_bounded
+
+        code = (
+            "import subprocess, sys, time\n"
+            "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+            "time.sleep(60)\n"
+        )
+        started = time.monotonic()
+
+        with pytest.raises(subprocess.TimeoutExpired):
+            run_bounded([sys.executable, "-c", code], tmp_path, timeout=2)
+
+        assert time.monotonic() - started < 30
+
+    def test_uncommitted_fails_outside_a_repository(self, tmp_path: Path) -> None:
+        from scripts.forge.sandbox import Sandbox
+
+        with pytest.raises(ForgeError, match="git status"):
+            Sandbox(tmp_path).uncommitted()
 
 
 def test_the_cli_factory_cuts_sandboxes_from_this_repository_with_the_owners_identity(
@@ -218,3 +242,31 @@ def test_the_cli_factory_cuts_sandboxes_from_this_repository_with_the_owners_ide
     with factory(git(repo, "rev-parse", "HEAD"), install=False) as box:
         assert git(box.path, "config", "user.name") == "Owner"
         assert git(box.path, "rev-parse", "HEAD") == git(repo, "rev-parse", "HEAD")
+
+
+class TestImportAncestry:
+    def test_a_git_error_is_reported_as_one_not_as_a_history_rewrite(self, repo: Path, tmp_path: Path) -> None:
+        local = LocalGit(repo)
+        (tmp_path / "parent").mkdir()
+        box = build_sandbox(repo, git(repo, "rev-parse", "HEAD"), tmp_path / "parent", install=False)
+
+        with pytest.raises(ForgeError, match="merge-base failed"):
+            local.import_commits(box.path, "not-a-commit")
+
+
+def test_a_directory_that_cannot_be_deleted_is_reported_and_does_not_replace_the_result(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from scripts.forge import sandbox as sandbox_module
+
+    def fail(*_a: object, **_k: object) -> None:
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(sandbox_module.shutil, "rmtree", fail)
+
+    with sandbox_module.sandbox(repo, git(repo, "rev-parse", "HEAD"), install=False) as box:
+        parent = box.path.parent
+
+    assert "remove it by hand" in capsys.readouterr().err
+    monkeypatch.undo()
+    sandbox_module.shutil.rmtree(parent, onexc=sandbox_module._make_writable)

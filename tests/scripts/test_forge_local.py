@@ -288,12 +288,13 @@ class TestRunGate:
     ) -> None:
         seen: dict[str, object] = {}
 
-        def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-            seen["command"] = command
-            seen.update(kwargs)
+        def run(
+            command: list[str], cwd: Path, timeout: float, env: dict[str, str]
+        ) -> subprocess.CompletedProcess[str]:
+            seen.update(command=command, cwd=cwd, env=env)
             return completed("all good")
 
-        monkeypatch.setattr(local.subprocess, "run", run)
+        monkeypatch.setattr(local, "run_bounded", run)
 
         passed, tail = local.run_gate("origin/develop", tmp_path)
 
@@ -306,7 +307,7 @@ class TestRunGate:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         output = "\n".join(f"line {number}" for number in range(40))
-        monkeypatch.setattr(local.subprocess, "run", lambda *a, **k: completed(output, returncode=1))
+        monkeypatch.setattr(local, "run_bounded", lambda *a, **k: completed(output, returncode=1))
 
         passed, tail = local.run_gate("origin/develop", tmp_path)
 
@@ -316,6 +317,19 @@ class TestRunGate:
         def slow(*_a: object, **_k: object) -> subprocess.CompletedProcess[str]:
             raise subprocess.TimeoutExpired("gate", 1)
 
-        monkeypatch.setattr(local.subprocess, "run", slow)
+        monkeypatch.setattr(local, "run_bounded", slow)
 
         assert local.run_gate("origin/develop", tmp_path) == (False, "The gate timed out.")
+
+    def test_the_clones_source_shadows_an_installed_copy_when_the_gate_really_runs(self, tmp_path: Path) -> None:
+        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "scripts" / "run_checks.py").write_text(
+            "import common\nprint(common.__file__)\nraise SystemExit(0)\n", encoding="utf-8"
+        )
+        (tmp_path / "src" / "common").mkdir(parents=True)
+        (tmp_path / "src" / "common" / "__init__.py").write_text("", encoding="utf-8")
+
+        passed, tail = local.run_gate("origin/develop", tmp_path)
+
+        assert passed and str(tmp_path) in tail

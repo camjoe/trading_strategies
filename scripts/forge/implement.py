@@ -15,7 +15,7 @@ from scripts.forge.base import Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
-from scripts.forge.sandbox import SandboxFactory
+from scripts.forge.sandbox import SandboxFactory, leftover_summary
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -145,11 +145,19 @@ def _run(
                 f"plan/{plan_file} is not on origin/{base}; push or merge it there first.",
             )
         original = git.current_branch()
+        if not original:
+            return ImplementResult(
+                "refused",
+                plan_file,
+                plan.branch,
+                None,
+                "The checkout is on a detached HEAD; switch to a branch first.",
+            )
         git.create_branch(plan.branch, f"origin/{base}")
+        fresh = git.head()
     except ForgeError as exc:
         return ImplementResult("refused", plan_file, plan.branch, None, str(exc))
 
-    fresh = git.head()
     claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
         "passes and nothing needs the owner."
@@ -242,39 +250,46 @@ def _implement(
         end = git.import_commits(box.path, start)
         leftover = box.uncommitted()
     committed = end != start
-    guarded = guarded_paths_touched(git.changed_paths(start, end) if committed else [])
+    guarded = guarded_paths_touched(git.changed_paths(start, end))
     if committed:
         git.fast_forward(end)
         git.push(branch)
     asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-    _record_on_pull_request(forge, number, claim_body, summary, asked)
+    note = _record_on_pull_request(forge, number, claim_body, summary, asked)
+
+    def done(outcome: Outcome, detail: str) -> ImplementResult:
+        return finish(outcome, detail + note)
+
     if asked:
-        return finish("needs-owner", "The agent has questions:\n" + asked)
+        return done("needs-owner", "The agent has questions:\n" + asked)
     if not committed:
-        return finish("no-progress", "The agent made no commits.")
+        return done("no-progress", "The agent made no commits.")
     if guarded:
-        return finish(
+        return done(
             "needs-owner",
             "The work touches guarded paths, so the pull request stays a draft: " + "; ".join(guarded),
         )
     if leftover:
-        return finish(
+        return done(
             "needs-owner",
             "The agent left uncommitted changes in the sandbox, which were not pushed, so the pull request "
-            "stays a draft: " + "; ".join(leftover[:5]),
+            "stays a draft: " + leftover_summary(leftover),
         )
     with sandbox(end, install=False) as clean:
         passed, tail = gate(f"origin/{base}", clean.path)
     if not passed:
-        return finish("needs-owner", "The gate is red:\n" + tail)
+        return done("needs-owner", "The gate is red:\n" + tail)
     if not mark_ready:
-        return finish("needs-owner", "Ready, left as a draft as asked.")
+        return done("needs-owner", "Ready, left as a draft as asked.")
     forge.set_ready(number)
-    return finish("ready-for-review", "The gate passed; the review starts.")
+    return done("ready-for-review", "The gate passed; the review starts.")
 
 
-def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> None:
-    """Put the agent's summary and questions in the pull request description, unless they are unsafe to publish."""
+def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> str:
+    """Put the agent's summary and questions in the pull request description, unless they are unsafe to publish.
+
+    Returns a sentence for the result detail when the text was withheld, otherwise an empty string.
+    """
     summary = summary_file.read_text(encoding="utf-8").strip() if summary_file.is_file() else ""
     sections = [claim_body]
     if summary:
@@ -282,5 +297,9 @@ def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_
     if questions:
         sections.append("## Questions for the owner\n\n" + questions)
     body = "\n\n".join(sections)
-    if len(sections) > 1 and not publish_problems(body):
-        forge.set_pull_request_body(number, body)
+    if len(sections) == 1:
+        return ""
+    if publish_problems(body):
+        return " The agent's summary or questions were withheld from the description as unsafe to publish."
+    forge.set_pull_request_body(number, body)
+    return ""

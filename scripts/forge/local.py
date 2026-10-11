@@ -12,7 +12,7 @@ from typing import Any, Protocol
 
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError
-from scripts.forge.sandbox import venv_python
+from scripts.forge.sandbox import run_bounded, venv_python
 from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
@@ -107,6 +107,8 @@ class LocalGit:
         try:
             git_output(self._root, "merge-base", "--is-ancestor", since, sha)
         except subprocess.CalledProcessError as exc:
+            if exc.returncode != 1:
+                raise ForgeError(f"git merge-base failed: {(exc.stderr or '').strip()}") from exc
             raise ForgeError(
                 f"The sandbox's commits do not descend from {since[:12]}; they were not imported."
             ) from exc
@@ -209,7 +211,7 @@ def agent_environment(
 
 
 def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
-    """Run one fixer round with the headless ``claude`` CLI, signed in as the owner."""
+    """Run one agent session with the headless ``claude`` CLI, signed in as the owner."""
     model_args = ["--model", model] if model else []
     root = get_repo_root()
     try:
@@ -237,14 +239,13 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
     except FileNotFoundError as exc:
         raise ForgeError("The claude CLI is not installed or not on PATH.") from exc
     except subprocess.TimeoutExpired as exc:
-        raise ForgeError("The fixer agent timed out.") from exc
+        raise ForgeError("The agent timed out.") from exc
     result = _agent_result(completed.stdout)
     if completed.returncode != 0 or result.get("is_error"):
-        raise ForgeError(f"The fixer agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
+        raise ForgeError(f"The agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
     denials = result.get("permission_denials") or []
     print(
-        f"Fixer agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, "
-        f"{len(denials)} permission denials.",
+        f"Agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, {len(denials)} permission denials.",
         file=sys.stderr,
     )
     for denial in denials:
@@ -278,20 +279,16 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
 def run_gate(base: str, cwd: Path) -> tuple[bool, str]:
     """Run the pull-request gate against *base* in the checkout at *cwd*, with the interpreter running this command.
 
-    The checkout is expected to be a clean clone without a virtual environment of its own, so nothing the
-    agent installed or changed there decides the result; its source comes first on ``PYTHONPATH``.
+    The checkout is expected to be a clean clone without a virtual environment of its own; its source comes
+    first on ``PYTHONPATH``. That interpreter must have the dev requirements installed.
     """
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(cwd / "src"), str(cwd / "apps")])}
     try:
-        completed = subprocess.run(
+        completed = run_bounded(
             [sys.executable, "-m", "scripts.run_checks", "pr", "--base", base],
-            cwd=cwd,
-            env=env,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=GATE_TIMEOUT_SECONDS,
+            cwd,
+            GATE_TIMEOUT_SECONDS,
+            env,
         )
     except subprocess.TimeoutExpired:
         return False, "The gate timed out."

@@ -36,6 +36,8 @@ _EXTRA_GUARDS = (
     ("local/", "private research and parameters"),
 )
 
+_EXECUTED_CONFIGS = ("vite.config.", "vitest.config.", "eslint.config.", "jest.config.", ".eslintrc")
+
 _EXECUTED_NAMES = frozenset(
     {
         "conftest.py",
@@ -51,9 +53,6 @@ _EXECUTED_NAMES = frozenset(
         ".flake8",
     }
 )
-
-
-_EXECUTED_CONFIGS = ("vite.config.", "vitest.config.", "eslint.config.", "jest.config.", ".eslintrc")
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:

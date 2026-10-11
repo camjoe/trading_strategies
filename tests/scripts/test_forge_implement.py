@@ -32,8 +32,12 @@ class FakeGit:
         self.deleted: list[str] = []
         self.cleanup_error: ForgeError | None = None
         self.push_new_error: ForgeError | None = None
+        self.branch_name = "develop"
+        self.head_error: ForgeError | None = None
 
     def head(self) -> str:
+        if self.head_error and "branch" in " ".join(self.calls):
+            raise self.head_error
         return self.head_value
 
     def changed_paths(self, base: str, head: str) -> list[str]:
@@ -80,7 +84,7 @@ class FakeGit:
         return self.on_base
 
     def current_branch(self) -> str:
-        return "develop"
+        return self.branch_name
 
     def switch(self, branch: str) -> None:
         if self.cleanup_error:
@@ -404,7 +408,7 @@ class TestSandboxedPickup:
         setup.run()
 
         assert setup.sandboxes.refs == ["start000", "work111"] and setup.sandboxes.installs == [True, False]
-        assert setup.gate_runs == [setup.work / "box"]
+        assert setup.gate_runs == [setup.work / "box2"]
 
     def test_uncommitted_work_left_in_the_sandbox_keeps_the_pull_request_a_draft_and_skips_the_gate(
         self, setup: Setup
@@ -443,3 +447,45 @@ class TestSandboxedPickup:
         result = setup.run()
 
         assert result.outcome == "stopped" and "not a fast-forward" in result.detail and setup.forge.ready == []
+
+
+class TestPickupEdges:
+    def test_a_detached_head_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
+        setup.git.branch_name = ""
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and "detached" in result.detail
+        assert not any(call.startswith("branch") for call in setup.git.calls)
+
+    def test_a_head_that_cannot_be_read_after_the_branch_is_made_is_a_refusal_not_a_crash(self, setup: Setup) -> None:
+        setup.git.head_error = ForgeError("no head")
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and "no head" in result.detail
+
+    def test_a_withheld_summary_is_named_in_the_result(self, setup: Setup) -> None:
+        result = setup.run(setup.agent(summary="key sk-ant-abcdefghij12345"))
+
+        assert "withheld" in result.detail and setup.forge.bodies == []
+
+    def test_a_published_summary_adds_no_withheld_sentence(self, setup: Setup) -> None:
+        result = setup.run(setup.agent(summary="Added the thing."))
+
+        assert "withheld" not in result.detail
+
+    def test_guarded_paths_take_precedence_over_leftovers_and_the_gate_does_not_run(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+        setup.sandboxes.dirty = [" M notes.txt"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "guarded" in result.detail and setup.gate_runs == []
+
+    def test_questions_take_precedence_over_leftovers(self, setup: Setup) -> None:
+        setup.sandboxes.dirty = [" M notes.txt"]
+
+        result = setup.run(setup.agent(questions="Which one?"))
+
+        assert result.detail.startswith("The agent has questions")
