@@ -130,7 +130,7 @@ def _loop(
             removed = _remove_claimed_plan(git, repo_root, context["pull_request"]["head_ref"])
             if removed is None:
                 return LoopResult("ready", rounds, title, counts, "The readiness comment says READY.")
-            waited = _wait_for_next_pass(
+            waited = wait_for_next_pass(
                 forge, pr_number, trusted, pass_number(body), wait_seconds, interval_seconds, sleep, clock
             )
             if waited is None:
@@ -148,7 +148,7 @@ def _loop(
         step = _one_round(forge, git, agent, work_dir, pr_number, trusted, body, base, rounds)
         if step is not None:
             return LoopResult(step[0], rounds, title, counts, step[1])
-        waited = _wait_for_next_pass(
+        waited = wait_for_next_pass(
             forge, pr_number, trusted, pass_number(body), wait_seconds, interval_seconds, sleep, clock
         )
         if waited is None:
@@ -194,7 +194,7 @@ def _one_round(
     return None
 
 
-def _wait_for_next_pass(
+def wait_for_next_pass(
     forge: Forge,
     pr_number: int,
     authors: Collection[str],

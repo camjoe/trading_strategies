@@ -50,6 +50,7 @@ class ImplementResult:
     branch: str | None
     pr_url: str | None
     detail: str
+    pr_number: int | None = None
 
 
 def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, summary: Path) -> str:
@@ -79,9 +80,16 @@ def run_implement_plan(
     depends_ok: bool = False,
     base: str = "develop",
     mark_ready: bool = True,
+    quiet_when_ready: bool = False,
 ) -> ImplementResult:
-    """Claim and implement *plan_file*; the pull request leaves draft only when nothing needs the owner."""
+    """Claim and implement *plan_file*; the pull request leaves draft only when nothing needs the owner.
+
+    With *quiet_when_ready*, a pull request taken out of draft sends no notification, because a caller
+    that goes on to fix it sends the final one.
+    """
     result = _run(forge, git, agent, gate, repo_root, work_dir, plan_file, depends_ok, base, mark_ready)
+    if quiet_when_ready and result.outcome == "ready-for-review":
+        return result
     notify(
         f"Plan {plan_file}: {result.outcome}",
         result.detail,
@@ -130,6 +138,9 @@ def _run(
     )
     pr = forge.open_pull_request(base, plan.branch, plan.title, claim_body, draft=True)
 
+    def finish(outcome: Outcome, detail: str) -> ImplementResult:
+        return ImplementResult(outcome, plan_file, plan.branch, pr.url, detail, pr.number)
+
     start = git.head()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
     questions.unlink(missing_ok=True)
@@ -141,7 +152,7 @@ def _run(
             )
         )
     except ForgeError as exc:
-        return ImplementResult("stopped", plan_file, plan.branch, pr.url, f"The agent failed: {exc}")
+        return finish("stopped", f"The agent failed: {exc}")
 
     end = git.head()
     committed = end != start
@@ -150,21 +161,19 @@ def _run(
     asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
     _record_on_pull_request(forge, pr.number, claim_body, summary, asked)
     if asked:
-        return ImplementResult("needs-owner", plan_file, plan.branch, pr.url, "The agent has questions:\n" + asked)
+        return finish("needs-owner", "The agent has questions:\n" + asked)
     if not committed:
-        return ImplementResult("no-progress", plan_file, plan.branch, pr.url, "The agent made no commits.")
+        return finish("no-progress", "The agent made no commits.")
     guarded = guarded_paths_touched(git.changed_paths(start, end))
     if guarded:
-        return ImplementResult(
-            "needs-owner", plan_file, plan.branch, pr.url, "The work touches guarded paths: " + "; ".join(guarded)
-        )
+        return finish("needs-owner", "The work touches guarded paths: " + "; ".join(guarded))
     passed, tail = gate(f"origin/{base}")
     if not passed:
-        return ImplementResult("needs-owner", plan_file, plan.branch, pr.url, "The gate is red:\n" + tail)
+        return finish("needs-owner", "The gate is red:\n" + tail)
     if not mark_ready:
-        return ImplementResult("needs-owner", plan_file, plan.branch, pr.url, "Ready, left as a draft as asked.")
+        return finish("needs-owner", "Ready, left as a draft as asked.")
     forge.set_ready(pr.number)
-    return ImplementResult("ready-for-review", plan_file, plan.branch, pr.url, "The gate passed; the review starts.")
+    return finish("ready-for-review", "The gate passed; the review starts.")
 
 
 def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> None:

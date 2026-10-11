@@ -383,6 +383,12 @@ pushes, and waits for the docs-only pass that confirms READY; a NOT READY result
 A plan this branch did not claim is never removed, so the pipeline plan itself is the owner's to remove.
 Tested with fakes and real git; not yet run live.
 
+Chained start (built 2026-10-11, at the owner's request): `implement-plan` does not need a separate fixer
+start. When the pull request leaves draft it waits for the review's first comment, then runs the fixer
+loop, and sends one email at the end. Plan pickup itself stays manual: the owner runs it when a plan is
+ready. `--no-fix` opts out. Both loops now trust `github-actions[bot]` and the owner by default; before this,
+the default trusted only the owner, which would have ignored the review workflow's comment.
+
 Still open for Stage 1: a run on a plan that needs a guarded path or ends with a red gate (covered by tests,
 not run live), and a start that does not need the owner's terminal.
 

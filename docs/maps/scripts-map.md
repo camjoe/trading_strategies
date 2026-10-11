@@ -48,7 +48,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
 | `ci-status [--sha S] [--exclude C] [--wait SECONDS]` | `pass`, `fail`, `pending`, or `none` for a commit's checks; with `--wait`, polls until the same checks are seen twice |
-| `implement-plan --plan F [--base develop] [--model sonnet] [--depends-ok] [--no-ready]` | Claims a plan from `plan/` with a draft pull request, has an agent implement it, runs the gate, and takes the pull request out of draft only when nothing needs the owner |
+| `implement-plan --plan F [--base develop] [--model sonnet] [--depends-ok] [--no-ready] [--no-fix]` | Claims a plan from `plan/` with a draft pull request, has an agent implement it, runs the gate, and takes the pull request out of draft only when nothing needs the owner, then waits for the first review and runs the fixer loop unless `--no-fix` |
 | `fix-loop --pr N [--max-rounds 3] [--wait-minutes 45] [--model sonnet]` | Runs fixer rounds on a pull request from the owner's machine until its comment says READY, only owner decisions are left, or the round cap is reached; at READY it first removes the plan file the branch claimed (and its index row), pushes, and waits for the confirming pass; emails the owner at the end |
 | `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
 | `check-body --body-file F [--previous-pass N \| --edit-of OLD] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text; with `--edit-of`, the pass must be unchanged and only status lines may be added to `OLD` |
@@ -63,6 +63,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `guarded_paths.py` | Paths an unattended fixer must never change |
 | `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |
 | `implement.py` | The plan pickup: claim, agent, push, gate, path check, and the decision to leave draft |
+| `pipeline.py` | The join: pickup, then the wait for the first review, then the fixer loop, with one final notification |
 | `fix_loop.py` | The fixer loop: one round, its checks, the post and push, the wait for the next pass |
 | `local.py` | The owner's real git, headless `claude` runner, and email notifier behind the loop |
 | `cli.py` | Argument parsing and JSON output |

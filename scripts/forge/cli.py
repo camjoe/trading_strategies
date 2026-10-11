@@ -18,8 +18,8 @@ from common.git import get_repo_root, git_output
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
-from scripts.forge.implement import run_implement_plan
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
+from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
@@ -83,6 +83,17 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument("--model", default="sonnet", help="Model for the implementing agent (default: sonnet).")
     plan.add_argument("--depends-ok", action="store_true", help="Confirm the plan's dependencies are satisfied.")
     plan.add_argument("--no-ready", action="store_true", help="Leave the pull request a draft even if all is well.")
+    plan.add_argument(
+        "--no-fix", action="store_true", help="Stop once the pull request is ready; do not run the fixer."
+    )
+    plan.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
+    plan.add_argument(
+        "--review-wait-minutes", type=float, default=30, help="Minutes to wait for the first review (default: 30)."
+    )
+    plan.add_argument(
+        "--wait-minutes", type=float, default=45, help="Minutes to wait for each later review pass (default: 45)."
+    )
+    _add_author_argument(plan)
 
     ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
     ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
@@ -175,6 +186,19 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
     _print({"ok": True})
 
 
+REVIEW_BOT = "github-actions[bot]"
+
+
+def _loop_authors(args: argparse.Namespace, forge: Forge) -> list[str]:
+    """Whose readiness comment the loop trusts: the given authors, else the review workflow and the owner."""
+    if args.author:
+        return list(args.author)
+    try:
+        return [REVIEW_BOT, forge.current_user()]
+    except ForgeError:
+        return [REVIEW_BOT]
+
+
 def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
     git = LocalGit()
     git.require_clean_tree()
@@ -186,7 +210,7 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
             email_notifier,
             Path(work_dir),
             args.pr,
-            args.author,
+            _loop_authors(args, forge),
             max_rounds=args.max_rounds,
             wait_seconds=args.wait_minutes * 60,
             repo_root=get_repo_root(),
@@ -199,21 +223,28 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
 def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
     repo_root = get_repo_root()
     with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
-        result = run_implement_plan(
+        agent = functools.partial(run_claude_agent, model=args.model)
+        result = run_pipeline(
             forge,
             LocalGit(),
-            functools.partial(run_claude_agent, model=args.model),
+            agent,
+            agent,
             run_gate,
             email_notifier,
             repo_root,
             Path(work_dir),
             Path(args.plan).name,
+            _loop_authors(args, forge),
             depends_ok=args.depends_ok,
             base=args.base,
             mark_ready=not args.no_ready,
+            fix=not args.no_fix,
+            max_rounds=args.max_rounds,
+            review_wait_seconds=args.review_wait_minutes * 60,
+            wait_seconds=args.wait_minutes * 60,
         )
-    print(json.dumps(asdict(result), indent=2))
-    if result.outcome in ("refused", "stopped"):
+    print(json.dumps({"implement": asdict(result.implement), "fix": result.fix and asdict(result.fix)}, indent=2))
+    if result.implement.outcome in ("refused", "stopped") or (result.fix and result.fix.outcome == "stopped"):
         raise ForgeError(result.detail)
 
 

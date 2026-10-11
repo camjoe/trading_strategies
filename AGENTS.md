@@ -32,7 +32,8 @@ conversation.
   that is not safe on a public repository. It posts only through `python -m scripts.forge
   comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
   token. Changing the workflow, the forge write path, or this section needs the owner's yes.
-- `python -m scripts.forge fix-loop`, started by the owner on a pull request, may for up to three rounds
+- `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
+  `implement-plan` run on the pull request it opened, may for up to three rounds
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
   lines to its readiness comment, and email the owner the pull request link, the verdict, and the open
   counts, without asking. It never changes a path in `scripts/forge/guarded_paths.py` (a round that does
@@ -265,9 +266,11 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
 - `implement plan: <file>` — plan `plan/<file>`, in this session
 - `python -m scripts.forge implement-plan --plan plan/<file>` — the unattended pickup: claims the plan
   with a draft pull request, runs the agent, runs the gate, and takes the pull request out of draft only
-  when the gate passes, no guarded path was touched, and the agent raised no question
-- Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, and that
-  one transition out of draft. A start from a schedule or a trigger needs its own standing authorization.
+  when the gate passes, no guarded path was touched, and the agent raised no question; it then waits for
+  the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
+- Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, that one
+  transition out of draft, and the fixer loop that follows within its own standing authorization. A start
+  from a schedule or a trigger needs its own standing authorization.
 
 ### `fix pr`
 

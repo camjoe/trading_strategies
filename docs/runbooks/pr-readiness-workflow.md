@@ -95,6 +95,12 @@ progress or blocked, or lists dependencies (pass `--depends-ok` once they are sa
    `implement-plan` skill, commits locally, and may write questions and a summary to files;
 4. pushes the commits, runs the pull-request gate itself, and checks the paths the work touched.
 
+By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
+(below) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
+one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
+and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
+another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+
 The pull request leaves draft, which starts the review, only when the agent made commits and raised no
 question, the gate passed, and no guarded path was touched. Otherwise it stays a draft and the command
 says why. `--no-ready` always leaves it a draft. The plan file stays in the branch; it is removed when the
