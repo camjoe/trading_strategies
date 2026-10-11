@@ -88,3 +88,27 @@ def claimed_readme_text(text: str, file: str, branch: str) -> str:
         return f"| {link} | {status} |{match['depends']}|"
 
     return _ROW.sub(replace, text)
+
+
+_CLAIM = re.compile(r"^Status:\s*in progress \(branch `([^`]+)`\)", re.IGNORECASE | re.MULTILINE)
+
+
+def claimed_plan_branch(text: str) -> str | None:
+    """The branch a plan was claimed by, from its Status line, or ``None`` if it is not claimed that way."""
+    match = _CLAIM.search(text)
+    return match.group(1) if match else None
+
+
+def readme_without_row(text: str, file: str) -> str:
+    """*text* with the index row for *file* removed."""
+    kept = [line for line in text.split("\n") if not (match := _ROW.match(line)) or match["file"] != file]
+    return "\n".join(kept)
+
+
+def plans_claimed_by(plan_dir: Path, branch: str) -> list[Path]:
+    """The plan files in *plan_dir* whose Status says *branch* claimed them."""
+    return [
+        path
+        for path in sorted(plan_dir.glob("*.md"))
+        if path.name.lower() != "readme.md" and claimed_plan_branch(path.read_text(encoding="utf-8")) == branch
+    ]

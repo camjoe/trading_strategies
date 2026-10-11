@@ -2,10 +2,13 @@ from pathlib import Path
 
 from scripts.forge.plans import (
     Plan,
+    claimed_plan_branch,
     claimed_plan_text,
     claimed_readme_text,
     load_plan,
     pickup_problems,
+    plans_claimed_by,
+    readme_without_row,
 )
 
 PLAN = """# Plan: per-contract trading rules (order increment)
@@ -113,3 +116,32 @@ class TestClaiming:
             in text
         )
         assert text.count("PR #294 merged |") == 1
+
+
+class TestClaimedHelpers:
+    def test_the_branch_that_claimed_a_plan_is_read_from_its_status(self) -> None:
+        text = claimed_plan_text(PLAN, "feature/contract-trading-rules")
+
+        assert claimed_plan_branch(text) == "feature/contract-trading-rules"
+
+    def test_an_unclaimed_or_differently_phrased_status_is_not_a_claim(self) -> None:
+        assert claimed_plan_branch(PLAN) is None
+        assert claimed_plan_branch("Status: in progress. Branch: `plan/x` (PR 301).\n") is None
+
+    def test_an_index_row_can_be_removed_without_touching_the_others(self) -> None:
+        text = readme_without_row(README, "contract-trading-rules.md")
+
+        assert "contract-trading-rules.md" not in text
+        assert "more-trading-evidence.md" in text and "| Plan | Status | Depends on |" in text
+
+    def test_removing_a_row_that_is_not_there_changes_nothing(self) -> None:
+        assert readme_without_row(README, "missing.md") == README
+
+    def test_only_plans_claimed_by_the_named_branch_are_found(self, tmp_path: Path) -> None:
+        (tmp_path / "a.md").write_text(claimed_plan_text(PLAN, "feature/a"), encoding="utf-8")
+        (tmp_path / "b.md").write_text(claimed_plan_text(PLAN, "feature/b"), encoding="utf-8")
+        (tmp_path / "c.md").write_text(PLAN, encoding="utf-8")
+        (tmp_path / "README.md").write_text(claimed_plan_text(PLAN, "feature/a"), encoding="utf-8")
+
+        assert [path.name for path in plans_claimed_by(tmp_path, "feature/a")] == ["a.md"]
+        assert plans_claimed_by(tmp_path, "feature/none") == []

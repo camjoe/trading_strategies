@@ -55,6 +55,11 @@ class LocalGit:
         git_output(self._root, "add", *(str(path) for path in paths))
         git_output(self._root, "commit", "-m", message)
 
+    def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
+        git_output(self._root, "rm", "-q", *(str(path) for path in remove))
+        git_output(self._root, "add", *(str(path) for path in update))
+        git_output(self._root, "commit", "-m", message)
+
     def push_new_branch(self, name: str) -> None:
         git_output(self._root, "push", "-u", "origin", name)
 

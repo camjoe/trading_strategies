@@ -118,10 +118,10 @@ def _run(
     except ForgeError as exc:
         return ImplementResult("refused", plan_file, plan.branch, None, str(exc))
 
-    plan_path.write_text(claimed_plan_text(plan_path.read_text(encoding="utf-8"), plan.branch), encoding="utf-8")
-    readme.write_text(
-        claimed_readme_text(readme.read_text(encoding="utf-8"), plan_file, plan.branch), encoding="utf-8"
-    )
+    plan_text = claimed_plan_text(plan_path.read_text(encoding="utf-8"), plan.branch)
+    readme_text = claimed_readme_text(readme.read_text(encoding="utf-8"), plan_file, plan.branch)
+    plan_path.write_text(plan_text, encoding="utf-8", newline="\n")
+    readme.write_text(readme_text, encoding="utf-8", newline="\n")
     git.commit_files([plan_path, readme], f"docs(plan): claim {plan_file}")
     git.push_new_branch(plan.branch)
     claim_body = (

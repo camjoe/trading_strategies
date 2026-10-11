@@ -75,6 +75,9 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 4. refuses the new body unless it only adds status lines, then posts it and pushes;
 5. waits up to 45 minutes for the next review pass.
 
+When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
+plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only
+then does it finish and email you. A plan the branch did not claim is never touched.
 It stops after three rounds. At the end it emails the pull request link, the verdict, and the open
 counts through the `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
 Run it only where you are comfortable with the agent editing files under your account.

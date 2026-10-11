@@ -16,6 +16,7 @@ from typing import Literal, Protocol
 from scripts.forge.base import Comment, Forge, ForgeError
 from scripts.forge.findings import open_counts, unhandled_open_findings, verdict
 from scripts.forge.guarded_paths import guarded_paths_touched
+from scripts.forge.plans import plans_claimed_by, readme_without_row
 from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context
 
@@ -27,6 +28,7 @@ class Git(Protocol):
     def changed_paths(self, base: str, head: str) -> list[str]: ...
     def reset_hard(self, sha: str) -> None: ...
     def push(self) -> None: ...
+    def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -74,13 +76,14 @@ def run_fix_loop(
     max_rounds: int = 3,
     wait_seconds: float = 2700,
     interval_seconds: float = 30,
+    repo_root: Path | None = None,
     sleep: Callable[[float], None] | None = None,
     clock: Callable[[], float] | None = None,
 ) -> LoopResult:
     """Run fixer rounds on *pr_number* until it is READY, needs the owner, or hits *max_rounds*."""
     result = _loop(
         forge, git, agent, work_dir, pr_number, authors, max_rounds, wait_seconds, interval_seconds,
-        sleep or time.sleep, clock or time.monotonic,
+        repo_root, sleep or time.sleep, clock or time.monotonic,
     )  # fmt: skip
     pr = forge.pull_request(pr_number)
     notify(
@@ -107,6 +110,7 @@ def _loop(
     max_rounds: int,
     wait_seconds: float,
     interval_seconds: float,
+    repo_root: Path | None,
     sleep: Callable[[float], None],
     clock: Callable[[], float],
 ) -> LoopResult:
@@ -123,7 +127,17 @@ def _loop(
         body = previous["body"]
         title, counts = verdict(body), open_counts(body)
         if title == "READY":
-            return LoopResult("ready", rounds, title, counts, "The readiness comment says READY.")
+            removed = _remove_claimed_plan(git, repo_root, context["pull_request"]["head_ref"])
+            if removed is None:
+                return LoopResult("ready", rounds, title, counts, "The readiness comment says READY.")
+            waited = _wait_for_next_pass(
+                forge, pr_number, trusted, pass_number(body), wait_seconds, interval_seconds, sleep, clock
+            )
+            if waited is None:
+                return LoopResult(
+                    "stopped", rounds, title, counts, f"Removed plan/{removed}; the confirming pass did not arrive."
+                )
+            continue
         if not unhandled_open_findings(body):
             return LoopResult("needs-owner", rounds, title, counts, "Every open finding needs the owner.")
         if rounds >= max_rounds:
@@ -207,3 +221,20 @@ def result_as_json(result: LoopResult) -> str:
          "detail": result.detail},
         indent=2,
     )  # fmt: skip
+
+
+def _remove_claimed_plan(git: Git, repo_root: Path | None, branch: str) -> str | None:
+    """Remove the plan this branch claimed, and its index row, in one pushed commit; the file name, or ``None``."""
+    if repo_root is None:
+        return None
+    plan_dir = repo_root / "plan"
+    claimed = plans_claimed_by(plan_dir, branch)
+    if not claimed:
+        return None
+    plan_file = claimed[0]
+    readme = plan_dir / "README.md"
+    updated = readme_without_row(readme.read_text(encoding="utf-8"), plan_file.name)
+    readme.write_text(updated, encoding="utf-8", newline="\n")
+    git.remove_and_commit([plan_file], [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge")
+    git.push()
+    return plan_file.name

@@ -377,9 +377,14 @@ unverified claims. The agent built nothing ("building any part would mean guessi
 commit, and its description carried the summary and the questions. 9 turns, about 21 s. Roughness: one
 question was a restatement, and the summary pointed at a file that no longer exists once the run ends.
 
-Still open for Stage 1: removing the plan file when the work is ready to merge (nothing does it yet), a run
-on a plan that needs a guarded path or ends with a red gate (covered by tests, not run live), and a start
-that does not need the owner's terminal.
+Plan-file removal (built 2026-10-11): when `fix-loop` sees READY and the branch claimed a plan (its Status
+says "in progress (branch `<this branch>`)"), it removes that plan file and its index row in one commit,
+pushes, and waits for the docs-only pass that confirms READY; a NOT READY result sends it back to fixing.
+A plan this branch did not claim is never removed, so the pipeline plan itself is the owner's to remove.
+Tested with fakes and real git; not yet run live.
+
+Still open for Stage 1: a run on a plan that needs a guarded path or ends with a red gate (covered by tests,
+not run live), and a start that does not need the owner's terminal.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |

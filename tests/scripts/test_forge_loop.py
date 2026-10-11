@@ -89,6 +89,7 @@ class FakeGit:
         self.changed: list[str] = []
         self.reset_to: list[str] = []
         self.pushes = 0
+        self.removals: list[str] = []
         self.on_push: list[Comment] = []
         self.forge: "LoopForge | None" = None
 
@@ -108,6 +109,12 @@ class FakeGit:
         self.forge.head_sha = self.head_value
         if self.on_push:
             self.forge.previous = self.on_push.pop(0)
+
+    def remove_and_commit(self, remove: object, update: object, message: str) -> None:
+        for path in remove:  # type: ignore[attr-defined]
+            path.unlink()
+        self.removals.append(message)
+        self.head_value = "removed1"
 
 
 class LoopForge(StubForge):
@@ -135,6 +142,7 @@ def run(
     agent: object = None,
     max_rounds: int = 3,
     wait_seconds: float = 100,
+    repo_root: Path | None = None,
 ) -> tuple[LoopResult, list[tuple[str, str, dict[str, object]]]]:
     sent: list[tuple[str, str, dict[str, object]]] = []
     clock = FakeClock()
@@ -149,6 +157,7 @@ def run(
         max_rounds=max_rounds,
         wait_seconds=wait_seconds,
         interval_seconds=10,
+        repo_root=repo_root,
         sleep=clock.sleep,
         clock=clock,
     )
@@ -310,3 +319,80 @@ class TestFixLoopCommand:
 
         assert main(["fix-loop", "--pr", "7", "--author", "bot"], forge) == 1
         assert "no readiness comment" in capsys.readouterr().err.lower()
+
+
+CLAIMED = "# Plan: x\n\nStatus: in progress (branch `feature/x`). Before pickup: drafted.\n"
+INDEX = (
+    "# plan/\n\n## Index\n| Plan | Status | Depends on |\n|---|---|---|\n"
+    "| [x.md](x.md) | In progress (branch `feature/x`). | none |\n"
+    "| [other.md](other.md) | Drafted. | none |\n"
+)
+
+
+class TestPlanFileRemoval:
+    def _repo(self, tmp_path: Path, claimed_by: str = "feature/x") -> Path:
+        root = tmp_path / "repo"
+        (root / "plan").mkdir(parents=True)
+        (tmp_path / "work").mkdir(exist_ok=True)
+        (root / "plan" / "x.md").write_text(CLAIMED.replace("feature/x", claimed_by), encoding="utf-8")
+        (root / "plan" / "other.md").write_text("# Plan: other\n\nStatus: drafted.\n", encoding="utf-8")
+        (root / "plan" / "README.md").write_text(INDEX, encoding="utf-8")
+        return root
+
+    def test_at_ready_the_claimed_plan_and_its_index_row_are_removed_then_the_confirming_pass_is_awaited(
+        self, tmp_path: Path
+    ) -> None:
+        root = self._repo(tmp_path)
+        forge, git = world(readiness(title="READY"), next_bodies=(readiness(2, "READY"),))
+
+        result, sent = run(forge, git, tmp_path / "work", repo_root=root)
+
+        assert (result.outcome, git.pushes, len(git.removals)) == ("ready", 1, 1)
+        assert "x.md" in git.removals[0] and not (root / "plan" / "x.md").exists()
+        readme = (root / "plan" / "README.md").read_text(encoding="utf-8")
+        assert "x.md" not in readme and "other.md" in readme
+        assert (root / "plan" / "other.md").exists()
+        assert len(sent) == 1
+
+    def test_without_a_repo_root_nothing_is_removed(self, tmp_path: Path) -> None:
+        self._repo(tmp_path)
+        forge, git = world(readiness(title="READY"))
+
+        result, _ = run(forge, git, tmp_path / "work")
+
+        assert result.outcome == "ready" and git.removals == [] and git.pushes == 0
+
+    def test_a_plan_claimed_by_another_branch_is_left_alone(self, tmp_path: Path) -> None:
+        root = self._repo(tmp_path, claimed_by="feature/someone-else")
+        forge, git = world(readiness(title="READY"))
+
+        result, _ = run(forge, git, tmp_path / "work", repo_root=root)
+
+        assert result.outcome == "ready" and git.removals == [] and (root / "plan" / "x.md").exists()
+
+    def test_a_branch_with_no_claimed_plan_finishes_at_once(self, tmp_path: Path) -> None:
+        root = self._repo(tmp_path)
+        (root / "plan" / "x.md").write_text("# Plan: x\n\nStatus: drafted.\n", encoding="utf-8")
+        forge, git = world(readiness(title="READY"))
+
+        assert run(forge, git, tmp_path / "work", repo_root=root)[0].outcome == "ready"
+        assert git.removals == []
+
+    def test_a_confirming_pass_that_is_not_ready_sends_the_loop_back_to_fixing(self, tmp_path: Path) -> None:
+        root = self._repo(tmp_path)
+        forge, git = world(
+            readiness(title="READY"),
+            next_bodies=(readiness(2, concerns=OPEN_CONCERN), readiness(3, "READY")),
+        )
+
+        result, _ = run(forge, git, tmp_path / "work", fixing_agent(git), repo_root=root)
+
+        assert (result.outcome, result.rounds, len(git.removals)) == ("ready", 1, 1)
+
+    def test_a_confirming_pass_that_never_arrives_stops_the_loop(self, tmp_path: Path) -> None:
+        root = self._repo(tmp_path)
+        forge, git = world(readiness(title="READY"))
+
+        result, _ = run(forge, git, tmp_path / "work", repo_root=root, wait_seconds=25)
+
+        assert result.outcome == "stopped" and "confirming pass" in result.detail

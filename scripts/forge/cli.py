@@ -189,6 +189,7 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
             args.author,
             max_rounds=args.max_rounds,
             wait_seconds=args.wait_minutes * 60,
+            repo_root=get_repo_root(),
         )
     print(result_as_json(result))
     if result.outcome == "stopped":
