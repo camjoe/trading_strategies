@@ -70,6 +70,9 @@ never rewrite or remove:
   *Left: <reason>*
 ```
 
+Pick the line from the class: **fix** gets `Fix attempted`, **needs-decision** gets `Not fixed` (say in
+the reason that the owner decides), and **leave** gets `Left`.
+
 A finding that is only partly resolved gets two lines, for example `Fix attempted` for what the commit
 did and `Left` for the rest. The text of a line is plain: ASCII letters, digits, spaces, and
 `, . ; ( ) ' _ -`, at most 300 characters, with no colon, slash, backtick, bracket, `@`, `*`, `www.`,
@@ -94,8 +97,10 @@ without pushing when no finding was classified **fix**.
 ## Unattended mode
 
 When the controller (`python -m scripts.forge fix-loop`) starts the round, it names two files in the
-prompt. Do Steps 1 to 3, then: write the new comment body to the file it names, with the Step 4 lines.
-Do not run `comment-upsert`, do not push, and do not touch GitHub. The controller then checks the
+prompt. Skip Step 1: the controller saved the readiness comment, so read that file instead, and compare
+`git rev-parse HEAD` with the commit named in its header. Do Steps 2 and 3, then write the new comment
+body to the file it names, with the Step 4 lines. Do not run `comment-upsert`, do not push, and do not
+touch GitHub. The controller then checks the
 paths your commits touched, checks the body with `check-body --edit-of`, posts it, and pushes. A round
 in which nothing was classified **fix** writes no body.
 
