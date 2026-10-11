@@ -40,7 +40,7 @@ def run_build(repo_root: Path) -> None:
         "projects": projects,
         "languages_frameworks": languages_frameworks,
     }
-    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote software registry: {registry_path}")
     print(f"Packages: {len(packages)}")
 
@@ -81,7 +81,7 @@ def main() -> int:
         "projects": projects,
         "languages_frameworks": languages_frameworks,
     }
-    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote software registry: {registry_path}")
     print(f"Packages: {len(packages)}")
     return 0

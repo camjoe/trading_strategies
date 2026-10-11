@@ -6,7 +6,7 @@ from pathlib import Path
 from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe, run_step
 
-DEFAULT_TARGETS = ["apps/paper_trading_web/backend", "src"]
+DEFAULT_TARGETS = ["apps/paper_trading_web/backend", "src", "scripts/forge"]
 
 
 def run_mypy(

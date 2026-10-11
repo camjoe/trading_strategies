@@ -16,14 +16,40 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Standing authorizations
 
-Granted by the owner on 2026-10-09. Each covers only what is written here; anything else needs the
-owner's yes in that conversation.
+Granted by the owner on 2026-10-09, except the workflow bullet and the fixer-loop bullet, granted on
+2026-10-10. Each covers only what is written here; anything else needs the owner's yes in that
+conversation.
 
 - `pr ready` may create and edit the single readiness comment on the current branch's own pull
   request, identified by the hidden marker `<!-- pr-readiness -->`, without asking. It may not post
   any other comment or review, add labels, or merge. It never posts security-class findings (route
   those to `/security-review` and tell the owner privately). The repository is public: the comment
   carries no credentials, broker account ids, local machine paths, or private strategy parameters.
+- The `PR readiness` workflow (`.github/workflows/pr-readiness.yml`) may create and edit that same
+  readiness comment, identified by the same hidden marker, on any non-draft pull request into
+  `develop`, posting as `github-actions[bot]`, without asking. It has the same limits as `pr ready`
+  above: no other comment or review, no labels, no merge, no security-class findings, and nothing
+  that is not safe on a public repository. It posts only through `python -m scripts.forge
+  comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
+  token: a separate job, started from a fresh checkout of the pull request head, checks the body the
+  agent wrote and posts it. Changing the workflow, the forge write path, or this section needs the owner's yes.
+- `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
+  `implement-plan` run on the pull request it opened, may for up to three rounds
+  commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
+  lines to its readiness comment, and email the owner the pull request link, the verdict, and the open
+  counts, without asking. When the comment says READY and `implement-plan` claimed a plan for the branch,
+  it also commits the removal of that plan file and its index row. It never changes a
+  path in `scripts/forge/guarded_paths.py` (a round that does is undone; the pickup's commits that do are
+  held locally and never pushed), writes a `Decision` line, ticks a box,
+  edits a finding, force-pushes, touches another branch, opens or marks ready a pull request, labels, or
+  merges. The agent it starts works in a throwaway clone of the repository with its own virtual
+  environment and no usable remote, and only commits that pass the loop's path check and comment-body
+  check ever reach the owner's checkout, which then posts and pushes. That isolates the repository, not
+  the machine: the agent still runs as the owner, with GitHub tokens and the owner's git and `gh`
+  configuration withheld and tool permissions that deny pushing, resetting, and `gh`, but code it writes
+  and runs can reach the rest of the filesystem and the network. It has the same public-repository limits
+  as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop, the guarded-path
+  list, or this section, needs the owner's yes.
 
 ## Python environment
 
@@ -84,6 +110,8 @@ Current skill inventory:
 | Skill | Purpose |
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `fix-pr-readiness/` | Resolve a readiness comment's findings that need no decision: one commit each, every attempt recorded on the comment |
+| `implement-plan/` | Implement one plan from `plan/` on its own branch: commits with tests, questions instead of guesses, nothing pushed by the agent |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
@@ -111,6 +139,8 @@ Default to the most specific matching skill; work without one when nothing match
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Fix the findings in a PR's readiness comment | `fix-pr-readiness/` |
+| Implement a plan from `plan/` | `implement-plan/` |
 | Independent review of a PR or another branch, read by ref | `code-review/` (Lenses, `lenses.md`) |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
@@ -235,3 +265,29 @@ branch.
   refs. Print the verified findings; do not fix them.
 - The standing authorization covers only the readiness comment on the current branch's own PR, so
   posting these findings to another PR needs the owner's yes.
+
+### `implement plan`
+
+Implement one plan from `plan/` on its own branch and open a pull request. Follow
+`.ai/skills/implement-plan/SKILL.md`.
+
+- `implement plan: <file>` — plan `plan/<file>`, in this session
+- `python -m scripts.forge implement-plan --plan plan/<file>` — the unattended pickup: claims the plan
+  with a draft pull request, runs the agent, runs the gate, and takes the pull request out of draft only
+  when the gate passes, no guarded path was touched, and the agent raised no question. Commits that touch
+  a guarded path are never pushed or applied: they are kept in a local-only ref (`refs/forge/held/<branch>/<commit>`)
+  for the owner to inspect, because GitHub runs workflow files from a pushed commit. When the pull
+  request does leave draft, the command waits for the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
+- Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, that one
+  transition out of draft, and the fixer loop that follows within its own standing authorization. A start
+  from a schedule or a trigger needs its own standing authorization.
+
+### `fix pr`
+
+Resolve the open findings in a pull request's readiness comment. Follow
+`.ai/skills/fix-pr-readiness/SKILL.md`.
+
+- `fix pr` — the current branch's pull request
+- `fix pr: <number>` — pull request `<number>`
+- Invoking it is what authorizes the commits, the push to the pull request branch, and the comment edit
+  the skill describes. An unattended run needs its own standing authorization above.

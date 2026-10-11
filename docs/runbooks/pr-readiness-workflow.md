@@ -1,0 +1,179 @@
+# PR Readiness Workflow
+
+Type: runbook
+Status: Active
+Created: 2026-10-10
+Last Reviewed: 2026-10-10
+Purpose: Operate the GitHub workflow that runs `pr ready` on pull requests and keeps the readiness comment current.
+Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md)
+
+`.github/workflows/pr-readiness.yml` runs the `pr ready` shortcut on every non-draft pull request into
+`develop` and creates or edits the single `<!-- pr-readiness -->` comment. It is not a merge gate:
+a failed run leaves the check red and posts nothing.
+
+## How a pass runs
+
+The `readiness-review` job:
+
+1. Checks out the pull request head and builds the repo-local `.venv`.
+2. Reads the pull request, the previous readiness comment from `github-actions[bot]`, and CI state
+   with `python -m scripts.forge review-context`. It waits until the same checks are seen twice (its
+   own `readiness-review` and `readiness` checks are excluded), fails if the head moved since the event,
+   and fails if the pass cap is reached.
+3. Runs the agent with the Claude token and **no GitHub token**. The job's permissions are read-only. The agent
+   may run `git`, `cat`, `ls` and the scope check only: not the gate, pytest or any other code from the pull
+   request, because that code would run with the Claude token in its environment. CI is the gate result it
+   reports. It writes the comment body to a file, and
+   that file is the only thing handed on, as an artifact.
+
+The `readiness` job, which starts only if the first succeeded:
+
+4. Checks out the pull request head again (the only job with `pull-requests: write`; it imports nothing under
+   `trading`, and `scripts/` and the files it imports are guarded paths), so nothing the agent wrote in its working tree or `.venv` is
+   present, and fetches the body artifact.
+5. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
+   number is not the live comment's plus one, or that holds a runner path, an account-id shape, or
+   credential-like text.
+6. Confirms the pull request head is still the commit that was reviewed, and fails without posting if a
+   push landed meanwhile.
+7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This
+   is the only job with the GitHub token.
+
+Drafts, fork pull requests, and Dependabot pull requests are skipped.
+
+## One-time setup
+
+```bash
+claude setup-token
+gh secret set CLAUDE_CODE_OAUTH_TOKEN
+```
+
+The token draws on the Claude plan's usage limits. A leaked token is a credential in a public
+repository's secrets; rotate it at expiry (one year) or on any suspicion.
+
+## Repository variables
+
+| Variable | Default | Effect |
+|---|---|---|
+| `READINESS_MAX_PASSES` | `8` | Stop reviewing a pull request after this many passes |
+| `READINESS_CI_WAIT_SECONDS` | `1500` | How long a pass waits for CI before reviewing |
+| `READINESS_SAVE_TRANSCRIPT` | unset | `true` uploads the scrubbed agent transcript as a 7-day artifact, to diagnose reviewer behavior |
+
+```bash
+gh variable set READINESS_SAVE_TRANSCRIPT --body true
+```
+
+## When a run fails
+
+A pass is two jobs. Problems before and during the agent show on `readiness-review`; the `readiness` job then
+fails with "The readiness-review job ... nothing was posted" so the required check is red, not skipped.
+Problems with the body, the head check, or the post show on `readiness`.
+
+| Symptom | Cause |
+|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN is not set` | The secret is missing |
+| `The agent run reported an error` | Expired or rejected token, or the agent failed; read the step log |
+| `The agent did not write a comment body` | The agent finished without writing the body file; re-run |
+| `contains a local path` / `a forbidden string` / `credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
+| `--forbid-env variable is not set or empty` | The token variable was missing from the check step, so the leak guard would check nothing |
+| `Readiness pass cap reached` (on `readiness-review`) | `READINESS_MAX_PASSES` passes already ran; the job fails, and `readiness` goes red with it, so a stale comment is not mistaken for current. Raise the variable or review by hand |
+| `The pull request head moved` (on `readiness`) | A push landed during the review; nothing was posted and the newer push starts its own pass |
+| `a newer push landed` | The head moved after the event; the newer push starts its own pass |
+| `Cannot read the pass number` | The previous comment has no `· pass N ·` header; fix or delete the comment |
+| `The header should say pass N` | The agent wrote the wrong pass number; nothing was posted, re-run |
+
+Re-run a failed pass from the Actions tab, or push a commit. A newer push cancels an older pass.
+
+## Running the fixer loop
+
+`python -m scripts.forge fix-loop --pr <n>` runs on your machine, not in GitHub. Start it from the pull
+request's branch with a clean working tree, signed in to `claude` and `gh`. Each round it:
+
+1. reads the readiness comment and stops if it says READY (no open blocker or concern) or nothing is left that
+   a fixer can do;
+2. builds a **sandbox**: a throwaway clone at the pull request's head with its own virtual environment (about
+   45 seconds with a warm pip cache), whose remote points nowhere, so it cannot push;
+3. starts a headless `claude -p` session in the sandbox (model `sonnet` unless `--model` says otherwise) that
+   follows the `fix-pr-readiness` skill, commits there, and writes a new comment body to a file;
+4. fetches the sandbox's commits into your repository without checking them out (refused unless they descend
+   from where the round began), and compares every changed path (renames count as a delete and an add) with
+   the guarded list in `scripts/forge/guarded_paths.py`; a guarded path, or any uncommitted change left in the
+   sandbox, discards the round;
+5. refuses the new body unless it only adds status lines; otherwise fast-forwards your branch to the fetched
+   commits (refused if they do not descend from where the round began), posts the body, and pushes `HEAD` to
+   the pull request's branch by name; if the comment or the push fails, the branch is put back (and a posted
+   comment is restored);
+6. deletes the sandbox, and waits up to 45 minutes for the next review pass.
+
+Your checkout is untouched until step 5, and only commits that passed the path check ever reach it. Whatever else
+the agent wrote in the sandbox (hooks, git configuration, files git ignores, the sandbox's `.venv`) is deleted with
+it and is never run by the loop's own steps (the pickup's gate does run the branch's tests; see "Picking up a plan"). Every ending, including a failure, sends the email.
+
+**What the sandbox does not do.** It isolates the repository, not the machine. The agent still runs as you, can
+read your files, and code it writes and runs (a test, for example) can reach the rest of your filesystem and the
+network. Its environment withholds GitHub tokens and secret-looking variables, git reads an empty configuration
+with no credential helper and only the `file` transport, and `gh` reads an empty configuration directory, so a
+push or a `gh` call fails even from a test it writes. Its tool permissions also deny `gh` and the git verbs that
+push, reset, clean, or change configuration. Treat the readiness comment as untrusted text, and run the loop
+only on plans and pull requests you are comfortable having the agent act on. The loop's own git commands in your checkout run with hooks and `fsmonitor` off, so a hook the agent writes there does not run when the loop merges or commits; a git setting it changes in your `.git/config` still can, so real isolation (a container, WSL, or a separate OS user) is the stronger protection.
+
+The sandbox has no `node_modules`, so a change under the frontend cannot pass the frontend checks there; CI
+checks those.
+
+When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
+plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only
+then does it finish and email you. A plan the branch did not claim is never touched. The loop stops after three
+rounds. At the end it emails the pull request link, the verdict, and the open counts through the
+`TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
+
+If a push fails the comment is restored and the branch put back, and if even the restore fails the detail says
+the comment still claims a fix that did not land.
+
+## Picking up a plan
+
+`python -m scripts.forge implement-plan --plan plan/<file>` also runs on your machine, from a clean
+working tree, signed in to `claude` and `gh`. It refuses a plan that is not in the plan index, is already in
+progress or blocked, lists dependencies (pass `--depends-ok` once they are satisfied), or is not on the base
+branch (push or merge a new plan first). Then it:
+
+1. creates the plan's branch off `origin/develop` (or `--base`) and commits the claim (the plan's Status line and
+   its index row);
+2. pushes the branch and opens a **draft** pull request;
+3. builds a sandbox at the claim commit and starts a headless `claude -p` session in it (model `sonnet` unless
+   `--model` says otherwise) that follows the `implement-plan` skill, commits there, and may write questions
+   and a summary to files;
+4. fetches the commits into your repository and checks the paths they touched. If any is guarded, nothing is
+   pushed or applied (GitHub runs a workflow file from a pushed commit): the commits are kept under the local
+   ref `refs/forge/held/<branch>/<commit>`, and the detail says so, for you to inspect with `git diff`. Otherwise it applies
+   them and pushes them to the draft, and records the summary and questions in the pull request description;
+5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
+   this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate runs the
+   branch's tests, which are code the agent wrote, as you but with the agent's scrubbed environment (no tokens or
+   SMTP settings); it never runs in your checkout. It needs the dev requirements
+   installed in the environment you start the command from. Uncommitted work
+   left in the sandbox keeps the pull request a draft.
+
+The agent runs in the same restricted environment as the fixer's. The pull request leaves draft, which starts the
+review, only when the agent made commits and raised no question, no guarded path was touched, and the gate
+passed; otherwise it stays a draft and the command says why. `--no-ready` always leaves it a draft. If the claim
+fails, the checkout goes back to the branch you started on and the local branch is removed; the detail gives the
+command to delete the remote branch if it got there. The plan file stays in the branch; it is removed when the
+work is ready to merge. The claim branch is pushed without an upstream, so a manual `git pull` on it needs the
+remote named (`git pull origin <branch>`).
+
+**What an unattended run cannot change.** `scripts/forge/guarded_paths.py` holds the full list. For
+planning, note that all of `scripts/` is guarded, because the workflow imports from it with a token in hand,
+as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. A plan whose work
+includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
+pushed; do that part by hand or in a session you run yourself.
+
+By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
+(above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
+one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
+and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
+another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+
+## Pin and upgrade the agent
+
+The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it
+deliberately and compare one pass before and after.

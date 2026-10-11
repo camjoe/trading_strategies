@@ -25,7 +25,7 @@ Directory of all documentation files across the repository. Use this to audit fo
 | `src/common/` | Shared utilities available to all packages (used sparingly) |
 | `apps/trends/` | Trend/signal data assets |
 | `.ai/` | Skill definitions (`skills/`) — the repo's reusable task surface |
-| `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`) and CI workflows |
+| `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`), CI workflows, and the PR readiness agent workflow |
 
 ---
 
@@ -137,6 +137,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 | `docs/runbooks/production-runtime-host.md` | Recommended dedicated Linux host setup + test-and-deploy workflow | Host setup steps, deploy workflow, or branch/promotion model change |
 | `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
+| `docs/runbooks/pr-readiness-workflow.md` | Operating the PR readiness GitHub workflow | The workflow, its variables, or `scripts/forge/` change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---
@@ -174,6 +175,8 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 | Skill folder | What it covers |
 |---|---|
 | `check-pr-readiness/` | Pre-merge readiness workflow (the gate, independent reviewers, docs drift review, readiness comment on the PR) |
+| `fix-pr-readiness/` | Fixing the findings in a PR's readiness comment and recording each attempt on it |
+| `implement-plan/` | Implementing one plan from `plan/` on its own branch |
 | `code-review/` | Code review at multiple thoroughness levels, including architecture and conventions, cleanup, UI/API contract review, and the independent lens reviewers (`lenses.md`) |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
 | `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |

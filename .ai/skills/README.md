@@ -27,6 +27,8 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | Skill folder | Covers |
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `fix-pr-readiness/` | Resolve a readiness comment's findings that need no decision: one commit each, every attempt recorded on the comment |
+| `implement-plan/` | Implement one plan from `plan/` on its own branch: commits with tests, questions instead of guesses, nothing pushed by the agent |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
