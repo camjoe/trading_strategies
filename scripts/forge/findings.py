@@ -8,6 +8,7 @@ _ITEM = re.compile(r"^- \[( |x)\] \*\*(\d+)\.")
 _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
 _TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Closed)\W*$")
+_ANY_HEADING = re.compile(r"^#{1,6} ")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Closed": "closed"}
 
 
@@ -52,7 +53,7 @@ def parse_findings(body: str) -> list[Finding]:
 
     for line in body.splitlines():
         heading = _TIER_HEADING.match(line)
-        if heading or line.startswith("#"):
+        if heading or _ANY_HEADING.match(line):
             close()
             number = None
             tier = _TIERS[heading.group(1)] if heading else "other"

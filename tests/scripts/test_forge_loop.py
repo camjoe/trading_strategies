@@ -522,6 +522,13 @@ class TestFindingsParsing:
         }
 
 
+class TestFindingsParsingContinuations:
+    def test_a_continuation_line_that_starts_with_a_hash_does_not_end_the_tier(self) -> None:
+        body = "#### Notes\n- [ ] **1. Nit.** See issue\n#123 for context.\n- [ ] **2. Other.** Text.\n"
+
+        assert open_counts(body) == {"blocker": 0, "concern": 0, "note": 2}
+
+
 class TestLoopHardeningTwo:
     def test_a_push_failure_is_reported_even_when_the_comment_cannot_be_restored(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))

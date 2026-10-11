@@ -203,3 +203,50 @@ class TestEdgesOfAnEdit:
         new = comment(FINDING, "  *Left: reason*\r\n")
 
         assert fixer_edit_problems(old, new) == []
+
+
+class TestStatusLineEdges:
+    def test_an_uppercase_www_is_refused_like_a_lowercase_one(self) -> None:
+        line = "  *Left: see WWW.example.test*" + chr(10)
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) != []
+
+    def test_a_line_of_exactly_300_characters_and_one_indented_three_spaces_are_accepted(self) -> None:
+        long_line = "  *Left: " + "a" * 300 + "*" + chr(10)
+        indented = "   *Left: short reason*" + chr(10)
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, long_line)) == []
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, indented)) == []
+
+    def test_a_line_over_300_characters_or_indented_four_spaces_is_refused(self) -> None:
+        too_long = "  *Left: " + "a" * 301 + "*" + chr(10)
+        too_deep = "    *Left: short reason*" + chr(10)
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, too_long)) != []
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, too_deep)) != []
+
+    @pytest.mark.parametrize("trailing", [chr(0xA0), chr(0x200B), chr(9)])
+    def test_invisible_trailing_characters_are_refused(self, trailing: str) -> None:
+        line = "  *Left: short reason*" + trailing + chr(10)
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) != []
+
+    @pytest.mark.parametrize("char", ["#", "*", "<", "@", "[", "]", ":", "/", chr(92), chr(96)])
+    def test_each_excluded_character_is_refused(self, char: str) -> None:
+        line = "  *Left: reason " + char + " here*" + chr(10)
+
+        assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) != []
+
+    def test_a_body_with_many_repeated_lines_and_one_added_line_is_checked_exactly(self) -> None:
+        old = FINDING + (chr(10) * 40) + "- [ ] **2. Another.**" + chr(10)
+        new = old.replace("- [ ] **2. Another.**", "- [ ] **2. Another.**" + chr(10) + FIX_LINE.rstrip(chr(10)), 1)
+
+        assert fixer_edit_problems(comment(old), comment(new)) == []
+
+    def test_the_check_step_cannot_be_neutralised_in_the_workflow(self) -> None:
+        text = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "pr-readiness.yml").read_text(
+            encoding="utf-8"
+        )
+        check = text[text.index("- name: Check the comment body") : text.index("- name: Post the readiness comment")]
+
+        assert "|| true" not in check and "continue-on-error" not in check

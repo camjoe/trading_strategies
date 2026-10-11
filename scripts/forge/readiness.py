@@ -16,7 +16,7 @@ _PATH_PATTERNS = (
 )
 _ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
 MAX_ADDED_STATUS_LINES = 12
-_FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\*\s*$")
+_FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\* *$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
 

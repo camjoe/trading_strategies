@@ -71,6 +71,8 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         normalized = path.replace("\\", "/").casefold()
         name = PurePosixPath(normalized).name
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and {".githooks", ".husky"} & set(normalized.split("/")[:-1]):
+            reason = "commit hooks"
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
         if reason is None and (name in executed_names or name.startswith(executed_configs)):

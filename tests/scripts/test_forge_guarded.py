@@ -81,3 +81,8 @@ def test_ordinary_files_are_not_guarded(path: str) -> None:
 )
 def test_the_guard_ignores_case_so_a_case_insensitive_checkout_cannot_dodge_it(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["apps/web/.githooks/pre-push", "tools/.husky/pre-commit"])
+def test_hook_directories_are_guarded_at_any_depth(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1

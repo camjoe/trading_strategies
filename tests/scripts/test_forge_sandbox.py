@@ -270,3 +270,41 @@ def test_a_directory_that_cannot_be_deleted_is_reported_and_does_not_replace_the
     assert "remove it by hand" in capsys.readouterr().err
     monkeypatch.undo()
     sandbox_module.shutil.rmtree(parent, onexc=sandbox_module._make_writable)
+
+
+class TestProcessGroupPerPlatform:
+    def _popen_kwargs(self, monkeypatch: pytest.MonkeyPatch, platform: str, tmp_path: Path) -> dict[str, object]:
+        from scripts.forge import sandbox as sandbox_module
+
+        seen: dict[str, object] = {}
+
+        class FakeProcess:
+            pid = 1
+            returncode = 0
+
+            def __init__(self, *_args: object, **kwargs: object) -> None:
+                seen.update(kwargs)
+
+            def __enter__(self) -> "FakeProcess":
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+                return "", ""
+
+        monkeypatch.setattr(sandbox_module.sys, "platform", platform)
+        monkeypatch.setattr(sandbox_module.subprocess, "Popen", FakeProcess)
+        sandbox_module.run_bounded(["x"], tmp_path)
+        return seen
+
+    def test_windows_starts_a_new_process_group(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        seen = self._popen_kwargs(monkeypatch, "win32", tmp_path)
+
+        assert "creationflags" in seen and "start_new_session" not in seen
+
+    def test_other_platforms_start_a_new_session(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        seen = self._popen_kwargs(monkeypatch, "linux", tmp_path)
+
+        assert seen.get("start_new_session") is True and "creationflags" not in seen
