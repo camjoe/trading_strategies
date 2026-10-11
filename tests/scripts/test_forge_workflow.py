@@ -234,3 +234,10 @@ def test_the_prompt_tells_the_agent_to_use_plan_subagents_and_not_to_poll() -> N
     prompt = review[review.index("- name: Build the prompt") : review.index("- name: Run pr ready")]
 
     assert "subagent_type Plan" in prompt and "do not poll" in prompt and "sleep loops, Monitor" in prompt
+
+
+def test_the_skill_says_security_findings_do_not_decide_the_title_and_points_to_the_owners_decision() -> None:
+    skill = (WORKFLOW.parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "do not decide the title" in skill and "run /security-review before merge" in skill
+    assert "The title follows the rules above only." in skill
