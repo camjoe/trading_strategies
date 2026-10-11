@@ -1,6 +1,7 @@
 # Plan: more trading and more evidence on the IBKR paper accounts
 
-Status: drafted 2026-10-09. Not started. Nothing below has been run against the IBKR host.
+Status: in progress (branch `feature/more-trading-evidence`). Before pickup: drafted 2026-10-09. Not
+started. Nothing below has been run against the IBKR host.
 Branch to use: `feature/more-trading-evidence`, off `develop`.
 
 ## Goal
