@@ -5,7 +5,7 @@ from scripts.forge.plans import (
     claimed_plan_branch,
     claimed_plan_text,
     claimed_readme_text,
-    load_plan,
+    parse_plan,
     pickup_problems,
     plans_claimed_by,
     readme_without_row,
@@ -145,3 +145,7 @@ class TestClaimedHelpers:
 
         assert [path.name for path in plans_claimed_by(tmp_path, "feature/a")] == ["a.md"]
         assert plans_claimed_by(tmp_path, "feature/none") == []
+
+
+def load_plan(plan_file: Path, readme: Path) -> Plan:
+    return parse_plan(plan_file.name, plan_file.read_text(encoding="utf-8"), readme.read_text(encoding="utf-8"))

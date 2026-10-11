@@ -36,7 +36,10 @@ _EXTRA_GUARDS = (
     ("local/", "private research and parameters"),
 )
 
-_EXECUTED_CONFIG = re.compile(r"^(?:(?:vite|vitest|eslint|jest)\.config\.[a-z]+|\.eslintrc(?:\.[a-z]+)?)$")
+_CODE_SUFFIX = r"(?:js|cjs|mjs|ts|cts|mts|json|yml|yaml)"
+_EXECUTED_CONFIG = re.compile(
+    rf"^(?:(?:vite|vitest|eslint|jest)\.config\.(?:[\w-]+\.)*{_CODE_SUFFIX}|\.eslintrc(?:\.{_CODE_SUFFIX})?)$"
+)
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 

@@ -161,8 +161,8 @@ command to delete the remote branch if it got there. The plan file stays in the 
 work is ready to merge. The claim branch is pushed without an upstream, so a manual `git pull` on it needs the
 remote named (`git pull origin <branch>`).
 
-**What an unattended run cannot change.** `scripts/forge/guarded_paths.py` holds the full list. Two groups in it
-matter for planning. All of `scripts/` is guarded, because the workflow imports from it with a token in hand,
+**What an unattended run cannot change.** `scripts/forge/guarded_paths.py` holds the full list. For
+planning, note that all of `scripts/` is guarded, because the workflow imports from it with a token in hand,
 as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. A plan whose work
 includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
 pushed; do that part by hand or in a session you run yourself.

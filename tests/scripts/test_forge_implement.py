@@ -85,6 +85,8 @@ class FakeGit:
         return self.on_base and relative in self.files
 
     def show(self, ref: str, relative: str) -> str:
+        if relative not in self.files:
+            raise ForgeError(f"{relative} is not at {ref}")
         return self.files[relative]
 
     def hold(self, name: str, sha: str) -> str:
@@ -195,7 +197,7 @@ class TestRefusals:
 
         result = setup.run()
 
-        assert result.outcome == "refused" and setup.forge.opened == []
+        assert result.outcome == "refused" and setup.forge.opened == [] and result.branch == "feature/thing"
 
     def test_every_refusal_still_notifies_the_owner(self, setup: Setup) -> None:
         setup.run(plan="nope.md")
@@ -602,3 +604,25 @@ class TestHoldFailure:
             and "ref is locked" in result.detail
         )
         assert setup.forge.bodies
+
+
+class TestPickupReadsTheBase:
+    def test_a_plan_index_missing_from_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
+        del setup.git.files["plan/README.md"]
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and "README.md" in result.detail
+        assert not any(call.startswith("branch") for call in setup.git.calls)
+
+    def test_a_failed_hold_names_the_commit_that_is_still_in_the_repository(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        def broken(name: str, sha: str) -> str:
+            raise ForgeError("ref is locked")
+
+        setup.git.hold = broken  # type: ignore[method-assign]
+
+        result = setup.run()
+
+        assert "work111" in result.detail and "unreferenced" in result.detail and "lost" not in result.detail

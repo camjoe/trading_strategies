@@ -122,6 +122,7 @@ def _run(
     readme = repo_root / "plan" / "README.md"
     base_ref = f"origin/{base}"
     original = ""
+    branch_name: str | None = None
     try:
         git.require_clean_tree()
         git.fetch()
@@ -134,6 +135,7 @@ def _run(
                 f"plan/{plan_file} is not on {base_ref}; push or merge it there first.",
             )
         plan = parse_plan(plan_file, git.show(base_ref, f"plan/{plan_file}"), git.show(base_ref, "plan/README.md"))
+        branch_name = plan.branch
         problems = pickup_problems(plan, depends_ok)
         if problems:
             return ImplementResult("refused", plan_file, plan.branch, None, " ".join(problems))
@@ -149,7 +151,7 @@ def _run(
         git.create_branch(plan.branch, base_ref)
         fresh = git.head()
     except ForgeError as exc:
-        return ImplementResult("refused", plan_file, None, None, str(exc))
+        return ImplementResult("refused", plan_file, branch_name, None, str(exc))
 
     claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
@@ -251,7 +253,8 @@ def _implement(
             held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
         except ForgeError as exc:
             held_note = (
-                f" Nothing was pushed, and the commits could not be kept ({exc}); they are lost with the sandbox."
+                f" Nothing was pushed, and the commits could not be kept under a ref ({exc}). They are in your "
+                f"repository as commit {end}, unreferenced: run git branch <name> {end} to keep them."
             )
     elif committed:
         git.fast_forward(end)

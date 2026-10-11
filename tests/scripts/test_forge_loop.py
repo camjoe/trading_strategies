@@ -666,3 +666,9 @@ class TestVerdictAndTierReading:
         body = "#### 🟠 Concerns (2)" + chr(10) + "- [ ] **1. Bad.** Text." + chr(10)
 
         assert open_counts(body) == {"blocker": 0, "concern": 1, "note": 0}
+
+
+def test_a_banner_heading_above_the_title_hides_it_and_the_verdict_is_missing() -> None:
+    body = "<!-- pr-readiness -->" + chr(10) + "## Notice" + chr(10) + "## PR readiness: READY" + chr(10)
+
+    assert verdict(body) is None

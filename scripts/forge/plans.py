@@ -22,11 +22,6 @@ class Plan:
     depends_on: str | None
 
 
-def load_plan(plan_file: Path, readme: Path) -> Plan:
-    """The plan in *plan_file*, with its dependencies from the plan index in *readme*."""
-    return parse_plan(plan_file.name, plan_file.read_text(encoding="utf-8"), readme.read_text(encoding="utf-8"))
-
-
 def parse_plan(file: str, text: str, readme_text: str) -> Plan:
     """The plan *file* whose text is *text*, with its dependencies from the plan index text *readme_text*."""
     stem = file.removesuffix(".md")
