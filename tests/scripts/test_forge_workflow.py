@@ -108,3 +108,17 @@ def test_the_posting_job_confirms_the_head_has_not_moved_just_before_it_posts() 
 
     assert post.index("- name: Check the comment body") < confirm < post.index("- name: Post the readiness comment")
     assert "scripts.forge pr-info" in post[confirm : post.index("- name: Post the readiness comment")]
+
+
+def test_a_failed_review_turns_the_readiness_check_red_instead_of_skipped() -> None:
+    post = _job("post")
+    first_step = post[post.index("steps:") : post.index("- name: Checkout")]
+
+    assert "!cancelled()" in post.split("steps:")[0]
+    assert "needs.review.result != 'success'" in first_step and "exit 1" in first_step
+
+
+def test_the_two_jobs_agree_on_the_artifact_and_the_body_file() -> None:
+    assert "name: readiness-body" in _job("review") and "name: readiness-body" in _job("post")
+    assert "readiness-comment.md" in _job("review") and "readiness-comment.md" in _job("post")
+    assert "overwrite: true" in _job("review")

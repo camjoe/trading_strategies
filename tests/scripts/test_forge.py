@@ -876,3 +876,9 @@ class TestPublicTextShapes:
         new = old + "\n".join(f"  *Left: reason number {n}*" for n in range(13)) + "\n"
 
         assert any("status lines" in p for p in fixer_edit_problems(old, new))
+
+    def test_exactly_twelve_added_status_lines_are_accepted(self) -> None:
+        old = "- [ ] **1. A.** text" + chr(10)
+        new = old + chr(10).join(f"  *Left: reason number {n}*" for n in range(12)) + chr(10)
+
+        assert fixer_edit_problems(old, new) == []

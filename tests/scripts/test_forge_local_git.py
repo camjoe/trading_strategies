@@ -206,7 +206,7 @@ def test_hold_keeps_a_commit_under_a_local_only_ref(repo: Path) -> None:
 
     ref = LocalGit(repo).hold("plan/x", sha)
 
-    assert ref == "refs/forge/held/plan/x" and git(repo, "rev-parse", ref) == sha
+    assert ref == f"refs/forge/held/plan/x/{sha[:12]}" and git(repo, "rev-parse", ref) == sha
     assert git(repo, "for-each-ref", "refs/heads", "refs/remotes") == git(repo, "for-each-ref", "refs/heads")
 
 
@@ -229,3 +229,18 @@ def test_a_hook_planted_in_the_checkout_does_not_run_when_the_controller_merges(
     local.fast_forward(imported)
 
     assert (repo / "new.txt").exists() and not marker.exists()
+
+
+def test_holding_twice_on_one_branch_name_keeps_both_commits_and_overlapping_names_do_not_clash(repo: Path) -> None:
+    first = git(repo, "rev-parse", "HEAD")
+    (repo / "b.txt").write_text("b", encoding="utf-8")
+    git(repo, "add", "b.txt")
+    git(repo, "commit", "-q", "-m", "second")
+    second = git(repo, "rev-parse", "HEAD")
+    local = LocalGit(repo)
+
+    one, two = local.hold("plan/x", first), local.hold("plan/x", second)
+    nested = local.hold("plan/x/y", second)
+
+    assert git(repo, "rev-parse", one) == first and git(repo, "rev-parse", two) == second
+    assert git(repo, "rev-parse", nested) == second

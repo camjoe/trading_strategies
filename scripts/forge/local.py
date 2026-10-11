@@ -71,9 +71,12 @@ class LocalGit:
     def __init__(self, root: Path | None = None) -> None:
         self._root = root or get_repo_root()
 
+    def _run(self, *args: str) -> str:
+        return git_output(self._root, *_CONTROLLER_GIT, *args)
+
     def _git(self, *args: str) -> str:
         try:
-            return git_output(self._root, *_CONTROLLER_GIT, *args)
+            return self._run(*args)
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"git {args[0]} failed: {(exc.stderr or '').strip()}") from exc
 
@@ -109,7 +112,7 @@ class LocalGit:
         self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
         sha = self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
         try:
-            git_output(self._root, *_CONTROLLER_GIT, "merge-base", "--is-ancestor", since, sha)
+            self._run("merge-base", "--is-ancestor", since, sha)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise ForgeError(f"git merge-base failed: {(exc.stderr or '').strip()}") from exc
@@ -120,7 +123,7 @@ class LocalGit:
 
     def hold(self, name: str, sha: str) -> str:
         """Keep *sha* under a local-only ref for the owner to inspect; returns the ref. Nothing is pushed."""
-        ref = f"refs/forge/held/{name}"
+        ref = f"refs/forge/held/{name}/{sha[:12]}"
         self._git("update-ref", ref, sha)
         return ref
 
@@ -131,7 +134,7 @@ class LocalGit:
     def exists_on(self, ref: str, relative: str) -> bool:
         """Whether *relative* exists in the tree at *ref*."""
         try:
-            git_output(self._root, *_CONTROLLER_GIT, "cat-file", "-e", f"{ref}:{relative}")
+            self._run("cat-file", "-e", f"{ref}:{relative}")
         except subprocess.CalledProcessError:
             return False
         return True
@@ -144,7 +147,7 @@ class LocalGit:
     def push(self, branch: str) -> None:
         """Push HEAD to the remote branch named *branch*, whatever the upstream setting says."""
         try:
-            git_output(self._root, *_CONTROLLER_GIT, "push", "origin", f"HEAD:refs/heads/{branch}")
+            self._run("push", "origin", f"HEAD:refs/heads/{branch}")
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"git push to {branch} failed: {(exc.stderr or '').strip()}") from exc
 
@@ -153,7 +156,7 @@ class LocalGit:
 
     def create_branch(self, name: str, start: str) -> None:
         try:
-            git_output(self._root, *_CONTROLLER_GIT, "switch", "-c", name, start)
+            self._run("switch", "-c", name, start)
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"Could not create branch {name} from {start}: {(exc.stderr or '').strip()}") from exc
 

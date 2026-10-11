@@ -86,3 +86,8 @@ def test_the_guard_ignores_case_so_a_case_insensitive_checkout_cannot_dodge_it(p
 @pytest.mark.parametrize("path", ["apps/web/.githooks/pre-push", "tools/.husky/pre-commit"])
 def test_hook_directories_are_guarded_at_any_depth(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["Apps/.GitHooks/pre-push", "x/.HUSKY/pre-commit", ".ENV.production", "NOXFILE.PY"])
+def test_mixed_case_hook_directories_and_executed_names_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1

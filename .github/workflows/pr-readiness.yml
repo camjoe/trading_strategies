@@ -197,6 +197,7 @@ jobs:
           name: readiness-body
           path: ${{ runner.temp }}/readiness-comment.md
           retention-days: 1
+          overwrite: true
           if-no-files-found: error
 
       - name: Scrub the transcript
@@ -228,7 +229,8 @@ jobs:
     name: readiness
     needs: review
     if: >-
-      github.event.pull_request.draft == false
+      !cancelled()
+      && github.event.pull_request.draft == false
       && github.event.pull_request.head.repo.full_name == github.repository
       && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
@@ -239,6 +241,12 @@ jobs:
       COMMENT_AUTHOR: github-actions[bot]
 
     steps:
+      - name: Fail when the review job did not succeed
+        if: needs.review.result != 'success'
+        run: |
+          echo "::error::The readiness-review job ${{ needs.review.result }}; nothing was posted. See that job's log."
+          exit 1
+
       - name: Checkout the PR head (a fresh tree, without anything the agent wrote)
         uses: actions/checkout@v6
         with:

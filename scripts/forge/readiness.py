@@ -15,7 +15,7 @@ _PATH_PATTERNS = (
     re.compile(r"[A-Za-z]:[\\/]Users[\\/]"),
 )
 _ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
-MAX_ADDED_STATUS_LINES = 12
+_MAX_ADDED_STATUS_LINES = 12
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\* *$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
@@ -130,6 +130,6 @@ def fixer_edit_problems(old: str, new: str) -> list[str]:
             problems.append(
                 f"Line {new_start + 1}: only Fix attempted, Not fixed, and Left lines may be added; existing lines stay."
             )
-    if added_total > MAX_ADDED_STATUS_LINES:
-        problems.append(f"More than {MAX_ADDED_STATUS_LINES} status lines were added in one round.")
+    if added_total > _MAX_ADDED_STATUS_LINES:
+        problems.append(f"More than {_MAX_ADDED_STATUS_LINES} status lines were added in one round.")
     return problems

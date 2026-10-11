@@ -61,6 +61,10 @@ gh variable set READINESS_SAVE_TRANSCRIPT --body true
 
 ## When a run fails
 
+A pass is two jobs. Problems before and during the agent show on `readiness-review`; the `readiness` job then
+fails with "The readiness-review job ... nothing was posted" so the required check is red, not skipped.
+Problems with the body, the head check, or the post show on `readiness`.
+
 | Symptom | Cause |
 |---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN is not set` | The secret is missing |
@@ -68,7 +72,8 @@ gh variable set READINESS_SAVE_TRANSCRIPT --body true
 | `The agent did not write a comment body` | The agent finished without writing the body file; re-run |
 | `contains a local path` / `a forbidden string` / `credential-like text` | The comment would have leaked a runner path or token; nothing was posted |
 | `--forbid-env variable is not set or empty` | The token variable was missing from the check step, so the leak guard would check nothing |
-| `Readiness pass cap reached` | `READINESS_MAX_PASSES` passes already ran; the job fails so a stale comment is not mistaken for current. Raise the variable or review by hand |
+| `Readiness pass cap reached` (on `readiness-review`) | `READINESS_MAX_PASSES` passes already ran; the job fails, and `readiness` goes red with it, so a stale comment is not mistaken for current. Raise the variable or review by hand |
+| `The pull request head moved` (on `readiness`) | A push landed during the review; nothing was posted and the newer push starts its own pass |
 | `a newer push landed` | The head moved after the event; the newer push starts its own pass |
 | `Cannot read the pass number` | The previous comment has no `· pass N ·` header; fix or delete the comment |
 | `The header should say pass N` | The agent wrote the wrong pass number; nothing was posted, re-run |
