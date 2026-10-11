@@ -13,7 +13,7 @@ from typing import Literal, Protocol
 
 from scripts.forge.base import CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
-from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
+from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
 from scripts.forge.sandbox import SandboxFactory, leftover_summary
 
@@ -24,6 +24,7 @@ class PlanGit(CheckoutGit, Protocol):
     """The checkout operations the pickup uses, beyond the ones it shares with the fixer loop."""
 
     def exists_on(self, ref: str, relative: str) -> bool: ...
+    def show(self, ref: str, relative: str) -> str: ...
     def current_branch(self) -> str: ...
     def switch(self, branch: str) -> None: ...
     def delete_branch(self, name: str) -> None: ...
@@ -119,25 +120,23 @@ def _run(
 ) -> ImplementResult:
     plan_path = repo_root / "plan" / plan_file
     readme = repo_root / "plan" / "README.md"
-    if not plan_path.is_file():
-        return ImplementResult("refused", plan_file, None, None, f"There is no plan/{plan_file}.")
-    plan = load_plan(plan_path, readme)
-    problems = pickup_problems(plan, depends_ok)
-    if problems:
-        return ImplementResult("refused", plan_file, plan.branch, None, " ".join(problems))
-
+    base_ref = f"origin/{base}"
     original = ""
     try:
         git.require_clean_tree()
         git.fetch()
-        if not git.exists_on(f"origin/{base}", f"plan/{plan_file}"):
+        if not git.exists_on(base_ref, f"plan/{plan_file}"):
             return ImplementResult(
                 "refused",
                 plan_file,
-                plan.branch,
                 None,
-                f"plan/{plan_file} is not on origin/{base}; push or merge it there first.",
+                None,
+                f"plan/{plan_file} is not on {base_ref}; push or merge it there first.",
             )
+        plan = parse_plan(plan_file, git.show(base_ref, f"plan/{plan_file}"), git.show(base_ref, "plan/README.md"))
+        problems = pickup_problems(plan, depends_ok)
+        if problems:
+            return ImplementResult("refused", plan_file, plan.branch, None, " ".join(problems))
         original = git.current_branch()
         if not original:
             return ImplementResult(
@@ -147,10 +146,10 @@ def _run(
                 None,
                 "The checkout is on a detached HEAD; switch to a branch first.",
             )
-        git.create_branch(plan.branch, f"origin/{base}")
+        git.create_branch(plan.branch, base_ref)
         fresh = git.head()
     except ForgeError as exc:
-        return ImplementResult("refused", plan_file, plan.branch, None, str(exc))
+        return ImplementResult("refused", plan_file, None, None, str(exc))
 
     claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
@@ -247,8 +246,13 @@ def _implement(
     guarded = guarded_paths_touched(git.changed_paths(start, end))
     held_note = ""
     if guarded:
-        held = git.hold(branch, end)
-        held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
+        try:
+            held = git.hold(branch, end)
+            held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
+        except ForgeError as exc:
+            held_note = (
+                f" Nothing was pushed, and the commits could not be kept ({exc}); they are lost with the sandbox."
+            )
     elif committed:
         git.fast_forward(end)
         git.push(branch)

@@ -121,18 +121,51 @@ def test_run_on_start_files_are_guarded_for_that_reason(path: str, reason: str) 
     assert guarded_paths_touched([path]) == [f"{path}: {reason}"]
 
 
-def test_every_common_module_the_forge_tool_imports_is_a_guarded_path() -> None:
+def _common_modules_imported_by(source: str) -> set[str]:
     import ast
+
+    modules: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            parts = node.module.split(".")
+            if parts[0] == "common":
+                modules |= {parts[1]} if len(parts) > 1 else {alias.name for alias in node.names} | {"__init__"}
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                parts = alias.name.split(".")
+                if parts[0] == "common":
+                    modules.add(parts[1] if len(parts) > 1 else "__init__")
+    return modules
+
+
+def test_the_import_walk_sees_every_way_of_importing_a_common_module() -> None:
+    source = "import common\nimport common.git\nfrom common import time\nfrom common.fs import x\nfrom . import y\n"
+
+    assert _common_modules_imported_by(source) == {"__init__", "git", "time", "fs"}
+
+
+def test_every_common_module_the_forge_tool_imports_is_a_guarded_path() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    modules: set[str] = {"__init__"}
-    for source in (root / "scripts" / "forge").glob("*.py"):
-        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] == "common":
-                modules.add(node.module.split(".")[1] if "." in node.module else "__init__")
-            if isinstance(node, ast.Import):
-                modules |= {alias.name.split(".")[1] for alias in node.names if alias.name.startswith("common.")}
+    modules: set[str] = set()
+    for source in (root / "scripts" / "forge").rglob("*.py"):
+        modules |= _common_modules_imported_by(source.read_text(encoding="utf-8"))
 
+    assert "git" in modules
     for module in modules:
         assert guarded_paths_touched([f"src/common/{module}.py"]), module
+
+
+@pytest.mark.parametrize(
+    "name", ["vite.config.ts", "eslint.config.mjs", "jest.config.js", ".eslintrc", ".eslintrc.json"]
+)
+def test_tool_configuration_files_are_guarded_by_exact_name(name: str) -> None:
+    assert len(guarded_paths_touched([f"apps/web/{name}"])) == 1
+
+
+@pytest.mark.parametrize(
+    "name", [".eslintrc-notes.md", "vite.config.notes.md", "eslint.config", "my.eslint.config.ts"]
+)
+def test_lookalike_names_are_not_guarded(name: str) -> None:
+    assert guarded_paths_touched([f"docs/{name}"]) == []

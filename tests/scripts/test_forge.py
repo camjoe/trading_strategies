@@ -882,3 +882,28 @@ class TestPublicTextShapes:
         new = old + chr(10).join(f"  *Left: reason number {n}*" for n in range(12)) + chr(10)
 
         assert fixer_edit_problems(old, new) == []
+
+
+class TestPathFilters:
+    def test_the_publish_filter_refuses_every_form_the_comment_filter_refuses(self) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        for text in ("see ~/project/file.py", "see C:/Users/alice/project", "see /home/alice/project/file.py"):
+            assert leak_problems(text) and publish_problems(text)
+
+    def test_a_bare_home_name_passes_the_comment_filter_but_not_the_publish_filter(self) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        assert leak_problems("the user lives in /home/alice") == []
+        assert publish_problems("the user lives in /home/alice") != []
+
+    def test_the_windows_backslash_profile_form_is_refused_in_both(self) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        text = "see C:" + chr(92) + "Users" + chr(92) + "alice" + chr(92) + "file"
+        assert leak_problems(text) and publish_problems(text)
+
+    def test_an_account_id_shape_inside_a_code_block_is_still_refused(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []

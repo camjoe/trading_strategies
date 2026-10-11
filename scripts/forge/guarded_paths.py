@@ -5,6 +5,7 @@ high risk, so the two lists cannot drift apart. The rest are the pipeline's own 
 configuration the gate runs, and the places that hold decisions or secrets.
 """
 
+import re
 from collections.abc import Iterable
 from pathlib import PurePosixPath
 
@@ -35,7 +36,7 @@ _EXTRA_GUARDS = (
     ("local/", "private research and parameters"),
 )
 
-_EXECUTED_CONFIGS = ("vite.config.", "vitest.config.", "eslint.config.", "jest.config.", ".eslintrc")
+_EXECUTED_CONFIG = re.compile(r"^(?:(?:vite|vitest|eslint|jest)\.config\.[a-z]+|\.eslintrc(?:\.[a-z]+)?)$")
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 
@@ -66,7 +67,6 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         (prefix.casefold(), reason) for prefix, reason in _EXTRA_GUARDS
     )
     executed_names = {name.casefold() for name in _EXECUTED_NAMES}
-    executed_configs = tuple(prefix.casefold() for prefix in _EXECUTED_CONFIGS)
     found: list[str] = []
     for path in paths:
         normalized = path.replace("\\", "/").casefold()
@@ -78,7 +78,7 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
             reason = "commit hooks"
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
-        if reason is None and (name in executed_names or name.startswith(executed_configs)):
+        if reason is None and (name in executed_names or _EXECUTED_CONFIG.match(name)):
             reason = "code or scripts the gate or test runner executes"
         if reason:
             found.append(f"{path}: {reason}")

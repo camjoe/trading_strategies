@@ -244,3 +244,28 @@ def test_holding_twice_on_one_branch_name_keeps_both_commits_and_overlapping_nam
 
     assert git(repo, "rev-parse", one) == first and git(repo, "rev-parse", two) == second
     assert git(repo, "rev-parse", nested) == second
+
+
+def test_hooks_planted_in_the_checkout_do_not_run_for_commits_or_branch_switches(repo: Path) -> None:
+    marker = repo / "hook-ran.txt"
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(exist_ok=True)
+    for name in ("pre-commit", "post-commit", "post-checkout"):
+        hook = hooks / name
+        hook.write_text(
+            "#!/bin/sh" + chr(10) + f"echo ran > '{marker.as_posix()}'" + chr(10), encoding="utf-8", newline="\n"
+        )
+        hook.chmod(0o755)
+    local = LocalGit(repo)
+    (repo / "c.txt").write_text("c", encoding="utf-8")
+
+    local.commit_files([repo / "c.txt"], "add c")
+    local.create_branch("feature/x", "develop")
+
+    assert not marker.exists()
+
+
+def test_show_returns_the_text_of_a_file_at_a_ref(repo: Path) -> None:
+    assert LocalGit(repo).show("HEAD", "a.txt") == "a"
+    with pytest.raises(ForgeError):
+        LocalGit(repo).show("HEAD", "missing.txt")

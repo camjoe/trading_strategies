@@ -52,6 +52,7 @@ class World:
     def __init__(self, tmp_path: Path, first_review: Comment | None) -> None:
         self.setup = Setup(tmp_path)
         self.git = WorldGit()
+        self.git.files = dict(self.setup.git.files)
         self.setup.git = self.git  # type: ignore[assignment]
         forge = self.setup.forge
         self.first_review = first_review

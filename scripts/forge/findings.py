@@ -3,11 +3,11 @@
 import re
 from dataclasses import dataclass
 
-_TITLE = re.compile(r"^## PR readiness: (READY|NOT READY)\s*$", re.MULTILINE)
+_TITLE = re.compile(r"^## PR readiness: (READY|NOT READY)\s*$")
 _ITEM = re.compile(r"^- \[( |x)\] \*\*(\d+)\.")
 _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
-_TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Closed)\W*$")
+_TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Closed": "closed"}
 
@@ -32,7 +32,8 @@ class Finding:
 
 def verdict(body: str) -> str | None:
     """``READY`` or ``NOT READY`` from the comment title, or ``None`` when the title is missing."""
-    match = _TITLE.search(body)
+    heading = next((line for line in body.splitlines() if line.startswith("## ")), "")
+    match = _TITLE.match(heading)
     return match.group(1) if match else None
 
 

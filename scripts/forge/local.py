@@ -131,6 +131,10 @@ class LocalGit:
         """Move the current branch to *sha*, which must descend from it."""
         self._git("merge", "--ff-only", "--quiet", sha)
 
+    def show(self, ref: str, relative: str) -> str:
+        """The text of *relative* as it is at *ref*."""
+        return self._git("show", f"{ref}:{relative}")
+
     def exists_on(self, ref: str, relative: str) -> bool:
         """Whether *relative* exists in the tree at *ref*."""
         try:
@@ -272,7 +276,7 @@ def _agent_result(stdout: str) -> dict[str, Any]:
 def email_notifier(subject: str, message: str, details: dict[str, object]) -> None:
     """Email the owner through the runtime alert settings; a missing configuration sends nothing.
 
-    Loads the runtime notification modules when called, not at import.
+    Do not import ``trading`` at module level in this file: the workflow's posting job imports it.
     """
     from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
     from trading.interfaces.runtime.notifications import notify_runtime_event

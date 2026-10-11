@@ -24,18 +24,21 @@ class Plan:
 
 def load_plan(plan_file: Path, readme: Path) -> Plan:
     """The plan in *plan_file*, with its dependencies from the plan index in *readme*."""
-    text = plan_file.read_text(encoding="utf-8")
+    return parse_plan(plan_file.name, plan_file.read_text(encoding="utf-8"), readme.read_text(encoding="utf-8"))
+
+
+def parse_plan(file: str, text: str, readme_text: str) -> Plan:
+    """The plan *file* whose text is *text*, with its dependencies from the plan index text *readme_text*."""
+    stem = file.removesuffix(".md")
     title = _TITLE.search(text)
     status = _STATUS.search(text)
     branch = _BRANCH.search(text)
-    row = next(
-        (match for match in _ROW.finditer(readme.read_text(encoding="utf-8")) if match["file"] == plan_file.name), None
-    )
+    row = next((match for match in _ROW.finditer(readme_text) if match["file"] == file), None)
     return Plan(
-        file=plan_file.name,
-        title=title.group(1).strip() if title else plan_file.stem,
+        file=file,
+        title=title.group(1).strip() if title else stem,
         status=status.group(1).strip() if status else "",
-        branch=branch.group(1) if branch else f"feature/{plan_file.stem}",
+        branch=branch.group(1) if branch else f"feature/{stem}",
         depends_on=row["depends"].strip() if row else None,
     )
 

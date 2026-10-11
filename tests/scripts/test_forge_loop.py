@@ -646,9 +646,23 @@ class TestLeftovers:
         assert git.imported == [(tmp_path / "box", "abc123")]
 
 
-def test_the_round_prompt_tells_the_fixer_to_leave_no_uncommitted_files() -> None:
+def test_the_round_prompt_tells_the_fixer_to_commit_everything_and_to_run_git_add_and_commit_separately() -> None:
     from scripts.forge.fix_loop import round_prompt
 
     prompt = round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))
 
-    assert "uncommitted" in prompt and "separate commands, never chained with `&&`" in prompt
+    assert "leave no uncommitted files" in prompt
+    assert "separate commands, never chained with `&&`" in prompt
+
+
+class TestVerdictAndTierReading:
+    def test_the_verdict_is_the_title_not_a_line_inside_a_finding(self) -> None:
+        body = "<!-- pr-readiness -->" + chr(10) + "## PR readiness: NOT READY" + chr(10) + "text" + chr(10)
+        body += "## PR readiness: READY" + chr(10)
+
+        assert verdict(body) == "NOT READY"
+
+    def test_a_tier_heading_with_a_count_still_names_its_tier(self) -> None:
+        body = "#### 🟠 Concerns (2)" + chr(10) + "- [ ] **1. Bad.** Text." + chr(10)
+
+        assert open_counts(body) == {"blocker": 0, "concern": 1, "note": 0}

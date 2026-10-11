@@ -206,7 +206,7 @@ diff have run in this pass or an earlier one. Otherwise NOT READY, and the line 
 is unmet (for example "2 concerns need a fix or a Decision"). The title carries no counts.
 
 Security-class findings are never posted and do not decide the title. Say once, in the line under the title,
-whether the owner has recorded a *Decision* on the security review (a finding that says so). If one is
+whether the owner has recorded a *Decision* on the security review (a finding in the previous comment whose *Decision* line covers the security review). If one is
 recorded, say nothing more about security. If none is, add "run /security-review before merge" to that line.
 The title follows the rules above only.
 

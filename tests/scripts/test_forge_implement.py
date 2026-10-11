@@ -28,6 +28,7 @@ class FakeGit:
         self.ff_error: ForgeError | None = None
         self.discarded: list[str] = []
         self.on_base = True
+        self.files: dict[str, str] = {}
         self.switched: list[str] = []
         self.deleted: list[str] = []
         self.cleanup_error: ForgeError | None = None
@@ -81,7 +82,10 @@ class FakeGit:
         self.discarded.append(sha)
 
     def exists_on(self, ref: str, relative: str) -> bool:
-        return self.on_base
+        return self.on_base and relative in self.files
+
+    def show(self, ref: str, relative: str) -> str:
+        return self.files[relative]
 
     def hold(self, name: str, sha: str) -> str:
         self.held.append((name, sha))
@@ -109,6 +113,7 @@ class Setup:
         self.work = tmp_path / "work"
         self.work.mkdir()
         self.git = FakeGit()
+        self.git.files = {"plan/thing.md": PLAN, "plan/later.md": PLAN, "plan/README.md": README}
         self.forge = StubForge()
         self.sent: list[tuple[str, str, dict[str, object]]] = []
         self.tasks: list[ImplementTask] = []
@@ -156,25 +161,34 @@ def setup(tmp_path: Path) -> Setup:
 
 
 class TestRefusals:
-    def test_a_missing_plan_is_refused_before_git_is_touched(self, setup: Setup) -> None:
+    def test_a_plan_that_is_not_on_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
         result = setup.run(plan="nope.md")
 
-        assert result.outcome == "refused" and setup.git.calls == []
+        assert result.outcome == "refused" and "not on origin/develop" in result.detail
+        assert setup.git.calls == ["clean", "fetch"]
 
     def test_a_plan_with_unconfirmed_dependencies_is_refused(self, setup: Setup) -> None:
         result = setup.run(plan="later.md")
 
         assert result.outcome == "refused" and "depends on" in result.detail
-        assert setup.git.calls == [] and setup.forge.opened == []
+        assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
 
     def test_confirming_the_dependencies_lets_it_through(self, setup: Setup) -> None:
         assert setup.run(plan="later.md", depends_ok=True).outcome == "ready-for-review"
 
     def test_a_plan_already_in_progress_is_refused(self, setup: Setup) -> None:
-        path = setup.repo / "plan" / "thing.md"
-        path.write_text(PLAN.replace("drafted", "in progress (branch `x`)"), encoding="utf-8")
+        setup.git.files["plan/thing.md"] = PLAN.replace("drafted", "in progress (branch `x`)")
 
         assert "Already in progress" in setup.run().detail
+
+    def test_the_plans_status_is_read_from_the_base_not_from_a_stale_checkout(self, setup: Setup) -> None:
+        stale = setup.repo / "plan" / "thing.md"
+        stale.write_text(PLAN, encoding="utf-8")
+        setup.git.files["plan/thing.md"] = PLAN.replace("drafted", "in progress (branch `x`)")
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and "Already in progress" in result.detail
 
     def test_a_branch_that_cannot_be_created_is_refused_and_no_pull_request_opens(self, setup: Setup) -> None:
         setup.git.branch_error = ForgeError("branch exists")
@@ -569,3 +583,22 @@ class TestCommandWiring:
         assert seen["fix"] is False and seen["mark_ready"] is False and seen["depends_ok"] is True
         assert seen["base"] == "main" and seen["max_rounds"] == 2
         assert seen["review_wait_seconds"] == 300 and seen["wait_seconds"] == 420
+
+
+class TestHoldFailure:
+    def test_a_hold_that_fails_still_reports_and_still_records_the_note(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        def broken(name: str, sha: str) -> str:
+            raise ForgeError("ref is locked")
+
+        setup.git.hold = broken  # type: ignore[method-assign]
+
+        result = setup.run(setup.agent(summary="Changed the adapter."))
+
+        assert (
+            result.outcome == "needs-owner"
+            and "could not be kept" in result.detail
+            and "ref is locked" in result.detail
+        )
+        assert setup.forge.bodies
