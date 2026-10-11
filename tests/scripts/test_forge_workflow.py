@@ -300,3 +300,9 @@ def test_the_claude_token_is_in_the_posting_job_only_for_the_body_check() -> Non
     holding = [step["name"] for step in _steps("post") if "CLAUDE_CODE_OAUTH_TOKEN" in json.dumps(step)]
 
     assert holding == ["Check the comment body"]
+
+
+def test_the_prompt_tells_the_agent_to_use_a_placeholder_for_user_names_in_example_paths() -> None:
+    script = _run("review", "Build the prompt")
+
+    assert "write `<user>` in place of any user" in script and "do not copy sample paths out of tests" in script
