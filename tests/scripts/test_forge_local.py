@@ -333,3 +333,26 @@ class TestRunGate:
         passed, tail = local.run_gate("origin/develop", tmp_path)
 
         assert passed and str(tmp_path) in tail
+
+
+class TestGateEnvironment:
+    def test_the_gate_gets_the_scrubbed_environment_not_the_owners_secrets(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        seen: dict[str, dict[str, str]] = {}
+
+        def run(
+            command: list[str], cwd: Path, timeout: float, env: dict[str, str]
+        ) -> subprocess.CompletedProcess[str]:
+            seen["env"] = env
+            return completed("ok")
+
+        monkeypatch.setattr(local, "run_bounded", run)
+        monkeypatch.setenv("GH_TOKEN", "secret")
+        monkeypatch.setenv("TRADING_RUNTIME_ALERT_SMTP_PASSWORD", "secret")
+
+        local.run_gate("origin/develop", tmp_path)
+
+        env = seen["env"]
+        assert "GH_TOKEN" not in env and "TRADING_RUNTIME_ALERT_SMTP_PASSWORD" not in env
+        assert env["GIT_CONFIG_NOSYSTEM"] == "1" and env["PYTHONPATH"].startswith(str(tmp_path / "src"))

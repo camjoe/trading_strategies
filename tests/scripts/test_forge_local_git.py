@@ -199,3 +199,33 @@ def test_fast_forward_applies_imported_commits_and_refuses_ones_that_do_not_desc
 
     with pytest.raises(ForgeError, match="merge failed"):
         local.fast_forward(elsewhere)
+
+
+def test_hold_keeps_a_commit_under_a_local_only_ref(repo: Path) -> None:
+    sha = git(repo, "rev-parse", "HEAD")
+
+    ref = LocalGit(repo).hold("plan/x", sha)
+
+    assert ref == "refs/forge/held/plan/x" and git(repo, "rev-parse", ref) == sha
+    assert git(repo, "for-each-ref", "refs/heads", "refs/remotes") == git(repo, "for-each-ref", "refs/heads")
+
+
+def test_a_hook_planted_in_the_checkout_does_not_run_when_the_controller_merges(repo: Path, tmp_path: Path) -> None:
+    clone = tmp_path.parent / (tmp_path.name + "-clone")
+    git(tmp_path, "clone", "-q", str(repo), str(clone))
+    git(clone, "config", "user.name", "t")
+    git(clone, "config", "user.email", "t@t")
+    (clone / "new.txt").write_text("n", encoding="utf-8")
+    git(clone, "add", "new.txt")
+    git(clone, "commit", "-q", "-m", "change")
+    local = LocalGit(repo)
+    imported = local.import_commits(clone, local.head())
+    marker = repo / "hook-ran.txt"
+    hook = repo / ".git" / "hooks" / "post-merge"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(f"#!/bin/sh\necho ran > '{marker.as_posix()}'\n", encoding="utf-8", newline="\n")
+    hook.chmod(0o755)
+
+    local.fast_forward(imported)
+
+    assert (repo / "new.txt").exists() and not marker.exists()

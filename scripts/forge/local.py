@@ -17,6 +17,7 @@ from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_fro
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
 AGENT_TIMEOUT_SECONDS = 3600
+_CONTROLLER_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
 GATE_TIMEOUT_SECONDS = 3600
 _PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
 _PYTHON_MODULES = (
@@ -64,12 +65,15 @@ class HasPrompt(Protocol):
 
 
 class LocalGit:
+    """Git in the owner's checkout. Hooks and ``fsmonitor`` are switched off so code an agent wrote into the
+    checkout's ``.git`` cannot run when the controller merges or commits."""
+
     def __init__(self, root: Path | None = None) -> None:
         self._root = root or get_repo_root()
 
     def _git(self, *args: str) -> str:
         try:
-            return git_output(self._root, *args)
+            return git_output(self._root, *_CONTROLLER_GIT, *args)
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"git {args[0]} failed: {(exc.stderr or '').strip()}") from exc
 
@@ -105,7 +109,7 @@ class LocalGit:
         self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
         sha = self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
         try:
-            git_output(self._root, "merge-base", "--is-ancestor", since, sha)
+            git_output(self._root, *_CONTROLLER_GIT, "merge-base", "--is-ancestor", since, sha)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise ForgeError(f"git merge-base failed: {(exc.stderr or '').strip()}") from exc
@@ -114,6 +118,12 @@ class LocalGit:
             ) from exc
         return sha
 
+    def hold(self, name: str, sha: str) -> str:
+        """Keep *sha* under a local-only ref for the owner to inspect; returns the ref. Nothing is pushed."""
+        ref = f"refs/forge/held/{name}"
+        self._git("update-ref", ref, sha)
+        return ref
+
     def fast_forward(self, sha: str) -> None:
         """Move the current branch to *sha*, which must descend from it."""
         self._git("merge", "--ff-only", "--quiet", sha)
@@ -121,7 +131,7 @@ class LocalGit:
     def exists_on(self, ref: str, relative: str) -> bool:
         """Whether *relative* exists in the tree at *ref*."""
         try:
-            git_output(self._root, "cat-file", "-e", f"{ref}:{relative}")
+            git_output(self._root, *_CONTROLLER_GIT, "cat-file", "-e", f"{ref}:{relative}")
         except subprocess.CalledProcessError:
             return False
         return True
@@ -134,7 +144,7 @@ class LocalGit:
     def push(self, branch: str) -> None:
         """Push HEAD to the remote branch named *branch*, whatever the upstream setting says."""
         try:
-            git_output(self._root, "push", "origin", f"HEAD:refs/heads/{branch}")
+            git_output(self._root, *_CONTROLLER_GIT, "push", "origin", f"HEAD:refs/heads/{branch}")
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"git push to {branch} failed: {(exc.stderr or '').strip()}") from exc
 
@@ -143,7 +153,7 @@ class LocalGit:
 
     def create_branch(self, name: str, start: str) -> None:
         try:
-            git_output(self._root, "switch", "-c", name, start)
+            git_output(self._root, *_CONTROLLER_GIT, "switch", "-c", name, start)
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"Could not create branch {name} from {start}: {(exc.stderr or '').strip()}") from exc
 
@@ -280,9 +290,16 @@ def run_gate(base: str, cwd: Path) -> tuple[bool, str]:
     """Run the pull-request gate against *base* in the checkout at *cwd*, with the interpreter running this command.
 
     The checkout is expected to be a clean clone without a virtual environment of its own; its source comes
-    first on ``PYTHONPATH``. That interpreter must have the dev requirements installed.
+    first on ``PYTHONPATH``. The gate runs the branch's own code, so it gets the agent's scrubbed environment.
+    That interpreter must have the dev requirements installed.
     """
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(cwd / "src"), str(cwd / "apps")])}
+    with tempfile.TemporaryDirectory(prefix="gate-env-") as scratch:
+        env = agent_environment(os.environ, Path(scratch))
+        env["PYTHONPATH"] = os.pathsep.join([str(cwd / "src"), str(cwd / "apps")])
+        return _run_gate(base, cwd, env)
+
+
+def _run_gate(base: str, cwd: Path, env: dict[str, str]) -> tuple[bool, str]:
     try:
         completed = run_bounded(
             [sys.executable, "-m", "scripts.run_checks", "pr", "--base", base],

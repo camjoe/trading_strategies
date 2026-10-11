@@ -13,15 +13,25 @@ a failed run leaves the check red and posts nothing.
 
 ## How a pass runs
 
+The `readiness-review` job:
+
 1. Checks out the pull request head and builds the repo-local `.venv`.
 2. Reads the pull request, the previous readiness comment from `github-actions[bot]`, and CI state
    with `python -m scripts.forge review-context`. It waits until the same checks are seen twice (its
-   own `readiness` check is excluded), fails if the head moved since the event, and fails if the pass
-   cap is reached.
-3. Runs the agent with the Claude token and **no GitHub token**. It writes the comment body to a file.
-4. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
-   number is not the previous one plus one, or that holds a runner path or credential-like text.
-5. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment.
+   own `readiness-review` and `readiness` checks are excluded), fails if the head moved since the event,
+   and fails if the pass cap is reached.
+3. Runs the agent with the Claude token and **no GitHub token**. It writes the comment body to a file, and
+   that file is the only thing handed on, as an artifact.
+
+The `readiness` job, which starts only if the first succeeded:
+
+4. Checks out the pull request head again, so nothing the agent wrote in its working tree or `.venv` is
+   present, and fetches the body artifact.
+5. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
+   number is not the live comment's plus one, or that holds a runner path, an account-id shape, or
+   credential-like text.
+6. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This
+   is the only job with the GitHub token.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
 
@@ -94,7 +104,7 @@ network. Its environment withholds GitHub tokens and secret-looking variables, g
 with no credential helper and only the `file` transport, and `gh` reads an empty configuration directory, so a
 push or a `gh` call fails even from a test it writes. Its tool permissions also deny `gh` and the git verbs that
 push, reset, clean, or change configuration. Treat the readiness comment as untrusted text, and run the loop
-only on plans and pull requests you are comfortable having the agent act on.
+only on plans and pull requests you are comfortable having the agent act on. The loop's own git commands in your checkout run with hooks and `fsmonitor` off, so a hook the agent writes there does not run when the loop merges or commits; a git setting it changes in your `.git/config` still can, so real isolation (a container, WSL, or a separate OS user) is the stronger protection.
 
 The sandbox has no `node_modules`, so a change under the frontend cannot pass the frontend checks there; CI
 checks those.
@@ -121,11 +131,14 @@ branch (push or merge a new plan first). Then it:
 3. builds a sandbox at the claim commit and starts a headless `claude -p` session in it (model `sonnet` unless
    `--model` says otherwise) that follows the `implement-plan` skill, commits there, and may write questions
    and a summary to files;
-4. fetches the commits into your repository, checks the paths they touched, applies them, pushes them to the
-   draft so you can review them (even when a guarded path was touched, which keeps the pull request a draft), and records the summary and questions in the pull request description;
+4. fetches the commits into your repository and checks the paths they touched. If any is guarded, nothing is
+   pushed or applied (GitHub runs a workflow file from a pushed commit): the commits are kept under the local
+   ref `refs/forge/held/<branch>`, and the detail says so, for you to inspect with `git diff`. Otherwise it applies
+   them and pushes them to the draft, and records the summary and questions in the pull request description;
 5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
-   this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate still runs the
-   branch's tests, which are code the agent wrote, as you; it never runs in your checkout. It needs the dev requirements
+   this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate runs the
+   branch's tests, which are code the agent wrote, as you but with the agent's scrubbed environment (no tokens or
+   SMTP settings); it never runs in your checkout. It needs the dev requirements
    installed in the environment you start the command from. Uncommitted work
    left in the sandbox keeps the pull request a draft.
 

@@ -3,9 +3,13 @@ name: PR readiness
 # Runs `pr ready` on every non-draft pull request into develop and keeps the single
 # <!-- pr-readiness --> comment current. Operating notes: docs/runbooks/pr-readiness-workflow.md.
 #
-# The agent step has the Claude token and no GitHub token. It writes the comment body to a file; the
-# steps after it check the body and post it with scripts.forge, which can only write the readiness
-# comment.
+# Two jobs, so nothing the agent can change is ever run with the GitHub token:
+#   review  The agent job. It has the Claude token and no GitHub token beyond the read-only context
+#           step before the agent starts. It writes the comment body to a file and hands only that
+#           file on, as an artifact.
+#   post    Starts from a fresh checkout of the pull request head, so the agent's working tree is gone.
+#           It checks the handed-over body and posts it with scripts.forge, which can only write the
+#           readiness comment. This job is named `readiness`.
 #
 # Repository variables (all optional):
 #   READINESS_MAX_PASSES        fail the job instead of reviewing after this many passes (default 8)
@@ -27,8 +31,8 @@ permissions:
   checks: read
 
 jobs:
-  readiness:
-    name: readiness
+  review:
+    name: readiness-review
     if: >-
       github.event.pull_request.draft == false
       && github.event.pull_request.head.repo.full_name == github.repository
@@ -105,8 +109,8 @@ jobs:
           CI_WAIT_SECONDS: ${{ vars.READINESS_CI_WAIT_SECONDS || '1500' }}
         run: |
           .venv/bin/python -m scripts.forge review-context --pr "$PR_NUMBER" \
-            --author "$COMMENT_AUTHOR" --exclude readiness --wait "$CI_WAIT_SECONDS" \
-            --expect-sha "$HEAD_SHA" --max-passes "$MAX_PASSES" > "$CONTEXT_FILE"
+            --author "$COMMENT_AUTHOR" --exclude readiness --exclude readiness-review \
+            --wait "$CI_WAIT_SECONDS" --expect-sha "$HEAD_SHA" --max-passes "$MAX_PASSES" > "$CONTEXT_FILE"
           if [ "$(jq -r '.pass_cap_reached' "$CONTEXT_FILE")" = "true" ]; then
             echo "::error::Readiness pass cap reached ($MAX_PASSES passes); not reviewing. Raise READINESS_MAX_PASSES or review by hand."
             exit 1
@@ -187,20 +191,13 @@ jobs:
               sys.exit("::error::The agent run reported an error.")
           PY
 
-      - name: Check the comment body
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          previous="$(jq -r '.previous_pass // empty' "$CONTEXT_FILE")"
-          .venv/bin/python -m scripts.forge check-body --body-file "$BODY_FILE" \
-            ${previous:+--previous-pass "$previous"} --forbid-env CLAUDE_CODE_OAUTH_TOKEN
-
-      - name: Post the readiness comment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          .venv/bin/python -m scripts.forge comment-upsert --pr "$PR_NUMBER" \
-            --author "$COMMENT_AUTHOR" --body-file "$BODY_FILE"
+      - name: Hand over the comment body
+        uses: actions/upload-artifact@v7
+        with:
+          name: readiness-body
+          path: ${{ runner.temp }}/readiness-comment.md
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Scrub the transcript
         if: always() && vars.READINESS_SAVE_TRANSCRIPT == 'true'
@@ -208,7 +205,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           [ -f "$TRANSCRIPT_FILE" ] || exit 0
-          .venv/bin/python - <<'PY'
+          python3 - <<'PY'
           import os
           from pathlib import Path
 
@@ -226,3 +223,76 @@ jobs:
           path: ${{ runner.temp }}/transcript.jsonl
           retention-days: 7
           if-no-files-found: ignore
+
+  post:
+    name: readiness
+    needs: review
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      COMMENT_AUTHOR: github-actions[bot]
+
+    steps:
+      - name: Checkout the PR head (a fresh tree, without anything the agent wrote)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements-base.txt
+            requirements-dev.txt
+
+      - name: Create the repo-local .venv
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements-dev.txt
+
+      - name: Fetch the handed-over comment body
+        uses: actions/download-artifact@v7
+        with:
+          name: readiness-body
+          path: ${{ runner.temp }}/handoff
+
+      - name: Read the pass number of the comment being replaced
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .venv/bin/python -m scripts.forge comment-get --pr "$PR_NUMBER" --author "$COMMENT_AUTHOR" > "$RUNNER_TEMP/previous.json"
+          .venv/bin/python - <<'PY'
+          import json, os
+
+          from scripts.forge.readiness import pass_number
+
+          previous = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "previous.json"), encoding="utf-8"))
+          number = pass_number(previous["body"]) if previous else None
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"PREVIOUS_PASS={'' if number is None else number}\n")
+              env.write(f"BODY_FILE={os.environ['RUNNER_TEMP']}/handoff/readiness-comment.md\n")
+          PY
+
+      - name: Check the comment body
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          .venv/bin/python -m scripts.forge check-body --body-file "$BODY_FILE" \
+            ${PREVIOUS_PASS:+--previous-pass "$PREVIOUS_PASS"} --forbid-env CLAUDE_CODE_OAUTH_TOKEN
+
+      - name: Post the readiness comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .venv/bin/python -m scripts.forge comment-upsert --pr "$PR_NUMBER" \
+            --author "$COMMENT_AUTHOR" --body-file "$BODY_FILE"

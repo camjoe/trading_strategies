@@ -33,6 +33,7 @@ class FakeGit:
         self.cleanup_error: ForgeError | None = None
         self.push_new_error: ForgeError | None = None
         self.branch_name = "develop"
+        self.held: list[tuple[str, str]] = []
         self.head_error: ForgeError | None = None
 
     def head(self) -> str:
@@ -82,6 +83,10 @@ class FakeGit:
 
     def exists_on(self, ref: str, relative: str) -> bool:
         return self.on_base
+
+    def hold(self, name: str, sha: str) -> str:
+        self.held.append((name, sha))
+        return f"refs/forge/held/{name}"
 
     def current_branch(self) -> str:
         return self.branch_name
@@ -377,23 +382,24 @@ class TestRerunAfterFailures:
 
         assert "remove it by hand" in result.detail and "branch is checked out" in result.detail
 
-    def test_a_question_is_recorded_and_commits_pushed_even_when_a_guarded_path_was_touched(
-        self, setup: Setup
-    ) -> None:
+    def test_a_question_is_recorded_and_nothing_is_pushed_when_a_guarded_path_was_touched(self, setup: Setup) -> None:
         setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
 
         result = setup.run(setup.agent(questions="Is the endpoint public?", summary="Changed the adapter."))
 
         assert result.outcome == "needs-owner" and "Is the endpoint public?" in result.detail
-        assert "push" in setup.git.calls
+        assert "push" not in setup.git.calls and setup.git.forwarded == []
         assert "## Questions for the owner" in setup.forge.bodies[0][1]
 
-    def test_guarded_commits_are_pushed_to_the_draft_for_review_but_never_marked_ready(self, setup: Setup) -> None:
+    def test_guarded_commits_are_never_pushed_or_applied_but_are_kept_in_a_local_ref(self, setup: Setup) -> None:
         setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
 
         result = setup.run()
 
-        assert result.outcome == "needs-owner" and "push" in setup.git.calls and setup.forge.ready == []
+        assert result.outcome == "needs-owner" and setup.forge.ready == []
+        assert "push" not in setup.git.calls and setup.git.forwarded == []
+        assert len(setup.git.held) == 1 and setup.git.held[0][1] == "work111"
+        assert "refs/forge/held/" in result.detail and "Nothing was pushed" in result.detail
 
 
 class TestSandboxedPickup:

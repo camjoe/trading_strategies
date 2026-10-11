@@ -36,6 +36,7 @@ class PlanGit(Protocol):
     def create_branch(self, name: str, start: str) -> None: ...
     def commit_files(self, paths: Collection[Path], message: str) -> None: ...
     def push_new_branch(self, name: str) -> None: ...
+    def hold(self, name: str, sha: str) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -251,11 +252,15 @@ def _implement(
         leftover = box.uncommitted()
     committed = end != start
     guarded = guarded_paths_touched(git.changed_paths(start, end))
-    if committed:
+    held_note = ""
+    if guarded:
+        held = git.hold(branch, end)
+        held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
+    elif committed:
         git.fast_forward(end)
         git.push(branch)
     asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-    note = _record_on_pull_request(forge, number, claim_body, summary, asked)
+    note = _record_on_pull_request(forge, number, claim_body, summary, asked) + held_note
 
     def done(outcome: Outcome, detail: str) -> ImplementResult:
         return finish(outcome, detail + note)
@@ -267,7 +272,8 @@ def _implement(
     if guarded:
         return done(
             "needs-owner",
-            "The work touches guarded paths, so the pull request stays a draft: " + "; ".join(guarded),
+            "The work touches guarded paths, so it was not pushed and the pull request stays a draft: "
+            + "; ".join(guarded),
         )
     if leftover:
         return done(

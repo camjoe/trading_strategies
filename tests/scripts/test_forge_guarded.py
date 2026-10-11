@@ -74,3 +74,10 @@ def test_executed_files_and_hook_directories_are_guarded(path: str) -> None:
 @pytest.mark.parametrize("path", ["src/common/thing.py", "docs/notes.md", "tests/scripts/test_x.py", "README.md"])
 def test_ordinary_files_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize(
+    "path", ["Scripts/Forge/guarded_paths.py", ".GitHub/workflows/x.yml", "AGENTS.MD", "Conftest.py", "PYTEST.INI"]
+)
+def test_the_guard_ignores_case_so_a_case_insensitive_checkout_cannot_dodge_it(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1

@@ -10,8 +10,12 @@ _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
 _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
     re.compile(r"/Users/[^\s/`]+"),
-    re.compile(r"[A-Za-z]:\\Users\\"),
+    re.compile(r"(?<![\w./-])/home/[^\s/`]+/[^\s`]"),
+    re.compile(r"(?<![\w.])~/[^\s`]"),
+    re.compile(r"[A-Za-z]:[\\/]Users[\\/]"),
 )
+_ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
+MAX_ADDED_STATUS_LINES = 12
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\*\s*$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
@@ -20,7 +24,6 @@ _CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _PUBLISH_PATTERNS = (
     (re.compile(r"/home/[^\s/`]+|/Users/[^\s/`]+|[A-Za-z]:\\"), "a local path"),
     (re.compile(r"\blocal/"), "a reference to the private local folder"),
-    (re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b"), "text shaped like a broker account id"),
 )
 _RENDERED_PATTERNS = (
     (re.compile(r"(?<!\w)@\w"), "a mention"),
@@ -69,6 +72,8 @@ def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
         problems.append("The body contains a local path.")
     if any(pattern.search(text) for pattern in _CREDENTIAL_PATTERNS):
         problems.append("The body contains credential-like text.")
+    if _ACCOUNT_ID.search(text):
+        problems.append("The body contains text shaped like a broker account id.")
     return problems
 
 
@@ -99,14 +104,18 @@ def fixer_edit_problems(old: str, new: str) -> list[str]:
     """
     old_lines, new_lines = old.splitlines(), new.splitlines()
     problems: list[str] = []
+    added_total = 0
     for tag, _, _, new_start, new_end in difflib.SequenceMatcher(
         None, old_lines, new_lines, autojunk=False
     ).get_opcodes():
         if tag == "equal":
             continue
         added = new_lines[new_start:new_end]
+        added_total += sum(1 for line in added if line.strip())
         if tag != "insert" or any(line.strip() and not _is_status_line(line) for line in added):
             problems.append(
                 f"Line {new_start + 1}: only Fix attempted, Not fixed, and Left lines may be added; existing lines stay."
             )
+    if added_total > MAX_ADDED_STATUS_LINES:
+        problems.append(f"More than {MAX_ADDED_STATUS_LINES} status lines were added in one round.")
     return problems

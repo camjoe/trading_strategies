@@ -20,7 +20,7 @@ from scripts.forge.base import (
 )
 from scripts.forge.cli import main
 from scripts.forge.github import GitHubForge
-from scripts.forge.readiness import body_problems, pass_number
+from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
 PR_JSON = {
@@ -853,3 +853,26 @@ class FakeSandboxes:
                 self.closed += 1
 
         return opened()
+
+
+class TestPublicTextShapes:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "see /home/alice/project/file.py",
+            "see ~/project/file.py",
+            "see C:/Users/alice/project",
+            "account DU1234567 needs review",
+        ],
+    )
+    def test_more_paths_and_account_ids_are_refused_in_the_readiness_comment(self, text: str) -> None:
+        assert body_problems(readiness_body(1, text), None) != []
+
+    def test_prose_with_a_home_word_or_a_relative_path_is_fine(self) -> None:
+        assert body_problems(readiness_body(1, "the src/home/page.py file and home/ folder"), None) == []
+
+    def test_too_many_added_status_lines_in_one_round_are_refused(self) -> None:
+        old = "- [ ] **1. A.** text\n"
+        new = old + "\n".join(f"  *Left: reason number {n}*" for n in range(13)) + "\n"
+
+        assert any("status lines" in p for p in fixer_edit_problems(old, new))

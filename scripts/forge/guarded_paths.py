@@ -56,16 +56,24 @@ _EXECUTED_NAMES = frozenset(
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
-    """One ``path: reason`` entry for each path in *paths* that falls under a guarded prefix or name."""
-    guards = tuple((rule.prefix, rule.reason) for rule in SCOPE_RULES if rule.high_risk) + _EXTRA_GUARDS
+    """One ``path: reason`` entry for each path in *paths* that falls under a guarded prefix or name.
+
+    Matching ignores case, because a checkout on a case-insensitive filesystem treats ``Scripts/Forge`` and
+    ``scripts/forge`` as the same file.
+    """
+    guards = tuple((rule.prefix.casefold(), rule.reason) for rule in SCOPE_RULES if rule.high_risk) + tuple(
+        (prefix.casefold(), reason) for prefix, reason in _EXTRA_GUARDS
+    )
+    executed_names = {name.casefold() for name in _EXECUTED_NAMES}
+    executed_configs = tuple(prefix.casefold() for prefix in _EXECUTED_CONFIGS)
     found: list[str] = []
     for path in paths:
-        normalized = path.replace("\\", "/")
+        normalized = path.replace("\\", "/").casefold()
         name = PurePosixPath(normalized).name
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
-        if reason is None and (name in _EXECUTED_NAMES or name.startswith(_EXECUTED_CONFIGS)):
+        if reason is None and (name in executed_names or name.startswith(executed_configs)):
             reason = "code or scripts the gate or test runner executes"
         if reason:
             found.append(f"{path}: {reason}")
