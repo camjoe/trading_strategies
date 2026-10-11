@@ -24,7 +24,7 @@ Related: [Trading Package Map](trading-package-map.md), [Infrastructure Map](inf
 | `logging_setup.py` | Central stdlib-logging config for runtime jobs (`configure_logging`), a per-run correlation id (`bind_run_id`/`resolve_run_id`/`current_run_id`), and a WARNING+ tally (`log_counts`) |
 | `paths.py` | Repo-relative path constants (`REPO_ROOT`, `LOCAL_DIR`, `LOGS_DIR`, …) and path display formatting (`relative_posix`) |
 | `rate_limit.py` | Thread-safe outbound-call pacing and cumulative-call limiting (`RateLimiter`, `RateLimitExceeded`) |
-| `tickers.py` | Ticker-file parsing (`parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |
+| `tickers.py` | Ticker-file parsing (`is_valid_ticker`, `parse_ticker_tokens`, `load_tickers_from_file`, `load_ticker_categories`) |
 | `time.py` | Timezone-aware time helpers (`utc_now_iso`, `parse_utc_iso`) |
 | `runtime_job_status.py` | Runtime job completion sentinels and run/step status vocabulary, imported directly by runtime jobs and the web backend |
 
