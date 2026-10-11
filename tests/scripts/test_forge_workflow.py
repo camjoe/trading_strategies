@@ -181,3 +181,11 @@ def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_clau
     scripts = [step.split("run: |")[1] for step in steps if "CLAUDE_CODE_OAUTH_TOKEN" in step and "run: |" in step]
 
     assert scripts and all(".venv/bin/python" not in script for script in scripts)
+
+
+def test_the_agent_is_told_not_to_poll_for_reviewers_and_the_monitor_tool_is_denied() -> None:
+    review = _job("review")
+    denied = next(line for line in review.splitlines() if "DENIED_TOOLS:" in line)
+
+    assert "Monitor" in denied.split("DENIED_TOOLS:")[1].split(",")
+    assert "do not poll" in review and "subagent_type Plan" in review
