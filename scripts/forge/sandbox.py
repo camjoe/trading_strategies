@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from scripts.forge.base import ForgeError
 
@@ -25,12 +26,27 @@ from scripts.forge.base import ForgeError
 class Sandbox:
     path: Path
 
-    @property
-    def python(self) -> Path:
-        return venv_python(self.path / ".venv")
+    def uncommitted(self) -> list[str]:
+        """Changed or new files git would list, ignored files excluded; commits are all that cross back."""
+        completed = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=self.path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=STEP_TIMEOUT_SECONDS,
+        )
+        if completed.returncode != 0:
+            raise ForgeError(f"Sandbox step failed (git status): {completed.stderr.strip()}")
+        return [line for line in completed.stdout.splitlines() if line.strip()]
 
 
-SandboxFactory = Callable[[str], AbstractContextManager[Sandbox]]
+class SandboxFactory(Protocol):
+    def __call__(self, ref: str, install: bool = True) -> AbstractContextManager[Sandbox]: ...
+
+
+STEP_TIMEOUT_SECONDS = 900
 
 
 def venv_python(venv: Path) -> Path:
@@ -40,7 +56,18 @@ def venv_python(venv: Path) -> Path:
 
 def _run(args: list[str], cwd: Path) -> None:
     try:
-        subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        subprocess.run(
+            args,
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=STEP_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ForgeError(f"Sandbox step timed out ({' '.join(args[:3])}).") from exc
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or "").strip().splitlines()[-1:] or [f"exit status {exc.returncode}"]
         raise ForgeError(f"Sandbox step failed ({' '.join(args[:3])}): {detail[0]}") from exc

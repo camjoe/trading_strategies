@@ -163,7 +163,7 @@ def test_import_commits_fetches_a_clones_head_without_touching_the_checkout(repo
     local = LocalGit(repo)
     before = local.head()
 
-    imported = local.import_commits(clone)
+    imported = local.import_commits(clone, before)
 
     assert imported == git(clone, "rev-parse", "HEAD") and local.head() == before
     assert not (repo / "new.txt").exists()
@@ -181,7 +181,8 @@ def test_fast_forward_applies_imported_commits_and_refuses_ones_that_do_not_desc
     git(clone, "add", "new.txt")
     git(clone, "commit", "-q", "-m", "in the clone")
     local = LocalGit(repo)
-    imported = local.import_commits(clone)
+    first = local.head()
+    imported = local.import_commits(clone, first)
 
     local.fast_forward(imported)
 
@@ -194,7 +195,7 @@ def test_fast_forward_applies_imported_commits_and_refuses_ones_that_do_not_desc
     (clone / "other.txt").write_text("o", encoding="utf-8")
     git(clone, "add", "other.txt")
     git(clone, "commit", "-q", "-m", "elsewhere")
-    elsewhere = local.import_commits(clone)
+    elsewhere = local.import_commits(clone, first)
 
     with pytest.raises(ForgeError, match="merge failed"):
         local.fast_forward(elsewhere)

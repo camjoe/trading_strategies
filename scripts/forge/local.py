@@ -17,6 +17,7 @@ from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_fro
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
 AGENT_TIMEOUT_SECONDS = 3600
+GATE_TIMEOUT_SECONDS = 3600
 _PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
 _PYTHON_MODULES = (
     "scripts.run_checks",
@@ -96,10 +97,20 @@ class LocalGit:
     def delete_branch(self, name: str) -> None:
         self._git("branch", "-D", name)
 
-    def import_commits(self, source: Path) -> str:
-        """Fetch HEAD of the repository at *source* into this one and return its commit; nothing is checked out."""
+    def import_commits(self, source: Path, since: str) -> str:
+        """Fetch HEAD of the repository at *source* and return its commit; nothing is checked out.
+
+        Refused unless that commit is *since* or descends from it, so the commits are an honest range to check.
+        """
         self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
-        return self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
+        sha = self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
+        try:
+            git_output(self._root, "merge-base", "--is-ancestor", since, sha)
+        except subprocess.CalledProcessError as exc:
+            raise ForgeError(
+                f"The sandbox's commits do not descend from {since[:12]}; they were not imported."
+            ) from exc
+        return sha
 
     def fast_forward(self, sha: str) -> None:
         """Move the current branch to *sha*, which must descend from it."""
@@ -152,13 +163,14 @@ class LocalGit:
 
 
 def agent_environment(
-    base: Mapping[str, str], scratch: Path, identity: tuple[str, str] | None = None
+    base: Mapping[str, str], scratch: Path, identity: tuple[str, str] | None = None, workdir: Path | None = None
 ) -> dict[str, str]:
     """The environment the agent runs in: the owner's, minus anything that could push or call GitHub.
 
     Secret-looking variables go (except Claude's own), git reads an empty configuration with no credential
     helper and may only use the ``file`` transport, and ``gh`` reads an empty configuration directory.
-    Commits still work: the owner's name and email are passed as the author and committer.
+    Commits still work: the owner's name and email are passed as the author and committer. With *workdir*,
+    the virtual environment in it comes first on ``PATH`` and is the active one, so a ``pip install`` lands there.
     """
     env = {
         name: value
@@ -178,6 +190,11 @@ def agent_environment(
             "GH_CONFIG_DIR": str(gh_config),
         }
     )
+    if workdir is not None:
+        venv = workdir / ".venv"
+        env.pop("PYTHONHOME", None)
+        env["VIRTUAL_ENV"] = str(venv)
+        env["PATH"] = os.pathsep.join([str(venv_python(venv).parent), env.get("PATH", "")])
     if identity:
         name, email = identity
         env.update(
@@ -213,7 +230,7 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                 text=True,
                 encoding="utf-8",
                 cwd=task.cwd,
-                env=agent_environment(os.environ, Path(scratch), LocalGit(root).identity()),
+                env=agent_environment(os.environ, Path(scratch), LocalGit(root).identity(), task.cwd),
                 capture_output=True,
                 timeout=AGENT_TIMEOUT_SECONDS,
             )
@@ -259,14 +276,24 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
 
 
 def run_gate(base: str, cwd: Path) -> tuple[bool, str]:
-    """Run the pull-request gate against *base* in the checkout at *cwd*, with that checkout's own interpreter."""
-    completed = subprocess.run(
-        [str(venv_python(cwd / ".venv")), "-m", "scripts.run_checks", "pr", "--base", base],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    """Run the pull-request gate against *base* in the checkout at *cwd*, with the interpreter running this command.
+
+    The checkout is expected to be a clean clone without a virtual environment of its own, so nothing the
+    agent installed or changed there decides the result; its source comes first on ``PYTHONPATH``.
+    """
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(cwd / "src"), str(cwd / "apps")])}
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-m", "scripts.run_checks", "pr", "--base", base],
+            cwd=cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=GATE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "The gate timed out."
     tail = "\n".join((completed.stdout + completed.stderr).strip().splitlines()[-15:])
     return completed.returncode == 0, tail

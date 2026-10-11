@@ -91,6 +91,7 @@ class FakeGit:
         self.pushes = 0
         self.removals: list[str] = []
         self.sandbox_head: str | None = None
+        self.imported: list[tuple[Path, str]] = []
         self.forwarded: list[str] = []
         self.ff_error: ForgeError | None = None
         self.push_error: ForgeError | None = None
@@ -111,7 +112,8 @@ class FakeGit:
         self.reset_to.append(sha)
         self.head_value = sha
 
-    def import_commits(self, source: Path) -> str:
+    def import_commits(self, source: Path, since: str) -> str:
+        self.imported.append((source, since))
         head, self.sandbox_head = self.sandbox_head or self.head_value, None
         return head
 
@@ -602,3 +604,35 @@ class TestSandboxedRound:
 
         assert result.outcome == "stopped" and "not a fast-forward" in result.detail
         assert forge.upserted == [] and git.pushes == 0 and len(sent) == 1
+
+
+class TestLeftovers:
+    def test_uncommitted_changes_in_the_sandbox_discard_the_round_and_post_nothing(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        boxes = FakeSandboxes(tmp_path)
+        boxes.dirty = [" M src/thing.py"]
+
+        result, sent = run(forge, git, tmp_path, fixing_agent(git), sandboxes=boxes)
+
+        assert result.outcome == "stopped" and "uncommitted" in result.detail and "src/thing.py" in result.detail
+        assert git.forwarded == [] and forge.upserted == [] and git.pushes == 0 and len(sent) == 1
+
+    def test_a_comment_that_cannot_be_posted_puts_the_branch_back(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def refuse(number: int, body: str, authors: object) -> tuple[Comment, bool]:
+            raise ForgeError("rate limited")
+
+        forge.upsert_comment = refuse  # type: ignore[method-assign]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "rate limited" in result.detail
+        assert git.reset_to == ["abc123"] and git.pushes == 0
+
+    def test_the_commits_are_imported_relative_to_the_round_start(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+
+        run(forge, git, tmp_path, fixing_agent(git))
+
+        assert git.imported == [(tmp_path / "box", "abc123")]

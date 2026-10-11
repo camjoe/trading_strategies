@@ -24,7 +24,7 @@ class PlanGit(Protocol):
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
     def push(self, branch: str) -> None: ...
-    def import_commits(self, source: Path) -> str: ...
+    def import_commits(self, source: Path, since: str) -> str: ...
     def fast_forward(self, sha: str) -> None: ...
     def discard_changes(self, sha: str) -> None: ...
     def exists_on(self, ref: str, relative: str) -> bool: ...
@@ -66,9 +66,10 @@ def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, su
     return "\n".join(
         [
             "Run the `implement plan` workflow from .ai/skills/implement-plan/SKILL.md, unattended.",
-            f"The plan is plan/{plan_file}; you are on branch {branch}, started from {base}.",
-            "You are in a throwaway clone of the repository with its own .venv. Commit locally in logical commits,",
-            "each with its tests. Do not push, do not use gh, and do not",
+            f"The plan is plan/{plan_file}; your commits will be pushed to branch {branch}, started from {base}.",
+            "You are in a throwaway clone of the repository with its own .venv, on a detached HEAD: commit on it",
+            "and do not create or switch branches. Commit in logical commits, each with its tests, and leave no",
+            "uncommitted changes. Do not push, do not use gh, and do not",
             "edit the plan's Status line or the plan index.",
             "If the plan is ambiguous, or it is unclear whether something is public or private, write the",
             f"questions to {questions} and leave that part undone.",
@@ -223,7 +224,8 @@ def _implement(
     """Run the agent in a sandbox, import its commits, and decide whether the pull request may leave draft.
 
     The agent works in a throwaway clone, so the owner's checkout is untouched until its commits have been
-    fetched; the gate also runs in the clone, never in the owner's checkout.
+    fetched. The gate runs in a second, clean clone of the pushed commit, so it tests exactly what was pushed
+    and nothing the agent installed or left behind.
     """
     start = git.head()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
@@ -237,24 +239,32 @@ def _implement(
             agent(task)
         except ForgeError as exc:
             return finish("stopped", f"The agent failed: {exc}")
-        end = git.import_commits(box.path)
-        committed = end != start
-        guarded = guarded_paths_touched(git.changed_paths(start, end) if committed else [])
-        if committed:
-            git.fast_forward(end)
-            git.push(branch)
-        asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-        _record_on_pull_request(forge, number, claim_body, summary, asked)
-        if asked:
-            return finish("needs-owner", "The agent has questions:\n" + asked)
-        if not committed:
-            return finish("no-progress", "The agent made no commits.")
-        if guarded:
-            return finish(
-                "needs-owner",
-                "The work touches guarded paths, so the pull request stays a draft: " + "; ".join(guarded),
-            )
-        passed, tail = gate(f"origin/{base}", box.path)
+        end = git.import_commits(box.path, start)
+        leftover = box.uncommitted()
+    committed = end != start
+    guarded = guarded_paths_touched(git.changed_paths(start, end) if committed else [])
+    if committed:
+        git.fast_forward(end)
+        git.push(branch)
+    asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
+    _record_on_pull_request(forge, number, claim_body, summary, asked)
+    if asked:
+        return finish("needs-owner", "The agent has questions:\n" + asked)
+    if not committed:
+        return finish("no-progress", "The agent made no commits.")
+    if guarded:
+        return finish(
+            "needs-owner",
+            "The work touches guarded paths, so the pull request stays a draft: " + "; ".join(guarded),
+        )
+    if leftover:
+        return finish(
+            "needs-owner",
+            "The agent left uncommitted changes in the sandbox, which were not pushed, so the pull request "
+            "stays a draft: " + "; ".join(leftover[:5]),
+        )
+    with sandbox(end, install=False) as clean:
+        passed, tail = gate(f"origin/{base}", clean.path)
     if not passed:
         return finish("needs-owner", "The gate is red:\n" + tail)
     if not mark_ready:

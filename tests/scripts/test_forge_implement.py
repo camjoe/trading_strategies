@@ -23,6 +23,7 @@ class FakeGit:
         self.branch_error: ForgeError | None = None
         self.committed: list[tuple[list[str], str]] = []
         self.sandbox_head: str | None = None
+        self.imported: list[tuple[Path, str]] = []
         self.forwarded: list[str] = []
         self.ff_error: ForgeError | None = None
         self.discarded: list[str] = []
@@ -61,7 +62,8 @@ class FakeGit:
             raise self.push_new_error
         self.calls.append(f"push-new {name}")
 
-    def import_commits(self, source: Path) -> str:
+    def import_commits(self, source: Path, since: str) -> str:
+        self.imported.append((source, since))
         head, self.sandbox_head = self.sandbox_head or self.head_value, None
         return head
 
@@ -394,12 +396,30 @@ class TestSandboxedPickup:
     def test_the_agent_works_in_a_sandbox_cut_from_the_claim_commit_and_it_is_closed(self, setup: Setup) -> None:
         setup.run()
 
-        assert setup.sandboxes.refs == ["start000"] and setup.sandboxes.closed == 1
+        assert setup.sandboxes.refs[0] == "start000" and setup.sandboxes.closed == 2
 
-    def test_the_gate_runs_inside_the_sandbox_never_in_the_checkout(self, setup: Setup) -> None:
+    def test_the_gate_runs_in_a_second_clean_clone_of_the_pushed_commit_never_in_the_checkout(
+        self, setup: Setup
+    ) -> None:
         setup.run()
 
+        assert setup.sandboxes.refs == ["start000", "work111"] and setup.sandboxes.installs == [True, False]
         assert setup.gate_runs == [setup.work / "box"]
+
+    def test_uncommitted_work_left_in_the_sandbox_keeps_the_pull_request_a_draft_and_skips_the_gate(
+        self, setup: Setup
+    ) -> None:
+        setup.sandboxes.dirty = ["?? notes.txt"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "uncommitted" in result.detail and "notes.txt" in result.detail
+        assert setup.gate_runs == [] and setup.forge.ready == []
+
+    def test_the_commits_are_imported_relative_to_the_commit_the_sandbox_was_cut_from(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.git.imported == [(setup.work / "box", "start000")]
 
     def test_the_agent_is_started_in_the_sandbox(self, setup: Setup) -> None:
         setup.run()

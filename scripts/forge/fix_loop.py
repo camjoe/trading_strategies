@@ -28,7 +28,7 @@ Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
 class Git(Protocol):
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
-    def import_commits(self, source: Path) -> str: ...
+    def import_commits(self, source: Path, since: str) -> str: ...
     def fast_forward(self, sha: str) -> None: ...
     def discard_changes(self, sha: str) -> None: ...
     def push(self, branch: str) -> None: ...
@@ -199,12 +199,19 @@ def _one_round(
             pr_number, base, round_prompt(pr_number, base, old_file, new_file), old_file, new_file, box.path
         )
         agent(task)
-        end = git.import_commits(box.path)
+        end = git.import_commits(box.path, start)
+        leftover = box.uncommitted()
 
     committed = git.changed_paths(start, end) if end != start else []
     guarded = guarded_paths_touched(committed)
     if guarded:
         return "stopped", "The round touched guarded paths and was discarded: " + "; ".join(guarded)
+    if leftover:
+        return (
+            "stopped",
+            "The fixer left uncommitted changes in the sandbox, so the round was discarded: "
+            + "; ".join(leftover[:5]),
+        )
     if not new_file.is_file() or not new_file.read_text(encoding="utf-8").strip():
         return "no-progress", "The fixer wrote no comment body."
     new_body = new_file.read_text(encoding="utf-8")
@@ -214,7 +221,11 @@ def _one_round(
 
     if end != start:
         git.fast_forward(end)
-    forge.upsert_comment(pr_number, new_body, authors)
+    try:
+        forge.upsert_comment(pr_number, new_body, authors)
+    except ForgeError as exc:
+        git.discard_changes(start)
+        return "stopped", f"The comment could not be posted, so the round was undone: {exc}"
     if end == start:
         return "no-progress", "The round recorded status lines but made no commits."
     try:

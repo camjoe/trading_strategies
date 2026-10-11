@@ -74,17 +74,19 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
    45 seconds with a warm pip cache), whose remote points nowhere, so it cannot push;
 3. starts a headless `claude -p` session in the sandbox (model `sonnet` unless `--model` says otherwise) that
    follows the `fix-pr-readiness` skill, commits there, and writes a new comment body to a file;
-4. fetches the sandbox's commits into your repository without checking them out, and compares every changed
-   path (renames count as a delete and an add) with the guarded list in `scripts/forge/guarded_paths.py`; a
-   guarded path discards the round;
+4. fetches the sandbox's commits into your repository without checking them out (refused unless they descend
+   from where the round began), and compares every changed path (renames count as a delete and an add) with
+   the guarded list in `scripts/forge/guarded_paths.py`; a guarded path, or any uncommitted change left in the
+   sandbox, discards the round;
 5. refuses the new body unless it only adds status lines; otherwise fast-forwards your branch to the fetched
    commits (refused if they do not descend from where the round began), posts the body, and pushes `HEAD` to
-   the pull request's branch by name; if the push fails the comment is restored and the branch put back;
+   the pull request's branch by name; if the comment or the push fails, the branch is put back (and a posted
+   comment is restored);
 6. deletes the sandbox, and waits up to 45 minutes for the next review pass.
 
 Your checkout is untouched until step 5, and only commits that passed the path check ever reach it. Whatever else
 the agent wrote in the sandbox (hooks, git configuration, files git ignores, the sandbox's `.venv`) is deleted with
-it and is never run by the loop or by you. Every ending, including a failure, sends the email.
+it and is never run by the loop's own steps. Every ending, including a failure, sends the email.
 
 **What the sandbox does not do.** It isolates the repository, not the machine. The agent still runs as you, can
 read your files, and code it writes and runs (a test, for example) can reach the rest of your filesystem and the
@@ -121,7 +123,10 @@ branch (push or merge a new plan first). Then it:
    and a summary to files;
 4. fetches the commits into your repository, checks the paths they touched, applies them, pushes them to the
    draft so you can review them, and records the summary and questions in the pull request description;
-5. runs the pull-request gate inside the sandbox, never in your checkout.
+5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
+   this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate still runs the
+   branch's tests, which are code the agent wrote, as you; it never runs in your checkout. Uncommitted work
+   left in the sandbox keeps the pull request a draft.
 
 The agent runs in the same restricted environment as the fixer's. The pull request leaves draft, which starts the
 review, only when the agent made commits and raised no question, no guarded path was touched, and the gate

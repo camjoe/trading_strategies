@@ -47,8 +47,13 @@ _EXECUTED_NAMES = frozenset(
         "setup.py",
         "noxfile.py",
         ".coveragerc",
+        "mypy.ini",
+        ".flake8",
     }
 )
+
+
+_EXECUTED_CONFIGS = ("vite.config.", "vitest.config.", "eslint.config.", "jest.config.", ".eslintrc")
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
@@ -61,7 +66,7 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
-        if reason is None and name in _EXECUTED_NAMES:
+        if reason is None and (name in _EXECUTED_NAMES or name.startswith(_EXECUTED_CONFIGS)):
             reason = "code or scripts the gate or test runner executes"
         if reason:
             found.append(f"{path}: {reason}")

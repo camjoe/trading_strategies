@@ -826,18 +826,29 @@ class FakeSandboxes:
     def __init__(self, base: Path) -> None:
         self.base = base
         self.refs: list[str] = []
+        self.installs: list[bool] = []
         self.closed = 0
+        self.dirty: list[str] = []
 
-    def __call__(self, ref: str):  # type: ignore[no-untyped-def]
+    def __call__(self, ref: str, install: bool = True):  # type: ignore[no-untyped-def]
         from contextlib import contextmanager
+        from dataclasses import dataclass
 
         from scripts.forge.sandbox import Sandbox
+
+        dirty = self.dirty
+
+        @dataclass(frozen=True)
+        class Box(Sandbox):
+            def uncommitted(self) -> list[str]:
+                return list(dirty)
 
         @contextmanager
         def opened():  # type: ignore[no-untyped-def]
             self.refs.append(ref)
+            self.installs.append(install)
             try:
-                yield Sandbox(self.base / "box")
+                yield Box(self.base / "box")
             finally:
                 self.closed += 1
 

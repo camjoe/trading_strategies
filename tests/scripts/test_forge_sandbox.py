@@ -91,7 +91,7 @@ class TestIsolation:
             git(box.path, "add", "new.txt")
             git(box.path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "change")
             assert not (repo / "new.txt").exists()
-            imported = local.import_commits(box.path)
+            imported = local.import_commits(box.path, start)
 
         assert not (repo / "new.txt").exists() and local.head() == start
         local.fast_forward(imported)
@@ -112,7 +112,7 @@ class TestIsolation:
             (box.path / "tracked-change.txt").write_text("c", encoding="utf-8")
             git(box.path, "add", "tracked-change.txt")
             git(box.path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "c")
-            imported = local.import_commits(box.path)
+            imported = local.import_commits(box.path, start)
         local.fast_forward(imported)
 
         assert not (repo / ".git" / "hooks" / "pre-push").exists()
@@ -120,20 +120,31 @@ class TestIsolation:
         assert not (repo / ".venv").exists()
         assert local.changed_paths(start, local.head()) == ["tracked-change.txt"]
 
-    def test_commits_that_rewrite_history_cannot_be_applied(self, repo: Path) -> None:
+    def test_commits_that_rewrite_history_are_refused_at_import(self, repo: Path) -> None:
         local = LocalGit(repo)
         (repo / "b.txt").write_text("b", encoding="utf-8")
         git(repo, "add", "b.txt")
         git(repo, "commit", "-q", "-m", "second")
-        with sandbox(repo, git(repo, "rev-parse", "HEAD"), install=False) as box:
+        start = local.head()
+        with sandbox(repo, start, install=False) as box:
             git(box.path, "reset", "-q", "--hard", "HEAD~1")
             (box.path / "other.txt").write_text("o", encoding="utf-8")
             git(box.path, "add", "other.txt")
             git(box.path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "rewrite")
-            imported = local.import_commits(box.path)
 
-        with pytest.raises(ForgeError, match="merge failed"):
-            local.fast_forward(imported)
+            with pytest.raises(ForgeError, match="do not descend"):
+                local.import_commits(box.path, start)
+
+    def test_uncommitted_files_are_listed_and_ignored_ones_are_not(self, repo: Path) -> None:
+        with sandbox(repo, git(repo, "rev-parse", "HEAD"), install=False) as box:
+            (box.path / "a.txt").write_text("changed", encoding="utf-8")
+            (box.path / "new.txt").write_text("n", encoding="utf-8")
+            (box.path / ".venv").mkdir()
+            (box.path / ".venv" / "x.py").write_text("x", encoding="utf-8")
+
+            listed = box.uncommitted()
+
+        assert sorted(line[3:] for line in listed) == ["a.txt", "new.txt"]
 
 
 class TestCleanup:
@@ -153,3 +164,57 @@ class TestCleanup:
                 raise RuntimeError("agent failed")
 
         assert not seen[0].exists()
+
+
+class TestInstallAndTimeouts:
+    def test_the_install_path_creates_a_venv_and_installs_the_dev_requirements_inside_it(
+        self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge import sandbox as sandbox_module
+
+        commands: list[list[str]] = []
+        real_run = sandbox_module._run
+
+        def record(args: list[str], cwd: Path) -> None:
+            commands.append(args)
+            if args[:3] == [sandbox_module.sys.executable, "-m", "venv"] or "pip" in args:
+                return
+            real_run(args, cwd)
+
+        monkeypatch.setattr(sandbox_module, "_run", record)
+        (tmp_path / "parent").mkdir()
+
+        box = build_sandbox(repo, git(repo, "rev-parse", "HEAD"), tmp_path / "parent")
+
+        venv = [command for command in commands if command[1:3] == ["-m", "venv"]]
+        pip = [command for command in commands if "pip" in command]
+        assert venv and venv[0][-1] == str(box.path / ".venv")
+        assert pip and pip[0][0] == str(venv_python(box.path / ".venv")) and "requirements-dev.txt" in pip[0]
+
+    def test_a_step_that_never_finishes_is_a_forge_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge import sandbox as sandbox_module
+
+        def slow(*_a: object, **_k: object) -> None:
+            raise subprocess.TimeoutExpired("git", 1)
+
+        monkeypatch.setattr(sandbox_module.subprocess, "run", slow)
+
+        with pytest.raises(ForgeError, match="timed out"):
+            sandbox_module._run(["git", "clone", "x"], tmp_path)
+
+
+def test_the_cli_factory_cuts_sandboxes_from_this_repository_with_the_owners_identity(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.forge import cli
+
+    monkeypatch.setattr(cli, "get_repo_root", lambda: repo)
+    git(repo, "config", "user.name", "Owner")
+    git(repo, "config", "user.email", "owner@example.test")
+    factory = cli._sandbox_factory(LocalGit(repo))
+
+    with factory(git(repo, "rev-parse", "HEAD"), install=False) as box:
+        assert git(box.path, "config", "user.name") == "Owner"
+        assert git(box.path, "rev-parse", "HEAD") == git(repo, "rev-parse", "HEAD")

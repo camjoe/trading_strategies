@@ -246,3 +246,76 @@ class TestLocalGitHelpers:
     def test_a_failing_git_command_becomes_a_forge_error(self, tmp_path: Path) -> None:
         with pytest.raises(local.ForgeError, match="git"):
             local.LocalGit(tmp_path).head()
+
+
+class TestAgentRunsInTheSandbox:
+    def test_the_session_starts_in_the_tasks_directory_with_its_virtual_environment_active(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        seen: dict[str, object] = {}
+
+        def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            seen.update(kwargs)
+            return completed(json.dumps({"is_error": False}))
+
+        monkeypatch.setattr(local.subprocess, "run", run)
+        task = RoundTask(7, "origin/develop", "prompt", Path("old.md"), Path("new.md"), tmp_path)
+
+        local.run_claude_agent(task)
+
+        env = seen["env"]
+        assert seen["cwd"] == tmp_path and isinstance(env, dict)
+        assert env["VIRTUAL_ENV"] == str(tmp_path / ".venv")
+        assert env["PATH"].startswith(str(local.venv_python(tmp_path / ".venv").parent))
+
+    def test_the_owners_virtual_environment_and_python_home_are_replaced(self, tmp_path: Path) -> None:
+        base = {"PATH": "/bin", "VIRTUAL_ENV": "/owner/.venv", "PYTHONHOME": "/owner/py"}
+
+        env = local.agent_environment(base, tmp_path, workdir=tmp_path / "box")
+
+        assert env["VIRTUAL_ENV"] == str(tmp_path / "box" / ".venv") and "PYTHONHOME" not in env
+        assert env["PATH"].endswith(os.pathsep + "/bin")
+
+    def test_without_a_workdir_the_path_is_left_alone(self, tmp_path: Path) -> None:
+        env = local.agent_environment({"PATH": "/bin", "VIRTUAL_ENV": "/owner/.venv"}, tmp_path)
+
+        assert env["PATH"] == "/bin" and env["VIRTUAL_ENV"] == "/owner/.venv"
+
+
+class TestRunGate:
+    def test_it_runs_the_checks_with_this_interpreter_in_the_clone_and_puts_the_clones_source_first(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        seen: dict[str, object] = {}
+
+        def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            seen["command"] = command
+            seen.update(kwargs)
+            return completed("all good")
+
+        monkeypatch.setattr(local.subprocess, "run", run)
+
+        passed, tail = local.run_gate("origin/develop", tmp_path)
+
+        assert passed and tail == "all good"
+        assert seen["command"] == [local.sys.executable, "-m", "scripts.run_checks", "pr", "--base", "origin/develop"]
+        assert seen["cwd"] == tmp_path
+        assert str(seen["env"]["PYTHONPATH"]).startswith(str(tmp_path / "src"))  # type: ignore[index]
+
+    def test_a_failing_gate_reports_the_tail_of_its_output(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        output = "\n".join(f"line {number}" for number in range(40))
+        monkeypatch.setattr(local.subprocess, "run", lambda *a, **k: completed(output, returncode=1))
+
+        passed, tail = local.run_gate("origin/develop", tmp_path)
+
+        assert not passed and tail.splitlines() == [f"line {number}" for number in range(25, 40)]
+
+    def test_a_gate_that_never_finishes_is_red(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        def slow(*_a: object, **_k: object) -> subprocess.CompletedProcess[str]:
+            raise subprocess.TimeoutExpired("gate", 1)
+
+        monkeypatch.setattr(local.subprocess, "run", slow)
+
+        assert local.run_gate("origin/develop", tmp_path) == (False, "The gate timed out.")

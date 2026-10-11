@@ -40,3 +40,11 @@ def test_pipeline_gate_and_configuration_paths_are_guarded(path: str) -> None:
 )
 def test_ordinary_source_tests_and_docs_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+def test_tool_configuration_the_checks_execute_is_guarded() -> None:
+    touched = guarded_paths_touched(
+        ["mypy.ini", ".flake8", "apps/x/frontend/vite.config.ts", "apps/x/frontend/eslint.config.js"]
+    )
+
+    assert len(touched) == 4
