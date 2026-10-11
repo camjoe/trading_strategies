@@ -370,8 +370,16 @@ denied (a `git checkout` of generated files), which led to the one real defect: 
 `api.json` and `software.json` with CRLF line endings on Windows, which left the working tree dirty and
 would have blocked the next run's clean-tree check. The generators now write LF, with a test.
 
+Question run (2026-10-11), on a real plan: `more-trading-evidence.md`, which is mostly open decisions and
+unverified claims. The agent built nothing ("building any part would mean guessing"), asked real questions
+(which tickers, cap evidence it could not get without run logs, design A or B), and noted that
+`configure_book` may already cover the universe change. The pull request stayed a draft with only the claim
+commit, and its description carried the summary and the questions. 9 turns, about 21 s. Roughness: one
+question was a restatement, and the summary pointed at a file that no longer exists once the run ends.
+
 Still open for Stage 1: removing the plan file when the work is ready to merge (nothing does it yet), a run
-on a plan that needs a guarded path or raises questions, and a start that does not need the owner's terminal.
+on a plan that needs a guarded path or ends with a red gate (covered by tests, not run live), and a start
+that does not need the owner's terminal.
 
 ## Triggering: where each stage runs (decided: decisions 1, 3, 12)
 | Stage | Runs | Why |
