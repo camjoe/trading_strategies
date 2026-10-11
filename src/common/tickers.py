@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
+_VALID_TICKER = re.compile(r"[A-Z]{1,5}([.-][A-Z]{1,2})?")
+
+
+def is_valid_ticker(symbol: str) -> bool:
+    return _VALID_TICKER.fullmatch(symbol) is not None
 
 
 def parse_ticker_tokens(text: str) -> list[str]:

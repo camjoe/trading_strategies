@@ -5,10 +5,24 @@ from pathlib import Path
 import pytest
 
 from common.tickers import (
+    is_valid_ticker,
     load_ticker_categories,
     load_tickers_from_file,
     parse_ticker_tokens,
 )
+
+
+class TestIsValidTicker:
+    @pytest.mark.parametrize("symbol", ["AAPL", "F", "BRK.B", "BF-B", "RDS.AB"])
+    def test_accepts_valid_symbols(self, symbol: str) -> None:
+        assert is_valid_ticker(symbol) is True
+
+    @pytest.mark.parametrize(
+        "symbol",
+        ["", "aapl", "AAPLXX", "BRK.", ".B", "BRK.BCD", "A B", "A1", " AAPL", "AAPL ", "AAPL\n"],
+    )
+    def test_rejects_invalid_symbols(self, symbol: str) -> None:
+        assert is_valid_ticker(symbol) is False
 
 
 class TestParseTickerTokens:
