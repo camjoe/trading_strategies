@@ -231,3 +231,33 @@ def test_names_that_windows_resolves_to_a_guarded_file_are_guarded(path: str) ->
 @pytest.mark.parametrize("path", ["docs/notes.md.", "src/common/thing.py ", "docs/a:b.md", "tests/scripts/test_x.py"])
 def test_the_normalization_does_not_guard_ordinary_files(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "./scripts/x.py",
+        "docs/../scripts/forge/cli.py",
+        "docs/./../AGENTS.md",
+        "/scripts/x.py",
+        "C:/repo/scripts/x.py",
+        "../outside.txt",
+    ],
+)
+def test_dot_segments_are_resolved_and_paths_outside_the_repository_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["docs/./notes.md", "docs/a/../notes.md", "./docs/notes.md"])
+def test_resolving_dot_segments_does_not_guard_ordinary_files(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize("path", ["apps/web/VITE~1.TS", "src/foo~3/bar.py", "docs/notes~1.md"])
+def test_components_shaped_like_short_names_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["docs/longername~1/x.md", "docs/a~b.txt", "docs/x~.md", "docs/readme~backup"])
+def test_tildes_that_are_not_short_name_shaped_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []

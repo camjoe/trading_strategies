@@ -6,6 +6,7 @@ configuration the gate runs, and the places that hold decisions or secrets. The 
 partial list (vite, vitest, eslint, jest); other tools' configuration is not covered.
 """
 
+import posixpath
 import re
 from collections.abc import Iterable
 from pathlib import PurePosixPath
@@ -42,7 +43,8 @@ _EXECUTED_CONFIG = re.compile(
     rf"\.eslintrc|(?:(?:vite|vitest|eslint|jest)\.config|\.eslintrc)(?:\.[\w-]+)*\.{_CODE_SUFFIX}"
 )
 
-_SHORT_NAME = re.compile(r"~\d")
+_SHORT_NAME = re.compile(r"[^~/]{1,6}~\d{1,7}(?:\.[^./]{0,3})?")
+_DRIVE = re.compile(r"^[a-z]:")
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 
@@ -63,18 +65,27 @@ _EXECUTED_NAMES = frozenset(
 )
 
 
-def _normalized(path: str) -> str:
-    """*path* as Windows would resolve it: forward slashes, no case, no stream suffix, no trailing dots or spaces."""
-    parts = path.replace("\\", "/").casefold().split("/")
-    return "/".join(part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in parts)
+def _normalized(path: str) -> tuple[str, bool]:
+    """*path* as Windows would resolve it, and whether it is not a path inside the repository.
+
+    The first part has forward slashes, no case, no ``:stream`` suffix, no trailing dots or spaces, and ``.`` and
+    ``..`` resolved. The second is true for an absolute path or one that climbs out of the repository.
+    """
+    slashed = path.replace("\\", "/").casefold()
+    cleaned = "/".join(
+        part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in slashed.split("/")
+    )
+    resolved = posixpath.normpath(cleaned) if cleaned else ""
+    outside = slashed.startswith("/") or bool(_DRIVE.match(slashed)) or resolved == ".." or resolved.startswith("../")
+    return ("" if resolved == "." else resolved), outside
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
     """One ``path: reason`` entry for each path in *paths* that falls under a guarded prefix or name.
 
-    Matching ignores case, trailing dots and spaces, and ``:stream`` suffixes, because a Windows checkout treats
-    ``Scripts/Forge``, ``scripts/forge.`` and ``scripts/forge::$DATA`` as the same file. A component that looks
-    like an 8.3 short name (``VITE~1.TS``) is guarded too, since it can alias a guarded file.
+    Paths are compared as Windows resolves them: ``Scripts/Forge``, ``scripts/forge.`` and
+    ``scripts/forge::$DATA`` all name ``scripts/forge``, and ``.`` and ``..`` are resolved. A component shaped
+    like an 8.3 short name (``VITE~1.TS``) is guarded. So is an absolute path, or one that leaves the repository.
     """
     guards = tuple((rule.prefix.casefold(), rule.reason) for rule in SCOPE_RULES if rule.high_risk) + tuple(
         (prefix.casefold(), reason) for prefix, reason in _EXTRA_GUARDS
@@ -82,10 +93,12 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
     executed_names = {name.casefold() for name in _EXECUTED_NAMES}
     found: list[str] = []
     for path in paths:
-        normalized = _normalized(path)
+        normalized, outside = _normalized(path)
         name = PurePosixPath(normalized).name
-        reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
-        if reason is None and any(_SHORT_NAME.search(part) for part in normalized.split("/")):
+        reason = "a path outside the repository, or not relative to it" if outside else None
+        if reason is None:
+            reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and any(_SHORT_NAME.fullmatch(part) for part in normalized.split("/")):
             reason = "a name that may be a Windows short name for a guarded file"
         if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):
             reason = "code Python runs when it starts"

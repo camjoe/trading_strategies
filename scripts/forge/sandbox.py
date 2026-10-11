@@ -50,8 +50,9 @@ def venv_python(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
-def leftover_summary(lines: list[str], limit: int = 5) -> str:
-    return "; ".join(lines[:limit])
+def leftover_message(who: str, consequence: str, lines: list[str], limit: int = 5) -> str:
+    """The sentence reported when *who* left uncommitted files in a sandbox: *consequence*, then up to *limit* files."""
+    return f"{who} left uncommitted changes in the sandbox, {consequence}: " + "; ".join(lines[:limit])
 
 
 def _kill_tree(process: "subprocess.Popen[str]") -> None:

@@ -15,7 +15,7 @@ from scripts.forge.base import CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
-from scripts.forge.sandbox import SandboxFactory, leftover_summary
+from scripts.forge.sandbox import SandboxFactory, leftover_message
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -91,8 +91,8 @@ def run_implement_plan(
 ) -> ImplementResult:
     """Claim and implement *plan_file*; the pull request leaves draft only when nothing needs the owner.
 
-    With *quiet_when_ready*, a pull request taken out of draft sends no notification, because a caller
-    that goes on to fix it sends the final one.
+    With *quiet_when_ready*, a pull request taken out of draft sends no notification; the caller sends the
+    final one.
     """
     result = _run(forge, git, agent, sandbox, gate, repo_root, work_dir, plan_file, depends_ok, base, mark_ready)
     if quiet_when_ready and result.outcome == "ready-for-review":
@@ -226,9 +226,8 @@ def _implement(
 ) -> ImplementResult:
     """Run the agent in a sandbox, import its commits, and decide whether the pull request may leave draft.
 
-    The agent works in a throwaway clone, so the owner's checkout is untouched until its commits have been
-    fetched. The gate runs in a second, clean clone of the pushed commit, so it tests exactly what was pushed
-    and nothing the agent installed or left behind.
+    The agent works in a throwaway clone; the owner's checkout is untouched until its commits have been
+    fetched. The gate runs in a second, clean clone of the pushed commit.
     """
     start = git.head()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
@@ -278,8 +277,7 @@ def _implement(
     if leftover:
         return done(
             "needs-owner",
-            "The agent left uncommitted changes in the sandbox, which were not pushed, so the pull request "
-            "stays a draft: " + leftover_summary(leftover),
+            leftover_message("The agent", "which were not pushed, so the pull request stays a draft", leftover),
         )
     with sandbox(end, install=False) as clean:
         passed, tail = gate(f"origin/{base}", clean.path)

@@ -29,6 +29,7 @@ class FakeGit:
         self.discarded: list[str] = []
         self.on_base = True
         self.files: dict[str, str] = {}
+        self.phase = "claim"
         self.switched: list[str] = []
         self.deleted: list[str] = []
         self.cleanup_error: ForgeError | None = None
@@ -50,7 +51,7 @@ class FakeGit:
         if self.push_error:
             raise self.push_error
         self.pushed_branches.append(branch)
-        self.calls.append("push" if "agent" in self.calls else "push-claim")
+        self.calls.append("push" if self.phase == "agent" else "push-claim")
 
     def require_clean_tree(self) -> None:
         self.calls.append("clean")
@@ -132,6 +133,7 @@ class Setup:
     def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
         def run(task: ImplementTask) -> None:
             self.git.calls.append("agent")
+            self.git.phase = "agent"
             self.tasks.append(task)
             if fail:
                 raise ForgeError("not logged in")

@@ -388,3 +388,32 @@ def test_importing_the_command_line_tool_does_not_import_the_trading_package() -
     )
 
     assert result.returncode == 0 and "ok" in result.stdout, result.stderr
+
+
+class TestEmailFailuresAreNotFatal:
+    def test_a_failure_while_sending_is_reported_and_does_not_raise(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        def broken() -> object:
+            raise RuntimeError("smtp is down")
+
+        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", broken)
+
+        local.email_notifier("subject", "message", {"outcome": "ready"})
+
+        assert "No email was sent: RuntimeError: smtp is down" in capsys.readouterr().err
+
+
+def test_the_controller_git_options_switch_off_hooks_and_fsmonitor() -> None:
+    options = " ".join(local._CONTROLLER_GIT)
+
+    assert "core.hooksPath=" in options and "core.fsmonitor=false" in options
+
+
+def test_the_leftover_message_names_who_left_what_and_what_happens() -> None:
+    from scripts.forge.sandbox import leftover_message
+
+    text = leftover_message("The agent", "so nothing was pushed", [f"?? f{n}.txt" for n in range(8)])
+
+    assert text.startswith("The agent left uncommitted changes in the sandbox, so nothing was pushed: ")
+    assert "?? f4.txt" in text and "?? f5.txt" not in text

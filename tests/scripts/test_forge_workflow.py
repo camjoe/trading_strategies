@@ -294,3 +294,9 @@ def test_the_prompt_is_built_with_the_system_python_not_the_pull_requests_virtua
     run = _run("review", "Build the prompt")
 
     assert run.startswith("python3 - <<") and ".venv/bin/python - <<" not in run
+
+
+def test_the_claude_token_is_in_the_posting_job_only_for_the_body_check() -> None:
+    holding = [step["name"] for step in _steps("post") if "CLAUDE_CODE_OAUTH_TOKEN" in json.dumps(step)]
+
+    assert holding == ["Check the comment body"]

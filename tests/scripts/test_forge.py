@@ -907,3 +907,10 @@ class TestPathFilters:
         from scripts.forge.readiness import leak_problems
 
         assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []
+
+
+def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
+    from scripts.forge.readiness import publish_problems
+
+    assert publish_problems("the endpoint `https://example.test/x` is stable") == []
+    assert publish_problems("see C:/Users/alice/x") != []

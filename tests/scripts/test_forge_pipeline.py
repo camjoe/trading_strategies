@@ -23,7 +23,7 @@ class WorldGit(PlanFakeGit):
         self._clean_checks = 0
 
     def push(self, branch: str = "") -> None:
-        if "agent" not in self.calls:
+        if self.phase != "agent":
             return super().push(branch)
         self.pushes += 1
         assert self.forge is not None
@@ -93,12 +93,9 @@ class World:
             self.setup.work,
             "thing.md",
             ["bot"],
-            interval_seconds=10,
-            review_wait_seconds=60,
-            wait_seconds=100,
             sleep=clock.sleep,
             clock=clock,
-            **kwargs,  # type: ignore[arg-type]
+            **{"interval_seconds": 10, "review_wait_seconds": 60, "wait_seconds": 100, **kwargs},  # type: ignore[arg-type]
         )
 
 
@@ -214,3 +211,62 @@ def test_a_plan_removal_whose_push_fails_is_rolled_back_and_the_run_still_notifi
     assert result.fix is not None and result.fix.outcome == "stopped" and "rejected" in result.fix.detail
     assert world.git.head() == "work111"
     assert len(world.sent) == 1
+
+
+class TestPipelineArguments:
+    def _patched(self, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+        from scripts.forge import pipeline as pipeline_module
+        from scripts.forge.fix_loop import LoopResult
+
+        seen: dict[str, object] = {}
+
+        def first_review(forge: object, number: int, trusted: object, previous: object, wait: float, *rest: object):  # type: ignore[no-untyped-def]
+            seen["review_wait"] = wait
+            return comment_with(readiness(1, "READY"))
+
+        def loop(*args: object, **kwargs: object) -> LoopResult:
+            seen["loop_args"] = args
+            return LoopResult("ready", 0, "READY", {}, "ok")
+
+        monkeypatch.setattr(pipeline_module, "wait_for_next_pass", first_review)
+        monkeypatch.setattr(pipeline_module, "run_fix_loop", loop)
+        return seen
+
+    def test_the_review_wait_and_the_fixer_wait_go_to_different_places(
+        self, world: World, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = self._patched(monkeypatch)
+
+        world.run(review_wait_seconds=11, wait_seconds=22, max_rounds=2)
+
+        args = seen["loop_args"]
+        assert seen["review_wait"] == 11
+        assert args[7] == ["bot"] and args[8] == 2 and args[9] == 22  # type: ignore[index]
+
+    def test_the_gate_runs_against_the_base_the_pickup_was_given(self, world: World) -> None:
+        bases: list[str] = []
+        original = world.setup.gate_result
+
+        def gate(base: str, cwd: Path) -> tuple[bool, str]:
+            bases.append(base)
+            return original
+
+        from scripts.forge.pipeline import run_pipeline
+
+        run_pipeline(
+            world.setup.forge,
+            world.git,  # type: ignore[arg-type]
+            world.setup.agent(),
+            lambda task: None,
+            world.setup.sandboxes,
+            gate,
+            lambda subject, message, details: None,
+            world.setup.repo,
+            world.setup.work,
+            "thing.md",
+            ["bot"],
+            base="develop",
+            fix=False,
+        )
+
+        assert bases == ["origin/develop"]

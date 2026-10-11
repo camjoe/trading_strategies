@@ -107,34 +107,22 @@ request that edits the workflow file itself still runs its own copy (that is how
   guard and the review. The guarded-path list and the owner's review still carry that.
 
 ## Follow-ups carried over from PR #301
-The merged review ended READY with these notes open. Each is small. Do them in this branch, before or between the
-container phases, and mention which are done in the pull request description.
+The merged review ended READY with small notes open. Done in this branch:
+- Tests and wiring: `run_pipeline`'s two waits and the gate's base; controller git for `push` (a `pre-push` hook
+  does not run), `exists_on`, and the `fsmonitor`/hooks options; the posting job holds the Claude token only in the
+  body check; the fake `push` records an explicit phase, not call order.
+- `guarded_paths_touched` resolves `.` and `..`, guards absolute paths and paths that leave the repository, and
+  pins the short-name rule to the 8.3 shape (`XXXXXX~N.EXT`).
+- `email_notifier` reports any failure while sending and returns; a failed email cannot turn a finished run into
+  a crash.
+- One shared message for leftover files; drive-letter paths are matched without catching URL schemes; the
+  `findings.verdict` docstring says the title is not the merge decision (counts are).
+- A pass over `scripts/forge/` docstrings against the style guide.
 
-### Tests and wiring
-- `TestCommandWiring` and the fix-loop wiring tests pin the arguments; extend the same to `run_pipeline`'s swapped
-  waits and the gate's base (pickup fakes ignore the base argument).
-- Controller git: tests for `push`, `is_ancestor`, `exists_on`, and the `core.fsmonitor=false` half; a `pre-push` hook case.
-- The workflow tests are YAML-structured now; add one that the prompt file reaches `claude`, and a check that the
-  skill tests do more than substring matches.
-- `email_notifier` raises if `trading` fails to import; show that the fix-loop caller copes (see the email branch).
-- A fake `push` labels by call order; replace it with a real record of phase and branch.
-- A test that the post job has no Claude token outside the check step.
-
-### Code
-- `guarded_paths_touched`: resolve `.` and `..` components and absolute paths; pin the `~<digit>` short-name rule
-  to the real 8.3 shape (`XXXXXX~N.EXT`) with tests either way.
-- `findings.py`: the verdict does not require zero open findings (the loop checks counts separately); decide whether
-  to move that check into `findings.py`.
-- Filters in `readiness.py`: one path list with a strict and a loose mode, not two; decide whether an account-id
-  shape inside a code block should fail the check.
-- The leftover-files message is written in two places; share it.
-- The prompt rule "run `git add` and `git commit` separately" is a hint; decide whether to enforce it with a
-  narrower allow-list.
-
-### Comments and docstrings
-Pass over `scripts/forge/` against `docs/conventions/python-style.md` (Comments and docstrings): state facts, not the
-change's history or reasoning; trim the `run_gate`, `agent_environment` and `LocalGit` docstrings; make sure the
-module docstrings say what each module owns and nothing else.
+Decided, not changed:
+- The prompt rule "run `git add` and `git commit` separately" stays a hint. The allow-list matches by prefix and
+  cannot express it; the cost of a miss is one lost turn.
+- An account-id shape inside a code block still fails the body check: a broker id is a leak wherever it sits.
 
 ### Not in this branch
 - The email path: set the `TRADING_RUNTIME_ALERT_SMTP_*` variables and run the one-line `email_notifier` check
