@@ -122,9 +122,11 @@ class Setup:
         self.gate_result = (True, "ok")
         self.sandboxes = FakeSandboxes(self.work)
         self.gate_runs: list[Path] = []
+        self.closed_when_gated: list[int] = []
 
     def _gate(self, cwd: Path) -> tuple[bool, str]:
         self.gate_runs.append(cwd)
+        self.closed_when_gated.append(self.sandboxes.closed)
         return self.gate_result
 
     def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
@@ -546,6 +548,7 @@ class TestCommandWiring:
                 pr_number = 1
 
         def fake(*args: object, **kwargs: object) -> object:
+            seen["args"] = args
             seen.update(kwargs)
             seen["max_rounds"] = kwargs.get("max_rounds")
             return Done()
@@ -562,6 +565,9 @@ class TestCommandWiring:
     ) -> None:
         seen = self._captured(monkeypatch, setup)
 
+        args = seen["args"]
+        assert args[0] is setup.forge and args[1] is setup.git and args[4] is setup.sandboxes  # type: ignore[index]
+        assert args[9] == "thing.md" and args[2] is args[3]  # type: ignore[index]
         assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
         assert seen["base"] == "develop" and seen["max_rounds"] == 3
 
@@ -626,3 +632,12 @@ class TestPickupReadsTheBase:
         result = setup.run()
 
         assert "work111" in result.detail and "unreferenced" in result.detail and "lost" not in result.detail
+        assert "git branch <name> work111" in result.detail and "ref is locked" in result.detail
+
+
+class TestGateTiming:
+    def test_the_gate_runs_while_its_own_sandbox_is_open_and_after_the_agents_closed(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.closed_when_gated == [1]
+        assert setup.sandboxes.closed == 2 and setup.gate_runs != [setup.work / "box"]

@@ -325,3 +325,16 @@ def test_the_clone_carries_no_trace_of_the_owners_repository_path(repo: Path, tm
         if path.is_file() and str(repo).encode() in path.read_bytes() and path.name != "index"
     ]
     assert found == []
+
+
+def test_a_status_read_that_never_finishes_is_a_forge_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.forge import sandbox as sandbox_module
+    from scripts.forge.sandbox import Sandbox
+
+    def slow(*_a: object, **_k: object) -> None:
+        raise subprocess.TimeoutExpired("git", 1)
+
+    monkeypatch.setattr(sandbox_module, "run_bounded", slow)
+
+    with pytest.raises(ForgeError, match="timed out"):
+        Sandbox(tmp_path).uncommitted()

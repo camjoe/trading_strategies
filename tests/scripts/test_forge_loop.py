@@ -672,3 +672,41 @@ def test_a_banner_heading_above_the_title_hides_it_and_the_verdict_is_missing() 
     body = "<!-- pr-readiness -->" + chr(10) + "## Notice" + chr(10) + "## PR readiness: READY" + chr(10)
 
     assert verdict(body) is None
+
+
+class TestFixLoopCommandWiring:
+    def _captured(self, monkeypatch: pytest.MonkeyPatch, *flags: str) -> dict[str, object]:
+        from scripts.forge import cli as cli_module
+
+        seen: dict[str, object] = {}
+
+        def fake(*args: object, **kwargs: object) -> object:
+            seen["args"] = args
+            seen.update(kwargs)
+            return LoopResult("ready", 0, "READY", {}, "ok")
+
+        class Git:
+            def require_clean_tree(self) -> None:
+                return None
+
+        monkeypatch.setattr(cli_module, "run_fix_loop", fake)
+        monkeypatch.setattr(cli_module, "LocalGit", Git)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: FakeSandboxes(Path(".")))
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("/repo"))
+        monkeypatch.setattr(cli_module, "_loop_authors", lambda args, forge: ["bot"])
+        cli_module.main(["fix-loop", "--pr", "7", *flags], StubForge())
+        return seen
+
+    def test_the_repo_root_the_limits_and_the_pull_request_reach_the_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = self._captured(monkeypatch, "--max-rounds", "2", "--wait-minutes", "5")
+
+        assert seen["repo_root"] == Path("/repo") and seen["max_rounds"] == 2 and seen["wait_seconds"] == 300
+        assert seen["args"][6] == 7 and seen["args"][7] == ["bot"]  # type: ignore[index]
+
+    def test_the_model_option_reaches_the_agent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen = self._captured(monkeypatch, "--model", "opus")
+
+        agent = seen["args"][2]  # type: ignore[index]
+        assert agent.keywords == {"model": "opus"}  # type: ignore[attr-defined]

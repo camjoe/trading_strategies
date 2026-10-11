@@ -29,7 +29,10 @@ class Sandbox:
 
     def uncommitted(self) -> list[str]:
         """Changed or new files git would list, ignored files excluded; commits are all that cross back."""
-        completed = run_bounded(["git", "status", "--porcelain", "--untracked-files=all"], self.path)
+        try:
+            completed = run_bounded(["git", "status", "--porcelain", "--untracked-files=all"], self.path)
+        except subprocess.TimeoutExpired as exc:
+            raise ForgeError("Sandbox step timed out (git status).") from exc
         if completed.returncode != 0:
             raise ForgeError(f"Sandbox step failed (git status): {completed.stderr.strip()}")
         return [line for line in completed.stdout.splitlines() if line.strip()]

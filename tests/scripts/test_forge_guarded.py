@@ -152,7 +152,6 @@ def test_every_common_module_the_forge_tool_imports_is_a_guarded_path() -> None:
     for source in (root / "scripts" / "forge").rglob("*.py"):
         modules |= _common_modules_imported_by(source.read_text(encoding="utf-8"))
 
-    modules.add("__init__")
     assert "git" in modules
     for module in modules:
         assert guarded_paths_touched([f"src/common/{module}.py"]), module
@@ -188,3 +187,18 @@ def test_config_helper_files_the_gate_can_execute_stay_guarded(name: str) -> Non
 
 def test_the_common_package_init_is_guarded_directly() -> None:
     assert guarded_paths_touched(["src/common/__init__.py"]) != []
+
+
+@pytest.mark.parametrize(
+    "name",
+    [".eslintrc.base.json", ".eslintrc.local.cjs", "eslint.config.my-local.js", "vite.config.shared.cts", ".eslintrc"],
+)
+def test_helper_files_with_dotted_or_hyphenated_infixes_are_guarded(name: str) -> None:
+    assert len(guarded_paths_touched([f"apps/web/{name}"])) == 1
+
+
+@pytest.mark.parametrize(
+    "name", ["vite.config.ts.bak", "vite.config.md", "vite.config.", "xvite.config.ts", "eslint.config.ts\n"]
+)
+def test_backup_and_prose_lookalikes_are_not_guarded(name: str) -> None:
+    assert guarded_paths_touched([f"docs/{name}"]) == []

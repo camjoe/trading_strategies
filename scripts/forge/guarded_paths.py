@@ -2,7 +2,8 @@
 
 Broker, database, execution, and risk code comes from the review-scope rules that already mark them
 high risk, so the two lists cannot drift apart. The rest are the pipeline's own controls, the checks and
-configuration the gate runs, and the places that hold decisions or secrets.
+configuration the gate runs, and the places that hold decisions or secrets. The tool-configuration names are a
+partial list (vite, vitest, eslint, jest); other tools' configuration is not covered.
 """
 
 import re
@@ -38,7 +39,7 @@ _EXTRA_GUARDS = (
 
 _CODE_SUFFIX = r"(?:js|cjs|mjs|ts|cts|mts|json|yml|yaml)"
 _EXECUTED_CONFIG = re.compile(
-    rf"^(?:(?:vite|vitest|eslint|jest)\.config\.(?:[\w-]+\.)*{_CODE_SUFFIX}|\.eslintrc(?:\.{_CODE_SUFFIX})?)$"
+    rf"\.eslintrc|(?:(?:vite|vitest|eslint|jest)\.config|\.eslintrc)(?:\.[\w-]+)*\.{_CODE_SUFFIX}"
 )
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
@@ -81,7 +82,7 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
             reason = "commit hooks"
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
-        if reason is None and (name in executed_names or _EXECUTED_CONFIG.match(name)):
+        if reason is None and (name in executed_names or _EXECUTED_CONFIG.fullmatch(name)):
             reason = "code or scripts the gate or test runner executes"
         if reason:
             found.append(f"{path}: {reason}")
