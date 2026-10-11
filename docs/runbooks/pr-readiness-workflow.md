@@ -79,6 +79,24 @@ It stops after three rounds. At the end it emails the pull request link, the ver
 counts through the `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
 Run it only where you are comfortable with the agent editing files under your account.
 
+## Picking up a plan
+
+`python -m scripts.forge implement-plan --plan plan/<file>` also runs on your machine, from a clean
+working tree, signed in to `claude` and `gh`. It refuses a plan that is not in the plan index, is already in
+progress or blocked, or lists dependencies (pass `--depends-ok` once they are satisfied). Then it:
+
+1. creates the plan's branch off `origin/develop` and commits the claim (the plan's Status line and its
+   index row);
+2. pushes the branch and opens a **draft** pull request;
+3. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the
+   `implement-plan` skill, commits locally, and may write questions and a summary to files;
+4. pushes the commits, runs the pull-request gate itself, and checks the paths the work touched.
+
+The pull request leaves draft, which starts the review, only when the agent made commits and raised no
+question, the gate passed, and no guarded path was touched. Otherwise it stays a draft and the command
+says why. `--no-ready` always leaves it a draft. The plan file stays in the branch; it is removed when the
+work is ready to merge.
+
 ## Pin and upgrade the agent
 
 The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it

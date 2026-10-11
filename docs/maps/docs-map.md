@@ -176,6 +176,7 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 |---|---|
 | `check-pr-readiness/` | Pre-merge readiness workflow (the gate, independent reviewers, docs drift review, readiness comment on the PR) |
 | `fix-pr-readiness/` | Fixing the findings in a PR's readiness comment and recording each attempt on it |
+| `implement-plan/` | Implementing one plan from `plan/` on its own branch |
 | `code-review/` | Code review at multiple thoroughness levels, including architecture and conventions, cleanup, UI/API contract review, and the independent lens reviewers (`lenses.md`) |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
 | `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |

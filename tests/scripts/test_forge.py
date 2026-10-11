@@ -349,6 +349,8 @@ class StubForge:
         self.find_authors: Collection[str] = ()
         self.ci_excludes: list[Collection[str]] = []
         self.ci_shas: list[str] = []
+        self.opened: list[tuple[str, str, str, str, bool]] = []
+        self.ready: list[int] = []
         self.upserted: list[str] = []
         self.upsert_authors: Collection[str] = ()
 
@@ -377,6 +379,13 @@ class StubForge:
         status = self.ci_sequence[min(self.ci_polls, len(self.ci_sequence) - 1)]
         self.ci_polls += 1
         return status
+
+    def open_pull_request(self, base: str, head: str, title: str, body: str, draft: bool = True) -> PullRequest:
+        self.opened.append((base, head, title, body, draft))
+        return PullRequest(42, "https://example.test/pull/42", base, head, "claimed1", draft, "OPEN")
+
+    def set_ready(self, number: int) -> None:
+        self.ready.append(number)
 
 
 class FakeClock:
@@ -728,3 +737,39 @@ class TestCli:
         assert main(["comment-get", "--pr", "7"], StubForge(user=None)) == 1
 
         assert capsys.readouterr().err.startswith("forge: ")
+
+
+class TestWriteOperations:
+    def test_open_pull_request_creates_a_draft_from_a_body_on_stdin_and_reads_it_back(self) -> None:
+        runner = FakeRunner(
+            {
+                "pr create": "https://github.com/o/r/pull/42\n",
+                "pr view 42": json.dumps({**PR_JSON, "number": 42, "isDraft": True}),
+            }
+        )
+
+        pr = GitHubForge(runner).open_pull_request("develop", "feature/x", "A title", "The body")
+
+        create_args, stdin = runner.calls[0]
+        assert create_args[:2] == ["pr", "create"]
+        assert "--draft" in create_args and create_args[create_args.index("--base") + 1] == "develop"
+        assert create_args[create_args.index("--body-file") + 1] == "-" and stdin == "The body"
+        assert (pr.number, pr.is_draft) == (42, True)
+
+    def test_a_non_draft_pull_request_omits_the_draft_flag(self) -> None:
+        runner = FakeRunner({"pr create": "https://github.com/o/r/pull/42\n", "pr view 42": json.dumps(PR_JSON)})
+
+        GitHubForge(runner).open_pull_request("develop", "feature/x", "t", "b", draft=False)
+
+        assert "--draft" not in runner.calls[0][0]
+
+    def test_an_unexpected_create_reply_is_a_forge_error(self) -> None:
+        with pytest.raises(ForgeError, match="Unexpected gh output"):
+            GitHubForge(FakeRunner({"pr create": "created\n"})).open_pull_request("develop", "f", "t", "b")
+
+    def test_set_ready_marks_the_pull_request_ready(self) -> None:
+        runner = FakeRunner({"pr ready 7": ""})
+
+        GitHubForge(runner).set_ready(7)
+
+        assert runner.calls[0][0] == ["pr", "ready", "7"]

@@ -1,0 +1,115 @@
+from pathlib import Path
+
+from scripts.forge.plans import (
+    Plan,
+    claimed_plan_text,
+    claimed_readme_text,
+    load_plan,
+    pickup_problems,
+)
+
+PLAN = """# Plan: per-contract trading rules (order increment)
+
+Status: drafted 2026-10-09. Not started. The IBKR rules endpoint has NOT been checked on the host.
+Branch to use: `feature/contract-trading-rules`, off `develop`, after #294 merges.
+
+## Depends on
+- PR #294
+"""
+
+README = """# plan/
+
+## Index
+| Plan | Status | Depends on |
+|---|---|---|
+| [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. Not checked on the host. | PR #294 merged |
+| [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. | none (related plan) |
+"""
+
+
+def write(tmp_path: Path, plan_text: str = PLAN, name: str = "contract-trading-rules.md") -> tuple[Path, Path]:
+    plan, readme = tmp_path / name, tmp_path / "README.md"
+    plan.write_text(plan_text, encoding="utf-8")
+    readme.write_text(README, encoding="utf-8")
+    return plan, readme
+
+
+class TestLoadPlan:
+    def test_reads_title_status_branch_and_dependencies(self, tmp_path: Path) -> None:
+        plan = load_plan(*write(tmp_path))
+
+        assert plan.title == "per-contract trading rules (order increment)"
+        assert plan.status.startswith("drafted 2026-10-09")
+        assert plan.branch == "feature/contract-trading-rules"
+        assert plan.depends_on == "PR #294 merged"
+
+    def test_the_branch_defaults_to_feature_and_the_file_stem(self, tmp_path: Path) -> None:
+        plan = load_plan(*write(tmp_path, "# Plan: x\n\nStatus: drafted.\n", "more-trading-evidence.md"))
+
+        assert plan.branch == "feature/more-trading-evidence"
+        assert plan.depends_on == "none (related plan)"
+
+    def test_a_plan_missing_from_the_index_has_unknown_dependencies(self, tmp_path: Path) -> None:
+        assert load_plan(*write(tmp_path, name="unlisted.md")).depends_on is None
+
+
+def make(**overrides: str | None) -> Plan:
+    values = {"file": "p.md", "title": "t", "status": "drafted.", "branch": "feature/p", "depends_on": "none"}
+    return Plan(**{**values, **overrides})  # type: ignore[arg-type]
+
+
+class TestPickupProblems:
+    def test_a_drafted_plan_with_no_dependencies_can_be_picked_up(self) -> None:
+        assert pickup_problems(make()) == []
+
+    def test_a_plan_already_in_progress_is_refused(self) -> None:
+        assert any("Already in progress" in p for p in pickup_problems(make(status="In progress (branch `x`).")))
+
+    def test_a_blocked_plan_is_refused(self) -> None:
+        assert any("Blocked" in p for p in pickup_problems(make(status="blocked on the host check")))
+
+    def test_dependencies_must_be_confirmed(self) -> None:
+        assert any("depends on" in p for p in pickup_problems(make(depends_on="PR #294 merged")))
+        assert pickup_problems(make(depends_on="PR #294 merged"), depends_ok=True) == []
+
+    def test_a_plan_missing_from_the_index_is_refused(self) -> None:
+        assert any("not listed" in p for p in pickup_problems(make(depends_on=None), depends_ok=True))
+
+    def test_the_index_itself_is_refused(self) -> None:
+        assert pickup_problems(make(file="README.md"))
+
+    def test_an_unusable_branch_name_is_refused(self) -> None:
+        assert pickup_problems(make(branch="feature/../x"))
+        assert pickup_problems(make(branch="bad name"))
+
+
+class TestClaiming:
+    def test_the_status_line_becomes_a_claim_and_keeps_what_it_said(self) -> None:
+        text = claimed_plan_text(PLAN, "feature/contract-trading-rules")
+
+        assert "Status: in progress (branch `feature/contract-trading-rules`)." in text
+        assert "NOT been checked on the host" in text
+        assert "Branch to use: `feature/contract-trading-rules`, off `develop`" in text
+        assert text.count("Status:") == 1
+
+    def test_a_multi_line_status_is_replaced_whole(self) -> None:
+        plan = "# Plan: x\n\nStatus: drafted.\nNot started. More text\non a third line.\n\n## Goal\nBody\n"
+
+        text = claimed_plan_text(plan, "feature/x")
+
+        assert "on a third line" in " ".join(text.split())
+        assert "## Goal\nBody" in text
+        assert text.count("Status:") == 1
+
+    def test_a_plan_without_a_status_line_is_unchanged(self) -> None:
+        assert claimed_plan_text("# Plan: x\n", "feature/x") == "# Plan: x\n"
+
+    def test_only_the_named_index_row_changes(self) -> None:
+        text = claimed_readme_text(README, "contract-trading-rules.md", "feature/contract-trading-rules")
+
+        assert "| [contract-trading-rules.md](contract-trading-rules.md) | in progress (branch `feature/" in text
+        assert (
+            "| [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. | none (related plan) |"
+            in text
+        )
+        assert text.count("PR #294 merged |") == 1

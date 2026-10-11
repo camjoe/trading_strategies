@@ -102,6 +102,7 @@ Current skill inventory:
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
 | `fix-pr-readiness/` | Resolve a readiness comment's findings that need no decision: one commit each, every attempt recorded on the comment |
+| `implement-plan/` | Implement one plan from `plan/` on its own branch: commits with tests, questions instead of guesses, nothing pushed by the agent |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
@@ -130,6 +131,7 @@ Default to the most specific matching skill; work without one when nothing match
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
 | Fix the findings in a PR's readiness comment | `fix-pr-readiness/` |
+| Implement a plan from `plan/` | `implement-plan/` |
 | Independent review of a PR or another branch, read by ref | `code-review/` (Lenses, `lenses.md`) |
 | Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
@@ -254,6 +256,18 @@ branch.
   refs. Print the verified findings; do not fix them.
 - The standing authorization covers only the readiness comment on the current branch's own PR, so
   posting these findings to another PR needs the owner's yes.
+
+### `implement plan`
+
+Implement one plan from `plan/` on its own branch and open a pull request. Follow
+`.ai/skills/implement-plan/SKILL.md`.
+
+- `implement plan: <file>` — plan `plan/<file>`, in this session
+- `python -m scripts.forge implement-plan --plan plan/<file>` — the unattended pickup: claims the plan
+  with a draft pull request, runs the agent, runs the gate, and takes the pull request out of draft only
+  when the gate passes, no guarded path was touched, and the agent raised no question
+- Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, and that
+  one transition out of draft. A start from a schedule or a trigger needs its own standing authorization.
 
 ### `fix pr`
 

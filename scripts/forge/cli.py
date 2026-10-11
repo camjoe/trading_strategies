@@ -18,7 +18,8 @@ from common.git import get_repo_root, git_output
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
-from scripts.forge.local import LocalGit, email_notifier, run_claude_agent
+from scripts.forge.implement import run_implement_plan
+from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
 from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
@@ -73,6 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
     loop.add_argument(
         "--wait-minutes", type=float, default=45, help="Minutes to wait for each review pass (default: 45)."
     )
+
+    plan = commands.add_parser(
+        "implement-plan", help="Claim a plan from plan/, implement it, and open a pull request."
+    )
+    plan.add_argument("--plan", required=True, help="The plan file, for example plan/foo.md or foo.md.")
+    plan.add_argument("--base", default="develop", help="Branch to start from and open the pull request into.")
+    plan.add_argument("--model", default="sonnet", help="Model for the implementing agent (default: sonnet).")
+    plan.add_argument("--depends-ok", action="store_true", help="Confirm the plan's dependencies are satisfied.")
+    plan.add_argument("--no-ready", action="store_true", help="Leave the pull request a draft even if all is well.")
 
     ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
     ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
@@ -185,6 +195,27 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
         raise ForgeError(result.detail)
 
 
+def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
+    repo_root = get_repo_root()
+    with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
+        result = run_implement_plan(
+            forge,
+            LocalGit(),
+            functools.partial(run_claude_agent, model=args.model),
+            run_gate,
+            email_notifier,
+            repo_root,
+            Path(work_dir),
+            Path(args.plan).name,
+            depends_ok=args.depends_ok,
+            base=args.base,
+            mark_ready=not args.no_ready,
+        )
+    print(json.dumps(asdict(result), indent=2))
+    if result.outcome in ("refused", "stopped"):
+        raise ForgeError(result.detail)
+
+
 COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "pr-info": _pr_info,
     "comment-get": _comment_get,
@@ -193,6 +224,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "review-context": _review_context,
     "check-body": _check_body,
     "fix-loop": _fix_loop,
+    "implement-plan": _implement_plan,
 }
 
 

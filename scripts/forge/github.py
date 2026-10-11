@@ -51,7 +51,7 @@ def _expect_shape(what: str) -> Iterator[None]:
     """Turn a malformed ``gh`` reply into a :class:`ForgeError` instead of a traceback."""
     try:
         yield
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError, IndexError) as exc:
         raise ForgeError(f"Unexpected gh output for {what}.") from exc
 
 
@@ -84,7 +84,9 @@ class GitHubForge:
         return login
 
     def pull_request(self, number: int | None) -> PullRequest:
-        target = [] if number is None else [str(number)]
+        return self._view([] if number is None else [str(number)])
+
+    def _view(self, target: list[str]) -> PullRequest:
         output = self._run(["pr", "view", *target, "--json", _PR_FIELDS], None)
         with _expect_shape("pr view"):
             data = json.loads(output)
@@ -97,6 +99,16 @@ class GitHubForge:
                 is_draft=data["isDraft"],
                 state=data["state"],
             )
+
+    def open_pull_request(self, base: str, head: str, title: str, body: str, draft: bool = True) -> PullRequest:
+        args = ["pr", "create", "--base", base, "--head", head, "--title", title, "--body-file", "-"]
+        output = self._run([*args, *(["--draft"] if draft else [])], body)
+        with _expect_shape("pr create"):
+            number = int(output.strip().splitlines()[-1].rstrip("/").rsplit("/", 1)[1])
+        return self.pull_request(number)
+
+    def set_ready(self, number: int) -> None:
+        self._run(["pr", "ready", str(number)], None)
 
     def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
         output = self._run(

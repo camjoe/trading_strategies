@@ -3,8 +3,8 @@
 Status: in progress. Branch: `plan/agent-pipeline-automation` (PR #301). All twelve decisions are settled
 (see "Decisions"). Built and validated on this branch: the forge CLI (`scripts/forge/`), the Stage 2
 reviewer workflow (`.github/workflows/pr-readiness.yml`), and the Stage 3 fixer skill, hand-run through two
-rounds to READY. Built but not yet run live: the unattended loop (`fix-loop`), the guarded-path check, and
-the notification email. Not started: plan pickup (Stage 1).
+rounds to READY. The unattended loop (`fix-loop`) was live-tested for one round. Built but not yet run live: plan pickup
+(Stage 1, `implement-plan`) and the notification email.
 
 ## Goal
 An agent picks up a plan from `plan/`, implements it, and opens a PR. A separate agent runs `pr ready`

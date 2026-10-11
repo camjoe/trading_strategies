@@ -3,12 +3,12 @@
 import json
 import subprocess
 import sys
+from collections.abc import Collection
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from common.git import changed_paths, get_repo_root, git_output
 from scripts.forge.base import ForgeError
-from scripts.forge.fix_loop import RoundTask
 from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
@@ -19,6 +19,11 @@ _ALLOWED_TOOLS = (
     "Bash(python:*),Bash(.venv/bin/python:*),Bash(.venv/Scripts/python.exe:*),Bash(.venv/bin/pytest:*),Bash(.venv/Scripts/pytest.exe:*),Bash(cat:*),Bash(ls:*)"
 )
 _DENIED_TOOLS = "Bash(git push:*),Bash(git reset:*),Bash(gh:*)"
+
+
+class HasPrompt(Protocol):
+    @property
+    def prompt(self) -> str: ...
 
 
 class LocalGit:
@@ -37,12 +42,28 @@ class LocalGit:
     def push(self) -> None:
         git_output(self._root, "push")
 
+    def fetch(self) -> None:
+        git_output(self._root, "fetch", "origin")
+
+    def create_branch(self, name: str, start: str) -> None:
+        try:
+            git_output(self._root, "switch", "-c", name, start)
+        except subprocess.CalledProcessError as exc:
+            raise ForgeError(f"Could not create branch {name} from {start}: {(exc.stderr or '').strip()}") from exc
+
+    def commit_files(self, paths: Collection[Path], message: str) -> None:
+        git_output(self._root, "add", *(str(path) for path in paths))
+        git_output(self._root, "commit", "-m", message)
+
+    def push_new_branch(self, name: str) -> None:
+        git_output(self._root, "push", "-u", "origin", name)
+
     def require_clean_tree(self) -> None:
         if git_output(self._root, "status", "--porcelain").strip():
             raise ForgeError("The working tree has uncommitted changes; commit or stash them first.")
 
 
-def run_claude_agent(task: RoundTask, model: str | None = None) -> None:
+def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
     """Run one fixer round with the headless ``claude`` CLI, signed in as the owner."""
     model_args = ["--model", model] if model else []
     try:
@@ -104,3 +125,17 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
     if not delivered:
         reason = "the SMTP settings are not set" if config is None else "delivery failed"
         print(f"No email was sent: {reason}.", file=sys.stderr)
+
+
+def run_gate(base: str) -> tuple[bool, str]:
+    """Run the pull-request gate against *base*; return whether it passed and the end of its output."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "scripts.run_checks", "pr", "--base", base],
+        cwd=get_repo_root(),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    tail = "\n".join((completed.stdout + completed.stderr).strip().splitlines()[-15:])
+    return completed.returncode == 0, tail

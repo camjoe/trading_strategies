@@ -78,6 +78,14 @@ class Forge(Protocol):
         """Aggregate state of the checks on commit *sha*, ignoring checks named in *exclude*."""
         ...
 
+    def open_pull_request(self, base: str, head: str, title: str, body: str, draft: bool = True) -> PullRequest:
+        """Open a pull request from branch *head* into *base*."""
+        ...
+
+    def set_ready(self, number: int) -> None:
+        """Take pull request *number* out of draft."""
+        ...
+
 
 def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     """One state for a set of checks: any failure wins, then any pending, else pass; ``none`` when empty."""
