@@ -61,6 +61,11 @@ files, show `git diff --stat` and stop: the author reviews and commits the fixes
 again. If nothing changed or the gate is still red, report the exact failing command and output
 without paraphrase, and stop. Do not run Steps 3 to 5.
 
+**Unattended in CI.** When the invocation says CI is the gate (the workflow's prompt does), do not run this
+step or `fix_checks`: the gate runs the pull request's own code, which must not run in a step that holds the
+Claude token. Use the context's `ci.state` as the gate result: `fail` is a red gate (stop as above),
+`pending` or `none` is shown as pending.
+
 ## Step 2 — CI
 
 If a pull request exists for the branch, compare `git rev-parse HEAD` with `pull_request.head_sha` from
@@ -81,6 +86,8 @@ reviewer on the branch diff. A BLOCKER skips Step 4, and Step 5 still runs.
 ```
 python -m scripts.checks.repo.review_scope_check --base <base_ref>
 ```
+
+Unattended in CI, run it as `.venv/bin/python -m scripts.checks.repo.review_scope_check --base <base_ref>`. It is the only Python command that step may run.
 
 It prints the reviewers the diff needs (none for a documentation-only diff). Run them in parallel
 following "For the orchestrator" in [lenses.md](../code-review/lenses.md): spawn, verify every

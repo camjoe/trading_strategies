@@ -160,6 +160,11 @@ fails, the checkout goes back to the branch you started on and the local branch 
 command to delete the remote branch if it got there. The plan file stays in the branch; it is removed when the
 work is ready to merge.
 
+**What an unattended run cannot change.** All of `scripts/` is a guarded path, because the workflow imports from
+it with a token in hand, and so are `src/common/__init__.py`, and any `sitecustomize.py`,
+`usercustomize.py` or `.pth` file. A plan whose work includes a file under `scripts/` (a data-operations helper,
+for example) is therefore held or undone, never pushed; do that part by hand or in a session you run yourself.
+
 By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
 one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`

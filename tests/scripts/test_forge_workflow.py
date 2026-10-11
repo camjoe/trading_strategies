@@ -165,12 +165,43 @@ def test_each_job_asks_for_only_the_permissions_it_uses() -> None:
     assert "pull-requests: write" in post and "checks:" not in post
 
 
-def test_the_review_agent_may_run_only_the_scope_check_among_python_commands() -> None:
+def _allowed_tools() -> list[str]:
     review = _job("review")
-    allowed = next(line for line in review.splitlines() if "ALLOWED_TOOLS:" in line)
+    line = next(line for line in review.splitlines() if "ALLOWED_TOOLS:" in line)
+    return line.split("ALLOWED_TOOLS:")[1].strip().split(",")
 
-    assert "Bash(python" not in allowed and "run_checks" not in allowed and "pytest" not in allowed
-    assert "review_scope_check" in allowed
+
+def test_the_review_agent_may_run_exactly_these_commands() -> None:
+    assert sorted(_allowed_tools()) == sorted(
+        [
+            "Read",
+            "Glob",
+            "Grep",
+            "Skill",
+            "Agent",
+            "Write",
+            "Bash(git:*)",
+            "Bash(.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
+            "Bash(./.venv/bin/python -m scripts.checks.repo.review_scope_check:*)",
+            "Bash(cat:*)",
+            "Bash(ls:*)",
+        ]
+    )
+
+
+def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:
+    interpreters = ("python", ".venv/bin/python", "./.venv/bin/python")
+    for entry in _allowed_tools():
+        if entry.startswith("Bash("):
+            command = entry[len("Bash(") : -len(")")]
+            assert command not in tuple(f"{name}:*" for name in interpreters), entry
+
+
+def test_the_skill_tells_the_unattended_agent_to_use_ci_as_the_gate_and_the_allowed_scope_check_form() -> None:
+    skill = (WORKFLOW.parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "Unattended in CI" in skill and "`ci.state` as the gate result" in skill
+    assert ".venv/bin/python -m scripts.checks.repo.review_scope_check --base <base_ref>" in skill
 
 
 def test_nothing_after_the_agent_starts_uses_the_agents_virtualenv_with_the_claude_token() -> None:
