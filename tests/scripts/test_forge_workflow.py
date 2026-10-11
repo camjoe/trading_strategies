@@ -201,6 +201,7 @@ def test_the_skill_tells_the_unattended_agent_to_use_ci_as_the_gate_and_the_allo
     skill = (WORKFLOW.parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "Unattended in CI" in skill and "`ci.state` as the gate result" in skill
+    assert "`pass`" in skill and "continues to Step 2" in skill
     assert ".venv/bin/python -m scripts.checks.repo.review_scope_check --base <base_ref>" in skill
 
 

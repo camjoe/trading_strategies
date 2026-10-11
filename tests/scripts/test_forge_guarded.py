@@ -107,3 +107,32 @@ def test_mixed_case_hook_directories_and_executed_names_are_guarded(path: str) -
 )
 def test_everything_the_workflows_import_and_every_run_on_start_file_is_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize(
+    "path, reason",
+    [
+        ("tests/sitecustomize.py", "code Python runs when it starts"),
+        ("venvs/site/extra.pth", "code Python runs when it starts"),
+        ("USERCUSTOMIZE.PY", "code Python runs when it starts"),
+    ],
+)
+def test_run_on_start_files_are_guarded_for_that_reason(path: str, reason: str) -> None:
+    assert guarded_paths_touched([path]) == [f"{path}: {reason}"]
+
+
+def test_every_common_module_the_forge_tool_imports_is_a_guarded_path() -> None:
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    modules: set[str] = {"__init__"}
+    for source in (root / "scripts" / "forge").glob("*.py"):
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] == "common":
+                modules.add(node.module.split(".")[1] if "." in node.module else "__init__")
+            if isinstance(node, ast.Import):
+                modules |= {alias.name.split(".")[1] for alias in node.names if alias.name.startswith("common.")}
+
+    for module in modules:
+        assert guarded_paths_touched([f"src/common/{module}.py"]), module

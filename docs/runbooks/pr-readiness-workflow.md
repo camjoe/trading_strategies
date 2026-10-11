@@ -158,10 +158,11 @@ review, only when the agent made commits and raised no question, no guarded path
 passed; otherwise it stays a draft and the command says why. `--no-ready` always leaves it a draft. If the claim
 fails, the checkout goes back to the branch you started on and the local branch is removed; the detail gives the
 command to delete the remote branch if it got there. The plan file stays in the branch; it is removed when the
-work is ready to merge.
+work is ready to merge. The claim branch is pushed without an upstream, so a manual `git pull` on it needs the
+remote named (`git pull origin <branch>`).
 
-**What an unattended run cannot change.** All of `scripts/` is a guarded path, because the workflow imports from
-it with a token in hand, and so are `src/common/__init__.py`, and any `sitecustomize.py`,
+**What an unattended run cannot change.** `scripts/forge/guarded_paths.py` is the full list. Among
+it, all of `scripts/` is guarded because the workflow imports from it with a token in hand, and so are `src/common/__init__.py`, and any `sitecustomize.py`,
 `usercustomize.py` or `.pth` file. A plan whose work includes a file under `scripts/` (a data-operations helper,
 for example) is therefore held or undone, never pushed; do that part by hand or in a session you run yourself.
 

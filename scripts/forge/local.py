@@ -272,7 +272,7 @@ def _agent_result(stdout: str) -> dict[str, Any]:
 def email_notifier(subject: str, message: str, details: dict[str, object]) -> None:
     """Email the owner through the runtime alert settings; a missing configuration sends nothing.
 
-    The runtime modules load here, not at import, so the workflow's posting job never imports ``trading``.
+    Loads the runtime notification modules when called, not at import.
     """
     from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
     from trading.interfaces.runtime.notifications import notify_runtime_event

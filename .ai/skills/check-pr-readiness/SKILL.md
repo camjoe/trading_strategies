@@ -61,10 +61,10 @@ files, show `git diff --stat` and stop: the author reviews and commits the fixes
 again. If nothing changed or the gate is still red, report the exact failing command and output
 without paraphrase, and stop. Do not run Steps 3 to 5.
 
-**Unattended in CI.** When the invocation says CI is the gate (the workflow's prompt does), do not run this
-step or `fix_checks`: the gate runs the pull request's own code, which must not run in a step that holds the
-Claude token. Use the context's `ci.state` as the gate result: `fail` is a red gate (stop as above),
-`pending` or `none` is shown as pending.
+**Unattended in CI.** When the invocation tells you to use `ci` as the gate result or not to run the gate (the
+workflow's prompt does), do not run this step or `fix_checks`: the gate runs the pull request's own code, which
+must not run in a step that holds the Claude token. Use the context's `ci.state` as the gate result: `pass`
+continues to Step 2, `fail` is a red gate (stop as above), and `pending` or `none` is shown as pending.
 
 ## Step 2 — CI
 

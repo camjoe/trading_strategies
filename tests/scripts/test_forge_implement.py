@@ -508,3 +508,63 @@ class TestPushTargets:
         result = setup.run()
 
         assert "refs/forge/held/feature/thing/work111" in result.detail
+
+
+class TestCommandWiring:
+    def _captured(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> dict[str, object]:
+        from scripts.forge import cli as cli_module
+
+        seen: dict[str, object] = {}
+
+        class Done:
+            detail = ""
+            fix = None
+
+            class implement:  # noqa: N801
+                outcome = "ready-for-review"
+                plan = "thing.md"
+                branch = "b"
+                pr_url = None
+                detail = ""
+                pr_number = 1
+
+        def fake(*args: object, **kwargs: object) -> object:
+            seen.update(kwargs)
+            seen["max_rounds"] = kwargs.get("max_rounds")
+            return Done()
+
+        monkeypatch.setattr(cli_module, "run_pipeline", fake)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "asdict", lambda value: {})
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", *flags], setup.forge)
+        return seen
+
+    def test_the_defaults_fix_the_pull_request_and_mark_it_ready(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        seen = self._captured(monkeypatch, setup)
+
+        assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
+        assert seen["base"] == "develop" and seen["max_rounds"] == 3
+
+    def test_each_flag_reaches_the_pipeline(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
+        seen = self._captured(
+            monkeypatch,
+            setup,
+            "--no-fix",
+            "--no-ready",
+            "--depends-ok",
+            "--base",
+            "main",
+            "--max-rounds",
+            "2",
+            "--review-wait-minutes",
+            "5",
+            "--wait-minutes",
+            "7",
+        )
+
+        assert seen["fix"] is False and seen["mark_ready"] is False and seen["depends_ok"] is True
+        assert seen["base"] == "main" and seen["max_rounds"] == 2
+        assert seen["review_wait_seconds"] == 300 and seen["wait_seconds"] == 420

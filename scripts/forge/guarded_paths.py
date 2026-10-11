@@ -11,7 +11,7 @@ from pathlib import PurePosixPath
 from scripts.checks.repo.review_scope_check import SCOPE_RULES
 
 _EXTRA_GUARDS = (
-    ("scripts/", "the forge tool, the gate's checks, and everything the workflow imports from scripts"),
+    ("scripts/", "the forge tool, the gate's checks, and what the workflow imports"),
     ("src/common/__init__.py", "imported by the forge tool"),
     ("src/common/git.py", "the git helper the guards call"),
     ("src/__init__.py", "imported by the forge tool"),

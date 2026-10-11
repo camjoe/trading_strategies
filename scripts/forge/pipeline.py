@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Protocol
 
 from scripts.forge.base import Forge, ForgeError
-from scripts.forge.fix_loop import Agent as FixAgent, Git, LoopResult, run_fix_loop, wait_for_next_pass
+from scripts.forge.fix_loop import Agent as FixAgent, LoopResult, run_fix_loop, wait_for_next_pass
 from scripts.forge.implement import (
     Agent as ImplementAgent,
     Gate,
@@ -25,7 +25,7 @@ from scripts.forge.sandbox import SandboxFactory
 from scripts.forge.service import resolve_authors
 
 
-class PipelineGit(PlanGit, Git, Protocol):
+class PipelineGit(PlanGit, Protocol):
     """What both controllers need from git."""
 
 

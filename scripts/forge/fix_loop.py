@@ -12,7 +12,7 @@ import time
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal
 
 from scripts.forge.base import CheckoutGit, Comment, Forge, ForgeError
 from scripts.forge.findings import open_counts, unhandled_open_findings, verdict
@@ -23,10 +23,6 @@ from scripts.forge.sandbox import SandboxFactory, leftover_summary
 from scripts.forge.service import resolve_authors, review_context
 
 Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
-
-
-class Git(CheckoutGit, Protocol):
-    """The checkout operations the loop uses."""
 
 
 @dataclass(frozen=True)
@@ -66,7 +62,7 @@ def round_prompt(pr: int, base: str, old_file: Path, new_file: Path) -> str:
 
 def run_fix_loop(
     forge: Forge,
-    git: Git,
+    git: CheckoutGit,
     agent: Agent,
     sandbox: SandboxFactory,
     notify: Notifier,
@@ -108,7 +104,7 @@ def run_fix_loop(
 
 def _loop(
     forge: Forge,
-    git: Git,
+    git: CheckoutGit,
     agent: Agent,
     sandbox: SandboxFactory,
     work_dir: Path,
@@ -165,7 +161,7 @@ def _loop(
 
 def _one_round(
     forge: Forge,
-    git: Git,
+    git: CheckoutGit,
     agent: Agent,
     sandbox: SandboxFactory,
     work_dir: Path,
@@ -264,7 +260,7 @@ def result_as_json(result: LoopResult) -> str:
     )  # fmt: skip
 
 
-def _remove_claimed_plan(git: Git, repo_root: Path | None, branch: str) -> str | None:
+def _remove_claimed_plan(git: CheckoutGit, repo_root: Path | None, branch: str) -> str | None:
     """Remove the plan this branch claimed, and its index row, in one pushed commit; the file name, or ``None``."""
     if repo_root is None:
         return None

@@ -360,7 +360,7 @@ class TestGateEnvironment:
         assert env["GIT_CONFIG_NOSYSTEM"] == "1" and env["PYTHONPATH"].startswith(str(tmp_path / "src"))
 
 
-class TestScrubbedNames:
+class TestAgentEnvironmentScrubbedNames:
     def test_webhook_smtp_and_runtime_settings_do_not_reach_the_agent_or_the_gate(self, tmp_path: Path) -> None:
         base = {
             "PATH": "/bin",
