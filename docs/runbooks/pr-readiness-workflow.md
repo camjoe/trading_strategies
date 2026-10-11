@@ -140,7 +140,7 @@ branch (push or merge a new plan first). Then it:
    and a summary to files;
 4. fetches the commits into your repository and checks the paths they touched. If any is guarded, nothing is
    pushed or applied (GitHub runs a workflow file from a pushed commit): the commits are kept under the local
-   ref `refs/forge/held/<branch>`, and the detail says so, for you to inspect with `git diff`. Otherwise it applies
+   ref `refs/forge/held/<branch>/<commit>`, and the detail says so, for you to inspect with `git diff`. Otherwise it applies
    them and pushes them to the draft, and records the summary and questions in the pull request description;
 5. runs the pull-request gate in a second, clean clone of the pushed commit, with the interpreter that runs
    this command rather than the sandbox's `.venv`, so it tests exactly what was pushed. The gate runs the

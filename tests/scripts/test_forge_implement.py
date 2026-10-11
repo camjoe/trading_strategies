@@ -34,6 +34,7 @@ class FakeGit:
         self.push_error: ForgeError | None = None
         self.branch_name = "develop"
         self.held: list[tuple[str, str]] = []
+        self.pushed_branches: list[str] = []
         self.head_error: ForgeError | None = None
 
     def head(self) -> str:
@@ -47,6 +48,7 @@ class FakeGit:
     def push(self, branch: str = "") -> None:
         if self.push_error:
             raise self.push_error
+        self.pushed_branches.append(branch)
         self.calls.append("push" if "agent" in self.calls else "push-claim")
 
     def require_clean_tree(self) -> None:
@@ -83,7 +85,7 @@ class FakeGit:
 
     def hold(self, name: str, sha: str) -> str:
         self.held.append((name, sha))
-        return f"refs/forge/held/{name}"
+        return f"refs/forge/held/{name}/{sha[:12]}"
 
     def current_branch(self) -> str:
         return self.branch_name
@@ -492,3 +494,17 @@ class TestPickupEdges:
         result = setup.run(setup.agent(questions="Which one?"))
 
         assert result.detail.startswith("The agent has questions")
+
+
+class TestPushTargets:
+    def test_the_claim_and_the_agents_commits_are_pushed_to_the_plans_branch(self, setup: Setup) -> None:
+        setup.run()
+
+        assert setup.git.pushed_branches == ["feature/thing", "feature/thing"]
+
+    def test_the_held_ref_in_the_result_names_the_commit(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        result = setup.run()
+
+        assert "refs/forge/held/feature/thing/work111" in result.detail

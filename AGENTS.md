@@ -31,7 +31,8 @@ conversation.
   above: no other comment or review, no labels, no merge, no security-class findings, and nothing
   that is not safe on a public repository. It posts only through `python -m scripts.forge
   comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
-  token. Changing the workflow, the forge write path, or this section needs the owner's yes.
+  token: a separate job, started from a fresh checkout of the pull request head, checks the body the
+  agent wrote and posts it. Changing the workflow, the forge write path, or this section needs the owner's yes.
 - `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
   `implement-plan` run on the pull request it opened, may for up to three rounds
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
@@ -274,7 +275,7 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
 - `python -m scripts.forge implement-plan --plan plan/<file>` — the unattended pickup: claims the plan
   with a draft pull request, runs the agent, runs the gate, and takes the pull request out of draft only
   when the gate passes, no guarded path was touched, and the agent raised no question. Commits that touch
-  a guarded path are never pushed or applied: they are kept in a local-only ref (`refs/forge/held/<branch>`)
+  a guarded path are never pushed or applied: they are kept in a local-only ref (`refs/forge/held/<branch>/<commit>`)
   for the owner to inspect, because GitHub runs workflow files from a pushed commit. When the pull
   request does leave draft, the command waits for the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
 - Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, that one

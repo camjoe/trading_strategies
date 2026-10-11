@@ -1,4 +1,6 @@
 import re
+import subprocess
+from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.forge.cli import build_parser
@@ -122,3 +124,33 @@ def test_the_two_jobs_agree_on_the_artifact_and_the_body_file() -> None:
     assert "name: readiness-body" in _job("review") and "name: readiness-body" in _job("post")
     assert "readiness-comment.md" in _job("review") and "readiness-comment.md" in _job("post")
     assert "overwrite: true" in _job("review")
+
+
+def _head_check_script() -> str:
+    post = _job("post")
+    step = post[post.index("- name: Confirm the pull request head has not moved") :]
+    body = step.split("<<'PY'")[1].split("          PY")[0]
+    return "".join(line[10:] + chr(10) for line in body.splitlines()[1:])
+
+
+def _run_head_check(tmp_path: Path, reviewed: str, current: str) -> subprocess.CompletedProcess[str]:
+    import json
+    import sys
+
+    (tmp_path / "pr.json").write_text(json.dumps({"head_sha": current}), encoding="utf-8")
+    return subprocess.run(
+        [sys.executable, "-c", _head_check_script()],
+        env={"RUNNER_TEMP": str(tmp_path), "HEAD_SHA": reviewed},
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_the_head_check_passes_when_the_head_is_the_reviewed_commit(tmp_path: Path) -> None:
+    assert _run_head_check(tmp_path, "abc", "abc").returncode == 0
+
+
+def test_the_head_check_fails_with_an_error_when_the_head_moved(tmp_path: Path) -> None:
+    result = _run_head_check(tmp_path, "abc", "def")
+
+    assert result.returncode != 0 and "moved to def" in result.stderr
