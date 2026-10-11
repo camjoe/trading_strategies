@@ -71,3 +71,8 @@ def load_ticker_categories(file_path: str) -> dict[str, list[str]]:
 def unique_in_order(items: list[str]) -> list[str]:
     """Return *items* without duplicates, keeping the first occurrence of each."""
     return list(dict.fromkeys(items))
+
+
+def chunked(items: list[str], size: int) -> list[list[str]]:
+    """Split *items* into consecutive lists of at most *size* items."""
+    return [items[start : start + size] for start in range(0, len(items), size)]
