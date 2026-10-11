@@ -70,7 +70,7 @@ def run_bounded(
     the call from returning.
     """
     group: dict[str, Any] = (
-        {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+        {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
         if sys.platform == "win32"
         else {"start_new_session": True}
     )
