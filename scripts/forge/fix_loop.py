@@ -28,6 +28,7 @@ class Git(Protocol):
     def changed_paths(self, base: str, head: str) -> list[str]: ...
     def discard_changes(self, sha: str) -> None: ...
     def dirty_paths(self) -> list[str]: ...
+    def ignored_changes(self, since: float) -> list[str]: ...
     def push(self, branch: str) -> None: ...
     def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None: ...
 
@@ -181,16 +182,23 @@ def _one_round(
     old_file.write_text(old_body, encoding="utf-8", newline="\n")
     new_file.unlink(missing_ok=True)
     start = git.head()
+    started = time.time()
 
-    agent(RoundTask(pr_number, base, round_prompt(pr_number, base, old_file, new_file), old_file, new_file))
+    try:
+        agent(RoundTask(pr_number, base, round_prompt(pr_number, base, old_file, new_file), old_file, new_file))
+    except ForgeError:
+        git.discard_changes(start)
+        raise
 
     end = git.head()
     committed = git.changed_paths(start, end) if end != start else []
     leftover = git.dirty_paths()
+    ignored = git.ignored_changes(started)
     guarded = guarded_paths_touched([*committed, *leftover])
-    if guarded:
+    if guarded or ignored:
         git.discard_changes(start)
-        return "stopped", "The round touched guarded paths and was undone: " + "; ".join(guarded)
+        listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
+        return "stopped", "The round touched guarded paths and was undone: " + listed
     if leftover:
         git.discard_changes(start)
         return "stopped", "The round left uncommitted changes and was undone: " + ", ".join(leftover)
@@ -209,9 +217,13 @@ def _one_round(
     try:
         git.push(head_ref)
     except ForgeError as exc:
-        forge.upsert_comment(pr_number, old_body, authors)
+        detail = f"The push failed, so the round was undone: {exc}"
+        try:
+            forge.upsert_comment(pr_number, old_body, authors)
+        except ForgeError as restore:
+            detail += f" The comment could not be restored and still claims the fix: {restore}"
         git.discard_changes(start)
-        return "stopped", f"The push failed, so the comment was restored and the round undone: {exc}"
+        return "stopped", detail
     return None
 
 
@@ -262,6 +274,13 @@ def _remove_claimed_plan(git: Git, repo_root: Path | None, branch: str) -> str |
     readme = plan_dir / "README.md"
     updated = readme_without_row(readme.read_text(encoding="utf-8"), plan_file.name)
     readme.write_text(updated, encoding="utf-8", newline="\n")
-    git.remove_and_commit([plan_file], [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge")
-    git.push(branch)
+    before = git.head()
+    try:
+        git.remove_and_commit(
+            [plan_file], [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge"
+        )
+        git.push(branch)
+    except ForgeError:
+        git.discard_changes(before)
+        raise
     return plan_file.name

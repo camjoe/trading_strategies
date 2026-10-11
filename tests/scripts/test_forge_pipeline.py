@@ -193,3 +193,21 @@ class TestLoopAuthors:
         forge.user = None
 
         assert _loop_authors(self._args([]), forge) == ["github-actions[bot]"]  # type: ignore[arg-type]
+
+
+def test_a_plan_removal_whose_push_fails_is_rolled_back_and_the_run_still_notifies(tmp_path: Path) -> None:
+    world = World(tmp_path, comment_with(readiness(1, "READY")))
+    original_push = world.git.push
+
+    def push(branch: str = "") -> None:
+        if world.git.removals:
+            raise ForgeError("rejected")
+        original_push(branch)
+
+    world.git.push = push  # type: ignore[method-assign]
+
+    result = world.run()
+
+    assert result.fix is not None and result.fix.outcome == "stopped" and "rejected" in result.fix.detail
+    assert world.git.head() == "work111"
+    assert len(world.sent) == 1

@@ -22,6 +22,11 @@ class FakeGit:
         self.changed: list[str] = []
         self.branch_error: ForgeError | None = None
         self.committed: list[tuple[list[str], str]] = []
+        self.dirty: list[str] = []
+        self.ignored: list[str] = []
+        self.discarded: list[str] = []
+        self.on_base = True
+        self.push_new_error: ForgeError | None = None
 
     def head(self) -> str:
         return self.head_value
@@ -48,7 +53,22 @@ class FakeGit:
         self.committed.append(([path.name for path in paths], message))
 
     def push_new_branch(self, name: str) -> None:
+        if self.push_new_error:
+            raise self.push_new_error
         self.calls.append(f"push-new {name}")
+
+    def dirty_paths(self) -> list[str]:
+        return self.dirty
+
+    def ignored_changes(self, since: float) -> list[str]:
+        return self.ignored
+
+    def discard_changes(self, sha: str) -> None:
+        self.discarded.append(sha)
+        self.dirty = []
+
+    def exists_on(self, ref: str, relative: str) -> bool:
+        return self.on_base
 
 
 class Setup:
@@ -266,3 +286,65 @@ class TestImplementPlanCommand:
         assert '"outcome": "refused"' in capsys.readouterr().out
         assert cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready"], setup.forge) == 0
         assert '"outcome": "no-progress"' in capsys.readouterr().out
+
+
+class TestPickupHardening:
+    def test_a_plan_that_is_not_on_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
+        setup.git.on_base = False
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and "is not on origin/develop" in result.detail
+        assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
+
+    def test_a_failed_claim_push_stops_with_a_hint_to_delete_the_branch_and_still_notifies(self, setup: Setup) -> None:
+        setup.git.push_new_error = ForgeError("rejected")
+
+        result = setup.run()
+
+        assert result.outcome == "stopped" and "git push origin --delete feature/thing" in result.detail
+        assert setup.forge.opened == [] and len(setup.sent) == 1
+
+    def test_a_failure_after_the_pull_request_opens_stops_and_keeps_the_draft(self, setup: Setup) -> None:
+        def failing_ready(number: int) -> None:
+            raise ForgeError("gh failed")
+
+        setup.forge.set_ready = failing_ready  # type: ignore[method-assign]
+
+        result = setup.run()
+
+        assert result.outcome == "stopped" and "gh failed" in result.detail
+        assert result.pr_number == 42 and len(setup.sent) == 1
+
+    def test_an_uncommitted_edit_to_a_guarded_path_keeps_it_a_draft_and_is_discarded(self, setup: Setup) -> None:
+        setup.git.dirty = ["scripts/checks/repo/review_scope_check.py"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "guarded" in result.detail and setup.forge.ready == []
+        assert setup.git.discarded == ["work111"]
+
+    def test_a_file_git_ignores_that_tools_run_keeps_it_a_draft(self, setup: Setup) -> None:
+        setup.git.ignored = [".venv/Lib/site-packages/sitecustomize.py"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "sitecustomize" in result.detail and setup.forge.ready == []
+
+    def test_any_uncommitted_leftover_blocks_ready_and_is_discarded(self, setup: Setup) -> None:
+        setup.git.dirty = ["notes.txt"]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "uncommitted" in result.detail and setup.forge.ready == []
+        assert setup.git.discarded == ["work111"]
+
+    def test_a_summary_with_a_mention_or_a_link_is_not_published(self, setup: Setup) -> None:
+        setup.run(setup.agent(summary="Thanks @someone, see https://example.test"))
+
+        assert setup.forge.bodies == []
+
+    def test_a_mention_inside_code_is_published(self, setup: Setup) -> None:
+        setup.run(setup.agent(summary="Added tests using `@pytest.mark.parametrize`."))
+
+        assert len(setup.forge.bodies) == 1

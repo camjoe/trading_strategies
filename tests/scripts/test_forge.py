@@ -784,3 +784,37 @@ class TestWriteOperations:
         GitHubForge(runner).set_ready(7)
 
         assert runner.calls[0][0] == ["pr", "ready", "7"]
+
+
+class TestPublishProblems:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("ping @someone", "a mention"),
+            ("see https://example.test", "a URL"),
+            ("see www.example.test", "a URL"),
+            ("a <b>tag</b>", "HTML"),
+            ("![alt](x.png)", "an image or link"),
+            ("at /home/someone/project", "a local path"),
+            (r"at C:\work\x", "a local path"),
+            ("notes in local/strategies", "private local folder"),
+            ("account DU1234567 holds", "broker account id"),
+        ],
+    )
+    def test_each_unsafe_shape_is_refused(self, text: str, expected: str) -> None:
+        from scripts.forge.readiness import publish_problems
+
+        assert any(expected in problem for problem in publish_problems(text))
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Added `@pytest.mark.parametrize` tests in src/common/tickers.py.",
+            "Fixed the wait in scripts/forge/service.py (see #301).",
+            "Code: ```python\nx = '@y'  # <b>\n```",
+        ],
+    )
+    def test_ordinary_summaries_and_code_are_allowed(self, text: str) -> None:
+        from scripts.forge.readiness import publish_problems
+
+        assert publish_problems(text) == []

@@ -36,12 +36,16 @@ conversation.
   `implement-plan` run on the pull request it opened, may for up to three rounds
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`
   lines to its readiness comment, and email the owner the pull request link, the verdict, and the open
-  counts, without asking. It never changes a path in `scripts/forge/guarded_paths.py` (a round that does
-  is undone), writes a `Decision` line, ticks a box, edits a finding, force-pushes, touches another
-  branch, opens or marks ready a pull request, labels, or merges. The agent it starts holds no push or
-  `gh` access: the loop checks the round's paths and the new comment body, then posts and pushes. It has
-  the same public-repository limits as `pr ready`. Starting it on a schedule or from a trigger, or
-  changing the loop, the guarded-path list, or this section, needs the owner's yes.
+  counts, without asking. When the comment says READY and `implement-plan` claimed a plan for the branch,
+  it also commits the removal of that plan file and its index row. It never changes a path in
+  `scripts/forge/guarded_paths.py` (a round that does is undone), writes a `Decision` line, ticks a box,
+  edits a finding, force-pushes, touches another branch, opens or marks ready a pull request, labels, or
+  merges. The agent it starts is a guardrail, not a sandbox: it runs on the owner's machine under the
+  owner's account, with GitHub tokens and the owner's git and `gh` configuration withheld, only the `file`
+  git transport, and tool permissions that deny pushing, resetting, `gh`, and writes under `.git/`. The
+  loop checks the round's committed, uncommitted, and ignored files and the new comment body, then posts
+  and pushes. It has the same public-repository limits as `pr ready`. Starting it on a schedule or from a
+  trigger, or changing the loop, the guarded-path list, or this section, needs the owner's yes.
 
 ## Python environment
 

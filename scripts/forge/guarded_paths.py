@@ -30,8 +30,24 @@ _EXTRA_GUARDS = (
     (".pre-commit", "commit hooks"),
     (".gitattributes", "repository settings"),
     (".gitmodules", "repository settings"),
+    (".githooks/", "commit hooks"),
+    (".husky/", "commit hooks"),
     ("SECURITY.md", "the security policy"),
     ("local/", "private research and parameters"),
+)
+
+_EXECUTED_NAMES = frozenset(
+    {
+        "conftest.py",
+        "package.json",
+        "package-lock.json",
+        "Makefile",
+        "tox.ini",
+        "setup.cfg",
+        "setup.py",
+        "noxfile.py",
+        ".coveragerc",
+    }
 )
 
 
@@ -45,8 +61,8 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
-        if reason is None and name == "conftest.py":
-            reason = "code the test runner executes"
+        if reason is None and name in _EXECUTED_NAMES:
+            reason = "code or scripts the gate or test runner executes"
         if reason:
             found.append(f"{path}: {reason}")
     return found

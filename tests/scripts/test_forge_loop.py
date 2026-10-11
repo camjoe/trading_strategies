@@ -91,6 +91,7 @@ class FakeGit:
         self.pushes = 0
         self.removals: list[str] = []
         self.dirty: list[str] = []
+        self.ignored: list[str] = []
         self.push_error: ForgeError | None = None
         self.pushed_to: list[str] = []
         self.posted_before_push = -1
@@ -112,6 +113,9 @@ class FakeGit:
 
     def dirty_paths(self) -> list[str]:
         return self.dirty
+
+    def ignored_changes(self, since: float) -> list[str]:
+        return self.ignored
 
     def push(self, branch: str = "") -> None:
         if self.push_error:
@@ -523,3 +527,46 @@ class TestFindingsParsing:
             "concern": 0,
             "note": 0,
         }
+
+
+class TestLoopHardeningTwo:
+    def test_a_sensitive_ignored_file_changed_by_the_round_stops_and_undoes_it(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.ignored = [".claude/settings.local.json"]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and ".claude/settings.local.json" in result.detail
+        assert git.reset_to == ["abc123"] and forge.upserted == []
+
+    def test_a_push_failure_is_reported_even_when_the_comment_cannot_be_restored(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.push_error = ForgeError("rejected")
+        original = forge.upsert_comment
+        calls: list[str] = []
+
+        def upsert(number: int, body: str, authors: object) -> tuple[Comment, bool]:
+            calls.append(body)
+            if len(calls) > 1:
+                raise ForgeError("api down")
+            return original(number, body, authors)  # type: ignore[arg-type]
+
+        forge.upsert_comment = upsert  # type: ignore[method-assign]
+
+        result, sent = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "could not be restored" in result.detail
+        assert git.reset_to == ["abc123"] and len(sent) == 1
+
+
+def test_an_agent_that_crashes_mid_round_leaves_the_checkout_as_it_was(tmp_path: Path) -> None:
+    forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+    def agent(task: RoundTask) -> None:
+        git.head_value = "def456"
+        raise ForgeError("timed out")
+
+    result, _ = run(forge, git, tmp_path, agent)
+
+    assert result.outcome == "stopped" and "timed out" in result.detail
+    assert git.reset_to == ["abc123"]

@@ -1,9 +1,12 @@
 """The real git, agent, and email behind the fixer loop, all running on the owner's machine."""
 
 import json
+import os
+import re
 import subprocess
 import sys
-from collections.abc import Collection
+import tempfile
+from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -46,6 +49,10 @@ _DENIED_TOOLS = ",".join(
     ]
 )
 
+_SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|^SSH_AUTH_SOCK$", re.IGNORECASE)
+_KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
+_SENSITIVE_IGNORED_NAMES = ("sitecustomize.py", "usercustomize.py")
+
 
 class HasPrompt(Protocol):
     @property
@@ -56,21 +63,71 @@ class LocalGit:
     def __init__(self, root: Path | None = None) -> None:
         self._root = root or get_repo_root()
 
+    def _git(self, *args: str) -> str:
+        try:
+            return git_output(self._root, *args)
+        except subprocess.CalledProcessError as exc:
+            raise ForgeError(f"git {args[0]} failed: {(exc.stderr or '').strip()}") from exc
+
     def head(self) -> str:
-        return git_output(self._root, "rev-parse", "HEAD").strip()
+        return self._git("rev-parse", "HEAD").strip()
+
+    def identity(self) -> tuple[str, str] | None:
+        """The configured commit author name and email, or ``None`` when either is missing."""
+        try:
+            name, email = self._git("config", "user.name").strip(), self._git("config", "user.email").strip()
+        except ForgeError:
+            return None
+        return (name, email) if name and email else None
 
     def changed_paths(self, base: str, head: str) -> list[str]:
         """Every path changed from *base* to *head*, with renames reported as a delete and an add."""
-        return split_nul(git_output(self._root, "diff", "--name-only", "--no-renames", "-z", f"{base}..{head}"))
+        return split_nul(self._git("diff", "--name-only", "--no-renames", "-z", f"{base}..{head}"))
 
     def dirty_paths(self) -> list[str]:
         """Tracked files with uncommitted changes and untracked files that git does not ignore."""
-        return uncommitted_paths(self._root)
+        try:
+            return uncommitted_paths(self._root)
+        except subprocess.CalledProcessError as exc:
+            raise ForgeError(f"git status failed: {(exc.stderr or '').strip()}") from exc
+
+    def ignored_changes(self, since: float) -> list[str]:
+        """Sensitive files git ignores that changed after *since* (epoch seconds).
+
+        These are files the gate or the owner's tools may run: anything under ``.venv/`` except bytecode,
+        ``.claude/``, env files, ``.pth`` files, and ``sitecustomize``/``usercustomize`` modules.
+        """
+        listed = split_nul(self._git("ls-files", "--others", "--ignored", "--exclude-standard", "-z"))
+        changed: list[str] = []
+        for relative in listed:
+            normalized = relative.replace("\\", "/")
+            name = normalized.rsplit("/", 1)[-1]
+            sensitive = (
+                normalized.startswith(".claude/")
+                or name.startswith(".env")
+                or name in _SENSITIVE_IGNORED_NAMES
+                or name.endswith(".pth")
+                or (normalized.startswith(".venv/") and "__pycache__" not in normalized and not name.endswith(".pyc"))
+            )
+            try:
+                if sensitive and (self._root / relative).stat().st_mtime > since:
+                    changed.append(relative)
+            except OSError:
+                continue
+        return changed
+
+    def exists_on(self, ref: str, relative: str) -> bool:
+        """Whether *relative* exists in the tree at *ref*."""
+        try:
+            git_output(self._root, "cat-file", "-e", f"{ref}:{relative}")
+        except subprocess.CalledProcessError:
+            return False
+        return True
 
     def discard_changes(self, sha: str) -> None:
         """Return the checkout to *sha*, dropping later commits, edits, and untracked files."""
-        git_output(self._root, "reset", "--hard", sha)
-        git_output(self._root, "clean", "-fd")
+        self._git("reset", "--hard", sha)
+        self._git("clean", "-fd")
 
     def push(self, branch: str) -> None:
         """Push HEAD to the remote branch named *branch*, whatever the upstream setting says."""
@@ -80,7 +137,7 @@ class LocalGit:
             raise ForgeError(f"git push to {branch} failed: {(exc.stderr or '').strip()}") from exc
 
     def fetch(self) -> None:
-        git_output(self._root, "fetch", "origin")
+        self._git("fetch", "origin")
 
     def create_branch(self, name: str, start: str) -> None:
         try:
@@ -89,45 +146,88 @@ class LocalGit:
             raise ForgeError(f"Could not create branch {name} from {start}: {(exc.stderr or '').strip()}") from exc
 
     def commit_files(self, paths: Collection[Path], message: str) -> None:
-        git_output(self._root, "add", *(str(path) for path in paths))
-        git_output(self._root, "commit", "-m", message)
+        self._git("add", *(str(path) for path in paths))
+        self._git("commit", "-m", message)
 
     def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
-        git_output(self._root, "rm", "-q", *(str(path) for path in remove))
-        git_output(self._root, "add", *(str(path) for path in update))
-        git_output(self._root, "commit", "-m", message)
+        self._git("rm", "-q", *(str(path) for path in remove))
+        self._git("add", *(str(path) for path in update))
+        self._git("commit", "-m", message)
 
     def push_new_branch(self, name: str) -> None:
-        git_output(self._root, "push", "-u", "origin", name)
+        self._git("push", "-u", "origin", name)
 
     def require_clean_tree(self) -> None:
-        if git_output(self._root, "status", "--porcelain").strip():
+        if self._git("status", "--porcelain").strip():
             raise ForgeError("The working tree has uncommitted changes; commit or stash them first.")
+
+
+def agent_environment(
+    base: Mapping[str, str], scratch: Path, identity: tuple[str, str] | None = None
+) -> dict[str, str]:
+    """The environment the agent runs in: the owner's, minus anything that could push or call GitHub.
+
+    Secret-looking variables go (except Claude's own), git reads an empty configuration with no credential
+    helper and may only use the ``file`` transport, and ``gh`` reads an empty configuration directory.
+    Commits still work: the owner's name and email are passed as the author and committer.
+    """
+    env = {
+        name: value
+        for name, value in base.items()
+        if name.startswith(_KEPT_FOR_CLAUDE) or not _SECRET_NAME.search(name)
+    }
+    empty_gitconfig = scratch / "gitconfig"
+    empty_gitconfig.write_text("", encoding="utf-8")
+    gh_config = scratch / "gh"
+    gh_config.mkdir(exist_ok=True)
+    env.update(
+        {
+            "GIT_CONFIG_GLOBAL": str(empty_gitconfig),
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_ALLOW_PROTOCOL": "file",
+            "GH_CONFIG_DIR": str(gh_config),
+        }
+    )
+    if identity:
+        name, email = identity
+        env.update(
+            {
+                "GIT_AUTHOR_NAME": name,
+                "GIT_AUTHOR_EMAIL": email,
+                "GIT_COMMITTER_NAME": name,
+                "GIT_COMMITTER_EMAIL": email,
+            }
+        )
+    return env
 
 
 def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
     """Run one fixer round with the headless ``claude`` CLI, signed in as the owner."""
     model_args = ["--model", model] if model else []
+    root = get_repo_root()
     try:
-        completed = subprocess.run(
-            [
-                "claude",
-                "-p",
-                "--output-format",
-                "json",
-                "--allowedTools",
-                _ALLOWED_TOOLS,
-                "--disallowedTools",
-                _DENIED_TOOLS,
-                *model_args,
-            ],
-            input=task.prompt,
-            text=True,
-            encoding="utf-8",
-            cwd=get_repo_root(),
-            capture_output=True,
-            timeout=AGENT_TIMEOUT_SECONDS,
-        )
+        with tempfile.TemporaryDirectory(prefix="agent-env-") as scratch:
+            completed = subprocess.run(
+                [
+                    "claude",
+                    "-p",
+                    "--output-format",
+                    "json",
+                    "--allowedTools",
+                    _ALLOWED_TOOLS,
+                    "--disallowedTools",
+                    _DENIED_TOOLS,
+                    *model_args,
+                ],
+                input=task.prompt,
+                text=True,
+                encoding="utf-8",
+                cwd=root,
+                env=agent_environment(os.environ, Path(scratch), LocalGit(root).identity()),
+                capture_output=True,
+                timeout=AGENT_TIMEOUT_SECONDS,
+            )
     except FileNotFoundError as exc:
         raise ForgeError("The claude CLI is not installed or not on PATH.") from exc
     except subprocess.TimeoutExpired as exc:

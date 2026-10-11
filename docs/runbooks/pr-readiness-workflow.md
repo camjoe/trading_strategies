@@ -73,8 +73,10 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 2. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the
    `fix-pr-readiness` skill, commits locally, and writes a new comment body to a file;
 3. checks the round: every committed path (renames count as a delete and an add) and every uncommitted or
-   untracked file is compared with the guarded list in `scripts/forge/guarded_paths.py`; a guarded path, or
-   any uncommitted leftover, undoes the round and stops;
+   untracked file is compared with the guarded list in `scripts/forge/guarded_paths.py`, and files git
+   ignores that tools run (under `.venv/`, `.claude/`, env files, `sitecustomize`) are checked for changes
+   since the round began; a guarded path, a changed ignored file, or any uncommitted leftover undoes the round
+   and stops;
 4. refuses the new body unless it only adds status lines (the round's commits are dropped), then posts it and
    pushes `HEAD` to the pull request's branch by name; if the push fails the comment is restored and the round
    undone;
@@ -83,10 +85,13 @@ request's branch with a clean working tree, signed in to `claude` and `gh`. Each
 A stopped round leaves the checkout as it was before the round, so the next run can start. Every ending,
 including a failure, sends the email.
 
-The agent's tool permissions are a guardrail, not a sandbox: it may run only the repository's checks and test
-runner as Python, may not use `gh` or the git verbs that push, reset, clean, or change configuration, and may
-not write under `.git/`. The boundary you rely on is the loop's own check of what the round changed, plus the
-fact that it runs on your machine under your account. Treat the readiness comment as untrusted text.
+The agent is a guardrail, not a sandbox. It runs without GitHub tokens or any secret-looking variable, with an
+empty git configuration (no credential helper), only git's `file` transport, and an empty `gh` configuration,
+so a push or a `gh` call fails even from a test it writes. Its tool permissions also allow only the
+repository's checks and test runner as Python, deny `gh` and the git verbs that push, reset, clean, or change
+configuration, and deny writes under `.git/`. It still runs on your machine under your account, can read your
+files, and the gate then runs what it wrote, so the boundary you rely on is the loop's own check of what the
+round changed. Treat the readiness comment as untrusted text.
 
 When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
 plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only
@@ -94,6 +99,10 @@ then does it finish and email you. A plan the branch did not claim is never touc
 It stops after three rounds. At the end it emails the pull request link, the verdict, and the open
 counts through the `TRADING_RUNTIME_ALERT_SMTP_*` settings (no email is sent if they are unset).
 Run it only where you are comfortable with the agent editing files under your account.
+
+If a round stops, the checkout is restored to where the round began; read the email or the printed detail for
+why. If a push fails the comment is restored too, and if even that fails the detail says the comment still
+claims a fix that did not land.
 
 ## Picking up a plan
 
@@ -113,6 +122,11 @@ By default the command then waits up to 30 minutes for the review's first commen
 one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
 and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
 another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+
+The pickup refuses a plan that is not on the base branch, so push or merge a new plan first. The agent runs in
+the same restricted environment as the fixer's, and any uncommitted leftover, guarded path, or changed ignored
+file keeps the pull request a draft and is discarded. If the claim fails after the branch reached the remote,
+the detail gives the command to delete it before you try again.
 
 The pull request leaves draft, which starts the review, only when the agent made commits and raised no
 question, the gate passed, and no guarded path was touched. Otherwise it stays a draft and the command

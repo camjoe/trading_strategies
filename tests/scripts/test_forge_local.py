@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -110,7 +111,7 @@ class TestModelOption:
 
         monkeypatch.setattr(local.subprocess, "run", run)
         local.run_claude_agent(TASK, **kwargs)  # type: ignore[arg-type]
-        return seen[0]
+        return next(command for command in seen if command[0] == "claude")
 
     def test_the_model_is_passed_to_claude(self, monkeypatch: pytest.MonkeyPatch) -> None:
         command = self._command_for(monkeypatch, model="sonnet")
@@ -154,3 +155,104 @@ class TestToolLimits:
 
     def test_nothing_is_both_allowed_and_denied(self) -> None:
         assert not set(local._ALLOWED_TOOLS.split(",")) & set(local._DENIED_TOOLS.split(","))
+
+
+class TestAgentEnvironment:
+    def _env(self, tmp_path: Path, identity: tuple[str, str] | None = ("Dev", "dev@example.test")) -> dict[str, str]:
+        base = {
+            "PATH": "/bin",
+            "GH_TOKEN": "x",
+            "GITHUB_TOKEN": "x",
+            "AWS_SECRET_ACCESS_KEY": "x",
+            "SOME_API_KEY": "x",
+            "TRADING_RUNTIME_ALERT_SMTP_PASSWORD": "x",
+            "SSH_AUTH_SOCK": "/tmp/agent",
+            "CLAUDE_CODE_OAUTH_TOKEN": "keep",
+            "ANTHROPIC_API_KEY": "keep",
+        }
+        return local.agent_environment(base, tmp_path, identity)
+
+    def test_secret_looking_variables_are_removed_but_the_claude_ones_stay(self, tmp_path: Path) -> None:
+        env = self._env(tmp_path)
+
+        for name in ("GH_TOKEN", "GITHUB_TOKEN", "AWS_SECRET_ACCESS_KEY", "SOME_API_KEY", "SSH_AUTH_SOCK"):
+            assert name not in env
+        assert "TRADING_RUNTIME_ALERT_SMTP_PASSWORD" not in env
+        assert env["CLAUDE_CODE_OAUTH_TOKEN"] == "keep" and env["ANTHROPIC_API_KEY"] == "keep"
+        assert env["PATH"] == "/bin"
+
+    def test_git_gets_an_empty_configuration_and_may_only_use_local_files(self, tmp_path: Path) -> None:
+        env = self._env(tmp_path)
+
+        assert Path(env["GIT_CONFIG_GLOBAL"]).read_text(encoding="utf-8") == ""
+        assert env["GIT_CONFIG_NOSYSTEM"] == "1" and env["GIT_ALLOW_PROTOCOL"] == "file"
+        assert env["GIT_TERMINAL_PROMPT"] == "0"
+
+    def test_gh_reads_an_empty_configuration_directory(self, tmp_path: Path) -> None:
+        config = Path(self._env(tmp_path)["GH_CONFIG_DIR"])
+
+        assert config.is_dir() and list(config.iterdir()) == []
+
+    def test_commits_still_carry_the_owners_identity(self, tmp_path: Path) -> None:
+        env = self._env(tmp_path)
+
+        assert env["GIT_AUTHOR_NAME"] == env["GIT_COMMITTER_NAME"] == "Dev"
+        assert env["GIT_AUTHOR_EMAIL"] == env["GIT_COMMITTER_EMAIL"] == "dev@example.test"
+
+    def test_without_an_identity_none_is_invented(self, tmp_path: Path) -> None:
+        assert "GIT_AUTHOR_NAME" not in self._env(tmp_path, identity=None)
+
+    def test_a_real_git_push_from_the_scrubbed_environment_cannot_reach_a_remote(self, tmp_path: Path) -> None:
+        import subprocess as sp
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        sp.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+        sp.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"],
+            cwd=repo,
+            check=True,
+        )
+        sp.run(["git", "remote", "add", "origin", "https://github.com/example/none.git"], cwd=repo, check=True)
+        scratch = tmp_path / "scratch"
+        scratch.mkdir()
+
+        pushed = sp.run(
+            ["git", "push", "origin", "HEAD:refs/heads/x"],
+            cwd=repo,
+            env=local.agent_environment(os.environ, scratch),
+            capture_output=True,
+            text=True,
+        )
+
+        assert pushed.returncode != 0 and "not allowed" in pushed.stderr
+
+
+class TestLocalGitHelpers:
+    def test_exists_on_and_ignored_changes_against_a_real_repository(self, tmp_path: Path) -> None:
+        import subprocess as sp
+        import time
+
+        sp.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+        sp.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+        sp.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+        (tmp_path / ".gitignore").write_text(".venv/\n.env\n.claude/\n", encoding="utf-8")
+        (tmp_path / "plan").mkdir()
+        (tmp_path / "plan" / "x.md").write_text("x", encoding="utf-8")
+        sp.run(["git", "add", "."], cwd=tmp_path, check=True)
+        sp.run(["git", "commit", "-q", "-m", "first"], cwd=tmp_path, check=True)
+        git = local.LocalGit(tmp_path)
+        since = time.time() - 1
+        (tmp_path / ".venv" / "Lib").mkdir(parents=True)
+        (tmp_path / ".venv" / "Lib" / "sitecustomize.py").write_text("x", encoding="utf-8")
+        (tmp_path / ".venv" / "Lib" / "__pycache__").mkdir()
+        (tmp_path / ".venv" / "Lib" / "__pycache__" / "a.pyc").write_text("x", encoding="utf-8")
+        (tmp_path / ".env").write_text("SECRET=1", encoding="utf-8")
+
+        assert git.exists_on("HEAD", "plan/x.md") and not git.exists_on("HEAD", "plan/missing.md")
+        assert sorted(git.ignored_changes(since)) == [".env", ".venv/Lib/sitecustomize.py"]
+        assert git.ignored_changes(time.time() + 60) == []
+
+    def test_a_failing_git_command_becomes_a_forge_error(self, tmp_path: Path) -> None:
+        with pytest.raises(local.ForgeError, match="git"):
+            local.LocalGit(tmp_path).head()

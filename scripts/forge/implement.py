@@ -6,6 +6,7 @@ paths the work touched, and only then takes the pull request out of draft. Anyth
 leaves the pull request a draft and tells the owner.
 """
 
+import time
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +15,7 @@ from typing import Literal, Protocol
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
-from scripts.forge.readiness import leak_problems
+from scripts.forge.readiness import publish_problems
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -23,6 +24,10 @@ class PlanGit(Protocol):
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
     def push(self, branch: str) -> None: ...
+    def dirty_paths(self) -> list[str]: ...
+    def ignored_changes(self, since: float) -> list[str]: ...
+    def discard_changes(self, sha: str) -> None: ...
+    def exists_on(self, ref: str, relative: str) -> bool: ...
     def require_clean_tree(self) -> None: ...
     def fetch(self) -> None: ...
     def create_branch(self, name: str, start: str) -> None: ...
@@ -122,57 +127,103 @@ def _run(
     try:
         git.require_clean_tree()
         git.fetch()
+        if not git.exists_on(f"origin/{base}", f"plan/{plan_file}"):
+            return ImplementResult(
+                "refused",
+                plan_file,
+                plan.branch,
+                None,
+                f"plan/{plan_file} is not on origin/{base}; push or merge it there first.",
+            )
         git.create_branch(plan.branch, f"origin/{base}")
     except ForgeError as exc:
         return ImplementResult("refused", plan_file, plan.branch, None, str(exc))
 
-    plan_text = claimed_plan_text(plan_path.read_text(encoding="utf-8"), plan.branch)
-    readme_text = claimed_readme_text(readme.read_text(encoding="utf-8"), plan_file, plan.branch)
-    plan_path.write_text(plan_text, encoding="utf-8", newline="\n")
-    readme.write_text(readme_text, encoding="utf-8", newline="\n")
-    git.commit_files([plan_path, readme], f"docs(plan): claim {plan_file}")
-    git.push_new_branch(plan.branch)
     claim_body = (
         f"Implements `plan/{plan_file}`. Opened as a draft by the plan pickup; it leaves draft once the gate "
         "passes and nothing needs the owner."
     )
-    pr = forge.open_pull_request(base, plan.branch, plan.title, claim_body, draft=True)
+    try:
+        plan_text = claimed_plan_text(plan_path.read_text(encoding="utf-8"), plan.branch)
+        readme_text = claimed_readme_text(readme.read_text(encoding="utf-8"), plan_file, plan.branch)
+        plan_path.write_text(plan_text, encoding="utf-8", newline="\n")
+        readme.write_text(readme_text, encoding="utf-8", newline="\n")
+        git.commit_files([plan_path, readme], f"docs(plan): claim {plan_file}")
+        git.push_new_branch(plan.branch)
+        pr = forge.open_pull_request(base, plan.branch, plan.title, claim_body, draft=True)
+    except (ForgeError, OSError) as exc:
+        return ImplementResult(
+            "stopped",
+            plan_file,
+            plan.branch,
+            None,
+            f"The claim failed: {exc}. If the branch reached the remote, delete it before trying again: "
+            f"git push origin --delete {plan.branch}",
+        )
 
     def finish(outcome: Outcome, detail: str) -> ImplementResult:
         return ImplementResult(outcome, plan_file, plan.branch, pr.url, detail, pr.number)
 
+    try:
+        return _implement(
+            forge, git, agent, gate, work_dir, plan_file, plan.branch, base, mark_ready, claim_body, pr.number, finish
+        )
+    except ForgeError as exc:
+        return finish("stopped", f"The run failed after the pull request was opened: {exc}")
+
+
+def _implement(
+    forge: Forge,
+    git: PlanGit,
+    agent: Agent,
+    gate: Gate,
+    work_dir: Path,
+    plan_file: str,
+    branch: str,
+    base: str,
+    mark_ready: bool,
+    claim_body: str,
+    number: int,
+    finish: Callable[[Outcome, str], ImplementResult],
+) -> ImplementResult:
     start = git.head()
+    started = time.time()
     questions, summary = work_dir / "questions.md", work_dir / "summary.md"
     questions.unlink(missing_ok=True)
     summary.unlink(missing_ok=True)
     try:
         agent(
-            ImplementTask(
-                implement_prompt(plan_file, plan.branch, base, questions, summary), plan_file, questions, summary
-            )
+            ImplementTask(implement_prompt(plan_file, branch, base, questions, summary), plan_file, questions, summary)
         )
     except ForgeError as exc:
         return finish("stopped", f"The agent failed: {exc}")
 
     end = git.head()
-    committed = end != start
-    if committed:
-        git.push(plan.branch)
+    leftover, ignored = git.dirty_paths(), git.ignored_changes(started)
+    guarded = guarded_paths_touched([*(git.changed_paths(start, end) if end != start else []), *leftover])
+    if guarded or ignored:
+        git.discard_changes(end)
+        listed = "; ".join([*guarded, *(f"{path}: a file git ignores that tools run" for path in ignored)])
+        return finish("needs-owner", f"The work touches guarded paths, so the pull request stays a draft: {listed}")
+    if end != start:
+        git.push(branch)
     asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-    _record_on_pull_request(forge, pr.number, claim_body, summary, asked)
+    _record_on_pull_request(forge, number, claim_body, summary, asked)
     if asked:
         return finish("needs-owner", "The agent has questions:\n" + asked)
-    if not committed:
+    if end == start:
         return finish("no-progress", "The agent made no commits.")
-    guarded = guarded_paths_touched(git.changed_paths(start, end))
-    if guarded:
-        return finish("needs-owner", "The work touches guarded paths: " + "; ".join(guarded))
+    if leftover:
+        git.discard_changes(end)
+        return finish(
+            "needs-owner", "The agent left uncommitted changes, which were discarded: " + ", ".join(leftover)
+        )
     passed, tail = gate(f"origin/{base}")
     if not passed:
         return finish("needs-owner", "The gate is red:\n" + tail)
     if not mark_ready:
         return finish("needs-owner", "Ready, left as a draft as asked.")
-    forge.set_ready(pr.number)
+    forge.set_ready(number)
     return finish("ready-for-review", "The gate passed; the review starts.")
 
 
@@ -185,5 +236,5 @@ def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_
     if questions:
         sections.append("## Questions for the owner\n\n" + questions)
     body = "\n\n".join(sections)
-    if len(sections) > 1 and not leak_problems(body):
+    if len(sections) > 1 and not publish_problems(body):
         forge.set_pull_request_body(number, body)

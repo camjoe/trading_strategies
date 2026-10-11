@@ -1,4 +1,4 @@
-"""Checks on the text of a readiness comment before it is posted."""
+"""Checks on the text of a readiness comment, and of agent-written text, before it is published."""
 
 import difflib
 import re
@@ -15,6 +15,19 @@ _PATH_PATTERNS = (
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\*\s*$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
+
+_CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+_PUBLISH_PATTERNS = (
+    (re.compile(r"/home/[^\s/`]+|/Users/[^\s/`]+|[A-Za-z]:\\"), "a local path"),
+    (re.compile(r"\blocal/"), "a reference to the private local folder"),
+    (re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b"), "text shaped like a broker account id"),
+)
+_RENDERED_PATTERNS = (
+    (re.compile(r"(?<!\w)@\w"), "a mention"),
+    (re.compile(r"<[A-Za-z!/]"), "HTML"),
+    (re.compile(r"!\[|\]\("), "an image or link"),
+    (re.compile(r"https?://|www\.", re.IGNORECASE), "a URL"),
+)
 
 
 def pass_number(body: str) -> int | None:
@@ -56,6 +69,19 @@ def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
         problems.append("The body contains a local path.")
     if any(pattern.search(text) for pattern in _CREDENTIAL_PATTERNS):
         problems.append("The body contains credential-like text.")
+    return problems
+
+
+def publish_problems(text: str) -> list[str]:
+    """Reasons agent-written *text* must not go into a public description; empty when it can.
+
+    Paths, account-id shapes, and the private folder are refused anywhere. Mentions, HTML, links, and URLs
+    are refused outside code, where GitHub would render or act on them.
+    """
+    problems = leak_problems(text)
+    problems += [f"The text contains {label}." for pattern, label in _PUBLISH_PATTERNS if pattern.search(text)]
+    prose = _CODE_SPANS.sub("", text)
+    problems += [f"The text contains {label}." for pattern, label in _RENDERED_PATTERNS if pattern.search(prose)]
     return problems
 
 
