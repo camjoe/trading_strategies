@@ -202,3 +202,32 @@ def test_helper_files_with_dotted_or_hyphenated_infixes_are_guarded(name: str) -
 )
 def test_backup_and_prose_lookalikes_are_not_guarded(name: str) -> None:
     assert guarded_paths_touched([f"docs/{name}"]) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/web/vite.config.ts.",
+        "apps/web/jest.config.js ",
+        "apps/web/.eslintrc.",
+        "tests/conftest.py.",
+        "tools/setup.py ..",
+        "x/extra.pth.",
+        "apps/.env.",
+        "Scripts./forge/guarded_paths.py",
+        "scripts/forge./cli.py",
+        ".github./workflows/x.yml",
+        "apps/web/vite.config.ts::$DATA",
+        "apps/web/vite.config.ts:stream",
+        "AGENTS.md:Zone.Identifier",
+        "apps/web/VITE~1.TS",
+        "SCRIPT~1/anything.py",
+    ],
+)
+def test_names_that_windows_resolves_to_a_guarded_file_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["docs/notes.md.", "src/common/thing.py ", "docs/a:b.md", "tests/scripts/test_x.py"])
+def test_the_normalization_does_not_guard_ordinary_files(path: str) -> None:
+    assert guarded_paths_touched([path]) == []

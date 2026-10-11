@@ -42,6 +42,8 @@ _EXECUTED_CONFIG = re.compile(
     rf"\.eslintrc|(?:(?:vite|vitest|eslint|jest)\.config|\.eslintrc)(?:\.[\w-]+)*\.{_CODE_SUFFIX}"
 )
 
+_SHORT_NAME = re.compile(r"~\d")
+
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 
 _EXECUTED_NAMES = frozenset(
@@ -61,11 +63,18 @@ _EXECUTED_NAMES = frozenset(
 )
 
 
+def _normalized(path: str) -> str:
+    """*path* as Windows would resolve it: forward slashes, no case, no stream suffix, no trailing dots or spaces."""
+    parts = path.replace("\\", "/").casefold().split("/")
+    return "/".join(part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in parts)
+
+
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
     """One ``path: reason`` entry for each path in *paths* that falls under a guarded prefix or name.
 
-    Matching ignores case, because a checkout on a case-insensitive filesystem treats ``Scripts/Forge`` and
-    ``scripts/forge`` as the same file.
+    Matching ignores case, trailing dots and spaces, and ``:stream`` suffixes, because a Windows checkout treats
+    ``Scripts/Forge``, ``scripts/forge.`` and ``scripts/forge::$DATA`` as the same file. A component that looks
+    like an 8.3 short name (``VITE~1.TS``) is guarded too, since it can alias a guarded file.
     """
     guards = tuple((rule.prefix.casefold(), rule.reason) for rule in SCOPE_RULES if rule.high_risk) + tuple(
         (prefix.casefold(), reason) for prefix, reason in _EXTRA_GUARDS
@@ -73,9 +82,11 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
     executed_names = {name.casefold() for name in _EXECUTED_NAMES}
     found: list[str] = []
     for path in paths:
-        normalized = path.replace("\\", "/").casefold()
+        normalized = _normalized(path)
         name = PurePosixPath(normalized).name
         reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and any(_SHORT_NAME.search(part) for part in normalized.split("/")):
+            reason = "a name that may be a Windows short name for a guarded file"
         if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):
             reason = "code Python runs when it starts"
         if reason is None and {".githooks", ".husky"} & set(normalized.split("/")[:-1]):
