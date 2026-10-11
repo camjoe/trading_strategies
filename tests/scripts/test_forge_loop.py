@@ -649,4 +649,6 @@ class TestLeftovers:
 def test_the_round_prompt_tells_the_fixer_to_leave_no_uncommitted_files() -> None:
     from scripts.forge.fix_loop import round_prompt
 
-    assert "uncommitted" in round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))
+    prompt = round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))
+
+    assert "uncommitted" in prompt and "separate commands, never chained with `&&`" in prompt

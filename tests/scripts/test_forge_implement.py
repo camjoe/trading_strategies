@@ -303,6 +303,7 @@ class TestPrompt:
         assert "plan/thing.md" in prompt and "feature/thing" in prompt
         assert str(setup.tasks[0].questions_file) in prompt and str(setup.tasks[0].summary_file) in prompt
         assert "Do not push or use gh" in prompt
+        assert "separate commands, never chained with `&&`" in prompt
 
 
 class TestImplementPlanCommand:
