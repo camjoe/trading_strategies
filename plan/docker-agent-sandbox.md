@@ -1,7 +1,9 @@
 # Plan: run the pipeline's agents and gate in a container
 
-Status: drafted 2026-10-11. Nothing built. Depends on `agent-pipeline-automation.md` being merged (the
-sandbox, the controllers, and the guards this plan builds on are on that branch).
+Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
+the controllers, and the guards this plan builds on are on `develop`. Nothing in the container phases is built yet.
+
+Branch to use: `feature/docker-agent-sandbox`
 
 ## Goal
 Close the risk the repository-level sandbox leaves open. Today the unattended agents (`implement-plan`,
@@ -102,3 +104,42 @@ token path in the posting job. It needs `scripts/forge` on `develop`, so it cann
   container, and keep the flags above.
 - A container narrows the host exposure; it does not stop an agent from pushing harmful code that passes the
   guard and the review. The guarded-path list and the owner's review still carry that.
+
+## Follow-ups carried over from PR #301
+The merged review ended READY with these notes open. Each is small. Do them in this branch, before or between the
+container phases, and mention which are done in the pull request description.
+
+### Tests and wiring
+- `TestCommandWiring` and the fix-loop wiring tests pin the arguments; extend the same to `run_pipeline`'s swapped
+  waits and the gate's base (pickup fakes ignore the base argument).
+- Controller git: tests for `push`, `is_ancestor`, `exists_on`, and the `core.fsmonitor=false` half; a `pre-push` hook case.
+- The workflow tests are YAML-structured now; add one that the prompt file reaches `claude`, and a check that the
+  skill tests do more than substring matches.
+- `email_notifier` raises if `trading` fails to import; show that the fix-loop caller copes (see the email branch).
+- A fake `push` labels by call order; replace it with a real record of phase and branch.
+- A test that the post job has no Claude token outside the check step.
+
+### Code
+- `guarded_paths_touched`: resolve `.` and `..` components and absolute paths; pin the `~<digit>` short-name rule
+  to the real 8.3 shape (`XXXXXX~N.EXT`) with tests either way.
+- `findings.py`: the verdict does not require zero open findings (the loop checks counts separately); decide whether
+  to move that check into `findings.py`.
+- Filters in `readiness.py`: one path list with a strict and a loose mode, not two; decide whether an account-id
+  shape inside a code block should fail the check.
+- The leftover-files message is written in two places; share it.
+- The prompt rule "run `git add` and `git commit` separately" is a hint; decide whether to enforce it with a
+  narrower allow-list.
+
+### Comments and docstrings
+Pass over `scripts/forge/` against `docs/conventions/python-style.md` (Comments and docstrings): state facts, not the
+change's history or reasoning; trim the `run_gate`, `agent_environment` and `LocalGit` docstrings; make sure the
+module docstrings say what each module owns and nothing else.
+
+### Not in this branch
+- The email path: set the `TRADING_RUNTIME_ALERT_SMTP_*` variables and run the one-line `email_notifier` check
+  (its own branch, as agreed).
+- The post-merge smoke test of the fixer round: put a throwaway plan on `develop`, run `implement-plan` with the
+  chained fix loop, and remove the plan afterwards.
+
+### Repository settings (owner)
+- Make `readiness` a required check on `develop` now that a failed review turns it red.
