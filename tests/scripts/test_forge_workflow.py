@@ -28,7 +28,7 @@ def test_every_forge_call_in_the_workflow_uses_flags_the_command_accepts() -> No
     known = _flags_by_command()
     calls = _forge_calls()
 
-    assert {name for name, _ in calls} == {"review-context", "comment-get", "check-body", "comment-upsert"}
+    assert {name for name, _ in calls} == {"review-context", "comment-get", "check-body", "pr-info", "comment-upsert"}
     for name, flags in calls:
         assert set(flags) <= known[name], f"{name}: {set(flags) - known[name]}"
 
@@ -100,3 +100,11 @@ def test_the_transcript_is_scrubbed_with_the_system_python_not_the_agents_venv()
     scrub = review[review.index("- name: Scrub the transcript") : review.index("- name: Transcript artifact")]
 
     assert "python3 -" in scrub and ".venv" not in scrub
+
+
+def test_the_posting_job_confirms_the_head_has_not_moved_just_before_it_posts() -> None:
+    post = _job("post")
+    confirm = post.index("- name: Confirm the pull request head has not moved")
+
+    assert post.index("- name: Check the comment body") < confirm < post.index("- name: Post the readiness comment")
+    assert "scripts.forge pr-info" in post[confirm : post.index("- name: Post the readiness comment")]

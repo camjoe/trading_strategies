@@ -290,6 +290,19 @@ jobs:
           .venv/bin/python -m scripts.forge check-body --body-file "$BODY_FILE" \
             ${PREVIOUS_PASS:+--previous-pass "$PREVIOUS_PASS"} --forbid-env CLAUDE_CODE_OAUTH_TOKEN
 
+      - name: Confirm the pull request head has not moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .venv/bin/python -m scripts.forge pr-info --pr "$PR_NUMBER" > "$RUNNER_TEMP/pr.json"
+          .venv/bin/python - <<'PY'
+          import json, os, sys
+
+          head = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "pr.json"), encoding="utf-8"))["head_sha"]
+          if head != os.environ["HEAD_SHA"]:
+              sys.exit(f"::error::The pull request head moved to {head} during the review; not posting a stale comment.")
+          PY
+
       - name: Post the readiness comment
         env:
           GH_TOKEN: ${{ github.token }}
