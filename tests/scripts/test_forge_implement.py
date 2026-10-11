@@ -29,7 +29,7 @@ class FakeGit:
     def changed_paths(self, base: str, head: str) -> list[str]:
         return self.changed
 
-    def push(self) -> None:
+    def push(self, branch: str = "") -> None:
         self.calls.append("push")
 
     def require_clean_tree(self) -> None:

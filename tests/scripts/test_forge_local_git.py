@@ -76,3 +76,58 @@ def test_remove_and_commit_deletes_and_updates_in_one_commit(repo: Path) -> None
     assert git(repo, "log", "-1", "--format=%s") == "remove gone"
     assert sorted(git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()) == ["a.txt", "gone.md"]
     assert git(repo, "status", "--porcelain") == ""
+
+
+def test_a_renamed_file_is_reported_as_both_its_old_and_new_path(repo: Path) -> None:
+    (repo / "guarded").mkdir()
+    (repo / "guarded" / "a.py").write_text("x", encoding="utf-8")
+    git(repo, "add", "guarded")
+    git(repo, "commit", "-q", "-m", "add guarded")
+    local = LocalGit(repo)
+    start = local.head()
+    git(repo, "mv", "guarded/a.py", "elsewhere.py")
+    git(repo, "commit", "-q", "-m", "move it out")
+
+    assert sorted(local.changed_paths(start, local.head())) == ["elsewhere.py", "guarded/a.py"]
+
+
+def test_dirty_paths_lists_modified_and_untracked_files_and_nothing_when_clean(repo: Path) -> None:
+    local = LocalGit(repo)
+    assert local.dirty_paths() == []
+    (repo / "a.txt").write_text("changed", encoding="utf-8")
+    (repo / "new.txt").write_text("n", encoding="utf-8")
+
+    assert sorted(local.dirty_paths()) == ["a.txt", "new.txt"]
+
+
+def test_discard_changes_drops_later_commits_edits_and_untracked_files(repo: Path) -> None:
+    local = LocalGit(repo)
+    start = local.head()
+    (repo / "c.txt").write_text("c", encoding="utf-8")
+    local.commit_files([repo / "c.txt"], "add c")
+    (repo / "a.txt").write_text("edited", encoding="utf-8")
+    (repo / "stray.txt").write_text("s", encoding="utf-8")
+
+    local.discard_changes(start)
+
+    assert local.head() == start and local.dirty_paths() == []
+    assert not (repo / "c.txt").exists() and not (repo / "stray.txt").exists()
+
+
+def test_push_sends_head_to_the_named_branch_whatever_the_upstream_is(repo: Path, tmp_path: Path) -> None:
+    remote = tmp_path / "remote.git"
+    git(tmp_path, "init", "-q", "--bare", str(remote))
+    git(repo, "remote", "add", "origin", str(remote))
+    git(repo, "switch", "-q", "-c", "local-name")
+
+    LocalGit(repo).push("pr-head")
+
+    assert git(remote, "rev-parse", "--verify", "refs/heads/pr-head") == git(repo, "rev-parse", "HEAD")
+    assert subprocess.run(["git", "rev-parse", "--verify", "refs/heads/local-name"], cwd=remote).returncode != 0
+
+
+def test_a_failed_push_is_a_forge_error(repo: Path) -> None:
+    git(repo, "remote", "add", "origin", str(repo / "no-such-remote"))
+
+    with pytest.raises(ForgeError, match="git push to pr-head failed"):
+        LocalGit(repo).push("pr-head")

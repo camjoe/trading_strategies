@@ -354,6 +354,15 @@ authorization in `AGENTS.md` for pushing to a pull request branch and editing th
 grants it. Decision 22 (status-line placement) was accepted by the owner; finding 21 (`comment-upsert`
 enforcing the edit rule itself) is still the owner's.
 
+## Hardening after review pass 8 (2026-10-11)
+Reviews stopped at the default pass cap (8) while later commits kept landing, so the Stage 1 work and the chained
+start were not reviewed until now. Pass 8's findings on the fixer loop were fixed: the guarded-path check now
+reads renames as a delete and an add and covers uncommitted and untracked files; the guard list also covers
+the gate's checks, build configuration, and repository settings; a round that leaves anything uncommitted, or
+whose body is refused, is undone; the push names the pull request's branch and a failed push restores the
+comment; every ending notifies; READY needs no open blocker or concern; and the agent's tool permissions are
+narrowed to the repository's checks, with the docs describing them as a guardrail rather than a sandbox.
+
 ## Stage 1 build and live test (2026-10-10)
 Built: `implement-plan --plan plan/<file>` (controller `implement.py`, plan reading and claiming in
 `plans.py`, skill `implement-plan`). It refuses a plan that is unlisted, in progress, blocked, or has

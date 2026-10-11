@@ -68,12 +68,25 @@ Re-run a failed pass from the Actions tab, or push a commit. A newer push cancel
 `python -m scripts.forge fix-loop --pr <n>` runs on your machine, not in GitHub. Start it from the pull
 request's branch with a clean working tree, signed in to `claude` and `gh`. Each round it:
 
-1. reads the readiness comment and stops if it says READY or nothing is left that a fixer can do;
-2. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the `fix-pr-readiness` skill, commits locally, and
-   writes a new comment body to a file (it may not push, reset, or use `gh`);
-3. undoes the round and stops if its commits touched a guarded path (`scripts/forge/guarded_paths.py`);
-4. refuses the new body unless it only adds status lines, then posts it and pushes;
+1. reads the readiness comment and stops if it says READY (no open blocker or concern) or nothing is left that
+   a fixer can do;
+2. starts a headless `claude -p` session (model `sonnet` unless `--model` says otherwise) that follows the
+   `fix-pr-readiness` skill, commits locally, and writes a new comment body to a file;
+3. checks the round: every committed path (renames count as a delete and an add) and every uncommitted or
+   untracked file is compared with the guarded list in `scripts/forge/guarded_paths.py`; a guarded path, or
+   any uncommitted leftover, undoes the round and stops;
+4. refuses the new body unless it only adds status lines (the round's commits are dropped), then posts it and
+   pushes `HEAD` to the pull request's branch by name; if the push fails the comment is restored and the round
+   undone;
 5. waits up to 45 minutes for the next review pass.
+
+A stopped round leaves the checkout as it was before the round, so the next run can start. Every ending,
+including a failure, sends the email.
+
+The agent's tool permissions are a guardrail, not a sandbox: it may run only the repository's checks and test
+runner as Python, may not use `gh` or the git verbs that push, reset, clean, or change configuration, and may
+not write under `.git/`. The boundary you rely on is the loop's own check of what the round changed, plus the
+fact that it runs on your machine under your account. Treat the readiness comment as untrusted text.
 
 When the comment says READY and the branch claimed a plan with `implement-plan`, the loop first removes that
 plan file and its index row in one pushed commit, then waits for the docs-only pass that confirms READY. Only

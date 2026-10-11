@@ -7,18 +7,44 @@ from collections.abc import Collection
 from pathlib import Path
 from typing import Any, Protocol
 
-from common.git import changed_paths, get_repo_root, git_output
+from common.git import get_repo_root, git_output, split_nul, uncommitted_paths
 from scripts.forge.base import ForgeError
 from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
 AGENT_TIMEOUT_SECONDS = 3600
-_ALLOWED_TOOLS = (
-    "Read,Glob,Grep,Edit,Write,Skill,Agent,"
-    "Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),"
-    "Bash(python:*),Bash(.venv/bin/python:*),Bash(.venv/Scripts/python.exe:*),Bash(.venv/bin/pytest:*),Bash(.venv/Scripts/pytest.exe:*),Bash(cat:*),Bash(ls:*)"
+_PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
+_PYTHON_MODULES = (
+    "scripts.run_checks",
+    "scripts.fix_checks",
+    "scripts.checks.run_suite",
+    "scripts.forge check-body",
+    "pytest",
 )
-_DENIED_TOOLS = "Bash(git push:*),Bash(git reset:*),Bash(gh:*)"
+_ALLOWED_TOOLS = ",".join(
+    [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        "Skill",
+        "Agent",
+        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "status", "diff", "log", "show")),
+        "Bash(.venv/bin/pytest:*)",
+        "Bash(.venv/Scripts/pytest.exe:*)",
+        "Bash(ls:*)",
+        *(f"Bash({python} -m {module}:*)" for python in _PYTHONS for module in _PYTHON_MODULES),
+    ]
+)
+_DENIED_TOOLS = ",".join(
+    [
+        *(f"Bash(git {verb}:*)" for verb in ("push", "reset", "clean", "config", "update-ref", "checkout", "restore")),
+        "Bash(gh:*)",
+        "Edit(.git/**)",
+        "Write(.git/**)",
+    ]
+)
 
 
 class HasPrompt(Protocol):
@@ -34,13 +60,24 @@ class LocalGit:
         return git_output(self._root, "rev-parse", "HEAD").strip()
 
     def changed_paths(self, base: str, head: str) -> list[str]:
-        return changed_paths(self._root, base, head)
+        """Every path changed from *base* to *head*, with renames reported as a delete and an add."""
+        return split_nul(git_output(self._root, "diff", "--name-only", "--no-renames", "-z", f"{base}..{head}"))
 
-    def reset_hard(self, sha: str) -> None:
+    def dirty_paths(self) -> list[str]:
+        """Tracked files with uncommitted changes and untracked files that git does not ignore."""
+        return uncommitted_paths(self._root)
+
+    def discard_changes(self, sha: str) -> None:
+        """Return the checkout to *sha*, dropping later commits, edits, and untracked files."""
         git_output(self._root, "reset", "--hard", sha)
+        git_output(self._root, "clean", "-fd")
 
-    def push(self) -> None:
-        git_output(self._root, "push")
+    def push(self, branch: str) -> None:
+        """Push HEAD to the remote branch named *branch*, whatever the upstream setting says."""
+        try:
+            git_output(self._root, "push", "origin", f"HEAD:refs/heads/{branch}")
+        except subprocess.CalledProcessError as exc:
+            raise ForgeError(f"git push to {branch} failed: {(exc.stderr or '').strip()}") from exc
 
     def fetch(self) -> None:
         git_output(self._root, "fetch", "origin")

@@ -26,8 +26,9 @@ Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
 class Git(Protocol):
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
-    def reset_hard(self, sha: str) -> None: ...
-    def push(self) -> None: ...
+    def discard_changes(self, sha: str) -> None: ...
+    def dirty_paths(self) -> list[str]: ...
+    def push(self, branch: str) -> None: ...
     def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None: ...
 
 
@@ -81,16 +82,22 @@ def run_fix_loop(
     clock: Callable[[], float] | None = None,
 ) -> LoopResult:
     """Run fixer rounds on *pr_number* until it is READY, needs the owner, or hits *max_rounds*."""
-    result = _loop(
-        forge, git, agent, work_dir, pr_number, authors, max_rounds, wait_seconds, interval_seconds,
-        repo_root, sleep or time.sleep, clock or time.monotonic,
-    )  # fmt: skip
-    pr = forge.pull_request(pr_number)
+    try:
+        result = _loop(
+            forge, git, agent, work_dir, pr_number, authors, max_rounds, wait_seconds, interval_seconds,
+            repo_root, sleep or time.sleep, clock or time.monotonic,
+        )  # fmt: skip
+    except ForgeError as exc:
+        result = LoopResult("stopped", 0, None, {}, f"The loop failed: {exc}")
+    try:
+        url: str | None = forge.pull_request(pr_number).url
+    except ForgeError:
+        url = None
     notify(
         f"PR {pr_number}: {result.verdict or 'no verdict'} ({result.outcome})",
         result.detail,
         {
-            "url": pr.url,
+            "url": url,
             "verdict": result.verdict,
             "outcome": result.outcome,
             "rounds": result.rounds,
@@ -126,7 +133,7 @@ def _loop(
             return LoopResult("stopped", rounds, None, {}, "There is no readiness comment yet.")
         body = previous["body"]
         title, counts = verdict(body), open_counts(body)
-        if title == "READY":
+        if title == "READY" and counts["blocker"] == 0 and counts["concern"] == 0:
             removed = _remove_claimed_plan(git, repo_root, context["pull_request"]["head_ref"])
             if removed is None:
                 return LoopResult("ready", rounds, title, counts, "The readiness comment says READY.")
@@ -145,7 +152,8 @@ def _loop(
 
         rounds += 1
         base = context["pull_request"]["diff_base_ref"]
-        step = _one_round(forge, git, agent, work_dir, pr_number, trusted, body, base, rounds)
+        head_ref = context["pull_request"]["head_ref"]
+        step = _one_round(forge, git, agent, work_dir, pr_number, trusted, body, base, head_ref, rounds)
         if step is not None:
             return LoopResult(step[0], rounds, title, counts, step[1])
         waited = wait_for_next_pass(
@@ -164,6 +172,7 @@ def _one_round(
     authors: Collection[str],
     old_body: str,
     base: str,
+    head_ref: str,
     round_number: int,
 ) -> tuple[Outcome, str] | None:
     """Run one round; ``None`` when it pushed, otherwise the outcome and reason that stop the loop."""
@@ -176,22 +185,40 @@ def _one_round(
     agent(RoundTask(pr_number, base, round_prompt(pr_number, base, old_file, new_file), old_file, new_file))
 
     end = git.head()
-    guarded = guarded_paths_touched(git.changed_paths(start, end)) if end != start else []
+    committed = git.changed_paths(start, end) if end != start else []
+    leftover = git.dirty_paths()
+    guarded = guarded_paths_touched([*committed, *leftover])
     if guarded:
-        git.reset_hard(start)
+        git.discard_changes(start)
         return "stopped", "The round touched guarded paths and was undone: " + "; ".join(guarded)
+    if leftover:
+        git.discard_changes(start)
+        return "stopped", "The round left uncommitted changes and was undone: " + ", ".join(leftover)
     if not new_file.is_file() or not new_file.read_text(encoding="utf-8").strip():
+        _undo_commits(git, start, end)
         return "no-progress", "The fixer wrote no comment body."
     new_body = new_file.read_text(encoding="utf-8")
     problems = body_problems(new_body, pass_number(old_body), same_pass=True) + fixer_edit_problems(old_body, new_body)
     if problems:
+        _undo_commits(git, start, end)
         return "stopped", "The new comment body was refused: " + " ".join(problems)
 
     forge.upsert_comment(pr_number, new_body, authors)
     if end == start:
         return "no-progress", "The round recorded status lines but made no commits."
-    git.push()
+    try:
+        git.push(head_ref)
+    except ForgeError as exc:
+        forge.upsert_comment(pr_number, old_body, authors)
+        git.discard_changes(start)
+        return "stopped", f"The push failed, so the comment was restored and the round undone: {exc}"
     return None
+
+
+def _undo_commits(git: Git, start: str, end: str) -> None:
+    """Drop a round's local commits when nothing was posted for them, so the next run starts from the pushed head."""
+    if end != start:
+        git.discard_changes(start)
 
 
 def wait_for_next_pass(
@@ -236,5 +263,5 @@ def _remove_claimed_plan(git: Git, repo_root: Path | None, branch: str) -> str |
     updated = readme_without_row(readme.read_text(encoding="utf-8"), plan_file.name)
     readme.write_text(updated, encoding="utf-8", newline="\n")
     git.remove_and_commit([plan_file], [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge")
-    git.push()
+    git.push(branch)
     return plan_file.name

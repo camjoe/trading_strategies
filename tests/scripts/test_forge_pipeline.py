@@ -22,15 +22,18 @@ class WorldGit(PlanFakeGit):
         self.dirty_after_pickup = False
         self._clean_checks = 0
 
-    def push(self) -> None:
+    def push(self, branch: str = "") -> None:
         self.pushes += 1
         assert self.forge is not None
         self.forge.head_sha = self.head_value
         if self.on_push and self.forge.previous is not None:
             self.forge.previous = self.on_push.pop(0)
 
-    def reset_hard(self, sha: str) -> None:
+    def discard_changes(self, sha: str) -> None:
         self.head_value = sha
+
+    def dirty_paths(self) -> list[str]:
+        return []
 
     def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
         for path in remove:

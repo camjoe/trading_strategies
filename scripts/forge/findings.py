@@ -7,7 +7,8 @@ _TITLE = re.compile(r"^## PR readiness: (READY|NOT READY)\s*$", re.MULTILINE)
 _ITEM = re.compile(r"^- \[( |x)\] \*\*(\d+)\.")
 _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
-_TIER_HEADINGS = (("Blockers", "blocker"), ("Concerns", "concern"), ("Notes", "note"), ("Closed", "closed"))
+_TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Closed)\W*$")
+_TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Closed": "closed"}
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class Finding:
 
     @property
     def is_open(self) -> bool:
-        return not self.checked and self.tier != "closed"
+        return not self.checked and self.tier in ("blocker", "concern", "note")
 
     @property
     def is_handled(self) -> bool:
@@ -35,34 +36,35 @@ def verdict(body: str) -> str | None:
 
 
 def parse_findings(body: str) -> list[Finding]:
-    """Every numbered finding in *body*, in order, with the tier of the heading it sits under."""
+    """Every numbered finding in *body*, in order, with the tier of the heading it sits under.
+
+    Only the four tier headings count; any other heading ends the current tier, so what follows it is
+    not treated as open.
+    """
     findings: list[Finding] = []
-    tier = "note"
-    current: dict[str, object] | None = None
+    tier = "other"
+    number: int | None = None
+    checked = has_status = decided = False
 
     def close() -> None:
-        if current is not None:
-            findings.append(Finding(**current))  # type: ignore[arg-type]
+        if number is not None:
+            findings.append(Finding(number, tier, checked, has_status, decided))
 
     for line in body.splitlines():
-        if line.startswith("#### "):
+        heading = _TIER_HEADING.match(line)
+        if heading or line.startswith("#"):
             close()
-            current = None
-            tier = next((name for word, name in _TIER_HEADINGS if word in line), tier)
+            number = None
+            tier = _TIERS[heading.group(1)] if heading else "other"
             continue
         item = _ITEM.match(line)
         if item:
             close()
-            current = {
-                "number": int(item.group(2)),
-                "tier": tier,
-                "checked": item.group(1) == "x",
-                "has_status_line": False,
-                "decided": False,
-            }
-        elif current is not None:
-            current["has_status_line"] = bool(current["has_status_line"]) or bool(_STATUS.match(line))
-            current["decided"] = bool(current["decided"]) or bool(_DECISION.match(line))
+            number, checked = int(item.group(2)), item.group(1) == "x"
+            has_status = decided = False
+        elif number is not None:
+            has_status = has_status or bool(_STATUS.match(line))
+            decided = decided or bool(_DECISION.match(line))
     close()
     return findings
 
@@ -76,6 +78,6 @@ def open_counts(body: str) -> dict[str, int]:
     """Open findings per tier, for a notification that must not carry the findings themselves."""
     counts = {"blocker": 0, "concern": 0, "note": 0}
     for finding in parse_findings(body):
-        if finding.is_open and finding.tier in counts:
+        if finding.is_open:
             counts[finding.tier] += 1
     return counts

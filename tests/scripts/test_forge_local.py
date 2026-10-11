@@ -136,3 +136,21 @@ def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: 
     local.run_claude_agent(TASK)
 
     assert "denied: cp a b" in capsys.readouterr().err
+
+
+class TestToolLimits:
+    def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
+        allowed = local._ALLOWED_TOOLS.split(",")
+
+        assert "Bash(python:*)" not in allowed and "Bash(.venv/Scripts/python.exe:*)" not in allowed
+        assert "Bash(.venv/Scripts/python.exe -m scripts.run_checks:*)" in allowed
+        assert "Bash(python -m pytest:*)" in allowed
+
+    def test_the_agent_cannot_write_into_git_or_reach_the_remote(self) -> None:
+        denied = local._DENIED_TOOLS.split(",")
+
+        for item in ("Edit(.git/**)", "Write(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
+            assert item in denied
+
+    def test_nothing_is_both_allowed_and_denied(self) -> None:
+        assert not set(local._ALLOWED_TOOLS.split(",")) & set(local._DENIED_TOOLS.split(","))

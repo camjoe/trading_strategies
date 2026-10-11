@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge.base import READINESS_MARKER, Comment
+from scripts.forge.base import READINESS_MARKER, Comment, ForgeError
 from scripts.forge.findings import open_counts, parse_findings, unhandled_open_findings, verdict
 from scripts.forge.fix_loop import LoopResult, RoundTask, run_fix_loop
 from scripts.forge.guarded_paths import guarded_paths_touched
@@ -90,6 +90,11 @@ class FakeGit:
         self.reset_to: list[str] = []
         self.pushes = 0
         self.removals: list[str] = []
+        self.dirty: list[str] = []
+        self.push_error: ForgeError | None = None
+        self.pushed_to: list[str] = []
+        self.posted_before_push = -1
+        self.changed_args: list[tuple[str, str]] = []
         self.on_push: list[Comment] = []
         self.forge: "LoopForge | None" = None
 
@@ -97,15 +102,24 @@ class FakeGit:
         return self.head_value
 
     def changed_paths(self, base: str, head: str) -> list[str]:
+        self.changed_args.append((base, head))
         return self.changed
 
-    def reset_hard(self, sha: str) -> None:
+    def discard_changes(self, sha: str) -> None:
         self.reset_to.append(sha)
         self.head_value = sha
+        self.dirty = []
 
-    def push(self) -> None:
+    def dirty_paths(self) -> list[str]:
+        return self.dirty
+
+    def push(self, branch: str = "") -> None:
+        if self.push_error:
+            raise self.push_error
         self.pushes += 1
+        self.pushed_to.append(branch)
         assert self.forge is not None
+        self.posted_before_push = len(self.forge.upserted)
         self.forge.head_sha = self.head_value
         if self.on_push:
             self.forge.previous = self.on_push.pop(0)
@@ -279,7 +293,7 @@ class TestLoop:
         assert result.outcome == "stopped" and "did not arrive" in result.detail
 
     def test_the_notification_carries_the_link_verdict_and_counts_only(self, tmp_path: Path) -> None:
-        forge, git = world(readiness(title="READY", concerns=OPEN_CONCERN))
+        forge, git = world(readiness(title="READY", notes=OPEN_NOTE))
 
         _, sent = run(forge, git, tmp_path)
 
@@ -396,3 +410,116 @@ class TestPlanFileRemoval:
         result, _ = run(forge, git, tmp_path / "work", repo_root=root, wait_seconds=25)
 
         assert result.outcome == "stopped" and "confirming pass" in result.detail
+
+
+class TestRoundHardening:
+    def test_an_uncommitted_edit_to_a_guarded_path_is_undone_and_nothing_is_posted(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.dirty = [".github/workflows/pr-readiness.yml"]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "guarded" in result.detail
+        assert git.reset_to == ["abc123"] and git.pushes == 0 and forge.upserted == []
+
+    def test_any_uncommitted_leftover_stops_the_round_and_is_discarded(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.dirty = ["notes.txt"]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "uncommitted" in result.detail and "notes.txt" in result.detail
+        assert git.reset_to == ["abc123"] and forge.upserted == []
+
+    def test_the_status_lines_are_posted_before_the_push_so_the_next_pass_reads_them(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+
+        run(forge, git, tmp_path, fixing_agent(git))
+
+        assert git.posted_before_push == 1 and "Fix attempted" in forge.upserted[0]
+
+    def test_the_committed_paths_are_read_from_the_round_start_to_its_end(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+
+        run(forge, git, tmp_path, fixing_agent(git, new_head="def456"))
+
+        assert git.changed_args == [("abc123", "def456")]
+
+    def test_the_push_goes_to_the_pull_requests_head_branch_by_name(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=(readiness(2, "READY"),))
+
+        run(forge, git, tmp_path, fixing_agent(git))
+
+        assert git.pushed_to == ["feature/x"]
+
+    def test_a_refused_body_drops_the_rounds_local_commits(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def agent(task: RoundTask) -> None:
+            git.head_value = "def456"
+            old = task.old_comment_file.read_text(encoding="utf-8")
+            task.new_comment_file.write_text(old.replace("A defect", "Fine"), encoding="utf-8")
+
+        result, _ = run(forge, git, tmp_path, agent)
+
+        assert result.outcome == "stopped" and git.reset_to == ["abc123"]
+
+    def test_a_round_with_commits_but_no_body_drops_them(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def agent(task: RoundTask) -> None:
+            git.head_value = "def456"
+
+        result, _ = run(forge, git, tmp_path, agent)
+
+        assert result.outcome == "no-progress" and git.reset_to == ["abc123"]
+
+    def test_a_failed_push_restores_the_comment_undoes_the_round_and_still_notifies(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.push_error = ForgeError("rejected")
+
+        result, sent = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "push failed" in result.detail
+        assert len(forge.upserted) == 2 and forge.upserted[1].count("Fix attempted") == 0
+        assert git.reset_to == ["abc123"] and len(sent) == 1
+
+    def test_an_agent_that_fails_still_ends_with_a_result_and_a_notification(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def agent(task: RoundTask) -> None:
+            raise ForgeError("not logged in")
+
+        result, sent = run(forge, git, tmp_path, agent)
+
+        assert result.outcome == "stopped" and "not logged in" in result.detail
+        assert len(sent) == 1
+
+    def test_a_ready_title_with_open_concerns_is_not_ready(self, tmp_path: Path) -> None:
+        forge, git = world(readiness(title="READY", concerns=OPEN_CONCERN))
+
+        result, _ = run(forge, git, tmp_path)
+
+        assert result.outcome != "ready"
+
+
+class TestFindingsParsing:
+    def test_the_blockers_tier_is_read(self) -> None:
+        body = "#### 🔴 Blockers\n- [ ] **1. Bad.** Text.\n#### 🟡 Notes\n- [ ] **2. Nit.** Text.\n"
+
+        assert open_counts(body) == {"blocker": 1, "concern": 0, "note": 1}
+
+    def test_an_unchecked_item_under_closed_is_not_open(self) -> None:
+        assert open_counts("#### Closed\n- [ ] **1. Odd.** Text.\n") == {"blocker": 0, "concern": 0, "note": 0}
+
+    def test_a_heading_that_is_not_a_tier_ends_the_tier(self) -> None:
+        body = "#### 🟡 Notes\n- [ ] **1. Nit.** Text.\n### How to verify\n- [ ] **2. Step.** Text.\n"
+
+        assert open_counts(body) == {"blocker": 0, "concern": 0, "note": 1}
+
+    def test_a_heading_that_only_mentions_a_tier_word_is_not_that_tier(self) -> None:
+        assert open_counts("#### Notes on blockers\n- [ ] **1. X.** Text.\n") == {
+            "blocker": 0,
+            "concern": 0,
+            "note": 0,
+        }
