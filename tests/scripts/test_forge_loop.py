@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from pathlib import Path
 
 import pytest
@@ -134,8 +135,8 @@ class FakeGit:
         if self.on_push:
             self.forge.previous = self.on_push.pop(0)
 
-    def remove_and_commit(self, remove: object, update: object, message: str) -> None:
-        for path in remove:  # type: ignore[attr-defined]
+    def commit_files(self, paths: object, message: str, remove: Collection[Path] = ()) -> None:
+        for path in remove:
             path.unlink()
         self.removals.append(message)
         self.head_value = "removed1"

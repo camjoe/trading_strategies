@@ -9,7 +9,7 @@ from scripts.forge import local
 from scripts.forge.base import ForgeError
 from scripts.forge.fix_loop import RoundTask
 
-TASK = RoundTask(7, "origin/develop", "prompt", Path("old.md"), Path("new.md"), Path("."))
+TASK = RoundTask("prompt", Path("old.md"), Path("new.md"), Path("."))
 
 
 def completed(stdout: str, returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
@@ -259,7 +259,7 @@ class TestAgentRunsInTheSandbox:
             return completed(json.dumps({"is_error": False}))
 
         monkeypatch.setattr(local.subprocess, "run", run)
-        task = RoundTask(7, "origin/develop", "prompt", Path("old.md"), Path("new.md"), tmp_path)
+        task = RoundTask("prompt", Path("old.md"), Path("new.md"), tmp_path)
 
         local.run_claude_agent(task)
 

@@ -157,17 +157,12 @@ class LocalGit:
         except subprocess.CalledProcessError as exc:
             raise ForgeError(f"Could not create branch {name} from {start}: {(exc.stderr or '').strip()}") from exc
 
-    def commit_files(self, paths: Collection[Path], message: str) -> None:
+    def commit_files(self, paths: Collection[Path], message: str, remove: Collection[Path] = ()) -> None:
+        """Commit *paths* (added or updated) and the deletion of *remove* in one commit."""
+        if remove:
+            self._git("rm", "-q", *(str(path) for path in remove))
         self._git("add", *(str(path) for path in paths))
         self._git("commit", "-m", message)
-
-    def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
-        self._git("rm", "-q", *(str(path) for path in remove))
-        self._git("add", *(str(path) for path in update))
-        self._git("commit", "-m", message)
-
-    def push_new_branch(self, name: str) -> None:
-        self._git("push", "-u", "origin", name)
 
     def require_clean_tree(self) -> None:
         if self._git("status", "--porcelain").strip():

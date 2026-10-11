@@ -6,6 +6,7 @@ Callers depend on :class:`Forge`; only an adapter module knows which platform it
 
 from collections.abc import Collection
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Literal, Protocol
 
 READINESS_MARKER = "<!-- pr-readiness -->"
@@ -15,6 +16,18 @@ CiState = Literal["pass", "fail", "pending", "none"]
 
 class ForgeError(RuntimeError):
     """A forge operation failed or was refused."""
+
+
+class CheckoutGit(Protocol):
+    """What the fixer loop and the plan pickup both need from git in the owner's checkout."""
+
+    def head(self) -> str: ...
+    def changed_paths(self, base: str, head: str) -> list[str]: ...
+    def import_commits(self, source: Path, since: str) -> str: ...
+    def fast_forward(self, sha: str) -> None: ...
+    def discard_changes(self, sha: str) -> None: ...
+    def push(self, branch: str) -> None: ...
+    def commit_files(self, paths: Collection[Path], message: str, remove: Collection[Path] = ()) -> None: ...
 
 
 @dataclass(frozen=True)

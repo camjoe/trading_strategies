@@ -250,3 +250,23 @@ class TestStatusLineEdges:
         check = text[text.index("- name: Check the comment body") : text.index("- name: Post the readiness comment")]
 
         assert "|| true" not in check and "continue-on-error" not in check
+
+
+class TestCommentProblems:
+    def test_an_empty_body_is_refused_in_either_mode(self) -> None:
+        from scripts.forge.readiness import comment_problems
+
+        assert comment_problems("  ", None) and comment_problems("", 1, old=comment(FINDING))
+
+    def test_an_edit_needs_an_old_comment_with_a_pass_header(self) -> None:
+        from scripts.forge.readiness import comment_problems
+
+        assert comment_problems(comment(FINDING), 1, old="no header here") == [
+            "The comment being edited has no pass header."
+        ]
+
+    def test_a_valid_edit_and_a_valid_new_pass_have_no_problems(self) -> None:
+        from scripts.forge.readiness import comment_problems
+
+        assert comment_problems(comment(FINDING, FIX_LINE), None, old=comment(FINDING)) == []
+        assert comment_problems(comment(FINDING, pass_no=2), 1) == []

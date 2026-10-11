@@ -6,12 +6,12 @@ paths the work touched, and only then takes the pull request out of draft. Anyth
 leaves the pull request a draft and tells the owner.
 """
 
-from collections.abc import Callable, Collection
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-from scripts.forge.base import Forge, ForgeError
+from scripts.forge.base import CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, load_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
@@ -20,13 +20,9 @@ from scripts.forge.sandbox import SandboxFactory, leftover_summary
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
 
-class PlanGit(Protocol):
-    def head(self) -> str: ...
-    def changed_paths(self, base: str, head: str) -> list[str]: ...
-    def push(self, branch: str) -> None: ...
-    def import_commits(self, source: Path, since: str) -> str: ...
-    def fast_forward(self, sha: str) -> None: ...
-    def discard_changes(self, sha: str) -> None: ...
+class PlanGit(CheckoutGit, Protocol):
+    """The checkout operations the pickup uses, beyond the ones it shares with the fixer loop."""
+
     def exists_on(self, ref: str, relative: str) -> bool: ...
     def current_branch(self) -> str: ...
     def switch(self, branch: str) -> None: ...
@@ -34,15 +30,12 @@ class PlanGit(Protocol):
     def require_clean_tree(self) -> None: ...
     def fetch(self) -> None: ...
     def create_branch(self, name: str, start: str) -> None: ...
-    def commit_files(self, paths: Collection[Path], message: str) -> None: ...
-    def push_new_branch(self, name: str) -> None: ...
     def hold(self, name: str, sha: str) -> str: ...
 
 
 @dataclass(frozen=True)
 class ImplementTask:
     prompt: str
-    plan_file: str
     questions_file: Path
     summary_file: Path
     cwd: Path
@@ -70,8 +63,7 @@ def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, su
             f"The plan is plan/{plan_file}; your commits will be pushed to branch {branch}, started from {base}.",
             "You are in a throwaway clone of the repository with its own .venv, on a detached HEAD: commit on it",
             "and do not create or switch branches. Commit in logical commits, each with its tests, and leave no",
-            "uncommitted changes. Do not push, do not use gh, and do not",
-            "edit the plan's Status line or the plan index.",
+            "uncommitted changes. Do not push or use gh, and do not edit the plan's Status line or the plan index.",
             "If the plan is ambiguous, or it is unclear whether something is public or private, write the",
             f"questions to {questions} and leave that part undone.",
             f"When you finish, write a short summary for the pull request description to {summary}.",
@@ -169,7 +161,7 @@ def _run(
         plan_path.write_text(plan_text, encoding="utf-8", newline="\n")
         readme.write_text(readme_text, encoding="utf-8", newline="\n")
         git.commit_files([plan_path, readme], f"docs(plan): claim {plan_file}")
-        git.push_new_branch(plan.branch)
+        git.push(plan.branch)
         pr = forge.open_pull_request(base, plan.branch, plan.title, claim_body, draft=True)
     except (ForgeError, OSError) as exc:
         return ImplementResult(
@@ -242,7 +234,7 @@ def _implement(
     summary.unlink(missing_ok=True)
     with sandbox(start) as box:
         task = ImplementTask(
-            implement_prompt(plan_file, branch, base, questions, summary), plan_file, questions, summary, box.path
+            implement_prompt(plan_file, branch, base, questions, summary), questions, summary, box.path
         )
         try:
             agent(task)

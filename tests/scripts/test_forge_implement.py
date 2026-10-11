@@ -31,7 +31,7 @@ class FakeGit:
         self.switched: list[str] = []
         self.deleted: list[str] = []
         self.cleanup_error: ForgeError | None = None
-        self.push_new_error: ForgeError | None = None
+        self.push_error: ForgeError | None = None
         self.branch_name = "develop"
         self.held: list[tuple[str, str]] = []
         self.head_error: ForgeError | None = None
@@ -45,7 +45,9 @@ class FakeGit:
         return self.changed
 
     def push(self, branch: str = "") -> None:
-        self.calls.append("push")
+        if self.push_error:
+            raise self.push_error
+        self.calls.append("push" if "agent" in self.calls else "push-claim")
 
     def require_clean_tree(self) -> None:
         self.calls.append("clean")
@@ -58,14 +60,9 @@ class FakeGit:
             raise self.branch_error
         self.calls.append(f"branch {name} {start}")
 
-    def commit_files(self, paths: Collection[Path], message: str) -> None:
+    def commit_files(self, paths: Collection[Path], message: str, remove: Collection[Path] = ()) -> None:
         self.calls.append("claim")
         self.committed.append(([path.name for path in paths], message))
-
-    def push_new_branch(self, name: str) -> None:
-        if self.push_new_error:
-            raise self.push_new_error
-        self.calls.append(f"push-new {name}")
 
     def import_commits(self, source: Path, since: str) -> str:
         self.imported.append((source, since))
@@ -199,7 +196,7 @@ class TestClaim:
             "fetch",
             "branch feature/thing origin/develop",
             "claim",
-            "push-new feature/thing",
+            "push-claim",
             "agent",
         ]
         assert setup.forge.opened[0][:3] == ("develop", "feature/thing", "add the thing")
@@ -303,7 +300,7 @@ class TestPrompt:
         prompt = setup.tasks[0].prompt
         assert "plan/thing.md" in prompt and "feature/thing" in prompt
         assert str(setup.tasks[0].questions_file) in prompt and str(setup.tasks[0].summary_file) in prompt
-        assert "Do not push" in prompt and "do not use gh" in prompt
+        assert "Do not push or use gh" in prompt
 
 
 class TestImplementPlanCommand:
@@ -335,7 +332,7 @@ class TestPickupHardening:
         assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
 
     def test_a_failed_claim_push_stops_with_a_hint_to_delete_the_branch_and_still_notifies(self, setup: Setup) -> None:
-        setup.git.push_new_error = ForgeError("rejected")
+        setup.git.push_error = ForgeError("rejected")
 
         result = setup.run()
 
@@ -366,7 +363,7 @@ class TestPickupHardening:
 
 class TestRerunAfterFailures:
     def test_a_failed_claim_puts_the_checkout_back_and_removes_the_local_branch(self, setup: Setup) -> None:
-        setup.git.push_new_error = ForgeError("rejected")
+        setup.git.push_error = ForgeError("rejected")
 
         result = setup.run()
 
@@ -375,7 +372,7 @@ class TestRerunAfterFailures:
         assert "back on develop" in result.detail and "git push origin --delete feature/thing" in result.detail
 
     def test_a_cleanup_that_fails_says_what_to_remove_by_hand(self, setup: Setup) -> None:
-        setup.git.push_new_error = ForgeError("rejected")
+        setup.git.push_error = ForgeError("rejected")
         setup.git.cleanup_error = ForgeError("branch is checked out")
 
         result = setup.run()

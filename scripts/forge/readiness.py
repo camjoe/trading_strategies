@@ -61,6 +61,20 @@ def body_problems(
     return problems + leak_problems(body, forbidden)
 
 
+def comment_problems(
+    body: str, previous_pass: int | None, forbidden: Collection[str] = (), old: str | None = None
+) -> list[str]:
+    """Every reason *body* must not be posted. With *old*, *body* is a fixer's edit of that same-pass comment."""
+    if not body.strip():
+        return ["The agent did not write a comment body."]
+    if old is None:
+        return body_problems(body, previous_pass, forbidden)
+    old_pass = pass_number(old)
+    if old_pass is None:
+        return ["The comment being edited has no pass header."]
+    return body_problems(body, old_pass, forbidden, same_pass=True) + fixer_edit_problems(old, body)
+
+
 def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
     """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text."""
     problems: list[str] = []

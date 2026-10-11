@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-from scripts.forge.base import Comment, Forge, ForgeError
+from scripts.forge.base import CheckoutGit, Comment, Forge, ForgeError
 from scripts.forge.findings import open_counts, unhandled_open_findings, verdict
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import plans_claimed_by, readme_without_row
@@ -25,20 +25,12 @@ from scripts.forge.service import resolve_authors, review_context
 Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
 
 
-class Git(Protocol):
-    def head(self) -> str: ...
-    def changed_paths(self, base: str, head: str) -> list[str]: ...
-    def import_commits(self, source: Path, since: str) -> str: ...
-    def fast_forward(self, sha: str) -> None: ...
-    def discard_changes(self, sha: str) -> None: ...
-    def push(self, branch: str) -> None: ...
-    def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None: ...
+class Git(CheckoutGit, Protocol):
+    """The checkout operations the loop uses."""
 
 
 @dataclass(frozen=True)
 class RoundTask:
-    pr_number: int
-    diff_base_ref: str
     prompt: str
     old_comment_file: Path
     new_comment_file: Path
@@ -196,9 +188,7 @@ def _one_round(
     start = git.head()
 
     with sandbox(start) as box:
-        task = RoundTask(
-            pr_number, base, round_prompt(pr_number, base, old_file, new_file), old_file, new_file, box.path
-        )
+        task = RoundTask(round_prompt(pr_number, base, old_file, new_file), old_file, new_file, box.path)
         agent(task)
         end = git.import_commits(box.path, start)
         leftover = box.uncommitted()
@@ -288,8 +278,8 @@ def _remove_claimed_plan(git: Git, repo_root: Path | None, branch: str) -> str |
     readme.write_text(updated, encoding="utf-8", newline="\n")
     before = git.head()
     try:
-        git.remove_and_commit(
-            [plan_file], [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge"
+        git.commit_files(
+            [readme], f"docs(plan): remove {plan_file.name}, the work is ready to merge", remove=[plan_file]
         )
         git.push(branch)
     except ForgeError:

@@ -20,7 +20,7 @@ from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
 from scripts.forge.pipeline import run_pipeline
-from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
+from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
 from scripts.forge.service import resolve_authors, review_context, wait_for_ci
 
@@ -168,20 +168,14 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
         body = Path(args.body_file).read_text(encoding="utf-8")
     except FileNotFoundError:
         body = ""
-    if not body.strip():
-        raise ForgeError("The agent did not write a comment body.")
     forbidden = [os.environ.get(name, "") for name in args.forbid_env]
+    old = None
     if args.edit_of:
         try:
             old = Path(args.edit_of).read_text(encoding="utf-8")
         except FileNotFoundError as exc:
             raise ForgeError(f"The comment being edited was not found: {args.edit_of}.") from exc
-        old_pass = pass_number(old)
-        if old_pass is None:
-            raise ForgeError("The comment being edited has no pass header.")
-        problems = body_problems(body, old_pass, forbidden, same_pass=True) + fixer_edit_problems(old, body)
-    else:
-        problems = body_problems(body, args.previous_pass, forbidden)
+    problems = comment_problems(body, args.previous_pass, forbidden, old)
     if problems:
         raise ForgeError(" ".join(problems))
     _print({"ok": True})

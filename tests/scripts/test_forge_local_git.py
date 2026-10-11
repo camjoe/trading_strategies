@@ -64,13 +64,13 @@ def test_head_and_changed_paths_follow_new_commits(repo: Path) -> None:
     assert local.changed_paths(start, local.head()) == ["c.txt"]
 
 
-def test_remove_and_commit_deletes_and_updates_in_one_commit(repo: Path) -> None:
+def test_commit_files_can_delete_and_update_in_one_commit(repo: Path) -> None:
     (repo / "gone.md").write_text("x", encoding="utf-8")
     git(repo, "add", "gone.md")
     git(repo, "commit", "-q", "-m", "add gone")
     (repo / "a.txt").write_text("changed", encoding="utf-8")
 
-    LocalGit(repo).remove_and_commit([repo / "gone.md"], [repo / "a.txt"], "remove gone")
+    LocalGit(repo).commit_files([repo / "a.txt"], "remove gone", remove=[repo / "gone.md"])
 
     assert not (repo / "gone.md").exists()
     assert git(repo, "log", "-1", "--format=%s") == "remove gone"

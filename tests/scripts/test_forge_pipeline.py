@@ -23,6 +23,8 @@ class WorldGit(PlanFakeGit):
         self._clean_checks = 0
 
     def push(self, branch: str = "") -> None:
+        if "agent" not in self.calls:
+            return super().push(branch)
         self.pushes += 1
         assert self.forge is not None
         self.forge.head_sha = self.head_value
@@ -32,7 +34,9 @@ class WorldGit(PlanFakeGit):
     def discard_changes(self, sha: str) -> None:
         self.head_value = sha
 
-    def remove_and_commit(self, remove: Collection[Path], update: Collection[Path], message: str) -> None:
+    def commit_files(self, paths: Collection[Path], message: str, remove: Collection[Path] = ()) -> None:
+        if not remove:
+            return super().commit_files(paths, message)
         for path in remove:
             path.unlink()
         self.removals.append(message)
