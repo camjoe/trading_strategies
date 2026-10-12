@@ -15,6 +15,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from common.git import get_repo_root, git_output
+from scripts.forge import container
 from scripts.forge.base import Forge, ForgeError
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
@@ -88,6 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-fix", action="store_true", help="Stop once the pull request is ready; do not run the fixer."
     )
     plan.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
+    plan.add_argument(
+        "--container", action="store_true", help="Run the gate in a Docker container (no network, no host files)."
+    )
     plan.add_argument(
         "--review-wait-minutes", type=float, default=30, help="Minutes to wait for the first review (default: 30)."
     )
@@ -232,7 +236,7 @@ def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
             agent,
             agent,
             _sandbox_factory(git),
-            run_gate,
+            container.run_gate if args.container else run_gate,
             email_notifier,
             repo_root,
             Path(work_dir),

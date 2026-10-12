@@ -1,8 +1,10 @@
 # Plan: run the pipeline's agents and gate in a container
 
 Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
-the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done in
-this branch (PR #306); the container phases (1 and 2) are not built yet.
+the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done
+(PR #306). Phase 1 is built on `feature/docker-gate-container` behind `implement-plan --container`
+(`scripts/forge/container.py`, `docker/gate/Dockerfile`); the guarded-path entry for `docker/`, the docs, and
+phase 2 are not done.
 
 Branch to use: `feature/docker-gate-container`
 
@@ -97,9 +99,28 @@ request that edits the workflow file itself still runs its own copy (that is how
 4. Approval to change the `AGENTS.md` standing-authorization wording (step 6) and `.github/workflows/pr-readiness.yml`
    (phase 3); both are guarded and need the owner's yes when the work starts.
 
+## Spike results (phase 1, Windows 11, Docker Desktop 29.8.2, WSL2)
+Image `python:3.14-slim` (43.5 MB compressed) plus git and `requirements-dev.txt`: 251 MB compressed, 1.06 GB on
+disk, about 60 s to build cold. Run with every flag in the phase 1 design.
+
+| Run | Windows host | Container |
+|---|---|---|
+| `run_checks pr --base origin/develop` (no changed suites) | pass, 17 s | pass, 77 s |
+| full suite, `run_suite all --no-cov` | 3518 passed, 45 s | 3518 passed, 99 s |
+
+- No test behaves differently on Linux in the container; the only warnings are the same on both sides.
+- The container is 2 to 4 times slower, probably the bind mount to the Windows clone (not confirmed).
+- `python:3.14-slim` has no `git`, and the gate shells out to it; the image installs it.
+- Git refuses the mount ("dubious ownership"); the image sets `safe.directory /work` in the system gitconfig, so
+  the mount point is fixed at `/work` and the environment stays empty.
+- `-e .` in `requirements-dev.txt` needs the source tree; the image builds without it and the run puts the clone's
+  `src` and `apps` on `PYTHONPATH`.
+- A clone under a long path loses deeply nested files on Windows (MAX_PATH) and then looks dirty; the sandbox
+  clones under the temp directory, which is short enough on this machine.
+
 ## Risks and unverified items
-- Docker Desktop on Windows: bind-mount speed, line endings, file ownership, and git's `safe.directory`
-  check inside the container. Unverified.
+- Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
+  POSIX host the container runs as the owner's uid so the mount stays writable (untested here).
 - Headless Claude CLI authentication in a container with only the OAuth token. Unverified.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any

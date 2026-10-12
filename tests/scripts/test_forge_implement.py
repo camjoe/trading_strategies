@@ -344,6 +344,26 @@ class TestImplementPlanCommand:
         assert cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready"], setup.forge) == 0
         assert '"outcome": "no-progress"' in capsys.readouterr().out
 
+    def test_the_container_flag_swaps_the_gate_and_nothing_else(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        from scripts.forge import cli as cli_module
+
+        gates: list[str] = []
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: gates.append("host") or (True, "ok"))
+        monkeypatch.setattr(
+            cli_module.container, "run_gate", lambda base, cwd: gates.append("container") or (True, "ok")
+        )
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--container"], setup.forge)
+
+        assert gates and set(gates) == {"container"}
+
 
 class TestPickupHardening:
     def test_a_plan_that_is_not_on_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
