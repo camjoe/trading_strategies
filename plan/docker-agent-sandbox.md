@@ -5,8 +5,8 @@ the controllers, and the guards this plan builds on are on `develop`. Phase 3 an
 (PR #306). Phase 1 is built on `feature/docker-gate-container` behind `implement-plan --container`
 (`scripts/forge/container.py`, `docker/gate/Dockerfile`), with the `docker/` guard, the `AGENTS.md` wording, and the runbook section.
 Phase 2 is built behind `--agent-container` on `implement-plan` and `fix-loop` (`container.run_agent`,
-`docker/agent/Dockerfile`); a real end-to-end session, its `AGENTS.md` and runbook wording, and the default flip
-are not done.
+`docker/agent/Dockerfile`) and passed one real end-to-end session; its `AGENTS.md` and runbook wording and the
+default flip are not done.
 
 Branch to use: `feature/docker-gate-container`
 
@@ -157,8 +157,12 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   `claude` process and of the init process (`--init`, pid 1), and both held the token (108 characters; the probe
   never printed it). No file under `/tmp` or `$HOME` contained a token. `ptrace_scope` is 1 and `NoNewPrivs` is 1,
   and neither stops reading another process's environment as the same user.
-- Not tested: the agent's tool allow and deny lists inside the container, and a full `implement-plan` run with
-  both agent and gate in containers.
+- End-to-end session through `container.run_agent` (2026-10-11): in a clean sandbox the agent made one commit as the
+  owner's git identity touching only the file it was told to create, ran the repo's tests with
+  `.venv/bin/python -m pytest` (exit 0), wrote its summary to the mounted exchange directory, left nothing
+  uncommitted, and had no permission denials (7 turns, about 60 s). The host deleted the sandbox afterwards.
+- Not tested: the deny list refusing a push or `gh` call inside the container, and a full `implement-plan` run
+  with both agent and gate in containers.
 
 ## Risks and unverified items
 - Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
