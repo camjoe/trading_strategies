@@ -3,8 +3,10 @@
 Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
 the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done
 (PR #306). Phase 1 is built on `feature/docker-gate-container` behind `implement-plan --container`
-(`scripts/forge/container.py`, `docker/gate/Dockerfile`), with the `docker/` guard, the `AGENTS.md` wording, and the runbook section; the default flip and
-phase 2 are not done.
+(`scripts/forge/container.py`, `docker/gate/Dockerfile`), with the `docker/` guard, the `AGENTS.md` wording, and the runbook section.
+Phase 2 is built behind `--agent-container` on `implement-plan` and `fix-loop` (`container.run_agent`,
+`docker/agent/Dockerfile`); a real end-to-end session, its `AGENTS.md` and runbook wording, and the default flip
+are not done.
 
 Branch to use: `feature/docker-gate-container`
 
