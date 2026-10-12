@@ -42,6 +42,16 @@ def test_ordinary_source_tests_and_docs_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
 
 
+@pytest.mark.parametrize("path", ["docker/gate/Dockerfile", "docker/README.md", "Docker/Gate/Dockerfile"])
+def test_the_container_directory_is_guarded_whatever_its_case(path: str) -> None:
+    assert [entry.split(":")[0] for entry in guarded_paths_touched([path])] == [path]
+
+
+@pytest.mark.parametrize("path", ["docs/docker-notes.md", "dockerish/x.py", "src/docker/x.py"])
+def test_paths_that_only_resemble_the_container_directory_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
 def test_tool_configuration_the_checks_execute_is_guarded() -> None:
     touched = guarded_paths_touched(
         ["mypy.ini", ".flake8", "apps/x/frontend/vite.config.ts", "apps/x/frontend/eslint.config.js"]

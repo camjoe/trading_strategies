@@ -19,6 +19,7 @@ _EXTRA_GUARDS = (
     ("src/common/git.py", "the git helper the guards call"),
     ("src/__init__.py", "imported by the forge tool"),
     (".github/", "the pipeline's workflows and repository settings"),
+    ("docker/", "the container the gate and agents run in"),
     (".claude/", "agent permissions"),
     (".ai/skills/", "the skills"),
     ("AGENTS.md", "the standing authorizations"),
