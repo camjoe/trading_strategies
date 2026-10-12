@@ -4,7 +4,7 @@ Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12.
 the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done in
 this branch (PR #306); the container phases (1 and 2) are not built yet.
 
-Branch to use: `feature/docker-agent-sandbox`
+Branch to use: `feature/docker-gate-container`
 
 ## Goal
 Close the risk the repository-level sandbox leaves open. Today the unattended agents (`implement-plan`,
