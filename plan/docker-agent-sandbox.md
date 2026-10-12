@@ -1,12 +1,12 @@
 # Plan: run the pipeline's agents and gate in a container
 
-Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
+Status: in progress (branch `feature/docker-gate-container`, PR #307), started 2026-10-12. PR #301 is merged, so the sandbox,
 the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done
 (PR #306). Phase 1 is built on `feature/docker-gate-container` behind `implement-plan --container`
 (`scripts/forge/container.py`, `docker/gate/Dockerfile`), with the `docker/` guard, the `AGENTS.md` wording, and the runbook section.
 Phase 2 is built behind `--agent-container` on `implement-plan` and `fix-loop` (`container.run_agent`,
-`docker/agent/Dockerfile`) and passed one real end-to-end session; its `AGENTS.md` and runbook wording and the
-default flip are not done.
+`docker/agent/Dockerfile`) and passed a real end-to-end session, a deny-list session, and a full pickup run; its `AGENTS.md`
+and runbook wording is done. The default flip and removing this plan when the work ships remain.
 
 Branch to use: `feature/docker-gate-container`
 
@@ -169,7 +169,11 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   and a `curl` probe was allowed and failed only because the image has no `curl`. So in `claude -p` the deny list is
   the hard boundary and the allow list does not confine the agent to the commands it names; this matches the host
   runner, which passes the same lists (not tested there). Do not rely on the allow list to stop anything.
-- Not tested: a full `implement-plan` run with both agent and gate in containers.
+- Full pickup (2026-10-12): `implement-plan --container --agent-container --no-ready --no-fix` on a throwaway plan, with
+  this branch as the base. The agent (11 turns, about 3 minutes, no permission denials) made one commit as the owner
+  that touched only the requested test file; the gate ran in its own container and passed (967 passed, 7 skipped,
+  the skipped ones needing Docker); the pull request stayed a draft as asked. The throwaway plan, pull request, and
+  branch were removed afterwards.
 
 ## Risks and unverified items
 - Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
