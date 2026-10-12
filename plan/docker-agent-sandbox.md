@@ -1,7 +1,8 @@
 # Plan: run the pipeline's agents and gate in a container
 
 Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
-the controllers, and the guards this plan builds on are on `develop`. Nothing in the container phases is built yet.
+the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done in
+this branch (PR #306); the container phases (1 and 2) are not built yet.
 
 Branch to use: `feature/docker-agent-sandbox`
 
@@ -113,8 +114,8 @@ The merged review ended READY with small notes open. Done in this branch:
   body check; the fake `push` records an explicit phase, not call order.
 - `guarded_paths_touched` resolves `.` and `..`, guards absolute paths and paths that leave the repository, and
   pins the short-name rule to the 8.3 shape (`XXXXXX~N.EXT`).
-- `email_notifier` reports any failure while sending and returns; a failed email cannot turn a finished run into
-  a crash.
+- `email_notifier` reports an `OSError` or SMTP failure while sending, without its message, and returns; any other
+  error (an import failure, a bad setting) still propagates.
 - One shared message for leftover files; drive-letter paths are matched without catching URL schemes; the
   `findings.verdict` docstring says the title is not the merge decision (counts are).
 - A pass over `scripts/forge/` docstrings against the style guide.
