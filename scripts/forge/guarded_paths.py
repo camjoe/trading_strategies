@@ -75,7 +75,7 @@ def _normalized(path: str) -> tuple[str, bool]:
     cleaned = "/".join(
         part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in slashed.split("/")
     )
-    resolved = posixpath.normpath(cleaned) if cleaned else ""
+    resolved = posixpath.normpath(cleaned)
     outside = slashed.startswith("/") or bool(_DRIVE.match(slashed)) or resolved == ".." or resolved.startswith("../")
     return ("" if resolved == "." else resolved), outside
 

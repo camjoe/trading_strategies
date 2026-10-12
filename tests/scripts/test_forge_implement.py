@@ -443,7 +443,10 @@ class TestSandboxedPickup:
 
         result = setup.run()
 
-        assert result.outcome == "needs-owner" and "uncommitted" in result.detail and "notes.txt" in result.detail
+        assert result.outcome == "needs-owner" and "notes.txt" in result.detail
+        assert result.detail.startswith(
+            "The agent left uncommitted changes in the sandbox, which were not pushed, so the pull request stays a draft: "
+        )
         assert setup.gate_runs == [] and setup.forge.ready == []
 
     def test_the_commits_are_imported_relative_to_the_commit_the_sandbox_was_cut_from(self, setup: Setup) -> None:

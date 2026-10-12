@@ -3,16 +3,15 @@ name: PR readiness
 # Runs `pr ready` on every non-draft pull request into develop and keeps the single
 # <!-- pr-readiness --> comment current. Operating notes: docs/runbooks/pr-readiness-workflow.md.
 #
-# Two jobs, so nothing the agent can change is ever run with the GitHub token:
+# Two jobs:
 #   review  The agent job. It has the Claude token and no GitHub token beyond the read-only context
 #           step before the agent starts. It writes the comment body to a file and hands only that
 #           file on, as an artifact.
 #   post    Never checks out the pull request. It checks the handed-over body and posts it with the
 #           scripts.forge tool taken from the base branch (the `trusted` directory), which can only write
 #           the readiness comment. This job is named `readiness`.
-# Every scripts.forge call in both jobs runs from the base branch's copy, so the code that holds a token
-# is never code from the pull request. A pull request that changes scripts/forge is therefore not exercised
-# by this workflow until it is merged; CI tests it.
+# Every scripts.forge call in both jobs runs from the base branch's copy. A pull request that changes
+# scripts/forge is not exercised by this workflow until it is merged; CI tests it.
 #
 # Repository variables (all optional):
 #   READINESS_MAX_PASSES        fail the job instead of reviewing after this many passes (default 8)

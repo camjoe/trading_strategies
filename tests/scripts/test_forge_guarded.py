@@ -245,7 +245,9 @@ def test_the_normalization_does_not_guard_ordinary_files(path: str) -> None:
     ],
 )
 def test_dot_segments_are_resolved_and_paths_outside_the_repository_are_guarded(path: str) -> None:
-    assert len(guarded_paths_touched([path])) == 1
+    result = guarded_paths_touched([path])
+
+    assert len(result) == 1 and result[0].startswith(f"{path}: ")
 
 
 @pytest.mark.parametrize("path", ["docs/./notes.md", "docs/a/../notes.md", "./docs/notes.md"])

@@ -265,8 +265,8 @@ class TestPipelineArguments:
             world.setup.work,
             "thing.md",
             ["bot"],
-            base="develop",
+            base="release",
             fix=False,
         )
 
-        assert bases == ["origin/develop"]
+        assert bases == ["origin/release"]

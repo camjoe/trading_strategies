@@ -33,8 +33,7 @@ class Finding:
 def verdict(body: str) -> str | None:
     """``READY`` or ``NOT READY`` from the comment title, or ``None`` when the title is missing.
 
-    The title is the first level-two heading. Whether a pull request can merge is decided from
-    ``open_counts``, not from the title alone.
+    The title is the first level-two heading.
     """
     heading = next((line for line in body.splitlines() if line.startswith("## ")), "")
     match = _TITLE.match(heading)

@@ -622,7 +622,10 @@ class TestLeftovers:
 
         result, sent = run(forge, git, tmp_path, fixing_agent(git), sandboxes=boxes)
 
-        assert result.outcome == "stopped" and "uncommitted" in result.detail and "src/thing.py" in result.detail
+        assert result.outcome == "stopped" and "src/thing.py" in result.detail
+        assert result.detail.startswith(
+            "The fixer left uncommitted changes in the sandbox, so the round was discarded: "
+        )
         assert git.forwarded == [] and forge.upserted == [] and git.pushes == 0 and len(sent) == 1
 
     def test_a_comment_that_cannot_be_posted_puts_the_branch_back(self, tmp_path: Path) -> None:

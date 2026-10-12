@@ -264,9 +264,11 @@ def test_both_jobs_take_the_forge_tool_from_the_base_branch_into_a_separate_dire
 
 
 def test_the_posting_job_never_checks_out_the_pull_request() -> None:
-    text = json.dumps(_steps("post"))
+    checkouts = _uses("post", "actions/checkout@")
 
-    assert "pull_request.head" not in text and ".venv" not in text
+    assert len(checkouts) == 1
+    assert checkouts[0]["with"]["ref"] == "${{ github.base_ref }}" and checkouts[0]["with"]["path"] == "trusted"
+    assert ".venv" not in json.dumps(_steps("post"))
 
 
 def test_the_pull_request_is_checked_out_before_the_trusted_copy_so_the_clean_cannot_delete_it() -> None:

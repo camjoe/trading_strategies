@@ -35,8 +35,9 @@ The `readiness` job, which starts only if the first succeeded:
    checks out the pull request and needs no virtual environment, so nothing the agent wrote in its working tree
    or `.venv` is present), and fetches the body artifact.
 5. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
-   number is not the live comment's plus one, or that holds a runner path, an account-id shape, or
-   credential-like text.
+   number is not the live comment's plus one, or that holds a runner path, a user-name path, an account-id shape,
+   or credential-like text. In example paths `<user>`, `<username>`, `<name>` and `<segment>` may stand in for a
+   user name; any other name, bracketed or not, is refused.
 6. Confirms the pull request head is still the commit that was reviewed, and fails without posting if a
    push landed meanwhile.
 7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This

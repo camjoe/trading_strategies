@@ -3,7 +3,6 @@
 import json
 import os
 import re
-import smtplib
 import subprocess
 import sys
 import tempfile
@@ -290,7 +289,7 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
             details=details,
             email_config=config,
         )
-    except (OSError, smtplib.SMTPException) as exc:
+    except OSError as exc:
         print(f"No email was sent: {type(exc).__name__} while sending.", file=sys.stderr)
         return
     if not delivered:

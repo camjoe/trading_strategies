@@ -968,3 +968,11 @@ class TestOnlyTheListedPlaceholdersAreExempt:
         from scripts.forge.readiness import leak_problems
 
         assert leak_problems("/Users/<user>alice/x") != [] and leak_problems("/Users/<user>x") != []
+
+
+@pytest.mark.parametrize("after", [")", ".", ",", "x", ">"])
+def test_a_listed_placeholder_must_end_at_a_separator_so_trailing_punctuation_is_refused(after: str) -> None:
+    from scripts.forge.readiness import leak_problems
+
+    assert leak_problems(f"the path /Users/<user>{after}") != []
+    assert leak_problems("the path /Users/<user>/ and /Users/<user>") == []
