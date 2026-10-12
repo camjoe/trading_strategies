@@ -914,3 +914,35 @@ def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
 
     assert publish_problems("the endpoint `https://example.test/x` is stable") == []
     assert publish_problems("see C:/Users/alice/x") != []
+
+
+class TestPlaceholderPaths:
+    BACKSLASH = chr(92)
+
+    def test_an_angle_bracket_placeholder_in_place_of_the_user_name_is_allowed(self) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        for text in (
+            "the pattern matches /Users/<user>/x",
+            "and /home/<name>/project/file.py",
+            "and C:/Users/<user>/x",
+            "and C:" + self.BACKSLASH + "Users" + self.BACKSLASH + "<user>" + self.BACKSLASH + "x",
+        ):
+            assert leak_problems(text) == [], text
+            assert publish_problems("`" + text + "`") == [], text
+
+    def test_a_real_user_name_is_still_refused_even_next_to_a_placeholder(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        for text in (
+            "/Users/<user>/x and /Users/alice/x",
+            "/home/<name>/a and /home/alice/a",
+            "C:/Users/<user>/x and C:/Users/alice/x",
+            "/Users/alice<user>/x",
+        ):
+            assert leak_problems(text) != [], text
+
+    def test_the_runner_path_and_the_tilde_form_are_not_affected(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert leak_problems("/home/runner/work/x") != [] and leak_problems("see ~/project/file") != []

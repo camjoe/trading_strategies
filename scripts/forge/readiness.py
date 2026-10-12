@@ -9,10 +9,10 @@ from scripts.forge.base import ForgeError, require_marker
 _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
 _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
-    re.compile(r"/Users/[^\s/`]+"),
-    re.compile(r"(?<![\w./-])/home/[^\s/`]+/[^\s`]"),
+    re.compile(r"/Users/(?!<)[^\s/`]+"),
+    re.compile(r"(?<![\w./-])/home/(?!<)[^\s/`]+/[^\s`]"),
     re.compile(r"(?<![\w.])~/[^\s`]"),
-    re.compile(r"[A-Za-z]:[\\/]Users[\\/]"),
+    re.compile(r"[A-Za-z]:[\\/]Users[\\/](?!<)"),
 )
 _ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
 _MAX_ADDED_STATUS_LINES = 12
@@ -22,7 +22,10 @@ _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"g
 
 _CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _PUBLISH_PATTERNS = (
-    (re.compile(r"/home/[^\s/`]+|/Users/[^\s/`]+|(?<![A-Za-z0-9])[A-Za-z]:[\\/]"), "a local path"),
+    (
+        re.compile(r"/home/(?!<)[^\s/`]+|/Users/(?!<)[^\s/`]+|(?<![A-Za-z0-9])[A-Za-z]:[\\/](?!Users[\\/]<)"),
+        "a local path",
+    ),
     (re.compile(r"\blocal/"), "a reference to the private local folder"),
 )
 _RENDERED_PATTERNS = (
