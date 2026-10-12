@@ -138,17 +138,25 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   file check is weak (a Windows path means nothing inside Linux); the real isolation evidence is that only the
   clone is mounted, which the phase 1 integration tests assert.
 - Egress: `api.anthropic.com` is reachable (HTTP 404 on the bare URL, so the connection was made), as intended.
-- Not tested: whether a process the agent starts can read the token another way (see Risks), the agent's tool
-  allow and deny lists inside the container, and a full `implement-plan` run with both agent and gate in
-  containers.
+- `/proc` check: run as a child of the agent's Bash tool, a probe could read `/proc/<pid>/environ` of the
+  `claude` process and of the init process (`--init`, pid 1), and both held the token (108 characters; the probe
+  never printed it). No file under `/tmp` or `$HOME` contained a token. `ptrace_scope` is 1 and `NoNewPrivs` is 1,
+  and neither stops reading another process's environment as the same user.
+- Not tested: the agent's tool allow and deny lists inside the container, and a full `implement-plan` run with
+  both agent and gate in containers.
 
 ## Risks and unverified items
 - Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
   POSIX host the container runs as the owner's uid so the mount stays writable (untested here).
 - Headless Claude CLI authentication in a container with only the OAuth token: verified (spike below).
-- Whether code the agent runs can read the Claude token. The agent's Bash tool does not see it in its environment
-  (spike below), but the CLI process holds it and runs as the same user, so `/proc/<pid>/environ` may expose it.
-  Unverified; check before relying on the environment scrub.
+- Code the agent runs can read the Claude token (verified by the `/proc` check below). The agent's Bash tool does not
+  see it in its environment, but the CLI process and the init process hold it and run as the same user, so any
+  test or script the agent starts can read `/proc/<pid>/environ` and, with open egress, send it out. The
+  environment scrub is not a protection. The exposure is what the owner accepted: a revocable token that can make
+  model requests billed to the owner. Mitigations to weigh, none built: a token created only for this use and
+  revoked after; keeping the token out of the container with a host-side proxy that adds the credential (stronger,
+  and unverified for an OAuth token); running the agent's tests in a second container with no network and no
+  token.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.
