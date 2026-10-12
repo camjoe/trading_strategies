@@ -105,6 +105,11 @@ request that edits the workflow file itself still runs its own copy (that is how
   for each use (created with `claude setup-token` just before a run and revoked after), never the owner's login.
   The host-side credential proxy and a no-network test container stay later options, to be reconsidered before any
   scheduled or triggered run.
+- How a token is revoked (not confirmed by Anthropic's documentation): `claude setup-token` mints a new one-year
+  token each run and the CLI has no list or revoke command. Users report removing one under claude.ai, Settings,
+  Claude Code, and report that "log out all sessions" does not reliably invalidate it. Before relying on
+  "revoke afterwards", mint a token, confirm it appears on that page, remove it, and confirm a request with it
+  fails. Until then the real limit on a leaked token is its one-year life and the account's usage limits.
 
 ## Decisions for the owner
 1. Open egress or an allowlisting proxy for the agent container (phase 2). Decided above: open egress first.
