@@ -31,8 +31,8 @@ conversation.
   above: no other comment or review, no labels, no merge, no security-class findings, and nothing
   that is not safe on a public repository. It posts only through `python -m scripts.forge
   comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
-  token: a separate job, started from a fresh checkout of the pull request head, checks the body the
-  agent wrote and posts it. Changing the workflow, the forge write path, or this section needs the owner's yes.
+  token: a separate job, which never checks out the pull request and runs the `scripts.forge` tool from
+  the base branch, checks the body the agent wrote and posts it. Changing the workflow, the forge write path, or this section needs the owner's yes.
 - `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
   `implement-plan` run on the pull request it opened, may for up to three rounds
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`

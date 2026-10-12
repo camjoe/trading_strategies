@@ -1,8 +1,8 @@
 """Plan pickup followed by the fixer loop: implement a plan, wait for the first review, then fix until READY.
 
 The pickup takes the pull request out of draft; the review workflow then posts its first readiness
-comment; the fixer loop has nothing to work from until it does. This module is only the join between
-the two controllers, so a run that starts with the owner's command ends with one notification.
+comment, which the fixer loop reads. This module only joins the two controllers, so a run ends with one
+notification.
 """
 
 import time

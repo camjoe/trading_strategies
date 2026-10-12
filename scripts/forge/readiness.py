@@ -7,12 +7,13 @@ from collections.abc import Collection
 from scripts.forge.base import ForgeError, require_marker
 
 _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
+_PLACEHOLDER = r"<(?:user|username|name|segment)>(?=[/\\\s`]|$)"
 _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
-    re.compile(r"/Users/[^\s/`]+"),
-    re.compile(r"(?<![\w./-])/home/[^\s/`]+/[^\s`]"),
+    re.compile(rf"/Users/(?!{_PLACEHOLDER})[^\s/`]+"),
+    re.compile(rf"(?<![\w./-])/home/(?!{_PLACEHOLDER})[^\s/`]+/[^\s`]"),
     re.compile(r"(?<![\w.])~/[^\s`]"),
-    re.compile(r"[A-Za-z]:[\\/]Users[\\/]"),
+    re.compile(rf"[A-Za-z]:[\\/]Users[\\/](?!{_PLACEHOLDER})"),
 )
 _ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
 _MAX_ADDED_STATUS_LINES = 12
@@ -22,7 +23,13 @@ _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"g
 
 _CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _PUBLISH_PATTERNS = (
-    (re.compile(r"/home/[^\s/`]+|/Users/[^\s/`]+|[A-Za-z]:\\"), "a local path"),
+    (
+        re.compile(
+            rf"/home/(?!{_PLACEHOLDER})[^\s/`]+|/Users/(?!{_PLACEHOLDER})[^\s/`]+"
+            rf"|(?<![A-Za-z0-9])[A-Za-z]:[\\/](?!Users[\\/]{_PLACEHOLDER})"
+        ),
+        "a local path",
+    ),
     (re.compile(r"\blocal/"), "a reference to the private local folder"),
 )
 _RENDERED_PATTERNS = (
@@ -47,7 +54,7 @@ def body_problems(
     *previous_pass* is the pass number of the comment being replaced (``None`` on a first pass), so a
     pass must be exactly one more than the last, or equal to it when *same_pass* is set (an edit of the
     same pass). *forbidden* lists literal strings, such as a token's value, that must not appear; an
-    empty entry is an error because it would check nothing.
+    empty entry is an error.
     """
     problems: list[str] = []
     try:

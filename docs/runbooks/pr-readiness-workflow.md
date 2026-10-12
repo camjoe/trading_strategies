@@ -15,9 +15,12 @@ a failed run leaves the check red and posts nothing.
 
 The `readiness-review` job:
 
-1. Checks out the pull request head and builds the repo-local `.venv`.
+1. Checks out the pull request head and builds the repo-local `.venv`, then checks out the base branch into a
+   separate `trusted` directory. Every `scripts.forge` call in both jobs runs from that copy, so the code that
+   holds a token is never code from the pull request. A pull request that changes `scripts/forge` is not
+   exercised by this workflow until it is merged; CI tests it.
 2. Reads the pull request, the previous readiness comment from `github-actions[bot]`, and CI state
-   with `python -m scripts.forge review-context`. It waits until the same checks are seen twice (its
+   with `python -m scripts.forge review-context` (from the `trusted` copy). It waits until the same checks are seen twice (its
    own `readiness-review` and `readiness` checks are excluded), fails if the head moved since the event,
    and fails if the pass cap is reached.
 3. Runs the agent with the Claude token and **no GitHub token**. The job's permissions are read-only. The agent
@@ -28,12 +31,13 @@ The `readiness-review` job:
 
 The `readiness` job, which starts only if the first succeeded:
 
-4. Checks out the pull request head again (the only job with `pull-requests: write`; it imports nothing under
-   `trading`, and `scripts/` and the files it imports are guarded paths), so nothing the agent wrote in its working tree or `.venv` is
-   present, and fetches the body artifact.
+4. Checks out only the base branch into `trusted` (this is the only job with `pull-requests: write`; it never
+   checks out the pull request and needs no virtual environment, so nothing the agent wrote in its working tree
+   or `.venv` is present), and fetches the body artifact.
 5. Runs `python -m scripts.forge check-body`, which refuses a body that lacks the marker, whose pass
-   number is not the live comment's plus one, or that holds a runner path, an account-id shape, or
-   credential-like text.
+   number is not the live comment's plus one, or that holds a runner path, a user-name path, an account-id shape,
+   or credential-like text. In example paths `<user>`, `<username>`, `<name>` and `<segment>` may stand in for a
+   user name; any other name, bracketed or not, is refused.
 6. Confirms the pull request head is still the commit that was reviewed, and fails without posting if a
    push landed meanwhile.
 7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This

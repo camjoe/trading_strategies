@@ -29,6 +29,7 @@ class FakeGit:
         self.discarded: list[str] = []
         self.on_base = True
         self.files: dict[str, str] = {}
+        self.phase = "claim"
         self.switched: list[str] = []
         self.deleted: list[str] = []
         self.cleanup_error: ForgeError | None = None
@@ -50,7 +51,7 @@ class FakeGit:
         if self.push_error:
             raise self.push_error
         self.pushed_branches.append(branch)
-        self.calls.append("push" if "agent" in self.calls else "push-claim")
+        self.calls.append("push" if self.phase == "agent" else "push-claim")
 
     def require_clean_tree(self) -> None:
         self.calls.append("clean")
@@ -132,6 +133,7 @@ class Setup:
     def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
         def run(task: ImplementTask) -> None:
             self.git.calls.append("agent")
+            self.git.phase = "agent"
             self.tasks.append(task)
             if fail:
                 raise ForgeError("not logged in")
@@ -441,7 +443,10 @@ class TestSandboxedPickup:
 
         result = setup.run()
 
-        assert result.outcome == "needs-owner" and "uncommitted" in result.detail and "notes.txt" in result.detail
+        assert result.outcome == "needs-owner" and "notes.txt" in result.detail
+        assert result.detail.startswith(
+            "The agent left uncommitted changes in the sandbox, which were not pushed, so the pull request stays a draft: "
+        )
         assert setup.gate_runs == [] and setup.forge.ready == []
 
     def test_the_commits_are_imported_relative_to_the_commit_the_sandbox_was_cut_from(self, setup: Setup) -> None:

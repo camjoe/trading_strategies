@@ -65,8 +65,7 @@ class HasPrompt(Protocol):
 
 
 class LocalGit:
-    """Git in the owner's checkout. Hooks and ``fsmonitor`` are switched off so code an agent wrote into the
-    checkout's ``.git`` cannot run when the controller merges or commits."""
+    """Git in the owner's checkout, run with hooks and ``fsmonitor`` off."""
 
     def __init__(self, root: Path | None = None) -> None:
         self._root = root or get_repo_root()
@@ -278,17 +277,21 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
 
     Do not import ``trading`` at module level in this file: the workflow's posting job imports it.
     """
-    from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
-    from trading.interfaces.runtime.notifications import notify_runtime_event
+    try:
+        from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
+        from trading.interfaces.runtime.notifications import notify_runtime_event
 
-    config = resolve_email_config_from_env()
-    delivered = notify_runtime_event(
-        event="pr-readiness-loop",
-        status="ok" if details.get("outcome") == "ready" else "warn",
-        message=f"{subject}. {message}",
-        details=details,
-        email_config=config,
-    )
+        config = resolve_email_config_from_env()
+        delivered = notify_runtime_event(
+            event="pr-readiness-loop",
+            status="ok" if details.get("outcome") == "ready" else "warn",
+            message=f"{subject}. {message}",
+            details=details,
+            email_config=config,
+        )
+    except OSError as exc:
+        print(f"No email was sent: {type(exc).__name__} while sending.", file=sys.stderr)
+        return
     if not delivered:
         reason = "the SMTP settings are not set" if config is None else "delivery failed"
         print(f"No email was sent: {reason}.", file=sys.stderr)
@@ -298,8 +301,8 @@ def run_gate(base: str, cwd: Path) -> tuple[bool, str]:
     """Run the pull-request gate against *base* in the checkout at *cwd*, with the interpreter running this command.
 
     The checkout is expected to be a clean clone without a virtual environment of its own; its source comes
-    first on ``PYTHONPATH``. The gate runs the branch's own code, so it gets the agent's scrubbed environment.
-    That interpreter must have the dev requirements installed.
+    first on ``PYTHONPATH``. It runs with the agent's scrubbed environment. The interpreter needs the dev
+    requirements installed.
     """
     with tempfile.TemporaryDirectory(prefix="gate-env-") as scratch:
         env = agent_environment(os.environ, Path(scratch))

@@ -231,3 +231,71 @@ def test_names_that_windows_resolves_to_a_guarded_file_are_guarded(path: str) ->
 @pytest.mark.parametrize("path", ["docs/notes.md.", "src/common/thing.py ", "docs/a:b.md", "tests/scripts/test_x.py"])
 def test_the_normalization_does_not_guard_ordinary_files(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "./scripts/x.py",
+        "docs/../scripts/forge/cli.py",
+        "docs/./../AGENTS.md",
+        "/scripts/x.py",
+        "C:/repo/scripts/x.py",
+        "../outside.txt",
+    ],
+)
+def test_dot_segments_are_resolved_and_paths_outside_the_repository_are_guarded(path: str) -> None:
+    result = guarded_paths_touched([path])
+
+    assert len(result) == 1 and result[0].startswith(f"{path}: ")
+
+
+@pytest.mark.parametrize("path", ["docs/./notes.md", "docs/a/../notes.md", "./docs/notes.md"])
+def test_resolving_dot_segments_does_not_guard_ordinary_files(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize("path", ["apps/web/VITE~1.TS", "src/foo~3/bar.py", "docs/notes~1.md"])
+def test_components_shaped_like_short_names_are_guarded(path: str) -> None:
+    assert len(guarded_paths_touched([path])) == 1
+
+
+@pytest.mark.parametrize("path", ["docs/longername~1/x.md", "docs/a~b.txt", "docs/x~.md", "docs/readme~backup"])
+def test_tildes_that_are_not_short_name_shaped_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
+OUTSIDE = "a path outside the repository, or not relative to it"
+SHORT = "a name that may be a Windows short name for a guarded file"
+
+
+@pytest.mark.parametrize("path", ["/abs/x.py", "C:x", "C:/repo/x", "//host/share/x", "docs/../../x", "../x"])
+def test_paths_outside_the_repository_are_reported_with_that_reason(path: str) -> None:
+    assert guarded_paths_touched([path]) == [f"{path}: {OUTSIDE}"]
+
+
+@pytest.mark.parametrize(
+    "path, guarded",
+    [
+        ("docs/abcdef~1", True),
+        ("docs/abcdefg~1", False),
+        ("docs/a~1234567", True),
+        ("docs/a~12345678", False),
+        ("docs/a~1.abc", True),
+        ("docs/a~1.abcd", False),
+        ("docs/ab~1.", True),
+    ],
+)
+def test_the_short_name_shape_has_exact_limits(path: str, guarded: bool) -> None:
+    assert (guarded_paths_touched([path]) == [f"{path}: {SHORT}"]) is guarded
+
+
+def test_backslash_traversal_is_resolved_before_matching() -> None:
+    path = "docs" + chr(92) + ".." + chr(92) + "scripts" + chr(92) + "forge" + chr(92) + "x.py"
+
+    assert len(guarded_paths_touched([path])) == 1 and OUTSIDE not in guarded_paths_touched([path])[0]
+
+
+@pytest.mark.parametrize("path", ["", ".", "a/.../b", "docs/./"])
+def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []

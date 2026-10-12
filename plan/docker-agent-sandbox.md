@@ -1,7 +1,10 @@
 # Plan: run the pipeline's agents and gate in a container
 
-Status: drafted 2026-10-11. Nothing built. Depends on `agent-pipeline-automation.md` being merged (the
-sandbox, the controllers, and the guards this plan builds on are on that branch).
+Status: in progress (branch `feature/docker-agent-sandbox`), started 2026-10-12. PR #301 is merged, so the sandbox,
+the controllers, and the guards this plan builds on are on `develop`. Phase 3 and the follow-ups below are done in
+this branch (PR #306); the container phases (1 and 2) are not built yet.
+
+Branch to use: `feature/docker-agent-sandbox`
 
 ## Goal
 Close the risk the repository-level sandbox leaves open. Today the unattended agents (`implement-plan`,
@@ -58,10 +61,11 @@ exposure; a network policy limits the rest.
   the agent cannot start itself (not designed; would need a tool the agent can call).
 - Same flags as phase 1 except the network. The tool allow and deny lists stay as a second layer.
 
-### Phase 3: run the forge tool from the base branch in the workflow (separate, small)
-After the pipeline branch is merged, `.github/workflows/pr-readiness.yml` should check out the base branch
-for `scripts.forge` and treat the pull request head as data only. This removes pull-request code from the
-token path in the posting job. It needs `scripts/forge` on `develop`, so it cannot start before the merge.
+### Phase 3: run the forge tool from the base branch in the workflow (done in this branch)
+Both jobs of `.github/workflows/pr-readiness.yml` check out the base branch into `trusted` and run every
+`scripts.forge` call from there with `PYTHONPATH=src`; the posting job no longer checks out the pull request or
+builds a virtual environment. Not covered: the agent step still runs the pull request's scope check, and a pull
+request that edits the workflow file itself still runs its own copy (that is how `pull_request` workflows work).
 
 ## Steps
 1. Spike: build the phase 1 image on the owner's Windows machine (Docker Desktop, WSL2) and run the gate on a
@@ -102,3 +106,30 @@ token path in the posting job. It needs `scripts/forge` on `develop`, so it cann
   container, and keep the flags above.
 - A container narrows the host exposure; it does not stop an agent from pushing harmful code that passes the
   guard and the review. The guarded-path list and the owner's review still carry that.
+
+## Follow-ups carried over from PR #301
+The merged review ended READY with small notes open. Done in this branch:
+- Tests and wiring: `run_pipeline`'s two waits and the gate's base; controller git for `push` (a `pre-push` hook
+  does not run), `exists_on`, and the `fsmonitor`/hooks options; the posting job holds the Claude token only in the
+  body check; the fake `push` records an explicit phase, not call order.
+- `guarded_paths_touched` resolves `.` and `..`, guards absolute paths and paths that leave the repository, and
+  pins the short-name rule to the 8.3 shape (`XXXXXX~N.EXT`).
+- `email_notifier` reports an `OSError` or SMTP failure while sending, without its message, and returns; any other
+  error (an import failure, a bad setting) still propagates.
+- One shared message for leftover files; drive-letter paths are matched without catching URL schemes; the
+  `findings.verdict` docstring says the title is not the merge decision (counts are).
+- A pass over `scripts/forge/` docstrings against the style guide.
+
+Decided, not changed:
+- The prompt rule "run `git add` and `git commit` separately" stays a hint. The allow-list matches by prefix and
+  cannot express it; the cost of a miss is one lost turn.
+- An account-id shape inside a code block still fails the body check: a broker id is a leak wherever it sits.
+
+### Not in this branch
+- The email path: set the `TRADING_RUNTIME_ALERT_SMTP_*` variables and run the one-line `email_notifier` check
+  (its own branch, as agreed).
+- The post-merge smoke test of the fixer round: put a throwaway plan on `develop`, run `implement-plan` with the
+  chained fix loop, and remove the plan afterwards.
+
+### Repository settings (owner)
+- Make `readiness` a required check on `develop` now that a failed review turns it red.

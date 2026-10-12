@@ -31,7 +31,10 @@ class Finding:
 
 
 def verdict(body: str) -> str | None:
-    """``READY`` or ``NOT READY`` from the comment title, or ``None`` when the title is missing."""
+    """``READY`` or ``NOT READY`` from the comment title, or ``None`` when the title is missing.
+
+    The title is the first level-two heading.
+    """
     heading = next((line for line in body.splitlines() if line.startswith("## ")), "")
     match = _TITLE.match(heading)
     return match.group(1) if match else None

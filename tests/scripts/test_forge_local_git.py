@@ -269,3 +269,29 @@ def test_show_returns_the_text_of_a_file_at_a_ref(repo: Path) -> None:
     assert LocalGit(repo).show("HEAD", "a.txt") == "a"
     with pytest.raises(ForgeError):
         LocalGit(repo).show("HEAD", "missing.txt")
+
+
+def test_a_pre_push_hook_planted_in_the_checkout_does_not_run_when_the_controller_pushes(
+    repo: Path, tmp_path: Path
+) -> None:
+    remote = tmp_path.parent / (tmp_path.name + "-remote.git")
+    git(tmp_path, "init", "-q", "--bare", str(remote))
+    git(repo, "remote", "add", "origin", str(remote))
+    marker = repo / "push-hook-ran.txt"
+    hook = repo / ".git" / "hooks" / "pre-push"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(
+        "#!/bin/sh" + chr(10) + f"echo ran > '{marker.as_posix()}'" + chr(10), encoding="utf-8", newline="\n"
+    )
+    hook.chmod(0o755)
+
+    LocalGit(repo).push("feature/x")
+
+    assert not marker.exists()
+    assert git(remote, "rev-parse", "refs/heads/feature/x") == git(repo, "rev-parse", "HEAD")
+
+
+def test_exists_on_is_false_for_a_missing_path_and_true_for_a_present_one(repo: Path) -> None:
+    local = LocalGit(repo)
+
+    assert local.exists_on("HEAD", "a.txt") and not local.exists_on("HEAD", "missing.txt")

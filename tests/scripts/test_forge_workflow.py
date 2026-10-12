@@ -248,3 +248,63 @@ def test_the_skill_says_security_findings_do_not_decide_the_title_and_points_to_
 
     assert "do not decide the title" in skill and "run /security-review before merge" in skill
     assert "The title follows the rules above only." in skill
+
+
+def _uses(job: str, prefix: str) -> list[dict[str, Any]]:
+    return [step for step in _steps(job) if step.get("uses", "").startswith(prefix)]
+
+
+def test_both_jobs_take_the_forge_tool_from_the_base_branch_into_a_separate_directory() -> None:
+    for job in ("review", "post"):
+        trusted = [step for step in _uses(job, "actions/checkout@") if step["with"].get("path") == "trusted"]
+
+        assert len(trusted) == 1, job
+        assert trusted[0]["with"]["ref"] == "${{ github.base_ref }}"
+        assert trusted[0]["with"]["persist-credentials"] is False
+
+
+def test_the_posting_job_never_checks_out_the_pull_request() -> None:
+    checkouts = _uses("post", "actions/checkout@")
+
+    assert len(checkouts) == 1
+    assert checkouts[0]["with"]["ref"] == "${{ github.base_ref }}" and checkouts[0]["with"]["path"] == "trusted"
+    assert ".venv" not in json.dumps(_steps("post"))
+
+
+def test_the_pull_request_is_checked_out_before_the_trusted_copy_so_the_clean_cannot_delete_it() -> None:
+    names = _names("review")
+
+    assert names.index("Checkout the PR head") < names.index("Checkout the forge tool from the base branch")
+
+
+def test_every_forge_call_runs_from_the_trusted_copy_with_its_source_on_the_path() -> None:
+    forge_steps = [
+        (job, step)
+        for job in ("review", "post")
+        for step in _steps(job)
+        if "scripts.forge" in step.get("run", "") or "scripts.forge" in json.dumps(step)
+    ]
+
+    assert len(forge_steps) >= 5
+    for job, step in forge_steps:
+        assert step.get("working-directory") == "trusted", (job, step["name"])
+        assert step["env"]["PYTHONPATH"] == "src", (job, step["name"])
+        assert ".venv" not in step["run"], (job, step["name"])
+
+
+def test_the_prompt_is_built_with_the_system_python_not_the_pull_requests_virtualenv() -> None:
+    run = _run("review", "Build the prompt")
+
+    assert run.startswith("python3 - <<") and ".venv/bin/python - <<" not in run
+
+
+def test_the_claude_token_is_in_the_posting_job_only_for_the_body_check() -> None:
+    holding = [step["name"] for step in _steps("post") if "CLAUDE_CODE_OAUTH_TOKEN" in json.dumps(step)]
+
+    assert holding == ["Check the comment body"]
+
+
+def test_the_prompt_tells_the_agent_to_use_a_placeholder_for_user_names_in_example_paths() -> None:
+    script = _run("review", "Build the prompt")
+
+    assert "write `<user>` in place of any user" in script and "do not copy sample paths out of tests" in script
