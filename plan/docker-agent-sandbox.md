@@ -99,6 +99,11 @@ request that edits the workflow file itself still runs its own copy (that is how
   send out the Claude token (revocable, model requests only). The gate is unaffected: it runs in its own
   container with no network and no token.
 
+- Decided after the `/proc` check: accept that agent-run code can read the Claude token, and use a dedicated token
+  for each use (created with `claude setup-token` just before a run and revoked after), never the owner's login.
+  The host-side credential proxy and a no-network test container stay later options, to be reconsidered before any
+  scheduled or triggered run.
+
 ## Decisions for the owner
 1. Open egress or an allowlisting proxy for the agent container (phase 2). Decided above: open egress first.
 2. Whether the gate runs in a container by default once it works, or stays opt-in.
