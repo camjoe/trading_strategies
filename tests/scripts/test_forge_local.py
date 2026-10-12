@@ -1,5 +1,6 @@
 import json
 import os
+import smtplib
 import subprocess
 from pathlib import Path
 
@@ -390,18 +391,33 @@ def test_importing_the_command_line_tool_does_not_import_the_trading_package() -
     assert result.returncode == 0 and "ok" in result.stdout, result.stderr
 
 
-class TestEmailFailuresAreNotFatal:
-    def test_a_failure_while_sending_is_reported_and_does_not_raise(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+class TestEmailFailures:
+    @pytest.mark.parametrize(
+        "error", [OSError("host smtp.example.test refused"), smtplib.SMTPAuthenticationError(535, b"bad")]
+    )
+    def test_a_network_or_smtp_failure_is_reported_without_its_message_and_does_not_raise(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: Exception
     ) -> None:
-        def broken() -> object:
-            raise RuntimeError("smtp is down")
+        def broken(**_kwargs: object) -> bool:
+            raise error
 
-        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", broken)
+        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", lambda: object())
+        monkeypatch.setattr(notifications, "notify_runtime_event", broken)
 
         local.email_notifier("subject", "message", {"outcome": "ready"})
 
-        assert "No email was sent: RuntimeError: smtp is down" in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert f"No email was sent: {type(error).__name__} while sending." in err
+        assert "smtp.example.test" not in err and "bad" not in err
+
+    def test_a_programming_error_is_not_swallowed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def broken() -> object:
+            raise RuntimeError("a bug")
+
+        monkeypatch.setattr(job_helpers, "resolve_email_config_from_env", broken)
+
+        with pytest.raises(RuntimeError, match="a bug"):
+            local.email_notifier("subject", "message", {"outcome": "ready"})
 
 
 def test_the_controller_git_options_switch_off_hooks_and_fsmonitor() -> None:

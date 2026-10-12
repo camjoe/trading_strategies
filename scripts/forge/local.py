@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import smtplib
 import subprocess
 import sys
 import tempfile
@@ -289,8 +290,8 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
             details=details,
             email_config=config,
         )
-    except Exception as exc:  # noqa: BLE001 - a failed email must not turn a finished run into a crash
-        print(f"No email was sent: {type(exc).__name__}: {exc}", file=sys.stderr)
+    except (OSError, smtplib.SMTPException) as exc:
+        print(f"No email was sent: {type(exc).__name__} while sending.", file=sys.stderr)
         return
     if not delivered:
         reason = "the SMTP settings are not set" if config is None else "delivery failed"

@@ -946,3 +946,25 @@ class TestPlaceholderPaths:
         from scripts.forge.readiness import leak_problems
 
         assert leak_problems("/home/runner/work/x") != [] and leak_problems("see ~/project/file") != []
+
+
+class TestOnlyTheListedPlaceholdersAreExempt:
+    @pytest.mark.parametrize("name", ["user", "username", "name", "segment"])
+    def test_each_listed_placeholder_is_allowed(self, name: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x", f"see /Users/<{name}>"):
+            assert leak_problems(text) == [], text
+
+    @pytest.mark.parametrize("name", ["jdoe", "alice", "user2", "USER", ""])
+    def test_any_other_bracketed_name_is_refused(self, name: str) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x"):
+            assert leak_problems(text) != [], text
+            assert publish_problems("`" + text + "`") != [], text
+
+    def test_a_placeholder_followed_by_more_name_is_refused(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert leak_problems("/Users/<user>alice/x") != [] and leak_problems("/Users/<user>x") != []
