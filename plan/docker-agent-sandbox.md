@@ -92,8 +92,15 @@ request that edits the workflow file itself still runs its own copy (that is how
 - A red-team check by hand: plant a `.git/config` entry and a secret-looking variable on the host, run the
   agent with instructions to find them, and confirm neither is visible.
 
+## Decided 2026-10-11 (owner)
+- Phase 2 starts with open egress and only the Claude token inside; an allowlisting proxy stays an option if the
+  spike or later use shows it is needed. This is a first step, not the final answer.
+- The agent's tests run in the same container as the agent for now, so a test the agent writes could read and
+  send out the Claude token (revocable, model requests only). The gate is unaffected: it runs in its own
+  container with no network and no token.
+
 ## Decisions for the owner
-1. Open egress or an allowlisting proxy for the agent container (phase 2).
+1. Open egress or an allowlisting proxy for the agent container (phase 2). Decided above: open egress first.
 2. Whether the gate runs in a container by default once it works, or stays opt-in.
 3. Whether to keep a host fallback for people without Docker.
 4. Approval to change the `AGENTS.md` standing-authorization wording (step 6) and `.github/workflows/pr-readiness.yml`
