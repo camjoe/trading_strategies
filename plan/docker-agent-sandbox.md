@@ -63,7 +63,8 @@ exposure; a network policy limits the rest.
 - The agent's tests run in the same container, so a test that exfiltrates would still see the Claude token.
   Accept that (the token is revocable and model-only) or run tests in a second `--network none` container
   the agent cannot start itself (not designed; would need a tool the agent can call).
-- Same flags as phase 1 except the network. The tool allow and deny lists stay as a second layer.
+- Same flags as phase 1 except the network. The tool deny list stays as a second layer (the allow list does not
+  confine the agent; see the spike results).
 
 ### Phase 3: run the forge tool from the base branch in the workflow (done in this branch)
 Both jobs of `.github/workflows/pr-readiness.yml` check out the base branch into `trusted` and run every
@@ -161,8 +162,14 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   owner's git identity touching only the file it was told to create, ran the repo's tests with
   `.venv/bin/python -m pytest` (exit 0), wrote its summary to the mounted exchange directory, left nothing
   uncommitted, and had no permission denials (7 turns, about 60 s). The host deleted the sandbox afterwards.
-- Not tested: the deny list refusing a push or `gh` call inside the container, and a full `implement-plan` run
-  with both agent and gate in containers.
+- Deny-list session (2026-10-12): the agent was told to run each denied command and to write to `.git/`. All eight
+  denied Bash commands (`git push`, `gh`, `git reset`, `git config`, `git checkout`, `git clean`, `git update-ref`,
+  `git restore`) were refused, as were the `Write` and `Edit` tools on `.git/`; `HEAD`, `.git/config`, the refs,
+  and the working tree were unchanged afterwards. Commands on neither list were not refused: `cat /etc/hostname` ran,
+  and a `curl` probe was allowed and failed only because the image has no `curl`. So in `claude -p` the deny list is
+  the hard boundary and the allow list does not confine the agent to the commands it names; this matches the host
+  runner, which passes the same lists (not tested there). Do not rely on the allow list to stop anything.
+- Not tested: a full `implement-plan` run with both agent and gate in containers.
 
 ## Risks and unverified items
 - Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
