@@ -39,6 +39,14 @@ def _add_author_argument(command: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_agent_container_argument(command: argparse.ArgumentParser) -> None:
+    command.add_argument(
+        "--agent-container",
+        action="store_true",
+        help=f"Run the agent in a Docker container; needs {container.CLAUDE_AUTH_VARIABLE} (a token made for this run).",
+    )
+
+
 def _add_ci_arguments(command: argparse.ArgumentParser) -> None:
     command.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
     command.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
@@ -73,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_author_argument(loop)
     loop.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     loop.add_argument("--model", default="sonnet", help="Model for the fixer agent (default: sonnet).")
+    _add_agent_container_argument(loop)
     loop.add_argument(
         "--wait-minutes", type=float, default=45, help="Minutes to wait for each review pass (default: 45)."
     )
@@ -92,6 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument(
         "--container", action="store_true", help="Run the gate in a Docker container (no network, no host files)."
     )
+    _add_agent_container_argument(plan)
     plan.add_argument(
         "--review-wait-minutes", type=float, default=30, help="Minutes to wait for the first review (default: 30)."
     )
@@ -198,9 +208,19 @@ def _loop_authors(args: argparse.Namespace, forge: Forge) -> list[str]:
         return [REVIEW_BOT]
 
 
-def _sandbox_factory(git: LocalGit) -> SandboxFactory:
-    """Sandboxes cloned from this repository, whose commits carry the owner's identity."""
-    return functools.partial(sandbox, get_repo_root(), identity=git.identity())
+def _sandbox_factory(git: LocalGit, install: bool = True) -> SandboxFactory:
+    """Sandboxes cloned from this repository, whose commits carry the owner's identity.
+
+    A containerized agent brings its own interpreter, so it needs no virtual environment built on the host.
+    """
+    return functools.partial(sandbox, get_repo_root(), identity=git.identity(), install=install)
+
+
+def _agent(args: argparse.Namespace, git: LocalGit) -> "functools.partial[None]":
+    """The agent runner: in a container with ``--agent-container``, else on this machine."""
+    if args.agent_container:
+        return functools.partial(container.run_agent, model=args.model, identity=git.identity())
+    return functools.partial(run_claude_agent, model=args.model)
 
 
 def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
@@ -210,8 +230,8 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
         result = run_fix_loop(
             forge,
             git,
-            functools.partial(run_claude_agent, model=args.model),
-            _sandbox_factory(git),
+            _agent(args, git),
+            _sandbox_factory(git, install=not args.agent_container),
             email_notifier,
             Path(work_dir),
             args.pr,
@@ -228,14 +248,14 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
 def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
     repo_root = get_repo_root()
     with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
-        agent = functools.partial(run_claude_agent, model=args.model)
         git = LocalGit()
+        agent = _agent(args, git)
         result = run_pipeline(
             forge,
             git,
             agent,
             agent,
-            _sandbox_factory(git),
+            _sandbox_factory(git, install=not args.agent_container),
             container.run_gate if args.container else run_gate,
             email_notifier,
             repo_root,

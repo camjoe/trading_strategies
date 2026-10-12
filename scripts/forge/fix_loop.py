@@ -32,6 +32,11 @@ class RoundTask:
     new_comment_file: Path
     cwd: Path
 
+    @property
+    def files(self) -> tuple[Path, ...]:
+        """Files outside the sandbox that the prompt names, for an agent that cannot see the host's paths."""
+        return (self.old_comment_file, self.new_comment_file)
+
 
 Agent = Callable[[RoundTask], None]
 Notifier = Callable[[str, str, dict[str, object]], None]

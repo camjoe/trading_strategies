@@ -16,6 +16,9 @@ README = (
 
 
 class FakeGit:
+    def identity(self) -> tuple[str, str] | None:
+        return None
+
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.head_value = "start000"
@@ -315,6 +318,17 @@ class TestOutcome:
         assert len(setup.forge.opened) == 1 and setup.forge.ready == []
 
 
+class TestTaskFiles:
+    def test_each_task_lists_the_files_outside_the_sandbox_that_its_prompt_names(self) -> None:
+        from scripts.forge.fix_loop import RoundTask
+
+        implement = ImplementTask("p", Path("q.md"), Path("s.md"), Path("box"))
+        fix = RoundTask("p", Path("old.md"), Path("new.md"), Path("box"))
+
+        assert implement.files == (Path("q.md"), Path("s.md"))
+        assert fix.files == (Path("old.md"), Path("new.md"))
+
+
 class TestPrompt:
     def test_it_names_the_plan_branch_and_files_and_forbids_pushing(self, setup: Setup) -> None:
         setup.run()
@@ -336,7 +350,7 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
         assert cli_module.main(["implement-plan", "--plan", "plan/nope.md"], setup.forge) == 1
@@ -357,12 +371,45 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(
             cli_module.container, "run_gate", lambda base, cwd: gates.append("container") or (True, "ok")
         )
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
         cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--container"], setup.forge)
 
         assert gates and set(gates) == {"container"}
+
+
+class TestAgentContainerCommand:
+    def _run(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> list[bool]:
+        from scripts.forge import cli as cli_module
+
+        installs: list[bool] = []
+
+        def factory(local: object, install: bool = True) -> object:
+            installs.append(install)
+            return setup.sandboxes
+
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+        monkeypatch.setattr(
+            cli_module.container, "run_agent", lambda task, model=None, identity=None: setup.agent()(task)
+        )
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", factory)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        return installs
+
+    def test_the_host_sandbox_builds_a_virtual_environment_by_default(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup) == [True]
+
+    def test_a_containerized_agent_needs_no_host_virtual_environment(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup, "--agent-container") == [False]
 
 
 class TestPickupHardening:
@@ -580,7 +627,7 @@ class TestCommandWiring:
 
         monkeypatch.setattr(cli_module, "run_pipeline", fake)
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "asdict", lambda value: {})
         cli_module.main(["implement-plan", "--plan", "plan/thing.md", *flags], setup.forge)
         return seen

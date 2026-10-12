@@ -41,6 +41,11 @@ class ImplementTask:
     summary_file: Path
     cwd: Path
 
+    @property
+    def files(self) -> tuple[Path, ...]:
+        """Files outside the sandbox that the prompt names, for an agent that cannot see the host's paths."""
+        return (self.questions_file, self.summary_file)
+
 
 Agent = Callable[[ImplementTask], None]
 Gate = Callable[[str, Path], tuple[bool, str]]

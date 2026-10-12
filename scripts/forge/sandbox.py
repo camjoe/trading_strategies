@@ -67,8 +67,11 @@ def run_bounded(
     cwd: Path,
     timeout: float = STEP_TIMEOUT_SECONDS,
     env: dict[str, str] | None = None,
+    input_text: str | None = None,
 ) -> "subprocess.CompletedProcess[str]":
-    """Run *args* and capture its output; on a timeout kill the whole process tree, then raise ``TimeoutExpired``.
+    """Run *args*, feed it *input_text* on stdin, and capture its output.
+
+    On a timeout kill the whole process tree, then raise ``TimeoutExpired``.
 
     ``subprocess.run`` kills only the direct child, and grandchildren holding the output pipes would keep
     the call from returning.
@@ -82,6 +85,7 @@ def run_bounded(
         args,
         cwd=cwd,
         env=env,
+        stdin=subprocess.PIPE if input_text is not None else None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -90,7 +94,7 @@ def run_bounded(
         **group,
     ) as process:
         try:
-            stdout, stderr = process.communicate(timeout=timeout)
+            stdout, stderr = process.communicate(input=input_text, timeout=timeout)
         except subprocess.TimeoutExpired:
             _kill_tree(process)
             process.communicate()

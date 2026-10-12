@@ -25,7 +25,7 @@ _PYTHON_MODULES = (
     "scripts.forge check-body",
     "pytest",
 )
-_ALLOWED_TOOLS = ",".join(
+ALLOWED_TOOLS = ",".join(
     [
         "Read",
         "Glob",
@@ -41,7 +41,7 @@ _ALLOWED_TOOLS = ",".join(
         *(f"Bash({python} -m {module}:*)" for python in _PYTHONS for module in _PYTHON_MODULES),
     ]
 )
-_DENIED_TOOLS = ",".join(
+DENIED_TOOLS = ",".join(
     [
         *(f"Bash(git {verb}:*)" for verb in ("push", "reset", "clean", "config", "update-ref", "checkout", "restore")),
         "Bash(gh:*)",
@@ -234,9 +234,9 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                     "--output-format",
                     "json",
                     "--allowedTools",
-                    _ALLOWED_TOOLS,
+                    ALLOWED_TOOLS,
                     "--disallowedTools",
-                    _DENIED_TOOLS,
+                    DENIED_TOOLS,
                     *model_args,
                 ],
                 input=task.prompt,
@@ -251,6 +251,11 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
         raise ForgeError("The claude CLI is not installed or not on PATH.") from exc
     except subprocess.TimeoutExpired as exc:
         raise ForgeError("The agent timed out.") from exc
+    report_agent_result(completed)
+
+
+def report_agent_result(completed: "subprocess.CompletedProcess[str]") -> None:
+    """Raise ``ForgeError`` if the finished ``claude -p`` run failed; otherwise print a one-line summary."""
     result = _agent_result(completed.stdout)
     if completed.returncode != 0 or result.get("is_error"):
         raise ForgeError(f"The agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")

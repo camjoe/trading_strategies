@@ -222,6 +222,17 @@ class TestInstallAndTimeouts:
 
         assert time.monotonic() - started < 30
 
+    def test_run_bounded_feeds_the_input_text_to_stdin(self, tmp_path: Path) -> None:
+        import sys
+
+        from scripts.forge.sandbox import run_bounded
+
+        code = "import sys; print(sys.stdin.read().upper())"
+
+        completed = run_bounded([sys.executable, "-c", code], tmp_path, input_text="héllo\nworld")
+
+        assert completed.stdout.strip().splitlines() == ["HÉLLO", "WORLD"]
+
     def test_uncommitted_fails_outside_a_repository(self, tmp_path: Path) -> None:
         from scripts.forge.sandbox import Sandbox
 
@@ -295,7 +306,7 @@ class TestProcessGroupPerPlatform:
             def __exit__(self, *_exc: object) -> None:
                 return None
 
-            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            def communicate(self, input: str | None = None, timeout: float | None = None) -> tuple[str, str]:
                 return "", ""
 
         monkeypatch.setattr(sandbox_module.sys, "platform", platform)

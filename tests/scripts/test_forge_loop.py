@@ -324,7 +324,7 @@ class TestFixLoopCommand:
 
         git.require_clean_tree = lambda: None  # type: ignore[attr-defined]
         monkeypatch.setattr(cli_module, "LocalGit", lambda: git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: FakeSandboxes(Path(".")))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
@@ -694,7 +694,7 @@ class TestFixLoopCommandWiring:
 
         monkeypatch.setattr(cli_module, "run_fix_loop", fake)
         monkeypatch.setattr(cli_module, "LocalGit", Git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: FakeSandboxes(Path(".")))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("/repo"))
         monkeypatch.setattr(cli_module, "_loop_authors", lambda args, forge: ["bot"])
         cli_module.main(["fix-loop", "--pr", "7", *flags], StubForge())

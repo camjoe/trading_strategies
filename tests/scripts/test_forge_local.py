@@ -69,8 +69,8 @@ class TestRunClaudeAgent:
             local.run_claude_agent(TASK)
 
     def test_the_agent_may_run_the_repo_test_runner_and_may_not_push(self) -> None:
-        assert "Bash(.venv/Scripts/pytest.exe:*)" in local._ALLOWED_TOOLS
-        assert "Bash(git push:*)" in local._DENIED_TOOLS
+        assert "Bash(.venv/Scripts/pytest.exe:*)" in local.ALLOWED_TOOLS
+        assert "Bash(git push:*)" in local.DENIED_TOOLS
 
 
 class TestEmailNotifier:
@@ -125,6 +125,22 @@ class TestModelOption:
         assert "--model" not in self._command_for(monkeypatch)
 
 
+def test_the_agent_container_flag_chooses_the_container_runner_and_keeps_the_model_and_identity() -> None:
+    from scripts.forge import cli, container
+    from scripts.forge.cli import build_parser
+
+    class FakeGit:
+        def identity(self) -> tuple[str, str]:
+            return ("Ada", "ada@example.test")
+
+    contained = cli._agent(build_parser().parse_args(["fix-loop", "--pr", "1", "--agent-container"]), FakeGit())  # type: ignore[arg-type]
+    host = cli._agent(build_parser().parse_args(["fix-loop", "--pr", "1"]), FakeGit())  # type: ignore[arg-type]
+
+    assert contained.func is container.run_agent
+    assert contained.keywords == {"model": "sonnet", "identity": ("Ada", "ada@example.test")}
+    assert host.func is cli.run_claude_agent and host.keywords == {"model": "sonnet"}
+
+
 def test_the_fix_loop_command_defaults_to_sonnet() -> None:
     from scripts.forge.cli import build_parser
 
@@ -144,20 +160,20 @@ def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 class TestToolLimits:
     def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
-        allowed = local._ALLOWED_TOOLS.split(",")
+        allowed = local.ALLOWED_TOOLS.split(",")
 
         assert "Bash(python:*)" not in allowed and "Bash(.venv/Scripts/python.exe:*)" not in allowed
         assert "Bash(.venv/Scripts/python.exe -m scripts.run_checks:*)" in allowed
         assert "Bash(python -m pytest:*)" in allowed
 
     def test_the_agent_cannot_write_into_git_or_reach_the_remote(self) -> None:
-        denied = local._DENIED_TOOLS.split(",")
+        denied = local.DENIED_TOOLS.split(",")
 
         for item in ("Edit(.git/**)", "Write(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
             assert item in denied
 
     def test_nothing_is_both_allowed_and_denied(self) -> None:
-        assert not set(local._ALLOWED_TOOLS.split(",")) & set(local._DENIED_TOOLS.split(","))
+        assert not set(local.ALLOWED_TOOLS.split(",")) & set(local.DENIED_TOOLS.split(","))
 
 
 class TestAgentEnvironment:
