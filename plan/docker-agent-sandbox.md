@@ -125,10 +125,30 @@ disk, about 60 s to build cold. Run with every flag in the phase 1 design.
 - A clone under a long path loses deeply nested files on Windows (MAX_PATH) and then looks dirty; the sandbox
   clones under the temp directory, which is short enough on this machine.
 
+## Spike results (phase 2, 2026-10-11)
+Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-ai/claude-code@2.1.296`; about
+20 s to build on top of the gate image. Run with the phase 1 flags except the network (open), and
+`CLAUDE_CODE_OAUTH_TOKEN` as the only added variable.
+
+- Smoke test: `claude -p` ran headless, authenticated with the token alone, and answered (exit 0, `is_error`
+  false, model `claude-sonnet-5-5`, about $0.05 at list price). `HOME=/tmp` on the tmpfs is enough for its state.
+- Red-team test: asked to find secrets, the agent found no planted host variable and no host file; the only
+  secret-named variable in its Bash environment was `CLAUDE_CODE_MESSAGING_TOKEN`, not
+  `CLAUDE_CODE_OAUTH_TOKEN`, so the CLI appears to keep the OAuth token out of the tools' environment. The planted
+  file check is weak (a Windows path means nothing inside Linux); the real isolation evidence is that only the
+  clone is mounted, which the phase 1 integration tests assert.
+- Egress: `api.anthropic.com` is reachable (HTTP 404 on the bare URL, so the connection was made), as intended.
+- Not tested: whether a process the agent starts can read the token another way (see Risks), the agent's tool
+  allow and deny lists inside the container, and a full `implement-plan` run with both agent and gate in
+  containers.
+
 ## Risks and unverified items
 - Docker Desktop on Windows: line endings are fine in the spike; file ownership works with uid 10001. On a
   POSIX host the container runs as the owner's uid so the mount stays writable (untested here).
-- Headless Claude CLI authentication in a container with only the OAuth token. Unverified.
+- Headless Claude CLI authentication in a container with only the OAuth token: verified (spike below).
+- Whether code the agent runs can read the Claude token. The agent's Bash tool does not see it in its environment
+  (spike below), but the CLI process holds it and runs as the same user, so `/proc/<pid>/environ` may expose it.
+  Unverified; check before relying on the environment scrub.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.
