@@ -2,8 +2,7 @@
 
 Both containers see the clean clone mounted at ``/work``, have a read-only root filesystem, no capabilities,
 no host environment variables, and memory, CPU, and process limits. The gate has no network and no credentials.
-The agent has an open network and one credential, ``CLAUDE_CODE_OAUTH_TOKEN``, which code it runs can read: use a
-token made for the run and revoke it afterwards. The images are built from the controller's own checkout so the
+The agent has an open network and one credential, ``CLAUDE_CODE_OAUTH_TOKEN``, which code it runs can read. The images are built from the controller's own checkout so the
 clone cannot change what they install. The Docker client is injected as a ``Runner`` so the controllers stay
 testable without Docker.
 """
@@ -322,8 +321,8 @@ def run_agent(
     token = environ.get(CLAUDE_AUTH_VARIABLE, "")
     if not token:
         raise ForgeError(
-            f"{CLAUDE_AUTH_VARIABLE} is not set. Create a token for this run with `claude setup-token`, set it in "
-            "this shell, and revoke it afterwards."
+            f"{CLAUDE_AUTH_VARIABLE} is not set. Set it in this shell to a token from `claude setup-token`; "
+            "code the agent runs can read it."
         )
     image = ensure_agent_image(root or get_repo_root(), runner)
     prompt = task.prompt

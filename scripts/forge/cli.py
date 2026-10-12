@@ -43,7 +43,7 @@ def _add_agent_container_argument(command: argparse.ArgumentParser) -> None:
     command.add_argument(
         "--agent-container",
         action="store_true",
-        help=f"Run the agent in a Docker container; needs {container.CLAUDE_AUTH_VARIABLE} (a token made for this run).",
+        help=f"Run the agent in a Docker container; needs {container.CLAUDE_AUTH_VARIABLE} (a token from `claude setup-token`).",
     )
 
 

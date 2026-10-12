@@ -98,18 +98,21 @@ request that edits the workflow file itself still runs its own copy (that is how
 - Phase 2 starts with open egress and only the Claude token inside; an allowlisting proxy stays an option if the
   spike or later use shows it is needed. This is a first step, not the final answer.
 - The agent's tests run in the same container as the agent for now, so a test the agent writes could read and
-  send out the Claude token (revocable, model requests only). The gate is unaffected: it runs in its own
+  send out the Claude token (model requests only; revocation is unconfirmed, see below). The gate is unaffected: it runs in its own
   container with no network and no token.
 
-- Decided after the `/proc` check: accept that agent-run code can read the Claude token, and use a dedicated token
-  for each use (created with `claude setup-token` just before a run and revoked after), never the owner's login.
-  The host-side credential proxy and a no-network test container stay later options, to be reconsidered before any
-  scheduled or triggered run.
-- How a token is revoked (not confirmed by Anthropic's documentation): `claude setup-token` mints a new one-year
-  token each run and the CLI has no list or revoke command. Users report removing one under claude.ai, Settings,
-  Claude Code, and report that "log out all sessions" does not reliably invalidate it. Before relying on
-  "revoke afterwards", mint a token, confirm it appears on that page, remove it, and confirm a request with it
-  fails. Until then the real limit on a leaked token is its one-year life and the account's usage limits.
+- Decided after the `/proc` check (changed later the same day): accept that agent-run code can read the Claude
+  token, and reuse one token from `claude setup-token` for these runs instead of minting one per run. It is
+  entered at a hidden prompt or exported for the run and never written to a file, a shell profile, or a settings
+  `env` block. The host-side credential proxy and a no-network test container stay later options, to be
+  reconsidered before any scheduled or triggered run, and before the token is stored anywhere unattended.
+- What reuse costs: a leaked token stays usable for its one-year life unless revoked, and revoking it breaks
+  everything else that uses it. How a token is revoked is not confirmed by Anthropic's documentation:
+  `claude setup-token` mints a new one-year token each run and the CLI has no list or revoke command. Users report
+  removing one under claude.ai, Settings, Claude Code, and report that "log out all sessions" does not reliably
+  invalidate it. Before depending on revocation, mint a token, confirm it appears on that page, remove it, and
+  confirm a request with it fails. Until then the real limit on a leaked token is its one-year life and the
+  account's usage limits.
 
 ## Decisions for the owner
 1. Open egress or an allowlisting proxy for the agent container (phase 2). Decided above: open egress first.
@@ -164,11 +167,11 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
 - Code the agent runs can read the Claude token (verified by the `/proc` check below). The agent's Bash tool does not
   see it in its environment, but the CLI process and the init process hold it and run as the same user, so any
   test or script the agent starts can read `/proc/<pid>/environ` and, with open egress, send it out. The
-  environment scrub is not a protection. The exposure is what the owner accepted: a revocable token that can make
-  model requests billed to the owner. Mitigations to weigh, none built: a token created only for this use and
-  revoked after; keeping the token out of the container with a host-side proxy that adds the credential (stronger,
-  and unverified for an OAuth token); running the agent's tests in a second container with no network and no
-  token.
+  environment scrub is not a protection. The exposure is what the owner accepted: one reused token that can make
+  model requests billed to the owner. Mitigations to weigh, none built: a token created only for each use and
+  revoked after (the owner chose to reuse one instead); keeping the token out of the container with a host-side
+  proxy that adds the credential (stronger, and unverified for an OAuth token); running the agent's tests in a
+  second container with no network and no token.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.

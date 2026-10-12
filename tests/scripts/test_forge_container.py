@@ -221,7 +221,7 @@ class AgentTask:
     files: tuple[Path, ...]
 
 
-TOKEN = "dedicated-test-token-value"
+TOKEN = "test-token-value-for-redaction"
 ENVIRON = {container.CLAUDE_AUTH_VARIABLE: TOKEN}
 
 
