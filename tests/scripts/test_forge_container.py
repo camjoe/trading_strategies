@@ -536,9 +536,19 @@ class TestAgentWithDocker:
         assert result.returncode == 0 and container.CLAUDE_CODE_VERSION in result.stdout
         assert (tmp_path / ".venv" / "pyvenv.cfg").is_file()
 
-    def test_the_venv_sees_the_installed_requirements(self, image: str, tmp_path: Path) -> None:
-        script = "python -m venv --copies --system-site-packages .venv && .venv/bin/python -c 'import pytest, mypy'"
+    def test_the_venv_the_entrypoint_made_sees_the_installed_requirements(self, image: str, tmp_path: Path) -> None:
+        assert self._run(image, tmp_path, "--version").returncode == 0
 
-        result = self._run(image, tmp_path, "-c", script, entrypoint="sh")
+        result = self._run(image, tmp_path, "-c", ".venv/bin/python -c 'import pytest, mypy'", entrypoint="sh")
 
         assert result.returncode == 0, result.stderr
+
+    def test_the_host_can_delete_a_clone_the_container_made_a_venv_in(self, image: str, tmp_path: Path) -> None:
+        clone = tmp_path / "clone"
+        clone.mkdir()
+        (clone / "tracked.txt").write_text("x", encoding="utf-8")
+        assert self._run(image, clone, "--version").returncode == 0
+
+        shutil.rmtree(clone)
+
+        assert not clone.exists()

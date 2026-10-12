@@ -8,7 +8,7 @@ COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
     && claude --version \
-    && printf '%s\n' '#!/bin/sh' 'set -e' 'python -m venv --copies --system-site-packages /work/.venv' 'exec claude "$@"' \
+    && printf '%s\n' '#!/bin/sh' 'set -e' 'python -m venv --copies --system-site-packages /work/.venv' 'rm -f /work/.venv/lib64' 'exec claude "$@"' \
         > /usr/local/bin/agent-entry \
     && chmod 755 /usr/local/bin/agent-entry
 USER gate
