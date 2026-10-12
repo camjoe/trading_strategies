@@ -200,6 +200,42 @@ On the spike machine the gate took 77 s in the container against 17 s on the hos
 same 3518 passes. The frontend checks do not run in the container (it has no Node, as the sandbox never had
 `node_modules`); CI runs them. This isolates the gate only: the agent still runs as described above.
 
+### Running the agent in a container
+
+`--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in Docker as well. Set the token in the
+shell you start the command from, typing it so it is not written to a file, a profile, or a settings `env` block:
+
+```powershell
+$env:CLAUDE_CODE_OAUTH_TOKEN = Read-Host "token"   # a token from `claude setup-token`; do not paste it into chat
+python -m scripts.forge implement-plan --plan plan/<file> --agent-container
+```
+
+Without the variable the command stops with a message. The container has the gate's isolation except that the
+network is open, so the agent can reach the Claude API. The token is the one credential inside, and code the agent
+runs (a test it wrote, for example) can read it and send it out, so reuse is a risk you accept. It can make model
+requests billed to your plan, and a leaked one stays valid for up to a year unless revoked. The CLI has no
+command to list or revoke these tokens; users report removing one under claude.ai, Settings, Claude Code, but
+that is not confirmed in Anthropic's documentation, so check that page before relying on it. The tool prints the
+token as `<token>` if the agent echoes it.
+
+What else changes:
+
+- The image `trading-agent:<hash>` is the gate image plus Node 24 and the pinned Claude Code
+  (`CLAUDE_CODE_VERSION`, the same pin as the workflow). It is about 2 GB on disk and builds on first use,
+  downloading `node:24-slim` and the CLI from npm; it rebuilds when its Dockerfile, the gate requirements, or the pin
+  change.
+- The agent works in the sandbox mounted at `/work`, with a `.venv` its entrypoint makes from the image's packages
+  (so the `.venv` rule in `AGENTS.md` holds); the host sandbox skips building its own, which Windows could not use
+  in Linux anyway. The files the prompt names (questions, summary, comment files) are in one directory mounted at
+  `/exchange`, and the prompt's paths are rewritten to match.
+- Your git name and email are the commit author. Git reads no configuration, may only use the `file` transport, and
+  the sandbox has no remote to push to; the tool lists are the same as on the host.
+- A relative symlink to a directory made inside the container on the Windows mount (the `lib64` link that
+  `python -m venv` makes, for example) cannot be read or deleted by Windows; the entrypoint removes that one. If a
+  sandbox is left behind with "could not be deleted", the agent made such a link. Remove it from a container:
+  `docker run --rm --entrypoint rm -v <parent>:/p <image> -rf /p/repo`, where `<parent>` is the directory that
+  holds `repo` and `<image>` is any `trading-agent` image.
+
 ## Pin and upgrade the agent
 
 The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it

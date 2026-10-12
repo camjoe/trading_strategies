@@ -47,8 +47,9 @@ conversation.
   check ever reach the owner's checkout, which then posts and pushes. That isolates the repository, not
   the machine: the agent still runs as the owner, with GitHub tokens and the owner's git and `gh`
   configuration withheld and tool permissions that deny pushing, resetting, and `gh`, but code it writes
-  and runs can reach the rest of the filesystem and the network. `implement-plan --container` moves the
-  gate, not the agent, into a container. It has the same public-repository limits
+  and runs can reach the rest of the filesystem and the network. `--container` (the gate) and
+  `--agent-container` (the agent) move those runs into Docker containers instead; see the `implement plan`
+  shortcut for what that isolates and what it does not. It has the same public-repository limits
   as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop, the guarded-path
   list, or this section, needs the owner's yes.
 
@@ -284,6 +285,13 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
   mounted. The image is built from the owner's checkout (`docker/gate/Dockerfile`, a guarded path), so the
   agent cannot change it. It does not isolate the agent, which still runs as described under Standing
   authorizations, and it does not run the frontend checks (CI does).
+- `--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in a Docker container too. Only the
+  clean clone and the directory holding the files its prompt names are mounted, with the gate's isolation
+  (read-only root, no capabilities, no host environment variables, memory, CPU, and process limits) except that
+  the network is open. The one credential inside is `CLAUDE_CODE_OAUTH_TOKEN`, a token from
+  `claude setup-token` that the owner sets in the shell for the run and never writes to a file. It can make
+  model requests billed to the owner, and code the agent runs can read it and send it out. The agent's commits
+  still pass the same guarded-path and comment-body checks before anything is applied or pushed.
 - Invoking either is what authorizes the new branch, the pushes to it, the draft pull request, that one
   transition out of draft, and the fixer loop that follows within its own standing authorization. A start
   from a schedule or a trigger needs its own standing authorization.

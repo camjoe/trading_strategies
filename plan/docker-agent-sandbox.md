@@ -176,10 +176,12 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   revoked after (the owner chose to reuse one instead); keeping the token out of the container with a host-side
   proxy that adds the credential (stronger, and unverified for an OAuth token); running the agent's tests in a
   second container with no network and no token.
-- A symlink made inside a container on the Windows bind mount cannot be read or deleted by Windows (WinError 1920).
+- A relative symlink to a directory made inside a container on the Windows bind mount cannot be read or deleted by
+  Windows (WinError 1920; an absolute-target link did delete fine).
   `python -m venv` makes `.venv/lib64`, which broke deleting the sandbox; the agent entrypoint removes it and a
-  test checks the host can delete the clone. A symlink the agent itself creates would still leave the sandbox
-  directory behind; `sandbox()` then reports it and says to remove it by hand, and `git status` is unaffected.
+  test checks the host can delete the clone. A link of that shape that the agent itself creates would still leave
+  the sandbox directory behind; `sandbox()` then reports it and says to remove it by hand (the runbook has a
+  container command that works, tested), and `git status` is unaffected.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.
