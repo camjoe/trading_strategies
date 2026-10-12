@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-10-10
-Last Reviewed: 2026-10-10
+Last Reviewed: 2026-10-11
 Purpose: Operate the GitHub workflow that runs `pr ready` on pull requests and keeps the readiness comment current.
 Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md)
 
@@ -176,6 +176,29 @@ By default the command then waits up to 30 minutes for the review's first commen
 one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
 and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
 another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+
+### Running the gate in a container
+
+`implement-plan --container` runs step 5 in Docker instead of with your interpreter. It needs Docker running
+(Docker Desktop with the WSL2 backend on Windows); without it the command stops before the gate with "needs
+Docker". The container gets only the clean clone, mounted at `/work`, and:
+
+- no network, a read-only root filesystem with a 512 MB `/tmp`, no capabilities, `no-new-privileges`, and a
+  non-root user (the owner's uid on Linux and macOS, 10001 on Windows);
+- 4 GB of memory, 4 CPUs, and 512 processes;
+- five environment variables (`PATH`, `PYTHONPATH`, `LANG`, `HOME`, `PYTHONDONTWRITEBYTECODE`), so none of your
+  tokens or settings are visible, and none of your files outside the clone.
+
+The image is `trading-gate:<hash>`, built from `docker/gate/Dockerfile` and the requirements files in your
+checkout (never the agent's clone), and rebuilt automatically when any of them changes. The first run builds
+it (about a minute, and it downloads `python:3.14-slim`, Debian's `git` package, and the Python requirements).
+A newer base image or Debian package does not trigger a rebuild; remove the image
+(`docker image rm trading-gate:<hash>`) to pick one up. A gate that outlives its one-hour limit is red and its
+container is killed by name.
+
+On the spike machine the gate took 77 s in the container against 17 s on the host, and the full suite gave the
+same 3518 passes. The frontend checks do not run in the container (it has no Node, as the sandbox never had
+`node_modules`); CI runs them. This isolates the gate only: the agent still runs as described above.
 
 ## Pin and upgrade the agent
 
