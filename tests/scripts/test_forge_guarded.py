@@ -319,6 +319,38 @@ def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".mcp.json",
+        "apps/web/.mcp.json",
+        ".MCP.JSON",
+        "CLAUDE.local.md",
+        "docs/CLAUDE.md",
+        "src/trading/CLAUDE.md",
+        "DOCS/Claude.MD",
+        "docs/AGENTS.md",
+        "src/trading/AGENTS.md",
+        "apps/web/.claude/settings.json",
+        "apps/web/.claude/skills/x/SKILL.md",
+        "apps/web/.CLAUDE/commands/x.md",
+        ".vscode/tasks.json",
+        "apps/web/.vscode/settings.json",
+        ".devcontainer/devcontainer.json",
+    ],
+)
+def test_instructions_tool_servers_and_editor_tasks_an_agent_run_loads_are_guarded_at_any_depth(path: str) -> None:
+    assert [entry.split(":")[0] for entry in guarded_paths_touched([path])] == [path]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["docs/claude-notes.md", "docs/agents-guide.md", "docs/mcp.json.md", "docs/vscode/readme.md", "src/claude.md.bak"],
+)
+def test_names_that_only_resemble_those_files_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
 PROBE = chr(10).join(
     [
         "import importlib, json, sys",

@@ -215,6 +215,12 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   git calls run with hooks and `fsmonitor` off and without secret-looking environment variables. Tested with a
   planted `core.fsmonitor` command. The symlink case is skipped on a Windows account that cannot create
   symlinks, so only a Linux run exercises it.
+- Files a later `claude -p` run loads from the repository are guarded at any depth (`.mcp.json`, `CLAUDE.md`,
+  `CLAUDE.local.md`, `AGENTS.md`, `.claude/`), as are `.vscode/` and `.devcontainer/`, and both runners pass
+  `--strict-mcp-config`. Anthropic's documentation says a `claude -p` run in a folder it has never trusted connects
+  the servers in `.mcp.json` without asking. A nested `CLAUDE.md` being loaded when Claude reads files in its
+  directory is believed, not verified here. The publish filters also refuse more credential shapes, JSON-escaped
+  and mixed-case Windows profile paths, and account ids next to an underscore; they remain heuristics.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.

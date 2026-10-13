@@ -49,6 +49,15 @@ _DRIVE = re.compile(r"^[a-z]:")
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
 
+_AGENT_FILES = frozenset({"claude.md", "claude.local.md", "agents.md", ".mcp.json"})
+_DIRECTORY_REASONS = {
+    ".githooks": "commit hooks",
+    ".husky": "commit hooks",
+    ".claude": "agent permissions",
+    ".vscode": "editor tasks that run commands",
+    ".devcontainer": "container setup commands",
+}
+
 _EXECUTED_NAMES = frozenset(
     {
         "conftest.py",
@@ -103,8 +112,10 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
             reason = "a name that may be a Windows short name for a guarded file"
         if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):
             reason = "code Python runs when it starts"
-        if reason is None and {".githooks", ".husky"} & set(normalized.split("/")[:-1]):
-            reason = "commit hooks"
+        if reason is None:
+            reason = next((why for part in normalized.split("/")[:-1] if (why := _DIRECTORY_REASONS.get(part))), None)
+        if reason is None and name in _AGENT_FILES:
+            reason = "instructions or tool servers an agent run loads"
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
         if reason is None and (name in executed_names or _EXECUTED_CONFIG.fullmatch(name)):

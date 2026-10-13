@@ -116,6 +116,11 @@ class TestModelOption:
         local.run_claude_agent(TASK, **kwargs)  # type: ignore[arg-type]
         return next(command for command in seen if command[0] == "claude")
 
+    def test_mcp_servers_from_the_repository_are_never_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        command = self._command_for(monkeypatch)
+
+        assert "--strict-mcp-config" in command and "--mcp-config" not in command
+
     def test_the_model_is_passed_to_claude(self, monkeypatch: pytest.MonkeyPatch) -> None:
         command = self._command_for(monkeypatch, model="sonnet")
 

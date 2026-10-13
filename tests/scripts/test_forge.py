@@ -909,6 +909,66 @@ class TestPathFilters:
         assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []
 
 
+BACKSLASH = chr(92)
+
+
+class TestWiderLeakShapes:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            f"see c:{BACKSLASH}users{BACKSLASH}alice{BACKSLASH}x",
+            "see C:/USERS/alice/x",
+            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}alice{BACKSLASH}{BACKSLASH}x",
+            "see C://Users//alice",
+            f"see ~{BACKSLASH}project",
+        ],
+        ids=["lowercase", "uppercase-forward", "json-escaped", "doubled-forward", "tilde-backslash"],
+    )
+    def test_each_form_of_a_user_profile_path_is_refused_in_a_comment(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("local path" in problem for problem in leak_problems(text))
+
+    def test_a_placeholder_is_still_accepted_when_the_separators_are_doubled_or_the_case_differs(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        for text in (
+            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}x",
+            f"see c:{BACKSLASH}users{BACKSLASH}<username>{BACKSLASH}x",
+        ):
+            assert leak_problems(text) == []
+
+    @pytest.mark.parametrize(
+        "pieces",
+        [
+            ("github_pat_", "11ABCDEFG0", "A1b2C3d4" * 6),
+            ("AK", "IA", "ABCDEFGHIJKLMNOP"),
+            ("xo", "xb-", "1234567890-", "1234567890-", "AbCdEfGh"),
+            ("ey", "Jhbgcioijiuzi1nij9", ".", "ey", "JzdWIiOiIxMjM0NTY3ODkwIn0", ".", "abcDEF123_-abcDEF123"),
+            ("-----BEGIN ", "RSA ", "PRIVATE KEY-----"),
+        ],
+        ids=["fine-grained-pat", "aws-access-key", "slack-token", "jwt", "private-key-header"],
+    )
+    def test_more_credential_shapes_are_refused(self, pieces: tuple[str, ...]) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("credential" in problem for problem in leak_problems("see " + "".join(pieces) + " here"))
+
+    @pytest.mark.parametrize("text", ["acct_DU1234567", "DU1234567_paper", "file-DU1234567.csv", "DU1234567abc"])
+    def test_an_account_id_next_to_an_underscore_or_letters_is_refused(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("account id" in problem for problem in leak_problems(text))
+
+    @pytest.mark.parametrize(
+        "text", ["abcDU1234567", "DU12345678901", "DU12345", "see commit 73bb23aa and ticket 1234567"]
+    )
+    def test_ordinary_text_next_to_digits_is_not_mistaken_for_an_account_id(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert not any("account id" in problem for problem in leak_problems(text))
+
+
 def _long_value() -> str:
     return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
 

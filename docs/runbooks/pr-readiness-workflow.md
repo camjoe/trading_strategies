@@ -167,7 +167,10 @@ remote named (`git pull origin <branch>`).
 
 **What an unattended run cannot change.** `scripts/forge/guarded_paths.py` holds the full list. For
 planning, note that all of `scripts/` is guarded, because the workflow imports from it with a token in hand,
-as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. A plan whose work
+as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. Files that a
+later `claude -p` run loads as instructions or tool servers are guarded at any depth: `.mcp.json`, `CLAUDE.md`,
+`CLAUDE.local.md`, `AGENTS.md`, and anything under a `.claude/` directory; so are `.vscode/` and `.devcontainer/`.
+The agents also run with `--strict-mcp-config`, so they ignore a repository's MCP servers. A plan whose work
 includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
 pushed; do that part by hand or in a session you run yourself.
 

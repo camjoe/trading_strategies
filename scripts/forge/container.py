@@ -273,6 +273,7 @@ def agent_command(
         PERMISSION_MODE,
         "--permission-prompts",
         PERMISSION_PROMPTS,
+        "--strict-mcp-config",
         "--allowedTools",
         ALLOWED_TOOLS,
         "--disallowedTools",

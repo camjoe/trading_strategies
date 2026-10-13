@@ -14,14 +14,22 @@ _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
     re.compile(rf"/Users/(?!{_PLACEHOLDER})[^\s/`]+"),
     re.compile(rf"(?<![\w./-])/home/(?!{_PLACEHOLDER})[^\s/`]+/[^\s`]"),
-    re.compile(r"(?<![\w.])~/[^\s`]"),
-    re.compile(rf"[A-Za-z]:[\\/]Users[\\/](?!{_PLACEHOLDER})"),
+    re.compile(r"(?<![\w.])~[\\/][^\s`]"),
+    re.compile(rf"[A-Za-z]:[\\/]++Users[\\/]++(?!{_PLACEHOLDER})", re.IGNORECASE),
 )
-_ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
+_ACCOUNT_ID = re.compile(r"(?<![A-Za-z0-9])(?:DU|DF|U|F)\d{6,9}(?!\d)")
 _MAX_ADDED_STATUS_LINES = 12
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\* *$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
-_CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
+_CREDENTIAL_PATTERNS = (
+    re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
+    re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+)
 _AMBIENT_SECRETS = ("CLAUDE_CODE_OAUTH_TOKEN",)
 _MIN_DISGUISED_LENGTH = 20
 

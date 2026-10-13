@@ -360,6 +360,9 @@ class TestAgentCommand:
         assert args[args.index("--permission-prompts") + 1] == "none"
         assert "bypassPermissions" not in args and "--dangerously-skip-permissions" not in args
 
+    def test_mcp_servers_from_the_repository_are_never_used(self, root: Path, task: AgentTask) -> None:
+        assert "--strict-mcp-config" in self._args(root, task) and "--mcp-config" not in self._args(root, task)
+
     def test_no_model_flag_without_a_model(self, root: Path, task: AgentTask) -> None:
         assert "--model" not in self._args(root, task)
 

@@ -231,6 +231,7 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                     "-p",
                     "--output-format",
                     "json",
+                    "--strict-mcp-config",
                     "--allowedTools",
                     ALLOWED_TOOLS,
                     "--disallowedTools",
