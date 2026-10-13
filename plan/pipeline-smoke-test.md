@@ -1,6 +1,8 @@
 # Plan: pipeline smoke test (throwaway)
 
-Status: drafted 2026-10-12. Throwaway: it exists only to exercise `implement-plan --container --agent-container` once more, with the agent denied everything outside its allow list; delete it and its branch afterwards.
+Status: in progress (branch `feature/pipeline-smoke-test`). Before pickup: drafted 2026-10-12.
+Throwaway: it exists only to exercise `implement-plan --container --agent-container` once more, with
+the agent denied everything outside its allow list; delete it and its branch afterwards.
 
 Branch to use: `feature/pipeline-smoke-test`
 
