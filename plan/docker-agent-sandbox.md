@@ -5,7 +5,8 @@ the controllers, and the guards this plan builds on are on `develop`. Phase 3 an
 (PR #306). Phase 1 is built on `feature/docker-gate-container` behind `implement-plan --container`
 (`scripts/forge/container.py`, `docker/gate/Dockerfile`), with the `docker/` guard, the `AGENTS.md` wording, and the runbook section.
 Phase 2 is built behind `--agent-container` on `implement-plan` and `fix-loop` (`container.run_agent`,
-`docker/agent/Dockerfile`) and passed a real end-to-end session, a deny-list session, and a full pickup run; its `AGENTS.md`
+`docker/agent/Dockerfile`) and passed a real end-to-end session, a deny-list session, and two full pickup runs (the second with
+deny-by-default); its `AGENTS.md`
 and runbook wording is done. The default flip and removing this plan when the work ships remain.
 
 Branch to use: `feature/docker-gate-container`
@@ -181,6 +182,13 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   this branch as the base. The agent (11 turns, about 3 minutes, no permission denials) made one commit as the owner
   that touched only the requested test file; the gate ran in its own container and passed (967 passed, 7 skipped,
   the skipped ones needing Docker); the pull request stayed a draft as asked. The throwaway plan, pull request, and
+  branch were removed afterwards.
+- Full pickup under deny-by-default (2026-10-13): a second throwaway plan asked for a commit, then a `git mv` and a
+  `git rm` in a second commit, then the tests, `fix_checks`, and `run_checks pr`. The agent (19 turns, about 3 minutes,
+  two refused commands) made the two commits as the owner; the second was a pure rename plus a deletion, the final
+  tree differed from the start only by the new test file, the gate passed in its container (991 passed, 7 skipped),
+  and the pull request stayed a draft. The refusals were a shell heredoc it replaced with the Write tool, and a
+  compound command that listed the exchange directory (outside the clone). The throwaway plan, pull request, and
   branch were removed afterwards.
 
 ## Risks and unverified items
