@@ -1,6 +1,14 @@
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from scripts.forge.guarded_paths import guarded_paths_touched
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize(
@@ -309,3 +317,34 @@ def test_backslash_traversal_is_resolved_before_matching() -> None:
 @pytest.mark.parametrize("path", ["", ".", "a/.../b", "docs/./"])
 def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+PROBE = chr(10).join(
+    [
+        "import json, sys",
+        "from pathlib import Path",
+        "import scripts.checks.repo.review_scope_check",
+        "root = Path.cwd().resolve()",
+        "found = set()",
+        "for module in list(sys.modules.values()):",
+        "    file = getattr(module, '__file__', None)",
+        "    resolved = Path(file).resolve() if file else None",
+        "    if resolved and root in resolved.parents and '.venv' not in resolved.parts:",
+        "        found.add(resolved.relative_to(root).as_posix())",
+        "print(json.dumps(sorted(found)))",
+    ]
+)
+
+
+def test_every_repository_module_the_review_scope_check_loads_is_a_guarded_path() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", PROBE],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join([str(REPO_ROOT), str(REPO_ROOT / "src")])},
+    )
+    loaded = json.loads(result.stdout)
+
+    assert loaded and [file for file in loaded if not guarded_paths_touched([file])] == []
