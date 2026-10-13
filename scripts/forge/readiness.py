@@ -1,6 +1,8 @@
 """Checks on the text of a readiness comment, and of agent-written text, before it is published."""
 
+import base64
 import difflib
+import os
 import re
 from collections.abc import Collection
 
@@ -20,6 +22,8 @@ _MAX_ADDED_STATUS_LINES = 12
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\* *$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
 _CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
+_AMBIENT_SECRETS = ("CLAUDE_CODE_OAUTH_TOKEN",)
+_MIN_DISGUISED_LENGTH = 20
 
 _CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _PUBLISH_PATTERNS = (
@@ -82,12 +86,35 @@ def comment_problems(
     return body_problems(body, old_pass, forbidden, same_pass=True) + fixer_edit_problems(old, body)
 
 
+def _disguises(secret: str) -> set[str]:
+    """*secret* as written, and when long enough to be unique, reversed, in hex, and in base64."""
+    forms = {secret}
+    if len(secret) < _MIN_DISGUISED_LENGTH:
+        return forms
+    data = secret.encode("utf-8")
+    forms |= {secret[::-1], data.hex(), data.hex().upper()}
+    for encoded in (base64.b64encode(data).decode(), base64.urlsafe_b64encode(data).decode()):
+        forms |= {encoded, encoded.rstrip("=")}
+    return forms
+
+
+def _contains_secret(text: str, secrets: Collection[str]) -> bool:
+    compact = "".join(text.split())
+    return any(form in text or form in compact for secret in secrets for form in _disguises(secret))
+
+
 def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
-    """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text."""
+    """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text.
+
+    A forbidden string, and the value of any variable in ``_AMBIENT_SECRETS`` that is set, is refused as
+    written, with whitespace removed, and (when long) reversed or encoded in hex or base64. Other encodings
+    are not caught.
+    """
     problems: list[str] = []
+    ambient = [value for name in _AMBIENT_SECRETS if len(value := os.environ.get(name, "")) >= _MIN_DISGUISED_LENGTH]
     if any(not item for item in forbidden):
         problems.append("A forbidden string is not set or empty, so it cannot be checked.")
-    elif any(item in text for item in forbidden):
+    elif _contains_secret(text, [*forbidden, *ambient]):
         problems.append("The body contains a forbidden string.")
     if any(pattern.search(text) for pattern in _PATH_PATTERNS):
         problems.append("The body contains a local path.")

@@ -909,6 +909,68 @@ class TestPathFilters:
         assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []
 
 
+def _long_value() -> str:
+    return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+
+
+class TestForbiddenValueDisguises:
+    @pytest.mark.parametrize(
+        "make",
+        [
+            lambda v: v,
+            lambda v: v[::-1],
+            lambda v: v.encode().hex(),
+            lambda v: v.encode().hex().upper(),
+            lambda v: __import__("base64").b64encode(v.encode()).decode(),
+            lambda v: __import__("base64").urlsafe_b64encode(v.encode()).decode().rstrip("="),
+            lambda v: " ".join(v[i : i + 12] for i in range(0, len(v), 12)),
+            lambda v: chr(10).join(v[i : i + 9] for i in range(0, len(v), 9)),
+        ],
+        ids=["plain", "reversed", "hex", "hex-upper", "base64", "urlsafe-unpadded", "spaced", "line-wrapped"],
+    )
+    def test_a_long_forbidden_value_is_refused_in_each_disguise(self, make: object) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        value = _long_value()
+        text = "Summary: all done. " + make(value) + " Nothing else."  # type: ignore[operator]
+
+        assert any("forbidden" in problem for problem in leak_problems(text, [value]))
+
+    def test_the_claude_token_in_the_environment_is_refused_without_being_listed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        value = _long_value()
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", value)
+        hexed = "Summary: " + value.encode().hex()
+
+        assert any("forbidden" in problem for problem in leak_problems(hexed))
+        assert any("forbidden" in problem for problem in publish_problems(hexed))
+
+    def test_an_unset_or_short_environment_value_blocks_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        assert leak_problems("Summary: added two tests.") == []
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "abc")
+        assert leak_problems("abc is a short word and the value is too short to check") == []
+
+    def test_a_short_forbidden_value_is_matched_as_written_only(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert leak_problems("value s3cr3t here", ["s3cr3t"]) != []
+        assert leak_problems("hex " + b"s3cr3t".hex(), ["s3cr3t"]) == []
+
+    def test_ordinary_prose_and_unrelated_encodings_pass(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", _long_value())
+        text = "Added tests. See commit 73bb23aa and " + "ab" * 40
+
+        assert leak_problems(text) == []
+
+
 def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
     from scripts.forge.readiness import publish_problems
 
