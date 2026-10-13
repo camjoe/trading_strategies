@@ -357,6 +357,25 @@ class TestAgentCommand:
         assert "--model" not in self._args(root, task)
 
 
+class TestMountPaths:
+    def test_a_clone_path_with_a_comma_is_refused_before_anything_runs(self, root: Path, tmp_path: Path) -> None:
+        docker = FakeDocker()
+
+        with pytest.raises(ForgeError, match="comma"):
+            container.run_gate("origin/develop", tmp_path / "a,readonly=false", docker, root)
+
+        assert "run" not in docker.verbs()
+
+    def test_an_exchange_path_with_a_comma_is_refused_for_the_agent(self, root: Path, task: AgentTask) -> None:
+        bad = AgentTask(task.prompt, task.cwd, (task.files[0].parent / "x,y" / "q.md",))
+        docker = FakeDocker(gate=agent_result())
+
+        with pytest.raises(ForgeError, match="comma"):
+            container.run_agent(bad, runner=docker, root=root, environ=ENVIRON)
+
+        assert "run" not in docker.verbs()
+
+
 class TestRunAgent:
     def test_the_prompt_goes_in_on_stdin_with_host_paths_rewritten_to_the_exchange_mount(
         self, root: Path, task: AgentTask

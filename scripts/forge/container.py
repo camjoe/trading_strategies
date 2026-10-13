@@ -154,6 +154,13 @@ def _user() -> str:
     return f"{os.getuid()}:{os.getgid()}"
 
 
+def _mount(source: Path, target: str) -> list[str]:
+    """A bind mount of *source* at *target*; a comma in the path would add mount options, so it is refused."""
+    if "," in str(source):
+        raise ForgeError(f"A path with a comma cannot be mounted safely: {source}")
+    return ["--mount", f"type=bind,source={source},target={target}"]
+
+
 def _isolation(name: str, clone: Path) -> list[str]:
     """The flags both containers share: no capabilities, read-only root, limits, and only the clone mounted."""
     return [
@@ -176,8 +183,7 @@ def _isolation(name: str, clone: Path) -> list[str]:
         CPUS,
         "--pids-limit",
         PIDS_LIMIT,
-        "--mount",
-        f"type=bind,source={clone},target={WORKDIR}",
+        *_mount(clone, WORKDIR),
         "--workdir",
         WORKDIR,
     ]
@@ -252,8 +258,7 @@ def agent_command(
         "run",
         "-i",
         *_isolation(name, clone),
-        "--mount",
-        f"type=bind,source={exchange},target={EXCHANGE}",
+        *_mount(exchange, EXCHANGE),
         *_environment(environment),
         "--env",
         CLAUDE_AUTH_VARIABLE,
