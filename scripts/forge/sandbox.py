@@ -1,13 +1,15 @@
 """A throwaway clone of the repository, with its own virtual environment, for an agent to work in.
 
 The agent never touches the owner's checkout: it commits in the clone, and the controller fetches those
-commits afterwards and checks them. Nothing else crosses back, so hooks, git configuration, ignored files,
-and the virtual environment the agent changed are discarded with the clone. The clone's remote points at
-nothing, so it cannot push anywhere. This isolates the repository, not the machine: code the agent writes and
-runs still runs as the owner.
+commits afterwards and checks them. Nothing else crosses back, so ignored files and the virtual environment
+the agent changed are discarded with the clone. The clone's remote points at nothing, so it cannot push
+anywhere. The agent can write the clone's ``.git`` directory, so ``harden_clone`` resets what git would run
+from it before the controller runs git there. This isolates the repository, not the machine: code the agent
+writes and runs still runs as the owner, unless it ran in a container.
 """
 
 import os
+import re
 import shutil
 import signal
 import stat
@@ -22,6 +24,49 @@ from typing import Any, Protocol
 
 from scripts.forge.base import ForgeError
 
+NO_EXEC_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
+SECRET_NAME = re.compile(
+    r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|WEBHOOK|SMTP|^TRADING_RUNTIME|^SSH_AUTH_SOCK$", re.IGNORECASE
+)
+TRUSTED_CONFIG = "trusted-git-config"
+_UNTRUSTED_GIT_PATHS = ("hooks", "objects/info/alternates", "info/attributes", "commondir", "config.worktree")
+
+
+def _remove(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path, onexc=_make_writable)
+
+
+def harden_clone(path: Path) -> None:
+    """Reset what git would run from the clone at *path*, which an agent or a container may have written.
+
+    ``.git`` must be a plain directory. Its configuration is replaced by the copy saved when the sandbox was
+    built (when there is one), and hooks, alternates, attributes, and worktree redirection are removed, so a
+    configured ``core.fsmonitor`` or filter command cannot run when the controller uses git there. Anything
+    that cannot be cleaned raises ``ForgeError``.
+    """
+    git_dir = path / ".git"
+    try:
+        if git_dir.is_symlink() or not git_dir.is_dir():
+            raise ForgeError("The sandbox's .git is not a plain directory, so git was not run there.")
+        for relative in _UNTRUSTED_GIT_PATHS:
+            _remove(git_dir / relative)
+        trusted = path.parent / TRUSTED_CONFIG
+        if trusted.is_file():
+            _remove(git_dir / "config")
+            shutil.copyfile(trusted, git_dir / "config")
+    except OSError as exc:
+        raise ForgeError(f"The sandbox's .git could not be cleaned, so git was not run there: {exc}") from exc
+
+
+def git_environment(base: dict[str, str] | None = None) -> dict[str, str]:
+    """*base* (default: this process's environment) without secret-looking variables."""
+    return {
+        name: value for name, value in (os.environ if base is None else base).items() if not SECRET_NAME.search(name)
+    }
+
 
 @dataclass(frozen=True)
 class Sandbox:
@@ -29,8 +74,13 @@ class Sandbox:
 
     def uncommitted(self) -> list[str]:
         """Changed or new files git would list, ignored files excluded; commits are all that cross back."""
+        harden_clone(self.path)
         try:
-            completed = run_bounded(["git", "status", "--porcelain", "--untracked-files=all"], self.path)
+            completed = run_bounded(
+                ["git", *NO_EXEC_GIT, "status", "--porcelain", "--untracked-files=all"],
+                self.path,
+                env=git_environment(),
+            )
         except subprocess.TimeoutExpired as exc:
             raise ForgeError("Sandbox step timed out (git status).") from exc
         if completed.returncode != 0:
@@ -133,6 +183,7 @@ def build_sandbox(
     if identity:
         _run(["git", "config", "user.name", identity[0]], dest)
         _run(["git", "config", "user.email", identity[1]], dest)
+    shutil.copyfile(dest / ".git" / "config", parent / TRUSTED_CONFIG)
     if install:
         _run([sys.executable, "-m", "venv", str(dest / ".venv")], dest)
         python = venv_python(dest / ".venv")

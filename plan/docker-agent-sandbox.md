@@ -193,6 +193,12 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   test checks the host can delete the clone. A link of that shape that the agent itself creates would still leave
   the sandbox directory behind; `sandbox()` then reports it and says to remove it by hand (the runbook has a
   container command that works, tested), and `git status` is unaffected.
+- The agent can write the sandbox's `.git` directory (its configuration and hooks), and the controller runs git
+  there after the agent finishes. `harden_clone` resets that configuration from a copy saved at build time and
+  removes hooks and alternates before the controller's `git status` and before commits are imported, and those
+  git calls run with hooks and `fsmonitor` off and without secret-looking environment variables. Tested with a
+  planted `core.fsmonitor` command. The symlink case is skipped on a Windows account that cannot create
+  symlinks, so only a Linux run exercises it.
 - Image size and rebuild time when requirements change. Unverified.
 - Docker adds its own attack surface (the daemon runs privileged). Do not mount the Docker socket into any
   container, and keep the flags above.

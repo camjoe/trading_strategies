@@ -1,11 +1,16 @@
+import os
+import shutil
+import stat
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from scripts.forge.base import ForgeError
 from scripts.forge.local import LocalGit
-from scripts.forge.sandbox import build_sandbox, sandbox, venv_python
+from scripts.forge.sandbox import TRUSTED_CONFIG, Sandbox, build_sandbox, harden_clone, sandbox, venv_python
 
 
 def git(root: Path, *args: str) -> str:
@@ -227,7 +232,7 @@ class TestInstallAndTimeouts:
 
         from scripts.forge.sandbox import run_bounded
 
-        code = "import sys; print(sys.stdin.read().upper())"
+        code = "import sys; sys.stdin.reconfigure(encoding='utf-8'); sys.stdout.reconfigure(encoding='utf-8'); print(sys.stdin.read().upper())"
 
         completed = run_bounded([sys.executable, "-c", code], tmp_path, input_text="héllo\nworld")
 
@@ -235,6 +240,8 @@ class TestInstallAndTimeouts:
 
     def test_uncommitted_fails_outside_a_repository(self, tmp_path: Path) -> None:
         from scripts.forge.sandbox import Sandbox
+
+        (tmp_path / ".git").mkdir()
 
         with pytest.raises(ForgeError, match="git status"):
             Sandbox(tmp_path).uncommitted()
@@ -346,6 +353,136 @@ def test_a_status_read_that_never_finishes_is_a_forge_error(tmp_path: Path, monk
         raise subprocess.TimeoutExpired("git", 1)
 
     monkeypatch.setattr(sandbox_module, "run_bounded", slow)
+    (tmp_path / ".git").mkdir()
 
     with pytest.raises(ForgeError, match="timed out"):
         Sandbox(tmp_path).uncommitted()
+
+
+class TestHardening:
+    def _box(self, repo: Path, tmp_path: Path) -> Sandbox:
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        return build_sandbox(repo, git(repo, "rev-parse", "HEAD"), parent, install=False)
+
+    def _plant_fsmonitor(self, box: Sandbox, marker: Path) -> None:
+        with (box.path / ".git" / "config").open("a", encoding="utf-8") as config:
+            config.write(f"[core]{chr(10)}{chr(9)}fsmonitor = echo hit > {marker.as_posix()}{chr(10)}")
+
+    def _control(self, box: Sandbox, marker: Path) -> None:
+        subprocess.run(["git", "status"], cwd=box.path, capture_output=True, check=False)
+        if not marker.exists():
+            pytest.skip("this git does not run a configured fsmonitor command, so the plant proves nothing")
+        marker.unlink()
+
+    def test_a_command_planted_in_the_clones_config_does_not_run_when_the_controller_checks_it(
+        self, repo: Path, tmp_path: Path
+    ) -> None:
+        box = self._box(repo, tmp_path)
+        marker = tmp_path / "marker"
+        self._plant_fsmonitor(box, marker)
+        self._control(box, marker)
+
+        assert box.uncommitted() == []
+
+        assert not marker.exists()
+        assert "fsmonitor" not in (box.path / ".git" / "config").read_text(encoding="utf-8")
+
+    def test_a_command_planted_in_the_clones_config_does_not_run_when_its_commits_are_imported(
+        self, repo: Path, tmp_path: Path
+    ) -> None:
+        box = self._box(repo, tmp_path)
+        marker = tmp_path / "marker"
+        self._plant_fsmonitor(box, marker)
+        self._control(box, marker)
+
+        imported = LocalGit(repo).import_commits(box.path, git(repo, "rev-parse", "HEAD"))
+
+        assert imported == git(repo, "rev-parse", "HEAD")
+        assert not marker.exists()
+        assert "fsmonitor" not in (box.path / ".git" / "config").read_text(encoding="utf-8")
+
+    def test_the_trusted_config_is_restored_and_hooks_and_alternates_are_removed(
+        self, repo: Path, tmp_path: Path
+    ) -> None:
+        box = self._box(repo, tmp_path)
+        trusted = (box.path.parent / TRUSTED_CONFIG).read_text(encoding="utf-8")
+        git_dir = box.path / ".git"
+        (git_dir / "config").write_text("[alias]" + chr(10) + chr(9) + "x = !echo" + chr(10), encoding="utf-8")
+        (git_dir / "hooks").mkdir(exist_ok=True)
+        (git_dir / "hooks" / "pre-commit").write_text("exit 0", encoding="utf-8")
+        (git_dir / "objects" / "info").mkdir(parents=True, exist_ok=True)
+        (git_dir / "objects" / "info" / "alternates").write_text("/elsewhere", encoding="utf-8")
+        (git_dir / "info").mkdir(exist_ok=True)
+        (git_dir / "info" / "attributes").write_text("* filter=x", encoding="utf-8")
+
+        harden_clone(box.path)
+
+        assert (git_dir / "config").read_text(encoding="utf-8") == trusted
+        assert not (git_dir / "hooks").exists()
+        assert not (git_dir / "objects" / "info" / "alternates").exists()
+        assert not (git_dir / "info" / "attributes").exists()
+
+    def test_a_symlinked_config_is_replaced_and_its_target_is_left_alone(self, repo: Path, tmp_path: Path) -> None:
+        box = self._box(repo, tmp_path)
+        outside = tmp_path / "outside.txt"
+        outside.write_text("keep me", encoding="utf-8")
+        config = box.path / ".git" / "config"
+        config.unlink()
+        try:
+            config.symlink_to(outside)
+        except OSError, NotImplementedError:
+            pytest.skip("symbolic links cannot be created here")
+
+        harden_clone(box.path)
+
+        assert not config.is_symlink() and outside.read_text(encoding="utf-8") == "keep me"
+        assert config.read_text(encoding="utf-8") == (box.path.parent / TRUSTED_CONFIG).read_text(encoding="utf-8")
+
+    def test_a_git_directory_that_is_not_a_plain_directory_is_refused(self, repo: Path, tmp_path: Path) -> None:
+        box = self._box(repo, tmp_path)
+
+        def make_writable_then_retry(function: Callable[[str], object], path: str, _exc: object) -> None:
+            os.chmod(path, stat.S_IWRITE)
+            function(path)
+
+        shutil.rmtree(box.path / ".git", onexc=make_writable_then_retry)
+        (box.path / ".git").write_text("gitdir: /elsewhere", encoding="utf-8")
+
+        with pytest.raises(ForgeError, match="not a plain directory"):
+            box.uncommitted()
+
+    def test_a_sandbox_without_a_saved_config_is_still_cleaned_of_hooks(self, tmp_path: Path) -> None:
+        (tmp_path / ".git" / "hooks").mkdir(parents=True)
+        (tmp_path / ".git" / "hooks" / "post-checkout").write_text("exit 0", encoding="utf-8")
+        (tmp_path / ".git" / "config").write_text("[core]", encoding="utf-8")
+
+        harden_clone(tmp_path)
+
+        assert not (tmp_path / ".git" / "hooks").exists()
+        assert (tmp_path / ".git" / "config").read_text(encoding="utf-8") == "[core]"
+
+    def test_git_status_runs_without_hooks_or_fsmonitor_and_without_the_owners_secrets(
+        self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge import sandbox as sandbox_module
+
+        box = self._box(repo, tmp_path)
+        seen: dict[str, Any] = {}
+
+        def fake(
+            args: list[str], cwd: Path, timeout: float = 0, env: dict[str, str] | None = None, **_k: object
+        ) -> "subprocess.CompletedProcess[str]":
+            seen.update(args=args, env=env)
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        monkeypatch.setattr(sandbox_module, "run_bounded", fake)
+        monkeypatch.setenv("GH_TOKEN", "owner-secret")
+        monkeypatch.setenv("TRADING_RUNTIME_ALERT_SMTP_PASSWORD", "owner-secret")
+
+        box.uncommitted()
+
+        assert "core.fsmonitor=false" in seen["args"] and any("core.hooksPath" in a for a in seen["args"])
+        env = seen["env"]
+        assert isinstance(env, dict) and "GH_TOKEN" not in env and "TRADING_RUNTIME_ALERT_SMTP_PASSWORD" not in env
+        assert "PATH" in env or "Path" in env

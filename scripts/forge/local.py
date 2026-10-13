@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -12,10 +11,10 @@ from typing import Any, Protocol
 
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError
-from scripts.forge.sandbox import run_bounded, venv_python
+from scripts.forge.sandbox import NO_EXEC_GIT, SECRET_NAME, harden_clone, run_bounded, venv_python
 
 AGENT_TIMEOUT_SECONDS = 3600
-_CONTROLLER_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
+_CONTROLLER_GIT = NO_EXEC_GIT
 GATE_TIMEOUT_SECONDS = 3600
 _PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
 _PYTHON_MODULES = (
@@ -50,9 +49,6 @@ DENIED_TOOLS = ",".join(
     ]
 )
 
-_SECRET_NAME = re.compile(
-    r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|WEBHOOK|SMTP|^TRADING_RUNTIME|^SSH_AUTH_SOCK$", re.IGNORECASE
-)
 _KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
 
 
@@ -107,7 +103,9 @@ class LocalGit:
         """Fetch HEAD of the repository at *source* and return its commit; nothing is checked out.
 
         Refused unless that commit is *since* or descends from it, so the commits are an honest range to check.
+        The source's git configuration and hooks are reset first, because the agent could write them.
         """
+        harden_clone(source)
         self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
         sha = self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
         try:
@@ -188,7 +186,7 @@ def agent_environment(
     env = {
         name: value
         for name, value in base.items()
-        if name.startswith(_KEPT_FOR_CLAUDE) or not _SECRET_NAME.search(name)
+        if name.startswith(_KEPT_FOR_CLAUDE) or not SECRET_NAME.search(name)
     }
     empty_gitconfig = scratch / "gitconfig"
     empty_gitconfig.write_text("", encoding="utf-8")
