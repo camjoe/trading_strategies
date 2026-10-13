@@ -45,6 +45,8 @@ AGENT_DOCKERFILE = Path("docker/agent/Dockerfile")
 IMAGE_REPOSITORY = "trading-gate"
 AGENT_IMAGE_REPOSITORY = "trading-agent"
 CLAUDE_CODE_VERSION = "2.1.296"
+PERMISSION_MODE = "dontAsk"
+PERMISSION_PROMPTS = "none"
 CLAUDE_AUTH_VARIABLE = "CLAUDE_CODE_OAUTH_TOKEN"
 BUILD_TIMEOUT_SECONDS = 1800
 GATE_TIMEOUT_SECONDS = 3600
@@ -229,7 +231,8 @@ def agent_command(
     """The ``docker run`` arguments for one agent session; the prompt goes in on stdin.
 
     The token is passed by name, so its value is never on a command line. Git reads no configuration but the
-    ``safe.directory`` entry, may use only the ``file`` transport, and has no remote to push to.
+    ``safe.directory`` entry, may use only the ``file`` transport, and has no remote to push to. Anything not
+    in the allow list is denied, not prompted for.
     """
     environment = {
         "PATH": f"{WORKDIR}/.venv/bin:/usr/local/bin:/usr/bin:/bin",
@@ -266,6 +269,10 @@ def agent_command(
         "-p",
         "--output-format",
         "json",
+        "--permission-mode",
+        PERMISSION_MODE,
+        "--permission-prompts",
+        PERMISSION_PROMPTS,
         "--allowedTools",
         ALLOWED_TOOLS,
         "--disallowedTools",

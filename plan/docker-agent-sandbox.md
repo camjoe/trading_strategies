@@ -63,8 +63,8 @@ exposure; a network policy limits the rest.
 - The agent's tests run in the same container, so a test that exfiltrates would still see the Claude token.
   Accept that (the token is revocable and model-only) or run tests in a second `--network none` container
   the agent cannot start itself (not designed; would need a tool the agent can call).
-- Same flags as phase 1 except the network. The tool deny list stays as a second layer (the allow list does not
-  confine the agent; see the spike results).
+- Same flags as phase 1 except the network. The CLI runs with `--permission-mode dontAsk --permission-prompts none`, so
+  anything outside the allow list is denied; the deny list stays as well (see the spike results).
 
 ### Phase 3: run the forge tool from the base branch in the workflow (done in this branch)
 Both jobs of `.github/workflows/pr-readiness.yml` check out the base branch into `trusted` and run every
@@ -168,7 +168,15 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   and the working tree were unchanged afterwards. Commands on neither list were not refused: `cat /etc/hostname` ran,
   and a `curl` probe was allowed and failed only because the image has no `curl`. So in `claude -p` the deny list is
   the hard boundary and the allow list does not confine the agent to the commands it names; this matches the host
-  runner, which passes the same lists (not tested there). Do not rely on the allow list to stop anything.
+  runner, which passes the same lists (not tested there). Do not rely on the allow list to stop anything unless the
+  CLI runs in a deny-by-default mode (next entry).
+- Deny-by-default (2026-10-12): the container agent now passes `--permission-mode dontAsk --permission-prompts none`
+  (both exist in 2.1.296; in `-p` prompts otherwise go to an SDK host, and a headless run has none). Re-run: all eight
+  denied commands, `curl`, `touch`, and even `cat` were refused, `Write` and `Edit` on `.git/` were refused, and the
+  sandbox was unchanged. An end-to-end session still passed with one denial: the agent tried a shell heredoc for its
+  summary, was refused, and used the `Write` tool. Denying everything unlisted means the agent cannot delete or
+  rename files, so `git rm` and `git mv` were added to the allow list (only the unit test covers them). The host
+  runner and the CI reviewer are unchanged and still run without deny-by-default.
 - Full pickup (2026-10-12): `implement-plan --container --agent-container --no-ready --no-fix` on a throwaway plan, with
   this branch as the base. The agent (11 turns, about 3 minutes, no permission denials) made one commit as the owner
   that touched only the requested test file; the gate ran in its own container and passed (967 passed, 7 skipped,

@@ -229,7 +229,10 @@ What else changes:
   in Linux anyway. The files the prompt names (questions, summary, comment files) are in one directory mounted at
   `/exchange`, and the prompt's paths are rewritten to match.
 - Your git name and email are the commit author. Git reads no configuration, may only use the `file` transport, and
-  the sandbox has no remote to push to; the tool lists are the same as on the host.
+  the sandbox has no remote to push to. The tool lists are the same as on the host, but the container runs the CLI with
+  `--permission-mode dontAsk --permission-prompts none`, so anything outside the allow list is denied (for example
+  `cat`, `curl`, or `touch`); on the host an unlisted command is not blocked. The agent reads files with its Read,
+  Glob, and Grep tools and removes or moves them with `git rm` and `git mv`.
 - A relative symlink to a directory made inside the container on the Windows mount (the `lib64` link that
   `python -m venv` makes, for example) cannot be read or deleted by Windows; the entrypoint removes that one. If a
   sandbox is left behind with "could not be deleted", the agent made such a link. Remove it from a container:

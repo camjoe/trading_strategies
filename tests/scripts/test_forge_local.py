@@ -159,6 +159,13 @@ def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: 
 
 
 class TestToolLimits:
+    def test_the_agent_may_remove_and_move_files_through_git_and_still_may_not_reset_or_push(self) -> None:
+        allowed = local.ALLOWED_TOOLS.split(",")
+        denied = local.DENIED_TOOLS.split(",")
+
+        assert "Bash(git rm:*)" in allowed and "Bash(git mv:*)" in allowed
+        assert "Bash(git reset:*)" in denied and "Bash(git push:*)" in denied
+
     def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
         allowed = local.ALLOWED_TOOLS.split(",")
 

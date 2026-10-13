@@ -33,7 +33,7 @@ ALLOWED_TOOLS = ",".join(
         "Write",
         "Skill",
         "Agent",
-        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "status", "diff", "log", "show")),
+        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "rm", "mv", "status", "diff", "log", "show")),
         "Bash(.venv/bin/pytest:*)",
         "Bash(.venv/Scripts/pytest.exe:*)",
         "Bash(ls:*)",

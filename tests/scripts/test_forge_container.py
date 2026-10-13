@@ -353,6 +353,13 @@ class TestAgentCommand:
         assert args[args.index("--model") + 1] == "sonnet"
         assert args[args.index("-p") - 1].startswith("trading-agent:")
 
+    def test_anything_outside_the_allow_list_is_denied_not_prompted_for(self, root: Path, task: AgentTask) -> None:
+        args = self._args(root, task)
+
+        assert args[args.index("--permission-mode") + 1] == "dontAsk"
+        assert args[args.index("--permission-prompts") + 1] == "none"
+        assert "bypassPermissions" not in args and "--dangerously-skip-permissions" not in args
+
     def test_no_model_flag_without_a_model(self, root: Path, task: AgentTask) -> None:
         assert "--model" not in self._args(root, task)
 
