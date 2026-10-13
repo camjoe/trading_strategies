@@ -280,11 +280,11 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
 
     Do not import ``trading`` at module level in this file: the workflow's posting job imports it.
     """
-    try:
-        from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
-        from trading.interfaces.runtime.notifications import notify_runtime_event
+    from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
+    from trading.interfaces.runtime.notifications import notify_runtime_event
 
-        config = resolve_email_config_from_env()
+    config = resolve_email_config_from_env()
+    try:
         delivered = notify_runtime_event(
             event="pr-readiness-loop",
             status="ok" if details.get("outcome") == "ready" else "warn",

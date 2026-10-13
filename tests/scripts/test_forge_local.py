@@ -141,6 +141,15 @@ def test_the_agent_container_flag_chooses_the_container_runner_and_keeps_the_mod
     assert host.func is cli.run_claude_agent and host.keywords == {"model": "sonnet"}
 
 
+def test_the_implement_plan_command_defaults_to_the_host_runners_and_sonnet() -> None:
+    from scripts.forge.cli import build_parser
+
+    args = build_parser().parse_args(["implement-plan", "--plan", "plan/x.md"])
+
+    assert args.model == "sonnet" and args.base == "develop"
+    assert args.container is False and args.agent_container is False
+
+
 def test_the_fix_loop_command_defaults_to_sonnet() -> None:
     from scripts.forge.cli import build_parser
 

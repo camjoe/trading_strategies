@@ -239,6 +239,21 @@ Decided, not changed:
   cannot express it; the cost of a miss is one lost turn.
 - An account-id shape inside a code block still fails the body check: a broker id is a leak wherever it sits.
 
+Reconciled 2026-10-13 against the open notes on PRs #301 and #306 (the readiness comments are frozen, so their
+open boxes no longer reflect the code):
+- Already fixed: path resolution and the short-name shape in `guarded_paths`, the controller-git, push, and
+  `exists_on` tests, the swapped-wait and Blockers-tier tests, the guard-entry tests, the shared leftover message,
+  the post job's token test, the held ref, the non-zero `git status` branch.
+- Fixed in this branch: the import-walk is now backed by a real import of each workflow entry point (every
+  repository module it loads must be guarded), the wiring test names its arguments instead of indexing them, a
+  refusal before the plan is parsed is tested to name no branch, `implement-plan` defaults are tested, the test
+  helper `load_plan` moved above its first use, and the `try` in `email_notifier` wraps only the send.
+- Left on purpose: the two path-pattern lists in `readiness.py` differ in meaning (the comment filter wants a path
+  after a home directory, the publish filter does not), so sharing one would change behavior; the post job's repeated
+  `PYTHONPATH` and `working-directory` could be job-level defaults, but that is a workflow edit that cannot be
+  exercised until it is merged; the exact-name `Monitor` deny, the substring skill tests, and the fakes that label a
+  push by call order are test-design preferences with no failing case.
+
 ### Not in this branch
 - The email path: set the `TRADING_RUNTIME_ALERT_SMTP_*` variables and run the one-line `email_notifier` check
   (its own branch, as agreed).

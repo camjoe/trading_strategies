@@ -321,9 +321,9 @@ def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
 
 PROBE = chr(10).join(
     [
-        "import json, sys",
+        "import importlib, json, sys",
         "from pathlib import Path",
-        "import scripts.checks.repo.review_scope_check",
+        "importlib.import_module(sys.argv[1])",
         "root = Path.cwd().resolve()",
         "found = set()",
         "for module in list(sys.modules.values()):",
@@ -336,9 +336,13 @@ PROBE = chr(10).join(
 )
 
 
-def test_every_repository_module_the_review_scope_check_loads_is_a_guarded_path() -> None:
+@pytest.mark.parametrize(
+    "entry",
+    ["scripts.checks.repo.review_scope_check", "scripts.forge.cli", "scripts.forge.readiness"],
+)
+def test_every_repository_module_a_workflow_entry_point_loads_is_a_guarded_path(entry: str) -> None:
     result = subprocess.run(
-        [sys.executable, "-c", PROBE],
+        [sys.executable, "-c", PROBE, entry],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

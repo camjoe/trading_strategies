@@ -1,4 +1,4 @@
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 import pytest
@@ -133,7 +133,7 @@ class Setup:
         self.closed_when_gated.append(self.sandboxes.closed)
         return self.gate_result
 
-    def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
+    def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):
         def run(task: ImplementTask) -> None:
             self.git.calls.append("agent")
             self.git.phase = "agent"
@@ -367,10 +367,16 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
-        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: gates.append("host") or (True, "ok"))
-        monkeypatch.setattr(
-            cli_module.container, "run_gate", lambda base, cwd: gates.append("container") or (True, "ok")
-        )
+
+        def gate_named(name: str) -> Callable[[str, Path], tuple[bool, str]]:
+            def gate(base: str, cwd: Path) -> tuple[bool, str]:
+                gates.append(name)
+                return True, "ok"
+
+            return gate
+
+        monkeypatch.setattr(cli_module, "run_gate", gate_named("host"))
+        monkeypatch.setattr(cli_module.container, "run_gate", gate_named("container"))
         monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
@@ -410,6 +416,16 @@ class TestAgentContainerCommand:
         self, monkeypatch: pytest.MonkeyPatch, setup: Setup
     ) -> None:
         assert self._run(monkeypatch, setup, "--agent-container") == [False]
+
+
+class TestRefusalBeforeThePlanIsParsed:
+    def test_a_missing_plan_index_is_refused_and_names_no_branch(self, setup: Setup) -> None:
+        del setup.git.files["plan/README.md"]
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and result.branch is None and "README.md" in result.detail
+        assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
 
 
 class TestPickupHardening:
@@ -619,8 +635,28 @@ class TestCommandWiring:
                 detail = ""
                 pr_number = 1
 
-        def fake(*args: object, **kwargs: object) -> object:
-            seen["args"] = args
+        def fake(
+            forge: object,
+            git: object,
+            implement_agent: object,
+            fix_agent: object,
+            sandbox_factory: object,
+            gate: object,
+            notify: object,
+            repo_root: object,
+            work_dir: object,
+            plan_file: object,
+            *_rest: object,
+            **kwargs: object,
+        ) -> object:
+            seen.update(
+                forge=forge,
+                git=git,
+                implement_agent=implement_agent,
+                fix_agent=fix_agent,
+                sandbox_factory=sandbox_factory,
+                plan_file=plan_file,
+            )
             seen.update(kwargs)
             seen["max_rounds"] = kwargs.get("max_rounds")
             return Done()
@@ -637,9 +673,8 @@ class TestCommandWiring:
     ) -> None:
         seen = self._captured(monkeypatch, setup)
 
-        args = seen["args"]
-        assert args[0] is setup.forge and args[1] is setup.git and args[4] is setup.sandboxes  # type: ignore[index]
-        assert args[9] == "thing.md" and args[2] is args[3]  # type: ignore[index]
+        assert seen["forge"] is setup.forge and seen["git"] is setup.git and seen["sandbox_factory"] is setup.sandboxes
+        assert seen["plan_file"] == "thing.md" and seen["implement_agent"] is seen["fix_agent"]
         assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
         assert seen["base"] == "develop" and seen["max_rounds"] == 3
 
