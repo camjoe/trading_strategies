@@ -206,6 +206,23 @@ class TestToolLimits:
         assert "Bash(git rm:*)" in allowed and "Bash(git mv:*)" in allowed
         assert "Bash(git reset:*)" in denied and "Bash(git push:*)" in denied
 
+    def test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits(self) -> None:
+        import re
+
+        from scripts.forge.base import RESTRICTED_SHELL
+
+        git_verbs = re.findall(r"Bash\(git (\w+):\*\)", local.ALLOWED_TOOLS)
+        deny_listed = re.findall(r"Bash\(git (\w+):\*\)", local.DENIED_TOOLS)
+
+        assert git_verbs and all(
+            f"`{verb}`" in RESTRICTED_SHELL or f"`git {verb}`" in RESTRICTED_SHELL for verb in git_verbs
+        )
+        assert deny_listed and not any(f"`{verb}`" in RESTRICTED_SHELL for verb in deny_listed)
+        for tool in ("Write", "Edit", "Bash(ls:*)", "scripts.fix_checks", "scripts.run_checks", "run_suite", "pytest"):
+            assert tool in local.ALLOWED_TOOLS
+        for word in ("Write", "Edit", "`ls`", "pytest", "`fix_checks`", "`run_checks`", "`run_suite`"):
+            assert word in RESTRICTED_SHELL
+
     def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
         allowed = local.ALLOWED_TOOLS.split(",")
 

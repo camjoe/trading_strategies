@@ -653,6 +653,7 @@ def test_the_round_prompt_tells_the_fixer_to_commit_everything_and_to_run_git_ad
     from scripts.forge.fix_loop import round_prompt
 
     prompt = round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))
+    assert "Your shell is restricted" in prompt and "do not write a question for it" in prompt
 
     assert "leave no uncommitted files" in prompt
     assert "separate commands, never chained with `&&`" in prompt

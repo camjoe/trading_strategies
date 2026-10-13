@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-from scripts.forge.base import CheckoutGit, Forge, ForgeError
+from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
 from scripts.forge.readiness import publish_problems
@@ -70,6 +70,7 @@ def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, su
             "You are in a throwaway clone of the repository with its own .venv, on a detached HEAD: commit on it",
             "and do not create or switch branches. Commit in logical commits, each with its tests, and leave no",
             "uncommitted changes. Run `git add` and `git commit` as separate commands, never chained with `&&`.",
+            RESTRICTED_SHELL,
             "Do not push or use gh, and do not edit the plan's Status line or the plan index.",
             "If the plan is ambiguous, or it is unclear whether something is public or private, write the",
             f"questions to {questions} and leave that part undone.",

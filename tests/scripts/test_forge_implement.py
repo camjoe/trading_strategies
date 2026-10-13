@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge.base import ForgeError
+from scripts.forge.base import RESTRICTED_SHELL, ForgeError
 from scripts.forge.implement import ImplementResult, ImplementTask, run_implement_plan
 from tests.scripts.test_forge import FakeSandboxes, StubForge
 
@@ -338,6 +338,7 @@ class TestPrompt:
         assert str(setup.tasks[0].questions_file) in prompt and str(setup.tasks[0].summary_file) in prompt
         assert "Do not push or use gh" in prompt
         assert "separate commands, never chained with `&&`" in prompt
+        assert RESTRICTED_SHELL in prompt
 
 
 class TestImplementPlanCommand:

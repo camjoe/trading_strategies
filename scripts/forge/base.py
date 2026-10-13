@@ -11,6 +11,13 @@ from typing import Any, Literal, Protocol
 
 READINESS_MARKER = "<!-- pr-readiness -->"
 
+RESTRICTED_SHELL = (
+    "Your shell is restricted: create and edit files with the Write and Edit tools, and run only `git add`, "
+    "`commit`, `rm`, `mv`, `status`, `diff`, `log`, `show`, `ls`, and the repository's pytest, `fix_checks`, "
+    "`run_checks`, and `run_suite`. A refused command does not mean the shell is unusable: use a file tool or "
+    "one of those commands instead, and do not write a question for it."
+)
+
 CiState = Literal["pass", "fail", "pending", "none"]
 
 
