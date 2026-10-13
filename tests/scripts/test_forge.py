@@ -969,6 +969,54 @@ class TestWiderLeakShapes:
         assert not any("account id" in problem for problem in leak_problems(text))
 
 
+ESC = chr(27)
+BEL = chr(7)
+
+
+class TestPrintable:
+    def test_control_sequences_are_shown_as_escapes_not_acted_on(self) -> None:
+        from scripts.forge.base import printable
+
+        text = f"ok {ESC}[31mred{ESC}[0m {ESC}]52;c;ZXZpbA=={BEL} end"
+
+        shown = printable(text)
+
+        assert ESC not in shown and BEL not in shown
+        assert "\\u001b[31mred" in shown and "\\u0007" in shown
+
+    def test_bidirectional_overrides_and_zero_width_characters_are_escaped(self) -> None:
+        from scripts.forge.base import printable
+
+        shown = printable("a\u202eb\u200bc\u0085d")
+
+        assert shown == "a\\u202eb\\u200bc\\u0085d"
+
+    def test_newlines_tabs_and_ordinary_text_pass_through(self) -> None:
+        from scripts.forge.base import printable
+
+        text = "line one\n\tindented \u00e9\u4e2d\U0001f600 and punctuation: (a) [b] {c} <d>"
+
+        assert printable(text) == text
+
+    def test_an_astral_control_like_character_uses_the_long_escape(self) -> None:
+        from scripts.forge.base import printable
+
+        assert printable("x\U000e0041y") == "x\\U000e0041y"
+
+    def test_the_cli_prints_a_failure_message_without_raw_control_characters(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        def failing(args: object, forge: object) -> None:
+            raise ForgeError(f"The agent failed: {ESC}[2J{ESC}]0;owned{BEL}")
+
+        monkeypatch.setitem(cli_module.COMMANDS, "pr-info", failing)
+
+        assert main(["pr-info", "--pr", "1"], StubForge()) == 1
+
+        err = capsys.readouterr().err
+        assert ESC not in err and BEL not in err and "owned" in err
+
+
 def _long_value() -> str:
     return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
 

@@ -162,6 +162,32 @@ def test_the_fix_loop_command_defaults_to_sonnet() -> None:
     assert build_parser().parse_args(["fix-loop", "--pr", "1", "--model", "opus"]).model == "opus"
 
 
+def test_a_denied_command_with_terminal_control_characters_is_listed_as_escapes(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    command = chr(27) + "]52;c;ZXZpbA==" + chr(7) + "rm"
+    denial = {"tool_name": "Bash", "tool_input": {"command": command}}
+    result = {"is_error": False, "num_turns": 1, "duration_ms": 1, "permission_denials": [denial]}
+    monkeypatch.setattr(local.subprocess, "run", lambda *a, **k: completed(json.dumps(result)))
+
+    local.run_claude_agent(TASK)
+
+    err = capsys.readouterr().err
+    assert chr(27) not in err and chr(7) not in err and "denied:" in err
+
+
+def test_an_agent_error_message_with_control_characters_is_escaped_in_the_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = {"is_error": True, "result": chr(27) + "[2Jgone"}
+    monkeypatch.setattr(local.subprocess, "run", lambda *a, **k: completed(json.dumps(result), returncode=1))
+
+    with pytest.raises(ForgeError) as raised:
+        local.run_claude_agent(TASK)
+
+    assert chr(27) not in str(raised.value) and "gone" in str(raised.value)
+
+
 def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     denial = {"tool_name": "Bash", "tool_input": {"command": "cp a b"}}
     result = {"is_error": False, "num_turns": 1, "duration_ms": 1, "permission_denials": [denial]}

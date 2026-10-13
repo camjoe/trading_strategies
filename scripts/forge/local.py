@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from common.git import get_repo_root, git_output, split_nul
-from scripts.forge.base import ForgeError
+from scripts.forge.base import ForgeError, printable
 from scripts.forge.sandbox import NO_EXEC_GIT, SECRET_NAME, harden_clone, run_bounded, venv_python
 
 AGENT_TIMEOUT_SECONDS = 3600
@@ -257,7 +257,8 @@ def report_agent_result(completed: "subprocess.CompletedProcess[str]") -> None:
     """Raise ``ForgeError`` if the finished ``claude -p`` run failed; otherwise print a one-line summary."""
     result = _agent_result(completed.stdout)
     if completed.returncode != 0 or result.get("is_error"):
-        raise ForgeError(f"The agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
+        failure = result.get("result") or completed.stderr.strip() or "no output"
+        raise ForgeError(f"The agent failed: {printable(str(failure))}")
     denials = result.get("permission_denials") or []
     print(
         f"Agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, {len(denials)} permission denials.",
@@ -265,7 +266,7 @@ def report_agent_result(completed: "subprocess.CompletedProcess[str]") -> None:
     )
     for denial in denials:
         command = (denial.get("tool_input") or {}).get("command") or denial.get("tool_name")
-        print(f"  denied: {str(command)[:120]}", file=sys.stderr)
+        print(f"  denied: {printable(str(command)[:120])}", file=sys.stderr)
 
 
 def _agent_result(stdout: str) -> dict[str, Any]:

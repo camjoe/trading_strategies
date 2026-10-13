@@ -18,6 +18,21 @@ class ForgeError(RuntimeError):
     """A forge operation failed or was refused."""
 
 
+def printable(text: str) -> str:
+    """*text* with control, formatting, and non-printing characters shown as escapes, except newline and tab.
+
+    Text an agent wrote is untrusted; printed raw, an escape sequence in it would act on the owner's terminal.
+    """
+    return "".join(
+        char
+        if char in "\n\t" or char.isprintable()
+        else f"\\u{ord(char):04x}"
+        if ord(char) < 0x10000
+        else f"\\U{ord(char):08x}"
+        for char in text
+    )
+
+
 class CheckoutGit(Protocol):
     """What the fixer loop and the plan pickup both need from git in the owner's checkout."""
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from common.git import get_repo_root, git_output
 from scripts.forge import container
-from scripts.forge.base import Forge, ForgeError
+from scripts.forge.base import Forge, ForgeError, printable
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
@@ -292,6 +292,6 @@ def main(argv: Sequence[str] | None = None, forge: Forge | None = None) -> int:
     try:
         COMMANDS[args.command](args, forge or GitHubForge())
     except ForgeError as exc:
-        print(f"forge: {exc}", file=sys.stderr)
+        print(f"forge: {printable(str(exc))}", file=sys.stderr)
         return 1
     return 0
