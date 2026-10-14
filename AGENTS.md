@@ -47,9 +47,10 @@ conversation.
   check ever reach the owner's checkout, which then posts and pushes. That isolates the repository, not
   the machine: the agent still runs as the owner, with GitHub tokens and the owner's git and `gh`
   configuration withheld and tool permissions that deny pushing, resetting, and `gh`, but code it writes
-  and runs can reach the rest of the filesystem and the network. `--container` (the gate) and
-  `--agent-container` (the agent) move those runs into Docker containers instead; see the `implement plan`
-  shortcut for what that isolates and what it does not. It has the same public-repository limits
+  and runs can reach the rest of the filesystem and the network. The gate runs in a Docker
+  container by default (`--no-container` runs it on the owner's machine) and `--agent-container` runs the agent
+  in one; see the `implement plan` shortcut for what that isolates and what it does not. It has the same
+  public-repository limits
   as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop, the guarded-path
   list, or this section, needs the owner's yes.
 
@@ -280,11 +281,13 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
   a guarded path are never pushed or applied: they are kept in a local-only ref (`refs/forge/held/<branch>/<commit>`)
   for the owner to inspect, because GitHub runs workflow files from a pushed commit. When the pull
   request does leave draft, the command waits for the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
-- `--container` runs the pickup's gate in a Docker container instead of on the owner's machine: no network, a
-  read-only root, no capabilities, five environment variables and no host secrets, and only the clean clone
-  mounted. The image is built from the owner's checkout (`docker/gate/Dockerfile`, a guarded path), so the
-  agent cannot change it. It does not isolate the agent, which still runs as described under Standing
-  authorizations, and it does not run the frontend checks (CI does).
+- The pickup's gate runs in a Docker container by default (`--no-container` runs it on the owner's machine): no
+  network, a read-only root, no capabilities, five environment variables and no host secrets, and only the clean
+  clone mounted. The image is built from the owner's checkout (`docker/gate/Dockerfile`, a guarded path), so the
+  agent cannot change it. Before it claims a plan the command checks that Docker is running and builds the image
+  if needed, and it stops with nothing opened on GitHub if Docker is not available. It does not isolate the
+  agent, which still runs as described under Standing authorizations, and it does not run the frontend checks
+  (CI does).
 - `--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in a Docker container too. Only the
   clean clone and the directory holding the files its prompt names are mounted, with the gate's isolation
   (read-only root, no capabilities, no host environment variables, memory, CPU, and process limits) except that
