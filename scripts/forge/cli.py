@@ -99,7 +99,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     plan.add_argument(
-        "--container", action="store_true", help="Run the gate in a Docker container (no network, no host files)."
+        "--container",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run the gate in a Docker container with no network and no host files (the default); "
+        "--no-container runs it on this machine.",
     )
     _add_agent_container_argument(plan)
     plan.add_argument(
@@ -226,6 +230,8 @@ def _agent(args: argparse.Namespace, git: LocalGit) -> "functools.partial[None]"
 def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
     git = LocalGit()
     git.require_clean_tree()
+    if args.agent_container:
+        container.preflight(get_repo_root(), gate=False, agent=True)
     with tempfile.TemporaryDirectory(prefix="fix-loop-") as work_dir:
         result = run_fix_loop(
             forge,
@@ -247,6 +253,8 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
 
 def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
     repo_root = get_repo_root()
+    if args.container or args.agent_container:
+        container.preflight(repo_root, gate=args.container, agent=args.agent_container)
     with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
         git = LocalGit()
         agent = _agent(args, git)

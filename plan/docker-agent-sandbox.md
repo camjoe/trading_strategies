@@ -113,6 +113,9 @@ request that edits the workflow file itself still runs its own copy (that is how
   `claude setup-token` mints a new one-year token each run and the CLI has no list or revoke command. Users report
   removing one under claude.ai, Settings, Claude Code, and report that "log out all sessions" does not reliably
   invalidate it. The real limit on a leaked token is its one-year life and the account's usage limits.
+- Decided 2026-10-14 (owner): the gate container is the default for `implement-plan` (`--no-container` opts out and
+  the command refuses when Docker is not running); the agent container stays opt-in until it has run on 3 to 5
+  real plans. Both are checked before the plan is claimed.
 - Decided 2026-10-14 (owner): the owner does not intend to revoke the token or to confirm that revocation works. The
   exposure is a model-only token on a low-cost subscription, accepted as it is; the credential proxy stays an
   option for any scheduled or triggered run.

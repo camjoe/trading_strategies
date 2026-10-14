@@ -182,9 +182,11 @@ another `--base` pass `--no-fix`. The loop trusts the readiness comment from `gi
 
 ### Running the gate in a container
 
-`implement-plan --container` runs step 5 in Docker instead of with your interpreter. It needs Docker running
-(Docker Desktop with the WSL2 backend on Windows); without it the command stops before the gate with "needs
-Docker". The container gets only the clean clone, mounted at `/work`, and:
+`implement-plan` runs step 5 in Docker by default; `--no-container` runs it with your interpreter instead. It
+needs Docker running (Docker Desktop with the WSL2 backend on Windows). Before it claims the plan, the command
+checks that Docker works and builds the image if it is missing, and it stops there, with nothing opened on GitHub,
+if Docker is not installed or its daemon is not running. The container gets only the clean clone, mounted at
+`/work`, and:
 
 - no network, a read-only root filesystem with a 512 MB `/tmp`, no capabilities, `no-new-privileges`, and a
   non-root user (the owner's uid on Linux and macOS, 10001 on Windows);
@@ -204,7 +206,8 @@ runs them. This isolates the gate only: the agent still runs as described above.
 
 ### Running the agent in a container
 
-`--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in Docker as well. Set the token in the
+`--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in Docker as well; it is opt-in until it has
+run on several real plans. Set the token in the
 shell you start the command from, typing it so it is not written to a file, a profile, or a settings `env` block:
 
 ```powershell
@@ -212,7 +215,7 @@ $env:CLAUDE_CODE_OAUTH_TOKEN = Read-Host "token"   # a token from `claude setup-
 python -m scripts.forge implement-plan --plan plan/<file> --agent-container
 ```
 
-Without the variable the command stops with a message. The container has the gate's isolation except that the
+Without the variable the command stops with a message before it claims the plan. The container has the gate's isolation except that the
 network is open, so the agent can reach the Claude API. The token is the one credential inside, and code the agent
 runs (a test it wrote, for example) can read it and send it out, so reuse is a risk you accept. It can make model
 requests billed to your plan, and a leaked one stays valid for up to a year unless revoked. The CLI has no

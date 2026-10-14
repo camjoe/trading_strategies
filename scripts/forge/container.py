@@ -115,16 +115,38 @@ def _docker(runner: Runner, args: list[str], timeout: float) -> "subprocess.Comp
     try:
         return runner(["docker", *args], timeout)
     except FileNotFoundError as exc:
-        raise ForgeError("The container gate needs Docker, which could not be started.") from exc
+        raise ForgeError(
+            "Docker could not be started, and the container runs need it: install and start Docker, "
+            "or pass --no-container to run the gate on this machine."
+        ) from exc
     except subprocess.TimeoutExpired as exc:
         raise ForgeError(f"Docker step timed out ({args[0]}).") from exc
+
+
+_DAEMON_DOWN = (
+    "cannot connect to the docker daemon",
+    "failed to connect to the docker api",
+    "error during connect",
+    "is the docker daemon running",
+)
+
+
+def _daemon_down(completed: "subprocess.CompletedProcess[str]") -> bool:
+    text = (completed.stderr + completed.stdout).lower()
+    return any(marker in text for marker in _DAEMON_DOWN)
 
 
 def _build_if_missing(
     runner: Runner, tag: str, files: Mapping[str, bytes], build_args: Mapping[str, str], what: str
 ) -> None:
-    if _docker(runner, ["image", "inspect", tag], 120).returncode == 0:
+    inspected = _docker(runner, ["image", "inspect", tag], 120)
+    if inspected.returncode == 0:
         return
+    if _daemon_down(inspected):
+        raise ForgeError(
+            "Docker is installed but its daemon is not running: start Docker, "
+            "or pass --no-container to run the gate on this machine."
+        )
     with tempfile.TemporaryDirectory(prefix="forge-image-") as context:
         for name, content in files.items():
             (Path(context) / name).write_bytes(content)
@@ -325,6 +347,33 @@ def _exchange_directory(files: Sequence[Path]) -> Path:
     return parents.pop()
 
 
+def _missing_token_message() -> str:
+    return (
+        f"{CLAUDE_AUTH_VARIABLE} is not set. Set it in this shell to a token from `claude setup-token`; "
+        "code the agent runs can read it."
+    )
+
+
+def preflight(
+    root: Path,
+    *,
+    gate: bool,
+    agent: bool,
+    runner: Runner = docker_runner,
+    environ: Mapping[str, str] = os.environ,
+) -> None:
+    """Fail before a plan is claimed when a container run could not start.
+
+    That is Docker not running, an image that cannot be built, or, for the agent, a missing token.
+    """
+    if agent and not environ.get(CLAUDE_AUTH_VARIABLE):
+        raise ForgeError(_missing_token_message())
+    if agent:
+        ensure_agent_image(root, runner)
+    elif gate:
+        ensure_image(root, runner)
+
+
 def run_agent(
     task: HasFiles,
     model: str | None = None,
@@ -340,10 +389,7 @@ def run_agent(
     """
     token = environ.get(CLAUDE_AUTH_VARIABLE, "")
     if not token:
-        raise ForgeError(
-            f"{CLAUDE_AUTH_VARIABLE} is not set. Set it in this shell to a token from `claude setup-token`; "
-            "code the agent runs can read it."
-        )
+        raise ForgeError(_missing_token_message())
     image = ensure_agent_image(root or get_repo_root(), runner)
     prompt = task.prompt
     for file in task.files:
@@ -353,7 +399,10 @@ def run_agent(
     try:
         completed = runner(["docker", *command], AGENT_TIMEOUT_SECONDS, prompt)
     except FileNotFoundError as exc:
-        raise ForgeError("The container agent needs Docker, which could not be started.") from exc
+        raise ForgeError(
+            "Docker could not be started, and the container agent needs it: install and start Docker, "
+            "or run without --agent-container."
+        ) from exc
     except subprocess.TimeoutExpired as exc:
         _kill_container(runner, name)
         raise ForgeError("The agent timed out.") from exc

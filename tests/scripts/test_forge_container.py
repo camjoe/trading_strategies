@@ -121,7 +121,7 @@ class TestEnsureImage:
         def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
             raise FileNotFoundError("docker")
 
-        with pytest.raises(ForgeError, match="needs Docker"):
+        with pytest.raises(ForgeError, match="Docker could not be started"):
             container.ensure_image(root, runner)
 
 
@@ -377,6 +377,59 @@ class TestAgentCommand:
         assert "--model" not in self._args(root, task)
 
 
+class TestDaemonAndPreflight:
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine",
+            "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+            "error during connect: Get http://x: dial tcp",
+        ],
+    )
+    def test_a_daemon_that_is_not_running_is_named_not_mistaken_for_a_missing_image(
+        self, root: Path, stderr: str
+    ) -> None:
+        calls: list[str] = []
+
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            calls.append(args[1])
+            return completed(returncode=1, stderr=stderr)
+
+        with pytest.raises(ForgeError, match="daemon is not running.*--no-container"):
+            container.ensure_image(root, runner)
+
+        assert calls == ["image"]
+
+    def test_the_gate_preflight_checks_only_the_gate_image(self, root: Path) -> None:
+        docker = FakeDocker(image_present=True)
+
+        container.preflight(root, gate=True, agent=False, runner=docker, environ={})
+
+        assert docker.verbs() == ["image"]
+
+    def test_the_agent_preflight_checks_both_images_and_the_token(self, root: Path) -> None:
+        docker = FakeDocker(image_present=True)
+
+        container.preflight(root, gate=True, agent=True, runner=docker, environ=ENVIRON)
+
+        assert docker.verbs() == ["image", "image"]
+
+    def test_the_agent_preflight_stops_on_a_missing_token_before_touching_docker(self, root: Path) -> None:
+        docker = FakeDocker()
+
+        with pytest.raises(ForgeError, match="setup-token"):
+            container.preflight(root, gate=True, agent=True, runner=docker, environ={})
+
+        assert docker.calls == []
+
+    def test_a_missing_image_is_built_by_the_preflight_so_the_run_does_not_pay_for_it(self, root: Path) -> None:
+        docker = FakeDocker(image_present=False)
+
+        container.preflight(root, gate=True, agent=False, runner=docker, environ={})
+
+        assert docker.verbs() == ["image", "build"]
+
+
 class TestUserAndStop:
     def test_the_container_user_is_a_fixed_non_root_id_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(container.sys, "platform", "win32")
@@ -514,7 +567,7 @@ class TestRunAgent:
                 raise FileNotFoundError("docker")
             return completed()
 
-        with pytest.raises(ForgeError, match="needs Docker"):
+        with pytest.raises(ForgeError, match="Docker could not be started"):
             container.run_agent(task, runner=runner, root=root, environ=ENVIRON)
 
 

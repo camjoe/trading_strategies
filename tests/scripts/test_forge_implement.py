@@ -345,6 +345,11 @@ class TestPrompt:
         assert RESTRICTED_SHELL in prompt
 
 
+@pytest.fixture(autouse=True)
+def _no_real_docker(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scripts.forge.container.preflight", lambda *args, **kwargs: None)
+
+
 class TestImplementPlanCommand:
     def test_a_refusal_exits_one_and_a_clean_run_exits_zero(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], setup: Setup
@@ -358,14 +363,13 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
-        assert cli_module.main(["implement-plan", "--plan", "plan/nope.md"], setup.forge) == 1
+        assert cli_module.main(["implement-plan", "--plan", "plan/nope.md", "--no-container"], setup.forge) == 1
         assert '"outcome": "refused"' in capsys.readouterr().out
-        assert cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready"], setup.forge) == 0
+        args = ["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--no-container"]
+        assert cli_module.main(args, setup.forge) == 0
         assert '"outcome": "no-progress"' in capsys.readouterr().out
 
-    def test_the_container_flag_swaps_the_gate_and_nothing_else(
-        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
-    ) -> None:
+    def _gates_used(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> set[str]:
         from scripts.forge import cli as cli_module
 
         gates: list[str] = []
@@ -385,9 +389,19 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
-        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--container"], setup.forge)
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        return set(gates)
 
-        assert gates and set(gates) == {"container"}
+    def test_the_gate_runs_in_a_container_by_default(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
+        assert self._gates_used(monkeypatch, setup) == {"container"}
+
+    def test_no_container_runs_the_gate_on_this_machine(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
+        assert self._gates_used(monkeypatch, setup, "--no-container") == {"host"}
+
+    def test_the_container_flag_is_still_accepted_and_means_the_default(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._gates_used(monkeypatch, setup, "--container") == {"container"}
 
 
 class TestWhatTheAgentWrites:
@@ -470,6 +484,60 @@ class TestWhatTheAgentWrites:
         assert "push" not in setup.git.calls and len(setup.git.held) == 1
 
 
+class TestPreflightWiring:
+    def _run(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> list[dict[str, bool]]:
+        from scripts.forge import cli as cli_module
+
+        seen: list[dict[str, bool]] = []
+
+        def record(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            seen.append({"gate": gate, "agent": agent})
+
+        monkeypatch.setattr(cli_module.container, "preflight", record)
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+        monkeypatch.setattr(cli_module.container, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        return seen
+
+    def test_the_default_checks_the_gate_container_before_the_plan_is_claimed(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup) == [{"gate": True, "agent": False}]
+
+    def test_the_agent_container_flag_adds_the_agent_to_the_check(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        monkeypatch.setattr("scripts.forge.container.run_agent", lambda task, **kwargs: setup.agent()(task))
+
+        assert self._run(monkeypatch, setup, "--agent-container") == [{"gate": True, "agent": True}]
+
+    def test_nothing_is_checked_when_everything_runs_on_this_machine(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup, "--no-container") == []
+
+    def test_a_failed_preflight_stops_the_command_before_any_branch_or_pull_request(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from scripts.forge import cli as cli_module
+
+        def failing(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            raise ForgeError("Docker is installed but its daemon is not running")
+
+        monkeypatch.setattr(cli_module.container, "preflight", failing)
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+
+        assert cli_module.main(["implement-plan", "--plan", "plan/thing.md"], setup.forge) == 1
+
+        assert "daemon is not running" in capsys.readouterr().err
+        assert setup.forge.opened == [] and setup.git.calls == []
+
+
 class TestAgentContainerCommand:
     def _run(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> list[bool]:
         from scripts.forge import cli as cli_module
@@ -489,7 +557,9 @@ class TestAgentContainerCommand:
         monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
         monkeypatch.setattr(cli_module, "_sandbox_factory", factory)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
-        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        cli_module.main(
+            ["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--no-container", *flags], setup.forge
+        )
         return installs
 
     def test_the_host_sandbox_builds_a_virtual_environment_by_default(
