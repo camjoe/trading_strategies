@@ -174,10 +174,11 @@ The agents also run with `--strict-mcp-config`, so they ignore a repository's MC
 includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
 pushed; do that part by hand or in a session you run yourself.
 
-By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
+By default the command then waits up to 45 minutes for the review's first comment and runs the fixer loop
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
-one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
-and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
+one email at the end. `--no-fix` stops once the pull request is ready (then run `fix-loop` yourself if you want
+another `--max-rounds`); `--wait-minutes` sets how long it waits for each review pass, the first included. The
+review only runs on pull requests into `develop`, so with
 another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
 
 ### Running the gate in a container

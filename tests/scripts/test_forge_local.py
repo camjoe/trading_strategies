@@ -157,6 +157,35 @@ def test_the_implement_plan_command_defaults_to_the_container_gate_the_host_agen
     assert build_parser().parse_args(["implement-plan", "--plan", "x", "--container"]).container is True
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["ci-status"],
+        ["implement-plan", "--plan", "x", "--author", "someone"],
+        ["implement-plan", "--plan", "x", "--max-rounds", "2"],
+        ["implement-plan", "--plan", "x", "--review-wait-minutes", "5"],
+        ["fix-loop", "--pr", "1", "--author", "someone"],
+    ],
+)
+def test_the_trimmed_operation_and_options_are_gone(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    from scripts.forge.cli import build_parser
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(argv)
+
+    assert "error" in capsys.readouterr().err
+
+
+def test_the_options_that_remain_on_the_owner_commands_still_parse() -> None:
+    from scripts.forge.cli import build_parser
+
+    plan = build_parser().parse_args(["implement-plan", "--plan", "x", "--wait-minutes", "7", "--no-fix"])
+    loop = build_parser().parse_args(["fix-loop", "--pr", "1", "--max-rounds", "2", "--wait-minutes", "5"])
+
+    assert plan.wait_minutes == 7 and plan.no_fix is True
+    assert loop.max_rounds == 2 and loop.wait_minutes == 5
+
+
 def test_the_fix_loop_command_defaults_to_sonnet() -> None:
     from scripts.forge.cli import build_parser
 

@@ -813,7 +813,6 @@ class TestCommandWiring:
                 plan_file=plan_file,
             )
             seen.update(kwargs)
-            seen["max_rounds"] = kwargs.get("max_rounds")
             return Done()
 
         monkeypatch.setattr(cli_module, "run_pipeline", fake)
@@ -831,7 +830,8 @@ class TestCommandWiring:
         assert seen["forge"] is setup.forge and seen["git"] is setup.git and seen["sandbox_factory"] is setup.sandboxes
         assert seen["plan_file"] == "thing.md" and seen["implement_agent"] is seen["fix_agent"]
         assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
-        assert seen["base"] == "develop" and seen["max_rounds"] == 3
+        assert seen["base"] == "develop" and "max_rounds" not in seen
+        assert seen["review_wait_seconds"] == 2700 and seen["wait_seconds"] == 2700
 
     def test_each_flag_reaches_the_pipeline(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
         seen = self._captured(
@@ -842,17 +842,13 @@ class TestCommandWiring:
             "--depends-ok",
             "--base",
             "main",
-            "--max-rounds",
-            "2",
-            "--review-wait-minutes",
-            "5",
             "--wait-minutes",
             "7",
         )
 
         assert seen["fix"] is False and seen["mark_ready"] is False and seen["depends_ok"] is True
-        assert seen["base"] == "main" and seen["max_rounds"] == 2
-        assert seen["review_wait_seconds"] == 300 and seen["wait_seconds"] == 420
+        assert seen["base"] == "main"
+        assert seen["review_wait_seconds"] == 420 and seen["wait_seconds"] == 420
 
 
 class TestHoldFailure:

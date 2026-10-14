@@ -368,6 +368,7 @@ class TestFixLoopCommand:
 
         git.require_clean_tree = lambda: None  # type: ignore[attr-defined]
         monkeypatch.setattr(cli_module, "LocalGit", lambda: git)
+        monkeypatch.setattr(cli_module, "_loop_authors", lambda forge: ["bot"])
         monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
@@ -380,7 +381,7 @@ class TestFixLoopCommand:
         forge, git = world(readiness(title="READY"))
         self._patch(monkeypatch, git)
 
-        assert main(["fix-loop", "--pr", "7", "--author", "bot"], forge) == 0
+        assert main(["fix-loop", "--pr", "7"], forge) == 0
         assert '"outcome": "ready"' in capsys.readouterr().out
 
     def test_a_stopped_loop_exits_one(
@@ -391,7 +392,7 @@ class TestFixLoopCommand:
         forge, git = world(None)
         self._patch(monkeypatch, git)
 
-        assert main(["fix-loop", "--pr", "7", "--author", "bot"], forge) == 1
+        assert main(["fix-loop", "--pr", "7"], forge) == 1
         assert "no readiness comment" in capsys.readouterr().err.lower()
 
 
@@ -741,7 +742,7 @@ class TestFixLoopCommandWiring:
         monkeypatch.setattr(cli_module, "LocalGit", Git)
         monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("/repo"))
-        monkeypatch.setattr(cli_module, "_loop_authors", lambda args, forge: ["bot"])
+        monkeypatch.setattr(cli_module, "_loop_authors", lambda forge: ["bot"])
         cli_module.main(["fix-loop", "--pr", "7", *flags], StubForge())
         return seen
 

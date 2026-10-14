@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from common.git import get_repo_root, git_output
+from common.git import get_repo_root
 from scripts.forge import container
 from scripts.forge.base import Forge, ForgeError, printable
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
@@ -23,7 +23,7 @@ from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
-from scripts.forge.service import resolve_authors, review_context, wait_for_ci
+from scripts.forge.service import resolve_authors, review_context
 
 
 def _add_pr_argument(command: argparse.ArgumentParser) -> None:
@@ -78,7 +78,6 @@ def build_parser() -> argparse.ArgumentParser:
         "fix-loop", help="Run fixer rounds on a pull request until READY or the owner is needed."
     )
     loop.add_argument("--pr", type=int, required=True, help="Pull request number.")
-    _add_author_argument(loop)
     loop.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     loop.add_argument("--model", default="sonnet", help="Model for the fixer agent (default: sonnet).")
     _add_agent_container_argument(loop)
@@ -97,7 +96,6 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument(
         "--no-fix", action="store_true", help="Stop once the pull request is ready; do not run the fixer."
     )
-    plan.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     plan.add_argument(
         "--container",
         action=argparse.BooleanOptionalAction,
@@ -107,16 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_agent_container_argument(plan)
     plan.add_argument(
-        "--review-wait-minutes", type=float, default=30, help="Minutes to wait for the first review (default: 30)."
+        "--wait-minutes",
+        type=float,
+        default=45,
+        help="Minutes to wait for each review pass, the first included (default: 45).",
     )
-    plan.add_argument(
-        "--wait-minutes", type=float, default=45, help="Minutes to wait for each later review pass (default: 45)."
-    )
-    _add_author_argument(plan)
-
-    ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
-    ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
-    _add_ci_arguments(ci)
 
     check = commands.add_parser("check-body", help="Check a readiness comment body before it is posted.")
     check.add_argument("--body-file", required=True, help="File holding the comment body.")
@@ -162,11 +155,6 @@ def _comment_upsert(args: argparse.Namespace, forge: Forge) -> None:
     _print({"id": comment.id, "action": "created" if created else "updated"})
 
 
-def _ci_status(args: argparse.Namespace, forge: Forge) -> None:
-    sha = git_output(get_repo_root(), "rev-parse", "HEAD").strip() if args.sha == "HEAD" else args.sha
-    _print(asdict(wait_for_ci(forge, sha, args.exclude, args.wait)))
-
-
 def _review_context(args: argparse.Namespace, forge: Forge) -> None:
     _print(
         review_context(
@@ -202,10 +190,8 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
 REVIEW_BOT = "github-actions[bot]"
 
 
-def _loop_authors(args: argparse.Namespace, forge: Forge) -> list[str]:
-    """Whose readiness comment the loop trusts: the given authors, else the review workflow and the owner."""
-    if args.author:
-        return list(args.author)
+def _loop_authors(forge: Forge) -> list[str]:
+    """Whose readiness comment the loop trusts: the review workflow and the owner."""
     try:
         return [REVIEW_BOT, forge.current_user()]
     except ForgeError:
@@ -241,7 +227,7 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
             email_notifier,
             Path(work_dir),
             args.pr,
-            _loop_authors(args, forge),
+            _loop_authors(forge),
             max_rounds=args.max_rounds,
             wait_seconds=args.wait_minutes * 60,
             repo_root=get_repo_root(),
@@ -269,13 +255,12 @@ def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
             repo_root,
             Path(work_dir),
             Path(args.plan).name,
-            _loop_authors(args, forge),
+            _loop_authors(forge),
             depends_ok=args.depends_ok,
             base=args.base,
             mark_ready=not args.no_ready,
             fix=not args.no_fix,
-            max_rounds=args.max_rounds,
-            review_wait_seconds=args.review_wait_minutes * 60,
+            review_wait_seconds=args.wait_minutes * 60,
             wait_seconds=args.wait_minutes * 60,
         )
     print(json.dumps({"implement": asdict(result.implement), "fix": result.fix and asdict(result.fix)}, indent=2))
@@ -287,7 +272,6 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "pr-info": _pr_info,
     "comment-get": _comment_get,
     "comment-upsert": _comment_upsert,
-    "ci-status": _ci_status,
     "review-context": _review_context,
     "check-body": _check_body,
     "fix-loop": _fix_loop,

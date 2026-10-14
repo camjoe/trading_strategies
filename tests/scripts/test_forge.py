@@ -665,33 +665,6 @@ class TestCli:
 
         assert "newer push" in capsys.readouterr().err
 
-    def test_ci_status_accepts_an_explicit_sha(self, capsys: pytest.CaptureFixture[str]) -> None:
-        forge = StubForge()
-
-        assert main(["ci-status", "--sha", "deadbeef", "--exclude", "readiness"], forge) == 0
-
-        assert forge.ci_shas == ["deadbeef"]
-        assert forge.ci_excludes == [["readiness"]]
-        assert json.loads(capsys.readouterr().out)["state"] == "pass"
-
-    def test_ci_status_defaults_to_the_checked_out_commit(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        seen: list[str] = []
-
-        class Recording(StubForge):
-            def ci_status(self, sha: str, exclude: Collection[str] = ()) -> CiStatus:
-                seen.append(sha)
-                return super().ci_status(sha, exclude)
-
-        monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("."))
-        monkeypatch.setattr(cli_module, "git_output", lambda *_args: "feedface\n")
-
-        assert main(["ci-status"], Recording()) == 0
-
-        assert seen == ["feedface"]
-        capsys.readouterr()
-
     def test_check_body_accepts_a_good_body(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         body = tmp_path / "body.md"
         body.write_text(readiness_body(2), encoding="utf-8")

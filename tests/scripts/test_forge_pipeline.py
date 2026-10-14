@@ -171,20 +171,10 @@ class TestPipeline:
 
 
 class TestLoopAuthors:
-    def _args(self, author: list[str]) -> object:
-        import argparse
-
-        return argparse.Namespace(author=author)
-
-    def test_the_given_authors_win(self, tmp_path: Path) -> None:
+    def test_the_review_workflow_and_the_owner_are_trusted(self, tmp_path: Path) -> None:
         from scripts.forge.cli import _loop_authors
 
-        assert _loop_authors(self._args(["someone"]), Setup(tmp_path).forge) == ["someone"]  # type: ignore[arg-type]
-
-    def test_by_default_the_review_workflow_and_the_owner_are_trusted(self, tmp_path: Path) -> None:
-        from scripts.forge.cli import _loop_authors
-
-        assert _loop_authors(self._args([]), Setup(tmp_path).forge) == ["github-actions[bot]", "me"]  # type: ignore[arg-type]
+        assert _loop_authors(Setup(tmp_path).forge) == ["github-actions[bot]", "me"]
 
     def test_without_a_known_owner_only_the_review_workflow_is_trusted(self, tmp_path: Path) -> None:
         from scripts.forge.cli import _loop_authors
@@ -192,7 +182,7 @@ class TestLoopAuthors:
         forge = Setup(tmp_path).forge
         forge.user = None
 
-        assert _loop_authors(self._args([]), forge) == ["github-actions[bot]"]  # type: ignore[arg-type]
+        assert _loop_authors(forge) == ["github-actions[bot]"]
 
 
 def test_a_plan_removal_whose_push_fails_is_rolled_back_and_the_run_still_notifies(tmp_path: Path) -> None:
