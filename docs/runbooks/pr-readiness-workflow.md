@@ -194,7 +194,7 @@ if Docker is not installed or its daemon is not running. The container gets only
 - five environment variables (`PATH`, `PYTHONPATH`, `LANG`, `HOME`, `PYTHONDONTWRITEBYTECODE`), so none of your
   tokens or settings are visible, and none of your files outside the clone.
 
-The image is `trading-gate:<hash>`, built from `docker/gate/Dockerfile` and the requirements files in your
+The image is `trading-gate:<hash>`, the `gate` stage of `docker/Dockerfile`, built with the requirements files in your
 checkout (never the agent's clone), and rebuilt automatically when any of them changes. The first run builds
 it (about a minute, and it downloads `python:3.14-slim`, Debian's `git` package, and the Python requirements).
 A newer base image or Debian package does not trigger a rebuild; remove the image
@@ -225,7 +225,7 @@ token as `<token>` if the agent echoes it.
 
 What else changes:
 
-- The image `trading-agent:<hash>` is the gate image plus Node 24 and the pinned Claude Code
+- The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile: the gate stage plus Node 24 and the pinned Claude Code
   (`CLAUDE_CODE_VERSION`, the same pin as the workflow). It is about 2 GB on disk and builds on first use,
   downloading `node:24-slim` and the CLI from npm; it rebuilds when its Dockerfile, the gate requirements, or the pin
   change.

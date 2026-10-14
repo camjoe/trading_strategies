@@ -43,8 +43,7 @@ class HasFiles(Protocol):
     def files(self) -> Sequence[Path]: ...
 
 
-DOCKERFILE = Path("docker/gate/Dockerfile")
-AGENT_DOCKERFILE = Path("docker/agent/Dockerfile")
+DOCKERFILE = Path("docker/Dockerfile")
 IMAGE_REPOSITORY = "trading-gate"
 AGENT_IMAGE_REPOSITORY = "trading-agent"
 CLAUDE_CODE_VERSION = "2.1.296"
@@ -97,12 +96,8 @@ def image_tag(root: Path) -> str:
 
 
 def agent_image_tag(root: Path) -> str:
-    """A tag that changes with the agent Dockerfile, the gate image it builds on, or the pinned Claude version."""
-    parts = {
-        "Dockerfile": (root / AGENT_DOCKERFILE).read_bytes(),
-        "base": image_tag(root).encode("utf-8"),
-        "version": CLAUDE_CODE_VERSION.encode("utf-8"),
-    }
+    """A tag that changes with the Dockerfile, the requirements, or the pinned Claude version."""
+    parts = {**_context_files(root), "version": CLAUDE_CODE_VERSION.encode("utf-8")}
     return f"{AGENT_IMAGE_REPOSITORY}:{_digest(parts)}"
 
 
@@ -137,7 +132,7 @@ def _daemon_down(completed: "subprocess.CompletedProcess[str]") -> bool:
 
 
 def _build_if_missing(
-    runner: Runner, tag: str, files: Mapping[str, bytes], build_args: Mapping[str, str], what: str
+    runner: Runner, tag: str, files: Mapping[str, bytes], build_args: Mapping[str, str], target: str
 ) -> None:
     inspected = _docker(runner, ["image", "inspect", tag], 120)
     if inspected.returncode == 0:
@@ -150,12 +145,12 @@ def _build_if_missing(
     with tempfile.TemporaryDirectory(prefix="forge-image-") as context:
         for name, content in files.items():
             (Path(context) / name).write_bytes(content)
-        arguments = ["build", "--quiet", "--tag", tag]
+        arguments = ["build", "--quiet", "--tag", tag, "--target", target]
         for key, value in build_args.items():
             arguments += ["--build-arg", f"{key}={value}"]
         built = _docker(runner, [*arguments, context], BUILD_TIMEOUT_SECONDS)
     if built.returncode != 0:
-        raise ForgeError(f"The {what} image could not be built: {_last_line(built)}")
+        raise ForgeError(f"The {target} image could not be built: {_last_line(built)}")
 
 
 def ensure_image(root: Path, runner: Runner = docker_runner) -> str:
@@ -166,11 +161,9 @@ def ensure_image(root: Path, runner: Runner = docker_runner) -> str:
 
 
 def ensure_agent_image(root: Path, runner: Runner = docker_runner) -> str:
-    """The tag of the agent image (the gate image plus Node and the pinned Claude CLI), built when missing."""
-    base = ensure_image(root, runner)
+    """The tag of the agent image (the Dockerfile's agent stage: the gate plus Node and the pinned Claude CLI)."""
     tag = agent_image_tag(root)
-    files = {"Dockerfile": (root / AGENT_DOCKERFILE).read_bytes()}
-    _build_if_missing(runner, tag, files, {"BASE": base, "CLAUDE_CODE_VERSION": CLAUDE_CODE_VERSION}, "agent")
+    _build_if_missing(runner, tag, _context_files(root), {"CLAUDE_CODE_VERSION": CLAUDE_CODE_VERSION}, "agent")
     return tag
 
 
@@ -368,10 +361,10 @@ def preflight(
     """
     if agent and not environ.get(CLAUDE_AUTH_VARIABLE):
         raise ForgeError(_missing_token_message())
+    if gate:
+        ensure_image(root, runner)
     if agent:
         ensure_agent_image(root, runner)
-    elif gate:
-        ensure_image(root, runner)
 
 
 def run_agent(

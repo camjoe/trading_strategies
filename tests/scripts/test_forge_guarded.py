@@ -50,7 +50,9 @@ def test_ordinary_source_tests_and_docs_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
 
 
-@pytest.mark.parametrize("path", ["docker/gate/Dockerfile", "docker/README.md", "Docker/Gate/Dockerfile"])
+@pytest.mark.parametrize(
+    "path", ["docker/Dockerfile", "docker/README.md", "Docker/Dockerfile", "docker/gate/Dockerfile"]
+)
 def test_the_container_directory_is_guarded_whatever_its_case(path: str) -> None:
     assert [entry.split(":")[0] for entry in guarded_paths_touched([path])] == [path]
 

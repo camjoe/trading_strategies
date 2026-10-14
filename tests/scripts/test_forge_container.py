@@ -57,10 +57,10 @@ class FakeDocker:
 @pytest.fixture
 def root(tmp_path: Path) -> Path:
     repo = tmp_path / "owner"
-    (repo / "docker" / "gate").mkdir(parents=True)
-    (repo / "docker" / "gate" / "Dockerfile").write_text("FROM python:3.14-slim\n", encoding="utf-8")
-    (repo / "docker" / "agent").mkdir(parents=True)
-    (repo / "docker" / "agent" / "Dockerfile").write_text("ARG BASE\nFROM ${BASE}\n", encoding="utf-8")
+    (repo / "docker").mkdir(parents=True)
+    (repo / "docker" / "Dockerfile").write_text(
+        "FROM python:3.14-slim AS gate\nFROM gate AS agent\nARG CLAUDE_CODE_VERSION\n", encoding="utf-8"
+    )
     (repo / "requirements-base.txt").write_text("numpy==1\n", encoding="utf-8")
     (repo / "requirements-dev.txt").write_text("-r requirements-base.txt\npytest==9\n-e .\n", encoding="utf-8")
     return repo
@@ -73,7 +73,7 @@ class TestImageTag:
         assert container.image_tag(root) == first
         (root / "requirements-base.txt").write_text("numpy==2\n", encoding="utf-8")
         second = container.image_tag(root)
-        (root / "docker" / "gate" / "Dockerfile").write_text("FROM python:3.15-slim\n", encoding="utf-8")
+        (root / "docker" / "Dockerfile").write_text("FROM python:3.15-slim AS gate\n", encoding="utf-8")
         third = container.image_tag(root)
 
         assert len({first, second, third}) == 3 and first.startswith("trading-gate:")
@@ -250,30 +250,38 @@ def task(tmp_path: Path) -> AgentTask:
 
 
 class TestAgentImage:
-    def test_it_builds_the_gate_image_then_the_agent_image_on_top_of_it(self, root: Path) -> None:
+    def test_it_builds_the_agent_stage_of_the_same_dockerfile_in_one_build(self, root: Path) -> None:
         docker = FakeDocker(image_present=False)
 
         tag = container.ensure_agent_image(root, docker)
 
         assert tag == container.agent_image_tag(root) and tag.startswith("trading-agent:")
-        assert docker.verbs() == ["image", "build", "image", "build"]
-        build = docker.calls[3][0]
-        assert f"BASE={container.image_tag(root)}" in build
+        assert docker.verbs() == ["image", "build"]
+        build = docker.calls[1][0]
+        assert build[build.index("--target") + 1] == "agent"
         assert f"CLAUDE_CODE_VERSION={container.CLAUDE_CODE_VERSION}" in build
-        assert set(docker.built_files) == {"Dockerfile"}
+        assert set(docker.built_files) == {"Dockerfile", "requirements-base.txt", "requirements-dev.txt"}
+
+    def test_the_gate_stage_is_built_with_no_build_arguments(self, root: Path) -> None:
+        docker = FakeDocker(image_present=False)
+
+        container.ensure_image(root, docker)
+
+        build = docker.calls[1][0]
+        assert build[build.index("--target") + 1] == "gate" and "--build-arg" not in build
 
     def test_existing_images_are_reused(self, root: Path) -> None:
         docker = FakeDocker(image_present=True)
 
         container.ensure_agent_image(root, docker)
 
-        assert docker.verbs() == ["image", "image"]
+        assert docker.verbs() == ["image"]
 
     def test_the_tag_changes_with_the_agent_dockerfile_the_gate_requirements_and_the_pinned_version(
         self, root: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         first = container.agent_image_tag(root)
-        (root / "docker" / "agent" / "Dockerfile").write_text("ARG BASE\nFROM ${BASE}\nRUN true\n", encoding="utf-8")
+        (root / "docker" / "Dockerfile").write_text("FROM python:3.14-slim AS gate\nRUN true\n", encoding="utf-8")
         second = container.agent_image_tag(root)
         (root / "requirements-base.txt").write_text("numpy==2\n", encoding="utf-8")
         third = container.agent_image_tag(root)
@@ -579,6 +587,13 @@ class TestRepositoryFiles:
         text = (REPO_ROOT / container.DOCKERFILE).read_text(encoding="utf-8")
 
         assert "requirements-dev.txt" in text and "USER gate" in text and "safe.directory /work" in text
+
+    def test_the_real_dockerfile_has_exactly_the_stages_the_runner_builds(self) -> None:
+        text = (REPO_ROOT / container.DOCKERFILE).read_text(encoding="utf-8")
+        stages = re.findall(r"^FROM .* AS (\w+)$", text, re.MULTILINE)
+
+        assert stages == ["gate", "node", "agent"]
+        assert text.count("ENTRYPOINT") == 1 and text.index("ENTRYPOINT") > text.index("FROM gate AS agent")
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="Docker is not installed")

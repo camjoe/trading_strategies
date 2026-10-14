@@ -283,7 +283,7 @@ Implement one plan from `plan/` on its own branch and open a pull request. Follo
   request does leave draft, the command waits for the first review and runs the fixer loop (`fix-loop`) on that pull request, unless `--no-fix` is given
 - The pickup's gate runs in a Docker container by default (`--no-container` runs it on the owner's machine): no
   network, a read-only root, no capabilities, five environment variables and no host secrets, and only the clean
-  clone mounted. The image is built from the owner's checkout (`docker/gate/Dockerfile`, a guarded path), so the
+  clone mounted. The image is built from the owner's checkout (`docker/Dockerfile`, a guarded path), so the
   agent cannot change it. Before it claims a plan the command checks that Docker is running and builds the image
   if needed, and it stops with nothing opened on GitHub if Docker is not available. It does not isolate the
   agent, which still runs as described under Standing authorizations, and it does not run the frontend checks
