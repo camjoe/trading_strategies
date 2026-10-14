@@ -22,17 +22,54 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_outgoing_text_holds_the_added_lines_and_the_commit_messages_but_not_removed_lines(repo: Path) -> None:
+def _commit(repo: Path, message: str, env: dict[str, str] | None = None) -> None:
+    import os
+
+    subprocess.run(
+        ["git", "commit", "-q", "-m", message],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        env={**os.environ, **(env or {})},
+    )
+
+
+@pytest.mark.parametrize("hiding_place", ["binary", "plus-plus line", "message", "author", "committer"])
+def test_outgoing_text_shows_a_marker_wherever_a_commit_could_hide_it(repo: Path, hiding_place: str) -> None:
+    marker = "marker-" + "Ab3x" * 6
     before = git(repo, "rev-parse", "HEAD")
-    (repo / "a.txt").write_text("replaced line", encoding="utf-8")
-    (repo / "new.txt").write_text("brand new line", encoding="utf-8")
+    env: dict[str, str] = {}
+    message = "ordinary message"
+    if hiding_place == "binary":
+        (repo / "data.bin").write_bytes(b"\x00\x01" + marker.encode() + b"\x00")
+    else:
+        (repo / "new.txt").write_text(
+            "++" + marker + "\n" if hiding_place == "plus-plus line" else "new", encoding="utf-8"
+        )
+    if hiding_place == "message":
+        message = f"subject {marker}"
+    if hiding_place == "author":
+        env["GIT_AUTHOR_NAME"] = marker
+    if hiding_place == "committer":
+        env["GIT_COMMITTER_EMAIL"] = marker + "@example.test"
     git(repo, "add", ".")
-    git(repo, "commit", "-q", "-m", "message with a marker word")
+    _commit(repo, message, env)
+
+    assert marker in LocalGit(repo).outgoing_text(before, "HEAD")
+
+
+def test_outgoing_text_does_not_include_work_outside_the_range(repo: Path) -> None:
+    (repo / "old.txt").write_text("outside-the-range-line", encoding="utf-8")
+    git(repo, "add", ".")
+    _commit(repo, "earlier commit")
+    before = git(repo, "rev-parse", "HEAD")
+    (repo / "new.txt").write_text("inside-the-range-line", encoding="utf-8")
+    git(repo, "add", ".")
+    _commit(repo, "later commit")
 
     text = LocalGit(repo).outgoing_text(before, "HEAD")
 
-    assert "replaced line" in text and "brand new line" in text and "message with a marker word" in text
-    assert "+++" not in text and "a.txt" not in text
+    assert "inside-the-range-line" in text and "outside-the-range-line" not in text
 
 
 def test_create_branch_switches_to_a_new_branch_from_the_start_point(repo: Path) -> None:

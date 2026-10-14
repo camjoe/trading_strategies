@@ -99,11 +99,11 @@ class LocalGit:
         self._git("branch", "-D", name)
 
     def outgoing_text(self, base: str, head: str) -> str:
-        """The lines added and the commit messages from *base* to *head*, read without any configured diff program."""
-        patch = self._git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "-U0", f"{base}..{head}")
-        added = [line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")]
-        messages = self._git("log", "--format=%B", f"{base}..{head}")
-        return "\n".join([*added, messages])
+        """Everything the commits from *base* to *head* would publish: the whole patch, with binary files read as
+        text, and each commit's author, committer, and message. No configured diff program runs."""
+        patch = self._git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "--text", "-U0", f"{base}..{head}")
+        people_and_messages = self._git("log", "--format=%an%n%ae%n%cn%n%ce%n%B", f"{base}..{head}")
+        return patch + "\n" + people_and_messages
 
     def import_commits(self, source: Path, since: str) -> str:
         """Fetch HEAD of the repository at *source* and return its commit; nothing is checked out.
