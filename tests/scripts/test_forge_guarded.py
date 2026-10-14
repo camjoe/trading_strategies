@@ -30,6 +30,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
         ".gitattributes",
         "docs/architecture/architecture-conventions.md",
         "src/trading/domain/accounting/ledger.py",
+        "mypy.ini",
+        ".flake8",
+        "apps/x/frontend/vite.config.ts",
+        "apps/x/frontend/eslint.config.js",
     ],
 )
 def test_pipeline_gate_and_configuration_paths_are_guarded(path: str) -> None:
@@ -44,6 +48,10 @@ def test_pipeline_gate_and_configuration_paths_are_guarded(path: str) -> None:
         "tests/scripts/test_forge.py",
         "docs/maps/scripts-map.md",
         "plan/x.md",
+        "src/common/thing.py",
+        "docs/notes.md",
+        "tests/scripts/test_x.py",
+        "README.md",
     ],
 )
 def test_ordinary_source_tests_and_docs_are_not_guarded(path: str) -> None:
@@ -62,14 +70,6 @@ def test_paths_that_only_resemble_the_container_directory_are_not_guarded(path: 
     assert guarded_paths_touched([path]) == []
 
 
-def test_tool_configuration_the_checks_execute_is_guarded() -> None:
-    touched = guarded_paths_touched(
-        ["mypy.ini", ".flake8", "apps/x/frontend/vite.config.ts", "apps/x/frontend/eslint.config.js"]
-    )
-
-    assert len(touched) == 4
-
-
 @pytest.mark.parametrize(
     "path",
     [
@@ -85,31 +85,29 @@ def test_tool_configuration_the_checks_execute_is_guarded() -> None:
         ".coveragerc",
         "apps/web/package.json",
         ".env.local",
+        "apps/web/.githooks/pre-push",
+        "tools/.husky/pre-commit",
     ],
 )
 def test_executed_files_and_hook_directories_are_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
 
 
-@pytest.mark.parametrize("path", ["src/common/thing.py", "docs/notes.md", "tests/scripts/test_x.py", "README.md"])
-def test_ordinary_files_are_not_guarded(path: str) -> None:
-    assert guarded_paths_touched([path]) == []
-
-
 @pytest.mark.parametrize(
-    "path", ["Scripts/Forge/guarded_paths.py", ".GitHub/workflows/x.yml", "AGENTS.MD", "Conftest.py", "PYTEST.INI"]
+    "path",
+    [
+        "Scripts/Forge/guarded_paths.py",
+        ".GitHub/workflows/x.yml",
+        "AGENTS.MD",
+        "Conftest.py",
+        "PYTEST.INI",
+        "Apps/.GitHooks/pre-push",
+        "x/.HUSKY/pre-commit",
+        ".ENV.production",
+        "NOXFILE.PY",
+    ],
 )
 def test_the_guard_ignores_case_so_a_case_insensitive_checkout_cannot_dodge_it(path: str) -> None:
-    assert len(guarded_paths_touched([path])) == 1
-
-
-@pytest.mark.parametrize("path", ["apps/web/.githooks/pre-push", "tools/.husky/pre-commit"])
-def test_hook_directories_are_guarded_at_any_depth(path: str) -> None:
-    assert len(guarded_paths_touched([path])) == 1
-
-
-@pytest.mark.parametrize("path", ["Apps/.GitHooks/pre-push", "x/.HUSKY/pre-commit", ".ENV.production", "NOXFILE.PY"])
-def test_mixed_case_hook_directories_and_executed_names_are_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
 
 

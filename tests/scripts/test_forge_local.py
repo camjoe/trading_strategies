@@ -242,8 +242,9 @@ class TestToolLimits:
 
         from scripts.forge.base import RESTRICTED_SHELL
 
-        git_verbs = re.findall(r"Bash\(git (\w+):\*\)", local.ALLOWED_TOOLS)
-        deny_listed = re.findall(r"Bash\(git (\w+):\*\)", local.DENIED_TOOLS)
+        git_rule = re.compile(r"Bash\(git (\w+):\*\)")  # the verb in a `Bash(git <verb>:*)` tool rule
+        git_verbs = git_rule.findall(local.ALLOWED_TOOLS)
+        deny_listed = git_rule.findall(local.DENIED_TOOLS)
 
         assert git_verbs and all(
             f"`{verb}`" in RESTRICTED_SHELL or f"`git {verb}`" in RESTRICTED_SHELL for verb in git_verbs

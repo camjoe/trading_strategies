@@ -575,7 +575,7 @@ class TestFindingsParsingContinuations:
         assert open_counts(body) == {"blocker": 0, "concern": 0, "note": 2}
 
 
-class TestLoopHardeningTwo:
+class TestPushFailureReporting:
     def test_a_push_failure_is_reported_even_when_the_comment_cannot_be_restored(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
         git.push_error = ForgeError("rejected")

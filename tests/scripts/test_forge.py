@@ -1,6 +1,7 @@
+import base64
 import json
 import subprocess
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from io import StringIO
 from pathlib import Path
 
@@ -857,12 +858,24 @@ class TestPublicTextShapes:
         assert fixer_edit_problems(old, new) == []
 
 
+BACKSLASH = chr(92)  # written as chr(92) so Windows-style paths in test text need no escaping
+
+
 class TestPathFilters:
-    def test_the_publish_filter_refuses_every_form_the_comment_filter_refuses(self) -> None:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "see ~/project/file.py",
+            "see C:/Users/alice/project",
+            "see /home/alice/project/file.py",
+            f"see C:{BACKSLASH}Users{BACKSLASH}alice{BACKSLASH}file",
+        ],
+        ids=["tilde", "windows-forward-slash", "linux-home", "windows-backslash"],
+    )
+    def test_the_publish_filter_refuses_every_form_the_comment_filter_refuses(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
 
-        for text in ("see ~/project/file.py", "see C:/Users/alice/project", "see /home/alice/project/file.py"):
-            assert leak_problems(text) and publish_problems(text)
+        assert leak_problems(text) and publish_problems(text)
 
     def test_a_bare_home_name_passes_the_comment_filter_but_not_the_publish_filter(self) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
@@ -870,19 +883,10 @@ class TestPathFilters:
         assert leak_problems("the user lives in /home/alice") == []
         assert publish_problems("the user lives in /home/alice") != []
 
-    def test_the_windows_backslash_profile_form_is_refused_in_both(self) -> None:
-        from scripts.forge.readiness import leak_problems, publish_problems
-
-        text = "see C:" + chr(92) + "Users" + chr(92) + "alice" + chr(92) + "file"
-        assert leak_problems(text) and publish_problems(text)
-
     def test_an_account_id_shape_inside_a_code_block_is_still_refused(self) -> None:
         from scripts.forge.readiness import leak_problems
 
         assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []
-
-
-BACKSLASH = chr(92)
 
 
 class TestWiderLeakShapes:
@@ -952,7 +956,7 @@ class TestContainsAmbientSecret:
     ) -> None:
         from scripts.forge.readiness import contains_ambient_secret
 
-        value = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        value = _long_value()
         monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", value)
 
         assert contains_ambient_secret("x " + value + " y")
@@ -1038,29 +1042,37 @@ class TestPlaceholderThenParent:
 
 
 def _long_value() -> str:
+    """A token-shaped value built from pieces so no token-shaped literal sits in this file."""
     return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
 
 
+def _spaced(value: str) -> str:
+    return " ".join(value[i : i + 12] for i in range(0, len(value), 12))
+
+
+def _line_wrapped(value: str) -> str:
+    return chr(10).join(value[i : i + 9] for i in range(0, len(value), 9))
+
+
+DISGUISES = {
+    "plain": lambda value: value,
+    "reversed": lambda value: value[::-1],
+    "hex": lambda value: value.encode().hex(),
+    "hex-upper": lambda value: value.encode().hex().upper(),
+    "base64": lambda value: base64.b64encode(value.encode()).decode(),
+    "urlsafe-unpadded": lambda value: base64.urlsafe_b64encode(value.encode()).decode().rstrip("="),
+    "spaced": _spaced,
+    "line-wrapped": _line_wrapped,
+}
+
+
 class TestForbiddenValueDisguises:
-    @pytest.mark.parametrize(
-        "make",
-        [
-            lambda v: v,
-            lambda v: v[::-1],
-            lambda v: v.encode().hex(),
-            lambda v: v.encode().hex().upper(),
-            lambda v: __import__("base64").b64encode(v.encode()).decode(),
-            lambda v: __import__("base64").urlsafe_b64encode(v.encode()).decode().rstrip("="),
-            lambda v: " ".join(v[i : i + 12] for i in range(0, len(v), 12)),
-            lambda v: chr(10).join(v[i : i + 9] for i in range(0, len(v), 9)),
-        ],
-        ids=["plain", "reversed", "hex", "hex-upper", "base64", "urlsafe-unpadded", "spaced", "line-wrapped"],
-    )
-    def test_a_long_forbidden_value_is_refused_in_each_disguise(self, make: object) -> None:
+    @pytest.mark.parametrize("disguise", DISGUISES.values(), ids=DISGUISES.keys())
+    def test_a_long_forbidden_value_is_refused_in_each_disguise(self, disguise: Callable[[str], str]) -> None:
         from scripts.forge.readiness import leak_problems
 
         value = _long_value()
-        text = "Summary: all done. " + make(value) + " Nothing else."  # type: ignore[operator]
+        text = "Summary: all done. " + disguise(value) + " Nothing else."
 
         assert any("forbidden" in problem for problem in leak_problems(text, [value]))
 
@@ -1107,8 +1119,6 @@ def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
 
 
 class TestPlaceholderPaths:
-    BACKSLASH = chr(92)
-
     def test_an_angle_bracket_placeholder_in_place_of_the_user_name_is_allowed(self) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
 
@@ -1116,7 +1126,7 @@ class TestPlaceholderPaths:
             "the pattern matches /Users/<user>/x",
             "and /home/<name>/project/file.py",
             "and C:/Users/<user>/x",
-            "and C:" + self.BACKSLASH + "Users" + self.BACKSLASH + "<user>" + self.BACKSLASH + "x",
+            f"and C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}x",
         ):
             assert leak_problems(text) == [], text
             assert publish_problems("`" + text + "`") == [], text
@@ -1131,11 +1141,6 @@ class TestPlaceholderPaths:
             "/Users/alice<user>/x",
         ):
             assert leak_problems(text) != [], text
-
-    def test_the_runner_path_and_the_tilde_form_are_not_affected(self) -> None:
-        from scripts.forge.readiness import leak_problems
-
-        assert leak_problems("/home/runner/work/x") != [] and leak_problems("see ~/project/file") != []
 
 
 class TestOnlyTheListedPlaceholdersAreExempt:

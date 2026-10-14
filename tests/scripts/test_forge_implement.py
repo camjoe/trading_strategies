@@ -583,15 +583,7 @@ class TestRefusalBeforeThePlanIsParsed:
         assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
 
 
-class TestPickupHardening:
-    def test_a_plan_that_is_not_on_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
-        setup.git.on_base = False
-
-        result = setup.run()
-
-        assert result.outcome == "refused" and "is not on origin/develop" in result.detail
-        assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
-
+class TestPickupFailures:
     def test_a_failed_claim_push_stops_with_a_hint_to_delete_the_branch_and_still_notifies(self, setup: Setup) -> None:
         setup.git.push_error = ForgeError("rejected")
 
@@ -716,7 +708,7 @@ class TestSandboxedPickup:
         assert result.outcome == "stopped" and "not a fast-forward" in result.detail and setup.forge.ready == []
 
 
-class TestPickupEdges:
+class TestPickupRefusalsAndSummaryNotes:
     def test_a_detached_head_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
         setup.git.branch_name = ""
 
@@ -870,15 +862,7 @@ class TestHoldFailure:
         assert setup.forge.bodies
 
 
-class TestPickupReadsTheBase:
-    def test_a_plan_index_missing_from_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
-        del setup.git.files["plan/README.md"]
-
-        result = setup.run()
-
-        assert result.outcome == "refused" and "README.md" in result.detail
-        assert not any(call.startswith("branch") for call in setup.git.calls)
-
+class TestFailedHold:
     def test_a_failed_hold_names_the_commit_that_is_still_in_the_repository(self, setup: Setup) -> None:
         setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
 

@@ -12,6 +12,10 @@ from scripts.forge import container
 from scripts.forge.base import ForgeError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# `CLAUDE_CODE_VERSION: "2.1.296"` in the workflow's env block.
+WORKFLOW_PINNED_VERSION = re.compile(r'CLAUDE_CODE_VERSION:\s*"([^"]+)"')
+# The stage name in each `FROM <image> AS <stage>` line of the Dockerfile.
+DOCKERFILE_STAGE = re.compile(r"^FROM .* AS (\w+)$", re.MULTILINE)
 
 
 def completed(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
@@ -293,7 +297,7 @@ class TestAgentImage:
     def test_the_pinned_version_is_the_one_the_workflow_installs(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "pr-readiness.yml").read_text(encoding="utf-8")
 
-        match = re.search(r'CLAUDE_CODE_VERSION:\s*"([^"]+)"', workflow)
+        match = WORKFLOW_PINNED_VERSION.search(workflow)
 
         assert match and match.group(1) == container.CLAUDE_CODE_VERSION
 
@@ -590,7 +594,7 @@ class TestRepositoryFiles:
 
     def test_the_real_dockerfile_has_exactly_the_stages_the_runner_builds(self) -> None:
         text = (REPO_ROOT / container.DOCKERFILE).read_text(encoding="utf-8")
-        stages = re.findall(r"^FROM .* AS (\w+)$", text, re.MULTILINE)
+        stages = DOCKERFILE_STAGE.findall(text)
 
         assert stages == ["gate", "node", "agent"]
         assert text.count("ENTRYPOINT") == 1 and text.index("ENTRYPOINT") > text.index("FROM gate AS agent")
