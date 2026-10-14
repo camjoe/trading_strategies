@@ -79,15 +79,28 @@ def _normalized(path: str) -> tuple[str, bool]:
     """*path* as Windows would resolve it, and whether it is not a path inside the repository.
 
     The first part has forward slashes, no case, no ``:stream`` suffix, no trailing dots or spaces, and ``.`` and
-    ``..`` resolved. The second is true for an absolute path or one that climbs out of the repository.
+    ``..`` resolved. The second is true for an absolute path, one that climbs out of the repository, or one whose
+    first component collapses to nothing and so turns into an absolute path.
     """
     slashed = path.replace("\\", "/").casefold()
     cleaned = "/".join(
         part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in slashed.split("/")
     )
     resolved = posixpath.normpath(cleaned)
-    outside = slashed.startswith("/") or bool(_DRIVE.match(slashed)) or resolved == ".." or resolved.startswith("../")
+    outside = (
+        slashed.startswith("/")
+        or cleaned.startswith("/")
+        or bool(_DRIVE.match(slashed))
+        or resolved == ".."
+        or resolved.startswith("../")
+    )
     return ("" if resolved == "." else resolved), outside
+
+
+def _hides_a_directory_reference(path: str) -> bool:
+    """Whether a component is only dots and spaces with a space in it, which Windows may read as ``..``."""
+    parts = path.replace("\\", "/").split("/")
+    return any(" " in part and not part.split(":", 1)[0].rstrip(" .") for part in parts)
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
@@ -108,6 +121,8 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         reason = "a path outside the repository, or not relative to it" if outside else None
         if reason is None:
             reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and _hides_a_directory_reference(path):
+            reason = "a name made only of dots and spaces, which Windows may read as a directory reference"
         if reason is None and any(_SHORT_NAME.fullmatch(part) for part in normalized.split("/")):
             reason = "a name that may be a Windows short name for a guarded file"
         if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):

@@ -104,11 +104,18 @@ class TestEnsureImage:
         assert "pytest==9" in docker.built_files["requirements-dev.txt"]
 
     def test_a_failed_build_stops_with_its_last_line(self, root: Path) -> None:
+        calls: list[str] = []
+
         def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
-            return completed(returncode=1 if args[1] == "image" else 1, stderr="step 1\nno space left")
+            calls.append(args[1])
+            if args[1] == "image":
+                return completed(returncode=1)
+            return completed(returncode=1, stderr="step 1\nno space left")
 
         with pytest.raises(ForgeError, match="could not be built: no space left"):
             container.ensure_image(root, runner)
+
+        assert calls == ["image", "build"]
 
     def test_a_missing_docker_client_says_so(self, root: Path) -> None:
         def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -156,7 +163,10 @@ class TestGateCommand:
         assert names == {"PATH", "PYTHONPATH", "LANG", "HOME", "PYTHONDONTWRITEBYTECODE"}
         assert not any(arg in ("--env-file", "--privileged", "--network=host", "--pid") for arg in args)
 
-    def test_the_container_does_not_run_as_root(self, root: Path, tmp_path: Path) -> None:
+    def test_the_container_does_not_run_as_root(
+        self, root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(container.sys, "platform", "win32")
         docker = FakeDocker()
 
         container.run_gate("origin/develop", tmp_path, docker, root)
@@ -367,6 +377,44 @@ class TestAgentCommand:
         assert "--model" not in self._args(root, task)
 
 
+class TestUserAndStop:
+    def test_the_container_user_is_a_fixed_non_root_id_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(container.sys, "platform", "win32")
+
+        assert container._user() == f"{container.NON_ROOT_UID}:{container.NON_ROOT_UID}"
+
+    def test_the_container_user_is_the_owners_id_on_posix(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(container.sys, "platform", "linux")
+        monkeypatch.setattr(container.os, "getuid", lambda: 1234, raising=False)
+        monkeypatch.setattr(container.os, "getgid", lambda: 5678, raising=False)
+
+        assert container._user() == "1234:5678"
+
+    def test_a_kill_that_fails_says_which_container_may_still_be_running(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            return completed(returncode=1, stderr="daemon unresponsive")
+
+        container._kill_container(runner, "forge-agent-abc")
+
+        err = capsys.readouterr().err
+        assert "forge-agent-abc" in err and "docker rm -f forge-agent-abc" in err
+
+    def test_a_kill_that_cannot_reach_docker_says_the_same(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            raise OSError("pipe closed")
+
+        container._kill_container(runner, "forge-gate-xyz")
+
+        assert "docker rm -f forge-gate-xyz" in capsys.readouterr().err
+
+    def test_a_kill_that_works_says_nothing(self, capsys: pytest.CaptureFixture[str]) -> None:
+        container._kill_container(FakeDocker(), "forge-agent-abc")
+
+        assert capsys.readouterr().err == ""
+
+
 class TestMountPaths:
     def test_a_clone_path_with_a_comma_is_refused_before_anything_runs(self, root: Path, tmp_path: Path) -> None:
         docker = FakeDocker()
@@ -571,6 +619,20 @@ class TestAgentWithDocker:
         result = self._run(image, tmp_path, "-c", ".venv/bin/python -c 'import pytest, mypy'", entrypoint="sh")
 
         assert result.returncode == 0, result.stderr
+
+    def test_the_pinned_cli_lists_every_flag_the_agent_command_passes(self, image: str, tmp_path: Path) -> None:
+        command = container.agent_command(image, "forge-agent-flags", tmp_path, tmp_path, None, "sonnet")
+        flags = [arg for arg in command[command.index(image) + 1 :] if arg.startswith("--")]
+        help_text = subprocess.run(
+            ["docker", "run", "--rm", "--entrypoint", "claude", image, "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        ).stdout
+
+        assert flags and [flag for flag in flags if flag not in help_text] == []
+        assert container.PERMISSION_MODE in help_text and f'"{container.PERMISSION_PROMPTS}"' in help_text
 
     def test_the_host_can_delete_a_clone_the_container_made_a_venv_in(self, image: str, tmp_path: Path) -> None:
         clone = tmp_path / "clone"

@@ -15,6 +15,7 @@ _PATH_PATTERNS = (
     re.compile(rf"/Users/(?!{_PLACEHOLDER})[^\s/`]+"),
     re.compile(rf"(?<![\w./-])/home/(?!{_PLACEHOLDER})[^\s/`]+/[^\s`]"),
     re.compile(r"(?<![\w.])~[\\/][^\s`]"),
+    re.compile(rf"{_PLACEHOLDER}[\\/]++\.\.(?![.\w])"),
     re.compile(rf"[A-Za-z]:[\\/]++Users[\\/]++(?!{_PLACEHOLDER})", re.IGNORECASE),
 )
 _ACCOUNT_ID = re.compile(r"(?<![A-Za-z0-9])(?:DU|DF|U|F)\d{6,9}(?!\d)")

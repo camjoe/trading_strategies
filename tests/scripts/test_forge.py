@@ -1017,6 +1017,29 @@ class TestPrintable:
         assert ESC not in err and BEL not in err and "owned" in err
 
 
+class TestPlaceholderThenParent:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "see /Users/<user>/../alice/x",
+            f"see C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}..{BACKSLASH}alice{BACKSLASH}x",
+            "see /home/<name>/../alice/project/x",
+            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}..{BACKSLASH}{BACKSLASH}a",
+        ],
+        ids=["mac", "windows", "linux", "json-escaped"],
+    )
+    def test_a_placeholder_followed_by_a_parent_reference_is_refused(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("local path" in problem for problem in leak_problems(text))
+
+    def test_a_placeholder_followed_by_an_ordinary_name_is_still_accepted(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        for text in ("see /Users/<user>/..hidden/x", "see /Users/<user>/docs/x", "see C:/Users/<name>/.config/x"):
+            assert leak_problems(text) == []
+
+
 def _long_value() -> str:
     return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
 

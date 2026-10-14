@@ -1,10 +1,9 @@
-"""Run the pull-request gate and the Claude agent in containers instead of on the owner's machine.
+"""Run the pull-request gate and the Claude agent in Docker containers.
 
-Both containers see the clean clone mounted at ``/work``, have a read-only root filesystem, no capabilities,
-no host environment variables, and memory, CPU, and process limits. The gate has no network and no credentials.
-The agent has an open network and one credential, ``CLAUDE_CODE_OAUTH_TOKEN``, which code it runs can read. The images are built from the controller's own checkout so the
-clone cannot change what they install. The Docker client is injected as a ``Runner`` so the controllers stay
-testable without Docker.
+Both containers mount the clean clone at ``/work`` with a read-only root, no capabilities, resource limits, and
+only the environment variables set here. The gate has no network and no credentials. The agent has an open
+network and ``CLAUDE_CODE_OAUTH_TOKEN``, which code it runs can read. The images are built from the controller's
+own checkout. The Docker client is injected as a ``Runner`` so tests need no Docker.
 """
 
 import hashlib
@@ -24,12 +23,16 @@ from scripts.forge.sandbox import run_bounded
 
 
 class Runner(Protocol):
+    """Runs a Docker client command with a timeout and optional stdin; raises ``TimeoutExpired`` when it overruns."""
+
     def __call__(
         self, args: list[str], timeout: float, input_text: str | None = None
     ) -> "subprocess.CompletedProcess[str]": ...
 
 
 class HasFiles(Protocol):
+    """An agent task: its prompt, the sandbox it works in, and the files outside it that the prompt names."""
+
     @property
     def prompt(self) -> str: ...
 
@@ -283,11 +286,13 @@ def agent_command(
 
 
 def _kill_container(runner: Runner, name: str) -> None:
-    """Stop the container by name: killing the Docker client leaves the container running."""
+    """Stop the container by name, since killing the Docker client leaves it running; say so when that fails."""
     try:
-        runner(["docker", "kill", name], 60)
+        stopped = runner(["docker", "kill", name], 60).returncode == 0
     except OSError, subprocess.TimeoutExpired:
-        pass
+        stopped = False
+    if not stopped:
+        print(f"The container {name} may still be running; stop it with: docker rm -f {name}", file=sys.stderr)
 
 
 def run_gate(

@@ -452,6 +452,31 @@ class TestHardening:
         with pytest.raises(ForgeError, match="not a plain directory"):
             box.uncommitted()
 
+    def test_worktree_redirection_files_are_removed(self, repo: Path, tmp_path: Path) -> None:
+        box = self._box(repo, tmp_path)
+        git_dir = box.path / ".git"
+        (git_dir / "commondir").write_text("/elsewhere/.git", encoding="utf-8")
+        (git_dir / "config.worktree").write_text("[core]", encoding="utf-8")
+
+        harden_clone(box.path)
+
+        assert not (git_dir / "commondir").exists() and not (git_dir / "config.worktree").exists()
+
+    def test_a_clone_that_cannot_be_cleaned_is_refused_not_used(
+        self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge import sandbox as sandbox_module
+
+        box = self._box(repo, tmp_path)
+
+        def denied(path: Path) -> None:
+            raise PermissionError("denied")
+
+        monkeypatch.setattr(sandbox_module, "_remove", denied)
+
+        with pytest.raises(ForgeError, match="could not be cleaned"):
+            harden_clone(box.path)
+
     def test_a_sandbox_without_a_saved_config_is_still_cleaned_of_hooks(self, tmp_path: Path) -> None:
         (tmp_path / ".git" / "hooks").mkdir(parents=True)
         (tmp_path / ".git" / "hooks" / "post-checkout").write_text("exit 0", encoding="utf-8")

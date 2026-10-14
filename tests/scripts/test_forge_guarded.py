@@ -351,6 +351,30 @@ def test_names_that_only_resemble_those_files_are_not_guarded(path: str) -> None
     assert guarded_paths_touched([path]) == []
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        " ../scripts/forge/cli.py",
+        ".../scripts/forge/cli.py",
+        ". ./scripts/forge/cli.py",
+        "... /scripts/forge/cli.py",
+        ".. /scripts/forge/cli.py",
+        "docs/ ../scripts/forge/cli.py",
+        "docs/ .. /scripts/forge/cli.py",
+        " ../../etc/passwd",
+    ],
+)
+def test_a_component_made_only_of_dots_and_spaces_is_guarded_not_waved_through(path: str) -> None:
+    assert guarded_paths_touched([path]) != []
+
+
+@pytest.mark.parametrize(
+    "path", ["docs/readme.md", "docs/a b.md", "docs/notes. md", "docs/.hidden/x.md", "docs/a..b/x"]
+)
+def test_ordinary_names_with_dots_or_spaces_inside_are_not_mistaken_for_directory_references(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
 PROBE = chr(10).join(
     [
         "import importlib, json, sys",

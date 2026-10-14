@@ -61,11 +61,9 @@ def harden_clone(path: Path) -> None:
         raise ForgeError(f"The sandbox's .git could not be cleaned, so git was not run there: {exc}") from exc
 
 
-def git_environment(base: dict[str, str] | None = None) -> dict[str, str]:
-    """*base* (default: this process's environment) without secret-looking variables."""
-    return {
-        name: value for name, value in (os.environ if base is None else base).items() if not SECRET_NAME.search(name)
-    }
+def git_environment() -> dict[str, str]:
+    """This process's environment without secret-looking variables."""
+    return {name: value for name, value in os.environ.items() if not SECRET_NAME.search(name)}
 
 
 @dataclass(frozen=True)

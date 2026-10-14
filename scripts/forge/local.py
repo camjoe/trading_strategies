@@ -14,7 +14,6 @@ from scripts.forge.base import ForgeError, printable
 from scripts.forge.sandbox import NO_EXEC_GIT, SECRET_NAME, harden_clone, run_bounded, venv_python
 
 AGENT_TIMEOUT_SECONDS = 3600
-_CONTROLLER_GIT = NO_EXEC_GIT
 GATE_TIMEOUT_SECONDS = 3600
 _PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
 _PYTHON_MODULES = (
@@ -67,7 +66,7 @@ class LocalGit:
         self._root = root or get_repo_root()
 
     def _run(self, *args: str) -> str:
-        return git_output(self._root, *_CONTROLLER_GIT, *args)
+        return git_output(self._root, *NO_EXEC_GIT, *args)
 
     def _git(self, *args: str) -> str:
         try:

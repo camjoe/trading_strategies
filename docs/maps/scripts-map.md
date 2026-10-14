@@ -65,9 +65,9 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `implement.py` | The plan pickup: claim, agent, push, gate, path check, and the decision to leave draft |
 | `pipeline.py` | The join: pickup, then the wait for the first review, then the fixer loop, with one final notification |
 | `fix_loop.py` | The fixer loop: one round, its checks, the post and push, the wait for the next pass |
-| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back |
+| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, and the no-exec git options and secret-name pattern live here |
 | `container.py` | Runs the gate (no network, no credentials) and the agent (open network, one Claude token) in Docker containers with only the clone mounted; builds the images from the owner's checkout through an injected Docker runner |
-| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits), the headless `claude` runner with a scrubbed environment, the gate runner, and the email notifier |
+| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits), the headless `claude` runner with a scrubbed environment, the allow and deny tool lists and result reporting the container runner shares, the gate runner, and the email notifier |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

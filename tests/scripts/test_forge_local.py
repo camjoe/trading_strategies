@@ -501,7 +501,7 @@ class TestEmailFailures:
 
 
 def test_the_controller_git_options_switch_off_hooks_and_fsmonitor() -> None:
-    options = " ".join(local._CONTROLLER_GIT)
+    options = " ".join(local.NO_EXEC_GIT)
 
     assert "core.hooksPath=" in options and "core.fsmonitor=false" in options
 

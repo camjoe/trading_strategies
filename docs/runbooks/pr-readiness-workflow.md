@@ -199,9 +199,8 @@ A newer base image or Debian package does not trigger a rebuild; remove the imag
 (`docker image rm trading-gate:<hash>`) to pick one up. A gate that outlives its one-hour limit is red and its
 container is killed by name.
 
-On the spike machine the gate took 77 s in the container against 17 s on the host, and the full suite gave the
-same 3518 passes. The frontend checks do not run in the container (it has no Node, as the sandbox never had
-`node_modules`); CI runs them. This isolates the gate only: the agent still runs as described above.
+The frontend checks do not run in the container (it has no Node, as the sandbox never had `node_modules`); CI
+runs them. This isolates the gate only: the agent still runs as described above.
 
 ### Running the agent in a container
 
@@ -244,5 +243,7 @@ What else changes:
 
 ## Pin and upgrade the agent
 
-The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it
-deliberately and compare one pass before and after.
+The agent's Claude Code version is pinned in two places that must match: `CLAUDE_CODE_VERSION` in
+`.github/workflows/pr-readiness.yml` and `CLAUDE_CODE_VERSION` in `scripts/forge/container.py`. A test
+(`test_the_pinned_version_is_the_one_the_workflow_installs`) fails when they differ, and the agent image rebuilds
+when the pin changes. Upgrade both deliberately and compare one pass before and after.
