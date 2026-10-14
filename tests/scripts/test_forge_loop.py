@@ -88,6 +88,7 @@ class FakeGit:
     def __init__(self, head: str = "abc123") -> None:
         self.head_value = head
         self.changed: list[str] = []
+        self.outgoing = ""
         self.reset_to: list[str] = []
         self.pushes = 0
         self.removals: list[str] = []
@@ -108,6 +109,9 @@ class FakeGit:
     def changed_paths(self, base: str, head: str) -> list[str]:
         self.changed_args.append((base, head))
         return self.changed
+
+    def outgoing_text(self, base: str, head: str) -> str:
+        return self.outgoing
 
     def discard_changes(self, sha: str) -> None:
         self.reset_to.append(sha)
@@ -250,6 +254,33 @@ class TestLoop:
 
         assert result.outcome == "stopped" and "guarded" in result.detail
         assert git.forwarded == [] and git.reset_to == [] and git.pushes == 0 and forge.upserted == []
+
+    def test_a_round_whose_commits_contain_the_claude_token_is_discarded_and_nothing_is_applied(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.outgoing = "+" + token.encode().hex()
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "contain the Claude token" in result.detail
+        assert git.forwarded == [] and git.pushes == 0 and forge.upserted == []
+
+    def test_a_comment_file_that_is_not_a_plain_file_stops_the_round_before_anything_is_applied(
+        self, tmp_path: Path
+    ) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def agent(task: RoundTask) -> None:
+            git.sandbox_head = "def456"
+            task.new_comment_file.mkdir()
+
+        result, _ = run(forge, git, tmp_path, agent)
+
+        assert result.outcome == "stopped" and "not a plain file" in result.detail
+        assert git.forwarded == [] and git.pushes == 0 and forge.upserted == []
 
     def test_a_body_that_edits_a_finding_is_refused_and_not_pushed(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))

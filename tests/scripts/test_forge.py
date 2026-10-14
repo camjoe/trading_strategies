@@ -973,6 +973,30 @@ ESC = chr(27)
 BEL = chr(7)
 
 
+class TestContainsAmbientSecret:
+    def test_the_token_in_any_covered_form_is_found_when_it_is_in_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import contains_ambient_secret
+
+        value = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", value)
+
+        assert contains_ambient_secret("x " + value + " y")
+        assert contains_ambient_secret(value[::-1])
+        assert contains_ambient_secret(value.encode().hex())
+
+    def test_nothing_is_found_without_a_long_enough_value_in_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import contains_ambient_secret
+
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        assert not contains_ambient_secret("anything at all")
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "short")
+        assert not contains_ambient_secret("a short word and the short value")
+
+
 class TestPrintable:
     def test_control_sequences_are_shown_as_escapes_not_acted_on(self) -> None:
         from scripts.forge.base import printable

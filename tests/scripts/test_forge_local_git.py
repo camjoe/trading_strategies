@@ -22,6 +22,19 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def test_outgoing_text_holds_the_added_lines_and_the_commit_messages_but_not_removed_lines(repo: Path) -> None:
+    before = git(repo, "rev-parse", "HEAD")
+    (repo / "a.txt").write_text("replaced line", encoding="utf-8")
+    (repo / "new.txt").write_text("brand new line", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "message with a marker word")
+
+    text = LocalGit(repo).outgoing_text(before, "HEAD")
+
+    assert "replaced line" in text and "brand new line" in text and "message with a marker word" in text
+    assert "+++" not in text and "a.txt" not in text
+
+
 def test_create_branch_switches_to_a_new_branch_from_the_start_point(repo: Path) -> None:
     LocalGit(repo).create_branch("feature/x", "develop")
 

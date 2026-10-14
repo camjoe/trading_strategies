@@ -14,8 +14,8 @@ from typing import Literal, Protocol
 from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
-from scripts.forge.readiness import publish_problems
-from scripts.forge.sandbox import SandboxFactory, leftover_message
+from scripts.forge.readiness import contains_ambient_secret, publish_problems
+from scripts.forge.sandbox import SandboxFactory, leftover_message, read_agent_text
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -250,9 +250,11 @@ def _implement(
         end = git.import_commits(box.path, start)
         leftover = box.uncommitted()
     committed = end != start
-    guarded = guarded_paths_touched(git.changed_paths(start, end))
+    changed = git.changed_paths(start, end)
+    guarded = guarded_paths_touched(changed)
+    leaked = committed and contains_ambient_secret("\n".join([*changed, git.outgoing_text(start, end)]))
     held_note = ""
-    if guarded:
+    if guarded or leaked:
         try:
             held = git.hold(branch, end)
             held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
@@ -264,7 +266,7 @@ def _implement(
     elif committed:
         git.fast_forward(end)
         git.push(branch)
-    asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
+    asked = (read_agent_text(questions) or "").strip()
     note = _record_on_pull_request(forge, number, claim_body, summary, asked) + held_note
 
     def done(outcome: Outcome, detail: str) -> ImplementResult:
@@ -279,6 +281,11 @@ def _implement(
             "needs-owner",
             "The work touches guarded paths, so it was not pushed and the pull request stays a draft: "
             + "; ".join(guarded),
+        )
+    if leaked:
+        return done(
+            "needs-owner",
+            "The commits contain the Claude token, so they were not pushed and the pull request stays a draft.",
         )
     if leftover:
         return done(
@@ -300,7 +307,7 @@ def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_
 
     Returns a sentence for the result detail when the text was withheld, otherwise an empty string.
     """
-    summary = summary_file.read_text(encoding="utf-8").strip() if summary_file.is_file() else ""
+    summary = (read_agent_text(summary_file) or "").strip()
     sections = [claim_body]
     if summary:
         sections.append("## Summary\n\n" + summary)

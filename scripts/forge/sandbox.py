@@ -98,6 +98,23 @@ def venv_python(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
+def read_agent_text(path: Path) -> str | None:
+    """The text of a file an agent wrote, or ``None`` when it does not exist.
+
+    A link, a directory, or any other kind of file raises ``ForgeError``: an agent that can write the file's
+    directory could make a link point at a file on this machine.
+    """
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ForgeError(f"{path.name} could not be inspected, so it was not read: {exc}") from exc
+    if not stat.S_ISREG(info.st_mode) or getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        raise ForgeError(f"{path.name} is not a plain file, so it was not read.")
+    return path.read_text(encoding="utf-8")
+
+
 def leftover_message(who: str, consequence: str, lines: list[str], limit: int = 5) -> str:
     """The sentence reported when *who* left uncommitted files in a sandbox: *consequence*, then up to *limit* files."""
     return f"{who} left uncommitted changes in the sandbox, {consequence}: " + "; ".join(lines[:limit])

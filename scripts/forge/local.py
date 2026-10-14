@@ -98,6 +98,13 @@ class LocalGit:
     def delete_branch(self, name: str) -> None:
         self._git("branch", "-D", name)
 
+    def outgoing_text(self, base: str, head: str) -> str:
+        """The lines added and the commit messages from *base* to *head*, read without any configured diff program."""
+        patch = self._git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "-U0", f"{base}..{head}")
+        added = [line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")]
+        messages = self._git("log", "--format=%B", f"{base}..{head}")
+        return "\n".join([*added, messages])
+
     def import_commits(self, source: Path, since: str) -> str:
         """Fetch HEAD of the repository at *source* and return its commit; nothing is checked out.
 

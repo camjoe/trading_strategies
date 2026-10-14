@@ -359,6 +359,62 @@ def test_a_status_read_that_never_finishes_is_a_forge_error(tmp_path: Path, monk
         Sandbox(tmp_path).uncommitted()
 
 
+class TestReadAgentText:
+    def test_a_missing_file_is_none_and_a_plain_file_is_read(self, tmp_path: Path) -> None:
+        from scripts.forge.sandbox import read_agent_text
+
+        (tmp_path / "a.md").write_text("hello", encoding="utf-8")
+
+        assert read_agent_text(tmp_path / "missing.md") is None
+        assert read_agent_text(tmp_path / "a.md") == "hello"
+
+    def test_a_directory_is_refused(self, tmp_path: Path) -> None:
+        from scripts.forge.sandbox import read_agent_text
+
+        (tmp_path / "d.md").mkdir()
+
+        with pytest.raises(ForgeError, match="not a plain file"):
+            read_agent_text(tmp_path / "d.md")
+
+    def test_a_symbolic_link_is_refused_and_its_target_is_not_read(self, tmp_path: Path) -> None:
+        from scripts.forge.sandbox import read_agent_text
+
+        target = tmp_path / "private.txt"
+        target.write_text("host secret", encoding="utf-8")
+        try:
+            (tmp_path / "q.md").symlink_to(target)
+        except OSError, NotImplementedError:
+            pytest.skip("symbolic links cannot be created here")
+
+        with pytest.raises(ForgeError, match="not a plain file"):
+            read_agent_text(tmp_path / "q.md")
+
+    def test_a_windows_reparse_point_is_refused(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import types
+
+        from scripts.forge.sandbox import read_agent_text
+
+        (tmp_path / "q.md").write_text("x", encoding="utf-8")
+        link = types.SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o644, st_file_attributes=stat.FILE_ATTRIBUTE_REPARSE_POINT
+        )
+        monkeypatch.setattr(Path, "lstat", lambda self: link)
+
+        with pytest.raises(ForgeError, match="not a plain file"):
+            read_agent_text(tmp_path / "q.md")
+
+    def test_a_file_that_cannot_be_inspected_is_refused(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.forge.sandbox import read_agent_text
+
+        def unreadable(self: Path) -> None:
+            raise PermissionError("denied")
+
+        monkeypatch.setattr(Path, "lstat", unreadable)
+
+        with pytest.raises(ForgeError, match="could not be inspected"):
+            read_agent_text(tmp_path / "q.md")
+
+
 class TestHardening:
     def _box(self, repo: Path, tmp_path: Path) -> Sandbox:
         parent = tmp_path / "parent"

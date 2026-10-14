@@ -216,6 +216,9 @@ Image: the gate image plus Node 24 (copied from `node:24-slim`) and `@anthropic-
   git calls run with hooks and `fsmonitor` off and without secret-looking environment variables. Tested with a
   planted `core.fsmonitor` command. The symlink case is skipped on a Windows account that cannot create
   symlinks, so only a Linux run exercises it.
+- The controller reads the agent's summary, questions, and comment files only when they are plain files (not links),
+  and it scans the agent's commits and messages for the Claude token before applying or pushing them; a hit is
+  held locally like a guarded path. The link case is exercised only on a host that can make symlinks.
 - Files a later `claude -p` run loads from the repository are guarded at any depth (`.mcp.json`, `CLAUDE.md`,
   `CLAUDE.local.md`, `AGENTS.md`, `.claude/`), as are `.vscode/` and `.devcontainer/`, and both runners pass
   `--strict-mcp-config`. Anthropic's documentation says a `claude -p` run in a folder it has never trusted connects

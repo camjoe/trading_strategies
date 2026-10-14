@@ -112,6 +112,15 @@ def _contains_secret(text: str, secrets: Collection[str]) -> bool:
     return any(form in text or form in compact for secret in secrets for form in _disguises(secret))
 
 
+def contains_ambient_secret(text: str) -> bool:
+    """Whether *text* holds the value of a variable in ``_AMBIENT_SECRETS`` (as written or in a disguise)."""
+    return _contains_secret(text, _ambient_secrets())
+
+
+def _ambient_secrets() -> list[str]:
+    return [value for name in _AMBIENT_SECRETS if len(value := os.environ.get(name, "")) >= _MIN_DISGUISED_LENGTH]
+
+
 def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
     """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text.
 
@@ -120,10 +129,9 @@ def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
     are not caught.
     """
     problems: list[str] = []
-    ambient = [value for name in _AMBIENT_SECRETS if len(value := os.environ.get(name, "")) >= _MIN_DISGUISED_LENGTH]
     if any(not item for item in forbidden):
         problems.append("A forbidden string is not set or empty, so it cannot be checked.")
-    elif _contains_secret(text, [*forbidden, *ambient]):
+    elif _contains_secret(text, [*forbidden, *_ambient_secrets()]):
         problems.append("The body contains a forbidden string.")
     if any(pattern.search(text) for pattern in _PATH_PATTERNS):
         problems.append("The body contains a local path.")

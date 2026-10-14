@@ -23,6 +23,7 @@ class FakeGit:
         self.calls: list[str] = []
         self.head_value = "start000"
         self.changed: list[str] = []
+        self.outgoing = ""
         self.branch_error: ForgeError | None = None
         self.committed: list[tuple[list[str], str]] = []
         self.sandbox_head: str | None = None
@@ -49,6 +50,9 @@ class FakeGit:
 
     def changed_paths(self, base: str, head: str) -> list[str]:
         return self.changed
+
+    def outgoing_text(self, base: str, head: str) -> str:
+        return self.outgoing
 
     def push(self, branch: str = "") -> None:
         if self.push_error:
@@ -384,6 +388,51 @@ class TestImplementPlanCommand:
         cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--container"], setup.forge)
 
         assert gates and set(gates) == {"container"}
+
+
+class TestWhatTheAgentWrites:
+    def test_commits_that_contain_the_claude_token_are_held_and_never_pushed(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        setup.git.outgoing = "+" + token[::-1]
+
+        result = setup.run()
+
+        assert result.outcome == "needs-owner" and "contain the Claude token" in result.detail
+        assert "push" not in setup.git.calls and setup.git.forwarded == [] and setup.gate_runs == []
+        assert len(setup.git.held) == 1 and token not in result.detail
+
+    def test_commits_without_the_token_are_pushed_as_before(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8]))
+        setup.git.outgoing = "+an ordinary change"
+
+        result = setup.run()
+
+        assert "push" in setup.git.calls and result.outcome != "stopped"
+
+    def test_a_questions_file_that_is_not_a_plain_file_is_refused_not_read(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.questions_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "stopped" and "not a plain file" in result.detail
+        assert setup.forge.ready == []
+
+    def test_a_summary_file_that_is_not_a_plain_file_is_refused_not_published(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "stopped" and "not a plain file" in result.detail
+        assert setup.forge.ready == [] and setup.forge.bodies == []
 
 
 class TestAgentContainerCommand:
