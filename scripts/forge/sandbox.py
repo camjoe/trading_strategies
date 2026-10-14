@@ -98,8 +98,8 @@ def venv_python(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
-def read_agent_text(path: Path) -> str | None:
-    """The text of a file an agent wrote, or ``None`` when it does not exist.
+def read_agent_text(path: Path) -> str:
+    """The text of a file an agent wrote, or an empty string when it does not exist.
 
     A link, a directory, or any other kind of file raises ``ForgeError``: an agent that can write the file's
     directory could make a link point at a file on this machine.
@@ -107,7 +107,7 @@ def read_agent_text(path: Path) -> str | None:
     try:
         info = path.lstat()
     except FileNotFoundError:
-        return None
+        return ""
     except OSError as exc:
         raise ForgeError(f"{path.name} could not be inspected, so it was not read: {exc}") from exc
     if not stat.S_ISREG(info.st_mode) or getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:

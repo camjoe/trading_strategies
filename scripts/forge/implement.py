@@ -253,8 +253,15 @@ def _implement(
     changed = git.changed_paths(start, end)
     guarded = guarded_paths_touched(changed)
     leaked = committed and contains_ambient_secret("\n".join([*changed, git.outgoing_text(start, end)]))
+    try:
+        asked = read_agent_text(questions).strip()
+        summary_text = read_agent_text(summary).strip()
+        unreadable = ""
+    except ForgeError as exc:
+        asked = summary_text = ""
+        unreadable = str(exc)
     held_note = ""
-    if guarded or leaked:
+    if committed and (guarded or leaked or unreadable):
         try:
             held = git.hold(branch, end)
             held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
@@ -266,12 +273,16 @@ def _implement(
     elif committed:
         git.fast_forward(end)
         git.push(branch)
-    asked = (read_agent_text(questions) or "").strip()
-    note = _record_on_pull_request(forge, number, claim_body, summary, asked) + held_note
+    note = _record_on_pull_request(forge, number, claim_body, summary_text, asked) + held_note
 
     def done(outcome: Outcome, detail: str) -> ImplementResult:
         return finish(outcome, detail + note)
 
+    if unreadable:
+        return done(
+            "needs-owner",
+            f"{unreadable} Nothing was published, and the pull request stays a draft.",
+        )
     if asked:
         return done("needs-owner", "The agent has questions:\n" + asked)
     if not committed:
@@ -302,12 +313,11 @@ def _implement(
     return done("ready-for-review", "The gate passed; the review starts.")
 
 
-def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> str:
+def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary: str, questions: str) -> str:
     """Put the agent's summary and questions in the pull request description, unless they are unsafe to publish.
 
     Returns a sentence for the result detail when the text was withheld, otherwise an empty string.
     """
-    summary = (read_agent_text(summary_file) or "").strip()
     sections = [claim_body]
     if summary:
         sections.append("## Summary\n\n" + summary)

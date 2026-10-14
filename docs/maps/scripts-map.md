@@ -62,12 +62,12 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
 | `guarded_paths.py` | Paths an unattended fixer must never change |
 | `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |
-| `implement.py` | The plan pickup: claim, agent, push, gate, path check, and the decision to leave draft |
+| `implement.py` | The plan pickup: claim, agent, push, gate, path check, a scan of the agent's commits for the Claude token, plain-file reads of its summary and questions, and the decision to leave draft |
 | `pipeline.py` | The join: pickup, then the wait for the first review, then the fixer loop, with one final notification |
-| `fix_loop.py` | The fixer loop: one round, its checks, the post and push, the wait for the next pass |
-| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, and the no-exec git options and secret-name pattern live here |
+| `fix_loop.py` | The fixer loop: one round, its checks (path guard, token scan, plain-file read of the comment body), the post and push, the wait for the next pass |
+| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, `read_agent_text` reads a file the agent wrote only when it is a plain file, and the no-exec git options and secret-name pattern live here |
 | `container.py` | Runs the gate (no network, no credentials) and the agent (open network, one Claude token) in Docker containers with only the clone mounted; builds the images from the owner's checkout through an injected Docker runner |
-| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits), the headless `claude` runner with a scrubbed environment, the allow and deny tool lists and result reporting the container runner shares, the gate runner, and the email notifier |
+| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits, and `outgoing_text`, the added lines and messages the token scan reads), the headless `claude` runner with a scrubbed environment, the allow and deny tool lists and result reporting the container runner shares, the gate runner, and the email notifier |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

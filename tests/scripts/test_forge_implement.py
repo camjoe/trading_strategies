@@ -421,8 +421,8 @@ class TestWhatTheAgentWrites:
 
         result = setup.run(agent)
 
-        assert result.outcome == "stopped" and "not a plain file" in result.detail
-        assert setup.forge.ready == []
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
+        assert setup.forge.ready == [] and "push" not in setup.git.calls
 
     def test_a_summary_file_that_is_not_a_plain_file_is_refused_not_published(self, setup: Setup) -> None:
         def agent(task: ImplementTask) -> None:
@@ -431,8 +431,43 @@ class TestWhatTheAgentWrites:
 
         result = setup.run(agent)
 
-        assert result.outcome == "stopped" and "not a plain file" in result.detail
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
         assert setup.forge.ready == [] and setup.forge.bodies == []
+
+    def test_a_bad_summary_with_a_guarded_commit_still_reports_where_the_commits_are_held(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
+        assert "refs/forge/held/" in result.detail and len(setup.git.held) == 1
+        assert "push" not in setup.git.calls and setup.git.forwarded == []
+
+    def test_a_bad_summary_with_clean_commits_holds_them_instead_of_pushing_them(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert "refs/forge/held/" in result.detail and len(setup.git.held) == 1
+        assert "push" not in setup.git.calls and setup.gate_runs == []
+
+    def test_a_token_in_a_changed_path_name_is_held_like_a_token_in_the_text(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        setup.git.changed = [f"docs/{token}.md"]
+
+        result = setup.run()
+
+        assert "contain the Claude token" in result.detail and token not in result.detail
+        assert "push" not in setup.git.calls and len(setup.git.held) == 1
 
 
 class TestAgentContainerCommand:

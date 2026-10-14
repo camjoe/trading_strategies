@@ -360,12 +360,12 @@ def test_a_status_read_that_never_finishes_is_a_forge_error(tmp_path: Path, monk
 
 
 class TestReadAgentText:
-    def test_a_missing_file_is_none_and_a_plain_file_is_read(self, tmp_path: Path) -> None:
+    def test_a_missing_file_is_empty_and_a_plain_file_is_read(self, tmp_path: Path) -> None:
         from scripts.forge.sandbox import read_agent_text
 
         (tmp_path / "a.md").write_text("hello", encoding="utf-8")
 
-        assert read_agent_text(tmp_path / "missing.md") is None
+        assert read_agent_text(tmp_path / "missing.md") == ""
         assert read_agent_text(tmp_path / "a.md") == "hello"
 
     def test_a_directory_is_refused(self, tmp_path: Path) -> None:

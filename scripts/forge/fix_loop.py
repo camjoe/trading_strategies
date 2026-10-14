@@ -205,7 +205,7 @@ def _one_round(
     if leftover:
         return "stopped", leftover_message("The fixer", "so the round was discarded", leftover)
     try:
-        new_body = read_agent_text(new_file) or ""
+        new_body = read_agent_text(new_file)
     except ForgeError as exc:
         return "stopped", str(exc)
     if not new_body.strip():

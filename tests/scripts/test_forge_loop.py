@@ -268,6 +268,19 @@ class TestLoop:
         assert result.outcome == "stopped" and "contain the Claude token" in result.detail
         assert git.forwarded == [] and git.pushes == 0 and forge.upserted == []
 
+    def test_a_token_in_a_changed_path_name_discards_the_round(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.changed = [f"docs/{token}.md"]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "contain the Claude token" in result.detail
+        assert git.forwarded == [] and git.pushes == 0
+
     def test_a_comment_file_that_is_not_a_plain_file_stops_the_round_before_anything_is_applied(
         self, tmp_path: Path
     ) -> None:

@@ -409,6 +409,20 @@ class TestUserAndStop:
 
         assert "docker rm -f forge-gate-xyz" in capsys.readouterr().err
 
+    @pytest.mark.parametrize(
+        "stderr",
+        ["Error response from daemon: No such container: forge-agent-abc", "Error: container is not running"],
+    )
+    def test_a_container_that_is_already_gone_is_not_reported_as_still_running(
+        self, stderr: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            return completed(returncode=1, stderr=stderr)
+
+        container._kill_container(runner, "forge-agent-abc")
+
+        assert capsys.readouterr().err == ""
+
     def test_a_kill_that_works_says_nothing(self, capsys: pytest.CaptureFixture[str]) -> None:
         container._kill_container(FakeDocker(), "forge-agent-abc")
 

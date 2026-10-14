@@ -288,7 +288,9 @@ def agent_command(
 def _kill_container(runner: Runner, name: str) -> None:
     """Stop the container by name, since killing the Docker client leaves it running; say so when that fails."""
     try:
-        stopped = runner(["docker", "kill", name], 60).returncode == 0
+        completed = runner(["docker", "kill", name], 60)
+        already_gone = "No such container" in completed.stderr or "is not running" in completed.stderr
+        stopped = completed.returncode == 0 or already_gone
     except OSError, subprocess.TimeoutExpired:
         stopped = False
     if not stopped:
