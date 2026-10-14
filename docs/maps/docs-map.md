@@ -85,6 +85,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
+| `docs/reference/agent-sandbox.md` | Where the pickup, fixer loop, and gate run, what the Docker containers isolate and do not, how the images are built, and the decisions behind them | The container runner, the Dockerfile, the agent's permission flags, or the guarded paths change |
 | `docs/reference/backtesting.md` | Backtesting commands, walk-forward terminology and evaluation standards, safeguards, and layering overview | `src/backtesting/` interface, safeguards, or evaluation methodology changes |
 | `docs/reference/backtest-live-divergence.md` | Where the simulation engine and live runtime execute differently, what that does to walk-forward selection, and the trade-budget/pacing machinery | Either execution path's sizing, trade-count, or risk-stop behaviour changes, or the intended use of the optimizer changes |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
