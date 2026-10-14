@@ -112,9 +112,10 @@ request that edits the workflow file itself still runs its own copy (that is how
   everything else that uses it. How a token is revoked is not confirmed by Anthropic's documentation:
   `claude setup-token` mints a new one-year token each run and the CLI has no list or revoke command. Users report
   removing one under claude.ai, Settings, Claude Code, and report that "log out all sessions" does not reliably
-  invalidate it. Before depending on revocation, mint a token, confirm it appears on that page, remove it, and
-  confirm a request with it fails. Until then the real limit on a leaked token is its one-year life and the
-  account's usage limits.
+  invalidate it. The real limit on a leaked token is its one-year life and the account's usage limits.
+- Decided 2026-10-14 (owner): the owner does not intend to revoke the token or to confirm that revocation works. The
+  exposure is a model-only token on a low-cost subscription, accepted as it is; the credential proxy stays an
+  option for any scheduled or triggered run.
 
 ## Decisions for the owner
 1. Open egress or an allowlisting proxy for the agent container (phase 2). Decided above: open egress first.
