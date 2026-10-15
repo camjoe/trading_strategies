@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-10-14
-Last Reviewed: 2026-10-14
+Last Reviewed: 2026-10-15
 Purpose: Explain where the plan pickup, the fixer loop, and the gate run, what the Docker containers isolate and what they do not, how the images are built, and the decisions behind them.
 Related: [PR Readiness Workflow Runbook](../runbooks/pr-readiness-workflow.md), [Scripts Map](../maps/scripts-map.md)
 
@@ -61,6 +61,37 @@ that the token is set, so a missing Docker or token stops the run with nothing o
 - The publish filters refuse more credential shapes, more forms of a user-profile path, and the token in several
   encodings. They are heuristics against careless text, not against an adversarial agent.
 
+## Layers, and which ones today's use needs
+
+The owner judged on 2026-10-15 that the pipeline now does more than the current way of working needs, and chose to
+keep it and see how the workflow evolves. Each layer below is a separate piece with its own module and tests, so a
+layer can be removed, tightened, or extended without touching the others.
+
+| Layer | Where | Today |
+|---|---|---|
+| Throwaway clone; the controller imports the agent's commits | `scripts/forge/sandbox.py` (`build_sandbox`) | Core |
+| Agent tool allow and deny lists (no push, no `gh`) | `scripts/forge/local.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`) | Core |
+| Guarded paths: files an unattended run must never change | `scripts/forge/guarded_paths.py` | Core: GitHub runs workflow files from a pushed commit |
+| Gate in a container | `scripts/forge/container.py`, the `gate` stage of `docker/Dockerfile` | Useful: the agent's own tests run without credentials |
+| Clone hardening: reset git config and hooks, git without hooks, scrubbed environment | `scripts/forge/sandbox.py` (`harden_clone`, `NO_EXEC_GIT`) | Useful |
+| Publish and comment filters for paths, account ids, and credential shapes | `scripts/forge/readiness.py` | Useful against careless text |
+| Agent in a container | `scripts/forge/container.py`, the `agent` stage | Beyond today: opt-in |
+| Disguise decoding in the filters (hex, base64, reversed, wrapped), terminal escapes, Windows path tricks | `scripts/forge/readiness.py`, `scripts/forge/base.py` (`printable`), `guarded_paths.py` | Beyond today: heuristics against an adversarial agent |
+| Scan of the agent's commits for the Claude token | `scripts/forge/local.py` (`outgoing_text`), `readiness.contains_ambient_secret` | Beyond today: the token reaches an agent only with `--agent-container` |
+
+## Where to extend
+
+- **A path the pipeline must never change:** add it to `_EXTRA_GUARDS`, `_DIRECTORY_REASONS`, or `_AGENT_FILES` in
+  `guarded_paths.py`, with a case in `tests/scripts/test_forge_guarded.py`.
+- **A different code host:** implement the `Forge` protocol in `scripts/forge/base.py`, as `github.py` does for
+  `gh`. The loop, the pickup, and the CLI only see the protocol.
+- **A different container runtime, or a fake in tests:** pass another `Runner` (the protocol in `container.py`)
+  where `docker_runner` is used today.
+- **A different agent:** the pickup and the loop take the agent as an injected callable; `local.py` holds the
+  Claude Code one and `container.py` the containerized one.
+- **Removing a layer:** delete its module code and its tests together, then drop its row above and note the
+  decision under "Decisions".
+
 ## How the images are built
 
 `docker/Dockerfile` has two stages that the runner builds with `--target`: `gate` (Python 3.14, git, the dev
@@ -82,6 +113,7 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   five real plans.
 - 2026-10-14: deny-by-default applies to the container agent only; the host runner and the CI reviewer are
   follow-ups.
+- 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
 
 ## Verified, and not yet
 
