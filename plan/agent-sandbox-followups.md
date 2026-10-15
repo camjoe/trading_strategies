@@ -1,6 +1,6 @@
 # Plan: agent sandbox follow-ups
 
-Status: blocked on the owner's yes to each workflow edit in part 1 and to the `.claude/settings.json` contents in part 2. Item 4 is done on `feature/agent-sandbox-followups`.
+Status: blocked on the owner's yes to each workflow edit in part 1. Items 4 and 5 are done on `feature/agent-sandbox-followups`.
 Branch to use: `feature/agent-sandbox-followups`, off `develop`.
 
 ## Goal
@@ -24,7 +24,7 @@ red `readiness` check until it is merged. That is expected.
 | # | Change | Why | State |
 |---|---|---|---|
 | 4 | Generate `RESTRICTED_SHELL` (`scripts/forge/base.py`) from the allow list in `scripts/forge/local.py` instead of writing it by hand | One source of truth: today the prompt note and `ALLOWED_TOOLS` are kept in step by `test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits` | Done on `feature/agent-sandbox-followups`: `scripts/forge/tools.py` builds `ALLOWED_TOOLS`, `DENIED_TOOLS`, and `RESTRICTED_SHELL` from one set of constants, and the sync test is replaced by tests of the generator. The note now also names `forge check-body`, which was allowed but not mentioned. |
-| 5 | Add a tracked `.claude/settings.json` with a baseline of permission rules for interactive sessions | Interactive sessions have no tracked baseline today (`.claude/` holds only an untracked `worktrees` folder, checked 2026-10-15) | Not started. `.claude/` is a guarded path, so the owner approves the exact contents first. Keep it to rules that apply to every session (for example denying a force-push or reading a secrets file); the pickup's strict list stays in code because it only fits unattended runs |
+| 5 | Add a tracked `.claude/settings.json` with a baseline of permission rules for interactive sessions | Interactive sessions have no tracked baseline today (`.claude/` holds only an untracked `worktrees` folder, checked 2026-10-15) | Done on `feature/agent-sandbox-followups`: `.claude/settings.json` denies reading `.env` files (not the tracked examples) and force-pushes, and asks before `gh pr merge`, `git reset --hard`, and `git clean`, each for both the `Bash` and `PowerShell` tools. The owner dropped a proposed prompt on every `git push`. `tests/scripts/test_claude_settings.py` pins the shape. |
 
 ## Part 3: owner decisions and repository settings (no code)
 - Make `readiness` a required check on `develop` (a repository setting; only the owner can change it).

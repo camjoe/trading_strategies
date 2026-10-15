@@ -72,6 +72,7 @@ layer can be removed, tightened, or extended without touching the others.
 | Throwaway clone; the controller imports the agent's commits | `scripts/forge/sandbox.py` (`build_sandbox`) | Core |
 | Agent tool allow and deny lists (no push, no `gh`) and the prompt note that names them | `scripts/forge/tools.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`, `RESTRICTED_SHELL`) | Core |
 | Guarded paths: files an unattended run must never change | `scripts/forge/guarded_paths.py` | Core: GitHub runs workflow files from a pushed commit |
+| Baseline permission rules for every session in this repository (no `.env` reads, no force-push, a prompt before a merge, a hard reset, or a clean) | `.claude/settings.json` | Useful: also applied to headless runs, which never use project allow rules |
 | Gate in a container | `scripts/forge/container.py`, the `gate` stage of `docker/Dockerfile` | Useful: the agent's own tests run without credentials |
 | Clone hardening: reset git config and hooks, git without hooks, scrubbed environment | `scripts/forge/sandbox.py` (`harden_clone`, `NO_EXEC_GIT`) | Useful |
 | Publish and comment filters for paths, account ids, and credential shapes | `scripts/forge/readiness.py` | Useful against careless text |
@@ -86,6 +87,11 @@ layer can be removed, tightened, or extended without touching the others.
 - **A command the agent may run, or may no longer run:** change the constants in `scripts/forge/tools.py`. The
   allow list, the deny list, and the prompt note follow, and `tests/scripts/test_forge_tools.py` checks they agree.
   The CI reviewer's own list in `pr-readiness.yml` is separate and is pinned by `test_forge_workflow.py`.
+- **A rule for every session in this repository:** add it to `.claude/settings.json` with its `PowerShell` twin,
+  as a `deny` or `ask` rule only (project allow rules are held back until a folder is trusted and never apply to
+  `claude -p`). The file is a guarded path, so a change needs the owner's yes, and
+  `tests/scripts/test_claude_settings.py` checks its shape. These rules stop the usual form of a command, not
+  every spelling of it (`git -C . push` gets past a `git push` rule).
 - **A different code host:** implement the `Forge` protocol in `scripts/forge/base.py`, as `github.py` does for
   `gh`. The loop, the pickup, and the CLI only see the protocol.
 - **A different container runtime, or a fake in tests:** pass another `Runner` (the protocol in `container.py`)
