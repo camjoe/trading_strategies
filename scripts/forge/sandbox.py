@@ -16,14 +16,13 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from scripts.forge.base import CheckoutGit, ForgeError
-from scripts.forge.readiness import contains_ambient_secret
+from scripts.forge.base import ForgeError
 
 NO_EXEC_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
 SECRET_NAME = re.compile(
@@ -67,11 +66,6 @@ def scrubbed(base: Mapping[str, str], keep_prefixes: tuple[str, ...] = ()) -> di
     return {
         name: value for name, value in base.items() if name.startswith(keep_prefixes) or not SECRET_NAME.search(name)
     }
-
-
-def commits_hold_ambient_secret(git: CheckoutGit, paths: Sequence[str], start: str, end: str) -> bool:
-    """Whether the commits from *start* to *end*, their changed *paths* included, hold a secret from this environment."""
-    return end != start and contains_ambient_secret("\n".join([*paths, git.outgoing_text(start, end)]))
 
 
 def git_environment() -> dict[str, str]:

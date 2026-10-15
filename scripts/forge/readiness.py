@@ -4,9 +4,9 @@ import base64
 import difflib
 import os
 import re
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
-from scripts.forge.base import ForgeError, require_marker
+from scripts.forge.base import CheckoutGit, ForgeError, require_marker
 
 _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
 _PLACEHOLDER = r"<(?:user|username|name|segment)>(?=[/\\\s`]|$)"
@@ -115,6 +115,11 @@ def _contains_secret(text: str, secrets: Collection[str]) -> bool:
 def contains_ambient_secret(text: str) -> bool:
     """Whether *text* holds the value of a variable in ``_AMBIENT_SECRETS`` (as written or in a disguise)."""
     return _contains_secret(text, _ambient_secrets())
+
+
+def commits_hold_ambient_secret(git: CheckoutGit, paths: Sequence[str], start: str, end: str) -> bool:
+    """Whether the commits from *start* to *end*, their changed *paths* included, hold a secret from this environment."""
+    return end != start and contains_ambient_secret("\n".join([*paths, git.outgoing_text(start, end)]))
 
 
 def _ambient_secrets() -> list[str]:

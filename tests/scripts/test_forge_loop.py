@@ -169,7 +169,7 @@ def run(
     git: FakeGit,
     tmp_path: Path,
     agent: object = None,
-    max_rounds: int = 3,
+    max_rounds: int | None = None,
     wait_seconds: float = 100,
     repo_root: Path | None = None,
     sandboxes: FakeSandboxes | None = None,
@@ -185,7 +185,7 @@ def run(
         tmp_path,
         7,
         ["bot"],
-        max_rounds=max_rounds,
+        **({} if max_rounds is None else {"max_rounds": max_rounds}),
         wait_seconds=wait_seconds,
         interval_seconds=10,
         repo_root=repo_root,
@@ -327,7 +327,7 @@ class TestLoop:
 
         assert result.outcome == "no-progress" and git.pushes == 0 and len(forge.upserted) == 1
 
-    def test_the_loop_stops_at_the_round_cap(self, tmp_path: Path) -> None:
+    def test_the_loop_stops_after_three_rounds_unless_told_otherwise(self, tmp_path: Path) -> None:
         bodies = tuple(readiness(n, concerns=OPEN_CONCERN) for n in (2, 3, 4))
         forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=bodies)
         heads = iter(["h1", "h2", "h3", "h4"])
@@ -340,7 +340,7 @@ class TestLoop:
                 old.replace("  *Pointer: fix it.*\n", "  *Pointer: fix it.*\n\n" + line), encoding="utf-8"
             )
 
-        result, _ = run(forge, git, tmp_path, agent, max_rounds=3)
+        result, _ = run(forge, git, tmp_path, agent)
 
         assert (result.outcome, result.rounds, git.pushes) == ("round-cap", 3, 3)
 
@@ -360,14 +360,6 @@ class TestLoop:
         assert "PR 7" in subject and "READY" in subject
         assert set(details) == {"url", "verdict", "outcome", "rounds", "blocker", "concern", "note"}
         assert "A defect" not in message
-
-
-def test_the_loop_stops_after_three_rounds_unless_told_otherwise() -> None:
-    import inspect
-
-    from scripts.forge.fix_loop import run_fix_loop
-
-    assert inspect.signature(run_fix_loop).parameters["max_rounds"].default == 3
 
 
 class TestFixLoopCommand:

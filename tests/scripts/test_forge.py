@@ -965,6 +965,50 @@ class TestContainsAmbientSecret:
         assert not contains_ambient_secret("a short word and the short value")
 
 
+class TestCommitsHoldAmbientSecret:
+    class Git:
+        """Stands in for the checkout: ``outgoing_text`` answers with the given patch text and records its calls."""
+
+        def __init__(self, text: str) -> None:
+            self.text = text
+            self.asked: list[tuple[str, str]] = []
+
+        def outgoing_text(self, base: str, head: str) -> str:
+            self.asked.append((base, head))
+            return self.text
+
+    @pytest.fixture(autouse=True)
+    def _token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", _long_value())
+
+    def test_the_token_in_the_patch_text_is_found(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git("+ token = " + _long_value())
+
+        assert commits_hold_ambient_secret(git, ["a.py"], "start", "end")  # type: ignore[arg-type]
+
+    def test_the_token_only_in_a_changed_path_name_is_found(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git("+ nothing to see")
+
+        assert commits_hold_ambient_secret(git, [_long_value() + ".txt"], "start", "end")  # type: ignore[arg-type]
+
+    def test_commits_without_the_token_are_clean(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        assert not commits_hold_ambient_secret(self.Git("+ x = 1"), ["a.py"], "start", "end")  # type: ignore[arg-type]
+
+    def test_no_new_commits_are_not_scanned_at_all(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git(_long_value())
+
+        assert not commits_hold_ambient_secret(git, [_long_value()], "same", "same")  # type: ignore[arg-type]
+        assert git.asked == []
+
+
 class TestPrintable:
     def test_control_sequences_are_shown_as_escapes_not_acted_on(self) -> None:
         from scripts.forge.base import printable

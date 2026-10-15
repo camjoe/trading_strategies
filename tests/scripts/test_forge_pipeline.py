@@ -233,6 +233,8 @@ class TestPipelineArguments:
         args, kwargs = seen["loop_args"], seen["loop_kwargs"]
         assert seen["review_wait"] == 22
         assert args[7] == ["bot"] and kwargs["wait_seconds"] == 22 and "max_rounds" not in kwargs  # type: ignore[index]
+        assert kwargs["interval_seconds"] == 10 and kwargs["repo_root"] == world.setup.repo  # type: ignore[index]
+        assert callable(kwargs["sleep"]) and callable(kwargs["clock"])  # type: ignore[index]
 
     def test_the_gate_runs_against_the_base_the_pickup_was_given(self, world: World) -> None:
         bases: list[str] = []

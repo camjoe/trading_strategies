@@ -125,7 +125,7 @@ class TestEnsureImage:
         def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
             raise FileNotFoundError("docker")
 
-        with pytest.raises(ForgeError, match="Docker could not be started"):
+        with pytest.raises(ForgeError, match="Docker could not be started.*pass --no-container"):
             container.ensure_image(root, runner)
 
 
@@ -600,7 +600,7 @@ class TestRunAgent:
                 raise FileNotFoundError("docker")
             return completed()
 
-        with pytest.raises(ForgeError, match="Docker could not be started"):
+        with pytest.raises(ForgeError, match="Docker could not be started.*run without --agent-container"):
             container.run_agent(task, runner=runner, root=root, environ=ENVIRON)
 
 

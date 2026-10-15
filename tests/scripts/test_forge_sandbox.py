@@ -10,7 +10,7 @@ import pytest
 
 from scripts.forge.base import ForgeError
 from scripts.forge.local import LocalGit
-from scripts.forge.sandbox import TRUSTED_CONFIG, Sandbox, build_sandbox, harden_clone, sandbox, venv_python
+from scripts.forge.sandbox import TRUSTED_CONFIG, Sandbox, build_sandbox, harden_clone, sandbox, scrubbed, venv_python
 
 
 def git(root: Path, *args: str) -> str:
@@ -413,6 +413,24 @@ class TestReadAgentText:
 
         with pytest.raises(ForgeError, match="could not be inspected"):
             read_agent_text(tmp_path / "q.md")
+
+
+class TestScrubbed:
+    ENVIRONMENT = {
+        "PATH": "p",
+        "GITHUB_TOKEN": "t",
+        "CLAUDE_CODE_OAUTH_TOKEN": "c",
+        "ANTHROPIC_API_KEY": "a",
+        "MY_SECRET": "s",
+    }
+
+    def test_secret_looking_names_are_dropped(self) -> None:
+        assert scrubbed(self.ENVIRONMENT) == {"PATH": "p"}
+
+    def test_names_with_a_kept_prefix_survive_and_other_secret_names_are_still_dropped(self) -> None:
+        kept = scrubbed(self.ENVIRONMENT, ("CLAUDE", "ANTHROPIC"))
+
+        assert kept == {"PATH": "p", "CLAUDE_CODE_OAUTH_TOKEN": "c", "ANTHROPIC_API_KEY": "a"}
 
 
 class TestHardening:
