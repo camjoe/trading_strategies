@@ -906,15 +906,6 @@ class TestWiderLeakShapes:
 
         assert any("local path" in problem for problem in leak_problems(text))
 
-    def test_a_placeholder_is_still_accepted_when_the_separators_are_doubled_or_the_case_differs(self) -> None:
-        from scripts.forge.readiness import leak_problems
-
-        for text in (
-            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}x",
-            f"see c:{BACKSLASH}users{BACKSLASH}<username>{BACKSLASH}x",
-        ):
-            assert leak_problems(text) == []
-
     @pytest.mark.parametrize(
         "pieces",
         [
@@ -1018,29 +1009,6 @@ class TestPrintable:
         assert ESC not in err and BEL not in err and "owned" in err
 
 
-class TestPlaceholderThenParent:
-    @pytest.mark.parametrize(
-        "text",
-        [
-            "see /Users/<user>/../alice/x",
-            f"see C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}..{BACKSLASH}alice{BACKSLASH}x",
-            "see /home/<name>/../alice/project/x",
-            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}..{BACKSLASH}{BACKSLASH}a",
-        ],
-        ids=["mac", "windows", "linux", "json-escaped"],
-    )
-    def test_a_placeholder_followed_by_a_parent_reference_is_refused(self, text: str) -> None:
-        from scripts.forge.readiness import leak_problems
-
-        assert any("local path" in problem for problem in leak_problems(text))
-
-    def test_a_placeholder_followed_by_an_ordinary_name_is_still_accepted(self) -> None:
-        from scripts.forge.readiness import leak_problems
-
-        for text in ("see /Users/<user>/..hidden/x", "see /Users/<user>/docs/x", "see C:/Users/<name>/.config/x"):
-            assert leak_problems(text) == []
-
-
 def _long_value() -> str:
     """A token-shaped value built from pieces so no token-shaped literal sits in this file."""
     return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
@@ -1118,56 +1086,85 @@ def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
     assert publish_problems("see C:/Users/alice/x") != []
 
 
+# Where a user name sits in a home-directory path. Only the bracketed names in PLACEHOLDER_NAMES may stand in for it.
+PLACEHOLDER_NAMES = ["user", "username", "name", "segment"]
+HOME_PREFIXES = {"mac": "/Users/", "linux": "/home/", "windows": "C:/Users/"}
+
+ALLOWED_PLACEHOLDER_PATHS = {
+    "mac": "the pattern matches /Users/<user>/x",
+    "linux": "and /home/<name>/project/file.py",
+    "windows-forward-slash": "and C:/Users/<user>/x",
+    "windows-backslash": f"and C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}x",
+    "windows-backslash-doubled": f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}x",
+    "windows-lowercase": f"see c:{BACKSLASH}users{BACKSLASH}<username>{BACKSLASH}x",
+    "path-ends-at-the-placeholder": "see /Users/<segment>",
+    "slash-after-the-placeholder": "the path /Users/<user>/ and /Users/<user>",
+    "dotted-name-after-the-placeholder": "see /Users/<user>/..hidden/x",
+    "ordinary-name-after-the-placeholder": "see /Users/<user>/docs/x",
+    "hidden-folder-after-the-placeholder": "see C:/Users/<name>/.config/x",
+}
+
+# The publish filter is stricter about escaped and lowercase Windows forms, so only the plain forms are checked there.
+PUBLISHABLE_PLACEHOLDER_PATHS = {
+    label: ALLOWED_PLACEHOLDER_PATHS[label] for label in ("mac", "linux", "windows-forward-slash", "windows-backslash")
+}
+
+REFUSED_NEAR_A_PLACEHOLDER = {
+    "parent-after-mac-placeholder": "see /Users/<user>/../alice/x",
+    "parent-after-windows-placeholder": f"see C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}..{BACKSLASH}alice{BACKSLASH}x",
+    "parent-after-linux-placeholder": "see /home/<name>/../alice/project/x",
+    "parent-after-json-escaped-placeholder": (
+        f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}..{BACKSLASH}{BACKSLASH}a"
+    ),
+    "real-name-after-a-mac-placeholder": "/Users/<user>/x and /Users/alice/x",
+    "real-name-after-a-linux-placeholder": "/home/<name>/a and /home/alice/a",
+    "real-name-after-a-windows-placeholder": "C:/Users/<user>/x and C:/Users/alice/x",
+    "name-joined-to-a-placeholder": "/Users/alice<user>/x",
+    "more-name-after-the-placeholder": "/Users/<user>alice/x",
+    "one-letter-after-the-placeholder": "/Users/<user>x",
+    "runner-path": "/home/runner/work/x",
+    "tilde": "see ~/project/file",
+}
+
+
 class TestPlaceholderPaths:
-    def test_an_angle_bracket_placeholder_in_place_of_the_user_name_is_allowed(self) -> None:
-        from scripts.forge.readiness import leak_problems, publish_problems
-
-        for text in (
-            "the pattern matches /Users/<user>/x",
-            "and /home/<name>/project/file.py",
-            "and C:/Users/<user>/x",
-            f"and C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}x",
-        ):
-            assert leak_problems(text) == [], text
-            assert publish_problems("`" + text + "`") == [], text
-
-    def test_a_real_user_name_is_still_refused_even_next_to_a_placeholder(self) -> None:
+    @pytest.mark.parametrize("text", ALLOWED_PLACEHOLDER_PATHS.values(), ids=ALLOWED_PLACEHOLDER_PATHS.keys())
+    def test_a_listed_placeholder_in_place_of_the_user_name_is_allowed(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        for text in (
-            "/Users/<user>/x and /Users/alice/x",
-            "/home/<name>/a and /home/alice/a",
-            "C:/Users/<user>/x and C:/Users/alice/x",
-            "/Users/alice<user>/x",
-        ):
-            assert leak_problems(text) != [], text
+        assert leak_problems(text) == []
 
+    @pytest.mark.parametrize("text", PUBLISHABLE_PLACEHOLDER_PATHS.values(), ids=PUBLISHABLE_PLACEHOLDER_PATHS.keys())
+    def test_the_publish_filter_allows_the_plain_placeholder_forms_inside_code(self, text: str) -> None:
+        from scripts.forge.readiness import publish_problems
 
-class TestOnlyTheListedPlaceholdersAreExempt:
-    @pytest.mark.parametrize("name", ["user", "username", "name", "segment"])
-    def test_each_listed_placeholder_is_allowed(self, name: str) -> None:
+        assert publish_problems("`" + text + "`") == []
+
+    @pytest.mark.parametrize("text", REFUSED_NEAR_A_PLACEHOLDER.values(), ids=REFUSED_NEAR_A_PLACEHOLDER.keys())
+    def test_a_real_name_or_a_path_that_leaves_the_placeholder_is_refused(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x", f"see /Users/<{name}>"):
-            assert leak_problems(text) == [], text
+        assert any("local path" in problem for problem in leak_problems(text))
 
     @pytest.mark.parametrize("name", ["jdoe", "alice", "user2", "USER", ""])
-    def test_any_other_bracketed_name_is_refused(self, name: str) -> None:
+    @pytest.mark.parametrize("prefix", HOME_PREFIXES.values(), ids=HOME_PREFIXES.keys())
+    def test_any_bracketed_name_that_is_not_listed_is_refused(self, prefix: str, name: str) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
 
-        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x"):
-            assert leak_problems(text) != [], text
-            assert publish_problems("`" + text + "`") != [], text
+        path = f"{prefix}<{name}>/x"
 
-    def test_a_placeholder_followed_by_more_name_is_refused(self) -> None:
+        assert leak_problems(path) != []
+        assert publish_problems("`" + path + "`") != []
+
+    @pytest.mark.parametrize("after", [")", ".", ",", "x", ">"])
+    def test_a_listed_placeholder_must_end_at_a_separator_so_trailing_punctuation_is_refused(self, after: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        assert leak_problems("/Users/<user>alice/x") != [] and leak_problems("/Users/<user>x") != []
+        assert leak_problems(f"the path /Users/<user>{after}") != []
 
+    @pytest.mark.parametrize("name", PLACEHOLDER_NAMES)
+    @pytest.mark.parametrize("prefix", HOME_PREFIXES.values(), ids=HOME_PREFIXES.keys())
+    def test_each_listed_name_is_allowed_after_each_home_prefix(self, prefix: str, name: str) -> None:
+        from scripts.forge.readiness import leak_problems
 
-@pytest.mark.parametrize("after", [")", ".", ",", "x", ">"])
-def test_a_listed_placeholder_must_end_at_a_separator_so_trailing_punctuation_is_refused(after: str) -> None:
-    from scripts.forge.readiness import leak_problems
-
-    assert leak_problems(f"the path /Users/<user>{after}") != []
-    assert leak_problems("the path /Users/<user>/ and /Users/<user>") == []
+        assert leak_problems(f"{prefix}<{name}>/x") == []
