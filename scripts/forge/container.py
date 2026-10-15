@@ -18,8 +18,9 @@ from typing import Protocol
 
 from common.git import get_repo_root
 from scripts.forge.base import ForgeError
-from scripts.forge.local import AGENT_TIMEOUT_SECONDS, ALLOWED_TOOLS, DENIED_TOOLS, HasPrompt, report_agent_result
+from scripts.forge.local import AGENT_TIMEOUT_SECONDS, HasPrompt, report_agent_result
 from scripts.forge.sandbox import run_bounded
+from scripts.forge.tools import ALLOWED_TOOLS, DENIED_TOOLS
 
 
 class Runner(Protocol):

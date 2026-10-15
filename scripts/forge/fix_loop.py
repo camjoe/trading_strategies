@@ -14,13 +14,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Comment, Forge, ForgeError
+from scripts.forge.base import CheckoutGit, Comment, Forge, ForgeError
 from scripts.forge.findings import open_counts, unhandled_open_findings, verdict
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import plans_claimed_by, readme_without_row
 from scripts.forge.readiness import body_problems, commits_hold_ambient_secret, fixer_edit_problems, pass_number
 from scripts.forge.sandbox import SandboxFactory, leftover_message, read_agent_text
 from scripts.forge.service import resolve_authors, review_context
+from scripts.forge.tools import RESTRICTED_SHELL
 
 Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
 

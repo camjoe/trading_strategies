@@ -70,7 +70,7 @@ layer can be removed, tightened, or extended without touching the others.
 | Layer | Where | Today |
 |---|---|---|
 | Throwaway clone; the controller imports the agent's commits | `scripts/forge/sandbox.py` (`build_sandbox`) | Core |
-| Agent tool allow and deny lists (no push, no `gh`) | `scripts/forge/local.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`) | Core |
+| Agent tool allow and deny lists (no push, no `gh`) and the prompt note that names them | `scripts/forge/tools.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`, `RESTRICTED_SHELL`) | Core |
 | Guarded paths: files an unattended run must never change | `scripts/forge/guarded_paths.py` | Core: GitHub runs workflow files from a pushed commit |
 | Gate in a container | `scripts/forge/container.py`, the `gate` stage of `docker/Dockerfile` | Useful: the agent's own tests run without credentials |
 | Clone hardening: reset git config and hooks, git without hooks, scrubbed environment | `scripts/forge/sandbox.py` (`harden_clone`, `NO_EXEC_GIT`) | Useful |
@@ -83,6 +83,9 @@ layer can be removed, tightened, or extended without touching the others.
 
 - **A path the pipeline must never change:** add it to `_EXTRA_GUARDS`, `_DIRECTORY_REASONS`, or `_AGENT_FILES` in
   `guarded_paths.py`, with a case in `tests/scripts/test_forge_guarded.py`.
+- **A command the agent may run, or may no longer run:** change the constants in `scripts/forge/tools.py`. The
+  allow list, the deny list, and the prompt note follow, and `tests/scripts/test_forge_tools.py` checks they agree.
+  The CI reviewer's own list in `pr-readiness.yml` is separate and is pinned by `test_forge_workflow.py`.
 - **A different code host:** implement the `Forge` protocol in `scripts/forge/base.py`, as `github.py` does for
   `gh`. The loop, the pickup, and the CLI only see the protocol.
 - **A different container runtime, or a fake in tests:** pass another `Runner` (the protocol in `container.py`)

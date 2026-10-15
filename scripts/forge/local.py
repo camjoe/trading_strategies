@@ -12,41 +12,10 @@ from typing import Any, Protocol
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError, printable
 from scripts.forge.sandbox import NO_EXEC_GIT, harden_clone, run_bounded, scrubbed, venv_python
+from scripts.forge.tools import ALLOWED_TOOLS, DENIED_TOOLS
 
 AGENT_TIMEOUT_SECONDS = 3600
 GATE_TIMEOUT_SECONDS = 3600
-_PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
-_PYTHON_MODULES = (
-    "scripts.run_checks",
-    "scripts.fix_checks",
-    "scripts.checks.run_suite",
-    "scripts.forge check-body",
-    "pytest",
-)
-ALLOWED_TOOLS = ",".join(
-    [
-        "Read",
-        "Glob",
-        "Grep",
-        "Edit",
-        "Write",
-        "Skill",
-        "Agent",
-        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "rm", "mv", "status", "diff", "log", "show")),
-        "Bash(.venv/bin/pytest:*)",
-        "Bash(.venv/Scripts/pytest.exe:*)",
-        "Bash(ls:*)",
-        *(f"Bash({python} -m {module}:*)" for python in _PYTHONS for module in _PYTHON_MODULES),
-    ]
-)
-DENIED_TOOLS = ",".join(
-    [
-        *(f"Bash(git {verb}:*)" for verb in ("push", "reset", "clean", "config", "update-ref", "checkout", "restore")),
-        "Bash(gh:*)",
-        "Edit(.git/**)",
-        "Write(.git/**)",
-    ]
-)
 
 _KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
 

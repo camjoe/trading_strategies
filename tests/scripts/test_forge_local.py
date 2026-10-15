@@ -229,49 +229,6 @@ def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: 
     assert "denied: cp a b" in capsys.readouterr().err
 
 
-class TestToolLimits:
-    def test_the_agent_may_remove_and_move_files_through_git_and_still_may_not_reset_or_push(self) -> None:
-        allowed = local.ALLOWED_TOOLS.split(",")
-        denied = local.DENIED_TOOLS.split(",")
-
-        assert "Bash(git rm:*)" in allowed and "Bash(git mv:*)" in allowed
-        assert "Bash(git reset:*)" in denied and "Bash(git push:*)" in denied
-
-    def test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits(self) -> None:
-        import re
-
-        from scripts.forge.base import RESTRICTED_SHELL
-
-        git_rule = re.compile(r"Bash\(git (\w+):\*\)")  # the verb in a `Bash(git <verb>:*)` tool rule
-        git_verbs = git_rule.findall(local.ALLOWED_TOOLS)
-        deny_listed = git_rule.findall(local.DENIED_TOOLS)
-
-        assert git_verbs and all(
-            f"`{verb}`" in RESTRICTED_SHELL or f"`git {verb}`" in RESTRICTED_SHELL for verb in git_verbs
-        )
-        assert deny_listed and not any(f"`{verb}`" in RESTRICTED_SHELL for verb in deny_listed)
-        for tool in ("Write", "Edit", "Bash(ls:*)", "scripts.fix_checks", "scripts.run_checks", "run_suite", "pytest"):
-            assert tool in local.ALLOWED_TOOLS
-        for word in ("Write", "Edit", "`ls`", "pytest", "`fix_checks`", "`run_checks`", "`run_suite`"):
-            assert word in RESTRICTED_SHELL
-
-    def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
-        allowed = local.ALLOWED_TOOLS.split(",")
-
-        assert "Bash(python:*)" not in allowed and "Bash(.venv/Scripts/python.exe:*)" not in allowed
-        assert "Bash(.venv/Scripts/python.exe -m scripts.run_checks:*)" in allowed
-        assert "Bash(python -m pytest:*)" in allowed
-
-    def test_the_agent_cannot_write_into_git_or_reach_the_remote(self) -> None:
-        denied = local.DENIED_TOOLS.split(",")
-
-        for item in ("Edit(.git/**)", "Write(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
-            assert item in denied
-
-    def test_nothing_is_both_allowed_and_denied(self) -> None:
-        assert not set(local.ALLOWED_TOOLS.split(",")) & set(local.DENIED_TOOLS.split(","))
-
-
 class TestAgentEnvironment:
     def _env(self, tmp_path: Path, identity: tuple[str, str] | None = ("Dev", "dev@example.test")) -> dict[str, str]:
         base = {

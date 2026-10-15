@@ -1,7 +1,7 @@
 # Plan: agent sandbox follow-ups
 
-Status: blocked on PR #307 merging, and on the owner's yes to each workflow edit in part 1 and to the `.claude/settings.json` contents in part 2.
-Branch to use: `feature/agent-sandbox-followups`, off `develop` after #307 merges.
+Status: blocked on the owner's yes to each workflow edit in part 1 and to the `.claude/settings.json` contents in part 2. Item 4 is done on `feature/agent-sandbox-followups`.
+Branch to use: `feature/agent-sandbox-followups`, off `develop`.
 
 ## Goal
 Finish the items the container work left open. Part 1 edits files the pipeline cannot change on its own
@@ -23,12 +23,10 @@ red `readiness` check until it is merged. That is expected.
 ## Part 2: agent rules
 | # | Change | Why | State |
 |---|---|---|---|
-| 4 | Generate `RESTRICTED_SHELL` (`scripts/forge/base.py`) from the allow list in `scripts/forge/local.py` instead of writing it by hand | One source of truth: today the prompt note and `ALLOWED_TOOLS` are kept in step by `test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits` | Not started. The note names commands by kind (file tools, git verbs, the repository's check commands), so the generator needs a small mapping from tool rules to wording; keep the sentence that a refused command is not a broken shell |
+| 4 | Generate `RESTRICTED_SHELL` (`scripts/forge/base.py`) from the allow list in `scripts/forge/local.py` instead of writing it by hand | One source of truth: today the prompt note and `ALLOWED_TOOLS` are kept in step by `test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits` | Done on `feature/agent-sandbox-followups`: `scripts/forge/tools.py` builds `ALLOWED_TOOLS`, `DENIED_TOOLS`, and `RESTRICTED_SHELL` from one set of constants, and the sync test is replaced by tests of the generator. The note now also names `forge check-body`, which was allowed but not mentioned. |
 | 5 | Add a tracked `.claude/settings.json` with a baseline of permission rules for interactive sessions | Interactive sessions have no tracked baseline today (`.claude/` holds only an untracked `worktrees` folder, checked 2026-10-15) | Not started. `.claude/` is a guarded path, so the owner approves the exact contents first. Keep it to rules that apply to every session (for example denying a force-push or reading a secrets file); the pickup's strict list stays in code because it only fits unattended runs |
 
 ## Part 3: owner decisions and repository settings (no code)
-- Decide whether to merge #307 at all: the owner has not yet decided to take this code into `develop`. If it is
-  not merged, delete this plan with it.
 - Make `readiness` a required check on `develop` (a repository setting; only the owner can change it).
 - Promote `develop` to `main`. The weekly `npm audit` is red on `main` for `source-map-js`, already fixed on
   `develop`.
