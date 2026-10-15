@@ -57,7 +57,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `base.py` | Forge-neutral types, the `Forge` interface, CI aggregation, and the marker rule |
 | `github.py` | GitHub adapter over the `gh` CLI |
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
-| `readiness.py` | Pass-number parsing and the pre-post checks on a comment body |
+| `readiness.py` | Pass-number parsing, the pre-post checks on a comment body, and the scan of an agent's commits and changed paths for the Claude token |
 | `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
 | `guarded_paths.py` | Paths an unattended fixer must never change |
 | `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |

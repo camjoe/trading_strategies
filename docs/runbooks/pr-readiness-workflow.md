@@ -170,8 +170,9 @@ planning, note that all of `scripts/` is guarded, because the workflow imports f
 as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. Files that a
 later `claude -p` run loads as instructions or tool servers are guarded at any depth: `.mcp.json`, `CLAUDE.md`,
 `CLAUDE.local.md`, `AGENTS.md`, and anything under a `.claude/` directory; so are `.vscode/` and `.devcontainer/`.
-A plan whose work includes a file under `scripts/` (a data-operations helper, for example) is therefore held or
-undone, never pushed; do that part by hand or in a session you run yourself.
+The agents also run with `--strict-mcp-config`, so they ignore a repository's MCP servers. A plan whose work
+includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
+pushed; do that part by hand or in a session you run yourself.
 
 By default the command then waits up to 45 minutes for the review's first comment and runs the fixer loop
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get

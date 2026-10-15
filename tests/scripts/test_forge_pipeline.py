@@ -79,7 +79,7 @@ class World:
         self.git.forge = forge  # type: ignore[assignment]
 
     def run(self, fix_agent: object = None, **kwargs: object) -> PipelineResult:
-        clock = FakeClock()
+        clock = self.clock = FakeClock()
         implement_agent = self.setup.agent()
         return run_pipeline(
             self.setup.forge,
@@ -234,7 +234,7 @@ class TestPipelineArguments:
         assert seen["review_wait"] == 22
         assert args[7] == ["bot"] and kwargs["wait_seconds"] == 22 and "max_rounds" not in kwargs  # type: ignore[index]
         assert kwargs["interval_seconds"] == 10 and kwargs["repo_root"] == world.setup.repo  # type: ignore[index]
-        assert callable(kwargs["sleep"]) and callable(kwargs["clock"])  # type: ignore[index]
+        assert kwargs["sleep"] == world.clock.sleep and kwargs["clock"] is world.clock  # type: ignore[index]
 
     def test_the_gate_runs_against_the_base_the_pickup_was_given(self, world: World) -> None:
         bases: list[str] = []
