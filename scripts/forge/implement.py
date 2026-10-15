@@ -14,8 +14,8 @@ from typing import Literal, Protocol
 from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
-from scripts.forge.readiness import contains_ambient_secret, publish_problems
-from scripts.forge.sandbox import SandboxFactory, leftover_message, read_agent_text
+from scripts.forge.readiness import publish_problems
+from scripts.forge.sandbox import SandboxFactory, commits_hold_ambient_secret, leftover_message, read_agent_text
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -252,7 +252,7 @@ def _implement(
     committed = end != start
     changed = git.changed_paths(start, end)
     guarded = guarded_paths_touched(changed)
-    leaked = committed and contains_ambient_secret("\n".join([*changed, git.outgoing_text(start, end)]))
+    leaked = commits_hold_ambient_secret(git, changed, start, end)
     try:
         asked = read_agent_text(questions).strip()
         summary_text = read_agent_text(summary).strip()

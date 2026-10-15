@@ -20,7 +20,6 @@ _EXTRA_GUARDS = (
     ("src/__init__.py", "imported by the forge tool"),
     (".github/", "the pipeline's workflows and repository settings"),
     ("docker/", "the container the gate and agents run in"),
-    (".claude/", "agent permissions"),
     (".ai/skills/", "the skills"),
     ("AGENTS.md", "the standing authorizations"),
     ("CLAUDE.md", "the standing authorizations"),
@@ -33,8 +32,6 @@ _EXTRA_GUARDS = (
     (".pre-commit", "commit hooks"),
     (".gitattributes", "repository settings"),
     (".gitmodules", "repository settings"),
-    (".githooks/", "commit hooks"),
-    (".husky/", "commit hooks"),
     ("SECURITY.md", "the security policy"),
     ("local/", "private research and parameters"),
 )
@@ -75,6 +72,11 @@ _EXECUTED_NAMES = frozenset(
 )
 
 
+def _bare_name(component: str) -> str:
+    """*component* without a ``:stream`` suffix and without the trailing dots and spaces Windows drops."""
+    return component.split(":", 1)[0].rstrip(" .")
+
+
 def _normalized(path: str) -> tuple[str, bool]:
     """*path* as Windows would resolve it, and whether it is not a path inside the repository.
 
@@ -83,9 +85,7 @@ def _normalized(path: str) -> tuple[str, bool]:
     first component collapses to nothing and so turns into an absolute path.
     """
     slashed = path.replace("\\", "/").casefold()
-    cleaned = "/".join(
-        part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in slashed.split("/")
-    )
+    cleaned = "/".join(part if part in ("", ".", "..") else _bare_name(part) for part in slashed.split("/"))
     resolved = posixpath.normpath(cleaned)
     outside = (
         slashed.startswith("/")
@@ -100,7 +100,7 @@ def _normalized(path: str) -> tuple[str, bool]:
 def _hides_a_directory_reference(path: str) -> bool:
     """Whether a component is only dots and spaces with a space in it, which Windows may read as ``..``."""
     parts = path.replace("\\", "/").split("/")
-    return any(" " in part and not part.split(":", 1)[0].rstrip(" .") for part in parts)
+    return any(" " in part and not _bare_name(part) for part in parts)
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:

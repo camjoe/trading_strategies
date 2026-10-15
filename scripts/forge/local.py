@@ -11,7 +11,7 @@ from typing import Any, Protocol
 
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError, printable
-from scripts.forge.sandbox import NO_EXEC_GIT, SECRET_NAME, harden_clone, run_bounded, venv_python
+from scripts.forge.sandbox import NO_EXEC_GIT, harden_clone, run_bounded, scrubbed, venv_python
 
 AGENT_TIMEOUT_SECONDS = 3600
 GATE_TIMEOUT_SECONDS = 3600
@@ -189,11 +189,7 @@ def agent_environment(
     Commits still work: the owner's name and email are passed as the author and committer. With *workdir*,
     the virtual environment in it comes first on ``PATH`` and is the active one, so a ``pip install`` lands there.
     """
-    env = {
-        name: value
-        for name, value in base.items()
-        if name.startswith(_KEPT_FOR_CLAUDE) or not SECRET_NAME.search(name)
-    }
+    env = scrubbed(base, _KEPT_FOR_CLAUDE)
     empty_gitconfig = scratch / "gitconfig"
     empty_gitconfig.write_text("", encoding="utf-8")
     gh_config = scratch / "gh"

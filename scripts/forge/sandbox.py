@@ -16,13 +16,14 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from scripts.forge.base import ForgeError
+from scripts.forge.base import CheckoutGit, ForgeError
+from scripts.forge.readiness import contains_ambient_secret
 
 NO_EXEC_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
 SECRET_NAME = re.compile(
@@ -61,9 +62,21 @@ def harden_clone(path: Path) -> None:
         raise ForgeError(f"The sandbox's .git could not be cleaned, so git was not run there: {exc}") from exc
 
 
+def scrubbed(base: Mapping[str, str], keep_prefixes: tuple[str, ...] = ()) -> dict[str, str]:
+    """*base* without secret-looking variables, except those whose name starts with one of *keep_prefixes*."""
+    return {
+        name: value for name, value in base.items() if name.startswith(keep_prefixes) or not SECRET_NAME.search(name)
+    }
+
+
+def commits_hold_ambient_secret(git: CheckoutGit, paths: Sequence[str], start: str, end: str) -> bool:
+    """Whether the commits from *start* to *end*, their changed *paths* included, hold a secret from this environment."""
+    return end != start and contains_ambient_secret("\n".join([*paths, git.outgoing_text(start, end)]))
+
+
 def git_environment() -> dict[str, str]:
     """This process's environment without secret-looking variables."""
-    return {name: value for name, value in os.environ.items() if not SECRET_NAME.search(name)}
+    return scrubbed(os.environ)
 
 
 @dataclass(frozen=True)

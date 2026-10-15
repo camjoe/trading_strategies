@@ -18,7 +18,7 @@ from typing import Protocol
 
 from common.git import get_repo_root
 from scripts.forge.base import ForgeError
-from scripts.forge.local import AGENT_TIMEOUT_SECONDS, ALLOWED_TOOLS, DENIED_TOOLS, report_agent_result
+from scripts.forge.local import AGENT_TIMEOUT_SECONDS, ALLOWED_TOOLS, DENIED_TOOLS, HasPrompt, report_agent_result
 from scripts.forge.sandbox import run_bounded
 
 
@@ -30,14 +30,8 @@ class Runner(Protocol):
     ) -> "subprocess.CompletedProcess[str]": ...
 
 
-class HasFiles(Protocol):
-    """An agent task: its prompt, the sandbox it works in, and the files outside it that the prompt names."""
-
-    @property
-    def prompt(self) -> str: ...
-
-    @property
-    def cwd(self) -> Path: ...
+class HasFiles(HasPrompt, Protocol):
+    """An agent task that also names files outside its sandbox."""
 
     @property
     def files(self) -> Sequence[Path]: ...

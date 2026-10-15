@@ -18,8 +18,8 @@ from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Comment, Forge, Fo
 from scripts.forge.findings import open_counts, unhandled_open_findings, verdict
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import plans_claimed_by, readme_without_row
-from scripts.forge.readiness import body_problems, contains_ambient_secret, fixer_edit_problems, pass_number
-from scripts.forge.sandbox import SandboxFactory, leftover_message, read_agent_text
+from scripts.forge.readiness import body_problems, fixer_edit_problems, pass_number
+from scripts.forge.sandbox import SandboxFactory, commits_hold_ambient_secret, leftover_message, read_agent_text
 from scripts.forge.service import resolve_authors, review_context
 
 Outcome = Literal["ready", "needs-owner", "round-cap", "no-progress", "stopped"]
@@ -200,7 +200,7 @@ def _one_round(
     guarded = guarded_paths_touched(committed)
     if guarded:
         return "stopped", "The round touched guarded paths and was discarded: " + "; ".join(guarded)
-    if end != start and contains_ambient_secret("\n".join([*committed, git.outgoing_text(start, end)])):
+    if commits_hold_ambient_secret(git, committed, start, end):
         return "stopped", "The round's commits contain the Claude token and were discarded."
     if leftover:
         return "stopped", leftover_message("The fixer", "so the round was discarded", leftover)

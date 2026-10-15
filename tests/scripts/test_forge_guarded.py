@@ -314,6 +314,13 @@ def test_backslash_traversal_is_resolved_before_matching() -> None:
     assert len(guarded_paths_touched([path])) == 1 and OUTSIDE not in guarded_paths_touched([path])[0]
 
 
+@pytest.mark.parametrize("path", [" ./x", ". /x", "  /x"])
+def test_a_first_component_that_collapses_to_nothing_would_become_absolute_and_is_guarded(path: str) -> None:
+    touched = guarded_paths_touched([path])
+
+    assert len(touched) == 1 and "outside the repository" in touched[0]
+
+
 @pytest.mark.parametrize("path", ["", ".", "a/.../b", "docs/./"])
 def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
