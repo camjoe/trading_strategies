@@ -29,6 +29,8 @@ PINNED_ALLOWED_TOOLS = [
     "Bash(cat:*)",
     "Bash(ls:*)",
 ]
+# The mode named after each `--permission-mode` in the reviewer's command.
+PERMISSION_MODE = re.compile(r"--permission-mode (\w+)")
 PINNED_DENIED_TOOLS = ["Bash(git push:*)", "Bash(gh:*)", "Monitor"]
 
 
@@ -221,7 +223,9 @@ def test_the_review_agent_may_run_exactly_these_tools_and_the_claude_call_uses_t
     assert sorted(denied) == sorted(PINNED_DENIED_TOOLS)
     assert '--allowedTools "$ALLOWED_TOOLS"' in run and '--disallowedTools "$DENIED_TOOLS"' in run
     assert '< "$PROMPT_FILE"' in run
-    assert "--dangerously" not in run and "--permission-mode" not in run
+    assert "--dangerously" not in run
+    assert PERMISSION_MODE.findall(run) == ["dontAsk"]
+    assert "--permission-prompts none" in run and "--strict-mcp-config" in run
 
 
 def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:

@@ -185,6 +185,7 @@ jobs:
           set -o pipefail
           claude -p \
             --output-format stream-json --verbose \
+            --permission-mode dontAsk --permission-prompts none --strict-mcp-config \
             --allowedTools "$ALLOWED_TOOLS" --disallowedTools "$DENIED_TOOLS" \
             < "$PROMPT_FILE" | tee "$TRANSCRIPT_FILE" > /dev/null
           python3 - <<'PY'
