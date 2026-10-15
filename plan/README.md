@@ -22,3 +22,4 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
 | [account-failure-visibility.md](account-failure-visibility.md) | Drafted 2026-10-09. Item A is DURING PR #296; item B is AFTER #296. A1/A2 decision pending. | PR #296 (open) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
+| [agent-sandbox-followups.md](agent-sandbox-followups.md) | Blocked on PR #307 and #310 merging, and on the owner's yes to each workflow edit. | PR #307 and PR #310 |
