@@ -47,11 +47,6 @@ def _add_agent_container_argument(command: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_ci_arguments(command: argparse.ArgumentParser) -> None:
-    command.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
-    command.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m scripts.forge", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -70,7 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
     _add_pr_argument(context)
     _add_author_argument(context)
-    _add_ci_arguments(context)
+    context.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
+    context.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
     context.add_argument("--expect-sha", help="Fail if the pull request head is not this commit.")
     context.add_argument("--max-passes", type=int, help="Report pass_cap_reached once this many passes have run.")
 
@@ -260,7 +256,6 @@ def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
             base=args.base,
             mark_ready=not args.no_ready,
             fix=not args.no_fix,
-            review_wait_seconds=args.wait_minutes * 60,
             wait_seconds=args.wait_minutes * 60,
         )
     print(json.dumps({"implement": asdict(result.implement), "fix": result.fix and asdict(result.fix)}, indent=2))

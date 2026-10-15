@@ -362,6 +362,14 @@ class TestLoop:
         assert "A defect" not in message
 
 
+def test_the_loop_stops_after_three_rounds_unless_told_otherwise() -> None:
+    import inspect
+
+    from scripts.forge.fix_loop import run_fix_loop
+
+    assert inspect.signature(run_fix_loop).parameters["max_rounds"].default == 3
+
+
 class TestFixLoopCommand:
     def _patch(self, monkeypatch: pytest.MonkeyPatch, git: FakeGit) -> None:
         from scripts.forge import cli as cli_module
@@ -383,6 +391,30 @@ class TestFixLoopCommand:
 
         assert main(["fix-loop", "--pr", "7"], forge) == 0
         assert '"outcome": "ready"' in capsys.readouterr().out
+
+    def _preflights(self, monkeypatch: pytest.MonkeyPatch, *flags: str) -> list[dict[str, bool]]:
+        from scripts.forge import cli as cli_module
+        from scripts.forge.cli import main
+
+        forge, git = world(readiness(title="READY"))
+        self._patch(monkeypatch, git)
+        git.identity = lambda: ("Owner", "owner@example.test")  # type: ignore[attr-defined]
+        seen: list[dict[str, bool]] = []
+
+        def record(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            seen.append({"gate": gate, "agent": agent})
+
+        monkeypatch.setattr(cli_module.container, "preflight", record)
+        assert main(["fix-loop", "--pr", "7", *flags], forge) == 0
+        return seen
+
+    def test_the_agent_container_flag_checks_only_the_agent_before_the_loop_starts(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert self._preflights(monkeypatch, "--agent-container") == [{"gate": False, "agent": True}]
+
+    def test_nothing_is_checked_without_the_agent_container_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert self._preflights(monkeypatch) == []
 
     def test_a_stopped_loop_exits_one(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

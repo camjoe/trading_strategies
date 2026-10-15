@@ -52,8 +52,6 @@ def run_pipeline(
     base: str = "develop",
     mark_ready: bool = True,
     fix: bool = True,
-    max_rounds: int = 3,
-    review_wait_seconds: float = 1800,
     wait_seconds: float = 2700,
     interval_seconds: float = 30,
     sleep: Callable[[float], None] | None = None,
@@ -69,7 +67,7 @@ def run_pipeline(
         return PipelineResult(implemented, None, implemented.detail)
 
     number = implemented.pr_number
-    stopped = _stop_before_fixing(forge, git, authors, number, review_wait_seconds, interval_seconds, sleep, clock)
+    stopped = _stop_before_fixing(forge, git, authors, number, wait_seconds, interval_seconds, sleep, clock)
     if stopped is not None:
         notify(
             f"Plan {plan_file}: fixer not started",
@@ -79,8 +77,8 @@ def run_pipeline(
         return PipelineResult(implemented, None, stopped)
 
     fixed = run_fix_loop(
-        forge, git, fix_agent, sandbox, notify, work_dir, number, authors, max_rounds, wait_seconds, interval_seconds,
-        repo_root, sleep, clock,
+        forge, git, fix_agent, sandbox, notify, work_dir, number, authors,
+        wait_seconds=wait_seconds, interval_seconds=interval_seconds, repo_root=repo_root, sleep=sleep, clock=clock,
     )  # fmt: skip
     return PipelineResult(implemented, fixed, fixed.detail)
 
@@ -90,7 +88,7 @@ def _stop_before_fixing(
     git: PipelineGit,
     authors: Collection[str],
     number: int,
-    review_wait_seconds: float,
+    wait_seconds: float,
     interval_seconds: float,
     sleep: Callable[[float], None] | None,
     clock: Callable[[], float] | None,
@@ -106,7 +104,7 @@ def _stop_before_fixing(
         number,
         trusted,
         None,
-        review_wait_seconds,
+        wait_seconds,
         interval_seconds,
         sleep or time.sleep,
         clock or time.monotonic,

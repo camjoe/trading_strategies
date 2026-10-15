@@ -822,8 +822,8 @@ class TestCommandWiring:
         assert seen["forge"] is setup.forge and seen["git"] is setup.git and seen["sandbox_factory"] is setup.sandboxes
         assert seen["plan_file"] == "thing.md" and seen["implement_agent"] is seen["fix_agent"]
         assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
-        assert seen["base"] == "develop" and "max_rounds" not in seen
-        assert seen["review_wait_seconds"] == 2700 and seen["wait_seconds"] == 2700
+        assert seen["base"] == "develop" and seen["wait_seconds"] == 2700
+        assert not {"max_rounds", "review_wait_seconds"} & seen.keys()
 
     def test_each_flag_reaches_the_pipeline(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
         seen = self._captured(
@@ -840,7 +840,7 @@ class TestCommandWiring:
 
         assert seen["fix"] is False and seen["mark_ready"] is False and seen["depends_ok"] is True
         assert seen["base"] == "main"
-        assert seen["review_wait_seconds"] == 420 and seen["wait_seconds"] == 420
+        assert seen["wait_seconds"] == 420 and "review_wait_seconds" not in seen
 
 
 class TestHoldFailure:

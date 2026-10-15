@@ -95,7 +95,7 @@ class World:
             ["bot"],
             sleep=clock.sleep,
             clock=clock,
-            **{"interval_seconds": 10, "review_wait_seconds": 60, "wait_seconds": 100, **kwargs},  # type: ignore[arg-type]
+            **{"interval_seconds": 10, "wait_seconds": 100, **kwargs},  # type: ignore[arg-type]
         )
 
 
@@ -216,22 +216,23 @@ class TestPipelineArguments:
 
         def loop(*args: object, **kwargs: object) -> LoopResult:
             seen["loop_args"] = args
+            seen["loop_kwargs"] = kwargs
             return LoopResult("ready", 0, "READY", {}, "ok")
 
         monkeypatch.setattr(pipeline_module, "wait_for_next_pass", first_review)
         monkeypatch.setattr(pipeline_module, "run_fix_loop", loop)
         return seen
 
-    def test_the_review_wait_and_the_fixer_wait_go_to_different_places(
+    def test_one_wait_applies_to_the_first_review_and_to_the_fixer_and_the_round_cap_is_the_loops_own(
         self, world: World, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         seen = self._patched(monkeypatch)
 
-        world.run(review_wait_seconds=11, wait_seconds=22, max_rounds=2)
+        world.run(wait_seconds=22)
 
-        args = seen["loop_args"]
-        assert seen["review_wait"] == 11
-        assert args[7] == ["bot"] and args[8] == 2 and args[9] == 22  # type: ignore[index]
+        args, kwargs = seen["loop_args"], seen["loop_kwargs"]
+        assert seen["review_wait"] == 22
+        assert args[7] == ["bot"] and kwargs["wait_seconds"] == 22 and "max_rounds" not in kwargs  # type: ignore[index]
 
     def test_the_gate_runs_against_the_base_the_pickup_was_given(self, world: World) -> None:
         bases: list[str] = []

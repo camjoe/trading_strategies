@@ -396,6 +396,7 @@ class TestDaemonAndPreflight:
             "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine",
             "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
             "error during connect: Get http://x: dial tcp",
+            "Is the docker daemon running?",
         ],
     )
     def test_a_daemon_that_is_not_running_is_named_not_mistaken_for_a_missing_image(
@@ -411,6 +412,26 @@ class TestDaemonAndPreflight:
             container.ensure_image(root, runner)
 
         assert calls == ["image"]
+
+    def test_the_agent_image_check_also_names_a_daemon_that_is_not_running(self, root: Path) -> None:
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            return completed(returncode=1, stderr="error during connect: dial tcp")
+
+        with pytest.raises(ForgeError, match="daemon is not running"):
+            container.ensure_agent_image(root, runner)
+
+    def test_an_inspect_failure_that_is_not_the_daemon_still_goes_on_to_build(self, root: Path) -> None:
+        calls: list[str] = []
+
+        def runner(args: list[str], timeout: float, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+            calls.append(args[1])
+            if args[1] == "image":
+                return completed(returncode=1, stderr="Error response from daemon: No such image: trading-gate:x")
+            return completed()
+
+        container.ensure_image(root, runner)
+
+        assert calls == ["image", "build"]
 
     def test_the_gate_preflight_checks_only_the_gate_image(self, root: Path) -> None:
         docker = FakeDocker(image_present=True)

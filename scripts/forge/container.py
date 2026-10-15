@@ -100,14 +100,17 @@ def _last_line(completed: "subprocess.CompletedProcess[str]") -> str:
     return lines[-1] if lines else f"exit status {completed.returncode}"
 
 
+def _docker_missing(instead: str) -> ForgeError:
+    return ForgeError(
+        f"Docker could not be started, and the container runs need it: install and start Docker, or {instead}."
+    )
+
+
 def _docker(runner: Runner, args: list[str], timeout: float) -> "subprocess.CompletedProcess[str]":
     try:
         return runner(["docker", *args], timeout)
     except FileNotFoundError as exc:
-        raise ForgeError(
-            "Docker could not be started, and the container runs need it: install and start Docker, "
-            "or pass --no-container to run the gate on this machine."
-        ) from exc
+        raise _docker_missing("pass --no-container to run the gate on this machine") from exc
     except subprocess.TimeoutExpired as exc:
         raise ForgeError(f"Docker step timed out ({args[0]}).") from exc
 
@@ -334,11 +337,14 @@ def _exchange_directory(files: Sequence[Path]) -> Path:
     return parents.pop()
 
 
-def _missing_token_message() -> str:
-    return (
-        f"{CLAUDE_AUTH_VARIABLE} is not set. Set it in this shell to a token from `claude setup-token`; "
-        "code the agent runs can read it."
-    )
+def _require_token(environ: Mapping[str, str]) -> str:
+    token = environ.get(CLAUDE_AUTH_VARIABLE, "")
+    if not token:
+        raise ForgeError(
+            f"{CLAUDE_AUTH_VARIABLE} is not set. Set it in this shell to a token from `claude setup-token`; "
+            "code the agent runs can read it."
+        )
+    return token
 
 
 def preflight(
@@ -353,8 +359,8 @@ def preflight(
 
     That is Docker not running, an image that cannot be built, or, for the agent, a missing token.
     """
-    if agent and not environ.get(CLAUDE_AUTH_VARIABLE):
-        raise ForgeError(_missing_token_message())
+    if agent:
+        _require_token(environ)
     if gate:
         ensure_image(root, runner)
     if agent:
@@ -374,9 +380,7 @@ def run_agent(
     The files the prompt names live outside the sandbox, so their directory is mounted at ``/exchange`` and the
     prompt's paths are rewritten to match. The token must be in *environ*; it is redacted from the output.
     """
-    token = environ.get(CLAUDE_AUTH_VARIABLE, "")
-    if not token:
-        raise ForgeError(_missing_token_message())
+    token = _require_token(environ)
     image = ensure_agent_image(root or get_repo_root(), runner)
     prompt = task.prompt
     for file in task.files:
@@ -386,10 +390,7 @@ def run_agent(
     try:
         completed = runner(["docker", *command], AGENT_TIMEOUT_SECONDS, prompt)
     except FileNotFoundError as exc:
-        raise ForgeError(
-            "Docker could not be started, and the container agent needs it: install and start Docker, "
-            "or run without --agent-container."
-        ) from exc
+        raise _docker_missing("run without --agent-container") from exc
     except subprocess.TimeoutExpired as exc:
         _kill_container(runner, name)
         raise ForgeError("The agent timed out.") from exc

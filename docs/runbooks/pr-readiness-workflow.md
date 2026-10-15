@@ -178,8 +178,8 @@ By default the command then waits up to 45 minutes for the review's first commen
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
 one email at the end. `--no-fix` stops once the pull request is ready (then run `fix-loop` yourself if you want
 another `--max-rounds`); `--wait-minutes` sets how long it waits for each review pass, the first included. The
-review only runs on pull requests into `develop`, so with
-another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+review only runs on pull requests into `develop`, so with another `--base` pass `--no-fix`. The loop trusts the
+readiness comment from `github-actions[bot]` and from you.
 
 ### Running the gate in a container
 
@@ -208,8 +208,8 @@ runs them. This isolates the gate only: the agent still runs as described above.
 ### Running the agent in a container
 
 `--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in Docker as well; it is opt-in until it has
-run on several real plans. Set the token in the
-shell you start the command from, typing it so it is not written to a file, a profile, or a settings `env` block:
+run on several real plans. Set the token in the shell you start the command from, typing it so it is not written to
+a file, a profile, or a settings `env` block:
 
 ```powershell
 $env:CLAUDE_CODE_OAUTH_TOKEN = Read-Host "token"   # a token from `claude setup-token`; do not paste it into chat
@@ -226,10 +226,10 @@ token as `<token>` if the agent echoes it.
 
 What else changes:
 
-- The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile: the gate stage plus Node 24 and the pinned Claude Code
-  (`CLAUDE_CODE_VERSION`, the same pin as the workflow). It is about 2 GB on disk and builds on first use,
-  downloading `node:24-slim` and the CLI from npm; it rebuilds when its Dockerfile, the gate requirements, or the pin
-  change.
+- The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile: the gate stage plus Node 24 and the
+  pinned Claude Code (`CLAUDE_CODE_VERSION`, the same pin as the workflow). It is about 2 GB on disk and builds on
+  first use, downloading `node:24-slim` and the CLI from npm; it rebuilds when its Dockerfile, the gate
+  requirements, or the pin change.
 - The agent works in the sandbox mounted at `/work`, with a `.venv` its entrypoint makes from the image's packages
   (so the `.venv` rule in `AGENTS.md` holds); the host sandbox skips building its own, which Windows could not use
   in Linux anyway. The files the prompt names (questions, summary, comment files) are in one directory mounted at
