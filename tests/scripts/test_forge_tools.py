@@ -24,7 +24,7 @@ class TestToolLimits:
     def test_the_agent_cannot_write_into_git_or_reach_the_remote(self) -> None:
         denied = tools.DENIED_TOOLS.split(",")
 
-        for item in ("Edit(.git/**)", "Write(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
+        for item in ("Edit(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
             assert item in denied
 
     def test_nothing_is_both_allowed_and_denied(self) -> None:

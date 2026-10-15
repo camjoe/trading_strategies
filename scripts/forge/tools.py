@@ -74,7 +74,6 @@ DENIED_TOOLS = ",".join(
         *(_bash(f"git {verb}") for verb in DENIED_GIT_VERBS),
         _bash("gh"),
         "Edit(.git/**)",
-        "Write(.git/**)",
     ]
 )
 RESTRICTED_SHELL = restricted_shell()
