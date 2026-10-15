@@ -3,9 +3,9 @@
 Type: runbook
 Status: Active
 Created: 2026-10-10
-Last Reviewed: 2026-10-11
+Last Reviewed: 2026-10-15
 Purpose: Operate the GitHub workflow that runs `pr ready` on pull requests and keeps the readiness comment current.
-Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md)
+Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md), [Agent Sandbox Reference](../reference/agent-sandbox.md)
 
 `.github/workflows/pr-readiness.yml` runs the `pr ready` shortcut on every non-draft pull request into
 `develop` and creates or edits the single `<!-- pr-readiness -->` comment. It is not a merge gate:
@@ -170,9 +170,8 @@ planning, note that all of `scripts/` is guarded, because the workflow imports f
 as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. Files that a
 later `claude -p` run loads as instructions or tool servers are guarded at any depth: `.mcp.json`, `CLAUDE.md`,
 `CLAUDE.local.md`, `AGENTS.md`, and anything under a `.claude/` directory; so are `.vscode/` and `.devcontainer/`.
-The agents also run with `--strict-mcp-config`, so they ignore a repository's MCP servers. A plan whose work
-includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
-pushed; do that part by hand or in a session you run yourself.
+A plan whose work includes a file under `scripts/` (a data-operations helper, for example) is therefore held or
+undone, never pushed; do that part by hand or in a session you run yourself.
 
 By default the command then waits up to 45 minutes for the review's first comment and runs the fixer loop
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
@@ -185,25 +184,16 @@ readiness comment from `github-actions[bot]` and from you.
 
 `implement-plan` runs step 5 in Docker by default; `--no-container` runs it with your interpreter instead. It
 needs Docker running (Docker Desktop with the WSL2 backend on Windows). Before it claims the plan, the command
-checks that Docker works and builds the image if it is missing, and it stops there, with nothing opened on GitHub,
-if Docker is not installed or its daemon is not running. The container gets only the clean clone, mounted at
-`/work`, and:
+checks that Docker works and builds the image if it is missing, so a missing or stopped Docker stops the run with
+nothing opened on GitHub. The container has no network and sees only the clean clone and a short list of
+environment variables, never your tokens or files. What it isolates, and what it does not, is in the
+[Agent Sandbox Reference](../reference/agent-sandbox.md).
 
-- no network, a read-only root filesystem with a 512 MB `/tmp`, no capabilities, `no-new-privileges`, and a
-  non-root user (the owner's uid on Linux and macOS, 10001 on Windows);
-- 4 GB of memory, 4 CPUs, and 512 processes;
-- five environment variables (`PATH`, `PYTHONPATH`, `LANG`, `HOME`, `PYTHONDONTWRITEBYTECODE`), so none of your
-  tokens or settings are visible, and none of your files outside the clone.
-
-The image is `trading-gate:<hash>`, the `gate` stage of `docker/Dockerfile`, built with the requirements files in your
-checkout (never the agent's clone), and rebuilt automatically when any of them changes. The first run builds
-it (about a minute, and it downloads `python:3.14-slim`, Debian's `git` package, and the Python requirements).
-A newer base image or Debian package does not trigger a rebuild; remove the image
-(`docker image rm trading-gate:<hash>`) to pick one up. A gate that outlives its one-hour limit is red and its
-container is killed by name.
-
-The frontend checks do not run in the container (it has no Node, as the sandbox never had `node_modules`); CI
-runs them. This isolates the gate only: the agent still runs as described above.
+The image (`trading-gate:<hash>`, the `gate` stage of `docker/Dockerfile`) is built from your checkout's Dockerfile
+and requirements, never the agent's clone, and rebuilt when either changes. A newer base image or Debian package
+does not trigger a rebuild: remove the image (`docker image rm trading-gate:<hash>`) to pick one up. A gate that
+outlives its one-hour limit is red and its container is killed by name. The frontend checks do not run in the
+container (it has no Node); CI runs them.
 
 ### Running the agent in a container
 
@@ -216,34 +206,20 @@ $env:CLAUDE_CODE_OAUTH_TOKEN = Read-Host "token"   # a token from `claude setup-
 python -m scripts.forge implement-plan --plan plan/<file> --agent-container
 ```
 
-Without the variable the command stops with a message before it claims the plan. The container has the gate's isolation except that the
-network is open, so the agent can reach the Claude API. The token is the one credential inside, and code the agent
-runs (a test it wrote, for example) can read it and send it out, so reuse is a risk you accept. It can make model
-requests billed to your plan, and a leaked one stays valid for up to a year unless revoked. The CLI has no
-command to list or revoke these tokens; users report removing one under claude.ai, Settings, Claude Code, but
-that is not confirmed in Anthropic's documentation, so check that page before relying on it. The tool prints the
-token as `<token>` if the agent echoes it.
+Without the variable the command stops with a message before it claims the plan. The agent container has an open
+network and that token is the one credential inside it, so code the agent runs can read it and send it out; the
+[Agent Sandbox Reference](../reference/agent-sandbox.md) records that risk. The tool prints the token as `<token>`
+if the agent echoes it.
 
-What else changes:
+The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile. It is about 2 GB, builds on first use,
+and rebuilds when its Dockerfile, the gate requirements, or the pinned Claude Code version change. Inside the
+container a command outside the agent's allow list is denied; on the host it is not blocked.
 
-- The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile: the gate stage plus Node 24 and the
-  pinned Claude Code (`CLAUDE_CODE_VERSION`, the same pin as the workflow). It is about 2 GB on disk and builds on
-  first use, downloading `node:24-slim` and the CLI from npm; it rebuilds when its Dockerfile, the gate
-  requirements, or the pin change.
-- The agent works in the sandbox mounted at `/work`, with a `.venv` its entrypoint makes from the image's packages
-  (so the `.venv` rule in `AGENTS.md` holds); the host sandbox skips building its own, which Windows could not use
-  in Linux anyway. The files the prompt names (questions, summary, comment files) are in one directory mounted at
-  `/exchange`, and the prompt's paths are rewritten to match.
-- Your git name and email are the commit author. Git reads no configuration, may only use the `file` transport, and
-  the sandbox has no remote to push to. The tool lists are the same as on the host, but the container runs the CLI with
-  `--permission-mode dontAsk --permission-prompts none`, so anything outside the allow list is denied (for example
-  `cat`, `curl`, or `touch`); on the host an unlisted command is not blocked. The agent reads files with its Read,
-  Glob, and Grep tools and removes or moves them with `git rm` and `git mv`.
-- A relative symlink to a directory made inside the container on the Windows mount (the `lib64` link that
-  `python -m venv` makes, for example) cannot be read or deleted by Windows; the entrypoint removes that one. If a
-  sandbox is left behind with "could not be deleted", the agent made such a link. Remove it from a container:
-  `docker run --rm --entrypoint rm -v <parent>:/p <image> -rf /p/repo`, where `<parent>` is the directory that
-  holds `repo` and `<image>` is any `trading-agent` image.
+If a sandbox is left behind with "could not be deleted", the agent made a relative symlink to a directory on the
+Windows mount (the `lib64` link that `python -m venv` makes, for example), which Windows cannot read or delete. The
+entrypoint removes that one link. Remove the sandbox from a container:
+`docker run --rm --entrypoint rm -v <parent>:/p <image> -rf /p/repo`, where `<parent>` is the directory that holds
+`repo` and `<image>` is any `trading-agent` image.
 
 ## Pin and upgrade the agent
 

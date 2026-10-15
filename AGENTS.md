@@ -50,9 +50,8 @@ conversation.
   and runs can reach the rest of the filesystem and the network. The gate runs in a Docker
   container by default (`--no-container` runs it on the owner's machine) and `--agent-container` runs the agent
   in one; see the `implement plan` shortcut for what that isolates and what it does not. It has the same
-  public-repository limits
-  as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop, the guarded-path
-  list, or this section, needs the owner's yes.
+  public-repository limits as `pr ready`. Starting it on a schedule or from a trigger, or changing the loop,
+  the guarded-path list, or this section, needs the owner's yes.
 
 ## Python environment
 
