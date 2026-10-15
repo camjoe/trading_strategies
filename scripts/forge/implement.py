@@ -11,11 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-from scripts.forge.base import CheckoutGit, Forge, ForgeError
+from scripts.forge.base import RESTRICTED_SHELL, CheckoutGit, Forge, ForgeError
 from scripts.forge.guarded_paths import guarded_paths_touched
 from scripts.forge.plans import claimed_plan_text, claimed_readme_text, parse_plan, pickup_problems
-from scripts.forge.readiness import publish_problems
-from scripts.forge.sandbox import SandboxFactory, leftover_message
+from scripts.forge.readiness import commits_hold_ambient_secret, publish_problems
+from scripts.forge.sandbox import SandboxFactory, leftover_message, read_agent_text
 
 Outcome = Literal["refused", "ready-for-review", "needs-owner", "no-progress", "stopped"]
 
@@ -41,6 +41,11 @@ class ImplementTask:
     summary_file: Path
     cwd: Path
 
+    @property
+    def files(self) -> tuple[Path, ...]:
+        """Files outside the sandbox that the prompt names, for an agent that cannot see the host's paths."""
+        return (self.questions_file, self.summary_file)
+
 
 Agent = Callable[[ImplementTask], None]
 Gate = Callable[[str, Path], tuple[bool, str]]
@@ -65,6 +70,7 @@ def implement_prompt(plan_file: str, branch: str, base: str, questions: Path, su
             "You are in a throwaway clone of the repository with its own .venv, on a detached HEAD: commit on it",
             "and do not create or switch branches. Commit in logical commits, each with its tests, and leave no",
             "uncommitted changes. Run `git add` and `git commit` as separate commands, never chained with `&&`.",
+            RESTRICTED_SHELL,
             "Do not push or use gh, and do not edit the plan's Status line or the plan index.",
             "If the plan is ambiguous, or it is unclear whether something is public or private, write the",
             f"questions to {questions} and leave that part undone.",
@@ -244,9 +250,18 @@ def _implement(
         end = git.import_commits(box.path, start)
         leftover = box.uncommitted()
     committed = end != start
-    guarded = guarded_paths_touched(git.changed_paths(start, end))
+    changed = git.changed_paths(start, end)
+    guarded = guarded_paths_touched(changed)
+    leaked = commits_hold_ambient_secret(git, changed, start, end)
+    try:
+        asked = read_agent_text(questions).strip()
+        summary_text = read_agent_text(summary).strip()
+        unreadable = ""
+    except ForgeError as exc:
+        asked = summary_text = ""
+        unreadable = str(exc)
     held_note = ""
-    if guarded:
+    if committed and (guarded or leaked or unreadable):
         try:
             held = git.hold(branch, end)
             held_note = f" Nothing was pushed; the commits are kept in {held} in your repository, for you to inspect."
@@ -258,12 +273,16 @@ def _implement(
     elif committed:
         git.fast_forward(end)
         git.push(branch)
-    asked = questions.read_text(encoding="utf-8").strip() if questions.is_file() else ""
-    note = _record_on_pull_request(forge, number, claim_body, summary, asked) + held_note
+    note = _record_on_pull_request(forge, number, claim_body, summary_text, asked) + held_note
 
     def done(outcome: Outcome, detail: str) -> ImplementResult:
         return finish(outcome, detail + note)
 
+    if unreadable:
+        return done(
+            "needs-owner",
+            f"{unreadable} Nothing was published, and the pull request stays a draft.",
+        )
     if asked:
         return done("needs-owner", "The agent has questions:\n" + asked)
     if not committed:
@@ -273,6 +292,11 @@ def _implement(
             "needs-owner",
             "The work touches guarded paths, so it was not pushed and the pull request stays a draft: "
             + "; ".join(guarded),
+        )
+    if leaked:
+        return done(
+            "needs-owner",
+            "The commits contain the Claude token, so they were not pushed and the pull request stays a draft.",
         )
     if leftover:
         return done(
@@ -289,12 +313,11 @@ def _implement(
     return done("ready-for-review", "The gate passed; the review starts.")
 
 
-def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary_file: Path, questions: str) -> str:
+def _record_on_pull_request(forge: Forge, number: int, claim_body: str, summary: str, questions: str) -> str:
     """Put the agent's summary and questions in the pull request description, unless they are unsafe to publish.
 
     Returns a sentence for the result detail when the text was withheld, otherwise an empty string.
     """
-    summary = summary_file.read_text(encoding="utf-8").strip() if summary_file.is_file() else ""
     sections = [claim_body]
     if summary:
         sections.append("## Summary\n\n" + summary)

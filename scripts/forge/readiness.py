@@ -1,10 +1,12 @@
 """Checks on the text of a readiness comment, and of agent-written text, before it is published."""
 
+import base64
 import difflib
+import os
 import re
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
-from scripts.forge.base import ForgeError, require_marker
+from scripts.forge.base import CheckoutGit, ForgeError, require_marker
 
 _PASS_HEADER = re.compile(r"^Reviewed .* · pass (\d+) ·", re.MULTILINE)
 _PLACEHOLDER = r"<(?:user|username|name|segment)>(?=[/\\\s`]|$)"
@@ -12,14 +14,25 @@ _PATH_PATTERNS = (
     re.compile(r"/home/runner/[^\s`]"),
     re.compile(rf"/Users/(?!{_PLACEHOLDER})[^\s/`]+"),
     re.compile(rf"(?<![\w./-])/home/(?!{_PLACEHOLDER})[^\s/`]+/[^\s`]"),
-    re.compile(r"(?<![\w.])~/[^\s`]"),
-    re.compile(rf"[A-Za-z]:[\\/]Users[\\/](?!{_PLACEHOLDER})"),
+    re.compile(r"(?<![\w.])~[\\/][^\s`]"),
+    re.compile(rf"{_PLACEHOLDER}[\\/]++\.\.(?![.\w])"),
+    re.compile(rf"[A-Za-z]:[\\/]++Users[\\/]++(?!{_PLACEHOLDER})", re.IGNORECASE),
 )
-_ACCOUNT_ID = re.compile(r"\b(?:DU|DF|U|F)\d{6,9}\b")
+_ACCOUNT_ID = re.compile(r"(?<![A-Za-z0-9])(?:DU|DF|U|F)\d{6,9}(?!\d)")
 _MAX_ADDED_STATUS_LINES = 12
 _FIXER_LINE = re.compile(r"^ {0,3}\*(Fix attempted|Not fixed|Left): ([A-Za-z0-9 ,.;()'_-]{1,300})\* *$")
 _AUTOLINK = re.compile(r"www\.", re.IGNORECASE)
-_CREDENTIAL_PATTERNS = (re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"), re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"))
+_CREDENTIAL_PATTERNS = (
+    re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
+    re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+)
+_AMBIENT_SECRETS = ("CLAUDE_CODE_OAUTH_TOKEN",)
+_MIN_DISGUISED_LENGTH = 20
 
 _CODE_SPANS = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _PUBLISH_PATTERNS = (
@@ -82,12 +95,48 @@ def comment_problems(
     return body_problems(body, old_pass, forbidden, same_pass=True) + fixer_edit_problems(old, body)
 
 
+def _disguises(secret: str) -> set[str]:
+    """*secret* as written, and when long enough to be unique, reversed, in hex, and in base64."""
+    forms = {secret}
+    if len(secret) < _MIN_DISGUISED_LENGTH:
+        return forms
+    data = secret.encode("utf-8")
+    forms |= {secret[::-1], data.hex(), data.hex().upper()}
+    for encoded in (base64.b64encode(data).decode(), base64.urlsafe_b64encode(data).decode()):
+        forms |= {encoded, encoded.rstrip("=")}
+    return forms
+
+
+def _contains_secret(text: str, secrets: Collection[str]) -> bool:
+    compact = "".join(text.split())
+    return any(form in text or form in compact for secret in secrets for form in _disguises(secret))
+
+
+def contains_ambient_secret(text: str) -> bool:
+    """Whether *text* holds the value of a variable in ``_AMBIENT_SECRETS`` (as written or in a disguise)."""
+    return _contains_secret(text, _ambient_secrets())
+
+
+def commits_hold_ambient_secret(git: CheckoutGit, paths: Sequence[str], start: str, end: str) -> bool:
+    """Whether the commits from *start* to *end*, their changed *paths* included, hold a secret from this environment."""
+    return end != start and contains_ambient_secret("\n".join([*paths, git.outgoing_text(start, end)]))
+
+
+def _ambient_secrets() -> list[str]:
+    return [value for name in _AMBIENT_SECRETS if len(value := os.environ.get(name, "")) >= _MIN_DISGUISED_LENGTH]
+
+
 def leak_problems(text: str, forbidden: Collection[str] = ()) -> list[str]:
-    """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text."""
+    """Reasons *text* is not safe to publish: a forbidden string, a local path, or credential-like text.
+
+    A forbidden string, and the value of any variable in ``_AMBIENT_SECRETS`` that is set, is refused as
+    written, with whitespace removed, and (when long) reversed or encoded in hex or base64. Other encodings
+    are not caught.
+    """
     problems: list[str] = []
     if any(not item for item in forbidden):
         problems.append("A forbidden string is not set or empty, so it cannot be checked.")
-    elif any(item in text for item in forbidden):
+    elif _contains_secret(text, [*forbidden, *_ambient_secrets()]):
         problems.append("The body contains a forbidden string.")
     if any(pattern.search(text) for pattern in _PATH_PATTERNS):
         problems.append("The body contains a local path.")

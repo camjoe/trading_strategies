@@ -1,9 +1,9 @@
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 import pytest
 
-from scripts.forge.base import ForgeError
+from scripts.forge.base import RESTRICTED_SHELL, ForgeError
 from scripts.forge.implement import ImplementResult, ImplementTask, run_implement_plan
 from tests.scripts.test_forge import FakeSandboxes, StubForge
 
@@ -16,10 +16,14 @@ README = (
 
 
 class FakeGit:
+    def identity(self) -> tuple[str, str] | None:
+        return None
+
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.head_value = "start000"
         self.changed: list[str] = []
+        self.outgoing = ""
         self.branch_error: ForgeError | None = None
         self.committed: list[tuple[list[str], str]] = []
         self.sandbox_head: str | None = None
@@ -46,6 +50,9 @@ class FakeGit:
 
     def changed_paths(self, base: str, head: str) -> list[str]:
         return self.changed
+
+    def outgoing_text(self, base: str, head: str) -> str:
+        return self.outgoing
 
     def push(self, branch: str = "") -> None:
         if self.push_error:
@@ -130,7 +137,7 @@ class Setup:
         self.closed_when_gated.append(self.sandboxes.closed)
         return self.gate_result
 
-    def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):  # type: ignore[no-untyped-def]
+    def agent(self, commits: bool = True, questions: str = "", fail: bool = False, summary: str = ""):
         def run(task: ImplementTask) -> None:
             self.git.calls.append("agent")
             self.git.phase = "agent"
@@ -315,6 +322,17 @@ class TestOutcome:
         assert len(setup.forge.opened) == 1 and setup.forge.ready == []
 
 
+class TestTaskFiles:
+    def test_each_task_lists_the_files_outside_the_sandbox_that_its_prompt_names(self) -> None:
+        from scripts.forge.fix_loop import RoundTask
+
+        implement = ImplementTask("p", Path("q.md"), Path("s.md"), Path("box"))
+        fix = RoundTask("p", Path("old.md"), Path("new.md"), Path("box"))
+
+        assert implement.files == (Path("q.md"), Path("s.md"))
+        assert fix.files == (Path("old.md"), Path("new.md"))
+
+
 class TestPrompt:
     def test_it_names_the_plan_branch_and_files_and_forbids_pushing(self, setup: Setup) -> None:
         setup.run()
@@ -324,6 +342,12 @@ class TestPrompt:
         assert str(setup.tasks[0].questions_file) in prompt and str(setup.tasks[0].summary_file) in prompt
         assert "Do not push or use gh" in prompt
         assert "separate commands, never chained with `&&`" in prompt
+        assert RESTRICTED_SHELL in prompt
+
+
+@pytest.fixture(autouse=True)
+def _no_real_docker(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scripts.forge.container.preflight", lambda *args, **kwargs: None)
 
 
 class TestImplementPlanCommand:
@@ -336,24 +360,230 @@ class TestImplementPlanCommand:
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
-        assert cli_module.main(["implement-plan", "--plan", "plan/nope.md"], setup.forge) == 1
+        assert cli_module.main(["implement-plan", "--plan", "plan/nope.md", "--no-container"], setup.forge) == 1
         assert '"outcome": "refused"' in capsys.readouterr().out
-        assert cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready"], setup.forge) == 0
+        args = ["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--no-container"]
+        assert cli_module.main(args, setup.forge) == 0
         assert '"outcome": "no-progress"' in capsys.readouterr().out
 
+    def _gates_used(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> set[str]:
+        from scripts.forge import cli as cli_module
 
-class TestPickupHardening:
-    def test_a_plan_that_is_not_on_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
-        setup.git.on_base = False
+        gates: list[str] = []
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+
+        def gate_named(name: str) -> Callable[[str, Path], tuple[bool, str]]:
+            def gate(base: str, cwd: Path) -> tuple[bool, str]:
+                gates.append(name)
+                return True, "ok"
+
+            return gate
+
+        monkeypatch.setattr(cli_module, "run_gate", gate_named("host"))
+        monkeypatch.setattr(cli_module.container, "run_gate", gate_named("container"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        return set(gates)
+
+    def test_the_gate_runs_in_a_container_by_default(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
+        assert self._gates_used(monkeypatch, setup) == {"container"}
+
+    def test_no_container_runs_the_gate_on_this_machine(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
+        assert self._gates_used(monkeypatch, setup, "--no-container") == {"host"}
+
+    def test_the_container_flag_is_still_accepted_and_means_the_default(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._gates_used(monkeypatch, setup, "--container") == {"container"}
+
+
+class TestWhatTheAgentWrites:
+    def test_commits_that_contain_the_claude_token_are_held_and_never_pushed(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        setup.git.outgoing = "+" + token[::-1]
 
         result = setup.run()
 
-        assert result.outcome == "refused" and "is not on origin/develop" in result.detail
+        assert result.outcome == "needs-owner" and "contain the Claude token" in result.detail
+        assert "push" not in setup.git.calls and setup.git.forwarded == [] and setup.gate_runs == []
+        assert len(setup.git.held) == 1 and token not in result.detail
+
+    def test_commits_without_the_token_are_pushed_as_before(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8]))
+        setup.git.outgoing = "+an ordinary change"
+
+        result = setup.run()
+
+        assert "push" in setup.git.calls and result.outcome != "stopped"
+
+    def test_a_questions_file_that_is_not_a_plain_file_is_refused_not_read(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.questions_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
+        assert setup.forge.ready == [] and "push" not in setup.git.calls
+
+    def test_a_summary_file_that_is_not_a_plain_file_is_refused_not_published(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
+        assert setup.forge.ready == [] and setup.forge.bodies == []
+
+    def test_a_bad_summary_with_a_guarded_commit_still_reports_where_the_commits_are_held(self, setup: Setup) -> None:
+        setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
+
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert result.outcome == "needs-owner" and "not a plain file" in result.detail
+        assert "refs/forge/held/" in result.detail and len(setup.git.held) == 1
+        assert "push" not in setup.git.calls and setup.git.forwarded == []
+
+    def test_a_bad_summary_with_clean_commits_holds_them_instead_of_pushing_them(self, setup: Setup) -> None:
+        def agent(task: ImplementTask) -> None:
+            setup.git.sandbox_head = "work111"
+            task.summary_file.mkdir()
+
+        result = setup.run(agent)
+
+        assert "refs/forge/held/" in result.detail and len(setup.git.held) == 1
+        assert "push" not in setup.git.calls and setup.gate_runs == []
+
+    def test_a_token_in_a_changed_path_name_is_held_like_a_token_in_the_text(
+        self, setup: Setup, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        setup.git.changed = [f"docs/{token}.md"]
+
+        result = setup.run()
+
+        assert "contain the Claude token" in result.detail and token not in result.detail
+        assert "push" not in setup.git.calls and len(setup.git.held) == 1
+
+
+class TestPreflightWiring:
+    def _run(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> list[dict[str, bool]]:
+        from scripts.forge import cli as cli_module
+
+        seen: list[dict[str, bool]] = []
+
+        def record(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            seen.append({"gate": gate, "agent": agent})
+
+        monkeypatch.setattr(cli_module.container, "preflight", record)
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+        monkeypatch.setattr(cli_module.container, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+        cli_module.main(["implement-plan", "--plan", "plan/thing.md", "--no-ready", *flags], setup.forge)
+        return seen
+
+    def test_the_default_checks_the_gate_container_before_the_plan_is_claimed(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup) == [{"gate": True, "agent": False}]
+
+    def test_the_agent_container_flag_adds_the_agent_to_the_check(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        monkeypatch.setattr("scripts.forge.container.run_agent", lambda task, **kwargs: setup.agent()(task))
+
+        assert self._run(monkeypatch, setup, "--agent-container") == [{"gate": True, "agent": True}]
+
+    def test_nothing_is_checked_when_everything_runs_on_this_machine(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup, "--no-container") == []
+
+    def test_a_failed_preflight_stops_the_command_before_any_branch_or_pull_request(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from scripts.forge import cli as cli_module
+
+        def failing(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            raise ForgeError("Docker is installed but its daemon is not running")
+
+        monkeypatch.setattr(cli_module.container, "preflight", failing)
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+
+        assert cli_module.main(["implement-plan", "--plan", "plan/thing.md"], setup.forge) == 1
+
+        assert "daemon is not running" in capsys.readouterr().err
+        assert setup.forge.opened == [] and setup.git.calls == []
+
+
+class TestAgentContainerCommand:
+    def _run(self, monkeypatch: pytest.MonkeyPatch, setup: Setup, *flags: str) -> list[bool]:
+        from scripts.forge import cli as cli_module
+
+        installs: list[bool] = []
+
+        def factory(local: object, install: bool = True) -> object:
+            installs.append(install)
+            return setup.sandboxes
+
+        monkeypatch.setattr(cli_module, "get_repo_root", lambda: setup.repo)
+        monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
+        monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: setup.agent()(task))
+        monkeypatch.setattr(
+            cli_module.container, "run_agent", lambda task, model=None, identity=None: setup.agent()(task)
+        )
+        monkeypatch.setattr(cli_module, "run_gate", lambda base, cwd: (True, "ok"))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", factory)
+        monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
+        cli_module.main(
+            ["implement-plan", "--plan", "plan/thing.md", "--no-ready", "--no-container", *flags], setup.forge
+        )
+        return installs
+
+    def test_the_host_sandbox_builds_a_virtual_environment_by_default(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup) == [True]
+
+    def test_a_containerized_agent_needs_no_host_virtual_environment(
+        self, monkeypatch: pytest.MonkeyPatch, setup: Setup
+    ) -> None:
+        assert self._run(monkeypatch, setup, "--agent-container") == [False]
+
+
+class TestRefusalBeforeThePlanIsParsed:
+    def test_a_missing_plan_index_is_refused_and_names_no_branch(self, setup: Setup) -> None:
+        del setup.git.files["plan/README.md"]
+
+        result = setup.run()
+
+        assert result.outcome == "refused" and result.branch is None and "README.md" in result.detail
         assert not any(call.startswith("branch") for call in setup.git.calls) and setup.forge.opened == []
 
+
+class TestPickupFailures:
     def test_a_failed_claim_push_stops_with_a_hint_to_delete_the_branch_and_still_notifies(self, setup: Setup) -> None:
         setup.git.push_error = ForgeError("rejected")
 
@@ -478,7 +708,7 @@ class TestSandboxedPickup:
         assert result.outcome == "stopped" and "not a fast-forward" in result.detail and setup.forge.ready == []
 
 
-class TestPickupEdges:
+class TestPickupRefusalsAndSummaryNotes:
     def test_a_detached_head_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
         setup.git.branch_name = ""
 
@@ -552,15 +782,34 @@ class TestCommandWiring:
                 detail = ""
                 pr_number = 1
 
-        def fake(*args: object, **kwargs: object) -> object:
-            seen["args"] = args
+        def fake(
+            forge: object,
+            git: object,
+            implement_agent: object,
+            fix_agent: object,
+            sandbox_factory: object,
+            gate: object,
+            notify: object,
+            repo_root: object,
+            work_dir: object,
+            plan_file: object,
+            *_rest: object,
+            **kwargs: object,
+        ) -> object:
+            seen.update(
+                forge=forge,
+                git=git,
+                implement_agent=implement_agent,
+                fix_agent=fix_agent,
+                sandbox_factory=sandbox_factory,
+                plan_file=plan_file,
+            )
             seen.update(kwargs)
-            seen["max_rounds"] = kwargs.get("max_rounds")
             return Done()
 
         monkeypatch.setattr(cli_module, "run_pipeline", fake)
         monkeypatch.setattr(cli_module, "LocalGit", lambda: setup.git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: setup.sandboxes)
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git, install=True: setup.sandboxes)
         monkeypatch.setattr(cli_module, "asdict", lambda value: {})
         cli_module.main(["implement-plan", "--plan", "plan/thing.md", *flags], setup.forge)
         return seen
@@ -570,11 +819,11 @@ class TestCommandWiring:
     ) -> None:
         seen = self._captured(monkeypatch, setup)
 
-        args = seen["args"]
-        assert args[0] is setup.forge and args[1] is setup.git and args[4] is setup.sandboxes  # type: ignore[index]
-        assert args[9] == "thing.md" and args[2] is args[3]  # type: ignore[index]
+        assert seen["forge"] is setup.forge and seen["git"] is setup.git and seen["sandbox_factory"] is setup.sandboxes
+        assert seen["plan_file"] == "thing.md" and seen["implement_agent"] is seen["fix_agent"]
         assert seen["fix"] is True and seen["mark_ready"] is True and seen["depends_ok"] is False
-        assert seen["base"] == "develop" and seen["max_rounds"] == 3
+        assert seen["base"] == "develop" and seen["wait_seconds"] == 2700
+        assert not {"max_rounds", "review_wait_seconds"} & seen.keys()
 
     def test_each_flag_reaches_the_pipeline(self, monkeypatch: pytest.MonkeyPatch, setup: Setup) -> None:
         seen = self._captured(
@@ -585,17 +834,13 @@ class TestCommandWiring:
             "--depends-ok",
             "--base",
             "main",
-            "--max-rounds",
-            "2",
-            "--review-wait-minutes",
-            "5",
             "--wait-minutes",
             "7",
         )
 
         assert seen["fix"] is False and seen["mark_ready"] is False and seen["depends_ok"] is True
-        assert seen["base"] == "main" and seen["max_rounds"] == 2
-        assert seen["review_wait_seconds"] == 300 and seen["wait_seconds"] == 420
+        assert seen["base"] == "main"
+        assert seen["wait_seconds"] == 420 and "review_wait_seconds" not in seen
 
 
 class TestHoldFailure:
@@ -617,15 +862,7 @@ class TestHoldFailure:
         assert setup.forge.bodies
 
 
-class TestPickupReadsTheBase:
-    def test_a_plan_index_missing_from_the_base_is_refused_before_any_branch_is_made(self, setup: Setup) -> None:
-        del setup.git.files["plan/README.md"]
-
-        result = setup.run()
-
-        assert result.outcome == "refused" and "README.md" in result.detail
-        assert not any(call.startswith("branch") for call in setup.git.calls)
-
+class TestFailedHold:
     def test_a_failed_hold_names_the_commit_that_is_still_in_the_repository(self, setup: Setup) -> None:
         setup.git.changed = ["src/infrastructure/brokers/ibkr.py"]
 

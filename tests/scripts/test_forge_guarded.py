@@ -1,6 +1,14 @@
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from scripts.forge.guarded_paths import guarded_paths_touched
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize(
@@ -22,6 +30,10 @@ from scripts.forge.guarded_paths import guarded_paths_touched
         ".gitattributes",
         "docs/architecture/architecture-conventions.md",
         "src/trading/domain/accounting/ledger.py",
+        "mypy.ini",
+        ".flake8",
+        "apps/x/frontend/vite.config.ts",
+        "apps/x/frontend/eslint.config.js",
     ],
 )
 def test_pipeline_gate_and_configuration_paths_are_guarded(path: str) -> None:
@@ -36,18 +48,26 @@ def test_pipeline_gate_and_configuration_paths_are_guarded(path: str) -> None:
         "tests/scripts/test_forge.py",
         "docs/maps/scripts-map.md",
         "plan/x.md",
+        "src/common/thing.py",
+        "docs/notes.md",
+        "tests/scripts/test_x.py",
+        "README.md",
     ],
 )
 def test_ordinary_source_tests_and_docs_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
 
 
-def test_tool_configuration_the_checks_execute_is_guarded() -> None:
-    touched = guarded_paths_touched(
-        ["mypy.ini", ".flake8", "apps/x/frontend/vite.config.ts", "apps/x/frontend/eslint.config.js"]
-    )
+@pytest.mark.parametrize(
+    "path", ["docker/Dockerfile", "docker/README.md", "Docker/Dockerfile", "docker/stages/agent/entrypoint.sh"]
+)
+def test_the_container_directory_is_guarded_whatever_its_case(path: str) -> None:
+    assert [entry.split(":")[0] for entry in guarded_paths_touched([path])] == [path]
 
-    assert len(touched) == 4
+
+@pytest.mark.parametrize("path", ["docs/docker-notes.md", "dockerish/x.py", "src/docker/x.py"])
+def test_paths_that_only_resemble_the_container_directory_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
 
 
 @pytest.mark.parametrize(
@@ -65,31 +85,29 @@ def test_tool_configuration_the_checks_execute_is_guarded() -> None:
         ".coveragerc",
         "apps/web/package.json",
         ".env.local",
+        "apps/web/.githooks/pre-push",
+        "tools/.husky/pre-commit",
     ],
 )
 def test_executed_files_and_hook_directories_are_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
 
 
-@pytest.mark.parametrize("path", ["src/common/thing.py", "docs/notes.md", "tests/scripts/test_x.py", "README.md"])
-def test_ordinary_files_are_not_guarded(path: str) -> None:
-    assert guarded_paths_touched([path]) == []
-
-
 @pytest.mark.parametrize(
-    "path", ["Scripts/Forge/guarded_paths.py", ".GitHub/workflows/x.yml", "AGENTS.MD", "Conftest.py", "PYTEST.INI"]
+    "path",
+    [
+        "Scripts/Forge/guarded_paths.py",
+        ".GitHub/workflows/x.yml",
+        "AGENTS.MD",
+        "Conftest.py",
+        "PYTEST.INI",
+        "Apps/.GitHooks/pre-push",
+        "x/.HUSKY/pre-commit",
+        ".ENV.production",
+        "NOXFILE.PY",
+    ],
 )
 def test_the_guard_ignores_case_so_a_case_insensitive_checkout_cannot_dodge_it(path: str) -> None:
-    assert len(guarded_paths_touched([path])) == 1
-
-
-@pytest.mark.parametrize("path", ["apps/web/.githooks/pre-push", "tools/.husky/pre-commit"])
-def test_hook_directories_are_guarded_at_any_depth(path: str) -> None:
-    assert len(guarded_paths_touched([path])) == 1
-
-
-@pytest.mark.parametrize("path", ["Apps/.GitHooks/pre-push", "x/.HUSKY/pre-commit", ".ENV.production", "NOXFILE.PY"])
-def test_mixed_case_hook_directories_and_executed_names_are_guarded(path: str) -> None:
     assert len(guarded_paths_touched([path])) == 1
 
 
@@ -296,6 +314,104 @@ def test_backslash_traversal_is_resolved_before_matching() -> None:
     assert len(guarded_paths_touched([path])) == 1 and OUTSIDE not in guarded_paths_touched([path])[0]
 
 
+@pytest.mark.parametrize("path", [" ./x", ". /x", "  /x"])
+def test_a_first_component_that_collapses_to_nothing_would_become_absolute_and_is_guarded(path: str) -> None:
+    touched = guarded_paths_touched([path])
+
+    assert len(touched) == 1 and "outside the repository" in touched[0]
+
+
 @pytest.mark.parametrize("path", ["", ".", "a/.../b", "docs/./"])
 def test_empty_and_dot_only_paths_are_not_guarded(path: str) -> None:
     assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".mcp.json",
+        "apps/web/.mcp.json",
+        ".MCP.JSON",
+        "CLAUDE.local.md",
+        "docs/CLAUDE.md",
+        "src/trading/CLAUDE.md",
+        "DOCS/Claude.MD",
+        "docs/AGENTS.md",
+        "src/trading/AGENTS.md",
+        "apps/web/.claude/settings.json",
+        "apps/web/.claude/skills/x/SKILL.md",
+        "apps/web/.CLAUDE/commands/x.md",
+        ".vscode/tasks.json",
+        "apps/web/.vscode/settings.json",
+        ".devcontainer/devcontainer.json",
+    ],
+)
+def test_instructions_tool_servers_and_editor_tasks_an_agent_run_loads_are_guarded_at_any_depth(path: str) -> None:
+    assert [entry.split(":")[0] for entry in guarded_paths_touched([path])] == [path]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["docs/claude-notes.md", "docs/agents-guide.md", "docs/mcp.json.md", "docs/vscode/readme.md", "src/claude.md.bak"],
+)
+def test_names_that_only_resemble_those_files_are_not_guarded(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        " ../scripts/forge/cli.py",
+        ".../scripts/forge/cli.py",
+        ". ./scripts/forge/cli.py",
+        "... /scripts/forge/cli.py",
+        ".. /scripts/forge/cli.py",
+        "docs/ ../scripts/forge/cli.py",
+        "docs/ .. /scripts/forge/cli.py",
+        " ../../etc/passwd",
+    ],
+)
+def test_a_component_made_only_of_dots_and_spaces_is_guarded_not_waved_through(path: str) -> None:
+    assert guarded_paths_touched([path]) != []
+
+
+@pytest.mark.parametrize(
+    "path", ["docs/readme.md", "docs/a b.md", "docs/notes. md", "docs/.hidden/x.md", "docs/a..b/x"]
+)
+def test_ordinary_names_with_dots_or_spaces_inside_are_not_mistaken_for_directory_references(path: str) -> None:
+    assert guarded_paths_touched([path]) == []
+
+
+PROBE = chr(10).join(
+    [
+        "import importlib, json, sys",
+        "from pathlib import Path",
+        "importlib.import_module(sys.argv[1])",
+        "root = Path.cwd().resolve()",
+        "found = set()",
+        "for module in list(sys.modules.values()):",
+        "    file = getattr(module, '__file__', None)",
+        "    resolved = Path(file).resolve() if file else None",
+        "    if resolved and root in resolved.parents and '.venv' not in resolved.parts:",
+        "        found.add(resolved.relative_to(root).as_posix())",
+        "print(json.dumps(sorted(found)))",
+    ]
+)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["scripts.checks.repo.review_scope_check", "scripts.forge.cli", "scripts.forge.readiness"],
+)
+def test_every_repository_module_a_workflow_entry_point_loads_is_a_guarded_path(entry: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", PROBE, entry],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join([str(REPO_ROOT), str(REPO_ROOT / "src")])},
+    )
+    loaded = json.loads(result.stdout)
+
+    assert loaded and [file for file in loaded if not guarded_paths_touched([file])] == []

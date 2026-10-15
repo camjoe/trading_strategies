@@ -22,6 +22,56 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def _commit(repo: Path, message: str, env: dict[str, str] | None = None) -> None:
+    import os
+
+    subprocess.run(
+        ["git", "commit", "-q", "-m", message],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        env={**os.environ, **(env or {})},
+    )
+
+
+@pytest.mark.parametrize("hiding_place", ["binary", "plus-plus line", "message", "author", "committer"])
+def test_outgoing_text_shows_a_marker_wherever_a_commit_could_hide_it(repo: Path, hiding_place: str) -> None:
+    marker = "marker-" + "Ab3x" * 6
+    before = git(repo, "rev-parse", "HEAD")
+    env: dict[str, str] = {}
+    message = "ordinary message"
+    if hiding_place == "binary":
+        (repo / "data.bin").write_bytes(b"\x00\x01" + marker.encode() + b"\x00")
+    else:
+        (repo / "new.txt").write_text(
+            "++" + marker + "\n" if hiding_place == "plus-plus line" else "new", encoding="utf-8"
+        )
+    if hiding_place == "message":
+        message = f"subject {marker}"
+    if hiding_place == "author":
+        env["GIT_AUTHOR_NAME"] = marker
+    if hiding_place == "committer":
+        env["GIT_COMMITTER_EMAIL"] = marker + "@example.test"
+    git(repo, "add", ".")
+    _commit(repo, message, env)
+
+    assert marker in LocalGit(repo).outgoing_text(before, "HEAD")
+
+
+def test_outgoing_text_does_not_include_work_outside_the_range(repo: Path) -> None:
+    (repo / "old.txt").write_text("outside-the-range-line", encoding="utf-8")
+    git(repo, "add", ".")
+    _commit(repo, "earlier commit")
+    before = git(repo, "rev-parse", "HEAD")
+    (repo / "new.txt").write_text("inside-the-range-line", encoding="utf-8")
+    git(repo, "add", ".")
+    _commit(repo, "later commit")
+
+    text = LocalGit(repo).outgoing_text(before, "HEAD")
+
+    assert "inside-the-range-line" in text and "outside-the-range-line" not in text
+
+
 def test_create_branch_switches_to_a_new_branch_from_the_start_point(repo: Path) -> None:
     LocalGit(repo).create_branch("feature/x", "develop")
 

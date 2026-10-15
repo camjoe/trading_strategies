@@ -3,9 +3,9 @@
 Type: runbook
 Status: Active
 Created: 2026-10-10
-Last Reviewed: 2026-10-10
+Last Reviewed: 2026-10-15
 Purpose: Operate the GitHub workflow that runs `pr ready` on pull requests and keeps the readiness comment current.
-Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md)
+Related: [Runbooks Index](README.md), [Check PR Readiness skill](../../.ai/skills/check-pr-readiness/SKILL.md), [Scripts Map](../maps/scripts-map.md), [Agent Sandbox Reference](../reference/agent-sandbox.md)
 
 `.github/workflows/pr-readiness.yml` runs the `pr ready` shortcut on every non-draft pull request into
 `develop` and creates or edits the single `<!-- pr-readiness -->` comment. It is not a merge gate:
@@ -167,17 +167,64 @@ remote named (`git pull origin <branch>`).
 
 **What an unattended run cannot change.** `scripts/forge/guarded_paths.py` holds the full list. For
 planning, note that all of `scripts/` is guarded, because the workflow imports from it with a token in hand,
-as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. A plan whose work
+as are `src/common/__init__.py` and any `sitecustomize.py`, `usercustomize.py` or `.pth` file. Files that a
+later `claude -p` run loads as instructions or tool servers are guarded at any depth: `.mcp.json`, `CLAUDE.md`,
+`CLAUDE.local.md`, `AGENTS.md`, and anything under a `.claude/` directory; so are `.vscode/` and `.devcontainer/`.
+The agents also run with `--strict-mcp-config`, so they ignore a repository's MCP servers. A plan whose work
 includes a file under `scripts/` (a data-operations helper, for example) is therefore held or undone, never
 pushed; do that part by hand or in a session you run yourself.
 
-By default the command then waits up to 30 minutes for the review's first comment and runs the fixer loop
+By default the command then waits up to 45 minutes for the review's first comment and runs the fixer loop
 (above) on the pull request, so one command takes a plan to READY or to the point that needs you, and you get
-one email at the end. `--no-fix` stops once the pull request is ready; `--max-rounds`, `--review-wait-minutes`
-and `--wait-minutes` set the fixer's limits. The review only runs on pull requests into `develop`, so with
-another `--base` pass `--no-fix`. The loop trusts the readiness comment from `github-actions[bot]` and from you.
+one email at the end. `--no-fix` stops once the pull request is ready (then run `fix-loop` yourself if you want
+another `--max-rounds`); `--wait-minutes` sets how long it waits for each review pass, the first included. The
+review only runs on pull requests into `develop`, so with another `--base` pass `--no-fix`. The loop trusts the
+readiness comment from `github-actions[bot]` and from you.
+
+### Running the gate in a container
+
+`implement-plan` runs step 5 in Docker by default; `--no-container` runs it with your interpreter instead. It
+needs Docker running (Docker Desktop with the WSL2 backend on Windows). Before it claims the plan, the command
+checks that Docker works and builds the image if it is missing, so a missing or stopped Docker stops the run with
+nothing opened on GitHub. The container has no network and sees only the clean clone and a short list of
+environment variables, never your tokens or files. What it isolates, and what it does not, is in the
+[Agent Sandbox Reference](../reference/agent-sandbox.md).
+
+The image (`trading-gate:<hash>`, the `gate` stage of `docker/Dockerfile`) is built from your checkout's Dockerfile
+and requirements, never the agent's clone, and rebuilt when either changes. A newer base image or Debian package
+does not trigger a rebuild: remove the image (`docker image rm trading-gate:<hash>`) to pick one up. A gate that
+outlives its one-hour limit is red and its container is killed by name. The frontend checks do not run in the
+container (it has no Node); CI runs them.
+
+### Running the agent in a container
+
+`--agent-container` (on `implement-plan` and `fix-loop`) runs the agent in Docker as well; it is opt-in until it has
+run on several real plans. Set the token in the shell you start the command from, typing it so it is not written to
+a file, a profile, or a settings `env` block:
+
+```powershell
+$env:CLAUDE_CODE_OAUTH_TOKEN = Read-Host "token"   # a token from `claude setup-token`; do not paste it into chat
+python -m scripts.forge implement-plan --plan plan/<file> --agent-container
+```
+
+Without the variable the command stops with a message before it claims the plan. The agent container has an open
+network and that token is the one credential inside it, so code the agent runs can read it and send it out; the
+[Agent Sandbox Reference](../reference/agent-sandbox.md) records that risk. The tool prints the token as `<token>`
+if the agent echoes it.
+
+The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile. It is about 2 GB, builds on first use,
+and rebuilds when its Dockerfile, the gate requirements, or the pinned Claude Code version change. Inside the
+container a command outside the agent's allow list is denied; on the host it is not blocked.
+
+If a sandbox is left behind with "could not be deleted", the agent made a relative symlink to a directory on the
+Windows mount (the `lib64` link that `python -m venv` makes, for example), which Windows cannot read or delete. The
+entrypoint removes that one link. Remove the sandbox from a container:
+`docker run --rm --entrypoint rm -v <parent>:/p <image> -rf /p/repo`, where `<parent>` is the directory that holds
+`repo` and `<image>` is any `trading-agent` image.
 
 ## Pin and upgrade the agent
 
-The workflow installs a pinned Claude Code version (`CLAUDE_CODE_VERSION` in the workflow). Upgrade it
-deliberately and compare one pass before and after.
+The agent's Claude Code version is pinned in two places that must match: `CLAUDE_CODE_VERSION` in
+`.github/workflows/pr-readiness.yml` and `CLAUDE_CODE_VERSION` in `scripts/forge/container.py`. A test
+(`test_the_pinned_version_is_the_one_the_workflow_installs`) fails when they differ, and the agent image rebuilds
+when the pin changes. Upgrade both deliberately and compare one pass before and after.

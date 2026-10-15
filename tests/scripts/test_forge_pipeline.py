@@ -79,7 +79,7 @@ class World:
         self.git.forge = forge  # type: ignore[assignment]
 
     def run(self, fix_agent: object = None, **kwargs: object) -> PipelineResult:
-        clock = FakeClock()
+        clock = self.clock = FakeClock()
         implement_agent = self.setup.agent()
         return run_pipeline(
             self.setup.forge,
@@ -95,7 +95,7 @@ class World:
             ["bot"],
             sleep=clock.sleep,
             clock=clock,
-            **{"interval_seconds": 10, "review_wait_seconds": 60, "wait_seconds": 100, **kwargs},  # type: ignore[arg-type]
+            **{"interval_seconds": 10, "wait_seconds": 100, **kwargs},  # type: ignore[arg-type]
         )
 
 
@@ -171,20 +171,10 @@ class TestPipeline:
 
 
 class TestLoopAuthors:
-    def _args(self, author: list[str]) -> object:
-        import argparse
-
-        return argparse.Namespace(author=author)
-
-    def test_the_given_authors_win(self, tmp_path: Path) -> None:
+    def test_the_review_workflow_and_the_owner_are_trusted(self, tmp_path: Path) -> None:
         from scripts.forge.cli import _loop_authors
 
-        assert _loop_authors(self._args(["someone"]), Setup(tmp_path).forge) == ["someone"]  # type: ignore[arg-type]
-
-    def test_by_default_the_review_workflow_and_the_owner_are_trusted(self, tmp_path: Path) -> None:
-        from scripts.forge.cli import _loop_authors
-
-        assert _loop_authors(self._args([]), Setup(tmp_path).forge) == ["github-actions[bot]", "me"]  # type: ignore[arg-type]
+        assert _loop_authors(Setup(tmp_path).forge) == ["github-actions[bot]", "me"]
 
     def test_without_a_known_owner_only_the_review_workflow_is_trusted(self, tmp_path: Path) -> None:
         from scripts.forge.cli import _loop_authors
@@ -192,7 +182,7 @@ class TestLoopAuthors:
         forge = Setup(tmp_path).forge
         forge.user = None
 
-        assert _loop_authors(self._args([]), forge) == ["github-actions[bot]"]  # type: ignore[arg-type]
+        assert _loop_authors(forge) == ["github-actions[bot]"]
 
 
 def test_a_plan_removal_whose_push_fails_is_rolled_back_and_the_run_still_notifies(tmp_path: Path) -> None:
@@ -226,22 +216,25 @@ class TestPipelineArguments:
 
         def loop(*args: object, **kwargs: object) -> LoopResult:
             seen["loop_args"] = args
+            seen["loop_kwargs"] = kwargs
             return LoopResult("ready", 0, "READY", {}, "ok")
 
         monkeypatch.setattr(pipeline_module, "wait_for_next_pass", first_review)
         monkeypatch.setattr(pipeline_module, "run_fix_loop", loop)
         return seen
 
-    def test_the_review_wait_and_the_fixer_wait_go_to_different_places(
+    def test_one_wait_applies_to_the_first_review_and_to_the_fixer_and_the_round_cap_is_the_loops_own(
         self, world: World, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         seen = self._patched(monkeypatch)
 
-        world.run(review_wait_seconds=11, wait_seconds=22, max_rounds=2)
+        world.run(wait_seconds=22)
 
-        args = seen["loop_args"]
-        assert seen["review_wait"] == 11
-        assert args[7] == ["bot"] and args[8] == 2 and args[9] == 22  # type: ignore[index]
+        args, kwargs = seen["loop_args"], seen["loop_kwargs"]
+        assert seen["review_wait"] == 22
+        assert args[7] == ["bot"] and kwargs["wait_seconds"] == 22 and "max_rounds" not in kwargs  # type: ignore[index]
+        assert kwargs["interval_seconds"] == 10 and kwargs["repo_root"] == world.setup.repo  # type: ignore[index]
+        assert kwargs["sleep"] == world.clock.sleep and kwargs["clock"] is world.clock  # type: ignore[index]
 
     def test_the_gate_runs_against_the_base_the_pickup_was_given(self, world: World) -> None:
         bases: list[str] = []

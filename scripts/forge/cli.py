@@ -14,15 +14,16 @@ from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from common.git import get_repo_root, git_output
-from scripts.forge.base import Forge, ForgeError
+from common.git import get_repo_root
+from scripts.forge import container
+from scripts.forge.base import Forge, ForgeError, printable
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
-from scripts.forge.service import resolve_authors, review_context, wait_for_ci
+from scripts.forge.service import resolve_authors, review_context
 
 
 def _add_pr_argument(command: argparse.ArgumentParser) -> None:
@@ -38,9 +39,12 @@ def _add_author_argument(command: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_ci_arguments(command: argparse.ArgumentParser) -> None:
-    command.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
-    command.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
+def _add_agent_container_argument(command: argparse.ArgumentParser) -> None:
+    command.add_argument(
+        "--agent-container",
+        action="store_true",
+        help=f"Run the agent in a Docker container; needs {container.CLAUDE_AUTH_VARIABLE} (a token from `claude setup-token`).",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -61,7 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
     _add_pr_argument(context)
     _add_author_argument(context)
-    _add_ci_arguments(context)
+    context.add_argument("--exclude", action="append", default=[], help="Check name to ignore; repeatable.")
+    context.add_argument("--wait", type=float, default=0, help="Seconds to wait for CI to settle (default: 0).")
     context.add_argument("--expect-sha", help="Fail if the pull request head is not this commit.")
     context.add_argument("--max-passes", type=int, help="Report pass_cap_reached once this many passes have run.")
 
@@ -69,9 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
         "fix-loop", help="Run fixer rounds on a pull request until READY or the owner is needed."
     )
     loop.add_argument("--pr", type=int, required=True, help="Pull request number.")
-    _add_author_argument(loop)
     loop.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     loop.add_argument("--model", default="sonnet", help="Model for the fixer agent (default: sonnet).")
+    _add_agent_container_argument(loop)
     loop.add_argument(
         "--wait-minutes", type=float, default=45, help="Minutes to wait for each review pass (default: 45)."
     )
@@ -87,18 +92,20 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument(
         "--no-fix", action="store_true", help="Stop once the pull request is ready; do not run the fixer."
     )
-    plan.add_argument("--max-rounds", type=int, default=3, help="Fixer rounds before stopping (default: 3).")
     plan.add_argument(
-        "--review-wait-minutes", type=float, default=30, help="Minutes to wait for the first review (default: 30)."
+        "--container",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run the gate in a Docker container with no network and no host files (the default); "
+        "--no-container runs it on this machine.",
     )
+    _add_agent_container_argument(plan)
     plan.add_argument(
-        "--wait-minutes", type=float, default=45, help="Minutes to wait for each later review pass (default: 45)."
+        "--wait-minutes",
+        type=float,
+        default=45,
+        help="Minutes to wait for each review pass, the first included (default: 45).",
     )
-    _add_author_argument(plan)
-
-    ci = commands.add_parser("ci-status", help="Aggregate CI state for a commit.")
-    ci.add_argument("--sha", default="HEAD", help="Commit to judge (default: HEAD).")
-    _add_ci_arguments(ci)
 
     check = commands.add_parser("check-body", help="Check a readiness comment body before it is posted.")
     check.add_argument("--body-file", required=True, help="File holding the comment body.")
@@ -144,11 +151,6 @@ def _comment_upsert(args: argparse.Namespace, forge: Forge) -> None:
     _print({"id": comment.id, "action": "created" if created else "updated"})
 
 
-def _ci_status(args: argparse.Namespace, forge: Forge) -> None:
-    sha = git_output(get_repo_root(), "rev-parse", "HEAD").strip() if args.sha == "HEAD" else args.sha
-    _print(asdict(wait_for_ci(forge, sha, args.exclude, args.wait)))
-
-
 def _review_context(args: argparse.Namespace, forge: Forge) -> None:
     _print(
         review_context(
@@ -184,34 +186,44 @@ def _check_body(args: argparse.Namespace, _forge: Forge) -> None:
 REVIEW_BOT = "github-actions[bot]"
 
 
-def _loop_authors(args: argparse.Namespace, forge: Forge) -> list[str]:
-    """Whose readiness comment the loop trusts: the given authors, else the review workflow and the owner."""
-    if args.author:
-        return list(args.author)
+def _loop_authors(forge: Forge) -> list[str]:
+    """Whose readiness comment the loop trusts: the review workflow and the owner."""
     try:
         return [REVIEW_BOT, forge.current_user()]
     except ForgeError:
         return [REVIEW_BOT]
 
 
-def _sandbox_factory(git: LocalGit) -> SandboxFactory:
-    """Sandboxes cloned from this repository, whose commits carry the owner's identity."""
-    return functools.partial(sandbox, get_repo_root(), identity=git.identity())
+def _sandbox_factory(git: LocalGit, install: bool = True) -> SandboxFactory:
+    """Sandboxes cloned from this repository, whose commits carry the owner's identity.
+
+    A containerized agent brings its own interpreter, so it needs no virtual environment built on the host.
+    """
+    return functools.partial(sandbox, get_repo_root(), identity=git.identity(), install=install)
+
+
+def _agent(args: argparse.Namespace, git: LocalGit) -> "functools.partial[None]":
+    """The agent runner: in a container with ``--agent-container``, else on this machine."""
+    if args.agent_container:
+        return functools.partial(container.run_agent, model=args.model, identity=git.identity())
+    return functools.partial(run_claude_agent, model=args.model)
 
 
 def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
     git = LocalGit()
     git.require_clean_tree()
+    if args.agent_container:
+        container.preflight(get_repo_root(), gate=False, agent=True)
     with tempfile.TemporaryDirectory(prefix="fix-loop-") as work_dir:
         result = run_fix_loop(
             forge,
             git,
-            functools.partial(run_claude_agent, model=args.model),
-            _sandbox_factory(git),
+            _agent(args, git),
+            _sandbox_factory(git, install=not args.agent_container),
             email_notifier,
             Path(work_dir),
             args.pr,
-            _loop_authors(args, forge),
+            _loop_authors(forge),
             max_rounds=args.max_rounds,
             wait_seconds=args.wait_minutes * 60,
             repo_root=get_repo_root(),
@@ -223,27 +235,27 @@ def _fix_loop(args: argparse.Namespace, forge: Forge) -> None:
 
 def _implement_plan(args: argparse.Namespace, forge: Forge) -> None:
     repo_root = get_repo_root()
+    if args.container or args.agent_container:
+        container.preflight(repo_root, gate=args.container, agent=args.agent_container)
     with tempfile.TemporaryDirectory(prefix="implement-plan-") as work_dir:
-        agent = functools.partial(run_claude_agent, model=args.model)
         git = LocalGit()
+        agent = _agent(args, git)
         result = run_pipeline(
             forge,
             git,
             agent,
             agent,
-            _sandbox_factory(git),
-            run_gate,
+            _sandbox_factory(git, install=not args.agent_container),
+            container.run_gate if args.container else run_gate,
             email_notifier,
             repo_root,
             Path(work_dir),
             Path(args.plan).name,
-            _loop_authors(args, forge),
+            _loop_authors(forge),
             depends_ok=args.depends_ok,
             base=args.base,
             mark_ready=not args.no_ready,
             fix=not args.no_fix,
-            max_rounds=args.max_rounds,
-            review_wait_seconds=args.review_wait_minutes * 60,
             wait_seconds=args.wait_minutes * 60,
         )
     print(json.dumps({"implement": asdict(result.implement), "fix": result.fix and asdict(result.fix)}, indent=2))
@@ -255,7 +267,6 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "pr-info": _pr_info,
     "comment-get": _comment_get,
     "comment-upsert": _comment_upsert,
-    "ci-status": _ci_status,
     "review-context": _review_context,
     "check-body": _check_body,
     "fix-loop": _fix_loop,
@@ -268,6 +279,6 @@ def main(argv: Sequence[str] | None = None, forge: Forge | None = None) -> int:
     try:
         COMMANDS[args.command](args, forge or GitHubForge())
     except ForgeError as exc:
-        print(f"forge: {exc}", file=sys.stderr)
+        print(f"forge: {printable(str(exc))}", file=sys.stderr)
         return 1
     return 0

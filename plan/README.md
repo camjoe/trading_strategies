@@ -19,7 +19,7 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 ## Index
 | Plan | Status | Depends on |
 |---|---|---|
-| [docker-agent-sandbox.md](docker-agent-sandbox.md) | In progress (branch `feature/docker-agent-sandbox`), started 2026-10-12: the follow-ups from PR #301 and the container phases. Nothing built yet; phase 1 starts with a spike on the owner's Windows machine. | none (PR #301 is merged) |
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
 | [account-failure-visibility.md](account-failure-visibility.md) | Drafted 2026-10-09. Item A is DURING PR #296; item B is AFTER #296. A1/A2 decision pending. | PR #296 (open) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
+| [agent-sandbox-followups.md](agent-sandbox-followups.md) | Blocked on PR #307 merging, and on the owner's yes to each workflow edit and to the `.claude/settings.json` contents. | PR #307 (open; the owner has not yet decided to merge) |

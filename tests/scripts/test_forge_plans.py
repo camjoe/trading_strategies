@@ -37,6 +37,10 @@ def write(tmp_path: Path, plan_text: str = PLAN, name: str = "contract-trading-r
     return plan, readme
 
 
+def load_plan(plan_file: Path, readme: Path) -> Plan:
+    return parse_plan(plan_file.name, plan_file.read_text(encoding="utf-8"), readme.read_text(encoding="utf-8"))
+
+
 class TestLoadPlan:
     def test_reads_title_status_branch_and_dependencies(self, tmp_path: Path) -> None:
         plan = load_plan(*write(tmp_path))
@@ -145,7 +149,3 @@ class TestClaimedHelpers:
 
         assert [path.name for path in plans_claimed_by(tmp_path, "feature/a")] == ["a.md"]
         assert plans_claimed_by(tmp_path, "feature/none") == []
-
-
-def load_plan(plan_file: Path, readme: Path) -> Plan:
-    return parse_plan(plan_file.name, plan_file.read_text(encoding="utf-8"), readme.read_text(encoding="utf-8"))

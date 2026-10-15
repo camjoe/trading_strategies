@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -11,11 +10,10 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from common.git import get_repo_root, git_output, split_nul
-from scripts.forge.base import ForgeError
-from scripts.forge.sandbox import run_bounded, venv_python
+from scripts.forge.base import ForgeError, printable
+from scripts.forge.sandbox import NO_EXEC_GIT, harden_clone, run_bounded, scrubbed, venv_python
 
 AGENT_TIMEOUT_SECONDS = 3600
-_CONTROLLER_GIT = ("-c", f"core.hooksPath={os.devnull}", "-c", "core.fsmonitor=false")
 GATE_TIMEOUT_SECONDS = 3600
 _PYTHONS = ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
 _PYTHON_MODULES = (
@@ -25,7 +23,7 @@ _PYTHON_MODULES = (
     "scripts.forge check-body",
     "pytest",
 )
-_ALLOWED_TOOLS = ",".join(
+ALLOWED_TOOLS = ",".join(
     [
         "Read",
         "Glob",
@@ -34,14 +32,14 @@ _ALLOWED_TOOLS = ",".join(
         "Write",
         "Skill",
         "Agent",
-        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "status", "diff", "log", "show")),
+        *(f"Bash(git {verb}:*)" for verb in ("add", "commit", "rm", "mv", "status", "diff", "log", "show")),
         "Bash(.venv/bin/pytest:*)",
         "Bash(.venv/Scripts/pytest.exe:*)",
         "Bash(ls:*)",
         *(f"Bash({python} -m {module}:*)" for python in _PYTHONS for module in _PYTHON_MODULES),
     ]
 )
-_DENIED_TOOLS = ",".join(
+DENIED_TOOLS = ",".join(
     [
         *(f"Bash(git {verb}:*)" for verb in ("push", "reset", "clean", "config", "update-ref", "checkout", "restore")),
         "Bash(gh:*)",
@@ -50,9 +48,6 @@ _DENIED_TOOLS = ",".join(
     ]
 )
 
-_SECRET_NAME = re.compile(
-    r"TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|WEBHOOK|SMTP|^TRADING_RUNTIME|^SSH_AUTH_SOCK$", re.IGNORECASE
-)
 _KEPT_FOR_CLAUDE = ("CLAUDE", "ANTHROPIC")
 
 
@@ -71,7 +66,7 @@ class LocalGit:
         self._root = root or get_repo_root()
 
     def _run(self, *args: str) -> str:
-        return git_output(self._root, *_CONTROLLER_GIT, *args)
+        return git_output(self._root, *NO_EXEC_GIT, *args)
 
     def _git(self, *args: str) -> str:
         try:
@@ -103,11 +98,20 @@ class LocalGit:
     def delete_branch(self, name: str) -> None:
         self._git("branch", "-D", name)
 
+    def outgoing_text(self, base: str, head: str) -> str:
+        """Everything the commits from *base* to *head* would publish: the whole patch, with binary files read as
+        text, and each commit's author, committer, and message. No configured diff program runs."""
+        patch = self._git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "--text", "-U0", f"{base}..{head}")
+        people_and_messages = self._git("log", "--format=%an%n%ae%n%cn%n%ce%n%B", f"{base}..{head}")
+        return patch + "\n" + people_and_messages
+
     def import_commits(self, source: Path, since: str) -> str:
         """Fetch HEAD of the repository at *source* and return its commit; nothing is checked out.
 
         Refused unless that commit is *since* or descends from it, so the commits are an honest range to check.
+        The source's git configuration and hooks are reset first, because the agent could write them.
         """
+        harden_clone(source)
         self._git("fetch", "--no-tags", "--quiet", str(source), "HEAD")
         sha = self._git("rev-parse", "FETCH_HEAD^{commit}").strip()
         try:
@@ -185,11 +189,7 @@ def agent_environment(
     Commits still work: the owner's name and email are passed as the author and committer. With *workdir*,
     the virtual environment in it comes first on ``PATH`` and is the active one, so a ``pip install`` lands there.
     """
-    env = {
-        name: value
-        for name, value in base.items()
-        if name.startswith(_KEPT_FOR_CLAUDE) or not _SECRET_NAME.search(name)
-    }
+    env = scrubbed(base, _KEPT_FOR_CLAUDE)
     empty_gitconfig = scratch / "gitconfig"
     empty_gitconfig.write_text("", encoding="utf-8")
     gh_config = scratch / "gh"
@@ -233,10 +233,11 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                     "-p",
                     "--output-format",
                     "json",
+                    "--strict-mcp-config",
                     "--allowedTools",
-                    _ALLOWED_TOOLS,
+                    ALLOWED_TOOLS,
                     "--disallowedTools",
-                    _DENIED_TOOLS,
+                    DENIED_TOOLS,
                     *model_args,
                 ],
                 input=task.prompt,
@@ -251,9 +252,15 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
         raise ForgeError("The claude CLI is not installed or not on PATH.") from exc
     except subprocess.TimeoutExpired as exc:
         raise ForgeError("The agent timed out.") from exc
+    report_agent_result(completed)
+
+
+def report_agent_result(completed: "subprocess.CompletedProcess[str]") -> None:
+    """Raise ``ForgeError`` if the finished ``claude -p`` run failed; otherwise print a one-line summary."""
     result = _agent_result(completed.stdout)
     if completed.returncode != 0 or result.get("is_error"):
-        raise ForgeError(f"The agent failed: {result.get('result') or completed.stderr.strip() or 'no output'}")
+        failure = result.get("result") or completed.stderr.strip() or "no output"
+        raise ForgeError(f"The agent failed: {printable(str(failure))}")
     denials = result.get("permission_denials") or []
     print(
         f"Agent: {result.get('num_turns')} turns, {result.get('duration_ms')} ms, {len(denials)} permission denials.",
@@ -261,7 +268,7 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
     )
     for denial in denials:
         command = (denial.get("tool_input") or {}).get("command") or denial.get("tool_name")
-        print(f"  denied: {str(command)[:120]}", file=sys.stderr)
+        print(f"  denied: {printable(str(command)[:120])}", file=sys.stderr)
 
 
 def _agent_result(stdout: str) -> dict[str, Any]:
@@ -277,11 +284,11 @@ def email_notifier(subject: str, message: str, details: dict[str, object]) -> No
 
     Do not import ``trading`` at module level in this file: the workflow's posting job imports it.
     """
-    try:
-        from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
-        from trading.interfaces.runtime.notifications import notify_runtime_event
+    from trading.interfaces.runtime.jobs.job_helpers import resolve_email_config_from_env
+    from trading.interfaces.runtime.notifications import notify_runtime_event
 
-        config = resolve_email_config_from_env()
+    config = resolve_email_config_from_env()
+    try:
         delivered = notify_runtime_event(
             event="pr-readiness-loop",
             status="ok" if details.get("outcome") == "ready" else "warn",

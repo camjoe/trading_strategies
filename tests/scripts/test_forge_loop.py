@@ -88,6 +88,7 @@ class FakeGit:
     def __init__(self, head: str = "abc123") -> None:
         self.head_value = head
         self.changed: list[str] = []
+        self.outgoing = ""
         self.reset_to: list[str] = []
         self.pushes = 0
         self.removals: list[str] = []
@@ -108,6 +109,9 @@ class FakeGit:
     def changed_paths(self, base: str, head: str) -> list[str]:
         self.changed_args.append((base, head))
         return self.changed
+
+    def outgoing_text(self, base: str, head: str) -> str:
+        return self.outgoing
 
     def discard_changes(self, sha: str) -> None:
         self.reset_to.append(sha)
@@ -165,7 +169,7 @@ def run(
     git: FakeGit,
     tmp_path: Path,
     agent: object = None,
-    max_rounds: int = 3,
+    max_rounds: int | None = None,
     wait_seconds: float = 100,
     repo_root: Path | None = None,
     sandboxes: FakeSandboxes | None = None,
@@ -181,7 +185,7 @@ def run(
         tmp_path,
         7,
         ["bot"],
-        max_rounds=max_rounds,
+        **({} if max_rounds is None else {"max_rounds": max_rounds}),
         wait_seconds=wait_seconds,
         interval_seconds=10,
         repo_root=repo_root,
@@ -251,6 +255,46 @@ class TestLoop:
         assert result.outcome == "stopped" and "guarded" in result.detail
         assert git.forwarded == [] and git.reset_to == [] and git.pushes == 0 and forge.upserted == []
 
+    def test_a_round_whose_commits_contain_the_claude_token_is_discarded_and_nothing_is_applied(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.outgoing = "+" + token.encode().hex()
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "contain the Claude token" in result.detail
+        assert git.forwarded == [] and git.pushes == 0 and forge.upserted == []
+
+    def test_a_token_in_a_changed_path_name_discards_the_round(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        token = "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+        git.changed = [f"docs/{token}.md"]
+
+        result, _ = run(forge, git, tmp_path, fixing_agent(git))
+
+        assert result.outcome == "stopped" and "contain the Claude token" in result.detail
+        assert git.forwarded == [] and git.pushes == 0
+
+    def test_a_comment_file_that_is_not_a_plain_file_stops_the_round_before_anything_is_applied(
+        self, tmp_path: Path
+    ) -> None:
+        forge, git = world(readiness(concerns=OPEN_CONCERN))
+
+        def agent(task: RoundTask) -> None:
+            git.sandbox_head = "def456"
+            task.new_comment_file.mkdir()
+
+        result, _ = run(forge, git, tmp_path, agent)
+
+        assert result.outcome == "stopped" and "not a plain file" in result.detail
+        assert git.forwarded == [] and git.pushes == 0 and forge.upserted == []
+
     def test_a_body_that_edits_a_finding_is_refused_and_not_pushed(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
 
@@ -283,7 +327,7 @@ class TestLoop:
 
         assert result.outcome == "no-progress" and git.pushes == 0 and len(forge.upserted) == 1
 
-    def test_the_loop_stops_at_the_round_cap(self, tmp_path: Path) -> None:
+    def test_the_loop_stops_after_three_rounds_unless_told_otherwise(self, tmp_path: Path) -> None:
         bodies = tuple(readiness(n, concerns=OPEN_CONCERN) for n in (2, 3, 4))
         forge, git = world(readiness(concerns=OPEN_CONCERN), next_bodies=bodies)
         heads = iter(["h1", "h2", "h3", "h4"])
@@ -296,7 +340,7 @@ class TestLoop:
                 old.replace("  *Pointer: fix it.*\n", "  *Pointer: fix it.*\n\n" + line), encoding="utf-8"
             )
 
-        result, _ = run(forge, git, tmp_path, agent, max_rounds=3)
+        result, _ = run(forge, git, tmp_path, agent)
 
         assert (result.outcome, result.rounds, git.pushes) == ("round-cap", 3, 3)
 
@@ -324,7 +368,8 @@ class TestFixLoopCommand:
 
         git.require_clean_tree = lambda: None  # type: ignore[attr-defined]
         monkeypatch.setattr(cli_module, "LocalGit", lambda: git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local: FakeSandboxes(Path(".")))
+        monkeypatch.setattr(cli_module, "_loop_authors", lambda forge: ["bot"])
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda local, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "run_claude_agent", lambda task, model=None: None)
         monkeypatch.setattr(cli_module, "email_notifier", lambda subject, message, details: None)
 
@@ -336,8 +381,32 @@ class TestFixLoopCommand:
         forge, git = world(readiness(title="READY"))
         self._patch(monkeypatch, git)
 
-        assert main(["fix-loop", "--pr", "7", "--author", "bot"], forge) == 0
+        assert main(["fix-loop", "--pr", "7"], forge) == 0
         assert '"outcome": "ready"' in capsys.readouterr().out
+
+    def _preflights(self, monkeypatch: pytest.MonkeyPatch, *flags: str) -> list[dict[str, bool]]:
+        from scripts.forge import cli as cli_module
+        from scripts.forge.cli import main
+
+        forge, git = world(readiness(title="READY"))
+        self._patch(monkeypatch, git)
+        git.identity = lambda: ("Owner", "owner@example.test")  # type: ignore[attr-defined]
+        seen: list[dict[str, bool]] = []
+
+        def record(root: Path, *, gate: bool, agent: bool, **_k: object) -> None:
+            seen.append({"gate": gate, "agent": agent})
+
+        monkeypatch.setattr(cli_module.container, "preflight", record)
+        assert main(["fix-loop", "--pr", "7", *flags], forge) == 0
+        return seen
+
+    def test_the_agent_container_flag_checks_only_the_agent_before_the_loop_starts(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert self._preflights(monkeypatch, "--agent-container") == [{"gate": False, "agent": True}]
+
+    def test_nothing_is_checked_without_the_agent_container_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert self._preflights(monkeypatch) == []
 
     def test_a_stopped_loop_exits_one(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -347,7 +416,7 @@ class TestFixLoopCommand:
         forge, git = world(None)
         self._patch(monkeypatch, git)
 
-        assert main(["fix-loop", "--pr", "7", "--author", "bot"], forge) == 1
+        assert main(["fix-loop", "--pr", "7"], forge) == 1
         assert "no readiness comment" in capsys.readouterr().err.lower()
 
 
@@ -530,7 +599,7 @@ class TestFindingsParsingContinuations:
         assert open_counts(body) == {"blocker": 0, "concern": 0, "note": 2}
 
 
-class TestLoopHardeningTwo:
+class TestPushFailureReporting:
     def test_a_push_failure_is_reported_even_when_the_comment_cannot_be_restored(self, tmp_path: Path) -> None:
         forge, git = world(readiness(concerns=OPEN_CONCERN))
         git.push_error = ForgeError("rejected")
@@ -653,6 +722,7 @@ def test_the_round_prompt_tells_the_fixer_to_commit_everything_and_to_run_git_ad
     from scripts.forge.fix_loop import round_prompt
 
     prompt = round_prompt(7, "origin/develop", Path("old.md"), Path("new.md"))
+    assert "Your shell is restricted" in prompt and "do not write a question for it" in prompt
 
     assert "leave no uncommitted files" in prompt
     assert "separate commands, never chained with `&&`" in prompt
@@ -694,9 +764,9 @@ class TestFixLoopCommandWiring:
 
         monkeypatch.setattr(cli_module, "run_fix_loop", fake)
         monkeypatch.setattr(cli_module, "LocalGit", Git)
-        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git: FakeSandboxes(Path(".")))
+        monkeypatch.setattr(cli_module, "_sandbox_factory", lambda git, install=True: FakeSandboxes(Path(".")))
         monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("/repo"))
-        monkeypatch.setattr(cli_module, "_loop_authors", lambda args, forge: ["bot"])
+        monkeypatch.setattr(cli_module, "_loop_authors", lambda forge: ["bot"])
         cli_module.main(["fix-loop", "--pr", "7", *flags], StubForge())
         return seen
 

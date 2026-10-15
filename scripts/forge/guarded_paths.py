@@ -19,7 +19,7 @@ _EXTRA_GUARDS = (
     ("src/common/git.py", "the git helper the guards call"),
     ("src/__init__.py", "imported by the forge tool"),
     (".github/", "the pipeline's workflows and repository settings"),
-    (".claude/", "agent permissions"),
+    ("docker/", "the container the gate and agents run in"),
     (".ai/skills/", "the skills"),
     ("AGENTS.md", "the standing authorizations"),
     ("CLAUDE.md", "the standing authorizations"),
@@ -32,8 +32,6 @@ _EXTRA_GUARDS = (
     (".pre-commit", "commit hooks"),
     (".gitattributes", "repository settings"),
     (".gitmodules", "repository settings"),
-    (".githooks/", "commit hooks"),
-    (".husky/", "commit hooks"),
     ("SECURITY.md", "the security policy"),
     ("local/", "private research and parameters"),
 )
@@ -47,6 +45,15 @@ _SHORT_NAME = re.compile(r"[^~/]{1,6}~\d{1,7}(?:\.[^./]{0,3})?")
 _DRIVE = re.compile(r"^[a-z]:")
 
 _RUN_ON_START = frozenset({"sitecustomize.py", "usercustomize.py"})
+
+_AGENT_FILES = frozenset({"claude.md", "claude.local.md", "agents.md", ".mcp.json"})
+_DIRECTORY_REASONS = {
+    ".githooks": "commit hooks",
+    ".husky": "commit hooks",
+    ".claude": "agent permissions",
+    ".vscode": "editor tasks that run commands",
+    ".devcontainer": "container setup commands",
+}
 
 _EXECUTED_NAMES = frozenset(
     {
@@ -65,19 +72,35 @@ _EXECUTED_NAMES = frozenset(
 )
 
 
+def _bare_name(component: str) -> str:
+    """*component* without a ``:stream`` suffix and without the trailing dots and spaces Windows drops."""
+    return component.split(":", 1)[0].rstrip(" .")
+
+
 def _normalized(path: str) -> tuple[str, bool]:
     """*path* as Windows would resolve it, and whether it is not a path inside the repository.
 
     The first part has forward slashes, no case, no ``:stream`` suffix, no trailing dots or spaces, and ``.`` and
-    ``..`` resolved. The second is true for an absolute path or one that climbs out of the repository.
+    ``..`` resolved. The second is true for an absolute path, one that climbs out of the repository, or one whose
+    first component collapses to nothing and so turns into an absolute path.
     """
     slashed = path.replace("\\", "/").casefold()
-    cleaned = "/".join(
-        part if part in ("", ".", "..") else part.split(":", 1)[0].rstrip(" .") for part in slashed.split("/")
-    )
+    cleaned = "/".join(part if part in ("", ".", "..") else _bare_name(part) for part in slashed.split("/"))
     resolved = posixpath.normpath(cleaned)
-    outside = slashed.startswith("/") or bool(_DRIVE.match(slashed)) or resolved == ".." or resolved.startswith("../")
+    outside = (
+        slashed.startswith("/")
+        or cleaned.startswith("/")
+        or bool(_DRIVE.match(slashed))
+        or resolved == ".."
+        or resolved.startswith("../")
+    )
     return ("" if resolved == "." else resolved), outside
+
+
+def _hides_a_directory_reference(path: str) -> bool:
+    """Whether a component is only dots and spaces with a space in it, which Windows may read as ``..``."""
+    parts = path.replace("\\", "/").split("/")
+    return any(" " in part and not _bare_name(part) for part in parts)
 
 
 def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
@@ -98,12 +121,16 @@ def guarded_paths_touched(paths: Iterable[str]) -> list[str]:
         reason = "a path outside the repository, or not relative to it" if outside else None
         if reason is None:
             reason = next((why for prefix, why in guards if normalized.startswith(prefix)), None)
+        if reason is None and _hides_a_directory_reference(path):
+            reason = "a name made only of dots and spaces, which Windows may read as a directory reference"
         if reason is None and any(_SHORT_NAME.fullmatch(part) for part in normalized.split("/")):
             reason = "a name that may be a Windows short name for a guarded file"
         if reason is None and (name in _RUN_ON_START or name.endswith(".pth")):
             reason = "code Python runs when it starts"
-        if reason is None and {".githooks", ".husky"} & set(normalized.split("/")[:-1]):
-            reason = "commit hooks"
+        if reason is None:
+            reason = next((why for part in normalized.split("/")[:-1] if (why := _DIRECTORY_REASONS.get(part))), None)
+        if reason is None and name in _AGENT_FILES:
+            reason = "instructions or tool servers an agent run loads"
         if reason is None and name.startswith(".env"):
             reason = "credentials and environment"
         if reason is None and (name in executed_names or _EXECUTED_CONFIG.fullmatch(name)):

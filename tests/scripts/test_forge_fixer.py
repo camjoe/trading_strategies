@@ -225,13 +225,30 @@ class TestStatusLineEdges:
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, too_long)) != []
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, too_deep)) != []
 
-    @pytest.mark.parametrize("trailing", [chr(0xA0), chr(0x200B), chr(9)])
+    @pytest.mark.parametrize(
+        "trailing", [chr(0xA0), chr(0x200B), chr(9)], ids=["no-break-space", "zero-width-space", "tab"]
+    )
     def test_invisible_trailing_characters_are_refused(self, trailing: str) -> None:
         line = "  *Left: short reason*" + trailing + chr(10)
 
         assert fixer_edit_problems(comment(FINDING), comment(FINDING, line)) != []
 
-    @pytest.mark.parametrize("char", ["#", "*", "<", "@", "[", "]", ":", "/", chr(92), chr(96)])
+    @pytest.mark.parametrize(
+        "char",
+        ["#", "*", "<", "@", "[", "]", ":", "/", chr(92), chr(96)],
+        ids=[
+            "hash",
+            "asterisk",
+            "less-than",
+            "at",
+            "open-bracket",
+            "close-bracket",
+            "colon",
+            "slash",
+            "backslash",
+            "backtick",
+        ],
+    )
     def test_each_excluded_character_is_refused(self, char: str) -> None:
         line = "  *Left: reason " + char + " here*" + chr(10)
 

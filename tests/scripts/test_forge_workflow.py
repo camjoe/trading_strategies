@@ -52,6 +52,19 @@ def _run(job: str, name: str) -> str:
     return _step(job, name)["run"]
 
 
+# `python -m scripts.forge <command> <rest of that line>` as written in the workflow.
+FORGE_CALL = re.compile(r"-m scripts\.forge ([a-z-]+)([^\n]*)")
+LONG_FLAG = re.compile(r"(--[a-z-]+)")
+# `jq -r '.key'`: a key the workflow reads from the review-context JSON.
+JQ_KEY = re.compile(r"jq -r '\.([a-z_]+)")
+# `$NAME` or `${NAME}`: a shell variable the workflow reads.
+SHELL_VARIABLE_READ = re.compile(r"\$\{?([A-Z][A-Z0-9_]+)")
+# The three ways the workflow defines a variable: a YAML `env:` key, `echo "NAME=..."`, `write(f"NAME=...")`.
+YAML_ENV_KEY = re.compile(r"^\s+([A-Z][A-Z0-9_]+):", re.MULTILINE)
+ECHO_ASSIGNMENT = re.compile(r'echo "([A-Z][A-Z0-9_]+)=')
+PYTHON_ASSIGNMENT = re.compile(r'write\(f"([A-Z][A-Z0-9_]+)=')
+
+
 def _flags_by_command() -> dict[str, set[str]]:
     subparsers = next(action for action in build_parser()._actions if getattr(action, "choices", None))
     return {
@@ -62,10 +75,7 @@ def _flags_by_command() -> dict[str, set[str]]:
 
 def _forge_calls() -> list[tuple[str, list[str]]]:
     text = WORKFLOW.read_text(encoding="utf-8").replace("\\\n", " ")
-    return [
-        (match.group(1), re.findall(r"(--[a-z-]+)", match.group(2)))
-        for match in re.finditer(r"-m scripts\.forge ([a-z-]+)([^\n]*)", text)
-    ]
+    return [(match.group(1), LONG_FLAG.findall(match.group(2))) for match in FORGE_CALL.finditer(text)]
 
 
 def test_every_forge_call_in_the_workflow_uses_flags_the_command_accepts() -> None:
@@ -79,7 +89,7 @@ def test_every_forge_call_in_the_workflow_uses_flags_the_command_accepts() -> No
 
 def test_the_workflow_reads_keys_that_review_context_returns() -> None:
     context = review_context(StubForge(), 7, [])
-    keys = re.findall(r"jq -r '\.([a-z_]+)", WORKFLOW.read_text(encoding="utf-8"))
+    keys = JQ_KEY.findall(WORKFLOW.read_text(encoding="utf-8"))
 
     assert keys
     assert set(keys) <= set(context)
@@ -87,10 +97,10 @@ def test_the_workflow_reads_keys_that_review_context_returns() -> None:
 
 def test_every_shell_variable_the_workflow_reads_is_defined_in_it() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    used = set(re.findall(r"\$\{?([A-Z][A-Z0-9_]+)", text))
-    defined = set(re.findall(r"^\s+([A-Z][A-Z0-9_]+):", text, re.MULTILINE))
-    defined |= set(re.findall(r'echo "([A-Z][A-Z0-9_]+)=', text))
-    defined |= set(re.findall(r'write\(f"([A-Z][A-Z0-9_]+)=', text))
+    used = set(SHELL_VARIABLE_READ.findall(text))
+    defined = (
+        set(YAML_ENV_KEY.findall(text)) | set(ECHO_ASSIGNMENT.findall(text)) | set(PYTHON_ASSIGNMENT.findall(text))
+    )
     provided_by_the_runner = {"RUNNER_TEMP", "GITHUB_ENV", "GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"}
 
     assert {"HEAD_SHA", "MAX_PASSES", "PR_NUMBER"} <= used

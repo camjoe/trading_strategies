@@ -11,6 +11,13 @@ from typing import Any, Literal, Protocol
 
 READINESS_MARKER = "<!-- pr-readiness -->"
 
+RESTRICTED_SHELL = (
+    "Your shell is restricted: create and edit files with the Write and Edit tools, and run only `git add`, "
+    "`commit`, `rm`, `mv`, `status`, `diff`, `log`, `show`, `ls`, and the repository's pytest, `fix_checks`, "
+    "`run_checks`, and `run_suite`. A refused command does not mean the shell is unusable: use a file tool or "
+    "one of those commands instead, and do not write a question for it."
+)
+
 CiState = Literal["pass", "fail", "pending", "none"]
 
 
@@ -18,11 +25,27 @@ class ForgeError(RuntimeError):
     """A forge operation failed or was refused."""
 
 
+def printable(text: str) -> str:
+    """*text* with control, formatting, and non-printing characters shown as escapes, except newline and tab.
+
+    Text an agent wrote is untrusted; printed raw, an escape sequence in it would act on the owner's terminal.
+    """
+    return "".join(
+        char
+        if char in "\n\t" or char.isprintable()
+        else f"\\u{ord(char):04x}"
+        if ord(char) < 0x10000
+        else f"\\U{ord(char):08x}"
+        for char in text
+    )
+
+
 class CheckoutGit(Protocol):
     """What the fixer loop and the plan pickup both need from git in the owner's checkout."""
 
     def head(self) -> str: ...
     def changed_paths(self, base: str, head: str) -> list[str]: ...
+    def outgoing_text(self, base: str, head: str) -> str: ...
     def import_commits(self, source: Path, since: str) -> str: ...
     def fast_forward(self, sha: str) -> None: ...
     def discard_changes(self, sha: str) -> None: ...

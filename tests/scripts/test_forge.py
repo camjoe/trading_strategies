@@ -1,6 +1,7 @@
+import base64
 import json
 import subprocess
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from io import StringIO
 from pathlib import Path
 
@@ -665,33 +666,6 @@ class TestCli:
 
         assert "newer push" in capsys.readouterr().err
 
-    def test_ci_status_accepts_an_explicit_sha(self, capsys: pytest.CaptureFixture[str]) -> None:
-        forge = StubForge()
-
-        assert main(["ci-status", "--sha", "deadbeef", "--exclude", "readiness"], forge) == 0
-
-        assert forge.ci_shas == ["deadbeef"]
-        assert forge.ci_excludes == [["readiness"]]
-        assert json.loads(capsys.readouterr().out)["state"] == "pass"
-
-    def test_ci_status_defaults_to_the_checked_out_commit(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        seen: list[str] = []
-
-        class Recording(StubForge):
-            def ci_status(self, sha: str, exclude: Collection[str] = ()) -> CiStatus:
-                seen.append(sha)
-                return super().ci_status(sha, exclude)
-
-        monkeypatch.setattr(cli_module, "get_repo_root", lambda: Path("."))
-        monkeypatch.setattr(cli_module, "git_output", lambda *_args: "feedface\n")
-
-        assert main(["ci-status"], Recording()) == 0
-
-        assert seen == ["feedface"]
-        capsys.readouterr()
-
     def test_check_body_accepts_a_good_body(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         body = tmp_path / "body.md"
         body.write_text(readiness_body(2), encoding="utf-8")
@@ -884,12 +858,24 @@ class TestPublicTextShapes:
         assert fixer_edit_problems(old, new) == []
 
 
+BACKSLASH = chr(92)  # written as chr(92) so Windows-style paths in test text need no escaping
+
+
 class TestPathFilters:
-    def test_the_publish_filter_refuses_every_form_the_comment_filter_refuses(self) -> None:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "see ~/project/file.py",
+            "see C:/Users/alice/project",
+            "see /home/alice/project/file.py",
+            f"see C:{BACKSLASH}Users{BACKSLASH}alice{BACKSLASH}file",
+        ],
+        ids=["tilde", "windows-forward-slash", "linux-home", "windows-backslash"],
+    )
+    def test_the_publish_filter_refuses_every_form_the_comment_filter_refuses(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
 
-        for text in ("see ~/project/file.py", "see C:/Users/alice/project", "see /home/alice/project/file.py"):
-            assert leak_problems(text) and publish_problems(text)
+        assert leak_problems(text) and publish_problems(text)
 
     def test_a_bare_home_name_passes_the_comment_filter_but_not_the_publish_filter(self) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
@@ -897,16 +883,244 @@ class TestPathFilters:
         assert leak_problems("the user lives in /home/alice") == []
         assert publish_problems("the user lives in /home/alice") != []
 
-    def test_the_windows_backslash_profile_form_is_refused_in_both(self) -> None:
-        from scripts.forge.readiness import leak_problems, publish_problems
-
-        text = "see C:" + chr(92) + "Users" + chr(92) + "alice" + chr(92) + "file"
-        assert leak_problems(text) and publish_problems(text)
-
     def test_an_account_id_shape_inside_a_code_block_is_still_refused(self) -> None:
         from scripts.forge.readiness import leak_problems
 
         assert leak_problems("```" + chr(10) + "DU1234567" + chr(10) + "```") != []
+
+
+class TestWiderLeakShapes:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            f"see c:{BACKSLASH}users{BACKSLASH}alice{BACKSLASH}x",
+            "see C:/USERS/alice/x",
+            f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}alice{BACKSLASH}{BACKSLASH}x",
+            "see C://Users//alice",
+            f"see ~{BACKSLASH}project",
+        ],
+        ids=["lowercase", "uppercase-forward", "json-escaped", "doubled-forward", "tilde-backslash"],
+    )
+    def test_each_form_of_a_user_profile_path_is_refused_in_a_comment(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("local path" in problem for problem in leak_problems(text))
+
+    @pytest.mark.parametrize(
+        "pieces",
+        [
+            ("github_pat_", "11ABCDEFG0", "A1b2C3d4" * 6),
+            ("AK", "IA", "ABCDEFGHIJKLMNOP"),
+            ("xo", "xb-", "1234567890-", "1234567890-", "AbCdEfGh"),
+            ("ey", "Jhbgcioijiuzi1nij9", ".", "ey", "JzdWIiOiIxMjM0NTY3ODkwIn0", ".", "abcDEF123_-abcDEF123"),
+            ("-----BEGIN ", "RSA ", "PRIVATE KEY-----"),
+        ],
+        ids=["fine-grained-pat", "aws-access-key", "slack-token", "jwt", "private-key-header"],
+    )
+    def test_more_credential_shapes_are_refused(self, pieces: tuple[str, ...]) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("credential" in problem for problem in leak_problems("see " + "".join(pieces) + " here"))
+
+    @pytest.mark.parametrize("text", ["acct_DU1234567", "DU1234567_paper", "file-DU1234567.csv", "DU1234567abc"])
+    def test_an_account_id_next_to_an_underscore_or_letters_is_refused(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert any("account id" in problem for problem in leak_problems(text))
+
+    @pytest.mark.parametrize(
+        "text", ["abcDU1234567", "DU12345678901", "DU12345", "see commit 73bb23aa and ticket 1234567"]
+    )
+    def test_ordinary_text_next_to_digits_is_not_mistaken_for_an_account_id(self, text: str) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert not any("account id" in problem for problem in leak_problems(text))
+
+
+ESC = chr(27)
+BEL = chr(7)
+
+
+class TestContainsAmbientSecret:
+    def test_the_token_in_any_covered_form_is_found_when_it_is_in_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import contains_ambient_secret
+
+        value = _long_value()
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", value)
+
+        assert contains_ambient_secret("x " + value + " y")
+        assert contains_ambient_secret(value[::-1])
+        assert contains_ambient_secret(value.encode().hex())
+
+    def test_nothing_is_found_without_a_long_enough_value_in_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import contains_ambient_secret
+
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        assert not contains_ambient_secret("anything at all")
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "short")
+        assert not contains_ambient_secret("a short word and the short value")
+
+
+class TestCommitsHoldAmbientSecret:
+    class Git:
+        """Stands in for the checkout: ``outgoing_text`` answers with the given patch text and records its calls."""
+
+        def __init__(self, text: str) -> None:
+            self.text = text
+            self.asked: list[tuple[str, str]] = []
+
+        def outgoing_text(self, base: str, head: str) -> str:
+            self.asked.append((base, head))
+            return self.text
+
+    @pytest.fixture(autouse=True)
+    def _token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", _long_value())
+
+    def test_the_token_in_the_patch_text_is_found(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git("+ token = " + _long_value())
+
+        assert commits_hold_ambient_secret(git, ["a.py"], "start", "end")  # type: ignore[arg-type]
+
+    def test_the_token_only_in_a_changed_path_name_is_found(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git("+ nothing to see")
+
+        assert commits_hold_ambient_secret(git, [_long_value() + ".txt"], "start", "end")  # type: ignore[arg-type]
+
+    def test_commits_without_the_token_are_clean(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        assert not commits_hold_ambient_secret(self.Git("+ x = 1"), ["a.py"], "start", "end")  # type: ignore[arg-type]
+
+    def test_no_new_commits_are_not_scanned_at_all(self) -> None:
+        from scripts.forge.readiness import commits_hold_ambient_secret
+
+        git = self.Git(_long_value())
+
+        assert not commits_hold_ambient_secret(git, [_long_value()], "same", "same")  # type: ignore[arg-type]
+        assert git.asked == []
+
+
+class TestPrintable:
+    def test_control_sequences_are_shown_as_escapes_not_acted_on(self) -> None:
+        from scripts.forge.base import printable
+
+        text = f"ok {ESC}[31mred{ESC}[0m {ESC}]52;c;ZXZpbA=={BEL} end"
+
+        shown = printable(text)
+
+        assert ESC not in shown and BEL not in shown
+        assert "\\u001b[31mred" in shown and "\\u0007" in shown
+
+    def test_bidirectional_overrides_and_zero_width_characters_are_escaped(self) -> None:
+        from scripts.forge.base import printable
+
+        shown = printable("a\u202eb\u200bc\u0085d")
+
+        assert shown == "a\\u202eb\\u200bc\\u0085d"
+
+    def test_newlines_tabs_and_ordinary_text_pass_through(self) -> None:
+        from scripts.forge.base import printable
+
+        text = "line one\n\tindented \u00e9\u4e2d\U0001f600 and punctuation: (a) [b] {c} <d>"
+
+        assert printable(text) == text
+
+    def test_an_astral_control_like_character_uses_the_long_escape(self) -> None:
+        from scripts.forge.base import printable
+
+        assert printable("x\U000e0041y") == "x\\U000e0041y"
+
+    def test_the_cli_prints_a_failure_message_without_raw_control_characters(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        def failing(args: object, forge: object) -> None:
+            raise ForgeError(f"The agent failed: {ESC}[2J{ESC}]0;owned{BEL}")
+
+        monkeypatch.setitem(cli_module.COMMANDS, "pr-info", failing)
+
+        assert main(["pr-info", "--pr", "1"], StubForge()) == 1
+
+        err = capsys.readouterr().err
+        assert ESC not in err and BEL not in err and "owned" in err
+
+
+def _long_value() -> str:
+    """A token-shaped value built from pieces so no token-shaped literal sits in this file."""
+    return "".join(["sk", "-ant-", "oat01-", "Ab3_x-Qz9" * 8])
+
+
+def _spaced(value: str) -> str:
+    return " ".join(value[i : i + 12] for i in range(0, len(value), 12))
+
+
+def _line_wrapped(value: str) -> str:
+    return chr(10).join(value[i : i + 9] for i in range(0, len(value), 9))
+
+
+DISGUISES = {
+    "plain": lambda value: value,
+    "reversed": lambda value: value[::-1],
+    "hex": lambda value: value.encode().hex(),
+    "hex-upper": lambda value: value.encode().hex().upper(),
+    "base64": lambda value: base64.b64encode(value.encode()).decode(),
+    "urlsafe-unpadded": lambda value: base64.urlsafe_b64encode(value.encode()).decode().rstrip("="),
+    "spaced": _spaced,
+    "line-wrapped": _line_wrapped,
+}
+
+
+class TestForbiddenValueDisguises:
+    @pytest.mark.parametrize("disguise", DISGUISES.values(), ids=DISGUISES.keys())
+    def test_a_long_forbidden_value_is_refused_in_each_disguise(self, disguise: Callable[[str], str]) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        value = _long_value()
+        text = "Summary: all done. " + disguise(value) + " Nothing else."
+
+        assert any("forbidden" in problem for problem in leak_problems(text, [value]))
+
+    def test_the_claude_token_in_the_environment_is_refused_without_being_listed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.forge.readiness import leak_problems, publish_problems
+
+        value = _long_value()
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", value)
+        hexed = "Summary: " + value.encode().hex()
+
+        assert any("forbidden" in problem for problem in leak_problems(hexed))
+        assert any("forbidden" in problem for problem in publish_problems(hexed))
+
+    def test_an_unset_or_short_environment_value_blocks_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        assert leak_problems("Summary: added two tests.") == []
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "abc")
+        assert leak_problems("abc is a short word and the value is too short to check") == []
+
+    def test_a_short_forbidden_value_is_matched_as_written_only(self) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        assert leak_problems("value s3cr3t here", ["s3cr3t"]) != []
+        assert leak_problems("hex " + b"s3cr3t".hex(), ["s3cr3t"]) == []
+
+    def test_ordinary_prose_and_unrelated_encodings_pass(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.forge.readiness import leak_problems
+
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", _long_value())
+        text = "Added tests. See commit 73bb23aa and " + "ab" * 40
+
+        assert leak_problems(text) == []
 
 
 def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
@@ -916,63 +1130,85 @@ def test_a_url_inside_code_is_not_mistaken_for_a_drive_letter_path() -> None:
     assert publish_problems("see C:/Users/alice/x") != []
 
 
+# Where a user name sits in a home-directory path. Only the bracketed names in PLACEHOLDER_NAMES may stand in for it.
+PLACEHOLDER_NAMES = ["user", "username", "name", "segment"]
+HOME_PREFIXES = {"mac": "/Users/", "linux": "/home/", "windows": "C:/Users/"}
+
+ALLOWED_PLACEHOLDER_PATHS = {
+    "mac": "the pattern matches /Users/<user>/x",
+    "linux": "and /home/<name>/project/file.py",
+    "windows-forward-slash": "and C:/Users/<user>/x",
+    "windows-backslash": f"and C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}x",
+    "windows-backslash-doubled": f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}x",
+    "windows-lowercase": f"see c:{BACKSLASH}users{BACKSLASH}<username>{BACKSLASH}x",
+    "path-ends-at-the-placeholder": "see /Users/<segment>",
+    "slash-after-the-placeholder": "the path /Users/<user>/ and /Users/<user>",
+    "dotted-name-after-the-placeholder": "see /Users/<user>/..hidden/x",
+    "ordinary-name-after-the-placeholder": "see /Users/<user>/docs/x",
+    "hidden-folder-after-the-placeholder": "see C:/Users/<name>/.config/x",
+}
+
+# The publish filter is stricter about escaped and lowercase Windows forms, so only the plain forms are checked there.
+PUBLISHABLE_PLACEHOLDER_PATHS = {
+    label: ALLOWED_PLACEHOLDER_PATHS[label] for label in ("mac", "linux", "windows-forward-slash", "windows-backslash")
+}
+
+REFUSED_NEAR_A_PLACEHOLDER = {
+    "parent-after-mac-placeholder": "see /Users/<user>/../alice/x",
+    "parent-after-windows-placeholder": f"see C:{BACKSLASH}Users{BACKSLASH}<user>{BACKSLASH}..{BACKSLASH}alice{BACKSLASH}x",
+    "parent-after-linux-placeholder": "see /home/<name>/../alice/project/x",
+    "parent-after-json-escaped-placeholder": (
+        f"see C:{BACKSLASH}{BACKSLASH}Users{BACKSLASH}{BACKSLASH}<user>{BACKSLASH}{BACKSLASH}..{BACKSLASH}{BACKSLASH}a"
+    ),
+    "real-name-after-a-mac-placeholder": "/Users/<user>/x and /Users/alice/x",
+    "real-name-after-a-linux-placeholder": "/home/<name>/a and /home/alice/a",
+    "real-name-after-a-windows-placeholder": "C:/Users/<user>/x and C:/Users/alice/x",
+    "name-joined-to-a-placeholder": "/Users/alice<user>/x",
+    "more-name-after-the-placeholder": "/Users/<user>alice/x",
+    "one-letter-after-the-placeholder": "/Users/<user>x",
+    "runner-path": "/home/runner/work/x",
+    "tilde": "see ~/project/file",
+}
+
+
 class TestPlaceholderPaths:
-    BACKSLASH = chr(92)
-
-    def test_an_angle_bracket_placeholder_in_place_of_the_user_name_is_allowed(self) -> None:
-        from scripts.forge.readiness import leak_problems, publish_problems
-
-        for text in (
-            "the pattern matches /Users/<user>/x",
-            "and /home/<name>/project/file.py",
-            "and C:/Users/<user>/x",
-            "and C:" + self.BACKSLASH + "Users" + self.BACKSLASH + "<user>" + self.BACKSLASH + "x",
-        ):
-            assert leak_problems(text) == [], text
-            assert publish_problems("`" + text + "`") == [], text
-
-    def test_a_real_user_name_is_still_refused_even_next_to_a_placeholder(self) -> None:
+    @pytest.mark.parametrize("text", ALLOWED_PLACEHOLDER_PATHS.values(), ids=ALLOWED_PLACEHOLDER_PATHS.keys())
+    def test_a_listed_placeholder_in_place_of_the_user_name_is_allowed(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        for text in (
-            "/Users/<user>/x and /Users/alice/x",
-            "/home/<name>/a and /home/alice/a",
-            "C:/Users/<user>/x and C:/Users/alice/x",
-            "/Users/alice<user>/x",
-        ):
-            assert leak_problems(text) != [], text
+        assert leak_problems(text) == []
 
-    def test_the_runner_path_and_the_tilde_form_are_not_affected(self) -> None:
+    @pytest.mark.parametrize("text", PUBLISHABLE_PLACEHOLDER_PATHS.values(), ids=PUBLISHABLE_PLACEHOLDER_PATHS.keys())
+    def test_the_publish_filter_allows_the_plain_placeholder_forms_inside_code(self, text: str) -> None:
+        from scripts.forge.readiness import publish_problems
+
+        assert publish_problems("`" + text + "`") == []
+
+    @pytest.mark.parametrize("text", REFUSED_NEAR_A_PLACEHOLDER.values(), ids=REFUSED_NEAR_A_PLACEHOLDER.keys())
+    def test_a_real_name_or_a_path_that_leaves_the_placeholder_is_refused(self, text: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        assert leak_problems("/home/runner/work/x") != [] and leak_problems("see ~/project/file") != []
-
-
-class TestOnlyTheListedPlaceholdersAreExempt:
-    @pytest.mark.parametrize("name", ["user", "username", "name", "segment"])
-    def test_each_listed_placeholder_is_allowed(self, name: str) -> None:
-        from scripts.forge.readiness import leak_problems
-
-        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x", f"see /Users/<{name}>"):
-            assert leak_problems(text) == [], text
+        assert any("local path" in problem for problem in leak_problems(text))
 
     @pytest.mark.parametrize("name", ["jdoe", "alice", "user2", "USER", ""])
-    def test_any_other_bracketed_name_is_refused(self, name: str) -> None:
+    @pytest.mark.parametrize("prefix", HOME_PREFIXES.values(), ids=HOME_PREFIXES.keys())
+    def test_any_bracketed_name_that_is_not_listed_is_refused(self, prefix: str, name: str) -> None:
         from scripts.forge.readiness import leak_problems, publish_problems
 
-        for text in (f"/Users/<{name}>/x", f"/home/<{name}>/x", f"C:/Users/<{name}>/x"):
-            assert leak_problems(text) != [], text
-            assert publish_problems("`" + text + "`") != [], text
+        path = f"{prefix}<{name}>/x"
 
-    def test_a_placeholder_followed_by_more_name_is_refused(self) -> None:
+        assert leak_problems(path) != []
+        assert publish_problems("`" + path + "`") != []
+
+    @pytest.mark.parametrize("after", [")", ".", ",", "x", ">"])
+    def test_a_listed_placeholder_must_end_at_a_separator_so_trailing_punctuation_is_refused(self, after: str) -> None:
         from scripts.forge.readiness import leak_problems
 
-        assert leak_problems("/Users/<user>alice/x") != [] and leak_problems("/Users/<user>x") != []
+        assert leak_problems(f"the path /Users/<user>{after}") != []
 
+    @pytest.mark.parametrize("name", PLACEHOLDER_NAMES)
+    @pytest.mark.parametrize("prefix", HOME_PREFIXES.values(), ids=HOME_PREFIXES.keys())
+    def test_each_listed_name_is_allowed_after_each_home_prefix(self, prefix: str, name: str) -> None:
+        from scripts.forge.readiness import leak_problems
 
-@pytest.mark.parametrize("after", [")", ".", ",", "x", ">"])
-def test_a_listed_placeholder_must_end_at_a_separator_so_trailing_punctuation_is_refused(after: str) -> None:
-    from scripts.forge.readiness import leak_problems
-
-    assert leak_problems(f"the path /Users/<user>{after}") != []
-    assert leak_problems("the path /Users/<user>/ and /Users/<user>") == []
+        assert leak_problems(f"{prefix}<{name}>/x") == []
