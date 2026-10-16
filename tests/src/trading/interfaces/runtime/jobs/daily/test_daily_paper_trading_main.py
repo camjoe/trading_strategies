@@ -957,3 +957,87 @@ def test_a_trading_crash_still_stops_the_later_groups(monkeypatch, tmp_path: Pat
 
     assert code == 1
     assert _auto_trader_account_args(_runtime_harness) == ["acct_a"]
+
+
+ANOMALY_OUTPUT_B = "Broker API anomaly during submission for: acct_b\nBROKER_API_ANOMALY_ACCOUNTS: acct_b\n"
+
+
+def test_the_anomaly_alert_says_to_check_the_broker_first(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    [notification] = _runtime_harness.notifications
+    assert "Check the broker's open orders before you run them with:" in notification["message"]
+
+
+def test_a_skipped_account_and_a_broker_anomaly_are_both_named_in_one_alert(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b", "acct_c"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_c": "interactive_brokers_web_paper: gateway down"},
+    )
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a,acct_b,acct_c",
+            "--account-trade-caps",
+            "acct_a:3,acct_b:8,acct_c:8",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+        ],
+    )
+
+    assert code == 0
+    [notification] = _runtime_harness.notifications
+    assert "completed without accounts whose IBKR session was unavailable: acct_c" in notification["message"]
+    assert "completed with broker API anomalies on: acct_a" in notification["message"]
+
+
+def test_anomalies_in_two_groups_fail_the_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.trade_results["acct_b"] = (1, ANOMALY_OUTPUT_B)
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert "Broker API anomaly on every account: acct_a, acct_b" in notification["message"]
+    assert "check the broker's open orders before any re-run" in notification["message"]
+
+
+def test_an_earlier_anomaly_is_named_when_a_later_group_crashes(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.trade_results["acct_b"] = (2, "Traceback ...")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert "Earlier broker API anomaly on: acct_a" in notification["message"]
+
+
+def test_the_post_trade_reconcile_leaves_out_an_anomalous_account(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    [post_reconcile] = [args for label, args in _runtime_harness.stream_calls if label == "Post-trade reconcile fills"]
+    assert post_reconcile[post_reconcile.index("--accounts") + 1] == "acct_b"
+    post_snapshots = [label for label, _ in _runtime_harness.stream_calls if label.startswith("Post-trade snapshot")]
+    assert post_snapshots == ["Post-trade snapshot acct_b"]

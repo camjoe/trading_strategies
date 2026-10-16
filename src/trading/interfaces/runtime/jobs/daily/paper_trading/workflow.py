@@ -13,7 +13,7 @@ import argparse
 import shlex
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 from common.logging_setup import log_counts
@@ -253,17 +253,17 @@ def _interpreter_for(repo_root: Path) -> str:
         return "python"
 
 
-def catch_up_command(args: argparse.Namespace, context: DailyRunContext, skipped: dict[str, str]) -> str:
-    """The command that runs *skipped* accounts later with this run's effective options.
+def catch_up_command(args: argparse.Namespace, context: DailyRunContext, accounts: Collection[str]) -> str:
+    """The command that runs *accounts* (skipped or anomalous) later with this run's effective options.
 
     Run from the repo root. Trade caps are the resolved per-account caps, so the primary-account options need no carrying.
     The webhook URL is left out; the environment supplies it.
     """
     options = [
         "--accounts",
-        ",".join(skipped),
+        ",".join(accounts),
         "--account-trade-caps",
-        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in skipped),
+        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in accounts),
         "--fee",
         str(args.fee),
         "--run-source",
@@ -300,7 +300,8 @@ def _finish_run(
     A run that completed every step but tripped a kill switch is still a success
     by ``status`` — steps ran, nothing threw — but it did not trade what it
     intended. ``kill_switch_accounts`` carries that so the artifact and the alert
-    say so instead of reading as a clean run.
+    say so instead of reading as a clean run. Skipped accounts and
+    ``broker_anomaly_accounts`` are reported the same way.
     """
     failed = error is not None
     kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
@@ -340,11 +341,12 @@ def _finish_run(
                 f"Run them with: {context.catch_up_command}"
             )
         if broker_anomaly_accounts:
-            anomaly_command = catch_up_command(args, context, dict.fromkeys(broker_anomaly_accounts, "anomaly"))
+            anomaly_command = catch_up_command(args, context, broker_anomaly_accounts)
             notes.append(
                 f"completed with broker API anomalies on: {', '.join(broker_anomaly_accounts)}. Their orders may be "
-                "in an unknown state; the next run's pre-trade reconcile applies any fills first. "
-                f"Run them with: {anomaly_command}"
+                "in an unknown state and they were left out of the post-trade reconcile; the next run's pre-trade "
+                "reconcile applies any fills first. Check the broker's open orders before you run them with: "
+                f"{anomaly_command}"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:
@@ -356,8 +358,8 @@ def _finish_run(
         webhook_url=args.notify_webhook_url,
         email_config=resolve_email_config_from_env(),
         notify_on_success=args.notify_on_success,
-        # A kill switch or a skipped account is not a step failure, but it is not a
-        # quiet success either — alert on it even when notify_on_success is off.
+        # A kill switch, a skipped account, or a broker anomaly is not a step failure, but it is
+        # not a quiet success either — alert on it even when notify_on_success is off.
         status="fail"
         if failed
         else ("warn" if kill_switch_accounts or skipped_accounts or broker_anomaly_accounts else "ok"),
@@ -502,15 +504,23 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                 grouped_accounts.items(),
                 key=lambda item: (item[0], item[1]),
             ):
-                broker_anomaly_accounts += run_auto_trader_group(
-                    log_path,
-                    repo_root,
-                    f"Auto Trader (up to {limits} trades)",
-                    group_accounts,
-                    limits,
-                    args.fee,
-                    args.seed,
-                )
+                try:
+                    broker_anomaly_accounts += run_auto_trader_group(
+                        log_path,
+                        repo_root,
+                        f"Auto Trader (up to {limits} trades)",
+                        group_accounts,
+                        limits,
+                        args.fee,
+                        args.seed,
+                    )
+                except RuntimeError as exc:
+                    if broker_anomaly_accounts:
+                        raise RuntimeError(
+                            f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; "
+                            "their orders may be in an unknown state"
+                        ) from exc
+                    raise
                 auto_trader_groups.append(
                     {
                         "accounts": group_accounts,
@@ -518,7 +528,10 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                     }
                 )
             if set(broker_anomaly_accounts) >= set(accounts):
-                raise RuntimeError(f"Broker API anomaly on every account: {', '.join(broker_anomaly_accounts)}")
+                raise RuntimeError(
+                    f"Broker API anomaly on every account: {', '.join(broker_anomaly_accounts)}. Orders may have gone "
+                    "out and may be in an unknown state; check the broker's open orders before any re-run"
+                )
             return {
                 "groups": auto_trader_groups,
                 "group_count": len(auto_trader_groups),
@@ -552,7 +565,12 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         run_dag_step(
             step_results,
             step_id="08_reconcile_fills_update_ledgers",
-            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Post-trade"),
+            run_fn=lambda: reconcile_and_snapshot(
+                log_path,
+                repo_root,
+                [name for name in accounts if name not in broker_anomaly_accounts_from_dag(step_results)],
+                "Post-trade",
+            ),
             now_iso=ts,
         )
 

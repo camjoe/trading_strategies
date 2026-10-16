@@ -156,13 +156,14 @@ journalctl -u daily-paper-trading.service --since today --no-pager | tail -20
 The run's own log has the detail. Look for the success line and the per-account trade counts:
 
 ```bash
-grep -h "executed\|Market closed\|COMPLETE\|ERROR\|WARN: skipping" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
+grep -h "executed\|Market closed\|COMPLETE\|ERROR\|WARN: skipping\|Broker API anomaly\|BROKER_API_ANOMALY_ACCOUNTS" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 ```
 
 | Log line | Meaning |
 |---|---|
 | `COMPLETE: Daily paper trading run succeeded.` | Every step finished |
 | `<account>: executed N trades` | Orders were sent for that account |
+| `Broker API anomaly during submission for: ...` and `BROKER_API_ANOMALY_ACCOUNTS: ...`, after an `ERROR: Auto Trader ... exit=1` | The broker misbehaved while those accounts submitted; the `ERROR` is expected here and the run still ends `COMPLETE` unless every account was affected |
 | `Market closed: no orders will be submitted` | Completed, but outside market hours |
 | `WARN: skipping <account>, broker session unavailable (...)` | That account was left out; the others traded |
 | `RUN META (after skips): accounts=... caps=...` | The accounts and caps the run actually traded, after the skips; the first `RUN META` line lists every requested account |
@@ -191,8 +192,8 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 | Session back after either | Keepalive journal: `IBKR session alive` | `ok`: "IBKR session alive again" |
 | Daily run starts with some accounts' sessions down (the rest, such as simulator accounts, are fine) | Log: `WARN: skipping <account>, broker session unavailable (<broker type>: <reason>)`; the run trades the other accounts and ends with `COMPLETE`; artifact `skipped_accounts` names the skipped ones | `warn`, event `daily-paper-trading`: "completed without accounts whose IBKR session was unavailable: ... Run them with: <repo .venv python> -m ... --accounts <names> (the run's caps, fee, seed and date carried over) --run-source manual --force-run" |
 | Daily run starts with every account's session down | Log: `ERROR: Broker session unavailable for every run account, no step ran. <account> (<broker type>: <reason>)`; artifact `status: failed`, `failed_step: 00_ingest_market_and_account`, `skipped_accounts` naming every account and why (the run failed; none traded) | `fail`, event `daily-paper-trading`: "Daily paper trading run failed: ..." |
-| The broker misbehaves while an account submits orders (a broker API anomaly) in one cap group but not every account | Log: `Broker API anomaly during submission for: <accounts>` and the `BROKER_API_ANOMALY_ACCOUNTS:` line; the other cap groups still trade, the snapshots and report run, and the run ends `COMPLETE`; artifact `broker_anomaly_accounts` names the accounts | `warn`, event `daily-paper-trading`: "completed with broker API anomalies on: ... Run them with: <command>" |
-| A broker API anomaly on every account | Log: `ERROR:` for the trading step; artifact `failed`; nothing traded | `fail`, event `daily-paper-trading`: "Broker API anomaly on every account: ..." |
+| The broker misbehaves while an account submits orders (a broker API anomaly) in one cap group but not every account | Log: `Broker API anomaly during submission for: <accounts>` and the `BROKER_API_ANOMALY_ACCOUNTS:` line; the other cap groups still trade, the snapshots (the anomalous accounts are left out of the post-trade reconcile) and report run, and the run ends `COMPLETE`; artifact `broker_anomaly_accounts` names the accounts | `warn`, event `daily-paper-trading`: "completed with broker API anomalies on: ... Run them with: <command>" |
+| A broker API anomaly on every account | Log: `ERROR:` for the trading step; artifact `failed`; no `COMPLETE`, so a plain re-run is allowed, but orders may have gone out and may be in an unknown state | `fail`, event `daily-paper-trading`: "Broker API anomaly on every account: ... check the broker's open orders before any re-run" |
 | Any later daily step fails | Log `ERROR:` line; artifact `failed`, with the failed step | `fail`, event `daily-paper-trading` |
 | A kill switch is on | Run completes; artifact lists `kill_switch_accounts` | `warn`, event `daily-paper-trading` |
 | Daily health check finds the latest log stale or missing the success line | `[FAIL] ...` on its output | `fail`, event `daily-trader-health` |
@@ -209,9 +210,9 @@ After you fix the session, run the skipped accounts with `--accounts <names> --f
 alert prints the command). `--accounts` limits the run to those accounts, so nothing else trades twice.
 A run in which every account is unavailable fails and writes no `COMPLETE`, but the guard counts the
 date as done if any of that date's logs has `COMPLETE`, so a plain re-run works only when no run
-completed that day. An account with a broker API anomaly may have orders in an unknown state. The next run's pre-trade reconcile
-(step `01_mark_book_nav`) applies the broker's fills before that run trades, so run the `warn`'s command only
-after the cause is fixed. Any other trading-step failure, including a crash or an exit 1 that names no account,
+completed that day. An account with a broker API anomaly may have orders in an unknown state, and it is left out of that run's
+post-trade reconcile. The next run's pre-trade reconcile (step `01_mark_book_nav`) applies the broker's fills before
+that run trades. Check the broker's open orders and run the `warn`'s command only after the cause is fixed. Any other trading-step failure, including a crash or an exit 1 that names no account,
 still stops the run at that step. While an account is skipped, nothing reconciles its fills or snapshots its equity;
 its books catch up when you run it.
 

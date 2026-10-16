@@ -270,6 +270,7 @@ def test_scan_artifacts_ignores_invalid_names_and_handles_corrupt_json(tmp_path:
             "artifact_file": "daily_paper_trading_20260520_120000.json",
             "accounts": [],
             "kill_switch_accounts": [],
+            "broker_anomaly_accounts": [],
         }
     ]
 
@@ -356,3 +357,34 @@ class TestPerAccountBurnIn:
         data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is True
         assert data["accounts"] == {}
+
+
+class TestBrokerAnomalyDays:
+    def test_a_day_with_an_anomaly_breaks_the_whole_run_streak(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "140000", DAILY_RUN_STATUS_SUCCESS, broker_anomaly_accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["ready_for_live"] is False
+
+    def test_an_anomaly_breaks_only_the_streak_of_the_account_it_hit(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "140000",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["sim", "ibkr"],
+            broker_anomaly_accounts=["ibkr"],
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr", "--min-consecutive-days", "10"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["sim"]["consecutive_successes"] == 10
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0

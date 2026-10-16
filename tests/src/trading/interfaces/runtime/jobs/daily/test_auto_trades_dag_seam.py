@@ -135,3 +135,10 @@ def test_the_step_reports_the_failing_exit_code(monkeypatch) -> None:
         )
 
     assert step_result(step_results, TRADING_STEP_ID).error == "Step failed: Auto Trader (exit=1)"
+
+
+def test_the_anomaly_line_is_read_for_several_accounts_and_ignores_noise_after_it() -> None:
+    output = "x\nBROKER_API_ANOMALY_ACCOUNTS: acct_a, acct_b\nTraceback noise\n"
+
+    assert workflow_module._broker_anomaly_accounts(output) == ["acct_a", "acct_b"]
+    assert workflow_module._broker_anomaly_accounts("no line here") == []
