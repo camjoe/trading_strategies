@@ -66,6 +66,7 @@ def _runtime_harness(monkeypatch, conn):
         accounts: list[str] = field(default_factory=lambda: ["acct_a"])
         stream_calls: list[tuple[str, list[str]]] = field(default_factory=list)
         stream_error: Exception | None = None
+        trade_results: dict[str, tuple[int, str]] = field(default_factory=dict)
         notifications: list[dict[str, object]] = field(default_factory=list)
 
     state = RuntimeHarnessState()
@@ -80,7 +81,16 @@ def _runtime_harness(monkeypatch, conn):
         f"{DAILY_PAPER_TRADING_MODULE}.load_account_names",
         lambda: list(state.accounts),
     )
+
+    def _run(_log_path, label, args, _cwd):
+        state.stream_calls.append((label, args))
+        error = state.stream_error
+        if error is not None:
+            raise error
+        return state.trade_results.get(args[args.index("--accounts") + 1], (0, ""))
+
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.stream_command", _stream)
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.run_command", _run)
     # Snapshots retry with backoff; keep the failure paths from actually sleeping.
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.SNAPSHOT_BACKOFF_SECONDS", 0)
     monkeypatch.setattr(
@@ -653,22 +663,22 @@ def test_startup_log_swallows_os_errors(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_run_auto_trader_group_skips_empty_groups(monkeypatch, tmp_path: Path) -> None:
-    stream = pytest.MonkeyPatch()
-    try:
-        called: list[tuple[str, list[str]]] = []
-        stream.setattr(
-            workflow_module, "stream_command", lambda log_path, label, args, repo_root: called.append((label, args))
-        )
-        workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 5, 0.0, None)
-    finally:
-        stream.undo()
+    called: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        workflow_module,
+        "run_command",
+        lambda log_path, label, args, repo_root: called.append((label, args)) or (0, ""),
+    )
 
+    assert workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 5, 0.0, None) == []
     assert called == []
 
 
 def test_run_auto_trader_group_includes_seed_when_present(monkeypatch, tmp_path: Path) -> None:
     called: list[list[str]] = []
-    monkeypatch.setattr(workflow_module, "stream_command", lambda _log, _label, args, _root: called.append(args))
+    monkeypatch.setattr(
+        workflow_module, "run_command", lambda _log, _label, args, _root: called.append(args) or (0, "")
+    )
 
     workflow_module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 5, 0.0, 7)
 
@@ -872,3 +882,78 @@ def test_a_kill_switch_and_a_skipped_account_are_both_named_in_one_alert(
     assert notification["status"] == "warn"
     assert "completed with kill switches on: acct_a | completed without accounts" in notification["message"]
     assert "--accounts acct_b" in notification["message"]
+
+
+ANOMALY_OUTPUT = "Broker API anomaly during submission for: acct_a\nBROKER_API_ANOMALY_ACCOUNTS: acct_a\n"
+TWO_GROUP_ARGS = [
+    "--accounts",
+    "acct_a,acct_b",
+    "--account-trade-caps",
+    "acct_a:3,acct_b:8",
+    "--notify-webhook-url",
+    "https://example.test/webhook",
+]
+
+
+def _auto_trader_account_args(state) -> list[str]:
+    return [
+        args[args.index("--accounts") + 1] for label, args in state.stream_calls if label.startswith("Auto Trader")
+    ]
+
+
+def test_a_broker_anomaly_in_one_group_does_not_stop_the_next_group(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 0
+    assert _auto_trader_account_args(_runtime_harness) == ["acct_a", "acct_b"]
+    assert any(label.startswith("Post-trade snapshot") for label, _ in _runtime_harness.stream_calls)
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    assert "completed with broker API anomalies on: acct_a" in notification["message"]
+    assert "pre-trade reconcile applies any fills first" in notification["message"]
+    assert "--accounts acct_a" in notification["message"] and "--force-run" in notification["message"]
+    assert notification["details"]["broker_anomaly_accounts"] == ["acct_a"]
+
+
+def test_the_artifact_names_the_accounts_with_a_broker_anomaly(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["status"] == "success" and payload["broker_anomaly_accounts"] == ["acct_a"]
+
+
+def test_a_broker_anomaly_on_every_account_fails_the_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert "Broker API anomaly on every account: acct_a" in notification["message"]
+
+
+def test_a_trading_crash_still_stops_the_later_groups(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (2, "Traceback ...")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    assert _auto_trader_account_args(_runtime_harness) == ["acct_a"]

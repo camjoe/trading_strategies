@@ -32,6 +32,8 @@ CLI_MAIN_MODULE = "trading.interfaces.cli.main"
 ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
+# Line ``run_auto_trades`` prints, before exiting 1, naming the accounts whose broker misbehaved mid-submission.
+BROKER_ANOMALY_LINE_PREFIX = "BROKER_API_ANOMALY_ACCOUNTS: "
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
