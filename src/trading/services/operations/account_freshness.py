@@ -2,8 +2,7 @@
 
 Every daily run snapshots each account it handles, market open or not, so an
 account that was skipped, never reached, aborted, or dropped by a typo stops
-getting snapshots. This service only reads; it opens no connection and writes
-nothing.
+getting snapshots. This service only reads.
 """
 
 from __future__ import annotations
@@ -69,10 +68,19 @@ def evaluate_account_freshness(
 ) -> FreshnessReport:
     """Sort accounts into warn, fail, and never-snapshotted lists as of ``as_of``.
 
-    The snapshot date is the UTC date of the newest ``snapshot_time`` across all
-    of the account's books, so one stopped book does not make an account stale. Accounts
-    named in ``exclude`` appear in no list.
+    ``as_of`` is the UTC date to judge against (``utc_today()`` in production). The snapshot date is the
+    UTC date of the newest ``snapshot_time`` across all of the account's books. Accounts named in
+    ``exclude`` appear in no list, and the lists keep the order of ``accounts``.
+
+    Raises ``TypeError`` when ``exclude`` is a single string, and ``ValueError`` when the thresholds are
+    not ``1 <= warn_after <= fail_after``, when an account's newest ``snapshot_time`` cannot be read, or
+    when it is dated after ``as_of``. A bad row is a data bug, so it fails the report instead of being
+    skipped or counted as fresh.
     """
+    if isinstance(exclude, str):
+        raise TypeError("exclude must be a collection of account names, not a single string")
+    if not 1 <= warn_after <= fail_after:
+        raise ValueError(f"thresholds must satisfy 1 <= warn_after <= fail_after, got {warn_after} and {fail_after}")
     warn: list[AccountFreshness] = []
     fail: list[AccountFreshness] = []
     never: list[AccountFreshness] = []
@@ -83,7 +91,14 @@ def evaluate_account_freshness(
         if latest is None:
             never.append(AccountFreshness(account.name, None, None))
             continue
-        last_date = parse_utc_iso(latest.snapshot_time).date()
+        try:
+            last_date = parse_utc_iso(latest.snapshot_time).date()
+        except ValueError as exc:
+            raise ValueError(
+                f"account {account.name!r} has an unreadable snapshot_time {latest.snapshot_time!r}"
+            ) from exc
+        if last_date > as_of:
+            raise ValueError(f"account {account.name!r} has a snapshot dated {last_date}, after as_of {as_of}")
         stale = weekdays_since(last_date, as_of)
         entry = AccountFreshness(account.name, last_date, stale)
         if stale >= fail_after:

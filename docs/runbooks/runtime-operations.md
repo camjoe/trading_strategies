@@ -211,8 +211,12 @@ newest equity snapshot ages when the run stops reaching it.
   date the caller passes. Market holidays count as weekdays.
 - Freshness is per account: the newest snapshot across all of the account's books counts, so an account
   with one active book and one stopped book reads as fresh.
+- Run it after the day's daily run, with `as_of` from `utc_today()` in `src/common/time.py`. Run earlier and
+  the weekday of `as_of` has no snapshot yet, so every account reads one weekday staler.
 - `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
   (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and
   is not a failure.
 - `exclude` names accounts left out on purpose, such as one omitted from the daily job's `--accounts`.
-- The health check does not call it yet.
+- A snapshot dated after `as_of`, a `snapshot_time` that cannot be read, thresholds outside
+  `1 <= warn_after <= fail_after`, and an `exclude` given as one string all raise: a bad row is a data bug and
+  should fail the report, not be skipped or counted as fresh.
