@@ -70,8 +70,15 @@ Step `01_mark_book_nav` already reconciles every account's open orders before an
 partly submitted order has its state applied with no extra broker call. When reconcile leaves orders unresolved
 (sent but never confirmed, or open but unreported by the broker), `reconcile_orders.py` only prints a WARNING to
 stderr and trading goes on; the artifact and alert never mention it. Report the unresolved counts from that
-output in step 01's result and in the run's `warn`, using the same line-parsing approach as item A. Decide first
-whether an unresolved order should block that account's trading.
+output in step 01's result and in the run's `warn`, using the same line-parsing approach as item A.
+
+Decided 2026-10-16 (owner): surface only. An unresolved order does not block that account's trading; revisit
+blocking if a real warn shows one. Branch `feature/surface-unresolved-orders`, off `develop` once the item A PR is
+merged (both change `workflow.py`). Work: `reconcile_orders.py` prints one stable line per account with its
+unresolved pending and unreported ids (a constant in `job_helpers.py`, like item A's); step 01's result carries
+them; `_finish_run` adds an `unresolved_orders` artifact key and a `warn` note naming the accounts. Tests: a
+reconcile with unresolved ids prints the line; the run still completes and warns; a clean reconcile adds nothing.
+Docs: the failure table in `ibkr-operations.md`.
 
 ### B. Account freshness check: DONE
 `evaluate_account_freshness` (PR #313) and its wiring into `trader_health.py` are in. The health check reports one
