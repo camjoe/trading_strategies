@@ -14,7 +14,7 @@ Background and the decisions behind these items: `docs/reference/agent-sandbox.m
 | # | Change | Why | State |
 |---|---|---|---|
 | 1 | In `pr-readiness.yml`, run the review agent with `--permission-mode dontAsk --permission-prompts none --strict-mcp-config` | The container agent already runs deny-by-default and ignores a repository's `.mcp.json`; the CI reviewer does neither, so a command outside its allow list is not blocked | Done on `feature/agent-sandbox-followups`: `test_forge_workflow.py` now requires exactly that mode and both flags. The reviewer's allow list was not checked against every command a real pass runs, so read `permission_denials` in the step summary of the first readiness run on this pull request |
-| 2 | In `ci.yml` and `security-checks.yml`, add a top-level `permissions: contents: read`, `pull-requests: read` on the `changes` job, and `persist-credentials: false` on each `actions/checkout` | Neither file sets `permissions` or `persist-credentials` today (checked 2026-10-15); `pr-readiness.yml` already does both | Done on `feature/agent-sandbox-followups`: the `changes` job also reads pull requests because `dorny/paths-filter` documents that it needs that on pull-request events. `tests/scripts/test_workflow_permissions.py` pins it |
+| 2 | In `ci.yml` and `security-checks.yml`, add a top-level `permissions: contents: read`, `pull-requests: read` on the `changes` job, and `persist-credentials: false` on each `actions/checkout` | Neither file sets `permissions` or `persist-credentials` today (checked 2026-10-15); `pr-readiness.yml` already does both | Done on `feature/agent-sandbox-followups`: `tests/scripts/test_workflow_permissions.py` pins it. The `changes` jobs once needed `pull-requests: read` for `dorny/paths-filter`; replacing it with `scripts/ci/changed_scope.py` removed that |
 | 3 | In the `pr-readiness.yml` post job, set `PYTHONPATH` and the working directory once at job level instead of on each step | The same two lines are repeated on four steps of the post job; one missed step runs the forge tool from the wrong place | Done on `feature/agent-sandbox-followups` (the owner chose to implement it): the post job sets `PYTHONPATH` and the working directory once. Its first step overrides the directory because `trusted/` does not exist yet. `test_forge_workflow.py` checks the effective values and that only that step overrides |
 
 Because the review workflow runs `develop`'s copy of `scripts.forge`, a PR that changes these files shows a
@@ -32,10 +32,9 @@ red `readiness` check until it is merged. That is expected.
   few clean passes. Making it required is a repository setting only the owner can change.
 - Decided 2026-10-15: promoting `develop` to `main` is not part of this work. The weekly `npm audit` is red on `main`
   for `source-map-js`, which `develop` already fixes.
-- Decided 2026-10-15: `dorny/paths-filter` (the one action not owned by GitHub) stays, pinned to commit `0e4a8c6`
-  (v3.0.4) in `ci.yml` and `security-checks.yml`; Dependabot's monthly `github-actions` run proposes bumps. Replacing
-  it with a `git diff --name-only` step, as `pr-readiness.yml` does for the frontend, is possible if it becomes a
-  burden.
+- Decided 2026-10-15: `dorny/paths-filter` (the one action not owned by GitHub) is replaced by
+  `scripts/ci/changed_scope.py`, which both `changes` jobs call with their own path lists; no third-party action
+  remains, and the test that requires non-GitHub actions to be pinned to a commit stays as a guard.
 - Decided 2026-10-15: the host runner is deny-by-default too (`tools.DENY_BY_DEFAULT_OPTIONS`), like the container
   and the CI reviewer. The first real pickup on the host shows whether the allow list needs to grow.
 - Open: `--agent-container` stays opt-in until three to five real plans have run with it; the owner then decides

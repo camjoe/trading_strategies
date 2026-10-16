@@ -125,6 +125,14 @@ python -m scripts.run_checks pr --base develop
 
 ---
 
+## CI Helpers (`scripts/ci/`)
+
+Called from the GitHub workflows with the system Python, so standard library only.
+
+| Module | Responsibility |
+|---|---|
+| `changed_scope.py` | Prints `<group>=true` or `false` for each group of paths a pull request changed, using `git diff --quiet` against the merge base; a git error counts as changed. The `changes` jobs of `ci.yml` and `security-checks.yml` call it |
+
 ## Data Ops (`scripts/data_ops/`)
 
 One-off data operations. Safe to run on the live DB when noted.
