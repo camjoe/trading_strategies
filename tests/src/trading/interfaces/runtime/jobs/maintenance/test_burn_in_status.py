@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from common.runtime_job_status import DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS
+from common.runtime_job_status import BROKER_ANOMALY_ACCOUNTS_KEY, DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS
 from tests.src.trading.interfaces.helpers import run_module_as_main
 
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
@@ -388,3 +388,17 @@ class TestBrokerAnomalyDays:
         data = _load_single_burn_in_artifact(tmp_path)
         assert data["accounts"]["sim"]["consecutive_successes"] == 10
         assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_a_clean_catch_up_run_the_same_day_does_not_erase_the_anomaly(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["ready_for_live"] is False

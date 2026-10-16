@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
     BURN_IN_STATUS_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
@@ -61,9 +62,12 @@ def _name_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
-def _is_clean_day(entry: dict[str, object]) -> bool:
-    """A successful run on which no broker API anomaly was recorded."""
-    return entry.get("status") == DAILY_RUN_STATUS_SUCCESS and not _name_list(entry.get("broker_anomaly_accounts"))
+def _anomaly_accounts_in(artifact_path: Path) -> list[str]:
+    try:
+        data = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except OSError, json.JSONDecodeError:
+        return []
+    return _name_list(data.get(BROKER_ANOMALY_ACCOUNTS_KEY)) if isinstance(data, dict) else []
 
 
 def account_entries(entries: list[dict[str, object]], account: str) -> list[dict[str, object]]:
@@ -75,14 +79,16 @@ def account_entries(entries: list[dict[str, object]], account: str) -> list[dict
     judged: list[dict[str, object]] = []
     for entry in entries:
         status = entry.get("status")
-        if status == DAILY_RUN_STATUS_SUCCESS:
+        if status in (DAILY_RUN_STATUS_SUCCESS, ACCOUNT_STATUS_BROKER_ANOMALY):
             if account in _name_list(entry.get("kill_switch_accounts")):
                 status = ACCOUNT_STATUS_KILL_SWITCH
-            elif account in _name_list(entry.get("broker_anomaly_accounts")):
+            elif account in _name_list(entry.get(BROKER_ANOMALY_ACCOUNTS_KEY)):
                 status = ACCOUNT_STATUS_BROKER_ANOMALY
             elif account not in _name_list(entry.get("accounts")):
                 status = ACCOUNT_STATUS_NOT_TRADED
-        judged.append({**entry, "status": status, "broker_anomaly_accounts": []})
+            else:
+                status = DAILY_RUN_STATUS_SUCCESS
+        judged.append({**entry, "status": status})
     return judged
 
 
@@ -121,6 +127,11 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
             data = {}
 
         status = data.get("status", DAILY_RUN_STATUS_FAILED)
+        anomaly_accounts = sorted(
+            {name for filename in filenames for name in _anomaly_accounts_in(export_dir / filename)}
+        )
+        if status == DAILY_RUN_STATUS_SUCCESS and anomaly_accounts:
+            status = ACCOUNT_STATUS_BROKER_ANOMALY
         entry: dict[str, object] = {
             "date": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}",
             "status": status,
@@ -130,7 +141,7 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
             entry["failed_step"] = data["failed_step"]
         entry["accounts"] = _name_list(data.get("accounts"))
         entry["kill_switch_accounts"] = _name_list(data.get("kill_switch_accounts"))
-        entry["broker_anomaly_accounts"] = _name_list(data.get("broker_anomaly_accounts"))
+        entry[BROKER_ANOMALY_ACCOUNTS_KEY] = anomaly_accounts
         entries.append(entry)
 
     return entries
@@ -143,13 +154,13 @@ def evaluate_readiness(
 ) -> dict[str, object]:
     """Compute readiness metrics from sorted *entries*."""
     total_runs = len(entries)
-    failed_runs = sum(1 for e in entries if not _is_clean_day(e))
+    failed_runs = sum(1 for e in entries if e.get("status") != DAILY_RUN_STATUS_SUCCESS)
     failure_rate_pct = (failed_runs / total_runs * 100) if total_runs > 0 else 0.0
 
     # Count trailing consecutive successful entries.
     consecutive_successes = 0
     for entry in reversed(entries):
-        if _is_clean_day(entry):
+        if entry.get("status") == DAILY_RUN_STATUS_SUCCESS:
             consecutive_successes += 1
         else:
             break

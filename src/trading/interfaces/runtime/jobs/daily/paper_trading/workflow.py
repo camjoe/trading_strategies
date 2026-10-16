@@ -13,11 +13,12 @@ import argparse
 import shlex
 import sys
 import time
-from collections.abc import Callable, Collection
+from collections.abc import Callable
 from pathlib import Path
 
 from common.logging_setup import log_counts
 from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
@@ -70,6 +71,14 @@ COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 SNAPSHOT_MAX_ATTEMPTS = 3
 # Base delay for exponential backoff between snapshot attempts, in seconds.
 SNAPSHOT_BACKOFF_SECONDS = 2.0
+
+
+class BrokerAnomalyError(RuntimeError):
+    """The trading step failed after a broker API anomaly; ``accounts`` are the anomalous accounts so far."""
+
+    def __init__(self, message: str, accounts: list[str]) -> None:
+        super().__init__(message)
+        self.accounts = accounts
 
 
 def run_auto_trader_group(
@@ -199,7 +208,7 @@ def broker_anomaly_accounts_from_dag(step_results: list[DagStepResult]) -> list[
     applies any fills before it trades.
     """
     details = step_result(step_results, "05_build_position_targets_by_book").details
-    accounts = details.get("broker_anomaly_accounts")
+    accounts = details.get(BROKER_ANOMALY_ACCOUNTS_KEY)
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
 
 
@@ -253,17 +262,17 @@ def _interpreter_for(repo_root: Path) -> str:
         return "python"
 
 
-def catch_up_command(args: argparse.Namespace, context: DailyRunContext, accounts: Collection[str]) -> str:
-    """The command that runs *accounts* (skipped or anomalous) later with this run's effective options.
+def catch_up_command(args: argparse.Namespace, context: DailyRunContext, skipped: dict[str, str]) -> str:
+    """The command that runs *skipped* accounts later with this run's effective options.
 
     Run from the repo root. Trade caps are the resolved per-account caps, so the primary-account options need no carrying.
     The webhook URL is left out; the environment supplies it.
     """
     options = [
         "--accounts",
-        ",".join(accounts),
+        ",".join(skipped),
         "--account-trade-caps",
-        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in accounts),
+        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in skipped),
         "--fee",
         str(args.fee),
         "--run-source",
@@ -305,12 +314,14 @@ def _finish_run(
     """
     failed = error is not None
     kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
-    broker_anomaly_accounts = broker_anomaly_accounts_from_dag(step_results)
+    broker_anomaly_accounts = broker_anomaly_accounts_from_dag(step_results) or (
+        error.accounts if isinstance(error, BrokerAnomalyError) else []
+    )
     payload: dict[str, object] = {
         **context.run_meta,
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
         "kill_switch_accounts": kill_switch_accounts,
-        "broker_anomaly_accounts": broker_anomaly_accounts,
+        BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
         "summary": build_run_summary(
             step_results, accounts=context.accounts, kill_switch_accounts=kill_switch_accounts
         ),
@@ -514,9 +525,10 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                     )
                 except RuntimeError as exc:
                     if broker_anomaly_accounts:
-                        raise RuntimeError(
-                            f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; "
-                            "their orders may be in an unknown state"
+                        raise BrokerAnomalyError(
+                            f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; orders "
+                            "may be in an unknown state, so check the broker's open orders before any re-run",
+                            list(broker_anomaly_accounts),
                         ) from exc
                     raise
                 auto_trader_groups.append(
@@ -526,14 +538,15 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                     }
                 )
             if set(broker_anomaly_accounts) >= set(accounts):
-                raise RuntimeError(
+                raise BrokerAnomalyError(
                     f"Broker API anomaly on every account: {', '.join(broker_anomaly_accounts)}. Orders may have gone "
-                    "out and may be in an unknown state; check the broker's open orders before any re-run"
+                    "out and may be in an unknown state; check the broker's open orders before any re-run",
+                    list(broker_anomaly_accounts),
                 )
             return {
                 "groups": auto_trader_groups,
                 "group_count": len(auto_trader_groups),
-                "broker_anomaly_accounts": broker_anomaly_accounts,
+                BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
                 "shadow_eval_summary": shadow_eval_summary,
             }
 
@@ -560,15 +573,12 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
 
+        anomalous = broker_anomaly_accounts_from_dag(step_results)
+        post_trade_accounts = [name for name in accounts if name not in anomalous]
         run_dag_step(
             step_results,
             step_id="08_reconcile_fills_update_ledgers",
-            run_fn=lambda: reconcile_and_snapshot(
-                log_path,
-                repo_root,
-                [name for name in accounts if name not in broker_anomaly_accounts_from_dag(step_results)],
-                "Post-trade",
-            ),
+            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, post_trade_accounts, "Post-trade"),
             now_iso=ts,
         )
 

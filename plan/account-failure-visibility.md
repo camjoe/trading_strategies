@@ -61,10 +61,11 @@ Left, not built:
   (`src/trading/services/auto_trading/inputs.py`) has no per-account catch, so an exception in one account (market
   data, database) aborts the accounts after it in its group and fails the step. It likely wants a per-account
   result in the same shape as the anomaly.
-- **A repeated anomaly never escalates.** The failed account still gets its post-trade snapshot, so item B reads it as
-  fresh and a daily anomaly stays a daily `warn`. That is accepted: a repeated warning is read from the emails.
-- **Step 08 can still fail the whole run.** One reconcile subprocess covers every account, so a broker error on
-  one account stops it.
+- **A repeated anomaly never escalates.** A daily anomaly stays a daily `warn`, and the anomalous account is left out
+  of step 08, so it gets no post-trade snapshot that day and item B sees it stale only after the warn threshold. That
+  is accepted: a repeated warning is read from the emails.
+- **Step 08 can still fail the whole run.** One reconcile subprocess covers the other accounts, so a broker error on
+  one of them stops it.
 
 ### E. Surface unresolved orders found by the pre-trade reconcile
 Step `01_mark_book_nav` already reconciles every account's open orders before any run trades, so a

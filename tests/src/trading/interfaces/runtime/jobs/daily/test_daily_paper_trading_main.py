@@ -11,6 +11,7 @@ import pytest
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow_module
 import trading.services.autonomy_monitor.artifacts as monitor_artifacts
+from common.runtime_job_status import BROKER_ANOMALY_ACCOUNTS_KEY
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
@@ -930,7 +931,7 @@ def test_the_artifact_names_the_accounts_with_a_broker_anomaly(monkeypatch, tmp_
         tmp_path / "local" / "exports" / "daily_paper_trading",
         "daily_paper_trading_*.json",
     )
-    assert payload["status"] == "success" and payload["broker_anomaly_accounts"] == ["acct_a"]
+    assert payload["status"] == "success" and payload[BROKER_ANOMALY_ACCOUNTS_KEY] == ["acct_a"]
 
 
 def test_a_broker_anomaly_on_every_account_fails_the_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -1030,6 +1031,13 @@ def test_an_earlier_anomaly_is_named_when_a_later_group_crashes(monkeypatch, tmp
     [notification] = _runtime_harness.notifications
     assert notification["status"] == "fail"
     assert "Earlier broker API anomaly on: acct_a" in notification["message"]
+    assert "check the broker's open orders before any re-run" in notification["message"]
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload[BROKER_ANOMALY_ACCOUNTS_KEY] == ["acct_a"]
+    assert notification["details"]["broker_anomaly_accounts"] == ["acct_a"]
 
 
 def test_the_post_trade_reconcile_leaves_out_an_anomalous_account(

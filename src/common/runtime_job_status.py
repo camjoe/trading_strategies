@@ -32,7 +32,11 @@ MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL = (
     "COMPLETE: Monthly governance M3 performance audit succeeded."
 )
 
+# Key of the daily run artifact that names accounts whose broker misbehaved mid-submission.
+BROKER_ANOMALY_ACCOUNTS_KEY = "broker_anomaly_accounts"
+
 __all__ = [
+    "BROKER_ANOMALY_ACCOUNTS_KEY",
     "DAILY_RUN_STATUS_SUCCESS",
     "DAILY_RUN_STATUS_FAILED",
     "TERMINAL_STEP_STATUSES",
