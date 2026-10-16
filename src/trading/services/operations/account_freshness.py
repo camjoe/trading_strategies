@@ -8,11 +8,13 @@ getting snapshots. This service only reads.
 from __future__ import annotations
 
 import datetime as dt
+import sqlite3
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 
 from common.time import parse_utc_iso
 from trading.models import AccountRecord
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 # Weekdays without a snapshot before an account is reported as a warning.
@@ -106,3 +108,20 @@ def evaluate_account_freshness(
         elif stale >= warn_after:
             warn.append(entry)
     return FreshnessReport(warn=tuple(warn), fail=tuple(fail), never=tuple(never))
+
+
+def check_account_freshness(
+    conn: sqlite3.Connection,
+    *,
+    as_of: dt.date,
+    warn_after: int = DEFAULT_WARN_AFTER_WEEKDAYS,
+    fail_after: int = DEFAULT_FAIL_AFTER_WEEKDAYS,
+) -> FreshnessReport:
+    """Evaluate every account in the database; raises as ``evaluate_account_freshness`` does."""
+    return evaluate_account_freshness(
+        AccountRepository(conn).fetch_all(),
+        EquitySnapshotRepository(conn),
+        as_of=as_of,
+        warn_after=warn_after,
+        fail_after=fail_after,
+    )

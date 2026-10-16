@@ -215,6 +215,10 @@ python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
+The health check also reads the database. On a fresh deploy every account is "never snapshotted", which
+prints `[WARN]`, exits 0, and sends an `account-freshness` alert; a database behind the schema head prints
+`[FAIL] Account freshness check could not run: ...` and exits 1.
+
 Then confirm monitoring per [runtime-operations.md](runtime-operations.md): logs land in `local/logs/`,
 artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes status.
 
@@ -289,6 +293,8 @@ python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m scripts.check_jobs
 ```
 
+The health check also reads the database; see the expected output in 1.6.
+
 Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
 [runtime-operations.md](runtime-operations.md)).
 
@@ -320,6 +326,8 @@ python -m scripts.run_checks ci
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
+
+The health check also reads the database; a staging database with no snapshots warns (see 1.6).
 
 Do not run `daily.paper_trading` from staging with real broker credentials unless you intentionally
 want a paper-broker execution test. The job has no `--dry-run` flag.

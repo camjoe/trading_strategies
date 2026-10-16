@@ -199,7 +199,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
-| `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`); not yet wired into a job |
+| `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`, `check_account_freshness`); run by the daily trader health check |
 | `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
 | `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |

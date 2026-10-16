@@ -1,8 +1,8 @@
 # Plan: make one account's failure contained and visible
 
 Status: partly done, revised 2026-10-15. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
-**DURING #296** below as "a follow-up PR". The guard fix is done. The service for item B shipped
-in PR #313; wiring it into the health check remains. Items A, C, and D remain; A needs the owner's A1 or A2 choice.
+**DURING #296** below as "a follow-up PR". The guard fix is done. Item B is done (service in
+PR #313, health-check wiring after it). Items A, C, and D remain; A needs the owner's A1 or A2 choice.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -76,16 +76,11 @@ Tests: a group fails and the later group still trades; the failed accounts appea
 alert; all groups failing still ends the run as a failure; the guard errors still stop everything.
 Docs: the failure table and the "When something fails" section in `ibkr-operations.md`.
 
-### B. Account freshness check — service DONE, wiring open
-`evaluate_account_freshness` in `src/trading/services/operations/account_freshness.py` (PR #313) returns the
-warn, fail, and never-snapshotted lists; it raises on a snapshot dated after `as_of`, an unreadable
-`snapshot_time`, odd thresholds, or an `exclude` given as one string. Left for the owner, interactively,
-because `trader_health.py` is a guarded path:
-- Wire it into `trader_health.py` as a second result beside the existing log check: one digest alert naming
-  the accounts and their last-seen dates, the thresholds as command-line options, and the existing exit code
-  and sentinel logic unchanged. Run it after the daily run, with `as_of` from `utc_today()`.
-- Check the host's `job_schedule.json` for `--accounts` on the daily job and pass any account left out on
-  purpose as `exclude`, or the check will alert on it forever.
+### B. Account freshness check: DONE
+`evaluate_account_freshness` (PR #313) and its wiring into `trader_health.py` are in. The health check reports one
+`account-freshness` digest, takes `--warn-after-weekdays` and `--fail-after-weekdays`, and exits 1 on a `fail`
+or when the check cannot run. No exclusion option exists: every account in the database trades daily; add one if
+an account is ever left out of the daily job on purpose.
 
 The original design notes follow.
 

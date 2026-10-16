@@ -16,6 +16,7 @@ from trading.services.operations.account_freshness import (
     DEFAULT_WARN_AFTER_WEEKDAYS,
     AccountFreshness,
     FreshnessReport,
+    check_account_freshness,
     evaluate_account_freshness,
     weekdays_since,
 )
@@ -244,3 +245,22 @@ def test_an_account_with_a_stopped_book_reads_as_fresh_while_another_book_snapsh
     report = _evaluate(conn, as_of=FRIDAY)
 
     assert (report.warn, report.fail, report.never) == ((), (), ())
+
+
+def test_check_account_freshness_reads_every_account_in_the_database(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "fresh", "2026-10-16")
+    _snapshot_account(conn, "stale", "2026-10-09")
+
+    report = check_account_freshness(conn, as_of=FRIDAY)
+
+    assert [entry.account_name for entry in report.fail] == ["stale"]
+
+
+def test_check_account_freshness_passes_the_thresholds_through(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "two_days", "2026-10-14")
+
+    assert check_account_freshness(conn, as_of=FRIDAY).warn[0].account_name == "two_days"
+
+    report = check_account_freshness(conn, as_of=FRIDAY, warn_after=1, fail_after=2)
+
+    assert [entry.account_name for entry in report.fail] == ["two_days"]
