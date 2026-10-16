@@ -16,30 +16,29 @@ concurrency:
 jobs:
   changes:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
     outputs:
-      python_deps: ${{ steps.filter.outputs.python_deps }}
-      frontend_deps: ${{ steps.filter.outputs.frontend_deps }}
+      python_deps: ${{ steps.scope.outputs.python_deps }}
+      frontend_deps: ${{ steps.scope.outputs.frontend_deps }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Detect dependency changes
-        id: filter
-        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
-        with:
-          filters: |
-            python_deps:
-              - requirements-base.txt
-              - requirements-dev.txt
-              - .github/workflows/security-checks.yml
-            frontend_deps:
-              - apps/paper_trading_web/frontend/package-lock.json
-              - .github/workflows/security-checks.yml
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PYTHON_DEPS: >-
+            requirements-base.txt requirements-dev.txt .github/workflows/security-checks.yml
+          FRONTEND_DEPS: >-
+            apps/paper_trading_web/frontend/package-lock.json .github/workflows/security-checks.yml
+        run: |
+          python3 scripts/ci/changed_scope.py "origin/$BASE_REF" \
+            "python_deps=$PYTHON_DEPS" \
+            "frontend_deps=$FRONTEND_DEPS" >> "$GITHUB_OUTPUT"
 
   python-audit:
     needs: changes
