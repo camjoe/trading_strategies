@@ -209,6 +209,8 @@ newest equity snapshot ages when the run stops reaching it.
 
 - Staleness is the number of Monday-to-Friday dates after the snapshot's UTC date, up to the `as_of`
   date the caller passes. Market holidays count as weekdays.
+- Freshness is per account: the newest snapshot across all of the account's books counts, so an account
+  with one active book and one stopped book reads as fresh.
 - `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
   (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and
   is not a failure.

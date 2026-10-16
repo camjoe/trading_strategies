@@ -69,7 +69,8 @@ def evaluate_account_freshness(
 ) -> FreshnessReport:
     """Sort accounts into warn, fail, and never-snapshotted lists as of ``as_of``.
 
-    The snapshot date is the UTC date of the newest ``snapshot_time``. Accounts
+    The snapshot date is the UTC date of the newest ``snapshot_time`` across all
+    of the account's books, so one stopped book does not make an account stale. Accounts
     named in ``exclude`` appear in no list.
     """
     warn: list[AccountFreshness] = []
