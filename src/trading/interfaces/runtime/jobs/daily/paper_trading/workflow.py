@@ -208,7 +208,7 @@ def broker_anomaly_accounts_from_dag(step_results: list[DagStepResult]) -> list[
     Their orders may be in an unknown state: the next run's pre-trade reconcile
     applies any fills before it trades.
     """
-    details = step_result(step_results, "05_build_position_targets_by_book").details
+    details = step_result(step_results, FIRST_ORDER_STEP_ID).details
     accounts = details.get(BROKER_ANOMALY_ACCOUNTS_KEY)
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
 
@@ -564,7 +564,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
 
         run_dag_step(
             step_results,
-            step_id="05_build_position_targets_by_book",
+            step_id=FIRST_ORDER_STEP_ID,
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )

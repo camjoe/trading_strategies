@@ -1176,3 +1176,37 @@ def test_a_failure_before_the_trading_step_gives_no_orders_warning(
     assert code == 1
     [notification] = _runtime_harness.notifications
     assert "Orders may already have gone out" not in notification["message"]
+
+
+def test_a_failure_after_the_trading_step_finished_warns_that_orders_have_gone_out(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.fail_labels.add("Compare Strategies")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert (
+        "Orders may already have gone out; check the broker's open orders before any re-run"
+        in (notification["message"])
+    )
+
+
+def test_the_orders_warning_is_not_repeated_when_an_anomaly_already_gives_the_guidance(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.fail_labels.add("Compare Strategies")
+
+    run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    [notification] = _runtime_harness.notifications
+    assert "Orders may already have gone out" not in notification["message"]
+    assert "Broker API anomaly earlier on: acct_a" in notification["message"]

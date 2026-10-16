@@ -565,3 +565,54 @@ class TestBrokerAnomalyDays:
 
         assert step_ids == sorted(step_ids)
         assert FIRST_ORDER_STEP_ID in step_ids
+
+    def test_a_failure_just_before_the_trading_step_is_forgiven_by_a_later_success(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="04_rotation_decision")
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        assert _load_single_burn_in_artifact(tmp_path)["consecutive_successes"] == 10
+
+    def test_a_malformed_step_results_falls_back_to_the_failed_step(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir, "20260519", "130000", DAILY_RUN_STATUS_FAILED, failed_step="08_x", step_results="oops"
+        )
+        _write_artifact(export_dir, "20260519", "150000", DAILY_RUN_STATUS_SUCCESS)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="00_x", step_results=["oops", 3]
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == [DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS]
+
+    def test_each_trading_step_status_that_means_it_started_keeps_the_day_failed(self, tmp_path: Path) -> None:
+        for status, expected in (
+            ("running", "failed"),
+            ("ok", "failed"),
+            ("failed", "failed"),
+            ("pending", "success"),
+        ):
+            export_dir = tmp_path / status
+            export_dir.mkdir()
+            _write_artifact(
+                export_dir,
+                "20260520",
+                "130000",
+                DAILY_RUN_STATUS_FAILED,
+                failed_step=None,
+                step_results=[{"step": FIRST_ORDER_STEP_ID, "status": status}],
+            )
+            _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+            entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+            assert entries[-1]["status"] == expected, status
