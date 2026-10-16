@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-10-15
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -132,6 +132,8 @@ Called from the GitHub workflows with the system Python, so standard library onl
 | Module | Responsibility |
 |---|---|
 | `changed_scope.py` | Prints `<group>=true` or `false` for each group of paths a pull request changed, using `git diff --quiet` against the merge base; a git error counts as changed. The `changes` jobs of `ci.yml` and `security-checks.yml` call it |
+
+---
 
 ## Data Ops (`scripts/data_ops/`)
 

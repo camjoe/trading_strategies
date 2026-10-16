@@ -131,8 +131,10 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   default, which an earlier check on 2.1.296 in the container found to let unlisted commands run.
 - 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
 - 2026-10-15: the CI reviewer runs deny-by-default and ignores a repository's MCP servers, like the container
-  agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and the one action
-  not owned by GitHub, `dorny/paths-filter`, was replaced by `scripts/ci/changed_scope.py`, so none remains.
+  agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and no action
+  outside GitHub is used (`scripts/ci/changed_scope.py` does the path check).
+- 2026-10-15: the Python job in `ci.yml` also runs when only `scripts/` changes. It did not before, so a pull request
+  that changed only the pipeline scripts skipped their tests.
 
 ## Verified, and not yet
 
