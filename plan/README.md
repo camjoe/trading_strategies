@@ -20,6 +20,5 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | Plan | Status | Depends on |
 |---|---|---|
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
-| [account-failure-visibility.md](account-failure-visibility.md) | Partly done: the guard fix shipped and item B moved to `account-freshness-check.md`. Items A, C, and D remain; A1/A2 decision pending. | none (PR #296 is merged) |
-| [account-freshness-check.md](account-freshness-check.md) | Drafted 2026-10-15. Service and tests only; the health-check wiring is left to the owner. | none |
+| [account-failure-visibility.md](account-failure-visibility.md) | Partly done: the guard fix and the item B service (PR #313) shipped. The B wiring into `trader_health.py` and items A, C, and D remain; A1/A2 decision pending. | none (PR #296 is merged) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |

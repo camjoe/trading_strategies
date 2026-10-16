@@ -198,3 +198,25 @@ The `check_daily_trader_health` job validates that a recent successful run artif
 ```bash
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```
+
+## Account freshness
+
+Developer reference; there is nothing for an operator to run yet.
+`evaluate_account_freshness` in `src/trading/services/operations/account_freshness.py` is a read-only
+check for an account that has stopped being snapshotted, whatever the cause (skipped, never reached,
+aborted, or dropped by a typo). Every daily run snapshots each account it handles, so an account's
+newest equity snapshot ages when the run stops reaching it.
+
+- Staleness is the number of Monday-to-Friday dates after the snapshot's UTC date, up to the `as_of`
+  date the caller passes. Market holidays count as weekdays.
+- Freshness is per account: the newest snapshot across all of the account's books counts, so an account
+  with one active book and one stopped book reads as fresh.
+- Run it after the day's daily run, with `as_of` from `utc_today()` in `src/common/time.py`. Run earlier and
+  the weekday of `as_of` has no snapshot yet, so every account reads one weekday staler.
+- `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
+  (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and
+  is not a failure.
+- `exclude` names accounts left out on purpose, such as one omitted from the daily job's `--accounts`.
+- A snapshot dated after `as_of`, a `snapshot_time` that cannot be read, thresholds outside
+  `1 <= warn_after <= fail_after`, and an `exclude` given as one string all raise: a bad row is a data bug and
+  should fail the report, not be skipped or counted as fresh.

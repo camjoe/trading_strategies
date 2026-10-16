@@ -1,0 +1,108 @@
+"""Names every account whose newest equity snapshot is too many weekdays old.
+
+Every daily run snapshots each account it handles, market open or not, so an
+account that was skipped, never reached, aborted, or dropped by a typo stops
+getting snapshots. This service only reads.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from collections.abc import Collection, Iterable
+from dataclasses import dataclass
+
+from common.time import parse_utc_iso
+from trading.models import AccountRecord
+from trading.repositories.snapshots import EquitySnapshotRepository
+
+# Weekdays without a snapshot before an account is reported as a warning.
+DEFAULT_WARN_AFTER_WEEKDAYS = 2
+
+# Weekdays without a snapshot before an account is reported as a failure.
+DEFAULT_FAIL_AFTER_WEEKDAYS = 5
+
+# Python's date.weekday() numbers Monday as 0; Saturday (5) and Sunday (6) are not weekdays.
+_FIRST_WEEKEND_WEEKDAY = 5
+
+
+@dataclass(frozen=True)
+class AccountFreshness:
+    """One account's newest snapshot date and how many weekdays old it is."""
+
+    account_name: str
+    last_snapshot_date: dt.date | None
+    weekdays_stale: int | None
+
+
+@dataclass(frozen=True)
+class FreshnessReport:
+    """Accounts grouped by staleness. ``never`` holds accounts with no snapshot yet."""
+
+    warn: tuple[AccountFreshness, ...]
+    fail: tuple[AccountFreshness, ...]
+    never: tuple[AccountFreshness, ...]
+
+
+def weekdays_since(last: dt.date, as_of: dt.date) -> int:
+    """Count Monday-to-Friday dates ``d`` with ``last < d <= as_of``.
+
+    Market holidays count as weekdays: the daily job runs Monday to Friday
+    regardless. A ``last`` after ``as_of`` counts as 0.
+    """
+    elapsed_days = (as_of - last).days
+    return sum(
+        1
+        for offset in range(1, elapsed_days + 1)
+        if (last + dt.timedelta(days=offset)).weekday() < _FIRST_WEEKEND_WEEKDAY
+    )
+
+
+def evaluate_account_freshness(
+    accounts: Iterable[AccountRecord],
+    snapshots: EquitySnapshotRepository,
+    *,
+    as_of: dt.date,
+    warn_after: int = DEFAULT_WARN_AFTER_WEEKDAYS,
+    fail_after: int = DEFAULT_FAIL_AFTER_WEEKDAYS,
+    exclude: Collection[str] = (),
+) -> FreshnessReport:
+    """Sort accounts into warn, fail, and never-snapshotted lists as of ``as_of``.
+
+    ``as_of`` is the UTC date to judge against (``utc_today()`` in production). The snapshot date is the
+    UTC date of the newest ``snapshot_time`` across all of the account's books. Accounts named in
+    ``exclude`` appear in no list, and the lists keep the order of ``accounts``.
+
+    Raises ``TypeError`` when ``exclude`` is a single string, and ``ValueError`` when the thresholds are
+    not ``1 <= warn_after <= fail_after``, when an account's newest ``snapshot_time`` cannot be read, or
+    when it is dated after ``as_of``. A bad row is a data bug, so it fails the report instead of being
+    skipped or counted as fresh.
+    """
+    if isinstance(exclude, str):
+        raise TypeError("exclude must be a collection of account names, not a single string")
+    if not 1 <= warn_after <= fail_after:
+        raise ValueError(f"thresholds must satisfy 1 <= warn_after <= fail_after, got {warn_after} and {fail_after}")
+    warn: list[AccountFreshness] = []
+    fail: list[AccountFreshness] = []
+    never: list[AccountFreshness] = []
+    for account in accounts:
+        if account.name in exclude:
+            continue
+        latest = snapshots.fetch_latest(account_id=account.id)
+        if latest is None:
+            never.append(AccountFreshness(account.name, None, None))
+            continue
+        try:
+            last_date = parse_utc_iso(latest.snapshot_time).date()
+        except ValueError as exc:
+            raise ValueError(
+                f"account {account.name!r} has an unreadable snapshot_time {latest.snapshot_time!r}"
+            ) from exc
+        if last_date > as_of:
+            raise ValueError(f"account {account.name!r} has a snapshot dated {last_date}, after as_of {as_of}")
+        stale = weekdays_since(last_date, as_of)
+        entry = AccountFreshness(account.name, last_date, stale)
+        if stale >= fail_after:
+            fail.append(entry)
+        elif stale >= warn_after:
+            warn.append(entry)
+    return FreshnessReport(warn=tuple(warn), fail=tuple(fail), never=tuple(never))
