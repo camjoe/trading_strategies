@@ -16,8 +16,8 @@ PYTEST_EXECUTABLES = (".venv/bin/pytest", ".venv/Scripts/pytest.exe")
 CHECK_MODULES = ("scripts.fix_checks", "scripts.run_checks", "scripts.checks.run_suite")
 FORGE_COMMANDS = ("check-body",)
 
-# What the host runner and the container pass to `claude -p`: refuse a command outside the allow list instead of
-# prompting for it, and ignore the repository's MCP servers.
+# Passed to `claude -p` by the host runner and the container: `dontAsk` refuses what the allow list leaves out,
+# `--permission-prompts none` means no host is asked, and `--strict-mcp-config` ignores the repository's `.mcp.json`.
 DENY_BY_DEFAULT_OPTIONS = ("--permission-mode", "dontAsk", "--permission-prompts", "none", "--strict-mcp-config")
 
 

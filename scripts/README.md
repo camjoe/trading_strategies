@@ -87,6 +87,10 @@ Modular check scripts (`scripts/checks/`):
 - `pr.py`: the pre-PR gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks when the diff touches the frontend.
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
 
+CI helper scripts (`scripts/ci/`):
+
+- `changed_scope.py`: prints `<group>=true` or `false` for each group of paths a pull request changed, so the `changes` jobs of `ci.yml` and `security-checks.yml` can skip jobs; standard library only.
+
 Data operation scripts (`scripts/data_ops/`):
 
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.

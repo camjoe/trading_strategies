@@ -92,6 +92,17 @@ class TestToolLimits:
         assert not set(tools.ALLOWED_TOOLS.split(",")) & set(tools.DENIED_TOOLS.split(","))
 
 
+class TestDenyByDefaultOptions:
+    def test_the_options_are_exactly_these(self) -> None:
+        assert tools.DENY_BY_DEFAULT_OPTIONS == (
+            "--permission-mode",
+            "dontAsk",
+            "--permission-prompts",
+            "none",
+            "--strict-mcp-config",
+        )
+
+
 class TestRestrictedShellNote:
     def test_it_reads_exactly_like_this(self) -> None:
         assert tools.RESTRICTED_SHELL == EXPECTED_NOTE

@@ -52,7 +52,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           PYTHON_RELATED: >-
-            src apps/trends apps/paper_trading_web/backend apps/paper_trading_web/__init__.py tests pytest.ini
+            src apps/trends apps/paper_trading_web/backend apps/paper_trading_web/__init__.py tests scripts pytest.ini
             pyproject.toml ruff.toml requirements-base.txt requirements-dev.txt .github/workflows/ci.yml
           FRONTEND_RELATED: >-
             apps/paper_trading_web/frontend .github/workflows/ci.yml

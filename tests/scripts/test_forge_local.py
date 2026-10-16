@@ -124,6 +124,7 @@ class TestHostAgentCommand:
         start = command.index(options[0])
 
         assert command[start : start + len(options)] == options
+        assert command[command.index("--permission-mode") + 1] == "dontAsk"
         assert "--mcp-config" not in command
         assert "bypassPermissions" not in command and "--dangerously-skip-permissions" not in command
 

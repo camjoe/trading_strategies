@@ -35,6 +35,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     _git(tmp_path, "init", "-q", "-b", "main")
     _git(tmp_path, "config", "user.name", "Test")
     _git(tmp_path, "config", "user.email", "test@example.test")
+    _git(tmp_path, "config", "commit.gpgsign", "false")
     _commit(tmp_path, {"src/a.py": "1", "docs/x.md": "1", "pytest.ini": "1"}, "base")
     _git(tmp_path, "switch", "-q", "-c", "feature")
     monkeypatch.chdir(tmp_path)
@@ -82,7 +83,13 @@ class TestCommandLine:
         assert code == 0
         assert capsys.readouterr().out.splitlines() == ["python_related=true", "docs_related=false"]
 
-    @pytest.mark.parametrize("argv", [[], ["main"], ["main", "no-equals-sign"], ["main", "empty="], ["main", "=src"]])
+    def test_a_bad_base_prints_true_for_the_group_and_still_succeeds(
+        self, repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert changed_scope.main(["no-such-branch", "a=src"]) == 0
+        assert capsys.readouterr().out.splitlines() == ["a=true"]
+
+    @pytest.mark.parametrize("argv", [["main"], ["main", "no-equals-sign"], ["main", "empty="], ["main", "=src"]])
     def test_a_missing_base_or_a_malformed_group_is_a_usage_error(
         self, argv: list[str], capsys: pytest.CaptureFixture[str]
     ) -> None:
@@ -103,12 +110,18 @@ class TestWorkflowWiring:
     def _workflow(self, name: str) -> dict[str, Any]:
         return yaml.safe_load((WORKFLOWS / f"{name}.yml").read_text(encoding="utf-8"))
 
-    def test_the_step_runs_only_on_pull_requests_from_a_full_checkout(self, name: str) -> None:
-        job = _changes_job(self._workflow(name))
-        checkout = next(step for step in job["steps"] if str(step.get("uses", "")).startswith("actions/checkout@"))
+    def test_the_step_runs_only_on_pull_requests_from_a_full_checkout_against_the_base_branch(self, name: str) -> None:
+        workflow = self._workflow(name)
+        checkout = next(
+            step
+            for step in _changes_job(workflow)["steps"]
+            if str(step.get("uses", "")).startswith("actions/checkout@")
+        )
+        step = _scope_step(workflow)
 
-        assert _scope_step(self._workflow(name))["if"] == "github.event_name == 'pull_request'"
+        assert step["if"] == "github.event_name == 'pull_request'"
         assert checkout["with"]["fetch-depth"] == 0
+        assert step["env"]["BASE_REF"] == "${{ github.base_ref }}" and '"origin/$BASE_REF"' in step["run"]
 
     def test_every_listed_path_names_something_the_repository_tracks(self, name: str) -> None:
         env = _scope_step(self._workflow(name))["env"]
@@ -130,14 +143,22 @@ class TestWorkflowWiring:
             "outputs"
         ]
 
-    def test_the_other_jobs_read_only_groups_the_helper_prints(self, name: str) -> None:
+    def test_every_group_is_read_by_a_job_that_runs_everything_outside_pull_requests(self, name: str) -> None:
         workflow = self._workflow(name)
         groups = {group for group, _ in GROUP_ARGUMENT.findall(_scope_step(workflow)["run"])}
-        used = {
-            use
+        gated = {
+            job_name: str(job["if"])
             for job_name, job in workflow["jobs"].items()
-            if job_name != "changes"
-            for use in OUTPUT_USE.findall(str(job.get("if", "")))
+            if job_name != "changes" and OUTPUT_USE.search(str(job.get("if", "")))
         }
+        used = {use for condition in gated.values() for use in OUTPUT_USE.findall(condition)}
 
-        assert used and used <= groups
+        assert used == groups
+        assert all(condition.startswith("github.event_name != 'pull_request' ||") for condition in gated.values())
+
+
+def test_the_python_job_runs_when_only_the_pipeline_scripts_change() -> None:
+    workflow = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    python_related = _scope_step(workflow)["env"]["PYTHON_RELATED"].split()
+
+    assert "scripts" in python_related and "tests" in python_related
