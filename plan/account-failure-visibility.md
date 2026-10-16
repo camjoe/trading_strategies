@@ -2,7 +2,7 @@
 
 Status: partly done, revised 2026-10-16. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
 **DURING #296** below as "a follow-up PR". The guard fix is done. Item B is done (service in
-PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Item E remains. The streak and heartbeat checks (C) and the per-account guard (D) were dropped on 2026-10-16: the warning emails cover the first, and the second adds risk to the guard for little gain.
+PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Items E and F remain. The streak and heartbeat checks (C) and the per-account guard (D) were dropped on 2026-10-16: the warning emails cover the first, and the second adds risk to the guard for little gain.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -109,6 +109,15 @@ accounts and their last-seen dates.
 
 Tests: fresh, 2-weekday stale, 5-weekday stale, weekend gap not counted, account with no snapshot ever,
 digest names several accounts. Docs: `ibkr-operations.md` (alert table), `runtime-operations.md`.
+
+### F. Judge per-account burn-in failures per account
+`maintenance/burn_in_status.py` fails a whole date when any artifact of that date failed at the trading step or
+later (`_failed_after_orders_may_have_gone_out`). In per-account mode (`--accounts sim,ibkr`) that resets every
+account's streak when one account's catch-up run fails, even for an account that traded cleanly that day. Record
+which accounts each failed artifact covered (its `accounts` key) and fail the date only for those accounts, then
+judge the rest from the successful artifacts. Tests: `sim` traded cleanly, an `ibkr` catch-up fails at step 05, and
+`sim` keeps its streak while `ibkr` resets; a failed artifact with no `accounts` key fails every account.
+Kept conservative for now by an owner Decision on PR #316 (finding 36).
 
 ## Order
 1. Guard fix (above) into #296. Then decide A1 or A2 and add item A to #296 (or leave it for a
