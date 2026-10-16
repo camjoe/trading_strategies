@@ -91,6 +91,14 @@ def test_newest_snapshot_is_used_not_the_oldest(conn: sqlite3.Connection) -> Non
     assert (report.warn, report.fail, report.never) == ([], [], [])
 
 
+def test_snapshot_time_is_converted_to_utc_date(conn: sqlite3.Connection) -> None:
+    build_book_env(conn, account_name="behind_utc", snapshot_time="2026-10-15T23:30:00-05:00")
+    build_book_env(conn, account_name="ahead_of_utc", snapshot_time="2026-10-16T00:30:00+02:00")
+    report = _evaluate(conn, as_of=FRIDAY, warn_after=1)
+    assert report.warn == [AccountFreshness("ahead_of_utc", dt.date(2026, 10, 15), 1)]
+    assert (report.fail, report.never) == ([], [])
+
+
 def test_weekend_gap_does_not_count(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "friday_run", "2026-10-16")
     report = _evaluate(conn, as_of=NEXT_MONDAY)
@@ -126,5 +134,7 @@ def test_several_stale_accounts_each_appear_once(conn: sqlite3.Connection) -> No
 
 def test_custom_thresholds(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "two_stale", "2026-10-14")
+    _snapshot_account(conn, "one_stale", "2026-10-15")
     report = _evaluate(conn, as_of=FRIDAY, warn_after=1, fail_after=2)
     assert [a.account_name for a in report.fail] == ["two_stale"]
+    assert [a.account_name for a in report.warn] == ["one_stale"]
