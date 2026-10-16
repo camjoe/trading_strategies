@@ -20,6 +20,6 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | Plan | Status | Depends on |
 |---|---|---|
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
-| [account-failure-visibility.md](account-failure-visibility.md) | Drafted 2026-10-09. Item A is DURING PR #296; item B is AFTER #296. A1/A2 decision pending. | PR #296 (open) |
+| [account-failure-visibility.md](account-failure-visibility.md) | Partly done: the guard fix shipped and item B moved to `account-freshness-check.md`. Items A, C, and D remain; A1/A2 decision pending. | none (PR #296 is merged) |
+| [account-freshness-check.md](account-freshness-check.md) | Drafted 2026-10-15. Service and tests only; the health-check wiring is left to the owner. | none |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
-| [agent-sandbox-followups.md](agent-sandbox-followups.md) | Blocked on evidence: every code item is done; the owner decides the `--agent-container` default after three to five real plans. | none (PR #307 is merged) |

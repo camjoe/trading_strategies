@@ -129,6 +129,9 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   so all three runners behave alike. On the host CLI 2.1.299 an unlisted `touch` was refused even without the
   options, so for that version this makes the behavior explicit. The options keep it from depending on the CLI's
   default, which an earlier check on 2.1.296 in the container found to let unlisted commands run.
+- 2026-10-15: `readiness` stays a check that does not block merges into `develop`. It goes red on any pull
+  request that changes `scripts/forge`, because the review runs `develop`'s copy of the tool, so requiring it
+  would block those. Revisit after a few clean passes.
 - 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
 - 2026-10-15: the CI reviewer runs deny-by-default and ignores a repository's MCP servers, like the container
   agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and no action
