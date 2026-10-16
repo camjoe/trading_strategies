@@ -1,8 +1,8 @@
 # Plan: make one account's failure contained and visible
 
-Status: drafted 2026-10-09. Not started. Timing is marked per item against PR #296
-(`fix/skip-unavailable-ibkr-accounts`, open): **DURING #296** means add it to that branch;
-**AFTER #296** means a separate branch, merged soon after #296.
+Status: partly done, revised 2026-10-15. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
+**DURING #296** below as "a follow-up PR". The guard fix is done. Item B moved to
+`account-freshness-check.md`. Items A, C, and D remain; A needs the owner's A1 or A2 choice.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -21,7 +21,10 @@ account keeps failing for a week and nobody notices?
 The 13:00 health check (`trader_health.py`) only checks that the latest daily log is recent and carries
 `COMPLETE`. It knows nothing about individual accounts.
 
-## Guard fix (decided 2026-10-09) — DURING #296
+## Guard fix (decided 2026-10-09) — DONE
+Done: `already_completed_for_period` in `job_helpers.py` returns true when any log of the job and day carries
+the sentinel, and `already_completed_today` uses it. The text below is the record of the decision.
+
 The multi-lens review of #296 found that the duplicate-run guard reads only the newest log of the
 date (`latest_log_contains_sentinel`, `job_helpers.py:176`). A partial run now writes `COMPLETE`; a
 failed catch-up run (`--accounts <skipped> --force-run`) then becomes the newest log with no
@@ -73,7 +76,9 @@ Tests: a group fails and the later group still trades; the failed accounts appea
 alert; all groups failing still ends the run as a failure; the guard errors still stop everything.
 Docs: the failure table and the "When something fails" section in `ibkr-operations.md`.
 
-### B. Account freshness check — AFTER #296, soon
+### B. Account freshness check — MOVED to `account-freshness-check.md`
+The service and its tests are planned there; wiring it into the health check is left to the owner.
+
 Add to the 13:00 health check a cause-agnostic check: for every account, how many weekdays since its
 last equity snapshot. Alert when an account has gone too long without one, as one digest naming the
 accounts and their last-seen dates.
