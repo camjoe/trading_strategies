@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Collection
 
 import pytest
 
@@ -10,7 +11,10 @@ from tests.support.repositories import insert_repository_account
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.operations.account_freshness import (
+    DEFAULT_FAIL_AFTER_WEEKDAYS,
+    DEFAULT_WARN_AFTER_WEEKDAYS,
     AccountFreshness,
+    FreshnessReport,
     evaluate_account_freshness,
     weekdays_since,
 )
@@ -40,11 +44,21 @@ def _snapshot_account(conn: sqlite3.Connection, name: str, snapshot_date: str) -
     build_book_env(conn, account_name=name, snapshot_time=f"{snapshot_date}T13:59:00Z")
 
 
-def _evaluate(conn: sqlite3.Connection, **kwargs: object):
+def _evaluate(
+    conn: sqlite3.Connection,
+    *,
+    as_of: dt.date,
+    warn_after: int = DEFAULT_WARN_AFTER_WEEKDAYS,
+    fail_after: int = DEFAULT_FAIL_AFTER_WEEKDAYS,
+    exclude: Collection[str] = (),
+) -> FreshnessReport:
     return evaluate_account_freshness(
         AccountRepository(conn).fetch_all(),
         EquitySnapshotRepository(conn),
-        **kwargs,  # type: ignore[arg-type]
+        as_of=as_of,
+        warn_after=warn_after,
+        fail_after=fail_after,
+        exclude=exclude,
     )
 
 
