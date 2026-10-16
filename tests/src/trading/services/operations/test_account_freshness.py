@@ -65,7 +65,7 @@ def _evaluate(
 def test_fresh_account_is_not_reported(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "fresh", "2026-10-16")
     report = _evaluate(conn, as_of=FRIDAY)
-    assert (report.warn, report.fail, report.never) == ([], [], [])
+    assert (report.warn, report.fail, report.never) == ((), (), ())
 
 
 def test_warn_and_fail_thresholds_are_inclusive(conn: sqlite3.Connection) -> None:
@@ -76,13 +76,13 @@ def test_warn_and_fail_thresholds_are_inclusive(conn: sqlite3.Connection) -> Non
     report = _evaluate(conn, as_of=FRIDAY)
     assert [a.account_name for a in report.warn] == ["at_warn", "one_under_fail"]
     assert [a.account_name for a in report.fail] == ["at_fail"]
-    assert report.never == []
+    assert report.never == ()
 
 
 def test_report_carries_last_snapshot_date_and_staleness(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "stale", "2026-10-09")
     report = _evaluate(conn, as_of=FRIDAY)
-    assert report.fail == [AccountFreshness("stale", dt.date(2026, 10, 9), 5)]
+    assert report.fail == (AccountFreshness("stale", dt.date(2026, 10, 9), 5),)
 
 
 def _add_snapshot(conn: sqlite3.Connection, book_id: int, snapshot_time: str) -> None:
@@ -102,28 +102,28 @@ def test_newest_snapshot_is_used_not_the_oldest(conn: sqlite3.Connection) -> Non
     _add_snapshot(conn, env.book_id, "2026-10-16T13:59:00Z")
     _add_snapshot(conn, env.book_id, "2026-10-02T13:59:00Z")
     report = _evaluate(conn, as_of=FRIDAY)
-    assert (report.warn, report.fail, report.never) == ([], [], [])
+    assert (report.warn, report.fail, report.never) == ((), (), ())
 
 
 def test_snapshot_time_is_converted_to_utc_date(conn: sqlite3.Connection) -> None:
     build_book_env(conn, account_name="behind_utc", snapshot_time="2026-10-15T23:30:00-05:00")
     build_book_env(conn, account_name="ahead_of_utc", snapshot_time="2026-10-16T00:30:00+02:00")
     report = _evaluate(conn, as_of=FRIDAY, warn_after=1)
-    assert report.warn == [AccountFreshness("ahead_of_utc", dt.date(2026, 10, 15), 1)]
-    assert (report.fail, report.never) == ([], [])
+    assert report.warn == (AccountFreshness("ahead_of_utc", dt.date(2026, 10, 15), 1),)
+    assert (report.fail, report.never) == ((), ())
 
 
 def test_weekend_gap_does_not_count(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "friday_run", "2026-10-16")
     report = _evaluate(conn, as_of=NEXT_MONDAY)
-    assert (report.warn, report.fail, report.never) == ([], [], [])
+    assert (report.warn, report.fail, report.never) == ((), (), ())
 
 
 def test_account_without_snapshot_is_listed_as_never(conn: sqlite3.Connection) -> None:
     insert_repository_account(conn, name="brand_new")
     report = _evaluate(conn, as_of=FRIDAY)
-    assert report.never == [AccountFreshness("brand_new", None, None)]
-    assert (report.warn, report.fail) == ([], [])
+    assert report.never == (AccountFreshness("brand_new", None, None),)
+    assert (report.warn, report.fail) == ((), ())
 
 
 def test_excluded_account_is_left_out_of_every_list(conn: sqlite3.Connection) -> None:
@@ -132,7 +132,7 @@ def test_excluded_account_is_left_out_of_every_list(conn: sqlite3.Connection) ->
     _snapshot_account(conn, "kept_stale", "2026-10-02")
     report = _evaluate(conn, as_of=FRIDAY, exclude=("left_out_stale", "left_out_new"))
     assert [a.account_name for a in report.fail] == ["kept_stale"]
-    assert (report.warn, report.never) == ([], [])
+    assert (report.warn, report.never) == ((), ())
 
 
 def test_several_stale_accounts_each_appear_once(conn: sqlite3.Connection) -> None:

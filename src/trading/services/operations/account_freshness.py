@@ -39,9 +39,9 @@ class AccountFreshness:
 class FreshnessReport:
     """Accounts grouped by staleness. ``never`` holds accounts with no snapshot yet."""
 
-    warn: list[AccountFreshness]
-    fail: list[AccountFreshness]
-    never: list[AccountFreshness]
+    warn: tuple[AccountFreshness, ...]
+    fail: tuple[AccountFreshness, ...]
+    never: tuple[AccountFreshness, ...]
 
 
 def weekdays_since(last: dt.date, as_of: dt.date) -> int:
@@ -89,4 +89,4 @@ def evaluate_account_freshness(
             fail.append(entry)
         elif stale >= warn_after:
             warn.append(entry)
-    return FreshnessReport(warn=warn, fail=fail, never=never)
+    return FreshnessReport(warn=tuple(warn), fail=tuple(fail), never=tuple(never))
