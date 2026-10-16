@@ -71,6 +71,26 @@ def test_report_carries_last_snapshot_date_and_staleness(conn: sqlite3.Connectio
     assert report.fail == [AccountFreshness("stale", dt.date(2026, 10, 9), 5)]
 
 
+def _add_snapshot(conn: sqlite3.Connection, book_id: int, snapshot_time: str) -> None:
+    EquitySnapshotRepository(conn).insert_for_book(
+        book_id=book_id,
+        snapshot_time=snapshot_time,
+        cash=1_000.0,
+        market_value=0.0,
+        equity=1_000.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
+
+
+def test_newest_snapshot_is_used_not_the_oldest(conn: sqlite3.Connection) -> None:
+    env = build_book_env(conn, account_name="long_history", snapshot_time="2026-09-01T13:59:00Z")
+    _add_snapshot(conn, env.book_id, "2026-10-16T13:59:00Z")
+    _add_snapshot(conn, env.book_id, "2026-10-02T13:59:00Z")
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert (report.warn, report.fail, report.never) == ([], [], [])
+
+
 def test_weekend_gap_does_not_count(conn: sqlite3.Connection) -> None:
     _snapshot_account(conn, "friday_run", "2026-10-16")
     report = _evaluate(conn, as_of=NEXT_MONDAY)
