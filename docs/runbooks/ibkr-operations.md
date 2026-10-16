@@ -21,7 +21,7 @@ login that owns the user services.
 | Client Portal Gateway | user service `ibkr-gateway.service` | Java; a manual login after every start or reset |
 | Session keepalive | user service `ibkr-keepalive.service` | the gateway; `.env` for alerts |
 | Daily trader | system timer `daily-paper-trading.timer` (weekdays) | a logged-in session when any run account is on IBKR |
-| Daily health check | system timer `daily-trader-health-check.timer` (weekdays) | the daily trader's log |
+| Daily health check | system timer `daily-trader-health-check.timer` (weekdays) | the daily trader's log and the database (each account's newest equity snapshot) |
 
 The run times come from the gitignored `job_schedule.json`, which sits beside `src/infrastructure/config/job_schedule.example.json`. Accounts on the `paper`
 broker need none of the gateway pieces; only accounts on `interactive_brokers_web_paper` do.
@@ -194,7 +194,7 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 | Any later daily step fails | Log `ERROR:` line; artifact `failed`, with the failed step | `fail`, event `daily-paper-trading` |
 | A kill switch is on | Run completes; artifact lists `kill_switch_accounts` | `warn`, event `daily-paper-trading` |
 | Daily health check finds the latest log stale or missing the success line | `[FAIL] ...` on its output | `fail`, event `daily-trader-health` |
-| Daily health check finds accounts with no equity snapshot for 2 weekdays (`warn`) or 5 (`fail`), or an account never snapshotted (`warn`) | `[WARN]` or `[FAIL]` line naming each account and its last snapshot date; `fail` also exits 1 | `warn` or `fail`, event `account-freshness`, one digest for all accounts |
+| Daily health check finds accounts with no equity snapshot for 2 weekdays (`warn`) or 5 (`fail`), or an account never snapshotted (`warn`) | `[WARN]` or `[FAIL]` line naming each account and its last snapshot date; `fail` also exits 1 | `warn` or `fail`, event `account-freshness`, one digest for all accounts. A stopped daily run raises `daily-trader-health` first, the root cause, and `account-freshness` once accounts go stale |
 | The freshness check cannot run (database unreadable, a snapshot dated in the future or unreadable) | `[FAIL] Account freshness check could not run: <reason>`; exits 1 | `fail`, event `account-freshness` |
 | Run completes | Success line in the log | none, unless run with `--notify-on-success` |
 

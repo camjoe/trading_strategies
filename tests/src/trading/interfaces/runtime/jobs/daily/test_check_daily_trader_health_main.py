@@ -183,6 +183,7 @@ def test_read_error_returns_1(monkeypatch, job_root: Path, capsys) -> None:
 
 
 def test_daily_trader_health_module_main_entrypoint(monkeypatch, job_root: Path) -> None:
+    monkeypatch.setenv("TRADING_DB_PATH", str(job_root / "entrypoint.db"))
     monkeypatch.setattr(sys, "argv", ["check_daily_trader_health", "--repo-root", str(job_root)])
 
     with pytest.raises(SystemExit) as excinfo:

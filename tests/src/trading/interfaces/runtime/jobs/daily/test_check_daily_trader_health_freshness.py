@@ -161,3 +161,72 @@ def test_json_output_keeps_the_log_fields_and_adds_freshness(
     data = json.loads(capsys.readouterr().out)
     assert data["status"] == "ok" and data["sentinel_found"] is True
     assert data["freshness"]["status"] == "ok"
+
+
+@pytest.mark.parametrize("freshness_status", ["warn", "fail"])
+@pytest.mark.parametrize("log", ["missing", "no_sentinel"])
+def test_a_failing_log_check_and_a_stale_account_both_alert(
+    monkeypatch: pytest.MonkeyPatch, job_root: Path, log: str, freshness_status: str
+) -> None:
+    if log == "no_sentinel":
+        (job_root / "local" / "logs" / "daily_paper_trading_20260417_120000.log").write_text(
+            "partial\n", encoding="utf-8"
+        )
+    sent: list[dict[str, object]] = []
+    monkeypatch.setattr(module, "notify_runtime_event", lambda **kwargs: sent.append(kwargs) or True)
+    monkeypatch.setattr(
+        module, "_check_freshness", lambda _a: {"status": freshness_status, "message": "1 stale", "accounts": ["a"]}
+    )
+
+    assert _run(monkeypatch, job_root) == 1
+    assert [(call["event"], call["status"]) for call in sent] == [
+        ("daily-trader-health", "fail"),
+        ("account-freshness", freshness_status),
+    ]
+
+
+def test_a_database_that_cannot_be_opened_fails_the_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _broken_session():
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(module, "db_session", _broken_session)
+
+    result = module._check_freshness(_args())
+
+    assert result["status"] == "fail"
+    assert "OperationalError: database is locked" in result["message"]
+
+
+def test_text_output_shows_the_freshness_line(monkeypatch: pytest.MonkeyPatch, job_root: Path, capsys) -> None:
+    _healthy_log(job_root)
+    monkeypatch.setattr(module, "notify_runtime_event", lambda **kwargs: True)
+    monkeypatch.setattr(
+        module, "_check_freshness", lambda _a: {"status": "warn", "message": "1 stale", "accounts": ["a"]}
+    )
+
+    _run(monkeypatch, job_root)
+
+    assert "[WARN] 1 stale" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("warn", "fail"), [("0", "5"), ("-1", "3"), ("3", "2")])
+def test_thresholds_outside_the_allowed_range_exit_2(
+    monkeypatch: pytest.MonkeyPatch, job_root: Path, warn: str, fail: str
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["x", "--repo-root", str(job_root), "--warn-after-weekdays", warn, "--fail-after-weekdays", fail]
+    )
+
+    assert module.main() == 2
+
+
+def test_main_names_a_stale_account_from_the_database(
+    monkeypatch: pytest.MonkeyPatch, job_root: Path, database: sqlite3.Connection
+) -> None:
+    _healthy_log(job_root)
+    _snapshot(database, "stale_account", "2026-10-09")
+    sent: list[dict[str, object]] = []
+    monkeypatch.setattr(module, "notify_runtime_event", lambda **kwargs: sent.append(kwargs) or True)
+
+    assert _run(monkeypatch, job_root) == 1
+    assert sent[0]["event"] == "account-freshness" and "stale_account" in str(sent[0]["message"])

@@ -171,7 +171,11 @@ def _check_freshness(args: argparse.Namespace) -> FreshnessPayload:
                 fail_after=args.fail_after_weekdays,
             )
     except Exception as exc:  # the check could not run: report it, never read it as fresh
-        return {"status": "fail", "message": f"Account freshness check could not run: {exc}", "accounts": []}
+        return {
+            "status": "fail",
+            "message": f"Account freshness check could not run: {type(exc).__name__}: {exc}",
+            "accounts": [],
+        }
     return _freshness_payload(report)
 
 

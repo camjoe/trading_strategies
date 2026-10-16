@@ -254,3 +254,13 @@ def test_check_account_freshness_reads_every_account_in_the_database(conn: sqlit
     report = check_account_freshness(conn, as_of=FRIDAY)
 
     assert [entry.account_name for entry in report.fail] == ["stale"]
+
+
+def test_check_account_freshness_passes_the_thresholds_through(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "two_days", "2026-10-14")
+
+    assert check_account_freshness(conn, as_of=FRIDAY).warn[0].account_name == "two_days"
+
+    report = check_account_freshness(conn, as_of=FRIDAY, warn_after=1, fail_after=2)
+
+    assert [entry.account_name for entry in report.fail] == ["two_days"]

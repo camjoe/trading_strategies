@@ -217,7 +217,8 @@ newest equity snapshot ages when the run stops reaching it.
 - `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
   (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and
   is not a failure.
-- `exclude` names accounts left out on purpose, such as one omitted from the daily job's `--accounts`.
+- `exclude` names accounts left out on purpose. The health check passes none, so every account in the database
+  must be snapshotted by the daily run; an account left out of it on purpose reads stale until it is removed.
 - A snapshot dated after `as_of`, a `snapshot_time` that cannot be read, thresholds outside
   `1 <= warn_after <= fail_after`, and an `exclude` given as one string all raise: a bad row is a data bug and
   should fail the report, not be skipped or counted as fresh.
