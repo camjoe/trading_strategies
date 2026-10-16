@@ -2,7 +2,7 @@
 
 Status: partly done, revised 2026-10-16. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
 **DURING #296** below as "a follow-up PR". The guard fix is done. Item B is done (service in
-PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Items C, D, and E remain.
+PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Items D and E remain. The streak and heartbeat checks were dropped on 2026-10-16: the warning emails cover them.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -62,7 +62,7 @@ Left, not built:
   data, database) aborts the accounts after it in its group and fails the step. It likely wants a per-account
   result in the same shape as the anomaly.
 - **A repeated anomaly never escalates.** The failed account still gets its post-trade snapshot, so item B reads it as
-  fresh and a daily anomaly stays a daily `warn`. It belongs with the streak check in item C.
+  fresh and a daily anomaly stays a daily `warn`. That is accepted: a repeated warning is read from the emails.
 - **Step 08 can still fail the whole run.** One reconcile subprocess covers every account, so a broker error on
   one account stops it.
 
@@ -102,13 +102,6 @@ accounts and their last-seen dates.
 Tests: fresh, 2-weekday stale, 5-weekday stale, weekend gap not counted, account with no snapshot ever,
 digest names several accounts. Docs: `ibkr-operations.md` (alert table), `runtime-operations.md`.
 
-### C. Not covered by B — separate, later
-- **Kill-switch streaks.** A kill-switched account still snapshots, so B misses it. A streak of
-  consecutive runs with a kill switch could be read from the per-run risk snapshots. Decide whether it
-  is worth a check once A and B are in.
-- **Heartbeat / dead-man's switch** to something outside the host, for "the host stopped sending
-  anything". No check on the host can see that. A separate project.
-
 ### D. Per-account guard — AFTER #296
 Replace "a day is done or not" with "which accounts are done today". A plain run trades only the
 accounts that have not completed that date, read from the day's success artifacts (`accounts` and
@@ -128,7 +121,6 @@ accounts that have not completed that date, read from the day's success artifact
    follow-up PR if #296 is merged first).
 2. Item B on its own branch, off `develop`, once #296 is merged.
 3. Item D after B, or before it if catching up skipped accounts by hand proves painful.
-4. Revisit C.
 
 ## Constraints
 - Layering per `docs/architecture/architecture-conventions.md`. The freshness query belongs in a
