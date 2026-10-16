@@ -67,6 +67,7 @@ def _runtime_harness(monkeypatch, conn):
         accounts: list[str] = field(default_factory=lambda: ["acct_a"])
         stream_calls: list[tuple[str, list[str]]] = field(default_factory=list)
         stream_error: Exception | None = None
+        fail_labels: set[str] = field(default_factory=set)
         trade_results: dict[str, tuple[int, str] | Exception] = field(default_factory=dict)
         notifications: list[dict[str, object]] = field(default_factory=list)
 
@@ -77,6 +78,8 @@ def _runtime_harness(monkeypatch, conn):
         error = state.stream_error
         if error is not None:
             raise error
+        if label in state.fail_labels:
+            raise RuntimeError(f"Step failed: {label} (exit=1)")
 
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.load_account_names",
@@ -1076,3 +1079,61 @@ def test_the_post_trade_reconcile_leaves_out_an_anomalous_account(
     assert post_reconcile[post_reconcile.index("--accounts") + 1] == "acct_b"
     post_snapshots = [label for label, _ in _runtime_harness.stream_calls if label.startswith("Post-trade snapshot")]
     assert post_snapshots == ["Post-trade snapshot acct_b"]
+
+
+def test_a_later_step_failing_after_an_anomaly_still_names_the_accounts(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.fail_labels.add("Compare Strategies")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert "Broker API anomaly earlier on: acct_a" in notification["message"]
+    assert "check the broker's open orders before any re-run" in notification["message"]
+
+
+def test_anomalies_on_every_account_that_traded_fail_the_run_even_with_a_skipped_account(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b", "acct_c"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_c": "interactive_brokers_web_paper: gateway down"},
+    )
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.trade_results["acct_b"] = (1, ANOMALY_OUTPUT_B)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a,acct_b,acct_c",
+            "--account-trade-caps",
+            "acct_a:3,acct_b:8,acct_c:8",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+        ],
+    )
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert "Broker API anomaly on every account: acct_a, acct_b" in notification["message"]
+
+
+def test_exit_2_with_an_anomaly_line_is_a_crash_not_a_contained_anomaly(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (2, ANOMALY_OUTPUT)
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    assert _auto_trader_account_args(_runtime_harness) == ["acct_a"]

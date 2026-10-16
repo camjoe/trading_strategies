@@ -439,7 +439,7 @@ class TestBrokerAnomalyDays:
 
     def test_an_anomaly_in_an_earlier_artifact_survives_a_failed_latest_one(self, monkeypatch, tmp_path: Path) -> None:
         export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
-        _write_days(export_dir, 9)
+        _write_days(export_dir, 10)
         _write_artifact(
             export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
         )
@@ -460,3 +460,56 @@ class TestBrokerAnomalyDays:
         entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
 
         assert [entry["status"] for entry in entries] == ["failed", "failed"]
+
+    def test_a_failure_at_the_trading_step_or_later_keeps_the_day_failed_after_a_catch_up(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="08_reconcile_fills_update_ledgers"
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["failed_runs"] == 1
+
+    def test_a_failure_before_the_trading_step_is_forgiven_by_a_later_success(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="00_ingest_market_and_account"
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 10
+        assert data["failed_runs"] == 0
+
+    def test_an_anomaly_day_counts_as_a_failed_run(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["failed_runs"] == 1 and data["failure_rate_pct"] == 10.0
+
+    def test_an_undecodable_artifact_counts_as_failed_without_crashing(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        (export_dir / "daily_paper_trading_20260520_120000.json").write_bytes(b"\xff\xfe\x00bad")
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == ["failed"]

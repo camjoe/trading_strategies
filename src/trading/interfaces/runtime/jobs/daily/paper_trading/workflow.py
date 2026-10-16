@@ -342,6 +342,11 @@ def _finish_run(
 
     if failed:
         message = f"Daily paper trading run failed: {error}"
+        if broker_anomaly_accounts and not isinstance(error, BrokerAnomalyError):
+            message += (
+                f". Broker API anomaly earlier on: {', '.join(broker_anomaly_accounts)}; orders may be in an "
+                "unknown state, so check the broker's open orders before any re-run"
+            )
     elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts:
         notes: list[str] = []
         if kill_switch_accounts:
