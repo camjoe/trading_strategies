@@ -125,8 +125,8 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   follow-ups.
 - 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
 - 2026-10-15: the CI reviewer runs deny-by-default and ignores a repository's MCP servers, like the container
-  agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout. The host runner is
-  still a follow-up.
+  agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and the one action
+  not owned by GitHub, `dorny/paths-filter`, is pinned to a commit. The host runner is still a follow-up.
 
 ## Verified, and not yet
 
@@ -135,5 +135,4 @@ the container with only the token; a deny-list session refuses every denied comm
 `implement-plan` runs with both containers completed on throwaway plans. Not yet verified by a real run on
 Linux or macOS (CI runs the Docker-backed tests on Linux).
 
-Follow-ups: letting the allow list grow if real plans need more commands; deny-by-default for the host runner;
-whether to keep `dorny/paths-filter` as it is (the one action not owned by GitHub, pinned by tag).
+Follow-ups: letting the allow list grow if real plans need more commands, and deny-by-default for the host runner.

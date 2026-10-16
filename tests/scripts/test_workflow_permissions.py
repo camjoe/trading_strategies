@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +11,25 @@ WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 # permission.
 PATHS_FILTER_JOB = "changes"
 READ_ONLY = {"contents": "read"}
+# `owner/action@<40 hex digits>`: a tag can be moved by its owner, a commit cannot.
+FULL_COMMIT = re.compile(r"@[0-9a-f]{40}$")
 
 
 def _workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / f"{name}.yml").read_text(encoding="utf-8"))
+
+
+def test_every_action_not_owned_by_github_is_pinned_to_a_commit() -> None:
+    unpinned = []
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in workflow["jobs"].values():
+            for step in job["steps"]:
+                used = str(step.get("uses", ""))
+                if used and not used.startswith(("actions/", "./")) and not FULL_COMMIT.search(used):
+                    unpinned.append(f"{path.name}: {used}")
+
+    assert unpinned == []
 
 
 @pytest.mark.parametrize("name", ["ci", "security-checks"])

@@ -27,9 +27,10 @@ red `readiness` check until it is merged. That is expected.
 | 5 | Add a tracked `.claude/settings.json` with a baseline of permission rules for interactive sessions | Interactive sessions have no tracked baseline today (`.claude/` holds only an untracked `worktrees` folder, checked 2026-10-15) | Done on `feature/agent-sandbox-followups`: `.claude/settings.json` denies reading `.env` files (not the tracked examples) and force-pushes, and asks before `gh pr merge`, `git reset --hard`, and `git clean`, each for both the `Bash` and `PowerShell` tools. The owner dropped a proposed prompt on every `git push`. `tests/scripts/test_claude_settings.py` pins the shape. |
 
 ## Part 3: owner decisions and repository settings (no code)
-- Decide whether to keep `dorny/paths-filter` in `ci.yml` and `security-checks.yml`: it is the one action not owned by
-  GitHub and is pinned by tag (`@v3`), which can move. Options: pin it to a commit SHA, replace it with a
-  `git diff --name-only` step as `pr-readiness.yml` already does for the frontend, or leave it.
+- `dorny/paths-filter` (the one action not owned by GitHub) is pinned to commit `0e4a8c6` (v3.0.4) in `ci.yml` and
+  `security-checks.yml`; Dependabot's monthly `github-actions` run proposes bumps. Replacing it with a
+  `git diff --name-only` step, as `pr-readiness.yml` does for the frontend, is still possible if it becomes a
+  burden.
 - Make `readiness` a required check on `develop` (a repository setting; only the owner can change it).
 - Promote `develop` to `main`. The weekly `npm audit` is red on `main` for `source-map-js`, already fixed on
   `develop`.
