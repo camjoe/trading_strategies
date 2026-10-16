@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from common.runtime_job_status import BROKER_ANOMALY_ACCOUNTS_KEY, DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS
+from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
+    DAILY_RUN_STATUS_FAILED,
+    DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
+)
 from tests.src.trading.interfaces.helpers import run_module_as_main
 
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
@@ -513,3 +518,50 @@ class TestBrokerAnomalyDays:
         entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
 
         assert [entry["status"] for entry in entries] == ["failed"]
+
+    def test_a_failure_at_the_trading_step_itself_keeps_the_day_failed(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step=FIRST_ORDER_STEP_ID)
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "ibkr"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_a_failure_outside_any_step_is_read_from_the_step_results(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130000",
+            DAILY_RUN_STATUS_FAILED,
+            failed_step=None,
+            step_results=[{"step": FIRST_ORDER_STEP_ID, "status": "ok"}],
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert entries[-1]["status"] == DAILY_RUN_STATUS_FAILED
+
+    def test_the_log_line_counts_anomaly_days(self, monkeypatch, tmp_path: Path, capsys) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        assert "anomaly_days=1" in capsys.readouterr().out
+
+    def test_the_first_order_step_id_is_a_dag_step_and_sorts_before_the_steps_after_it(self) -> None:
+        from trading.interfaces.runtime.jobs.daily.paper_trading.dag import DAILY_DAG_STEPS
+
+        step_ids = [step_id for step_id, _name in DAILY_DAG_STEPS]
+
+        assert step_ids == sorted(step_ids)
+        assert FIRST_ORDER_STEP_ID in step_ids

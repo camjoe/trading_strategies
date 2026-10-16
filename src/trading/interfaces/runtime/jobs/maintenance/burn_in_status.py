@@ -14,6 +14,7 @@ from common.runtime_job_status import (
     BURN_IN_STATUS_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
 )
 from trading.interfaces.runtime.jobs.job_helpers import write_artifact
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
@@ -24,8 +25,6 @@ COMPLETE_SENTINEL = BURN_IN_STATUS_COMPLETE_SENTINEL
 ACCOUNT_STATUS_KILL_SWITCH = "kill_switch"
 # A run that succeeded but recorded a broker API anomaly: not a clean day.
 RUN_STATUS_BROKER_ANOMALY = "broker_anomaly"
-# First step that sends orders: a run that failed here or later may have traded.
-FIRST_ORDER_STEP_ID = "05_build_position_targets_by_book"
 KILL_SWITCH_ACCOUNTS_KEY = "kill_switch_accounts"
 ACCOUNT_STATUS_NOT_TRADED = "not_traded"
 
@@ -77,13 +76,19 @@ def _load_artifact(artifact_path: Path) -> dict[str, object]:
 
 
 def _failed_after_orders_may_have_gone_out(artifact: dict[str, object]) -> bool:
-    """A failed run whose failed step is the trading step or later, so a later catch-up cannot make the day clean."""
+    """A failed run that reached the trading step, so a later catch-up cannot make the day clean.
+
+    Read from the artifact's step results; an artifact without them falls back to its ``failed_step``.
+    """
+    if artifact.get("status") != DAILY_RUN_STATUS_FAILED:
+        return False
+    steps = artifact.get("step_results")
+    if isinstance(steps, list):
+        for step in steps:
+            if isinstance(step, dict) and step.get("step") == FIRST_ORDER_STEP_ID:
+                return step.get("status") in ("running", "ok", "failed")
     failed_step = artifact.get("failed_step")
-    return (
-        artifact.get("status") == DAILY_RUN_STATUS_FAILED
-        and isinstance(failed_step, str)
-        and failed_step >= FIRST_ORDER_STEP_ID
-    )
+    return isinstance(failed_step, str) and failed_step >= FIRST_ORDER_STEP_ID
 
 
 def account_entries(entries: list[dict[str, object]], account: str) -> list[dict[str, object]]:
@@ -252,7 +257,7 @@ def main(ctx: JobContext) -> int:
         f"/{ctx.args.min_consecutive_days} required, "
         f"failure_rate={metrics['failure_rate_pct']}% "
         f"(limit {ctx.args.max_failure_rate_pct}%), "
-        f"anomaly_days={sum(1 for entry in entries if entry.get('status') == RUN_STATUS_BROKER_ANOMALY)}, "
+        f"anomaly_days={sum(1 for entry in entries if entry.get(BROKER_ANOMALY_ACCOUNTS_KEY))}, "
         f"ready_for_live={metrics['ready_for_live']}"
     )
     ctx.log(summary)

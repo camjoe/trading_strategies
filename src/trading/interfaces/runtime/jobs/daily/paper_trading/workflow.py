@@ -22,6 +22,7 @@ from common.runtime_job_status import (
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
     BrokerSessionUnavailableError,
@@ -347,6 +348,12 @@ def _finish_run(
                 f". Broker API anomaly earlier on: {', '.join(broker_anomaly_accounts)}; orders may be in an "
                 "unknown state, so check the broker's open orders before any re-run"
             )
+        elif not isinstance(error, BrokerAnomalyError) and step_result(step_results, FIRST_ORDER_STEP_ID).status in (
+            "running",
+            "ok",
+            "failed",
+        ):
+            message += ". Orders may already have gone out; check the broker's open orders before any re-run"
     elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts:
         notes: list[str] = []
         if kill_switch_accounts:

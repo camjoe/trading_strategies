@@ -1025,6 +1025,7 @@ def test_anomalies_in_two_groups_fail_the_run(monkeypatch, tmp_path: Path, _runt
     assert notification["status"] == "fail"
     assert "Broker API anomaly on every account: acct_a, acct_b" in notification["message"]
     assert "check the broker's open orders before any re-run" in notification["message"]
+    assert "earlier" not in notification["message"].lower()
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_paper_trading",
         "daily_paper_trading_*.json",
@@ -1137,3 +1138,41 @@ def test_exit_2_with_an_anomaly_line_is_a_crash_not_a_contained_anomaly(
 
     assert code == 1
     assert _auto_trader_account_args(_runtime_harness) == ["acct_a"]
+
+
+def test_a_crash_with_no_anomaly_still_warns_that_orders_may_have_gone_out(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_b"] = (2, "Traceback ...")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert (
+        "Orders may already have gone out; check the broker's open orders before any re-run"
+        in (notification["message"])
+    )
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload[BROKER_ANOMALY_ACCOUNTS_KEY] == []
+
+
+def test_a_failure_before_the_trading_step_gives_no_orders_warning(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.fail_labels.add("Pre-trade reconcile fills")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert "Orders may already have gone out" not in notification["message"]
