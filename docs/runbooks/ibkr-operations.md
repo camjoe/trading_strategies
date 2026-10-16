@@ -194,6 +194,8 @@ best-effort: a delivery failure prints to stderr and never fails the job. See
 | Any later daily step fails | Log `ERROR:` line; artifact `failed`, with the failed step | `fail`, event `daily-paper-trading` |
 | A kill switch is on | Run completes; artifact lists `kill_switch_accounts` | `warn`, event `daily-paper-trading` |
 | Daily health check finds the latest log stale or missing the success line | `[FAIL] ...` on its output | `fail`, event `daily-trader-health` |
+| Daily health check finds accounts with no equity snapshot for 2 weekdays (`warn`) or 5 (`fail`), or an account never snapshotted (`warn`) | `[WARN]` or `[FAIL]` line naming each account and its last snapshot date; `fail` also exits 1 | `warn` or `fail`, event `account-freshness`, one digest for all accounts |
+| The freshness check cannot run (database unreadable, a snapshot dated in the future or unreadable) | `[FAIL] Account freshness check could not run: <reason>`; exits 1 | `fail`, event `account-freshness` |
 | Run completes | Success line in the log | none, unless run with `--notify-on-success` |
 
 The keepalive alerts once per change, not once a minute. A start with the session already down alerts;

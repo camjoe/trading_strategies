@@ -194,16 +194,15 @@ not yet implemented.
 
 ## Health check
 
-The `check_daily_trader_health` job validates that a recent successful run artifact exists within the configured `--max-age-hours` window:
+The `check_daily_trader_health` job validates that a recent successful run artifact exists within the configured `--max-age-hours` window, then runs the account freshness check below:
 ```bash
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```
 
 ## Account freshness
 
-Developer reference; there is nothing for an operator to run yet.
-`evaluate_account_freshness` in `src/trading/services/operations/account_freshness.py` is a read-only
-check for an account that has stopped being snapshotted, whatever the cause (skipped, never reached,
+The health check runs `check_account_freshness` (`src/trading/services/operations/account_freshness.py`), a
+read-only check for an account that has stopped being snapshotted, whatever the cause (skipped, never reached,
 aborted, or dropped by a typo). Every daily run snapshots each account it handles, so an account's
 newest equity snapshot ages when the run stops reaching it.
 
@@ -211,7 +210,9 @@ newest equity snapshot ages when the run stops reaching it.
   date the caller passes. Market holidays count as weekdays.
 - Freshness is per account: the newest snapshot across all of the account's books counts, so an account
   with one active book and one stopped book reads as fresh.
-- Run it after the day's daily run, with `as_of` from `utc_today()` in `src/common/time.py`. Run earlier and
+- `--warn-after-weekdays` (default 2) and `--fail-after-weekdays` (default 5) set the thresholds. A `fail` makes the
+  health check exit 1; a `warn`, or an account never snapshotted, sends the digest and keeps the exit code.
+- It uses `as_of` from `utc_today()` in `src/common/time.py`. Schedule the health check after the daily run: run earlier and
   the weekday of `as_of` has no snapshot yet, so every account reads one weekday staler.
 - `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
   (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and

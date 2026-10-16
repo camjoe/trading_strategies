@@ -13,6 +13,8 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     check_daily_trader_health as module,
 )
 
+pytestmark = pytest.mark.usefixtures("fresh_accounts")
+
 
 def run_main(monkeypatch, argv: list[str]) -> int:
     monkeypatch.setattr(sys, "argv", ["check_daily_trader_health"] + argv)
@@ -157,8 +159,10 @@ def test_success_sends_notification_with_notify_on_ok(monkeypatch, job_root: Pat
     )
 
     assert code == 0
-    assert len(sent) == 1
-    assert sent[0]["status"] == "ok"
+    assert [(call["event"], call["status"]) for call in sent] == [
+        ("daily-trader-health", "ok"),
+        ("account-freshness", "ok"),
+    ]
 
 
 def test_read_error_returns_1(monkeypatch, job_root: Path, capsys) -> None:
