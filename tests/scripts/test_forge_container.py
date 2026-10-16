@@ -739,7 +739,7 @@ class TestAgentWithDocker:
         ).stdout
 
         assert flags and [flag for flag in flags if flag not in help_text] == []
-        assert container.PERMISSION_MODE in help_text and f'"{container.PERMISSION_PROMPTS}"' in help_text
+        assert "dontAsk" in help_text and '"none"' in help_text
 
     def test_the_host_can_delete_a_clone_the_container_made_a_venv_in(self, image: str, tmp_path: Path) -> None:
         clone = tmp_path / "clone"

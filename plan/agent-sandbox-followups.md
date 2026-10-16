@@ -36,14 +36,14 @@ red `readiness` check until it is merged. That is expected.
   (v3.0.4) in `ci.yml` and `security-checks.yml`; Dependabot's monthly `github-actions` run proposes bumps. Replacing
   it with a `git diff --name-only` step, as `pr-readiness.yml` does for the frontend, is possible if it becomes a
   burden.
+- Decided 2026-10-15: the host runner is deny-by-default too (`tools.DENY_BY_DEFAULT_OPTIONS`), like the container
+  and the CI reviewer. The first real pickup on the host shows whether the allow list needs to grow.
 - Open: `--agent-container` stays opt-in until three to five real plans have run with it; the owner then decides
   whether it becomes the default.
 - Open: before any scheduled or triggered run, reconsider the open network and the token in the agent container
   (see "What they do not isolate" in the reference doc).
 
 ## Not decided
-- Whether the host runner (no `--agent-container`) should also become deny-by-default. The reference doc
-  records that only the container agent is.
 - Whether the agent's allow list needs to grow if real plans need more commands; the first e2e run had one
   compound command denied and the agent worked around it.
 

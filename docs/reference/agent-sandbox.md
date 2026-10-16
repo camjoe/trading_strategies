@@ -42,9 +42,11 @@ that the token is set, so a missing Docker or token stops the run with nothing o
 - Docker's daemon is privileged. The Docker socket is never mounted into a container.
 - A container does not stop an agent from pushing harmful code that passes the guard and the review. The
   guarded-path list and the owner's review still carry that.
-- On the host runner the CLI is not deny-by-default: a command outside the allow list is not blocked there, only
-  the deny list is. The CI reviewer is deny-by-default (`--permission-mode dontAsk --permission-prompts none
-  --strict-mcp-config`).
+- A deny or allow rule matches the usual form of a command, not every spelling of it (`git -C . push` gets past a
+  `git push` rule). Deny-by-default makes that safe for the allow list, and the clone, the stripped environment,
+  and the guarded paths still stand behind it.
+- Claude Code runs its own set of read-only commands without approval even under `dontAsk` (`echo` and `ls` did in
+  a check on 2.1.299), so the allow list does not stop those.
 - A relative directory symlink made inside a container on a Windows bind mount cannot be read or deleted by
   Windows. The agent entrypoint removes the one `python -m venv` makes. The symlink tests run only on Linux.
 
@@ -123,10 +125,14 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   five real plans.
 - 2026-10-14: deny-by-default applies to the container agent only; the host runner and the CI reviewer are
   follow-ups.
+- 2026-10-15: the host runner is deny-by-default too, with the options the container uses (shared in `tools.py`),
+  so all three runners behave alike. On the host CLI 2.1.299 an unlisted `touch` was refused even without the
+  options, so for that version this makes the behavior explicit. The options keep it from depending on the CLI's
+  default, which an earlier check on 2.1.296 in the container found to let unlisted commands run.
 - 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
 - 2026-10-15: the CI reviewer runs deny-by-default and ignores a repository's MCP servers, like the container
   agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and the one action
-  not owned by GitHub, `dorny/paths-filter`, is pinned to a commit. The host runner is still a follow-up.
+  not owned by GitHub, `dorny/paths-filter`, is pinned to a commit.
 
 ## Verified, and not yet
 
@@ -141,4 +147,4 @@ tool where the control wrote the file; a `Write` into `.git/hooks` was refused e
 protected by default; and with `.claude/settings.json` in place `Read(.env)` was refused while
 `Read(.env.example)` worked, so the `!` carve-out behaves as the permissions page says.
 
-Follow-ups: letting the allow list grow if real plans need more commands, and deny-by-default for the host runner.
+Follow-up: letting the allow list grow if real plans need more commands.

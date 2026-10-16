@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from common.git import get_repo_root
+from scripts.forge import tools
 from scripts.forge.cli import build_parser
 from scripts.forge.service import review_context
 from tests.scripts.test_forge import StubForge
@@ -245,6 +246,13 @@ def test_the_review_agent_may_run_exactly_these_tools_and_the_claude_call_uses_t
     assert "--dangerously" not in run
     call = REVIEWER_CALL.search(run.replace("\\\n", " "))
     assert call and shlex.split(call.group(1)) == REVIEWER_FLAGS
+
+
+def test_the_reviewer_passes_the_same_deny_by_default_options_as_the_agent_runners() -> None:
+    options = list(tools.DENY_BY_DEFAULT_OPTIONS)
+    start = REVIEWER_FLAGS.index(options[0])
+
+    assert REVIEWER_FLAGS[start : start + len(options)] == options
 
 
 def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:

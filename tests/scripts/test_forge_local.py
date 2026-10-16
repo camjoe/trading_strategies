@@ -104,7 +104,7 @@ class TestEmailNotifier:
         assert "delivery failed" in capsys.readouterr().err
 
 
-class TestModelOption:
+class TestHostAgentCommand:
     def _command_for(self, monkeypatch: pytest.MonkeyPatch, **kwargs: object) -> list[str]:
         seen: list[list[str]] = []
 
@@ -116,10 +116,16 @@ class TestModelOption:
         local.run_claude_agent(TASK, **kwargs)  # type: ignore[arg-type]
         return next(command for command in seen if command[0] == "claude")
 
-    def test_mcp_servers_from_the_repository_are_never_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_it_denies_what_the_allow_list_leaves_out_instead_of_prompting_and_ignores_repository_mcp_servers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         command = self._command_for(monkeypatch)
+        options = list(tools.DENY_BY_DEFAULT_OPTIONS)
+        start = command.index(options[0])
 
-        assert "--strict-mcp-config" in command and "--mcp-config" not in command
+        assert command[start : start + len(options)] == options
+        assert "--mcp-config" not in command
+        assert "bypassPermissions" not in command and "--dangerously-skip-permissions" not in command
 
     def test_the_model_is_passed_to_claude(self, monkeypatch: pytest.MonkeyPatch) -> None:
         command = self._command_for(monkeypatch, model="sonnet")

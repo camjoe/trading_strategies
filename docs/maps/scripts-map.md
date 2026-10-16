@@ -67,7 +67,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, `read_agent_text` reads a file the agent wrote only when it is a plain file, and the no-exec git options and secret-name pattern live here |
 | `container.py` | Runs the gate (no network, no credentials) and the agent (open network, one Claude token) in Docker containers with only the clone mounted; builds the images from the owner's checkout through an injected Docker runner |
 | `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits, and `outgoing_text`, the added lines and messages the token scan reads), the headless `claude` runner with a scrubbed environment, the result reporting the container runner shares, the gate runner, and the email notifier |
-| `tools.py` | What an unattended agent may run: the allow and deny tool lists and the prompt note that names them, built from one set of constants |
+| `tools.py` | What an unattended agent may run: the allow and deny tool lists, the prompt note that names them, and the options that make the runners deny-by-default, built from one set of constants |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 

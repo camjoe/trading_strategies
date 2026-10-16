@@ -213,8 +213,8 @@ network and that token is the one credential inside it, so code the agent runs c
 if the agent echoes it.
 
 The image `trading-agent:<hash>` is the `agent` stage of the same Dockerfile. It is about 2 GB, builds on first use,
-and rebuilds when its Dockerfile, the gate requirements, or the pinned Claude Code version change. Inside the
-container a command outside the agent's allow list is denied; on the host it is not blocked.
+and rebuilds when its Dockerfile, the gate requirements, or the pinned Claude Code version change. A
+command outside the agent's allow list is denied, in the container and on the host.
 
 If a sandbox is left behind with "could not be deleted", the agent made a relative symlink to a directory on the
 Windows mount (the `lib64` link that `python -m venv` makes, for example), which Windows cannot read or delete. The

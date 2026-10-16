@@ -12,7 +12,7 @@ from typing import Any, Protocol
 from common.git import get_repo_root, git_output, split_nul
 from scripts.forge.base import ForgeError, printable
 from scripts.forge.sandbox import NO_EXEC_GIT, harden_clone, run_bounded, scrubbed, venv_python
-from scripts.forge.tools import ALLOWED_TOOLS, DENIED_TOOLS
+from scripts.forge.tools import ALLOWED_TOOLS, DENIED_TOOLS, DENY_BY_DEFAULT_OPTIONS
 
 AGENT_TIMEOUT_SECONDS = 3600
 GATE_TIMEOUT_SECONDS = 3600
@@ -202,7 +202,7 @@ def run_claude_agent(task: HasPrompt, model: str | None = None) -> None:
                     "-p",
                     "--output-format",
                     "json",
-                    "--strict-mcp-config",
+                    *DENY_BY_DEFAULT_OPTIONS,
                     "--allowedTools",
                     ALLOWED_TOOLS,
                     "--disallowedTools",
