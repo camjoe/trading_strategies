@@ -1026,6 +1026,7 @@ def test_anomalies_in_two_groups_fail_the_run(monkeypatch, tmp_path: Path, _runt
     assert "Broker API anomaly on every account: acct_a, acct_b" in notification["message"]
     assert "check the broker's open orders before any re-run" in notification["message"]
     assert "earlier" not in notification["message"].lower()
+    assert "Orders may already have gone out" not in notification["message"]
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_paper_trading",
         "daily_paper_trading_*.json",
