@@ -201,6 +201,7 @@ python -m trading.interfaces.runtime.jobs.daily.trader_health
 
 ## Account freshness
 
+Developer reference; there is nothing for an operator to run yet.
 `evaluate_account_freshness` in `src/trading/services/operations/account_freshness.py` is a read-only
 check for an account that has stopped being snapshotted, whatever the cause (skipped, never reached,
 aborted, or dropped by a typo). Every daily run snapshots each account it handles, so an account's
