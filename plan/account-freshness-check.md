@@ -27,9 +27,9 @@ so no new recording is needed.
   and carries `COMPLETE`.
 
 ## Scope: unguarded paths only
-New files:
-- `src/trading/services/operations/account_freshness.py`
-- `tests/src/trading/services/operations/test_account_freshness.py`
+New files, each in a directory that exists today:
+- the module `account_freshness.py` in `src/trading/services/operations/`
+- its test `test_account_freshness.py` in `tests/src/trading/services/operations/`
 
 Edited files: `docs/maps/trading-package-map.md` (a row for the module, beside `operations/job_status.py`; the
 maps check fails without it) and `docs/runbooks/runtime-operations.md` (a short section describing the service).
