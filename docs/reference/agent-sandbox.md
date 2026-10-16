@@ -135,4 +135,10 @@ the container with only the token; a deny-list session refuses every denied comm
 `implement-plan` runs with both containers completed on throwaway plans. Not yet verified by a real run on
 Linux or macOS (CI runs the Docker-backed tests on Linux).
 
+Checked on 2026-10-15 with the host CLI 2.1.299 (CI pins 2.1.296 and was not re-run) in a scratch repository
+with `--permission-mode dontAsk --permission-prompts none`: an `Edit(secrets/**)` deny rule refused the `Write`
+tool where the control wrote the file; a `Write` into `.git/hooks` was refused even with no rule, so `.git` is
+protected by default; and with `.claude/settings.json` in place `Read(.env)` was refused while
+`Read(.env.example)` worked, so the `!` carve-out behaves as the permissions page says.
+
 Follow-ups: letting the allow list grow if real plans need more commands, and deny-by-default for the host runner.

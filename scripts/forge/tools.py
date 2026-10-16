@@ -1,13 +1,11 @@
-"""What an unattended agent may run, and the prompt note that says so, built from one set of constants.
+"""The ``claude`` CLI tool rules for an unattended agent, and the prompt note that describes them.
 
-``ALLOWED_TOOLS`` and ``DENIED_TOOLS`` are the ``claude`` CLI's tool rules, as comma-separated lists.
-``RESTRICTED_SHELL`` is the note in the agent's prompt. Both come from the constants below, so a command added to
-or removed from one place changes the rules and the note together.
+``ALLOWED_TOOLS`` and ``DENIED_TOOLS`` are comma-separated rule lists for ``--allowedTools`` and
+``--disallowedTools``. ``RESTRICTED_SHELL`` names the same commands in the agent's prompt. All three are built from
+the constants below.
 """
 
-READ_TOOLS = ("Read", "Glob", "Grep")
 FILE_TOOLS = ("Write", "Edit")
-OTHER_TOOLS = ("Skill", "Agent")
 
 ALLOWED_GIT_VERBS = ("add", "commit", "rm", "mv", "status", "diff", "log", "show")
 DENIED_GIT_VERBS = ("push", "reset", "clean", "config", "update-ref", "checkout", "restore")
@@ -23,33 +21,22 @@ def _bash(rule: str) -> str:
     return f"Bash({rule}:*)"
 
 
-def _python_modules() -> list[str]:
-    """Each module an agent may start with ``python -m``: the checks, the forge commands, and pytest."""
-    return [*CHECK_MODULES, *(f"scripts.forge {command}" for command in FORGE_COMMANDS), "pytest"]
-
-
 def _and_list(items: list[str]) -> str:
     if len(items) < 3:
         return " and ".join(items)
     return ", ".join(items[:-1]) + ", and " + items[-1]
 
 
-def restricted_shell(
-    git_verbs: tuple[str, ...] = ALLOWED_GIT_VERBS,
-    shell_commands: tuple[str, ...] = SHELL_COMMANDS,
-    check_modules: tuple[str, ...] = CHECK_MODULES,
-    forge_commands: tuple[str, ...] = FORGE_COMMANDS,
-) -> str:
-    """The prompt note naming the tools and commands the agent has, in the words the agent needs to avoid a refusal."""
+def _restricted_shell() -> str:
     commands = [
-        f"`git {git_verbs[0]}`",
-        *(f"`{verb}`" for verb in git_verbs[1:]),
-        *(f"`{name}`" for name in shell_commands),
+        f"`git {ALLOWED_GIT_VERBS[0]}`",
+        *(f"`{verb}`" for verb in ALLOWED_GIT_VERBS[1:]),
+        *(f"`{name}`" for name in SHELL_COMMANDS),
     ]
     checks = [
         "pytest",
-        *(f"`{module.rsplit('.', 1)[-1]}`" for module in check_modules),
-        *(f"`forge {command}`" for command in forge_commands),
+        *(f"`{module.rsplit('.', 1)[-1]}`" for module in CHECK_MODULES),
+        *(f"`forge {command}`" for command in FORGE_COMMANDS),
     ]
     return (
         f"Your shell is restricted: create and edit files with the {' and '.join(FILE_TOOLS)} tools, and run only "
@@ -60,15 +47,23 @@ def restricted_shell(
 
 ALLOWED_TOOLS = ",".join(
     [
-        *READ_TOOLS,
+        "Read",
+        "Glob",
+        "Grep",
         *FILE_TOOLS,
-        *OTHER_TOOLS,
+        "Skill",
+        "Agent",
         *(_bash(f"git {verb}") for verb in ALLOWED_GIT_VERBS),
         *(_bash(executable) for executable in PYTEST_EXECUTABLES),
         *(_bash(command) for command in SHELL_COMMANDS),
-        *(_bash(f"{python} -m {module}") for python in PYTHONS for module in _python_modules()),
+        *(
+            _bash(f"{python} -m {module}")
+            for python in PYTHONS
+            for module in (*CHECK_MODULES, *(f"scripts.forge {command}" for command in FORGE_COMMANDS), "pytest")
+        ),
     ]
 )
+# Claude Code applies an Edit path rule to the Write tool as well and never checks a Write path rule.
 DENIED_TOOLS = ",".join(
     [
         *(_bash(f"git {verb}") for verb in DENIED_GIT_VERBS),
@@ -76,4 +71,4 @@ DENIED_TOOLS = ",".join(
         "Edit(.git/**)",
     ]
 )
-RESTRICTED_SHELL = restricted_shell()
+RESTRICTED_SHELL = _restricted_shell()

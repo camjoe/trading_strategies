@@ -5,8 +5,62 @@ from scripts.forge import tools
 # The verb in a `Bash(git <verb>:*)` tool rule.
 GIT_RULE = re.compile(r"Bash\(git (\w+):\*\)")
 
+EXPECTED_ALLOWED = [
+    "Read",
+    "Glob",
+    "Grep",
+    "Write",
+    "Edit",
+    "Skill",
+    "Agent",
+    "Bash(git add:*)",
+    "Bash(git commit:*)",
+    "Bash(git rm:*)",
+    "Bash(git mv:*)",
+    "Bash(git status:*)",
+    "Bash(git diff:*)",
+    "Bash(git log:*)",
+    "Bash(git show:*)",
+    "Bash(.venv/bin/pytest:*)",
+    "Bash(.venv/Scripts/pytest.exe:*)",
+    "Bash(ls:*)",
+    *(
+        f"Bash({python} -m {module}:*)"
+        for python in ("python", ".venv/bin/python", ".venv/Scripts/python.exe")
+        for module in (
+            "scripts.fix_checks",
+            "scripts.run_checks",
+            "scripts.checks.run_suite",
+            "scripts.forge check-body",
+            "pytest",
+        )
+    ),
+]
+EXPECTED_DENIED = [
+    "Bash(git push:*)",
+    "Bash(git reset:*)",
+    "Bash(git clean:*)",
+    "Bash(git config:*)",
+    "Bash(git update-ref:*)",
+    "Bash(git checkout:*)",
+    "Bash(git restore:*)",
+    "Bash(gh:*)",
+    "Edit(.git/**)",
+]
+
+EXPECTED_NOTE = (
+    "Your shell is restricted: create and edit files with the Write and Edit tools, and run only `git add`, `commit`, "
+    "`rm`, `mv`, `status`, `diff`, `log`, `show`, `ls`, and the repository's pytest, `fix_checks`, `run_checks`, "
+    "`run_suite`, and `forge check-body`. A refused command does not mean the shell is unusable: use a file tool or "
+    "one of those commands instead, and do not write a question for it."
+)
+
 
 class TestToolLimits:
+    def test_the_agent_may_use_exactly_these_tools(self) -> None:
+        assert tools.ALLOWED_TOOLS.split(",") == EXPECTED_ALLOWED
+        assert tools.DENIED_TOOLS.split(",") == EXPECTED_DENIED
+
     def test_the_agent_may_remove_and_move_files_through_git_and_still_may_not_reset_or_push(self) -> None:
         allowed = tools.ALLOWED_TOOLS.split(",")
         denied = tools.DENIED_TOOLS.split(",")
@@ -27,25 +81,21 @@ class TestToolLimits:
         for item in ("Edit(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
             assert item in denied
 
+    def test_the_edit_rule_alone_denies_writes_into_git(self) -> None:
+        """Claude Code applies an Edit path rule to the Write tool and never checks a Write path rule.
+
+        Checked on the CLI in `docs/reference/agent-sandbox.md`, so there is deliberately no `Write(.git/**)` entry.
+        """
+        assert "Write(.git/**)" not in tools.DENIED_TOOLS.split(",")
+
     def test_nothing_is_both_allowed_and_denied(self) -> None:
         assert not set(tools.ALLOWED_TOOLS.split(",")) & set(tools.DENIED_TOOLS.split(","))
 
-    def test_the_allow_list_is_built_from_the_constants_the_note_is_built_from(self) -> None:
-        allowed = set(tools.ALLOWED_TOOLS.split(","))
-        expected = {f"Bash(git {verb}:*)" for verb in tools.ALLOWED_GIT_VERBS}
-        expected |= {f"Bash({command}:*)" for command in tools.SHELL_COMMANDS}
-        expected |= {f"Bash({python} -m {module}:*)" for python in tools.PYTHONS for module in tools.CHECK_MODULES}
-        expected |= {
-            f"Bash({python} -m scripts.forge {command}:*)"
-            for python in tools.PYTHONS
-            for command in tools.FORGE_COMMANDS
-        }
-        expected |= set(tools.FILE_TOOLS)
-
-        assert expected <= allowed
-
 
 class TestRestrictedShellNote:
+    def test_it_reads_exactly_like_this(self) -> None:
+        assert tools.RESTRICTED_SHELL == EXPECTED_NOTE
+
     def test_it_names_every_command_the_allow_list_permits(self) -> None:
         note = tools.RESTRICTED_SHELL
         allowed_verbs = GIT_RULE.findall(tools.ALLOWED_TOOLS)
@@ -70,18 +120,7 @@ class TestRestrictedShellNote:
         assert denied_verbs
         assert not any(f"`{verb}`" in tools.RESTRICTED_SHELL for verb in denied_verbs)
 
-    def test_it_follows_its_inputs(self) -> None:
-        note = tools.restricted_shell(
-            git_verbs=("add", "blame"),
-            shell_commands=("ls", "cat"),
-            check_modules=("scripts.run_checks",),
-            forge_commands=(),
-        )
-
-        assert "`git add`, `blame`, `ls`, `cat`" in note
-        assert "pytest and `run_checks`" in note
-        assert "fix_checks" not in note and "check-body" not in note
-
-    def test_it_keeps_the_advice_that_a_refusal_does_not_mean_the_shell_is_broken(self) -> None:
-        assert "A refused command does not mean the shell is unusable" in tools.RESTRICTED_SHELL
-        assert "do not write a question" in tools.RESTRICTED_SHELL
+    def test_a_list_reads_naturally_with_one_two_or_three_items(self) -> None:
+        assert tools._and_list(["a"]) == "a"
+        assert tools._and_list(["a", "b"]) == "a and b"
+        assert tools._and_list(["a", "b", "c"]) == "a, b, and c"

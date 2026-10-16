@@ -366,12 +366,12 @@ class TestAgentCommand:
         assert {"GIT_AUTHOR_NAME=Ada", "GIT_COMMITTER_EMAIL=ada@example.test"} <= set(args)
 
     def test_claude_gets_the_same_tool_lists_as_on_the_host_and_the_model(self, root: Path, task: AgentTask) -> None:
-        from scripts.forge import local
+        from scripts.forge import tools
 
         args = self._args(root, task, model="sonnet")
 
-        assert args[args.index("--allowedTools") + 1] == local.ALLOWED_TOOLS
-        assert args[args.index("--disallowedTools") + 1] == local.DENIED_TOOLS
+        assert args[args.index("--allowedTools") + 1] == tools.ALLOWED_TOOLS
+        assert args[args.index("--disallowedTools") + 1] == tools.DENIED_TOOLS
         assert args[args.index("--model") + 1] == "sonnet"
         assert args[args.index("-p") - 1].startswith("trading-agent:")
 

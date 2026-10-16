@@ -1,5 +1,6 @@
 import json
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -29,8 +30,13 @@ PINNED_ALLOWED_TOOLS = [
     "Bash(cat:*)",
     "Bash(ls:*)",
 ]
-# The mode named after each `--permission-mode` in the reviewer's command.
-PERMISSION_MODE = re.compile(r"--permission-mode (\w+)")
+# The arguments of the reviewer's `claude -p` call, between the command and the stdin redirect.
+REVIEWER_CALL = re.compile(r"claude -p (.*?) <", re.DOTALL)
+REVIEWER_FLAGS = [
+    "--output-format", "stream-json", "--verbose",
+    "--permission-mode", "dontAsk", "--permission-prompts", "none", "--strict-mcp-config",
+    "--allowedTools", "$ALLOWED_TOOLS", "--disallowedTools", "$DENIED_TOOLS",
+]  # fmt: skip
 PINNED_DENIED_TOOLS = ["Bash(git push:*)", "Bash(gh:*)", "Monitor"]
 
 
@@ -235,11 +241,10 @@ def test_the_review_agent_may_run_exactly_these_tools_and_the_claude_call_uses_t
 
     assert sorted(allowed) == sorted(PINNED_ALLOWED_TOOLS)
     assert sorted(denied) == sorted(PINNED_DENIED_TOOLS)
-    assert '--allowedTools "$ALLOWED_TOOLS"' in run and '--disallowedTools "$DENIED_TOOLS"' in run
     assert '< "$PROMPT_FILE"' in run
     assert "--dangerously" not in run
-    assert PERMISSION_MODE.findall(run) == ["dontAsk"]
-    assert "--permission-prompts none" in run and "--strict-mcp-config" in run
+    call = REVIEWER_CALL.search(run.replace("\\\n", " "))
+    assert call and shlex.split(call.group(1)) == REVIEWER_FLAGS
 
 
 def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:

@@ -41,7 +41,11 @@ def test_ask_rules_for_git_and_gh_are_already_denied_to_unattended_agents() -> N
         assert any(f"Bash({prefix}:*)" in denied for prefix in prefixes), rule
 
 
-def test_env_files_are_unreadable_except_the_tracked_examples() -> None:
+def test_the_env_rules_come_before_the_example_carve_out() -> None:
+    """A `!` rule listed before the rules it carves from carves nothing out (the permissions page).
+
+    That `.env` is refused and `.env.example` is readable was checked on the CLI; see the reference doc.
+    """
     deny = _permissions()["deny"]
 
     assert "Read(.env)" in deny and "Read(.env.*)" in deny

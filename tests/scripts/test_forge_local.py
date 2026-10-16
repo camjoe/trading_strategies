@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge import local
+from scripts.forge import local, tools
 from scripts.forge.base import ForgeError
 from scripts.forge.fix_loop import RoundTask
 from trading.interfaces.runtime import notifications
@@ -69,8 +69,8 @@ class TestRunClaudeAgent:
             local.run_claude_agent(TASK)
 
     def test_the_agent_may_run_the_repo_test_runner_and_may_not_push(self) -> None:
-        assert "Bash(.venv/Scripts/pytest.exe:*)" in local.ALLOWED_TOOLS
-        assert "Bash(git push:*)" in local.DENIED_TOOLS
+        assert "Bash(.venv/Scripts/pytest.exe:*)" in tools.ALLOWED_TOOLS
+        assert "Bash(git push:*)" in tools.DENIED_TOOLS
 
 
 class TestEmailNotifier:
