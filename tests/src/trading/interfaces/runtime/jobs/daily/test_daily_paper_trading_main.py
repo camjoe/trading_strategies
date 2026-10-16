@@ -67,7 +67,7 @@ def _runtime_harness(monkeypatch, conn):
         accounts: list[str] = field(default_factory=lambda: ["acct_a"])
         stream_calls: list[tuple[str, list[str]]] = field(default_factory=list)
         stream_error: Exception | None = None
-        trade_results: dict[str, tuple[int, str]] = field(default_factory=dict)
+        trade_results: dict[str, tuple[int, str] | Exception] = field(default_factory=dict)
         notifications: list[dict[str, object]] = field(default_factory=list)
 
     state = RuntimeHarnessState()
@@ -88,7 +88,10 @@ def _runtime_harness(monkeypatch, conn):
         error = state.stream_error
         if error is not None:
             raise error
-        return state.trade_results.get(args[args.index("--accounts") + 1], (0, ""))
+        result = state.trade_results.get(args[args.index("--accounts") + 1], (0, ""))
+        if isinstance(result, Exception):
+            raise result
+        return result
 
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.stream_command", _stream)
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.run_command", _run)
@@ -974,6 +977,7 @@ def test_the_anomaly_alert_says_to_check_the_broker_and_gives_no_command(
     [notification] = _runtime_harness.notifications
     assert "Check the broker's open orders before you re-run them" in notification["message"]
     assert "--force-run" not in notification["message"]
+    assert "--account-trade-caps" not in notification["message"]
 
 
 def test_a_skipped_account_and_a_broker_anomaly_are_both_named_in_one_alert(
@@ -1018,6 +1022,26 @@ def test_anomalies_in_two_groups_fail_the_run(monkeypatch, tmp_path: Path, _runt
     assert notification["status"] == "fail"
     assert "Broker API anomaly on every account: acct_a, acct_b" in notification["message"]
     assert "check the broker's open orders before any re-run" in notification["message"]
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["status"] == "failed" and payload[BROKER_ANOMALY_ACCOUNTS_KEY] == ["acct_a", "acct_b"]
+
+
+def test_an_earlier_anomaly_is_named_when_a_later_group_raises_another_kind_of_error(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
+    _runtime_harness.trade_results["acct_b"] = OSError("could not launch the worker")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert "Earlier broker API anomaly on: acct_a" in notification["message"]
+    assert notification["details"][BROKER_ANOMALY_ACCOUNTS_KEY] == ["acct_a"]
 
 
 def test_an_earlier_anomaly_is_named_when_a_later_group_crashes(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

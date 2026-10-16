@@ -402,3 +402,61 @@ class TestBrokerAnomalyDays:
         data = _load_single_burn_in_artifact(tmp_path)
         assert data["consecutive_successes"] == 0
         assert data["ready_for_live"] is False
+
+    def test_a_catch_up_for_one_account_does_not_unseat_the_account_that_traded_cleanly(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130500",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["sim", "ibkr"],
+            **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]},
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr", "--min-consecutive-days", "10"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["sim"]["consecutive_successes"] == 10
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_an_anomaly_reads_as_an_anomaly_even_when_it_also_tripped_a_kill_switch(self) -> None:
+        entries = [
+            {
+                "date": "2026-05-20",
+                "status": "broker_anomaly",
+                "accounts": ["ibkr"],
+                "kill_switch_accounts": ["ibkr"],
+                BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"],
+            }
+        ]
+
+        assert _mod().account_entries(entries, "ibkr")[0]["status"] == "broker_anomaly"
+
+    def test_an_anomaly_in_an_earlier_artifact_survives_a_failed_latest_one(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 9)
+        _write_artifact(
+            export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert entries[-1]["status"] == DAILY_RUN_STATUS_FAILED
+        assert entries[-1][BROKER_ANOMALY_ACCOUNTS_KEY] == ["ibkr"]
+
+    def test_a_corrupt_or_non_object_artifact_counts_as_failed_without_crashing(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        (export_dir / "daily_paper_trading_20260519_120000.json").write_text("[]", encoding="utf-8")
+        (export_dir / "daily_paper_trading_20260520_120000.json").write_text("null", encoding="utf-8")
+        (export_dir / "daily_paper_trading_20260520_110000.json").write_text("{not json", encoding="utf-8")
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == ["failed", "failed"]

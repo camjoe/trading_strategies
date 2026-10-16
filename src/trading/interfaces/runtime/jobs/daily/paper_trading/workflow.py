@@ -378,7 +378,7 @@ def _finish_run(
             "account_count": len(context.accounts),
             "kill_switch_accounts": kill_switch_accounts,
             "skipped_accounts": skipped_accounts,
-            "broker_anomaly_accounts": broker_anomaly_accounts,
+            BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
@@ -523,7 +523,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                         args.fee,
                         args.seed,
                     )
-                except RuntimeError as exc:
+                except Exception as exc:
                     if broker_anomaly_accounts:
                         raise BrokerAnomalyError(
                             f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; orders "

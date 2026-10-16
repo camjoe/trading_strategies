@@ -22,6 +22,8 @@ JOB_NAME = "check_burn_in_status"
 COMPLETE_SENTINEL = BURN_IN_STATUS_COMPLETE_SENTINEL
 
 ACCOUNT_STATUS_KILL_SWITCH = "kill_switch"
+# A run that succeeded but recorded a broker API anomaly: not a clean day.
+RUN_STATUS_BROKER_ANOMALY = "broker_anomaly"
 ACCOUNT_STATUS_BROKER_ANOMALY = "broker_anomaly"
 ACCOUNT_STATUS_NOT_TRADED = "not_traded"
 
@@ -62,12 +64,13 @@ def _name_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
-def _anomaly_accounts_in(artifact_path: Path) -> list[str]:
+def _load_artifact(artifact_path: Path) -> dict[str, object]:
+    """The artifact's JSON object, or ``{}`` when it is unreadable, corrupt, or not an object."""
     try:
         data = json.loads(artifact_path.read_text(encoding="utf-8"))
     except OSError, json.JSONDecodeError:
-        return []
-    return _name_list(data.get(BROKER_ANOMALY_ACCOUNTS_KEY)) if isinstance(data, dict) else []
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def account_entries(entries: list[dict[str, object]], account: str) -> list[dict[str, object]]:
@@ -79,11 +82,11 @@ def account_entries(entries: list[dict[str, object]], account: str) -> list[dict
     judged: list[dict[str, object]] = []
     for entry in entries:
         status = entry.get("status")
-        if status in (DAILY_RUN_STATUS_SUCCESS, ACCOUNT_STATUS_BROKER_ANOMALY):
-            if account in _name_list(entry.get("kill_switch_accounts")):
-                status = ACCOUNT_STATUS_KILL_SWITCH
-            elif account in _name_list(entry.get(BROKER_ANOMALY_ACCOUNTS_KEY)):
+        if status in (DAILY_RUN_STATUS_SUCCESS, RUN_STATUS_BROKER_ANOMALY):
+            if account in _name_list(entry.get(BROKER_ANOMALY_ACCOUNTS_KEY)):
                 status = ACCOUNT_STATUS_BROKER_ANOMALY
+            elif account in _name_list(entry.get("kill_switch_accounts")):
+                status = ACCOUNT_STATUS_KILL_SWITCH
             elif account not in _name_list(entry.get("accounts")):
                 status = ACCOUNT_STATUS_NOT_TRADED
             else:
@@ -96,7 +99,9 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
     """Scan daily_paper_trading export artifacts within *window_days* of *today*.
 
     Returns a list of entry dicts sorted chronologically by date, one per
-    calendar date (the most-recent artifact for that date is selected).
+    calendar date. The most-recent artifact for a date sets its status; the accounts that
+    traded (from successful artifacts), the kill switches, and the broker API anomalies are
+    combined across every artifact of that date, so a catch-up run cannot erase them.
     """
     cutoff = today - dt.timedelta(days=window_days - 1)
 
@@ -120,18 +125,26 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
     for date_str, filenames in sorted(by_date.items()):
         # Use lexicographically latest filename (highest HHMMSS = most recent).
         chosen = sorted(filenames)[-1]
-        artifact_path = export_dir / chosen
-        try:
-            data = json.loads(artifact_path.read_text(encoding="utf-8"))
-        except OSError, json.JSONDecodeError:
-            data = {}
+        artifacts = [_load_artifact(export_dir / filename) for filename in sorted(filenames)]
+        data = artifacts[-1]
 
         status = data.get("status", DAILY_RUN_STATUS_FAILED)
         anomaly_accounts = sorted(
-            {name for filename in filenames for name in _anomaly_accounts_in(export_dir / filename)}
+            {name for item in artifacts for name in _name_list(item.get(BROKER_ANOMALY_ACCOUNTS_KEY))}
+        )
+        kill_switch_accounts = sorted(
+            {name for item in artifacts for name in _name_list(item.get("kill_switch_accounts"))}
+        )
+        traded_accounts = sorted(
+            {
+                name
+                for item in artifacts
+                if item.get("status") == DAILY_RUN_STATUS_SUCCESS
+                for name in _name_list(item.get("accounts"))
+            }
         )
         if status == DAILY_RUN_STATUS_SUCCESS and anomaly_accounts:
-            status = ACCOUNT_STATUS_BROKER_ANOMALY
+            status = RUN_STATUS_BROKER_ANOMALY
         entry: dict[str, object] = {
             "date": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}",
             "status": status,
@@ -139,8 +152,8 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
         }
         if "failed_step" in data:
             entry["failed_step"] = data["failed_step"]
-        entry["accounts"] = _name_list(data.get("accounts"))
-        entry["kill_switch_accounts"] = _name_list(data.get("kill_switch_accounts"))
+        entry["accounts"] = traded_accounts
+        entry["kill_switch_accounts"] = kill_switch_accounts
         entry[BROKER_ANOMALY_ACCOUNTS_KEY] = anomaly_accounts
         entries.append(entry)
 
@@ -222,6 +235,7 @@ def main(ctx: JobContext) -> int:
         f"/{ctx.args.min_consecutive_days} required, "
         f"failure_rate={metrics['failure_rate_pct']}% "
         f"(limit {ctx.args.max_failure_rate_pct}%), "
+        f"anomaly_days={sum(1 for entry in entries if entry.get('status') == RUN_STATUS_BROKER_ANOMALY)}, "
         f"ready_for_live={metrics['ready_for_live']}"
     )
     ctx.log(summary)
