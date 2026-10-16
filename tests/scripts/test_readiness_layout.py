@@ -6,6 +6,11 @@ from scripts.forge.readiness import body_problems, pass_number
 
 SKILL = Path(__file__).resolve().parents[2] / ".ai" / "skills" / "check-pr-readiness" / "SKILL.md"
 COLLAPSED_SECTION = re.compile(r"<details>.*?</details>", re.DOTALL)
+# The fenced layout under "Layout:" in Step 6 of the skill.
+SKILL_LAYOUT = re.compile(r"\nLayout:\n\n```markdown\n(.*?)\n```", re.DOTALL)
+# The lines that give a comment its structure: headings and the summaries of collapsed sections.
+STRUCTURE_LINE = re.compile(r"^(?:#{2,4} .*|<summary>.*</summary>)$", re.MULTILINE)
+COUNT = re.compile(r"<n>|\d+")
 
 SAMPLE = """<!-- pr-readiness -->
 ## PR readiness: NOT READY
@@ -66,16 +71,25 @@ def test_a_comment_in_the_layout_parses_for_the_fixer_loop_and_the_post_job() ->
     assert [finding.number for finding in unhandled_open_findings(SAMPLE)] == [1, 4, 6]
 
 
-def test_how_to_verify_is_outside_every_collapsed_section() -> None:
-    collapsed = "".join(COLLAPSED_SECTION.findall(SAMPLE))
+def _skill_layout() -> str:
+    match = SKILL_LAYOUT.search(SKILL.read_text(encoding="utf-8").replace("\r", ""))
+    assert match, "Step 6 of the skill no longer has a Layout block"
+    return match.group(1)
 
-    assert "### How to verify" in SAMPLE and "### How to verify" not in collapsed
+
+def _structure(comment: str) -> list[str]:
+    """The headings and summaries of *comment*, with every count normalized and the title's verdict left out."""
+    lines = [COUNT.sub("N", line) for line in STRUCTURE_LINE.findall(comment)]
+    return [line.split(":")[0] if line.startswith("## ") else line for line in lines]
 
 
-def test_the_skill_describes_the_layout_and_no_longer_asks_for_the_dropped_sections() -> None:
-    skill = SKILL.read_text(encoding="utf-8")
+def test_the_sample_has_the_same_structure_as_the_layout_in_the_skill() -> None:
+    assert _structure(SAMPLE) == _structure(_skill_layout())
 
-    for summary in ("<summary>🟡 Notes", "<summary>🧪 Tests", "<summary>✓ Closed", "<summary>Review details"):
-        assert summary in skill
-    assert skill.index("### How to verify") < skill.index("<summary>Review details")
-    assert "Pass history" not in skill and "Cleanup and obsolescence" not in skill and "| Step | Result |" not in skill
+
+def test_how_to_verify_is_outside_every_collapsed_section_of_the_skills_layout() -> None:
+    layout = _skill_layout()
+    collapsed = "".join(COLLAPSED_SECTION.findall(layout))
+
+    assert "### How to verify" in layout and "### How to verify" not in collapsed
+    assert layout.index("### How to verify") < layout.index("<summary>Review details")

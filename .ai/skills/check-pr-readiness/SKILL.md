@@ -91,7 +91,7 @@ Unattended in CI, run it as `.venv/bin/python -m scripts.checks.repo.review_scop
 
 It prints the reviewers the diff needs (none for a documentation-only diff). Run them in parallel
 following "For the orchestrator" in [lenses.md](../code-review/lenses.md): spawn, verify every
-finding, merge duplicates, assign severity, and add each defect's *Tests* line. Security-class
+finding, merge duplicates, assign severity, and name the test to add in each defect's fix hint. Security-class
 findings are routed to `/security-review` and never posted. Each reviewer is a separate fresh-context
 subagent; reading the diff yourself does not stand in for one, and an unattended session spawns them
 the same way.
@@ -186,12 +186,13 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 </details>
 ```
 
-A finding is one line, plus the fixer's `*Fix attempted*`, `*Not fixed*`, and `*Left*` lines and the
-owner's `*Decision*` line, each on its own indented line directly under it. The text after `→` is the
+A note or a test item is one line, and a blocker or concern up to three; the fixer's `*Fix attempted*`,
+`*Not fixed*`, and `*Left*` lines and the owner's `*Decision*` line each go on their own indented line
+directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
 diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
 the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
-CI is the backstop]`. A blocker or concern may run to three lines; a note or a test item takes one.
+CI is the backstop]`.
 
 A finding about the tests alone goes under Tests, titled `Gap:` (a missing case, a mutation that would survive,
 a weak assertion) or `Extra:` (two tests that repeat each other, a redundant or brittle test). It is a NOTE at
