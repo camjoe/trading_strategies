@@ -576,6 +576,11 @@ class TestFindingsParsing:
 
         assert open_counts(body) == {"blocker": 1, "concern": 0, "note": 1}
 
+    def test_the_tests_section_counts_as_open_notes(self) -> None:
+        body = "#### 🧪 Tests (2)\n- [ ] **1. Gap: a case.** Text.\n- [x] **2. Extra: a repeat.** Text.\n"
+
+        assert open_counts(body) == {"blocker": 0, "concern": 0, "note": 1}
+
     def test_an_unchecked_item_under_closed_is_not_open(self) -> None:
         assert open_counts("#### Closed\n- [ ] **1. Odd.** Text.\n") == {"blocker": 0, "concern": 0, "note": 0}
 

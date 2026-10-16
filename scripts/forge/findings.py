@@ -7,9 +7,9 @@ _TITLE = re.compile(r"^## PR readiness: (READY|NOT READY)\s*$")
 _ITEM = re.compile(r"^- \[( |x)\] \*\*(\d+)\.")
 _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
-_TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Closed)\W*(?:\(\d+\)\W*)?$")
+_TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Tests|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
-_TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Closed": "closed"}
+_TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Tests": "note", "Closed": "closed"}
 
 
 @dataclass(frozen=True)
@@ -43,8 +43,8 @@ def verdict(body: str) -> str | None:
 def parse_findings(body: str) -> list[Finding]:
     """Every numbered finding in *body*, in order, with the tier of the heading it sits under.
 
-    Only the four tier headings count; any other heading ends the current tier, so what follows it is
-    not treated as open.
+    Only the five tier headings count (Tests counts as notes); any other heading ends the current tier, so
+    what follows it is not treated as open.
     """
     findings: list[Finding] = []
     tier = "other"
