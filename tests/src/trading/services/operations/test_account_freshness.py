@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import datetime as dt
+import sqlite3
+
+import pytest
+
+from tests.support.books import build_book_env
+from tests.support.repositories import insert_repository_account
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.services.operations.account_freshness import (
+    AccountFreshness,
+    evaluate_account_freshness,
+    weekdays_since,
+)
+
+FRIDAY = dt.date(2026, 10, 16)
+NEXT_MONDAY = dt.date(2026, 10, 19)
+
+
+@pytest.mark.parametrize(
+    ("last", "as_of", "expected"),
+    [
+        (dt.date(2026, 10, 16), dt.date(2026, 10, 16), 0),  # Friday to the same Friday
+        (dt.date(2026, 10, 16), dt.date(2026, 10, 19), 1),  # Friday to Monday
+        (dt.date(2026, 10, 14), dt.date(2026, 10, 16), 2),  # Wednesday to Friday
+        (dt.date(2026, 10, 9), dt.date(2026, 10, 16), 5),  # Friday to the next Friday
+        (dt.date(2026, 10, 17), dt.date(2026, 10, 19), 1),  # Saturday to Monday
+        (dt.date(2026, 10, 15), dt.date(2026, 10, 18), 1),  # Thursday to Sunday: only Friday counts
+        (dt.date(2026, 10, 17), dt.date(2026, 10, 18), 0),  # Saturday to Sunday
+        (dt.date(2026, 10, 19), dt.date(2026, 10, 16), 0),  # last after as_of
+    ],
+)
+def test_weekdays_since(last: dt.date, as_of: dt.date, expected: int) -> None:
+    assert weekdays_since(last, as_of) == expected
+
+
+def _snapshot_account(conn: sqlite3.Connection, name: str, snapshot_date: str) -> None:
+    build_book_env(conn, account_name=name, snapshot_time=f"{snapshot_date}T13:59:00Z")
+
+
+def _evaluate(conn: sqlite3.Connection, **kwargs: object):
+    return evaluate_account_freshness(
+        AccountRepository(conn).fetch_all(),
+        EquitySnapshotRepository(conn),
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+def test_fresh_account_is_not_reported(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "fresh", "2026-10-16")
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert (report.warn, report.fail, report.never) == ([], [], [])
+
+
+def test_warn_and_fail_thresholds_are_inclusive(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "one_under_warn", "2026-10-15")  # 1 weekday
+    _snapshot_account(conn, "at_warn", "2026-10-14")  # 2 weekdays
+    _snapshot_account(conn, "one_under_fail", "2026-10-12")  # 4 weekdays
+    _snapshot_account(conn, "at_fail", "2026-10-09")  # 5 weekdays
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert [a.account_name for a in report.warn] == ["at_warn", "one_under_fail"]
+    assert [a.account_name for a in report.fail] == ["at_fail"]
+    assert report.never == []
+
+
+def test_report_carries_last_snapshot_date_and_staleness(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "stale", "2026-10-09")
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert report.fail == [AccountFreshness("stale", dt.date(2026, 10, 9), 5)]
+
+
+def test_weekend_gap_does_not_count(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "friday_run", "2026-10-16")
+    report = _evaluate(conn, as_of=NEXT_MONDAY)
+    assert (report.warn, report.fail, report.never) == ([], [], [])
+
+
+def test_account_without_snapshot_is_listed_as_never(conn: sqlite3.Connection) -> None:
+    insert_repository_account(conn, name="brand_new")
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert report.never == [AccountFreshness("brand_new", None, None)]
+    assert (report.warn, report.fail) == ([], [])
+
+
+def test_excluded_account_is_left_out_of_every_list(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "left_out_stale", "2026-10-02")
+    insert_repository_account(conn, name="left_out_new")
+    _snapshot_account(conn, "kept_stale", "2026-10-02")
+    report = _evaluate(conn, as_of=FRIDAY, exclude=("left_out_stale", "left_out_new"))
+    assert [a.account_name for a in report.fail] == ["kept_stale"]
+    assert (report.warn, report.never) == ([], [])
+
+
+def test_several_stale_accounts_each_appear_once(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "a_warn", "2026-10-14")
+    _snapshot_account(conn, "b_fail", "2026-10-01")
+    _snapshot_account(conn, "c_fail", "2026-10-05")
+    insert_repository_account(conn, name="d_never")
+    report = _evaluate(conn, as_of=FRIDAY)
+    assert [a.account_name for a in report.warn] == ["a_warn"]
+    assert [a.account_name for a in report.fail] == ["b_fail", "c_fail"]
+    assert [a.account_name for a in report.never] == ["d_never"]
+
+
+def test_custom_thresholds(conn: sqlite3.Connection) -> None:
+    _snapshot_account(conn, "two_stale", "2026-10-14")
+    report = _evaluate(conn, as_of=FRIDAY, warn_after=1, fail_after=2)
+    assert [a.account_name for a in report.fail] == ["two_stale"]

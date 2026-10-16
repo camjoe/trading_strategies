@@ -198,3 +198,18 @@ The `check_daily_trader_health` job validates that a recent successful run artif
 ```bash
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```
+
+## Account freshness
+
+`evaluate_account_freshness` in `src/trading/services/operations/account_freshness.py` is a read-only
+check for an account that has stopped being snapshotted, whatever the cause (skipped, never reached,
+aborted, or dropped by a typo). Every daily run snapshots each account it handles, so an account's
+newest equity snapshot ages when the run stops reaching it.
+
+- Staleness is the number of Monday-to-Friday dates after the snapshot's UTC date, up to the `as_of`
+  date the caller passes. Market holidays count as weekdays.
+- `warn` lists accounts stale for `warn_after` weekdays or more (default 2) but fewer than `fail_after`
+  (default 5); `fail` lists those at `fail_after` or more; `never` lists accounts with no snapshot yet and
+  is not a failure.
+- `exclude` names accounts left out on purpose, such as one omitted from the daily job's `--accounts`.
+- The health check does not call it yet.
